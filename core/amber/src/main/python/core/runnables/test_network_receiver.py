@@ -53,7 +53,6 @@ class TestNetworkReceiver:
             schema=to_arrow_schema({"Brand": "string", "Price": "integer"}),
         )
 
-
     @pytest.mark.timeout(2)
     def test_network_receiver_can_receive_data_messages(
         self,
@@ -61,7 +60,8 @@ class TestNetworkReceiver:
         output_queue,
         input_queue,
         network_receiver,
-        network_sender_thread,):
+        network_sender_thread,
+    ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
         input_queue.put(DataElement(tag=worker_id, payload=data_payload))
@@ -76,7 +76,8 @@ class TestNetworkReceiver:
         output_queue,
         input_queue,
         network_receiver,
-        network_sender_thread,):
+        network_sender_thread,
+    ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
         input_queue.put(DataElement(tag=worker_id, payload=EndOfUpstream()))
@@ -91,7 +92,8 @@ class TestNetworkReceiver:
         output_queue,
         input_queue,
         network_receiver,
-        network_sender_thread,):
+        network_sender_thread,
+    ):
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
         input_queue.put(ControlElement(tag=worker_id, payload=control_payload))

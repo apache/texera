@@ -46,6 +46,6 @@ class TestProxyServer:
         for name, result in procedure_contents.items():
             server.register(name, lambda: result)
             assert name in server._procedures
-            assert next(server.do_action(None, Action(name, b""))
-                ).body.to_pybytes()
-                   == str(result).encode("utf-8")
+            assert next(
+                server.do_action(None, Action(name, b""))
+            ).body.to_pybytes() == str(result).encode("utf-8")

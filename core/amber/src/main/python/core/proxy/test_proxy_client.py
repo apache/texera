@@ -46,7 +46,7 @@ class TestProxyClient:
         return Table.from_pandas(df_to_sent)
 
     def test_client_can_connect_to_server(self, server, client):
-        assert client.call_action("heartbeat") == b'ack'
+        assert client.call_action("heartbeat") == b"ack"
 
     def test_client_can_shutdown_server(self, server, client):
         assert client.call_action("shutdown") == b"Bye bye!"
