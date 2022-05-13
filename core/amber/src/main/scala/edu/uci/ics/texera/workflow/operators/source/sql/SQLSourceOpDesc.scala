@@ -157,8 +157,9 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
           case Types.BIT | // -7 Types.BIT
               Types.BOOLEAN => // 16 Types.BOOLEAN
             schemaBuilder.add(new Attribute(columnName, AttributeType.BOOLEAN))
-          case Types.BINARY | //-2 Types.BINARY
-              Types.DATE | //91 Types.DATE
+          case Types.BINARY => //-2 Types.BINARY
+            schemaBuilder.add(new Attribute(columnName, AttributeType.BINARY))
+          case Types.DATE | //91 Types.DATE
               Types.TIME | //92 Types.TIME
               Types.LONGVARCHAR | //-1 Types.LONGVARCHAR
               Types.CHAR | //1 Types.CHAR
