@@ -37,6 +37,12 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.time.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import java.time.Duration
+
+import edu.uci.ics.amber.engine.common.client.AmberClient
+import org.apache.commons.jcs3.access.exception.InvalidArgumentException
+
+import scala.annotation.tailrec
 
 object TexeraWebApplication {
 
@@ -60,9 +66,29 @@ object TexeraWebApplication {
 
   private var actorSystem: ActorSystem = _
 
+  type OptionMap = Map[Symbol, Any]
+  def parseArgs(args: Array[String]): OptionMap = {
+    @tailrec
+    def nextOption(map: OptionMap, list: List[String]): OptionMap = {
+      list match {
+        case Nil => map
+        case "--cluster" :: value :: tail =>
+          nextOption(map ++ Map('cluster -> value.toBoolean), tail)
+        case option :: tail =>
+          throw new InvalidArgumentException("unknown command-line arg")
+      }
+    }
+
+    nextOption(Map(), args.toList)
+  }
+
   def main(args: Array[String]): Unit = {
+    val argMap = parseArgs(args)
+
+    val clusterMode = argMap.get('cluster).asInstanceOf[Option[Boolean]].getOrElse(false)
+
     // start actor system master node
-    actorSystem = AmberUtils.startActorMaster(true)
+    actorSystem = AmberUtils.startActorMaster(clusterMode)
 
     // start web server
     new TexeraWebApplication().run(
