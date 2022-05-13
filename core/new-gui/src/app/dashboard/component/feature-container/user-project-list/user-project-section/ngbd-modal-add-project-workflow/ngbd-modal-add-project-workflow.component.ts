@@ -1,6 +1,7 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { Observable, forkJoin } from "rxjs";
+import { concatMap } from "rxjs/operators";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { DashboardWorkflowEntry } from "src/app/dashboard/type/dashboard-workflow-entry";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
@@ -13,12 +14,12 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
 })
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
-  @Input() addedWorkflows!: DashboardWorkflowEntry[];
   @Input() projectId!: number;
 
-  public unaddedWorkflows: DashboardWorkflowEntry[] = [];
-  public checkedWorkflows: boolean[] = [];
-  private addedWorkflowKeys: Set<number> = new Set<number>();
+  public unaddedWorkflows: DashboardWorkflowEntry[] = []; // tracks which workflows to display, the ones that have not yet been added to the project
+  public checkedWorkflows: boolean[] = []; // used to implement check boxes
+  private addedWorkflowKeys: Set<number> = new Set<number>(); // tracks which workflows to NOT display,  the workflow IDs of the workflows (if any) already inside the project
+  private addedWorkflows: DashboardWorkflowEntry[] = []; // for passing back to update the frontend cache, stores the new workflow list including newly added workflows
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -27,7 +28,6 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.addedWorkflows.forEach(workflowEntry => this.addedWorkflowKeys.add(workflowEntry.workflow.wid!)); // TODO : would force casting cause any issues?
     this.refreshProjectWorkflowEntries();
   }
 
@@ -49,7 +49,7 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
     // pass back data to update local cache after all changes propagated to backend
     forkJoin(observables)
       .pipe(untilDestroyed(this))
-      .subscribe(response => {
+      .subscribe(_ => {
         this.activeModal.close(this.addedWorkflows);
       });
   }
@@ -67,9 +67,15 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   }
 
   private refreshProjectWorkflowEntries(): void {
-    this.workflowPersistService
-      .retrieveWorkflowsBySessionUser()
-      .pipe(untilDestroyed(this))
+    this.userProjectService
+      .retrieveWorkflowsOfProject(this.projectId)
+      .pipe(
+        concatMap((dashboardWorkflowEntries: DashboardWorkflowEntry[]) => {
+          dashboardWorkflowEntries.forEach(workflowEntry => this.addedWorkflowKeys.add(workflowEntry.workflow.wid!));
+          return this.workflowPersistService.retrieveWorkflowsBySessionUser();
+        }),
+        untilDestroyed(this)
+      )
       .subscribe(dashboardWorkflowEntries => {
         this.unaddedWorkflows = dashboardWorkflowEntries.filter(
           workflowEntry =>

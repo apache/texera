@@ -7,6 +7,13 @@
 
 <div class="modal-body">
   <table class="table">
+    <colgroup>
+      <col span="1" id="checkbox-col" />
+      <col span="1" id="id-col" />
+      <col span="1" id="name-col" />
+      <col span="2" id="time-col" />
+    </colgroup>
+
     <thead>
       <tr>
         <th><input type="checkbox" [checked]="isAllChecked()" (change)="changeAll()" /></th>

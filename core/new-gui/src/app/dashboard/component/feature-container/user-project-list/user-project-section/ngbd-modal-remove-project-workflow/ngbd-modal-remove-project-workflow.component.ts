@@ -12,15 +12,15 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./ngbd-modal-remove-project-workflow.component.scss"],
 })
 export class NgbdModalRemoveProjectWorkflowComponent implements OnInit {
-  @Input() addedWorkflows!: DashboardWorkflowEntry[];
   @Input() projectId!: number;
 
-  public checkedWorkflows: boolean[] = [];
+  public checkedWorkflows: boolean[] = []; // used to implement check boxes
+  public addedWorkflows: DashboardWorkflowEntry[] = []; // for passing back to update the frontend cache, stores the new workflow list with selected ones removed
 
   constructor(public activeModal: NgbActiveModal, private userProjectService: UserProjectService) {}
 
   ngOnInit(): void {
-    this.checkedWorkflows = new Array(this.addedWorkflows.length).fill(false);
+    this.refreshProjectWorkflowEntries();
   }
 
   public submitForm() {
@@ -37,7 +37,7 @@ export class NgbdModalRemoveProjectWorkflowComponent implements OnInit {
 
     forkJoin(observables)
       .pipe(untilDestroyed(this))
-      .subscribe(response => {
+      .subscribe(_ => {
         this.activeModal.close(this.addedWorkflows);
       });
   }
@@ -52,5 +52,15 @@ export class NgbdModalRemoveProjectWorkflowComponent implements OnInit {
     } else {
       this.checkedWorkflows.fill(true);
     }
+  }
+
+  private refreshProjectWorkflowEntries(): void {
+    this.userProjectService
+      .retrieveWorkflowsOfProject(this.projectId)
+      .pipe(untilDestroyed(this))
+      .subscribe(dashboardWorkflowEntries => {
+        this.addedWorkflows = dashboardWorkflowEntries;
+        this.checkedWorkflows = new Array(this.addedWorkflows.length).fill(false);
+      });
   }
 }

@@ -18,6 +18,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { concatMap, catchError } from "rxjs/operators";
+import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 
 /**
@@ -47,6 +49,7 @@ export class NavigationComponent implements OnInit {
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
 
+  @Input() private pid: number = 0;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
@@ -90,6 +93,7 @@ export class NavigationComponent implements OnInit {
     public workflowResultExportService: WorkflowResultExportService,
     public workflowCollabService: WorkflowCollabService,
     public workflowUtilService: WorkflowUtilService,
+    private userProjectService: UserProjectService,
     public changeDetectionRef: ChangeDetectorRef
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
@@ -391,19 +395,43 @@ export class NavigationComponent implements OnInit {
   public persistWorkflow(): void {
     if (this.workflowCollabService.isLockGranted()) {
       this.isSaving = true;
-      this.workflowPersistService
-        .persistWorkflow(this.workflowActionService.getWorkflow())
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          (updatedWorkflow: Workflow) => {
-            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            this.isSaving = false;
-          },
-          (error: unknown) => {
-            alert(error);
-            this.isSaving = false;
-          }
-        );
+      if (this.pid === 0) {
+        this.workflowPersistService
+          .persistWorkflow(this.workflowActionService.getWorkflow())
+          .pipe(untilDestroyed(this))
+          .subscribe(
+            (updatedWorkflow: Workflow) => {
+              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              this.isSaving = false;
+            },
+            (error: unknown) => {
+              alert(error);
+              this.isSaving = false;
+            }
+          );
+      } else {
+        // add workflow to project, backend will create new mapping if not already added
+        this.workflowPersistService
+          .persistWorkflow(this.workflowActionService.getWorkflow())
+          .pipe(
+            concatMap((updatedWorkflow: Workflow) => {
+              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              this.isSaving = false;
+              return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
+            }),
+            catchError((err: unknown) => {
+              throw err;
+            }),
+            untilDestroyed(this)
+          )
+          .subscribe(
+            () => {},
+            (error: unknown) => {
+              alert(error);
+              this.isSaving = false;
+            }
+          );
+      }
     }
   }
 

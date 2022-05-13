@@ -31,10 +31,12 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
   fileOfProjectDao,
   userProjectDao,
-  workflowOfProjectDao
+  workflowOfProjectDao,
+  workflowOfProjectExists
 }
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
+
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
@@ -59,6 +61,14 @@ object ProjectResource {
   final private val userProjectDao = new UserProjectDao(context.configuration)
   final private val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private val fileOfProjectDao = new FileOfProjectDao(context.configuration)
+
+  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+    workflowOfProjectDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
+        .values(wid, pid)
+    )
+  }
 
   /**
     * This method is used to insert any CSV files created from ResultExportService
@@ -291,7 +301,9 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger
   ): Unit = {
-    workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
+    if (!workflowOfProjectExists(wid, pid)) {
+      workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
+    }
   }
 
   /**
