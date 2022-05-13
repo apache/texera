@@ -89,7 +89,8 @@ class WorkflowService(
   val stateStore = new WorkflowStateStore()
   val resultService: JobResultService =
     new JobResultService(opResultStorage, stateStore)
-  val exportService: ResultExportService = new ResultExportService(opResultStorage)
+  val exportService: ResultExportService =
+    new ResultExportService(opResultStorage, UInteger.valueOf(wId))
   val operatorCache: WorkflowCacheService =
     new WorkflowCacheService(opResultStorage, stateStore, wsInput)
   var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
