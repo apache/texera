@@ -2,8 +2,11 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import edu.uci.ics.texera.workflow.common.WorkflowContext;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
@@ -20,6 +23,11 @@ public class FilterPredicate {
     @JsonProperty(value = "condition", required = true)
     public ComparisonType condition;
 
+    @JsonSchemaInject(strings = {
+            @JsonSchemaString(path = HideAnnotation.hideTarget, value = "condition"),
+            @JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
+            @JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "is null|is not null")
+    })
     @JsonProperty(value = "value")
     public String value;
 

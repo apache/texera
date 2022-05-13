@@ -7,7 +7,7 @@ import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { cloneDeep, isEqual } from "lodash-es";
-import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { CustomJSONSchema7, HideType, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
@@ -17,6 +17,7 @@ import {
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
   createOutputFormChangeEventStream,
+  createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
@@ -330,6 +331,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField: FormlyFieldConfig,
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
+      // conditionally hide the field according to the schema
+      if (
+        isDefined(mapSource.hideExpectedValue) &&
+        isDefined(mapSource.hideTarget) &&
+        isDefined(mapSource.hideType) &&
+        hideTypes.includes(mapSource.hideType)
+      ) {
+        mappedField.hideExpression = createShouldHideFieldFunc(
+          mapSource.hideTarget,
+          mapSource.hideType,
+          mapSource.hideExpectedValue
+        );
+      }
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
