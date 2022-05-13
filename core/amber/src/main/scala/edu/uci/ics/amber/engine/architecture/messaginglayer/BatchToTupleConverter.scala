@@ -50,7 +50,7 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     dataPayload match {
       case DataFrame(payload) =>
         payload.foreach { i =>
-          workerInternalQueue.appendElement(InputTuple(i))
+          workerInternalQueue.appendElement(InputTuple(from, i))
         }
       case EndOfUpstream() =>
         upstreamMap(link).remove(from)

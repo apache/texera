@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonPrintHandler.PythonPrint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
@@ -25,7 +26,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-
 import scala.collection.JavaConverters._
 
 object ControlCommandConvertUtils {
@@ -81,6 +81,7 @@ object ControlCommandConvertUtils {
         LocalOperatorException(null, new RuntimeException(message))
       case PythonPrintV2(message) =>
         PythonPrint(message)
+      case LinkCompletedV2(link) => LinkCompleted(link)
       case _ =>
         throw new UnsupportedOperationException(
           s"V2 controlCommand $controlCommand cannot be converted to V1"

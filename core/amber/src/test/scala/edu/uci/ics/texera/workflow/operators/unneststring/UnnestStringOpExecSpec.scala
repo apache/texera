@@ -31,7 +31,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.resultAttribute = "split"
     val outputSchema: Schema = opDesc.getOutputSchema(Array(tupleSchema))
     val operatorSchemaInfo: OperatorSchemaInfo =
-      OperatorSchemaInfo(Array(tupleSchema), outputSchema)
+      OperatorSchemaInfo(Array(tupleSchema), Array(outputSchema))
     opExec = new UnnestStringOpExec(opDesc, operatorSchemaInfo)
   }
 
