@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants, IOperatorExecutor}
-import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
+import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
@@ -253,13 +253,27 @@ class Workflow(
     val sender = from._2
     val receiver = to._2
     val receiverOpExecConfig = to._1
-    if (receiverOpExecConfig.requiredShuffle) {
-      new HashBasedShuffle(
-        sender,
-        receiver,
-        Constants.defaultBatchSize,
-        receiverOpExecConfig.getPartitionColumnIndices(sender.id)
-      )
+    if (receiverOpExecConfig.requiresShuffle) {
+      if (receiverOpExecConfig.shuffleType == ShuffleType.HASH_BASED) {
+        new HashBasedShuffle(
+          sender,
+          receiver,
+          Constants.defaultBatchSize,
+          receiverOpExecConfig.getPartitionColumnIndices(sender.id)
+        )
+      } else if (receiverOpExecConfig.shuffleType == ShuffleType.RANGE_BASED) {
+        new RangeBasedShuffle(
+          sender,
+          receiver,
+          Constants.defaultBatchSize,
+          receiverOpExecConfig.getPartitionColumnIndices(sender.id),
+          receiverOpExecConfig.getRangeShuffleMinAndMax._1,
+          receiverOpExecConfig.getRangeShuffleMinAndMax._2
+        )
+      } else {
+        // unknown shuffle type. Default to full round-robin
+        new FullRoundRobin(sender, receiver, Constants.defaultBatchSize)
+      }
     } else if (receiverOpExecConfig.isInstanceOf[SinkOpExecConfig]) {
       new AllToOne(sender, receiver, Constants.defaultBatchSize)
     } else if (sender.numWorkers == receiver.numWorkers) {
