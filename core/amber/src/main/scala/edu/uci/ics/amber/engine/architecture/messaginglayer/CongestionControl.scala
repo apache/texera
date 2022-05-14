@@ -62,6 +62,9 @@ class CongestionControl {
     sentTime.remove(id)
   }
 
+  /**
+    * Gets an amount of messages allowed by congestion control windows and credit limit
+    */
   def getBufferedMessagesToSend(creditLimit: Int): Array[NetworkMessage] = {
     messageBuffer.clear()
     var dataBatchCreditsLeft = creditLimit
