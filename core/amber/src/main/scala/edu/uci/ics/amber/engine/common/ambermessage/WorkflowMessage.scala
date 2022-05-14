@@ -28,6 +28,7 @@ case class WorkflowDataMessage(
     msgType: WorkflowMessageType.Value = WorkflowMessageType.DATA_MESSAGE
 ) extends WorkflowMessage
 
+// sent from network communicator to next worker to poll for credit information
 case class CreditRequest(
     from: ActorVirtualIdentity,
     sequenceNumber: Long = -1,

@@ -150,7 +150,7 @@ class Controller(
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload, _)) =>
         controlInputPort.handleMessage(
           this.sender(),
-          Constants.unprocessedBatchesCreditLimitPerSender,
+          Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
           id,
           from,
           seqNum,
@@ -199,7 +199,7 @@ class Controller(
       //process reply messages
       controlInputPort.handleMessage(
         this.sender(),
-        Constants.unprocessedBatchesCreditLimitPerSender,
+        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
         id,
         from,
         seqNum,
@@ -209,7 +209,7 @@ class Controller(
       //process control messages from self
       controlInputPort.handleMessage(
         this.sender(),
-        Constants.unprocessedBatchesCreditLimitPerSender,
+        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
         id,
         CONTROLLER,
         seqNum,

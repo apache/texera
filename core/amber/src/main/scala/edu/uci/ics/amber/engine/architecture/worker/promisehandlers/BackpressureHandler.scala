@@ -16,7 +16,6 @@ trait BackpressureHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: Backpressure, _) =>
-    println(s"\t BACKPRESSURE received by ${dataProcessor.actorId} with ${msg.enableBackpressure}")
     if (msg.enableBackpressure) {
       dataProcessor.disableDataQueue()
       dataProcessor.backpressured = true

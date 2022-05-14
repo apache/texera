@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
-  CreditPolling,
+  CreditRequest,
   DataPayload,
   WorkflowControlMessage,
   WorkflowDataMessage
@@ -107,10 +107,8 @@ class WorkflowWorker(
             seqNum,
             payload
           )
-        case NetworkMessage(id, CreditPolling(from, _, _)) =>
+        case NetworkMessage(id, CreditRequest(from, _, _)) =>
           sender ! NetworkAck(id, tupleProducer.getSenderCredits(from))
-//        case CreditPolling(from, to) =>
-//          sender ! CreditAck(to, tupleProducer.getSenderCredits(from))
         case other =>
           throw new WorkflowRuntimeException(s"unhandled message: $other")
       }
