@@ -30,7 +30,7 @@ object WorkerInternalQueue {
   case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
 
   case class ControlElement(payload: ControlPayload, from: ActorVirtualIdentity)
-    extends InternalQueueElement
+      extends InternalQueueElement
 
   case object EndMarker extends InternalQueueElement
 
