@@ -64,15 +64,17 @@ trait WorkerInternalQueue {
   }
 
   def appendElement(elem: InternalQueueElement): Unit = {
-    elem match {
-      case InputTuple(from, _) =>
-        if (!inputToCredits.contains(from)) {
-          inputToCredits(from) =
-            Constants.pairWiseUnprocessedBatchesLimit * Constants.defaultBatchSize
-        }
-        inputToCredits(from) = inputToCredits(from) - 1
-      case _ =>
-      // do nothing
+    if (Constants.flowControlEnabled) {
+      elem match {
+        case InputTuple(from, _) =>
+          if (!inputToCredits.contains(from)) {
+            inputToCredits(from) =
+              Constants.pairWiseUnprocessedBatchesLimit * Constants.defaultBatchSize
+          }
+          inputToCredits(from) = inputToCredits(from) - 1
+        case _ =>
+        // do nothing
+      }
     }
     dataQueue.add(elem)
   }
@@ -83,16 +85,18 @@ trait WorkerInternalQueue {
 
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()
-    elem match {
-      case InputTuple(from, _) =>
-        if (!inputToCredits.contains(from)) {
-          throw new WorkflowRuntimeException(
-            s"Sender of tuple being dequeued is not registered for credits $from"
-          )
-        }
-        inputToCredits(from) = inputToCredits(from) + 1
-      case _ =>
-      // do nothing
+    if (Constants.flowControlEnabled) {
+      elem match {
+        case InputTuple(from, _) =>
+          if (!inputToCredits.contains(from)) {
+            throw new WorkflowRuntimeException(
+              s"Sender of tuple being dequeued is not registered for credits $from"
+            )
+          }
+          inputToCredits(from) = inputToCredits(from) + 1
+        case _ =>
+        // do nothing
+      }
     }
     elem
   }
