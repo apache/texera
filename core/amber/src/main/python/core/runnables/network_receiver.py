@@ -41,6 +41,7 @@ class NetworkReceiver(Runnable, Stoppable):
         # register the control handler to deserialize control messages.
         @logger.catch(reraise=True)
         def control_handler(message: bytes):
+            print("received", message)
             python_control_message = PythonControlMessage().parse(message)
             shared_queue.put(
                 ControlElement(
@@ -59,6 +60,7 @@ class NetworkReceiver(Runnable, Stoppable):
     @logger.catch(reraise=True)
     @overrides
     def run(self) -> None:
+        logger.debug("started running!!!")
         self._proxy_server.serve()
 
     @logger.catch(reraise=True)
