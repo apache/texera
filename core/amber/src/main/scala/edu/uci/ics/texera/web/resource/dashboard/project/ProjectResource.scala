@@ -7,6 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   FILE_OF_PROJECT,
   USER,
   USER_FILE_ACCESS,
+  USER_PROJECT,
   WORKFLOW,
   WORKFLOW_OF_PROJECT,
   WORKFLOW_OF_USER,
@@ -30,10 +31,12 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
   fileOfProjectDao,
   userProjectDao,
-  workflowOfProjectDao
+  workflowOfProjectDao,
+  workflowOfProjectExists
 }
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
+
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
@@ -48,7 +51,7 @@ import javax.annotation.security.PermitAll
 
 /**
   * This file handles various request related to projects.
-  * It sends mysql queries to the MysqlDB regarding the 'project',
+  * It sends mysql queries to the MysqlDB regarding the 'user_project',
   * 'workflow_of_project', and 'file_of_project' Tables
   * The details of these tables can be found in /core/scripts/sql/texera_ddl.sql
   */
@@ -58,6 +61,61 @@ object ProjectResource {
   final private val userProjectDao = new UserProjectDao(context.configuration)
   final private val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private val fileOfProjectDao = new FileOfProjectDao(context.configuration)
+
+  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+    workflowOfProjectDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
+        .values(wid, pid)
+    )
+  }
+
+  /**
+    * This method is used to insert any CSV files created from ResultExportService
+    * handleCSVRequest function into all project(s) that the workflow belongs to.
+    *
+    * No insertion occurs if the workflow does not belong to any projects.
+    *
+    * @param uid user ID
+    * @param wid workflow ID
+    * @param fileName name of exported file
+    * @return String containing status of adding exported file to project(s)
+    */
+  def addExportedFileToProject(uid: UInteger, wid: UInteger, fileName: String): String = {
+    // get map of PIDs and project names
+    val pidMap = context
+      .select(WORKFLOW_OF_PROJECT.PID, USER_PROJECT.NAME)
+      .from(WORKFLOW_OF_PROJECT)
+      .leftJoin(USER_PROJECT)
+      .on(WORKFLOW_OF_PROJECT.PID.eq(USER_PROJECT.PID))
+      .where(WORKFLOW_OF_PROJECT.WID.eq(wid))
+      .fetch()
+      .intoMap(WORKFLOW_OF_PROJECT.PID, USER_PROJECT.NAME)
+
+    if (pidMap.size() > 0) { // workflow belongs to project(s)
+      // get fid using fileName & cast to UInteger
+      val fid = context
+        .select(FILE.FID)
+        .from(FILE)
+        .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileName)))
+        .fetchOneInto(FILE)
+        .getFid
+
+      // add file to all projects this workflow belongs to
+      pidMap
+        .keySet()
+        .forEach((pid: UInteger) => fileOfProjectDao.insert(new FileOfProject(fid, pid)))
+
+      // generate string for ResultExportResponse
+      if (pidMap.size() == 1) {
+        s"and added to project: ${pidMap.values().toArray()(0)}"
+      } else {
+        s"and added to projects: ${pidMap.values().mkString(", ")}"
+      }
+    } else { // workflow does not belong to a project
+      ""
+    }
+  }
 }
 
 @Path("/project")
@@ -243,7 +301,9 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger
   ): Unit = {
-    workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
+    if (!workflowOfProjectExists(wid, pid)) {
+      workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
+    }
   }
 
   /**

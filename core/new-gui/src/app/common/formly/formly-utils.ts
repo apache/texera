@@ -4,6 +4,7 @@ import { SchemaAttribute } from "../../workspace/service/dynamic-schema/schema-p
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
+import { HideType } from "../../workspace/types/custom-json-schema.interface";
 
 export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[]): FormlyFieldConfig | undefined {
   return fields.filter((field, _, __) => field.key === fieldName)[0];
@@ -16,6 +17,34 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
       fieldToBeHidden.hideExpression = "!field.parent.model." + hiddenBy;
     }
   });
+}
+
+/* Factory function to make functions that hide expressions for a particular field */
+export function createShouldHideFieldFunc(hideTarget: string, hideType: HideType, hideExpectedValue: string) {
+  let shared_regex: RegExp | null = null;
+
+  const hideFunc = (model: any, formState: any, field?: FormlyFieldConfig | undefined) => {
+    if (model === null || model === undefined) {
+      console.debug("Formly main model not detected. Hiding will fail.");
+      return false;
+    }
+
+    let targetFieldValue: any = model[hideTarget];
+    if (targetFieldValue === null || targetFieldValue === undefined) {
+      console.debug("Formly model does not contain hide target. Formly does not know what to hide.");
+      return false;
+    }
+
+    switch (hideType) {
+      case "regex":
+        if (shared_regex === null) shared_regex = new RegExp(`^(${hideExpectedValue})$`);
+        return shared_regex.test(targetFieldValue);
+      case "equals":
+        return targetFieldValue.toString() === hideExpectedValue;
+    }
+  };
+
+  return hideFunc;
 }
 
 export function setChildTypeDependency(

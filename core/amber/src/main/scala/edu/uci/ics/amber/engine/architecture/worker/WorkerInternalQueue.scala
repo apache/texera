@@ -52,25 +52,28 @@ trait WorkerInternalQueue {
 
   private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
 
-  // the credits in the `inputToCredits` map are in tuples (not batches)
-  private var inputToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
+  // the values in below maps are in tuples (not batches)
+  private var inputTuplesPutInQueue =
+    new mutable.HashMap[ActorVirtualIdentity, Long]() // read and written by main thread
+  @volatile private var inputTuplesTakenOutOfQueue =
+    new mutable.HashMap[ActorVirtualIdentity, Long]() // written by DP thread, read by main thread
 
   def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    inputToCredits.getOrElseUpdate(
+    (Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize - (inputTuplesPutInQueue
+      .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
       sender,
-      Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize
-    ) / Constants.defaultBatchSize
+      0L
+    )).toInt) / Constants.defaultBatchSize
   }
 
   def appendElement(elem: InternalQueueElement): Unit = {
-    elem match {
-      case InputTuple(from, _) =>
-        inputToCredits(from) = inputToCredits.getOrElseUpdate(
-          from,
-          Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize
-        ) - 1
-      case _ =>
-      // do nothing
+    if (Constants.flowControlEnabled) {
+      elem match {
+        case InputTuple(from, _) =>
+          inputTuplesPutInQueue(from) = inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + 1
+        case _ =>
+        // do nothing
+      }
     }
     dataQueue.add(elem)
   }
@@ -81,16 +84,14 @@ trait WorkerInternalQueue {
 
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()
-    elem match {
-      case InputTuple(from, _) =>
-        if (!inputToCredits.contains(from)) {
-          throw new WorkflowRuntimeException(
-            s"Sender of tuple being dequeued is not registered for credits $from"
-          )
-        }
-        inputToCredits(from) = inputToCredits(from) + 1
-      case _ =>
-      // do nothing
+    if (Constants.flowControlEnabled) {
+      elem match {
+        case InputTuple(from, _) =>
+          inputTuplesTakenOutOfQueue(from) =
+            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + 1
+        case _ =>
+        // do nothing
+      }
     }
     elem
   }

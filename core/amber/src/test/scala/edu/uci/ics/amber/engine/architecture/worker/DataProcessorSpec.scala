@@ -263,6 +263,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   }
 
   "data processor" should "reduce credits" in {
+    Constants.flowControlEnabled = true
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val asyncRPCServer: AsyncRPCServer = null
