@@ -1678,6 +1678,5 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.gridOn = true;
         }
       });
-
   }
 }

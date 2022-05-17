@@ -126,7 +126,7 @@ export class JointGraphWrapper {
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<void> = new Subject<void>();
   // event stream to toggle the jointPaper grids on or off.
-  private jointPaperGridsToggleStream =  new Subject<void>();
+  private jointPaperGridsToggleStream = new Subject<void>();
 
   // event stream of showing the breakpoint button of a link
   private jointLinkBreakpointShowStream = new Subject<linkIDType>();

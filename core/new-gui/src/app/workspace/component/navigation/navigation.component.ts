@@ -243,9 +243,7 @@ export class NavigationComponent implements OnInit {
    * This option is only for the current session and will be cleared on refresh.
    */
   public onClickToggleGrids(): void {
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .toggleGrids();
+    this.workflowActionService.getJointGraphWrapper().toggleGrids();
   }
 
   /**
