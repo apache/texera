@@ -67,7 +67,7 @@ export class UserLoginModalComponent implements OnInit {
       .login(username, password)
       .pipe(untilDestroyed(this))
       .subscribe({
-        error: () => (this.loginErrorMessage = "Incorrect credentials")
+        error: () => (this.loginErrorMessage = "Incorrect credentials"),
       });
   }
 
@@ -99,7 +99,7 @@ export class UserLoginModalComponent implements OnInit {
       .register(registerUsername, registerPassword)
       .pipe(untilDestroyed(this))
       .subscribe({
-        error: () => (this.loginErrorMessage = "Incorrect credentials")
+        error: () => (this.loginErrorMessage = "Incorrect credentials"),
       });
   }
 
@@ -113,7 +113,7 @@ export class UserLoginModalComponent implements OnInit {
       .googleLogin()
       .pipe(untilDestroyed(this))
       .subscribe({
-        error: () => (this.loginErrorMessage = "Incorrect credentials")
+        error: () => (this.loginErrorMessage = "Incorrect credentials"),
       });
   }
 
@@ -126,8 +126,10 @@ export class UserLoginModalComponent implements OnInit {
       .userChanged()
       .pipe(filter(isDefined))
       .pipe(untilDestroyed(this))
-      .subscribe(Zone.current.wrap(() => {
-        this.modal.close();
-      }, ""));
+      .subscribe(
+        Zone.current.wrap(() => {
+          this.modal.close();
+        }, "")
+      );
   }
 }
