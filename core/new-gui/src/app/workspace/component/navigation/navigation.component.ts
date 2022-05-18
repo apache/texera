@@ -239,6 +239,14 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
+   * This method will flip the current status of whether to draw grids in jointPaper.
+   * This option is only for the current session and will be cleared on refresh.
+   */
+  public onClickToggleGrids(): void {
+    this.workflowActionService.getJointGraphWrapper().toggleGrids();
+  }
+
+  /**
    * This method will decrease the zoom ratio and send the new zoom ratio value
    *  to the joint graph wrapper to change overall zoom ratio that is used in
    *  zoom buttons and mouse wheel zoom.
