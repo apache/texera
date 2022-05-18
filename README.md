@@ -31,3 +31,5 @@ Texera UI showing a completed workflow, summarized metrics and results
 ## Acknowledgements ##
 
 This project is supported by the National Science Foundation under the awards [III 1745673](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1745673) and [III 2107150](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2107150).
+
+* <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project. 
