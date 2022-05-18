@@ -88,6 +88,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private paper: joint.dia.Paper | undefined;
   private interactive: boolean = true;
+  private gridOn: boolean = true;
 
   // private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
@@ -153,6 +154,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorPaste();
 
     this.handleLinkCursorHover();
+    this.handleGridsToggle();
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
     }
@@ -1656,5 +1658,25 @@ export class WorkflowEditorComponent implements AfterViewInit {
     event: joint.dia.Event
   ): boolean {
     return magnet && magnet.getAttribute("port-group") === "out";
+  }
+
+  /**
+   * This function handles the event stream from jointGraph to toggle the grids in jointPaper on or off.
+   * @private
+   */
+  private handleGridsToggle(): void {
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .getJointPaperGridsToggleStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.gridOn) {
+          this.getJointPaper().clearGrid();
+          this.gridOn = false;
+        } else {
+          this.getJointPaper().drawGrid();
+          this.gridOn = true;
+        }
+      });
   }
 }
