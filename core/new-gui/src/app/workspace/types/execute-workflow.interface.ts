@@ -10,8 +10,8 @@ import { OperatorCurrentTuples } from "./workflow-websocket.interface";
 
 export interface LogicalLink
   extends Readonly<{
-    origin: { operatorID: string; portOrdinal: number };
-    destination: { operatorID: string; portOrdinal: number };
+    origin: { operatorID: string; portOrdinal: number; portName: string };
+    destination: { operatorID: string; portOrdinal: number; portName: string };
   }> {}
 
 export interface LogicalOperator
