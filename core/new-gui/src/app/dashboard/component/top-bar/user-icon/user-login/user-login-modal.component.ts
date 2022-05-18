@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { isDefined } from "../../../../../common/util/predicate";
@@ -66,10 +66,9 @@ export class UserLoginModalComponent implements OnInit {
     this.userService
       .login(username, password)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.modal.close(),
-        () => (this.loginErrorMessage = "Incorrect credentials")
-      );
+      .subscribe({
+        error: () => (this.loginErrorMessage = "Incorrect credentials")
+      });
   }
 
   /**
@@ -99,10 +98,9 @@ export class UserLoginModalComponent implements OnInit {
     this.userService
       .register(registerUsername, registerPassword)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.modal.close(),
-        () => (this.registerErrorMessage = "Registration failed. Could due to duplicate username.")
-      );
+      .subscribe({
+        error: () => (this.loginErrorMessage = "Incorrect credentials")
+      });
   }
 
   /**
@@ -114,10 +112,9 @@ export class UserLoginModalComponent implements OnInit {
     this.userService
       .googleLogin()
       .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.modal.close(),
-        () => (this.loginErrorMessage = "Incorrect credentials")
-      );
+      .subscribe({
+        error: () => (this.loginErrorMessage = "Incorrect credentials")
+      });
   }
 
   /**
@@ -129,8 +126,8 @@ export class UserLoginModalComponent implements OnInit {
       .userChanged()
       .pipe(filter(isDefined))
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
+      .subscribe(Zone.current.wrap(() => {
         this.modal.close();
-      });
+      }, ""));
   }
 }
