@@ -23,11 +23,7 @@ class SortPartitionOpExec(
         tuplesToSort.append(t)
         Iterator()
       case Right(_) =>
-        println(s"\t\tThe tuples received are ${tuplesToSort.size}")
-        val x = tuplesToSort.sortWith(compareTuples)
-        println(s"${x(0).toString()}")
-        x.iterator
-
+        tuplesToSort.sortWith(compareTuples).iterator
     }
   }
 
