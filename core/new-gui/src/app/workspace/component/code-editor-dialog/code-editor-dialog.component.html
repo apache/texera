@@ -1,3 +1,6 @@
+<button mat-icon-button class="close-button" [mat-dialog-close]="true">
+  <mat-icon class="close-icon" color="white">close</mat-icon>
+</button>
 <h1 mat-dialog-title>Python Script</h1>
 <ngx-monaco-editor
   (ngModelChange)="onCodeChange($event)"
