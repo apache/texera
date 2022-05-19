@@ -117,6 +117,8 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorCacheTextClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
       <rect class="boundary"></rect>
+      <rect class="left-boundary"></rect>
+      <rect class="right-boundary"></rect>
       ${deleteButtonSVG}
     </g>`;
 }
@@ -774,6 +776,22 @@ export class JointUIService {
         height: this.DEFAULT_OPERATOR_HEIGHT + 20,
         ref: "rect.body",
         "ref-x": -10,
+        "ref-y": -10,
+      },
+      "rect.right-boundary": {
+        fill: "rgba(0, 0, 0, 0)",
+        width: 10,
+        height: this.DEFAULT_OPERATOR_HEIGHT + 20,
+        ref: "rect.body",
+        "ref-x": 65,
+        "ref-y": -10,
+      },
+      "rect.left-boundary": {
+        fill: "rgba(0, 0, 0, 0)",
+        width: 10,
+        height: this.DEFAULT_OPERATOR_HEIGHT + 20,
+        ref: "rect.body",
+        "ref-x": -15,
         "ref-y": -10,
       },
       ".texera-operator-name-background": {

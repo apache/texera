@@ -12,7 +12,7 @@ export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
 type WorkflowContentKeys = keyof WorkflowContent;
 type Element = Breakpoint | OperatorLink | OperatorPredicate | Point;
 type DifferentOpIDsList = {
-  [key in "modified" | "added"]: string[];
+  [key in "modified" | "added" | "deleted"]: string[];
 };
 
 // only element types specified in this list are consider when calculating the difference between workflows
@@ -29,7 +29,7 @@ const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
 export class WorkflowVersionService {
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
-  private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [] };
+  private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
   public operatorPropertyDiff: { [key: string]: string[] } = {};
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -82,25 +82,38 @@ export class WorkflowVersionService {
 
   public highlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
     for (var id of differentOpIDsList.modified) {
-      this.highlighOpBoundary(id, "255,118,20,0.5");
+      this.highlighOpBoundary(id, "255,118,20,0.5", "");
     }
     for (var id of differentOpIDsList.added) {
-      this.highlighOpBoundary(id, "75,255,20,0.5");
+      this.highlighOpBoundary(id, "0,255,0,0.5", "");
+    }
+    if (differentOpIDsList.deleted != []) {
+      var tempWorkflow = this.workflowActionService.getTempWorkflow();
+      if (tempWorkflow != undefined) {
+        for (var link of tempWorkflow.content.links) {
+          if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined){
+            this.highlighOpBoundary(link.target.operatorID, "255,0,0,0.5", "left-")
+          }
+          if (differentOpIDsList.deleted.includes(link.target.operatorID) && link.source.operatorID != undefined){
+            this.highlighOpBoundary(link.source.operatorID, "255,0,0,0.5", "right-")
+          }
+        }
+      }
     }
   }
 
-  public highlighOpBoundary(id: string, color: string) {
+  public highlighOpBoundary(id: string, color: string, position: string) {
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()
       ?.getModelById(id)
-      .attr("rect.boundary/fill", "rgba(" + color + ")");
+      .attr("rect." + position + "boundary/fill", "rgba(" + color + ")");
   }
 
   // TODO: the logic of the function will be refined later
   public getWorkflowsDifference(workflowContent1: WorkflowContent, workflowContent2: WorkflowContent) {
     this.operatorPropertyDiff = {};
-    var difference: DifferentOpIDsList = { added: [], modified: [] };
+    var difference: DifferentOpIDsList = { added: [], modified: [], deleted: [] };
     // get a list of element types that are changed between versions
     var eleTypeWithDiffList: WorkflowContentKeys[] = [];
     for (var eleType of ELEMENT_TYPES_IN_WORKFLOW_DIFF_CALC) {
@@ -140,6 +153,13 @@ export class WorkflowVersionService {
                 );
               }
             }
+          }
+        }
+
+        for (var eleID of Object.keys(eleIDtoContentMap1)) {
+          if (!Object.keys(eleIDtoContentMap2).includes(eleID)) {
+            // there is a deletion if the element ID exist in current but not historical workflow version
+            difference.deleted.push(eleID);
           }
         }
       }
@@ -189,12 +209,8 @@ export class WorkflowVersionService {
   }
 
   public unhighlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
-    var differentOpIDs: string[] = [];
-    for (var opIDs in Object.values(differentOpIDsList)) {
-      differentOpIDs.concat(opIDs);
-    }
-    for (var id of differentOpIDs) {
-      this.highlighOpBoundary(id, "0,0,0,0");
+    for (var id of differentOpIDsList.added.concat(differentOpIDsList.modified)) {
+      this.highlighOpBoundary(id, "0,0,0,0", "");
     }
     this.operatorPropertyDiff = {};
   }
