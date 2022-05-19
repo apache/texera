@@ -1,7 +1,5 @@
 <div *ngIf="!editingTitle" id="formly-title">
-  <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title" mat-subheader>
-    {{ formTitle }}
-  </h3>
+  <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title">{{ formTitle }}</h3>
   <button
     (click)="editingTitle=true"
     nz-button

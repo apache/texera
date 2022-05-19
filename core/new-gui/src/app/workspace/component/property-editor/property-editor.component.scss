@@ -13,13 +13,6 @@
   left: 30px;
 }
 
-.mat-icon-button {
-  width: 5%;
-  height: 10%;
-  line-height: 0%;
-  float: left;
-}
-
 .container {
   height: 100%;
   text-align: left;
@@ -66,57 +59,7 @@
     font-size: 8px;
   }
 
-  h3.mat-subheader {
-    font-size: 20px;
-  }
-
-  .mat-hint {
-    font-size: 10px;
-  }
-
   div.attribute-title {
     font-size: 16px;
   }
-
-  legend.ng-star-inserted,
-  .mat-button-wrapper {
-    font-size: 14px;
-  }
-
-  p.ng-star-inserted {
-    font-size: 10px;
-  }
-
-  .mat-form-field-subscript-wrapper {
-    height: 20px;
-  }
-
-  // TODO: try and edit the configurations below.
-
-  //.mat-form-field-infix ,.mat-form-field-wrapper,.mat-form-field,.mat-primary,.mat-form-field-type-mat-input{
-  //  width: 50px
-  //}
-  //.mat-form-field-wrapper {
-  //  height: 80px;
-  //}
-
-  //formly-field [class*="col-"], .mat-form-field-infix{
-  //  width: 50px
-  //}
-  //
-  //.mat-form-field-infix{
-  //  width: 50px
-  //}
-
-  //.mat-input-element{
-  //  width: 100px
-  //}
-
-  //.mat-list-item {
-  //  height: 80px;
-  //}
-
-  //.mat-form-field-wrapper{
-  //  height: 80px;
-  //}
 }
