@@ -82,32 +82,41 @@ export class WorkflowVersionService {
 
   public highlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
     for (var id of differentOpIDsList.modified) {
-      this.highlighOpBoundary(id, "255,118,20,0.5", "");
+      this.highlighOpBoundary(id, "255,118,20,0.5");
     }
     for (var id of differentOpIDsList.added) {
-      this.highlighOpBoundary(id, "0,255,0,0.5", "");
+      this.highlighOpBoundary(id, "0,255,0,0.5");
     }
     if (differentOpIDsList.deleted != []) {
       var tempWorkflow = this.workflowActionService.getTempWorkflow();
       if (tempWorkflow != undefined) {
         for (var link of tempWorkflow.content.links) {
-          if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined){
-            this.highlighOpBoundary(link.target.operatorID, "255,0,0,0.5", "left-")
+          if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined) {
+            this.highlightOpBracket(link.target.operatorID, "255,0,0,0.5", "left-");
           }
-          if (differentOpIDsList.deleted.includes(link.target.operatorID) && link.source.operatorID != undefined){
-            this.highlighOpBoundary(link.source.operatorID, "255,0,0,0.5", "right-")
+          if (differentOpIDsList.deleted.includes(link.target.operatorID) && link.source.operatorID != undefined) {
+            this.highlightOpBracket(link.source.operatorID, "255,0,0,0.5", "right-");
           }
         }
       }
     }
   }
 
-  public highlighOpBoundary(id: string, color: string, position: string) {
+  public highlighOpBoundary(id: string, color: string) {
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()
       ?.getModelById(id)
-      .attr("rect." + position + "boundary/fill", "rgba(" + color + ")");
+      .attr("rect.boundary/fill", "rgba(" + color + ")");
+  }
+
+  public highlightOpBracket(id: string, color: string, position: string) {
+    console.log(id);
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .getMainJointPaper()
+      ?.getModelById(id)
+      .attr("path." + position + "boundary/stroke", "rgba(" + color + ")");
   }
 
   // TODO: the logic of the function will be refined later
@@ -210,7 +219,7 @@ export class WorkflowVersionService {
 
   public unhighlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
     for (var id of differentOpIDsList.added.concat(differentOpIDsList.modified)) {
-      this.highlighOpBoundary(id, "0,0,0,0", "");
+      this.highlighOpBoundary(id, "0,0,0,0");
     }
     this.operatorPropertyDiff = {};
   }

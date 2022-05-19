@@ -351,6 +351,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mapSource.hideExpectedValue
         );
       }
+      mappedField.expressionProperties = {
+        // Highlight the field names with keys specified in property fieldNamesToHighlight.
+        className: _ => {
+          if (
+            mappedField !== null &&
+            typeof mappedField.key === "string" &&
+            fieldNamesToHighlight.includes(mappedField.key)
+          ) {
+            return "highlighted";
+          } else {
+            return "";
+          }
+        },
+      };
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
