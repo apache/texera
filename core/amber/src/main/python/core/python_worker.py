@@ -23,23 +23,17 @@ class PythonWorker(Runnable, Stoppable):
 
     @overrides
     def run(self) -> None:
-        network_receiver_thread = Thread(
-            target=self._network_receiver.run, name="network_receiver"
-        )
         network_sender_thread = Thread(
             target=self._network_sender.run, name="network_sender"
         )
         dp_thread = Thread(target=self._data_processor.run, name="dp_thread")
 
-        network_receiver_thread.start()
         network_sender_thread.start()
         dp_thread.start()
         dp_thread.join()
         network_sender_thread.join()
-        network_receiver_thread.join()
 
     @overrides
     def stop(self):
         self._data_processor.stop()
         self._network_sender.stop()
-        self._network_receiver.stop()

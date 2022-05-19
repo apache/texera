@@ -7,32 +7,31 @@ from .proxy_server import ProxyServer
 class TestProxyServer:
     @pytest.fixture()
     def server(self):
-        return ProxyServer()
+        server = ProxyServer()
+        yield server
+        server.shutdown()
 
     def test_server_can_register_control_actions_with_lambda(self, server):
-        with server:
-            assert "hello" not in server._procedures
-            server.register("hello", lambda: None)
-            assert "hello" in server._procedures
+        assert "hello" not in server._procedures
+        server.register("hello", lambda: None)
+        assert "hello" in server._procedures
 
     def test_server_can_register_control_actions_with_function(self, server):
         def hello():
             return None
 
-        with server:
-            assert "hello" not in server._procedures
-            server.register("hello", hello)
-            assert "hello" in server._procedures
+        assert "hello" not in server._procedures
+        server.register("hello", hello)
+        assert "hello" in server._procedures
 
     def test_server_can_register_control_actions_with_callable_class(self, server):
         class Hello:
             def __call__(self):
                 return None
 
-        with server:
-            assert "hello" not in server._procedures
-            server.register("hello", Hello())
-            assert "hello" in server._procedures
+        assert "hello" not in server._procedures
+        server.register("hello", Hello())
+        assert "hello" in server._procedures
 
     def test_server_can_invoke_registered_control_actions(self, server):
         procedure_contents = {
@@ -43,10 +42,10 @@ class TestProxyServer:
             "get a list": [5, (None, 123.4)],
             "get a dict": {"entry": [5, (None, 123.4)]},
         }
-        with server:
-            for name, result in procedure_contents.items():
-                server.register(name, lambda: result)
-                assert name in server._procedures
-                assert next(
-                    server.do_action(None, Action(name, b""))
-                ).body.to_pybytes() == str(result).encode("utf-8")
+
+        for name, result in procedure_contents.items():
+            server.register(name, lambda: result)
+            assert name in server._procedures
+            assert next(
+                server.do_action(None, Action(name, b""))
+            ).body.to_pybytes() == str(result).encode("utf-8")
