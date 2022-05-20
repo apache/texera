@@ -33,11 +33,18 @@ export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
   styleUrls: ["./user-project-section.component.scss"],
 })
 export class UserProjectSectionComponent implements OnInit {
-  private pid: number = 0;
+  // TODO : get rid of all these variables and just store a UserProject object, will handle together with future refactoring pR
+  public pid: number = 0;
   public name: string = "";
   public ownerID: number = 0;
   public creationTime: number = 0;
   public workflows: DashboardWorkflowEntry[] = [];
+
+  public color: string | null = null;
+  public inputColor: string = "#ffffff";        // needs to have a '#' in front, as it is used by ngx-color-picker
+  public colorIsBright: boolean = false;
+  public projectDataIsLoaded: boolean = false;
+  public colorPickerIsSelected: boolean = false;
 
   // ----- for workflow card
   public isEditingWorkflowName: number[] = [];
@@ -115,6 +122,12 @@ export class UserProjectSectionComponent implements OnInit {
         this.name = project.name;
         this.ownerID = project.ownerID;
         this.creationTime = project.creationTime;
+        if (project.color != null) {
+          this.color = project.color;
+          this.inputColor = "#" + project.color;
+          this.colorIsBright = this.userProjectService.isLightColor(project.color);
+        }
+        this.projectDataIsLoaded = true;
       });
   }
 
@@ -137,6 +150,47 @@ export class UserProjectSectionComponent implements OnInit {
 
   public jumpToWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
+  }
+
+  public toggleColorPicker() {
+    this.colorPickerIsSelected = !this.colorPickerIsSelected;
+  }
+
+  public updateProjectColor(color: string) {
+    color = color.substring(1);
+    this.colorPickerIsSelected = false;
+
+    if (this.userProjectService.isInvalidColorFormat(color)) {
+      this.notificationService.error('Cannot update project color. Color must be in valid HEX format');
+      return;
+    }
+
+    if (this.color === color) {
+      return;
+    }
+
+    this.userProjectService.updateProjectColor(this.pid, color).pipe(untilDestroyed(this)).subscribe({next: () => {
+      this.color = color;
+      this.colorIsBright = this.userProjectService.isLightColor(this.color);
+    }, 
+    error: (err: unknown) => {
+      // @ts-ignore
+      this.notificationService.error(err.error.message);
+    }});
+  }
+
+  public removeProjectColor() {
+    this.colorPickerIsSelected = false;
+
+    if (this.color == null) {
+      this.notificationService.error(`There is no color to delete for this project`);
+      return;
+    }
+
+    this.userProjectService.deleteProjectColor(this.pid).pipe(untilDestroyed(this)).subscribe(_ => {
+      this.color = null;
+      this.inputColor = "#ffffff";
+    });
   }
 
   // ----------------- for workflow card

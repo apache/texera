@@ -2,30 +2,13 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
-  DashboardWorkflowEntry,
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists, extractProjectIDs}
 import io.dropwizard.auth.Auth
+import org.jooq.impl.DSL.groupConcat
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
@@ -70,13 +53,21 @@ object WorkflowResource {
     )
   }
 
+  def extractProjectIDs(pidString: String): List[Int] = {
+    if (pidString != null) {
+      pidString.split(',').map(_.toInt).toList
+    } else {
+      List[Int]()
+    }
+  }
+
   case class DashboardWorkflowEntry(
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
-      workflow: Workflow
+      workflow: Workflow,
+      projectIDs: List[Int]
   )
-
 }
 
 @PermitAll
@@ -93,7 +84,7 @@ class WorkflowResource {
   @GET
   @Path("/list")
   def retrieveWorkflowsBySessionUser(
-      @Auth sessionUser: SessionUser
+    @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
     val workflowEntries = context
@@ -105,7 +96,8 @@ class WorkflowResource {
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME
+        USER.NAME,
+        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -114,7 +106,10 @@ class WorkflowResource {
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
     workflowEntries
       .map(workflowRecord =>
@@ -124,7 +119,8 @@ class WorkflowResource {
             workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
           ).toString,
           workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow])
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          extractProjectIDs(workflowRecord.component9())
         )
       )
       .toList
@@ -247,7 +243,8 @@ class WorkflowResource {
         isOwner = true,
         WorkflowAccess.WRITE.toString,
         user.getName,
-        workflowDao.fetchOneByWid(workflow.getWid)
+        workflowDao.fetchOneByWid(workflow.getWid),
+        List[Int]()
       )
     }
 

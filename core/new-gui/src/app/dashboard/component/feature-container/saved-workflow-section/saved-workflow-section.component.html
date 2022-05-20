@@ -36,7 +36,64 @@
   </nz-card>
 
   <nz-card class="workflow-list-container subsection-grid-container">
+    <div *ngIf="isSearchByProject" class="texera-dashboard-saved-workflow-project-box-select">
+      <i 
+        style="margin-right: 10px; align-self: center;" 
+        nz-icon 
+        nz-popover 
+        nzPopoverTitle="Filter Instructions" 
+        nzType="question-circle" 
+        nzTheme="outline"
+        [nzPopoverContent]="filterPopContent" 
+      ></i>
+      <button
+        style="align-self: center; margin-right: 0%;" 
+        nz-button
+        nz-tooltip="Switch to workflow search"
+        nzTooltipPlacement="bottom"
+        type="button"
+        (click)="toggleWorkflowSearchMode()"
+      >
+        <i nz-icon nzType="search" nzTheme="outline"></i>
+      </button>
+      <nz-select
+        style="width: 100%;"
+        nzMode="tags"
+        nzPlaceHolder="Filter by project(s)"
+        [nzMaxTagCount]="3" 
+        [nzMaxTagPlaceholder]="tagPlaceHolder"
+        [nzBorderless]="true"
+        [nzOpen]="true"
+        [(ngModel)]="projectFilterList"
+        (ngModelChange)="filterWorkflowsByProject()"
+      >
+        <nz-option-group nzLabel="Colored Projects">
+          <div *ngFor="let project of userProjectsList">
+            <nz-option *ngIf="project.color != null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+              <nz-tag [nzColor]="'#' + project.color" [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}">{{project.pid}}</nz-tag>
+              {{project.name}}
+            </nz-option>
+          </div>
+        </nz-option-group>
+        <nz-option-group nzLabel="Colorless Projects">
+          <div *ngFor="let project of userProjectsList">
+            <nz-option *ngIf="project.color == null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+              <nz-tag [nzColor]="'#595959'">{{project.pid}}</nz-tag>
+              {{project.name}}
+            </nz-option>
+          </div>
+        </nz-option-group>
+      </nz-select>
+      <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
+      <ng-template #filterPopContent>
+        To search for a workflow by project(s) it belongs to, click on the search bar to view and select the
+        appropriate projects.
+      </ng-template>
+    </div>
+
+    
     <nz-input-group
+      *ngIf="!isSearchByProject"
       [nzPrefix]="prefixPopoverButton"
       [nzSuffix]="suffixIconSearch"
       class="texera-dashboard-saved-workflow-search-box-input"
@@ -79,6 +136,15 @@
           nzType="question-circle"
           nzTheme="outline"
         ></i>
+        <button
+          (click)="toggleWorkflowSearchMode()"
+          nz-button
+          nz-tooltip="Filter workflows by project"
+          nzTooltipPlacement="bottom"
+          type="button"
+        >
+          <i nz-icon nzType="filter" nzTheme="outline"></i>
+        </button>
       </ng-template>
       <nz-autocomplete
         [nzDefaultActiveFirstOption]="false"
@@ -160,6 +226,34 @@
               </p>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
+
+          <div *ngIf="userProjectsLoaded" class="workflow-project-label-container">
+            <div *ngFor="let pid of dashboardWorkflowEntry.projectIDs" class="workflow-project-label">
+              <div 
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+                nz-tooltip="Go to project page"
+                nzTooltipPlacement="bottom"
+                id="left-div"
+                [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
+                [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
+                (click)="jumpToProject(userProjectsMap.get(pid)!)"
+              >
+                {{userProjectsMap.get(pid)!.name}}
+              </div>
+              <div
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+                nz-tooltip="Remove project color"
+                nzTooltipPlacement="bottom"
+                id="right-div"
+                [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
+                [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
+                (click)="removeWorkflowFromProject(pid, dashboardWorkflowEntry, indexOfElement)"
+              >
+                x
+              </div>
+            </div>
+          </div>
+
           <ul nz-list-item-actions>
             <nz-list-item-action>
               <button

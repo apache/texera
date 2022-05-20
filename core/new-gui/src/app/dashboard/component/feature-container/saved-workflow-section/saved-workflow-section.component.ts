@@ -13,9 +13,12 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import Fuse from "fuse.js";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
+import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
+import { UserProject } from "../../../type/user-project";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
+export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
 @Component({
@@ -49,8 +52,17 @@ export class SavedWorkflowSectionComponent implements OnInit {
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
+  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map();    // maps pid to its corresponding UserProject
+  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map();     // tracks whether each project's color is light or dark
+  public userProjectsLoaded: boolean = false;                              // tracks whether all UserProject information has been loaded (ready to render project colors)
+
+  public userProjectsList: ReadonlyArray<UserProject> = [];                // list of projects accessible by user
+  public projectFilterList: number[] = [];                                 // for filter by project mode, track which projects are selected
+  public isSearchByProject: boolean = false;                               // track searching mode user currently selects
+
   constructor(
     private userService: UserService,
+    private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
     private modalService: NgbModal,
@@ -255,6 +267,13 @@ export class SavedWorkflowSectionComponent implements OnInit {
     this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
   }
 
+  /**
+   * navigate to individual project page
+   */
+   public jumpToProject({ pid }: UserProject): void {
+    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
+  }
+
   private registerDashboardWorkflowEntriesRefresh(): void {
     this.userService
       .userChanged()
@@ -262,10 +281,73 @@ export class SavedWorkflowSectionComponent implements OnInit {
       .subscribe(() => {
         if (this.userService.isLogin()) {
           this.refreshDashboardWorkflowEntries();
+          this.refreshUserProjects();
         } else {
           this.clearDashboardWorkflowEntries();
         }
       });
+  }
+
+  /**
+   * Retrieves from the backend endpoint for projects all user projects
+   * that are accessible from the current user.  This is used for 
+   * the project color tags
+   */
+  private refreshUserProjects(): void {
+    this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this)).subscribe((userProjectList: UserProject[]) => {
+      if (userProjectList != null && userProjectList.length > 0) {
+        // map project ID to project object
+        this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+
+        // calculate whether project colors are light or dark
+        const projectColorBrightnessMap: Map<number, boolean> = new Map();
+        userProjectList.forEach(userProject => {
+          if (userProject.color != null) {
+            projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+          }
+        });
+        this.colorBrightnessMap = projectColorBrightnessMap;
+
+        // store the projects accessible by this user
+        this.userProjectsList = userProjectList;
+
+        this.userProjectsLoaded = true;
+      }
+    })
+  }
+
+  /**
+   * This is a search function that filters displayed workflows by
+   * the project(s) they belong to.  It is currently separated
+   * from the fuzzy search logic
+   */
+  public filterWorkflowsByProject() {
+    let newWorkflowEntries = this.allDashboardWorkflowEntries.slice();
+    this.projectFilterList.forEach(pid => newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.projectIDs.includes(pid)));
+    this.dashboardWorkflowEntries = newWorkflowEntries;
+  }
+
+  /**
+   * This is a helper function that toggles between the default
+   * workflow search bar and the filter by project search mode.
+   */
+  public toggleWorkflowSearchMode() {
+    this.isSearchByProject = !this.isSearchByProject;
+    if (this.isSearchByProject) {
+      this.filterWorkflowsByProject();
+    } else {
+      this.searchWorkflow();
+    }
+  }
+
+  public removeWorkflowFromProject(pid: number, dashboardWorkflowEntry: DashboardWorkflowEntry, index: number): void {
+    this.userProjectService.removeWorkflowFromProject(pid, dashboardWorkflowEntry.workflow.wid!).pipe(untilDestroyed(this)).subscribe(() => {
+      let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+      updatedDashboardWorkFlowEntry.projectIDs = dashboardWorkflowEntry.projectIDs.filter(projectID => projectID != pid);
+      const newEntries = this.dashboardWorkflowEntries.slice();
+      newEntries[index] = updatedDashboardWorkFlowEntry;
+      this.dashboardWorkflowEntries = newEntries;
+    });
   }
 
   private refreshDashboardWorkflowEntries(): void {

@@ -4,13 +4,9 @@ import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{
-  DashboardFileEntry,
-  context,
-  saveUserFileSafe
-}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{DashboardFileEntry, context, saveUserFileSafe}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -66,11 +62,21 @@ object UserFileResource {
     UserFileAccessResource.grantAccess(uid, fid, "write")
     fileNameStored
   }
+
+  def extractProjectIDsAsUInteger(pidString: String): List[UInteger] = {
+    if (pidString != null) {
+      pidString.split(',').map(s => UInteger.valueOf(s)).toList
+    } else {
+      List[UInteger]()
+    }
+  }
+
   case class DashboardFileEntry(
       ownerName: String,
       accessLevel: String,
       isOwner: Boolean,
-      file: File
+      file: File,
+      projectIDs: List[UInteger]
   )
 }
 
@@ -84,6 +90,7 @@ class UserFileResource {
     context.configuration
   )
   final private val userDao = new UserDao(context.configuration)
+  final private val fileOfProjectDao = new FileOfProjectDao(context.configuration)
 
   /**
     * This method will handle the request to upload a single file.
@@ -114,7 +121,7 @@ class UserFileResource {
   }
 
   /**
-    * This method returns a list fo all files accessible by the current user
+    * This method returns a list of all files accessible by the current user
     *
     * @return
     */
@@ -141,11 +148,15 @@ class UserFileResource {
         accessLevel = "None"
       }
       val ownerName = userDao.fetchOneByUid(file.getUid).getName
+      val projectIDs = fileOfProjectDao.fetchByFid(file.getFid).asScala.toList.map(fileOfProject => {
+        fileOfProject.getPid
+      })
       fileEntries += DashboardFileEntry(
         ownerName,
         accessLevel,
         ownerName == user.getName,
-        file
+        file,
+        projectIDs
       )
     })
     fileEntries.toList.asJava
