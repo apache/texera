@@ -97,7 +97,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
-      .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
     val fileName = s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.csv"
     val fileNameStored = UserFileResource.saveUserFileSafe(
       uid,
