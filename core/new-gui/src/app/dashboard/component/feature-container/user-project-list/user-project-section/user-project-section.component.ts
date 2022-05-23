@@ -24,12 +24,14 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   styleUrls: ["./user-project-section.component.scss"],
 })
 export class UserProjectSectionComponent implements OnInit {
+  // information from the database about this project
   public pid: number = 0;
   public name: string = "";
   public ownerID: number = 0;
   public creationTime: number = 0;
-
   public color: string | null = null;
+
+  // information for modifying project color
   public inputColor: string = "#ffffff"; // needs to have a '#' in front, as it is used by ngx-color-picker
   public colorIsBright: boolean = false;
   public projectDataIsLoaded: boolean = false;
@@ -143,6 +145,9 @@ export class UserProjectSectionComponent implements OnInit {
     this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
 
+  /**
+   * opens and closes color picker
+   */
   public toggleColorPicker() {
     this.colorPickerIsSelected = !this.colorPickerIsSelected;
   }
@@ -194,6 +199,7 @@ export class UserProjectSectionComponent implements OnInit {
       });
   }
 
+  // temporary TODO: will be removed after user file refactor
   public removeFileFromProject(pid: number, fid: number): void {
     this.userProjectService
       .removeFileFromProject(pid, fid)

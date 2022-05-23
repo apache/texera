@@ -30,9 +30,11 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   styleUrls: ["./saved-workflow-section.component.scss", "../../dashboard.component.scss"],
 })
 export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
+  // receive input from parent components (UserProjectSection), if any
   @Input() public pid: number = 0;
   @Input() public updateProjectStatus: string = ""; // track changes to user project(s) (i.e color update / removal)
 
+  /* variables for workflow editing / search */
   // virtual scroll requires replacing the entire array reference in order to update view
   // see https://github.com/angular/components/issues/14635
   public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
@@ -58,10 +60,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
+  /* variables for project color tags */
   public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
 
+  /* variables for filtering workflos by projects */
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
@@ -82,11 +86,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges) {
     for (const propName in changes) {
       if (propName == "pid" && changes[propName].currentValue) {
-        // listen for changes in Input pid
+        // listen to see if component is to be re-rendered inside a different project
         this.pid = changes[propName].currentValue;
         this.refreshDashboardWorkflowEntries();
       } else if (propName == "updateProjectStatus" && changes[propName].currentValue) {
-        // listen to see if user projects have changed
+        // listen to see if parent component has been mutated (e.g. project color changed)
         this.updateProjectStatus = changes[propName].currentValue;
         this.refreshUserProjects();
       }
@@ -498,7 +502,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   private clearDashboardWorkflowEntries(): void {
-    console.log(this.filteredDashboardWorkflowNames);
     this.dashboardWorkflowEntries = [];
   }
 

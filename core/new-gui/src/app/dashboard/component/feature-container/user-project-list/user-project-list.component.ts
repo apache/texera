@@ -14,14 +14,16 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   styleUrls: ["./user-project-list.component.scss"],
 })
 export class UserProjectListComponent implements OnInit {
-  public userProjectEntries: UserProject[] = []; // TODO : make readonly, will handle in future refactoring PR
+  // store list of projects / variables to create and edit projects
+  public userProjectEntries: UserProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
-  // maps each project to its color wheel input index & ensures consistent mapping through reordering / sorting of projects
-  public userProjectToColorInputIndexMap: Map<number, number> = new Map();
-  public userProjectInputColors: string[] = []; // stores the color wheel input for each project, starts with '#'
-  public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color
+
+  // used to manage setting project colors
+  public userProjectToColorInputIndexMap: Map<number, number> = new Map(); // maps each project to its color wheel input index, even after reordering / sorting of projects
+  public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
+  public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
 
   constructor(

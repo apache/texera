@@ -32,7 +32,7 @@ export class UserFileSectionComponent {
     this.userFileService.refreshDashboardUserFileEntries();
     this.registerUserProjectsRefresh();
   }
-
+  // variables for file editing / search
   public isEditingName: number[] = [];
   public userFileSearchValue: string = "";
   public filteredFilenames: Array<string> = new Array();
@@ -46,10 +46,12 @@ export class UserFileSectionComponent {
     keys: ["file.name"],
   });
 
+  // variables for project color tags
   public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
 
+  // variables for filtering files by projects
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects

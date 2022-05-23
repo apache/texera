@@ -24,8 +24,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   context,
   insertWorkflow,
   workflowDao,
-  workflowOfUserExists,
-  extractProjectIDs
+  workflowOfUserExists
 }
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL.groupConcat
@@ -71,14 +70,6 @@ object WorkflowResource {
         .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
         .values(uid, wid)
     )
-  }
-
-  private def extractProjectIDs(pidString: String): List[UInteger] = {
-    if (pidString != null) {
-      pidString.split(',').map(number => UInteger.valueOf(number)).toList
-    } else {
-      List[UInteger]()
-    }
   }
 
   case class DashboardWorkflowEntry(
@@ -140,7 +131,7 @@ class WorkflowResource {
           ).toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          extractProjectIDs(workflowRecord.component9())
+          if (workflowRecord.component9() == null) List[UInteger]() else workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
