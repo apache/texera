@@ -58,13 +58,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map();    // maps pid to its corresponding UserProject
-  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map();     // tracks whether each project's color is light or dark
-  public userProjectsLoaded: boolean = false;                              // tracks whether all UserProject information has been loaded (ready to render project colors)
+  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
+  public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
 
-  public userProjectsList: ReadonlyArray<UserProject> = [];                // list of projects accessible by user
-  public projectFilterList: number[] = [];                                 // for filter by project mode, track which projects are selected
-  public isSearchByProject: boolean = false;                               // track searching mode user currently selects
+  public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
+  public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
+  public isSearchByProject: boolean = false; // track searching mode user currently selects
 
   constructor(
     private userService: UserService,
@@ -345,7 +345,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * navigate to individual project page
    */
-   public jumpToProject({ pid }: UserProject): void {
+  public jumpToProject({ pid }: UserProject): void {
     this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
 
@@ -365,30 +365,32 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   /**
    * Retrieves from the backend endpoint for projects all user projects
-   * that are accessible from the current user.  This is used for 
+   * that are accessible from the current user.  This is used for
    * the project color tags
    */
   private refreshUserProjects(): void {
-    this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this)).subscribe((userProjectList: UserProject[]) => {
-      if (userProjectList != null && userProjectList.length > 0) {
-        // map project ID to project object
-        this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe((userProjectList: UserProject[]) => {
+        if (userProjectList != null && userProjectList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
 
-        // calculate whether project colors are light or dark
-        const projectColorBrightnessMap: Map<number, boolean> = new Map();
-        userProjectList.forEach(userProject => {
-          if (userProject.color != null) {
-            projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
-          }
-        });
-        this.colorBrightnessMap = projectColorBrightnessMap;
+          // calculate whether project colors are light or dark
+          const projectColorBrightnessMap: Map<number, boolean> = new Map();
+          userProjectList.forEach(userProject => {
+            if (userProject.color != null) {
+              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+            }
+          });
+          this.colorBrightnessMap = projectColorBrightnessMap;
 
-        // store the projects accessible by this user
-        this.userProjectsList = userProjectList;
-
-        this.userProjectsLoaded = true;
-      }
-    })
+          // store the projects containing these workflows
+          this.userProjectsList = userProjectList;
+          this.userProjectsLoaded = true;
+        }
+      });
   }
 
   /**
@@ -398,7 +400,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public filterWorkflowsByProject() {
     let newWorkflowEntries = this.allDashboardWorkflowEntries.slice();
-    this.projectFilterList.forEach(pid => newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.projectIDs.includes(pid)));
+    this.projectFilterList.forEach(
+      pid => (newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.projectIDs.includes(pid)))
+    );
     this.dashboardWorkflowEntries = newWorkflowEntries;
   }
 
@@ -417,32 +421,37 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   /**
    * For color tags, enable clicking 'x' to remove a workflow from a project
-   * 
-   * @param pid 
-   * @param dashboardWorkflowEntry 
-   * @param index 
+   *
+   * @param pid
+   * @param dashboardWorkflowEntry
+   * @param index
    */
   public removeWorkflowFromProject(pid: number, dashboardWorkflowEntry: DashboardWorkflowEntry, index: number): void {
-    this.userProjectService.removeWorkflowFromProject(pid, dashboardWorkflowEntry.workflow.wid!).pipe(untilDestroyed(this)).subscribe(() => {
-      let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
-      updatedDashboardWorkFlowEntry.projectIDs = dashboardWorkflowEntry.projectIDs.filter(projectID => projectID != pid);
+    this.userProjectService
+      .removeWorkflowFromProject(pid, dashboardWorkflowEntry.workflow.wid!)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+        updatedDashboardWorkFlowEntry.projectIDs = dashboardWorkflowEntry.projectIDs.filter(
+          projectID => projectID != pid
+        );
 
-      // update allDashboardWorkflowEntries
-      const newAllDashboardEntries = this.allDashboardWorkflowEntries.slice();
-      for(let i = 0; i < newAllDashboardEntries.length; ++i) {
-        if (newAllDashboardEntries[i].workflow.wid == dashboardWorkflowEntry.workflow.wid) {
-          newAllDashboardEntries[i] = updatedDashboardWorkFlowEntry;
-          break;
+        // update allDashboardWorkflowEntries
+        const newAllDashboardEntries = this.allDashboardWorkflowEntries.slice();
+        for (let i = 0; i < newAllDashboardEntries.length; ++i) {
+          if (newAllDashboardEntries[i].workflow.wid == dashboardWorkflowEntry.workflow.wid) {
+            newAllDashboardEntries[i] = updatedDashboardWorkFlowEntry;
+            break;
+          }
         }
-      }
-      this.allDashboardWorkflowEntries = newAllDashboardEntries;
-      this.fuse.setCollection(this.allDashboardWorkflowEntries);
-      
-      // update dashboardWorkflowEntries
-      const newEntries = this.dashboardWorkflowEntries.slice();
-      newEntries[index] = updatedDashboardWorkFlowEntry;
-      this.dashboardWorkflowEntries = newEntries;
-    });
+        this.allDashboardWorkflowEntries = newAllDashboardEntries;
+        this.fuse.setCollection(this.allDashboardWorkflowEntries);
+
+        // update dashboardWorkflowEntries
+        const newEntries = this.dashboardWorkflowEntries.slice();
+        newEntries[index] = updatedDashboardWorkFlowEntry;
+        this.dashboardWorkflowEntries = newEntries;
+      });
   }
 
   private refreshDashboardWorkflowEntries(): void {
@@ -452,7 +461,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       // not nested within user project section
       observable = this.workflowPersistService.retrieveWorkflowsBySessionUser();
     } else {
-      // is nested within proejct section, get workflows belonging to project
+      // is nested within project section, get workflows belonging to project
       observable = this.userProjectService.retrieveWorkflowsOfProject(this.pid);
     }
 

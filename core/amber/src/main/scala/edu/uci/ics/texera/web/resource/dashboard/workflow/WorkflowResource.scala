@@ -2,11 +2,31 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists, extractProjectIDs}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
+  WorkflowAccess,
+  toAccessLevel
+}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
+  DashboardWorkflowEntry,
+  context,
+  insertWorkflow,
+  workflowDao,
+  workflowOfUserExists,
+  extractProjectIDs
+}
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL.groupConcat
 import org.jooq.types.UInteger
@@ -84,7 +104,7 @@ class WorkflowResource {
   @GET
   @Path("/list")
   def retrieveWorkflowsBySessionUser(
-    @Auth sessionUser: SessionUser
+      @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
     val workflowEntries = context

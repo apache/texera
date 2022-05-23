@@ -20,9 +20,9 @@ export class UserProjectListComponent implements OnInit {
   public createProjectName: string = "";
   // maps each project to its color wheel input index & ensures consistent mapping through reordering / sorting of projects
   public userProjectToColorInputIndexMap: Map<number, number> = new Map();
-  public userProjectInputColors: string[] = [];                         // stores the color wheel input for each project, starts with '#'
-  public colorBrightnessMap: Map<number, boolean> = new Map();          // tracks brightness of each project's color
-  public colorInputToggleArray: boolean[] = [];                         // tracks which project's color wheel is toggled on or off
+  public userProjectInputColors: string[] = []; // stores the color wheel input for each project, starts with '#'
+  public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color
+  public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
 
   constructor(
     private userProjectService: UserProjectService,
@@ -42,11 +42,11 @@ export class UserProjectListComponent implements OnInit {
         this.userProjectEntries = projectEntries;
 
         // map each pid to important color information, for access in HTML template
-        let index : number = 0;
+        let index = 0;
         for (var project of projectEntries) {
           // used to store each project's updated color (via color wheel)
           this.userProjectToColorInputIndexMap.set(project.pid, index);
-          this.userProjectInputColors.push(project.color == null ? "#ffffff" : '#' + project.color);
+          this.userProjectInputColors.push(project.color == null ? "#ffffff" : "#" + project.color);
           this.colorInputToggleArray.push(false);
 
           // determine whether each project's color is light or dark
@@ -160,36 +160,42 @@ export class UserProjectListComponent implements OnInit {
   }
 
   public updateProjectColor(dashboardProjectEntry: UserProject, index: number) {
-    let color: string = this.userProjectInputColors[this.userProjectToColorInputIndexMap.get(dashboardProjectEntry.pid)!].substring(1);
+    let color: string =
+      this.userProjectInputColors[this.userProjectToColorInputIndexMap.get(dashboardProjectEntry.pid)!].substring(1);
     this.colorInputToggleArray[index] = false;
 
     // validate that color is in proper HEX format
     if (this.userProjectService.isInvalidColorFormat(color)) {
-      this.notificationService.error(`Cannot update color for project: "${dashboardProjectEntry.name}".  It must be a valid HEX color format`);
+      this.notificationService.error(
+        `Cannot update color for project: "${dashboardProjectEntry.name}".  It must be a valid HEX color format`
+      );
       return;
-    } 
+    }
 
     if (color === this.userProjectEntries[index].color) {
       return;
     }
 
-    this.userProjectService.updateProjectColor(dashboardProjectEntry.pid, color).pipe(untilDestroyed(this)).subscribe({
-      next: () => {
-        // update local cache of project entries
-        let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
-        updatedDashboardProjectEntry.color = color;
-        const newProjectEntries = this.userProjectEntries.slice();
-        newProjectEntries[index] = updatedDashboardProjectEntry;
-        this.userProjectEntries = newProjectEntries;
+    this.userProjectService
+      .updateProjectColor(dashboardProjectEntry.pid, color)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          // update local cache of project entries
+          let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
+          updatedDashboardProjectEntry.color = color;
+          const newProjectEntries = this.userProjectEntries.slice();
+          newProjectEntries[index] = updatedDashboardProjectEntry;
+          this.userProjectEntries = newProjectEntries;
 
-        // update color brightness record for this project
-        this.colorBrightnessMap.set(dashboardProjectEntry.pid, this.userProjectService.isLightColor(color));
-      }, 
-      error: (err: unknown) => {
-        // @ts-ignore
-        this.notificationService.error(err.error.message);
-      }
-    });
+          // update color brightness record for this project
+          this.colorBrightnessMap.set(dashboardProjectEntry.pid, this.userProjectService.isLightColor(color));
+        },
+        error: (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+        },
+      });
   }
 
   public removeProjectColor(dashboardProjectEntry: UserProject, index: number) {
@@ -200,25 +206,29 @@ export class UserProjectListComponent implements OnInit {
       return;
     }
 
-    this.userProjectService.deleteProjectColor(dashboardProjectEntry.pid).pipe(untilDestroyed(this)).subscribe({
-      next: _ => {
-        // update local cache of project entries
-        let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
-        updatedDashboardProjectEntry.color = null;
-        const newProjectEntries = this.userProjectEntries.slice();
-        newProjectEntries[index] = updatedDashboardProjectEntry;
-        this.userProjectEntries = newProjectEntries;
+    this.userProjectService
+      .deleteProjectColor(dashboardProjectEntry.pid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: _ => {
+          // update local cache of project entries
+          let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
+          updatedDashboardProjectEntry.color = null;
+          const newProjectEntries = this.userProjectEntries.slice();
+          newProjectEntries[index] = updatedDashboardProjectEntry;
+          this.userProjectEntries = newProjectEntries;
 
-        // remove records of this project from color data structures
-        if (this.colorBrightnessMap.has(dashboardProjectEntry.pid)) {
-          this.colorBrightnessMap.delete(dashboardProjectEntry.pid);
-        }
-        this.userProjectInputColors[index] = '#ffffff'; // reset color wheel
-      }, 
-      error: (err: unknown) => {
-        // @ts-ignore
-        this.notificationService.error(err.error.message);
-      }});
+          // remove records of this project from color data structures
+          if (this.colorBrightnessMap.has(dashboardProjectEntry.pid)) {
+            this.colorBrightnessMap.delete(dashboardProjectEntry.pid);
+          }
+          this.userProjectInputColors[index] = "#ffffff"; // reset color wheel
+        },
+        error: (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+        },
+      });
   }
 
   public sortByCreationTime(): void {

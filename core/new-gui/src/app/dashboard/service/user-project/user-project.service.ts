@@ -105,7 +105,7 @@ export class UserProjectService {
   /**
    * Helper function to determine if a project color is light
    * or dark, which can be helpful for styling decisions
-   * 
+   *
    * @param color (HEX formatted color string)
    * @returns boolean indicating whether color is "light" or "dark"
    */
@@ -116,28 +116,31 @@ export class UserProjectService {
 
     // ensure format is in 6 digit HEX
     if (color.length == 3) {
-      color = color.split("").map(s => s + s).join("");
+      color = color
+        .split("")
+        .map(s => s + s)
+        .join("");
     }
-    
-    // convert to RGB form
-    let colorRGB : number = +('0x' + color);
 
-    let r : number = colorRGB >> 16;
-    let g : number = colorRGB >> 8 & 255;
-    let b : number = colorRGB & 255;
+    // convert to RGB form
+    let colorRGB: number = +("0x" + color);
+
+    let r: number = colorRGB >> 16;
+    let g: number = (colorRGB >> 8) & 255;
+    let b: number = colorRGB & 255;
 
     // estimate HSV value
-    let hsv : number = Math.sqrt(0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b));
+    let hsv: number = Math.sqrt(0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b));
     return hsv > 200;
   }
 
   /**
    * Helper function to validate if a project color is in HEX format
-   * 
-   * @param color 
+   *
+   * @param color
    * @returns boolean indicating whether color is in valid HEX format
    */
   public isInvalidColorFormat(color: string) {
-    return color == null || color.length != 6 && color.length != 3 || !/^([0-9A-Fa-f]{3}){1,2}$/.test(color);
+    return color == null || (color.length != 6 && color.length != 3) || !/^([0-9A-Fa-f]{3}){1,2}$/.test(color);
   }
 }

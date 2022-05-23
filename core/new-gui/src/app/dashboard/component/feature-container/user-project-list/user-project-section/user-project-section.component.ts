@@ -5,7 +5,6 @@ import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
-import { DashboardWorkflowEntry } from "../../../../type/dashboard-workflow-entry";
 import { DashboardUserFileEntry } from "../../../../type/dashboard-user-file-entry";
 
 // ---- for file card
@@ -31,15 +30,15 @@ export class UserProjectSectionComponent implements OnInit {
   public creationTime: number = 0;
 
   public color: string | null = null;
-  public inputColor: string = "#ffffff";        // needs to have a '#' in front, as it is used by ngx-color-picker
+  public inputColor: string = "#ffffff"; // needs to have a '#' in front, as it is used by ngx-color-picker
   public colorIsBright: boolean = false;
   public projectDataIsLoaded: boolean = false;
   public colorPickerIsSelected: boolean = false;
-  public updateProjectStatus = "";              // track any updates to user project for child components to rerender
+  public updateProjectStatus = ""; // track any updates to user project for child components to rerender
 
   // temporarily here for file section color tags, TODO : remove once file service PR approved
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map();   // maps pid to its corresponding UserProject
-  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map();    // tracks whether each project's color is light or dark
+  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
 
   // ----- for file card
   public isEditingFileName: number[] = [];
@@ -96,34 +95,37 @@ export class UserProjectSectionComponent implements OnInit {
     //     this.projectDataIsLoaded = true;
     //   });
 
-    this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this)).subscribe(userProjectList => {
-      if (userProjectList != null && userProjectList.length > 0) {
-        // map project ID to project object
-        this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(userProjectList => {
+        if (userProjectList != null && userProjectList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
 
-        // calculate whether project colors are light or dark
-        const projectColorBrightnessMap: Map<number, boolean> = new Map();
-        userProjectList.forEach(userProject => {
-          if (userProject.color != null) {
-            projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
-          }
-
-          // get single project information
-          if (userProject.pid == this.pid) {
-            this.name = userProject.name;
-            this.ownerID = userProject.ownerID;
-            this.creationTime = userProject.creationTime;
+          // calculate whether project colors are light or dark
+          const projectColorBrightnessMap: Map<number, boolean> = new Map();
+          userProjectList.forEach(userProject => {
             if (userProject.color != null) {
-              this.color = userProject.color;
-              this.inputColor = "#" + userProject.color;
-              this.colorIsBright = this.userProjectService.isLightColor(userProject.color);
+              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
             }
-          }
-        });
-        this.colorBrightnessMap = projectColorBrightnessMap;
-        this.projectDataIsLoaded = true;
-      }
-    })
+
+            // get single project information
+            if (userProject.pid == this.pid) {
+              this.name = userProject.name;
+              this.ownerID = userProject.ownerID;
+              this.creationTime = userProject.creationTime;
+              if (userProject.color != null) {
+                this.color = userProject.color;
+                this.inputColor = "#" + userProject.color;
+                this.colorIsBright = this.userProjectService.isLightColor(userProject.color);
+              }
+            }
+          });
+          this.colorBrightnessMap = projectColorBrightnessMap;
+          this.projectDataIsLoaded = true;
+        }
+      });
   }
 
   public getUserProjectFilesArray(): ReadonlyArray<DashboardUserFileEntry> {
@@ -135,11 +137,11 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   /**
-  * navigate to another project page
-  */
+   * navigate to another project page
+   */
   public jumpToProject({ pid }: UserProject): void {
-   this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
- }
+    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
+  }
 
   public toggleColorPicker() {
     this.colorPickerIsSelected = !this.colorPickerIsSelected;
@@ -150,7 +152,7 @@ export class UserProjectSectionComponent implements OnInit {
     this.colorPickerIsSelected = false;
 
     if (this.userProjectService.isInvalidColorFormat(color)) {
-      this.notificationService.error('Cannot update project color. Color must be in valid HEX format');
+      this.notificationService.error("Cannot update project color. Color must be in valid HEX format");
       return;
     }
 
@@ -158,36 +160,47 @@ export class UserProjectSectionComponent implements OnInit {
       return;
     }
 
-    this.userProjectService.updateProjectColor(this.pid, color).pipe(untilDestroyed(this)).subscribe({next: () => {
-      this.color = color;
-      this.colorIsBright = this.userProjectService.isLightColor(this.color);
-      this.updateProjectStatus = "updated project color"; // cause workflow / file components to update project filtering list
-    }, 
-    error: (err: unknown) => {
-      // @ts-ignore
-      this.notificationService.error(err.error.message);
-    }});
+    this.userProjectService
+      .updateProjectColor(this.pid, color)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.color = color;
+          this.colorIsBright = this.userProjectService.isLightColor(this.color);
+          this.updateProjectStatus = "updated project color"; // cause workflow / file components to update project filtering list
+        },
+        error: (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+        },
+      });
   }
 
   public removeProjectColor() {
     this.colorPickerIsSelected = false;
 
     if (this.color == null) {
-      this.notificationService.error(`There is no color to delete for this project`);
+      this.notificationService.error("There is no color to delete for this project");
       return;
     }
 
-    this.userProjectService.deleteProjectColor(this.pid).pipe(untilDestroyed(this)).subscribe(_ => {
-      this.color = null;
-      this.inputColor = "#ffffff";
-      this.updateProjectStatus = "removed project color"; // cause workflow / file components to update project filtering list
-    });
+    this.userProjectService
+      .deleteProjectColor(this.pid)
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.color = null;
+        this.inputColor = "#ffffff";
+        this.updateProjectStatus = "removed project color"; // cause workflow / file components to update project filtering list
+      });
   }
 
   public removeFileFromProject(pid: number, fid: number): void {
-    this.userProjectService.removeFileFromProject(pid, fid).pipe(untilDestroyed(this)).subscribe(() => {
-      this.userFileService.refreshDashboardUserFileEntries();
-    })
+    this.userProjectService
+      .removeFileFromProject(pid, fid)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.userFileService.refreshDashboardUserFileEntries();
+      });
   }
 
   // ----------------- for file card

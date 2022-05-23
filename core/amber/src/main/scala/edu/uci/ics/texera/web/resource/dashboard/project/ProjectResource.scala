@@ -2,10 +2,38 @@ package edu.uci.ics.texera.web.resource.dashboard.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_PROJECT, USER, USER_FILE_ACCESS, USER_PROJECT, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, UserProjectDao, WorkflowOfProjectDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfProject, UserFileAccess, UserProject, Workflow, WorkflowOfProject, WorkflowUserAccess}
-import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{context, fileOfProjectDao, userProjectDao, workflowOfProjectDao, workflowOfProjectExists}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  FILE,
+  FILE_OF_PROJECT,
+  USER,
+  USER_FILE_ACCESS,
+  USER_PROJECT,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileOfProjectDao,
+  UserProjectDao,
+  WorkflowOfProjectDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  File,
+  FileOfProject,
+  UserFileAccess,
+  UserProject,
+  Workflow,
+  WorkflowOfProject,
+  WorkflowUserAccess
+}
+import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
+  context,
+  fileOfProjectDao,
+  userProjectDao,
+  workflowOfProjectDao,
+  workflowOfProjectExists
+}
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
@@ -165,7 +193,10 @@ class ProjectResource {
           ).toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          workflowOfProjectDao.fetchByWid(workflowRecord.into(WORKFLOW).getWid).map(workflowOfProject => workflowOfProject.getPid).toList
+          workflowOfProjectDao
+            .fetchByWid(workflowRecord.into(WORKFLOW).getWid)
+            .map(workflowOfProject => workflowOfProject.getPid)
+            .toList
         )
       )
       .toList
@@ -213,7 +244,10 @@ class ProjectResource {
           toFileAccessLevel(fileRecord.into(USER_FILE_ACCESS).into(classOf[UserFileAccess])),
           fileRecord.into(USER).getName == user.getName,
           fileRecord.into(FILE).into(classOf[File]),
-          fileOfProjectDao.fetchByFid(fileRecord.into(FILE).getFid).map(fileOfProject => fileOfProject.getPid).toList
+          fileOfProjectDao
+            .fetchByFid(fileRecord.into(FILE).getFid)
+            .map(fileOfProject => fileOfProject.getPid)
+            .toList
         )
       )
       .toList
@@ -322,8 +356,15 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/color/{colorHex}/add")
-  def updateProjectColor(@PathParam("pid") pid: UInteger,  @PathParam("colorHex") colorHex: String): Unit = {
-    if (colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches("^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$")) {
+  def updateProjectColor(
+      @PathParam("pid") pid: UInteger,
+      @PathParam("colorHex") colorHex: String
+  ): Unit = {
+    if (
+      colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
+        "^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$"
+      )
+    ) {
       throw new BadRequestException("Cannot assign invalid HEX format color to project.")
     }
 

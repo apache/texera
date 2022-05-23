@@ -45,15 +45,23 @@
                 [nzText]="'' + dashboardUserProjectEntry.pid"
                 [(cpToggle)]="colorInputToggleArray[i]"
                 [(colorPicker)]="userProjectInputColors[userProjectToColorInputIndexMap.get(dashboardUserProjectEntry.pid)!]"
-                [cpSaveClickOutside]="false" 
+                [cpSaveClickOutside]="false"
                 [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
                 [cpExtraTemplate]="colorMenuTemplate"
                 (colorPickerSelect)="updateProjectColor(dashboardUserProjectEntry, i)"
               ></nz-avatar>
               <ng-template #colorMenuTemplate>
-                <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between;">
-                  <button [disabled]="dashboardUserProjectEntry.color == null" (click)="removeProjectColor(dashboardUserProjectEntry, i)" class="btn btn-outline-danger btn-xs">Delete</button>
-                  <button (click)="updateProjectColor(dashboardUserProjectEntry, i)" class="btn btn-primary btn-xs">Save</button>
+                <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
+                  <button
+                    [disabled]="dashboardUserProjectEntry.color == null"
+                    (click)="removeProjectColor(dashboardUserProjectEntry, i)"
+                    class="btn btn-outline-danger btn-xs"
+                  >
+                    Delete
+                  </button>
+                  <button (click)="updateProjectColor(dashboardUserProjectEntry, i)" class="btn btn-primary btn-xs">
+                    Save
+                  </button>
                 </div>
               </ng-template>
             </div>

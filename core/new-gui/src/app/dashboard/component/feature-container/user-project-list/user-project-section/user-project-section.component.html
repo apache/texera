@@ -2,8 +2,8 @@
   <nz-card>
     <h2 class="project-title">Project : {{name}}</h2>
     <nz-card-meta nzDescription="Created: {{creationTime | date: 'yyyy-MM-dd HH:mm'}}"></nz-card-meta>
-    
-    <div 
+
+    <div
       *ngIf="color != null"
       id="left-div"
       [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
@@ -23,34 +23,40 @@
       x
     </div>
 
-    <button nz-button 
-      [(colorPicker)]="inputColor" 
+    <button
+      nz-button
+      [(colorPicker)]="inputColor"
       [(cpToggle)]="colorPickerIsSelected"
-      [cpOKButton]="false" 
+      [cpOKButton]="false"
       [cpOKButtonText]="'Save'"
-      [cpOKButtonClass]= "'btn btn-primary btn-xs'"
-      [cpSaveClickOutside]="false" 
+      [cpOKButtonClass]="'btn btn-primary btn-xs'"
+      [cpSaveClickOutside]="false"
       [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
       [cpExtraTemplate]="colorMenuTemplate"
       (colorPickerSelect)="updateProjectColor(inputColor)"
     >
-      <i 
-        nz-icon 
-        nzType="format-painter" 
+      <i
+        nz-icon
+        nzType="format-painter"
         nzTheme="outline"
-        nz-tooltip="Set project color" 
+        nz-tooltip="Set project color"
         nzTooltipPlacement="bottom"
       ></i>
     </button>
     <ng-template #colorMenuTemplate>
-      <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between;">
-        <button [disabled]="color == null" (click)="removeProjectColor()" class="btn btn-outline-danger btn-xs">Delete</button>
+      <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
+        <button [disabled]="color == null" (click)="removeProjectColor()" class="btn btn-outline-danger btn-xs">
+          Delete
+        </button>
         <button (click)="updateProjectColor(inputColor)" class="btn btn-primary btn-xs">Save</button>
       </div>
     </ng-template>
   </nz-card>
 
-  <texera-saved-workflow-section [pid]="pid" [updateProjectStatus]="updateProjectStatus"></texera-saved-workflow-section>
+  <texera-saved-workflow-section
+    [pid]="pid"
+    [updateProjectStatus]="updateProjectStatus"
+  ></texera-saved-workflow-section>
 </div>
 
 <div>
@@ -120,7 +126,7 @@
         <!-- this is temporary, TODO : refactor this once file service PR gets approved -->
         <div *ngIf="projectDataIsLoaded" class="file-project-label-container">
           <div *ngFor="let projectID of file.projectIDs" class="file-project-label">
-            <div 
+            <div
               *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
               nz-tooltip="Go to project page"
               nzTooltipPlacement="bottom"

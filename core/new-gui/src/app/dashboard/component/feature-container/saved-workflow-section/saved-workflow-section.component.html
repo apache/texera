@@ -57,17 +57,17 @@
 
   <nz-card class="workflow-list-container subsection-grid-container">
     <div *ngIf="isSearchByProject" class="texera-dashboard-saved-workflow-project-box-select">
-      <i 
-        style="margin-right: 10px; align-self: center;" 
-        nz-icon 
-        nz-popover 
-        nzPopoverTitle="Filter Instructions" 
-        nzType="question-circle" 
+      <i
+        style="margin-right: 10px; align-self: center"
+        nz-icon
+        nz-popover
+        nzPopoverTitle="Filter Instructions"
+        nzType="question-circle"
         nzTheme="outline"
-        [nzPopoverContent]="filterPopContent" 
+        [nzPopoverContent]="filterPopContent"
       ></i>
       <button
-        style="align-self: center; margin-right: 0%;" 
+        style="align-self: center; margin-right: 0%"
         nz-button
         nz-tooltip="Switch to workflow search"
         nzTooltipPlacement="bottom"
@@ -77,10 +77,10 @@
         <i nz-icon nzType="search" nzTheme="outline"></i>
       </button>
       <nz-select
-        style="width: 100%;"
+        style="width: 100%"
         nzMode="tags"
         nzPlaceHolder="Filter by project(s)"
-        [nzMaxTagCount]="3" 
+        [nzMaxTagCount]="3"
         [nzMaxTagPlaceholder]="tagPlaceHolder"
         [nzBorderless]="true"
         [nzOpen]="true"
@@ -90,7 +90,11 @@
         <nz-option-group nzLabel="Colored Projects">
           <div *ngFor="let project of userProjectsList">
             <nz-option *ngIf="project.color != null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
-              <nz-tag [nzColor]="'#' + project.color" [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}">{{project.pid}}</nz-tag>
+              <nz-tag
+                [nzColor]="'#' + project.color"
+                [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}"
+                >{{project.pid}}</nz-tag
+              >
               {{project.name}}
             </nz-option>
           </div>
@@ -106,12 +110,11 @@
       </nz-select>
       <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
       <ng-template #filterPopContent>
-        To search for a workflow by project(s) it belongs to, click on the search bar to view and select the
-        appropriate projects.
+        To search for a workflow by project(s) it belongs to, click on the search bar to view and select the appropriate
+        projects.
       </ng-template>
     </div>
 
-    
     <nz-input-group
       *ngIf="!isSearchByProject"
       [nzPrefix]="prefixPopoverButton"
@@ -249,7 +252,7 @@
 
           <div *ngIf="userProjectsLoaded" class="workflow-project-label-container">
             <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="workflow-project-label">
-              <div 
+              <div
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
                 nz-tooltip="Go to project page"
                 nzTooltipPlacement="bottom"

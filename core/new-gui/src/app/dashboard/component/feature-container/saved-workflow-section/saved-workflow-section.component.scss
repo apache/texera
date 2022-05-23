@@ -147,22 +147,22 @@ $header-height: 120px;
       border-top-left-radius: 2px;
       border-bottom-left-radius: 2px;
     }
-    
+
     #right-div {
       padding: 1.5px 7px;
       border-top-right-radius: 2px;
       border-bottom-right-radius: 2px;
       margin-right: 10px;
     }
-    
+
     .light-color {
       border: 1px solid gainsboro;
     }
-    
+
     .light-color:hover {
       background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
     }
-    
+
     .dark-color:hover {
       background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
     }
