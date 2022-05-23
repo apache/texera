@@ -131,7 +131,8 @@ class WorkflowResource {
           ).toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[UInteger]() else workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
+          if (workflowRecord.component9() == null) List[UInteger]()
+          else workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
