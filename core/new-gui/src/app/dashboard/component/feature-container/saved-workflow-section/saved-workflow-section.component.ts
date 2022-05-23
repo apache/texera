@@ -470,8 +470,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
       this.fuse.setCollection(this.allDashboardWorkflowEntries);
       const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
-      // TODO : VERIFY WHETHER I CAN CHANGE THIS, PREVENT DUPLICATE AUTOCOMPLETE
-      // this.filteredDashboardWorkflowNames = [...this.filteredDashboardWorkflowNames, ...newEntries];
       this.filteredDashboardWorkflowNames = [...newEntries];
     });
   }
@@ -500,6 +498,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   private clearDashboardWorkflowEntries(): void {
+    console.log(this.filteredDashboardWorkflowNames);
     this.dashboardWorkflowEntries = [];
   }
 
