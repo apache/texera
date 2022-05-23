@@ -6,9 +6,9 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_PROJECT
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, UserProjectDao, WorkflowOfProjectDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfProject, UserFileAccess, UserProject, Workflow, WorkflowOfProject, WorkflowUserAccess}
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{context, fileOfProjectDao, userProjectDao, workflowOfProjectDao, workflowOfProjectExists}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{DashboardFileEntry, extractProjectIDsAsUInteger}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, extractProjectIDs}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
 import javax.ws.rs._
@@ -17,7 +17,6 @@ import java.util
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
-import org.jooq.impl.DSL.groupConcat
 
 import javax.annotation.security.PermitAll
 
@@ -137,15 +136,14 @@ class ProjectResource {
     val uid = sessionUser.getUser.getUid
     val workflowEntries = context
       .select(
-        WORKFLOW_OF_PROJECT.WID,
+        WORKFLOW.WID,
         WORKFLOW.NAME,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME,
-        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
+        USER.NAME
       )
       .from(WORKFLOW_OF_PROJECT)
       .leftJoin(WORKFLOW)
@@ -157,7 +155,6 @@ class ProjectResource {
       .leftJoin(USER)
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
       .where(WORKFLOW_OF_PROJECT.PID.eq(pid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .groupBy(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_USER.UID)
       .fetch()
     workflowEntries
       .map(workflowRecord =>
@@ -168,7 +165,7 @@ class ProjectResource {
           ).toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          extractProjectIDs(workflowRecord.component9())
+          workflowOfProjectDao.fetchByWid(workflowRecord.into(WORKFLOW).getWid).map(workflowOfProject => workflowOfProject.getPid).toList
         )
       )
       .toList
@@ -191,15 +188,14 @@ class ProjectResource {
     val user = sessionUser.getUser
     val fileEntries = context
       .select(
-        FILE_OF_PROJECT.FID,
+        FILE.FID,
         FILE.SIZE,
         FILE.NAME,
         FILE.PATH,
         FILE.DESCRIPTION,
         USER_FILE_ACCESS.READ_ACCESS,
         USER_FILE_ACCESS.WRITE_ACCESS,
-        USER.NAME, // owner name
-        groupConcat(FILE_OF_PROJECT.PID).as("projects")
+        USER.NAME // owner name
       )
       .from(FILE_OF_PROJECT)
       .leftJoin(FILE)
@@ -209,7 +205,6 @@ class ProjectResource {
       .leftJoin(USER)
       .on(USER.UID.eq(FILE.UID))
       .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
-      .groupBy(FILE_OF_PROJECT.FID)
       .fetch()
     fileEntries
       .map(fileRecord =>
@@ -218,7 +213,7 @@ class ProjectResource {
           toFileAccessLevel(fileRecord.into(USER_FILE_ACCESS).into(classOf[UserFileAccess])),
           fileRecord.into(USER).getName == user.getName,
           fileRecord.into(FILE).into(classOf[File]),
-          extractProjectIDsAsUInteger(fileRecord.component9())
+          fileOfProjectDao.fetchByFid(fileRecord.into(FILE).getFid).map(fileOfProject => fileOfProject.getPid).toList
         )
       )
       .toList
@@ -322,8 +317,8 @@ class ProjectResource {
   /**
     * This method updates a project's color.
     *
-    * @param pid
-    * @param colorHex
+    * @param pid id of project to be updated
+    * @param colorHex new HEX formatted color to be set
     */
   @POST
   @Path("/{pid}/color/{colorHex}/add")

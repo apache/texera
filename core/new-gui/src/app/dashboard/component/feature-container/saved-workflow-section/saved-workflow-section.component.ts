@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from "@angular/core";
+import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { cloneDeep } from "lodash-es";
@@ -17,7 +17,6 @@ import Fuse from "fuse.js";
 import { concatMap, catchError } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
-import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { UserProject } from "../../../type/user-project";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
@@ -30,8 +29,10 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   templateUrl: "./saved-workflow-section.component.html",
   styleUrls: ["./saved-workflow-section.component.scss", "../../dashboard.component.scss"],
 })
-export class SavedWorkflowSectionComponent implements OnInit {
+export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   @Input() public pid: number = 0;
+  @Input() public updateProjectStatus: string = ""; // track changes to user project(s) (i.e color update / removal)
+
   // virtual scroll requires replacing the entire array reference in order to update view
   // see https://github.com/angular/components/issues/14635
   public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
@@ -70,13 +71,26 @@ export class SavedWorkflowSectionComponent implements OnInit {
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
-    private userProjectService: UserProjectService,
     private modalService: NgbModal,
     private router: Router
   ) {}
 
   ngOnInit() {
     this.registerDashboardWorkflowEntriesRefresh();
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    for (const propName in changes) {
+      if (propName == "pid" && changes[propName].currentValue) {
+        // listen for changes in Input pid
+        this.pid = changes[propName].currentValue;
+        this.refreshDashboardWorkflowEntries();
+      } else if (propName == "updateProjectStatus" && changes[propName].currentValue) {
+        // listen to see if user projects have changed
+        this.updateProjectStatus = changes[propName].currentValue;
+        this.refreshUserProjects();
+      }
+    }
   }
 
   /**
@@ -103,7 +117,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public onClickOpenAddWorkflow() {
     const modalRef = this.modalService.open(NgbdModalAddProjectWorkflowComponent);
-    modalRef.componentInstance.addedWorkflows = this.dashboardWorkflowEntries;
     modalRef.componentInstance.projectId = this.pid;
 
     // retrieve updated values from modal via promise
@@ -119,7 +132,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public onClickOpenRemoveWorkflow() {
     const modalRef = this.modalService.open(NgbdModalRemoveProjectWorkflowComponent);
-    modalRef.componentInstance.addedWorkflows = this.dashboardWorkflowEntries;
     modalRef.componentInstance.projectId = this.pid;
 
     // retrieve updated values from modal via promise
@@ -403,10 +415,30 @@ export class SavedWorkflowSectionComponent implements OnInit {
     }
   }
 
+  /**
+   * For color tags, enable clicking 'x' to remove a workflow from a project
+   * 
+   * @param pid 
+   * @param dashboardWorkflowEntry 
+   * @param index 
+   */
   public removeWorkflowFromProject(pid: number, dashboardWorkflowEntry: DashboardWorkflowEntry, index: number): void {
     this.userProjectService.removeWorkflowFromProject(pid, dashboardWorkflowEntry.workflow.wid!).pipe(untilDestroyed(this)).subscribe(() => {
       let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
       updatedDashboardWorkFlowEntry.projectIDs = dashboardWorkflowEntry.projectIDs.filter(projectID => projectID != pid);
+
+      // update allDashboardWorkflowEntries
+      const newAllDashboardEntries = this.allDashboardWorkflowEntries.slice();
+      for(let i = 0; i < newAllDashboardEntries.length; ++i) {
+        if (newAllDashboardEntries[i].workflow.wid == dashboardWorkflowEntry.workflow.wid) {
+          newAllDashboardEntries[i] = updatedDashboardWorkFlowEntry;
+          break;
+        }
+      }
+      this.allDashboardWorkflowEntries = newAllDashboardEntries;
+      this.fuse.setCollection(this.allDashboardWorkflowEntries);
+      
+      // update dashboardWorkflowEntries
       const newEntries = this.dashboardWorkflowEntries.slice();
       newEntries[index] = updatedDashboardWorkFlowEntry;
       this.dashboardWorkflowEntries = newEntries;
@@ -429,7 +461,9 @@ export class SavedWorkflowSectionComponent implements OnInit {
       this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
       this.fuse.setCollection(this.allDashboardWorkflowEntries);
       const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
-      this.filteredDashboardWorkflowNames = [...this.filteredDashboardWorkflowNames, ...newEntries];
+      // TODO : VERIFY WHETHER I CAN CHANGE THIS, PREVENT DUPLICATE AUTOCOMPLETE
+      // this.filteredDashboardWorkflowNames = [...this.filteredDashboardWorkflowNames, ...newEntries];
+      this.filteredDashboardWorkflowNames = [...newEntries];
     });
   }
 
@@ -442,13 +476,18 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * @param dashboardWorkflowEntries - returned local cache of workflows
    */
   private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
-    this.dashboardWorkflowEntries = dashboardWorkflowEntries;
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
     this.fuse.setCollection(this.allDashboardWorkflowEntries);
-    dashboardWorkflowEntries.forEach(dashboardWorkflowEntry => {
-      const workflow = dashboardWorkflowEntry.workflow;
-      this.filteredDashboardWorkflowNames.push(workflow.name);
-    });
+
+    // update searching / filtering
+    if (this.isSearchByProject) {
+      // refilter workflows by projects (to include / exclude changed workflos)
+      this.filterWorkflowsByProject();
+    } else {
+      // (regular search mode) : update search results / autcomplete for current search value
+      this.searchInputOnChange(this.workflowSearchValue);
+      this.searchWorkflow();
+    }
   }
 
   private clearDashboardWorkflowEntries(): void {

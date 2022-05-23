@@ -53,11 +53,11 @@ object WorkflowResource {
     )
   }
 
-  def extractProjectIDs(pidString: String): List[Int] = {
+  private def extractProjectIDs(pidString: String): List[UInteger] = {
     if (pidString != null) {
-      pidString.split(',').map(_.toInt).toList
+      pidString.split(',').map(number => UInteger.valueOf(number)).toList
     } else {
-      List[Int]()
+      List[UInteger]()
     }
   }
 
@@ -66,7 +66,7 @@ object WorkflowResource {
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
-      projectIDs: List[Int]
+      projectIDs: List[UInteger]
   )
 }
 
@@ -244,7 +244,7 @@ class WorkflowResource {
         WorkflowAccess.WRITE.toString,
         user.getName,
         workflowDao.fetchOneByWid(workflow.getWid),
-        List[Int]()
+        List[UInteger]()
       )
     }
 

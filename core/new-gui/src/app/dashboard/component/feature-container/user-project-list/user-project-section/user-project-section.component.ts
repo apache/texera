@@ -13,8 +13,10 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { UserFileService } from "../../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbdModalUserFileShareAccessComponent } from "../../user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
+import { UserProject } from "../../../../type/user-project";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
+export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
 @Component({
@@ -23,25 +25,28 @@ export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
   styleUrls: ["./user-project-section.component.scss"],
 })
 export class UserProjectSectionComponent implements OnInit {
-  // TODO : get rid of all these variables and just store a UserProject object, will handle together with future refactoring pR
   public pid: number = 0;
   public name: string = "";
   public ownerID: number = 0;
   public creationTime: number = 0;
-  public workflows: DashboardWorkflowEntry[] = [];
 
   public color: string | null = null;
   public inputColor: string = "#ffffff";        // needs to have a '#' in front, as it is used by ngx-color-picker
   public colorIsBright: boolean = false;
   public projectDataIsLoaded: boolean = false;
   public colorPickerIsSelected: boolean = false;
+  public updateProjectStatus = "";              // track any updates to user project for child components to rerender
+
+  // temporarily here for file section color tags, TODO : remove once file service PR approved
+  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map();   // maps pid to its corresponding UserProject
+  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map();    // tracks whether each project's color is light or dark
 
   // ----- for file card
   public isEditingFileName: number[] = [];
 
   constructor(
     private userProjectService: UserProjectService,
-    private route: ActivatedRoute,
+    private activatedRoute: ActivatedRoute,
     private router: Router,
     private modalService: NgbModal,
     private userFileService: UserFileService,
@@ -49,14 +54,15 @@ export class UserProjectSectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // extract passed PID from parameter
-    if (this.route.snapshot.params.pid) {
-      this.pid = this.route.snapshot.params.pid;
+    // extract passed PID from parameter and re-render page if necessary
+    this.activatedRoute.url.pipe(untilDestroyed(this)).subscribe(url => {
+      if (url.length == 2 && url[1].path) {
+        this.pid = parseInt(url[1].path);
 
-      this.getUserProjectMetadata();
-      this.getWorkflowsOfProject();
-      this.userProjectService.refreshFilesOfProject(this.pid);
-    }
+        this.getUserProjectMetadata();
+        this.userProjectService.refreshFilesOfProject(this.pid); // TODO : remove after refactoring file section
+      }
+    });
 
     // otherwise no project ID, no project to load
   }
@@ -74,29 +80,50 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   private getUserProjectMetadata() {
-    this.userProjectService
-      .retrieveProject(this.pid)
-      .pipe(untilDestroyed(this))
-      .subscribe(project => {
-        this.name = project.name;
-        this.ownerID = project.ownerID;
-        this.creationTime = project.creationTime;
-        if (project.color != null) {
-          this.color = project.color;
-          this.inputColor = "#" + project.color;
-          this.colorIsBright = this.userProjectService.isLightColor(project.color);
-        }
-        this.projectDataIsLoaded = true;
-      });
-  }
+    // TODO : temporarily removed, revert back to retrieving data for just a single project after file service refactor PR approved
+    // this.userProjectService
+    //   .retrieveProject(this.pid)
+    //   .pipe(untilDestroyed(this))
+    //   .subscribe(project => {
+    //     this.name = project.name;
+    //     this.ownerID = project.ownerID;
+    //     this.creationTime = project.creationTime;
+    //     if (project.color != null) {
+    //       this.color = project.color;
+    //       this.inputColor = "#" + project.color;
+    //       this.colorIsBright = this.userProjectService.isLightColor(project.color);
+    //     }
+    //     this.projectDataIsLoaded = true;
+    //   });
 
-  private getWorkflowsOfProject() {
-    this.userProjectService
-      .retrieveWorkflowsOfProject(this.pid)
-      .pipe(untilDestroyed(this))
-      .subscribe(workflows => {
-        this.workflows = workflows;
-      });
+    this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this)).subscribe(userProjectList => {
+      if (userProjectList != null && userProjectList.length > 0) {
+        // map project ID to project object
+        this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+
+        // calculate whether project colors are light or dark
+        const projectColorBrightnessMap: Map<number, boolean> = new Map();
+        userProjectList.forEach(userProject => {
+          if (userProject.color != null) {
+            projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+          }
+
+          // get single project information
+          if (userProject.pid == this.pid) {
+            this.name = userProject.name;
+            this.ownerID = userProject.ownerID;
+            this.creationTime = userProject.creationTime;
+            if (userProject.color != null) {
+              this.color = userProject.color;
+              this.inputColor = "#" + userProject.color;
+              this.colorIsBright = this.userProjectService.isLightColor(userProject.color);
+            }
+          }
+        });
+        this.colorBrightnessMap = projectColorBrightnessMap;
+        this.projectDataIsLoaded = true;
+      }
+    })
   }
 
   public getUserProjectFilesArray(): ReadonlyArray<DashboardUserFileEntry> {
@@ -107,9 +134,12 @@ export class UserProjectSectionComponent implements OnInit {
     return fileArray;
   }
 
-  public jumpToWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
-  }
+  /**
+  * navigate to another project page
+  */
+  public jumpToProject({ pid }: UserProject): void {
+   this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
+ }
 
   public toggleColorPicker() {
     this.colorPickerIsSelected = !this.colorPickerIsSelected;
@@ -131,6 +161,7 @@ export class UserProjectSectionComponent implements OnInit {
     this.userProjectService.updateProjectColor(this.pid, color).pipe(untilDestroyed(this)).subscribe({next: () => {
       this.color = color;
       this.colorIsBright = this.userProjectService.isLightColor(this.color);
+      this.updateProjectStatus = "updated project color"; // cause workflow / file components to update project filtering list
     }, 
     error: (err: unknown) => {
       // @ts-ignore
@@ -149,7 +180,14 @@ export class UserProjectSectionComponent implements OnInit {
     this.userProjectService.deleteProjectColor(this.pid).pipe(untilDestroyed(this)).subscribe(_ => {
       this.color = null;
       this.inputColor = "#ffffff";
+      this.updateProjectStatus = "removed project color"; // cause workflow / file components to update project filtering list
     });
+  }
+
+  public removeFileFromProject(pid: number, fid: number): void {
+    this.userProjectService.removeFileFromProject(pid, fid).pipe(untilDestroyed(this)).subscribe(() => {
+      this.userFileService.refreshDashboardUserFileEntries();
+    })
   }
 
   // ----------------- for file card

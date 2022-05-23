@@ -175,7 +175,7 @@
               </div>
               <div
                 *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
-                nz-tooltip="Remove project color"
+                nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
                 id="right-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"

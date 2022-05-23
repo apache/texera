@@ -181,10 +181,6 @@ export class UserFileSectionComponent {
     })
   }
 
-  private isLightColor(color: string) {
-    return this.userProjectService.isLightColor(color);
-  }
-
   private refreshUserProjects(): void {
     this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this)).subscribe((userProjectList: UserProject[]) => {
       if (userProjectList != null && userProjectList.length > 0) {
@@ -195,7 +191,7 @@ export class UserFileSectionComponent {
         const projectColorBrightnessMap: Map<number, boolean> = new Map();
         userProjectList.forEach(userProject => {
           if (userProject.color != null) {
-            projectColorBrightnessMap.set(userProject.pid, this.isLightColor(userProject.color));
+            projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
           }
         });
         this.colorBrightnessMap = projectColorBrightnessMap;

@@ -63,14 +63,6 @@ object UserFileResource {
     fileNameStored
   }
 
-  def extractProjectIDsAsUInteger(pidString: String): List[UInteger] = {
-    if (pidString != null) {
-      pidString.split(',').map(s => UInteger.valueOf(s)).toList
-    } else {
-      List[UInteger]()
-    }
-  }
-
   case class DashboardFileEntry(
       ownerName: String,
       accessLevel: String,
