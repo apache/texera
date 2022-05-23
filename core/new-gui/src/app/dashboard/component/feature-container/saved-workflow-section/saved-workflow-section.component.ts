@@ -65,7 +65,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
 
-  /* variables for filtering workflos by projects */
+  /* variables for filtering workflows by projects */
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
@@ -455,6 +455,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;
+
+        // update filtering results by project, if applicable
+        if (this.isSearchByProject) {
+          // refilter workflows by projects (to include / exclude changed workflows)
+          this.filterWorkflowsByProject();
+        }
       });
   }
 
@@ -492,7 +498,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
     // update searching / filtering
     if (this.isSearchByProject) {
-      // refilter workflows by projects (to include / exclude changed workflos)
+      // refilter workflows by projects (to include / exclude changed w)
       this.filterWorkflowsByProject();
     } else {
       // (regular search mode) : update search results / autcomplete for current search value
