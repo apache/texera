@@ -6,7 +6,12 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
@@ -57,8 +62,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (filePath.isEmpty) {
       return null
     }
-    val inputReader = new InputStreamReader(new FileInputStream(
-      new File(filePath.get)))
+    val inputReader = new InputStreamReader(new FileInputStream(new File(filePath.get)))
 
     val csvFormat = new CsvFormat()
     csvFormat.setDelimiter(customDelimiter.get.charAt(0))
@@ -85,7 +89,10 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       if (hasHeader) parser.getContext.headers()
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
-    Schema.newBuilder().add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))).asJava).build()
+    Schema
+      .newBuilder()
+      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))).asJava)
+      .build()
   }
 
 }
