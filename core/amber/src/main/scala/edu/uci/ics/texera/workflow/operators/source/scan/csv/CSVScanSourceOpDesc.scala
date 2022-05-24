@@ -65,42 +65,27 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     val csvSetting = new CsvParserSettings()
     csvSetting.setMaxCharsPerColumn(-1)
     csvSetting.setFormat(csvFormat)
-    val csvParser = new CsvParser(csvSetting)
-    csvParser.beginParsing(inputReader)
+    csvSetting.setHeaderExtractionEnabled(hasHeader)
+    val parser = new CsvParser(csvSetting)
+    parser.beginParsing(inputReader)
 
-    csvSetting.setNumberOfRowsToSkip()
+    var data: Array[Array[String]] = Array()
+    val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    for (i <- 0 until readLimit) {
+      val row = parser.parseNext()
+      data = data :+ row
+    }
+    parser.stopParsing()
+    inputReader.close()
 
-    val header =
-      if (hasHeader) Some(csvParser.parseNext()) else None
+    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
+      data.iterator.asInstanceOf[Iterator[Array[Object]]]
+    )
+    val header: Array[String] =
+      if (hasHeader) parser.getContext.headers()
+      else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
-    // skip offset
-//    csvParser.
-
-
-//    val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
-//    val endOffset =
-//      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
-//    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-//      reader.iterator
-//        .slice(startOffset, endOffset)
-//        .map(seq => seq.toArray)
-//    )
-//
-//    reader.close()
-//
-//    // build schema based on inferred AttributeTypes
-//    Schema.newBuilder
-//      .add(
-//        firstRow.indices
-//          .map((i: Int) =>
-//            new Attribute(
-//              if (hasHeader) firstRow.apply(i) else "column-" + (i + 1),
-//              attributeTypeList.apply(i)
-//            )
-//          )
-//          .asJava
-//      )
-//      .build
+    Schema.newBuilder().add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))).asJava).build()
   }
 
 }

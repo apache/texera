@@ -1,17 +1,20 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
-import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
+import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 
+import java.io.{File, FileInputStream, InputStreamReader}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
-  var reader: CSVReader = _
+  var inputReader: InputStreamReader = _
+  var parser: CsvParser = _
   var rows: Iterator[Seq[String]] = _
+
   override def produceTexeraTuple(): Iterator[Tuple] = {
 
     var tuples = rows
@@ -35,17 +38,29 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
   }
 
   override def open(): Unit = {
-    implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = desc.customDelimiter.get.charAt(0)
-    }
-    reader = CSVReader.open(desc.filePath.get)(CustomFormat)
-    // skip line if this worker reads the start of a file, and the file has a header line
-    val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)
+    inputReader = new InputStreamReader(new FileInputStream(
+      new File(desc.filePath.get)))
 
-    rows = reader.iterator.drop(startOffset)
+    val csvFormat = new CsvFormat()
+    csvFormat.setDelimiter(desc.customDelimiter.get.charAt(0))
+    val csvSetting = new CsvParserSettings()
+    csvSetting.setMaxCharsPerColumn(-1)
+    csvSetting.setFormat(csvFormat)
+    csvSetting.setHeaderExtractionEnabled(desc.hasHeader)
+
+    parser = new CsvParser(csvSetting)
+    parser.beginParsing(inputReader)
+
+    // drop start offset
+    (0 until desc.offset.getOrElse(0)).foreach(parser.parseNext())
   }
 
   override def close(): Unit = {
-    reader.close()
+    if (parser != null) {
+      parser.stopParsing()
+    }
+    if (inputReader != null) {
+      inputReader.close()
+    }
   }
 }
