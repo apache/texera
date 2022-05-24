@@ -3,38 +3,52 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csv
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 
 import java.io.{File, FileInputStream, InputStreamReader}
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
-  var rows: Iterator[Seq[String]] = _
+
+  var nextRow: Array[String] = _
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
 
-    var tuples = rows
-      .map(fields =>
+    val rowIterator = new Iterator[Array[String]] {
+      override def hasNext: Boolean = {
+        if (nextRow != null) {
+          return true
+        }
+        nextRow = parser.parseNext()
+        nextRow != null
+      }
+
+      override def next(): Array[String] = {
+        val ret = nextRow
+        nextRow = null
+        ret
+      }
+    }
+
+    var tupleIterator = rowIterator
+      .drop(desc.offset.getOrElse(0))
+      .map(row => {
         try {
-          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-            fields.toArray,
-            schema.getAttributes
-              .map((attr: Attribute) => attr.getType)
-              .toArray
-          )
+          val parsedFields: Array[Object] =
+            AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Object]], schema)
           Tuple.newBuilder(schema).addSequentially(parsedFields).build
         } catch {
           case _: Throwable => null
         }
-      )
-      .filter(tuple => tuple != null)
+      })
+      .filter(t => t != null)
 
-    if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)
-    tuples
+    if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get)
+
+    tupleIterator
   }
 
   override def open(): Unit = {
@@ -49,9 +63,6 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
 
     parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
-
-    // drop start offset
-    (0 until desc.offset.getOrElse(0)).foreach(parser.parseNext())
   }
 
   override def close(): Unit = {
