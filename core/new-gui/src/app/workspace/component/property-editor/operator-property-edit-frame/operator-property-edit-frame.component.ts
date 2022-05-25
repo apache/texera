@@ -82,8 +82,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
-  // The field name keys within this set will be highlighted, e.g. for showing the diff between two workflows.
-  fieldNamesToHighlight: Set<String> = new Set();
+  // The field names within this set will be highlighted, e.g., for showing the diff between two workflows.
+  fieldStyleOverride: Map<String, String> = new Map([
+    ["attribute", "outline: 3px solid green; transition: 0.3s ease-in-out outline;"],
+    ["condition", "background: red; border-color: red;"],
+  ]);
 
   editingTitle: boolean = false;
 
@@ -334,16 +337,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
       mappedField.expressionProperties = {
-        // Highlight the field names with keys specified in property fieldNamesToHighlight.
-        className: _ => {
+        "templateOptions.attributes": () => {
           if (
             mappedField !== null &&
             typeof mappedField.key === "string" &&
-            this.fieldNamesToHighlight.has(mappedField.key)
+            this.fieldStyleOverride.has(mappedField.key)
           ) {
-            return "highlighted";
+            return { style: this.fieldStyleOverride.get(mappedField.key) };
           } else {
-            return "";
+            return {};
           }
         },
       };
