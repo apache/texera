@@ -1,6 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.Cancellable
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowDataMessage, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
@@ -30,9 +33,54 @@ import scala.collection.mutable
   * credit poll request to R. Then, R responds with a NetworkAck() for the credits.
   */
 class FlowControl {
-  val receiverIdToDataBacklog = new mutable.HashMap[ActorVirtualIdentity, Int]()
   val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
   val overloadedReceivers = new mutable.HashSet[ActorVirtualIdentity]()
   var backpressureRequestSentToMainActor = false
   var receiverToCreditPollingHandle = new mutable.HashMap[ActorVirtualIdentity, Cancellable]()
+  private val dataMessagesAwaitingCredits =
+    new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]()
+
+  /**
+    * Determines if an incoming message can be forwarded to the receiver based on the credits available.
+    */
+  def canBeForwarded(receiverId: ActorVirtualIdentity, msg: WorkflowMessage): Boolean = {
+    val isDataMessage = msg.isInstanceOf[WorkflowDataMessage]
+    if (isDataMessage) {
+      if (
+        receiverIdToCredits.getOrElseUpdate(
+          receiverId,
+          Constants.unprocessedBatchesCreditLimitPerSender
+        ) > 0
+      ) {
+        // credit is available. Immediately forward
+        receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+        true
+      } else {
+        // save the message
+        dataMessagesAwaitingCredits
+          .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+          .enqueue(msg)
+        false
+      }
+    } else {
+      true
+    }
+  }
+
+  /**
+    * Decides whether parent should be backpressured based on the current data message put into
+    * `dataMessagesAwaitingCredits` queue.
+    */
+  def shouldBackpressureParent(receiverId: ActorVirtualIdentity): Boolean = {
+    if (dataMessagesAwaitingCredits
+      .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+      .size > Constants.localSendingBufferLimitPerReceiver) {
+      overloadedReceivers.add(receiverId)
+      true
+    } else {
+      overloadedReceivers.remove(receiverId)
+      false
+    }
+
+  }
 }

@@ -293,14 +293,15 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
 
   def sendMessagesAndReceiveAcks: Receive = {
     case SendRequest(id, msg) =>
-      if (idToActorRefs.contains(id)) {
-        forwardMessage(id, msg)
-      } else {
-        val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[WorkflowMessage]())
-        incrementBacklogIfDataMessage(id, msg)
-        stash.enqueue(msg)
-        fetchActorRefMappingFromParent(id)
-      }
+      flowControl.canBeForwarded(id, msg)
+//      if (idToActorRefs.contains(id)) {
+//        forwardMessage(id, msg)
+//      } else {
+//        val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[WorkflowMessage]())
+//        incrementBacklogIfDataMessage(id, msg)
+//        stash.enqueue(msg)
+//        fetchActorRefMappingFromParent(id)
+//      }
     case NetworkAck(id, credits) =>
       val actorID = messageIDToIdentity(id)
       updateCredits(actorID, credits)
