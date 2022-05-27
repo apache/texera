@@ -27,7 +27,8 @@ class RangeBasedShufflePartitioner(Partitioner):
         self.range_min = partitioning.range_min
         self.range_max = partitioning.range_max
         self.keys_per_receiver = int(
-            ((partitioning.range_max - partitioning.range_min) // len(partitioning.receivers)) + 1)
+            ((partitioning.range_max - partitioning.range_min) //
+             len(partitioning.receivers)) + 1)
 
     def get_receiver_index(self, column_val) -> int:
         if column_val < self.range_min:
