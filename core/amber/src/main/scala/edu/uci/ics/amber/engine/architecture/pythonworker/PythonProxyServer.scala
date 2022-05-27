@@ -99,7 +99,7 @@ class PythonProxyServer(
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-  val producer: AmberProducer = new AmberProducer(controlOutputPort, dataOutputPort)
+  val producer: FlightProducer = new AmberProducer(controlOutputPort, dataOutputPort)
   val server: FlightServer = FlightServer.builder(allocator, location, producer).build()
 
   override def run(): Unit = {
