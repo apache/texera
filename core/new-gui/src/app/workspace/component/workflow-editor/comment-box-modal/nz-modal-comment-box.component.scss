@@ -14,13 +14,10 @@
   overflow-y: initial !important;
 }
 
-.commentTextArea {
-  border: none;
+.commentContent {
+  display: flex;
+  flex-wrap: wrap;
 }
-// .commentItem {
-//   display: flex;
-//   flex-wrap: wrap;
-// }
 
 // .commentItem:after{
 //   order: 1;
