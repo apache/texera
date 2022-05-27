@@ -114,7 +114,7 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "5.0.0"
+val arrowVersion = "8.0.0"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
