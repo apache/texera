@@ -155,7 +155,7 @@ export class WorkflowGraph {
       this.commentBoxEditCommentSubject.next({ commentBox: commentBox });
     }
   }
-  
+
   /**
    * Deletes the operator from the graph by its ID.
    * Throws an Error if the operator doesn't exist.
@@ -560,7 +560,6 @@ export class WorkflowGraph {
   public getCommentBoxAddCommentStream(): Observable<{ addedComment: Comment; commentBox: CommentBox }> {
     return this.commentBoxAddCommentSubject.asObservable();
   }
-
 
   public getCommentBoxDeleteCommentStream(): Observable<{ commentBox: CommentBox }> {
     return this.commentBoxDeleteCommentSubject.asObservable();
