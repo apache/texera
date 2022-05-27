@@ -4,6 +4,19 @@
   box-sizing: border-box;
 }
 
+.login-form {
+  max-width: 360px;
+  margin-left: 60px;
+}
+
+.login-form-margin {
+  margin-bottom: 16px;
+}
+
+.login-form-button {
+  width: 100%;
+}
+
 .g-sign-in-button {
   margin-top: 10px;
   display: inline-block;
