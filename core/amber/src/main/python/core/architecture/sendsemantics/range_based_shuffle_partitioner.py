@@ -27,8 +27,12 @@ class RangeBasedShufflePartitioner(Partitioner):
         self.range_min = partitioning.range_min
         self.range_max = partitioning.range_max
         self.keys_per_receiver = int(
-            ((partitioning.range_max - partitioning.range_min) //
-             len(partitioning.receivers)) + 1)
+            (
+                (partitioning.range_max - partitioning.range_min)
+                // len(partitioning.receivers)
+            )
+            + 1
+        )
 
     def get_receiver_index(self, column_val) -> int:
         if column_val < self.range_min:
@@ -40,7 +44,7 @@ class RangeBasedShufflePartitioner(Partitioner):
 
     @overrides
     def add_tuple_to_batch(
-            self, tuple_: Tuple
+        self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         column_val = tuple_.get_fields(self.range_column_indices[0])
         receiver_index = self.get_receiver_index(column_val)
