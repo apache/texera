@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class IntervalJoinExecConfig(
@@ -23,6 +23,8 @@ class IntervalJoinExecConfig(
     val operatorSchemaInfo: OperatorSchemaInfo,
     var desc: IntervalJoinOpDesc
 ) extends OpExecConfig(id) {
+
+  shuffleType = ShuffleType.HASH_BASED
 
   override lazy val topology: Topology = {
     new Topology(
@@ -41,9 +43,9 @@ class IntervalJoinExecConfig(
   var leftInputLink: LinkIdentity = _
 
   override def checkStartDependencies(workflow: Workflow): Unit = {
-    leftInputLink = inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
+    leftInputLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
 
-    val rightTable = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
+    val rightTable = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
     workflow.getSources(toOperatorIdentity(rightTable.from)).foreach { source =>
       workflow.getOperator(source).topology.layers.head.startAfter(leftInputLink)
     }
@@ -55,8 +57,6 @@ class IntervalJoinExecConfig(
       )
     }
   }
-
-  override def requiredShuffle: Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     if (layer == leftInputLink.from) {

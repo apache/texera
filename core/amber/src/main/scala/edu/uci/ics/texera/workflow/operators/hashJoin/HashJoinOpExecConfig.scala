@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class HashJoinOpExecConfig[K](
@@ -23,6 +23,8 @@ class HashJoinOpExecConfig[K](
     val joinType: JoinType,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
+
+  shuffleType = ShuffleType.HASH_BASED
 
   override lazy val topology: Topology = {
     new Topology(
@@ -41,11 +43,18 @@ class HashJoinOpExecConfig[K](
   var buildTable: LinkIdentity = _
 
   override def checkStartDependencies(workflow: Workflow): Unit = {
-    val buildLink = inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
+    val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
     buildTable = buildLink
-    val probeLink = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
-    workflow.getSources(toOperatorIdentity(probeLink.from)).foreach { source =>
-      workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
+    val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
+    val dependerLink = probeLink
+    val dependeeLink = buildLink
+    workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { dependerSource =>
+      val opId = workflow.getOperator(dependeeLink.from.operator).id
+      workflow.getSources(opId).foreach { dependeeSource =>
+        if (dependerSource != dependeeSource) {
+          workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
+        }
+      }
     }
     topology.layers.head.initIOperatorExecutor = _ =>
       new HashJoinOpExec[K](
@@ -56,8 +65,6 @@ class HashJoinOpExecConfig[K](
         operatorSchemaInfo
       )
   }
-
-  override def requiredShuffle: Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     if (layer == buildTable.from) {

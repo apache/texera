@@ -10,8 +10,10 @@ trait OperatorExecutor extends IOperatorExecutor {
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
       input: LinkIdentity
-  ): Iterator[ITuple] = {
-    processTexeraTuple(tuple.asInstanceOf[Either[Tuple, InputExhausted]], input)
+  ): Iterator[(ITuple, Option[LinkIdentity])] = {
+    processTexeraTuple(tuple.asInstanceOf[Either[Tuple, InputExhausted]], input).map(t =>
+      (t, Option.empty)
+    )
   }
 
   def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): Iterator[Tuple]

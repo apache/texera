@@ -1,4 +1,6 @@
 wheel
+flake8
+black
 attrs==21.2.0
 iniconfig==1.1.1
 loguru==0.5.3
@@ -24,3 +26,4 @@ overrides==6.1.0
 typing_extensions
 pytest-reraise
 dataclasses
+Deprecated~=1.2.13

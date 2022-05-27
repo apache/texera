@@ -45,4 +45,9 @@ object Constants {
     AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-numerator")
   var reshapeFirstPhaseSharingDenominator: Int =
     AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-denominator")
+
+  var flowControlEnabled: Boolean =
+    AmberUtils.amberConfig.getBoolean("flow-control.credit-based-flow-control-enabled")
+  var pairWiseUnprocessedBatchesLimit: Int =
+    AmberUtils.amberConfig.getInt("flow-control.unprocessed-batches-limit-per-worker-pair")
 }

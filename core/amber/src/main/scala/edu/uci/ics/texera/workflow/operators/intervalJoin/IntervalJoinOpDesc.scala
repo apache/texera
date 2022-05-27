@@ -107,7 +107,7 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
       OperatorIdentity("test", "test"),
       leftTableAttributeName,
       rightTableAttributeName,
-      OperatorSchemaInfo(schemas, getOutputSchema(schemas)),
+      OperatorSchemaInfo(schemas, Array(getOutputSchema(schemas))),
       this
     )
     this.leftInputLink = isLeftTableInput
