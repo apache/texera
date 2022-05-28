@@ -36,17 +36,17 @@ class RangeBasedShufflePartitioner(Partitioner):
 
     def get_receiver_index(self, column_val) -> int:
         if column_val < self.range_min:
-            yield 0
+            return 0
         elif column_val > self.range_max:
-            yield len(self.receivers) - 1
+            return len(self.receivers) - 1
         else:
-            int((column_val - self.range_min) // self.keys_per_receiver)
+            return int((column_val - self.range_min) // self.keys_per_receiver)
 
     @overrides
     def add_tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
-        column_val = tuple_.get_fields(self.range_column_indices[0])
+        column_val = tuple_[self.range_column_indices[0]]
         receiver_index = self.get_receiver_index(column_val)
         receiver, batch = self.receivers[receiver_index]
         batch.append(tuple_)
