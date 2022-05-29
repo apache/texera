@@ -89,7 +89,7 @@ class WorkflowWorker(
   def receiveAndProcessMessages: Receive =
     try {
       disallowActorRefRelatedMessages orElse {
-        case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload, _)) =>
+        case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
           dataInputPort.handleMessage(
             this.sender(),
             tupleProducer.getSenderCredits(from),
@@ -98,7 +98,7 @@ class WorkflowWorker(
             seqNum,
             payload
           )
-        case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload, _)) =>
+        case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
           controlInputPort.handleMessage(
             this.sender(),
             tupleProducer.getSenderCredits(from),
@@ -107,8 +107,8 @@ class WorkflowWorker(
             seqNum,
             payload
           )
-        case NetworkMessage(id, CreditRequest(from, _, _)) =>
-          sender ! NetworkAck(id, tupleProducer.getSenderCredits(from))
+        case NetworkMessage(id, CreditRequest(from, _)) =>
+          sender ! NetworkAck(id, Some(tupleProducer.getSenderCredits(from)))
         case other =>
           throw new WorkflowRuntimeException(s"unhandled message: $other")
       }

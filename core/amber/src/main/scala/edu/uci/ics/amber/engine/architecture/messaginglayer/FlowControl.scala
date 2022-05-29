@@ -26,7 +26,7 @@ import scala.collection.mutable.ArrayBuffer
   * `buffer in NC` + `credit available in R` is enough, then R is removed from the overloaded list (if present). If
   * the `overloaded` list is empty, then NC sends a request to S to disable backpressure (resume processing).
   *
-  * b) It looks at its backlog and sends an amount of data, less than credits available, to R.
+  * b) It looks at its backlog and sends an amount of data, less than credits available, to congestion control.
   *
   * 3. If R sends a credit of 0, then S won't send any data as a response to NetworkAck(). This will lead to a problem
   * because then there is no way for S to know when the data in its congestion control module can be sent. Thus,
@@ -35,12 +35,25 @@ import scala.collection.mutable.ArrayBuffer
   */
 class FlowControl {
   val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
-  val overloadedReceivers = new mutable.HashSet[ActorVirtualIdentity]()
   var backpressureRequestSentToMainActor = false
   var receiverToCreditPollingHandle = new mutable.HashMap[ActorVirtualIdentity, Cancellable]()
   private val dataMessagesAwaitingCredits =
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]()
   private val messageBuffer = new ArrayBuffer[WorkflowMessage]()
+
+  def getOverloadedReceivers(): ArrayBuffer[ActorVirtualIdentity] = {
+    val overloadedReceivers = new ArrayBuffer[ActorVirtualIdentity]()
+    dataMessagesAwaitingCredits.keys.foreach(receiverId => {
+      if (
+        dataMessagesAwaitingCredits(
+          receiverId
+        ).size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits(receiverId)
+      ) {
+        overloadedReceivers.append(receiverId)
+      }
+    })
+    overloadedReceivers
+  }
 
   /**
     * Determines if an incoming message can be forwarded to the receiver based on the credits available.
@@ -98,17 +111,10 @@ class FlowControl {
     * `dataMessagesAwaitingCredits` queue.
     */
   def shouldBackpressureParent(receiverId: ActorVirtualIdentity): Boolean = {
-    if (
-      dataMessagesAwaitingCredits
-        .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-        .size > Constants.localSendingBufferLimitPerReceiver
-    ) {
-      overloadedReceivers.add(receiverId)
-      true
-    } else {
-      overloadedReceivers.remove(receiverId)
-      false
-    }
+    Constants.flowControlEnabled &&
+    dataMessagesAwaitingCredits
+      .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+      .size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits(receiverId)
   }
 
   def updateCredits(receiverId: ActorVirtualIdentity, credits: Int): Unit = {

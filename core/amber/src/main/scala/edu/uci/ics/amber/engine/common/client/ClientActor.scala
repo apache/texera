@@ -56,12 +56,9 @@ private[client] class ClientActor extends Actor {
       sender ! scala.runtime.BoxedUnit.UNIT
     case NetworkMessage(
           mId,
-          _ @WorkflowControlMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn), _)
+          _ @WorkflowControlMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn))
         ) =>
-      sender ! NetworkAck(
-        mId,
-        Constants.unprocessedBatchesCreditLimitPerSender
-      ) // Client actor is assumed to have enough credits
+      sender ! NetworkAck(mId) // Client actor is assumed to have enough credits
       if (handlers.isDefinedAt(controlReturn)) {
         handlers(controlReturn)
       }
@@ -76,12 +73,9 @@ private[client] class ClientActor extends Actor {
       }
     case NetworkMessage(
           mId,
-          _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command), _)
+          _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command))
         ) =>
-      sender ! NetworkAck(
-        mId,
-        Constants.unprocessedBatchesCreditLimitPerSender
-      ) // Client actor is assumed to have enough credits
+      sender ! NetworkAck(mId) // Client actor is assumed to have enough credits
       if (handlers.isDefinedAt(command)) {
         handlers(command)
       }

@@ -147,7 +147,7 @@ class Controller(
 
   def running: Receive = {
     acceptDirectInvocations orElse {
-      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload, _)) =>
+      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(
           this.sender(),
           Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
@@ -195,7 +195,7 @@ class Controller(
   override def receive: Receive = initializing
 
   def initializing: Receive = {
-    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation, _)) =>
+    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
       //process reply messages
       controlInputPort.handleMessage(
         this.sender(),
@@ -205,7 +205,7 @@ class Controller(
         seqNum,
         payload
       )
-    case NetworkMessage(id, WorkflowControlMessage(CONTROLLER, seqNum, payload, _)) =>
+    case NetworkMessage(id, WorkflowControlMessage(CONTROLLER, seqNum, payload)) =>
       //process control messages from self
       controlInputPort.handleMessage(
         this.sender(),

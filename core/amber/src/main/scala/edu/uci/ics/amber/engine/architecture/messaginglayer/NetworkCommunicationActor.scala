@@ -8,8 +8,7 @@ import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.{
   CreditRequest,
   WorkflowControlMessage,
-  WorkflowMessage,
-  WorkflowMessageType
+  WorkflowMessage
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -59,7 +58,7 @@ object NetworkCommunicationActor {
     *
     * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
     */
-  final case class NetworkAck(messageId: Long, credits: Int)
+  final case class NetworkAck(messageId: Long, credits: Option[Int] = None)
 
   final case class ResendMessages()
 
@@ -104,8 +103,8 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   val flowControl = new FlowControl()
 
   /**
-    * The credits received as a result of NetworkAck() are updated in the data structures. Also if credit is 0.
-    * a regular polling service needs to be started to get credit periodically from receiver.
+    * If credit is <=0, a regular polling service needs to be started to get credit periodically from receiver.
+    * If credit > 0, then the polling service is disabled.
     */
   private def togglePollForCredits(
       receiverId: ActorVirtualIdentity,
@@ -132,8 +131,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       WorkflowControlMessage(
         actorId,
         nextSeqNumForMainActor,
-        ControlInvocation(AsyncRPCClient.IgnoreReply, Backpressure(backpressureEnable)),
-        WorkflowMessageType.CONTROL_MESSAGE
+        ControlInvocation(AsyncRPCClient.IgnoreReply, Backpressure(backpressureEnable))
       )
     )
     context.parent ! msgToSend
@@ -159,7 +157,9 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       }
     } else {
       if (
-        flowControl.overloadedReceivers.isEmpty && flowControl.backpressureRequestSentToMainActor
+        flowControl
+          .getOverloadedReceivers()
+          .isEmpty && flowControl.backpressureRequestSentToMainActor
       ) {
         sendBackpressureMessageToParent(false)
         flowControl.backpressureRequestSentToMainActor = false
@@ -242,22 +242,26 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
         forwardMessageFromFlowControl(id, msgToForward.get)
       }
     case NetworkAck(id, credits) =>
-      val actorID = messageIDToIdentity(id)
-      flowControl.updateCredits(actorID, credits)
-      informParentAboutBackpressure(actorID) // informs if necessary
-      togglePollForCredits(actorID, credits <= 0)
-      flowControl
-        .getMessageToForward(actorID)
-        .foreach(msg => forwardMessageFromFlowControl(actorID, msg))
-      if (idToCongestionControls.contains(actorID)) {
-        val congestionControl = idToCongestionControls(actorID)
-        congestionControl.ack(id)
-        congestionControl
-          .getBufferedMessagesToSend()
-          .foreach { msg =>
-            congestionControl.markMessageInTransit(msg)
-            sendOrGetActorRef(actorID, msg)
-          }
+      if (messageIDToIdentity.contains(id)) {
+        val actorID = messageIDToIdentity.remove(id).get
+        if (credits.nonEmpty) {
+          flowControl.updateCredits(actorID, credits.get)
+          informParentAboutBackpressure(actorID) // informs if necessary
+          togglePollForCredits(actorID, credits.get <= 0)
+          flowControl
+            .getMessagesToForward(actorID)
+            .foreach(msg => forwardMessageFromFlowControl(actorID, msg))
+        }
+        if (idToCongestionControls.contains(actorID)) {
+          val congestionControl = idToCongestionControls(actorID)
+          congestionControl.ack(id)
+          congestionControl
+            .getBufferedMessagesToSend()
+            .foreach { msg =>
+              congestionControl.markMessageInTransit(msg)
+              sendOrGetActorRef(actorID, msg)
+            }
+        }
       }
     case ResendMessages =>
       queriedActorVirtualIdentities.clear()
