@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowDataMessage, Workfl
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * We implement credit-based flow control. Suppose a sender worker S sends data in batches to a receiving worker R
@@ -39,32 +40,57 @@ class FlowControl {
   var receiverToCreditPollingHandle = new mutable.HashMap[ActorVirtualIdentity, Cancellable]()
   private val dataMessagesAwaitingCredits =
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]()
+  private val messageBuffer = new ArrayBuffer[WorkflowMessage]()
 
   /**
     * Determines if an incoming message can be forwarded to the receiver based on the credits available.
     */
-  def canBeForwarded(receiverId: ActorVirtualIdentity, msg: WorkflowMessage): Boolean = {
+  def getMessageToForward(
+      receiverId: ActorVirtualIdentity,
+      msg: WorkflowMessage
+  ): Option[WorkflowMessage] = {
     val isDataMessage = msg.isInstanceOf[WorkflowDataMessage]
-    if (isDataMessage) {
+    if (isDataMessage && Constants.flowControlEnabled) {
       if (
         receiverIdToCredits.getOrElseUpdate(
           receiverId,
           Constants.unprocessedBatchesCreditLimitPerSender
         ) > 0
       ) {
-        // credit is available. Immediately forward
-        receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
-        true
+        if (
+          dataMessagesAwaitingCredits
+            .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+            .isEmpty
+        ) {
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+          return Some(msg)
+        } else {
+          dataMessagesAwaitingCredits(receiverId).enqueue(msg)
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+          return Some(dataMessagesAwaitingCredits(receiverId).dequeue())
+        }
       } else {
-        // save the message
-        dataMessagesAwaitingCredits
-          .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-          .enqueue(msg)
-        false
+        dataMessagesAwaitingCredits(receiverId).enqueue(msg)
+        None
       }
     } else {
-      true
+      Some(msg)
     }
+  }
+
+  def getMessagesToForward(receiverId: ActorVirtualIdentity): Array[WorkflowMessage] = {
+    messageBuffer.clear()
+    while (
+      dataMessagesAwaitingCredits
+        .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+        .nonEmpty && receiverIdToCredits.getOrElseUpdate(
+        receiverId,
+        Constants.unprocessedBatchesCreditLimitPerSender
+      ) > 0
+    ) {
+      messageBuffer.append(dataMessagesAwaitingCredits(receiverId).dequeue())
+    }
+    messageBuffer.toArray
   }
 
   /**
@@ -72,15 +98,24 @@ class FlowControl {
     * `dataMessagesAwaitingCredits` queue.
     */
   def shouldBackpressureParent(receiverId: ActorVirtualIdentity): Boolean = {
-    if (dataMessagesAwaitingCredits
-      .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-      .size > Constants.localSendingBufferLimitPerReceiver) {
+    if (
+      dataMessagesAwaitingCredits
+        .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+        .size > Constants.localSendingBufferLimitPerReceiver
+    ) {
       overloadedReceivers.add(receiverId)
       true
     } else {
       overloadedReceivers.remove(receiverId)
       false
     }
+  }
 
+  def updateCredits(receiverId: ActorVirtualIdentity, credits: Int): Unit = {
+    if (credits <= 0) {
+      receiverIdToCredits(receiverId) = 0
+    } else {
+      receiverIdToCredits(receiverId) = credits
+    }
   }
 }

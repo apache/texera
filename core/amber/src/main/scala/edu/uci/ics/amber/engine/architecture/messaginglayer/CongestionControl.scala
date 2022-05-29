@@ -65,25 +65,12 @@ class CongestionControl {
   /**
     * Gets an amount of messages allowed by congestion control windows and credit limit
     */
-  def getBufferedMessagesToSend(creditLimit: Int): Array[NetworkMessage] = {
+  def getBufferedMessagesToSend(): Array[NetworkMessage] = {
     messageBuffer.clear()
-    var dataBatchCreditsLeft = creditLimit
-    breakable {
-      while (inTransit.size < windowSize && toBeSent.nonEmpty) {
-        if (
-          Constants.flowControlEnabled
-          && toBeSent.front.internalMessage.msgType == WorkflowMessageType.DATA_MESSAGE
-          && dataBatchCreditsLeft == 0
-        ) {
-          break()
-        }
-        val msg = toBeSent.dequeue()
-        inTransit(msg.messageId) = msg
-        messageBuffer.append(msg)
-        if (msg.internalMessage.msgType == WorkflowMessageType.DATA_MESSAGE) {
-          dataBatchCreditsLeft -= 1
-        }
-      }
+    while (inTransit.size < windowSize && toBeSent.nonEmpty) {
+      val msg = toBeSent.dequeue()
+      inTransit(msg.messageId) = msg
+      messageBuffer.append(msg)
     }
     messageBuffer.toArray
   }

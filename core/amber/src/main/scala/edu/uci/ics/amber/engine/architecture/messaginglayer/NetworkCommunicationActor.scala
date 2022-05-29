@@ -103,73 +103,25 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   var nextSeqNumForMainActor = 0L // used to send backpressure enable/disable messages to parent
   val flowControl = new FlowControl()
 
-  private def incrementBacklogIfDataMessage(
-      id: ActorVirtualIdentity,
-      msg: WorkflowMessage
-  ): Unit = {
-    if (msg.msgType == WorkflowMessageType.DATA_MESSAGE) {
-      flowControl.receiverIdToDataBacklog(id) =
-        flowControl.receiverIdToDataBacklog.getOrElseUpdate(id, 0) + 1
-    }
-  }
-
-  private def decrementBacklogIfDataMessage(
-      receiverId: ActorVirtualIdentity,
-      msg: WorkflowMessage
-  ): Unit = {
-    if (msg.msgType == WorkflowMessageType.DATA_MESSAGE) {
-      if (
-        flowControl.receiverIdToDataBacklog
-          .contains(receiverId) && flowControl.receiverIdToDataBacklog(receiverId) > 0
-      ) {
-        flowControl.receiverIdToDataBacklog(receiverId) =
-          flowControl.receiverIdToDataBacklog(receiverId) - 1
-      }
-    }
-  }
-
-  private def decrementCreditIfDataMessage(
-      receiverId: ActorVirtualIdentity,
-      msg: WorkflowMessage
-  ): Unit = {
-    if (msg.msgType == WorkflowMessageType.DATA_MESSAGE) {
-      flowControl.receiverIdToCredits(receiverId) =
-        flowControl.receiverIdToCredits.getOrElseUpdate(
-          receiverId,
-          Constants.unprocessedBatchesCreditLimitPerSender
-        ) - 1
-    }
-  }
-
   /**
     * The credits received as a result of NetworkAck() are updated in the data structures. Also if credit is 0.
     * a regular polling service needs to be started to get credit periodically from receiver.
     */
-  private def updateCredits(
+  private def togglePollForCredits(
       receiverId: ActorVirtualIdentity,
-      credits: Int
+      enablePolling: Boolean
   ): Unit = {
-    if (credits <= 0) {
-      flowControl.receiverIdToCredits(receiverId) = 0
-
-      if (!flowControl.receiverToCreditPollingHandle.contains(receiverId)) {
-        // if credit is 0, we need to poll the receiver periodically to get credit information.
-        flowControl.receiverToCreditPollingHandle(receiverId) =
-          context.system.scheduler.scheduleWithFixedDelay(
-            Constants.creditPollingInitialDelayInMs.milliseconds,
-            Constants.creditPollingIntervalinMs.milliseconds,
-            self,
-            PollForCredit(receiverId)
-          )(context.dispatcher)
-      }
-    } else {
-      if (flowControl.receiverToCreditPollingHandle.contains(receiverId)) {
-        //  disable polling as it is no longer needed. The NetworkAck() of
-        // data we send can tell us the remaining credits.
-        flowControl.receiverToCreditPollingHandle(receiverId).cancel()
-        flowControl.receiverToCreditPollingHandle.remove(receiverId)
-      }
-      flowControl.receiverIdToCredits(receiverId) = credits
+    if (enablePolling && !flowControl.receiverToCreditPollingHandle.contains(receiverId)) {
+      flowControl.receiverToCreditPollingHandle(receiverId) =
+        context.system.scheduler.scheduleWithFixedDelay(
+          Constants.creditPollingInitialDelayInMs.milliseconds,
+          Constants.creditPollingIntervalinMs.milliseconds,
+          self,
+          PollForCredit(receiverId)
+        )(context.dispatcher)
+    } else if (!enablePolling && flowControl.receiverToCreditPollingHandle.contains(receiverId)) {
+      flowControl.receiverToCreditPollingHandle(receiverId).cancel()
+      flowControl.receiverToCreditPollingHandle.remove(receiverId)
     }
   }
 
@@ -200,22 +152,12 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       // to the main actor. No need to check for backpressure here.
       return
     }
-    if (
-      flowControl.receiverIdToCredits(
-        receiverId
-      ) + Constants.localSendingBufferLimitPerReceiver < flowControl.receiverIdToDataBacklog
-        .getOrElseUpdate(
-          receiverId,
-          0
-        )
-    ) {
-      flowControl.overloadedReceivers.add(receiverId)
+    if (flowControl.shouldBackpressureParent(receiverId)) {
       if (!flowControl.backpressureRequestSentToMainActor) {
         sendBackpressureMessageToParent(true)
         flowControl.backpressureRequestSentToMainActor = true
       }
     } else {
-      flowControl.overloadedReceivers.remove(receiverId)
       if (
         flowControl.overloadedReceivers.isEmpty && flowControl.backpressureRequestSentToMainActor
       ) {
@@ -254,20 +196,10 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
     val congestionControl = idToCongestionControls.getOrElseUpdate(to, new CongestionControl())
     val data = NetworkMessage(networkMessageID, msg)
     messageIDToIdentity(networkMessageID) = to
-    if (
-      congestionControl.canSend
-      && (!Constants.flowControlEnabled ||
-      (msg.msgType == WorkflowMessageType.DATA_MESSAGE
-      && flowControl.receiverIdToCredits.getOrElseUpdate(
-        to,
-        Constants.unprocessedBatchesCreditLimitPerSender
-      ) > 0) || msg.msgType == WorkflowMessageType.CONTROL_MESSAGE)
-    ) {
+    if (congestionControl.canSend) {
       congestionControl.markMessageInTransit(data)
-      decrementCreditIfDataMessage(to, msg)
       sendOrGetActorRef(to, data)
     } else {
-      incrementBacklogIfDataMessage(to, msg)
       congestionControl.enqueueMessage(data)
     }
     networkMessageID += 1
@@ -285,36 +217,45 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       val stash = messageStash(actorId)
       while (stash.nonEmpty) {
         val msg = stash.dequeue()
-        decrementBacklogIfDataMessage(actorId, msg)
         forwardMessage(actorId, msg)
       }
     }
   }
 
+  def forwardMessageFromFlowControl(
+      receiverId: ActorVirtualIdentity,
+      msg: WorkflowMessage
+  ): Unit = {
+    if (idToActorRefs.contains(receiverId)) {
+      forwardMessage(receiverId, msg)
+    } else {
+      val stash = messageStash.getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+      stash.enqueue(msg)
+      fetchActorRefMappingFromParent(receiverId)
+    }
+  }
+
   def sendMessagesAndReceiveAcks: Receive = {
     case SendRequest(id, msg) =>
-      flowControl.canBeForwarded(id, msg)
-//      if (idToActorRefs.contains(id)) {
-//        forwardMessage(id, msg)
-//      } else {
-//        val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[WorkflowMessage]())
-//        incrementBacklogIfDataMessage(id, msg)
-//        stash.enqueue(msg)
-//        fetchActorRefMappingFromParent(id)
-//      }
+      val msgToForward = flowControl.getMessageToForward(id, msg)
+      if (msgToForward.nonEmpty) {
+        forwardMessageFromFlowControl(id, msgToForward.get)
+      }
     case NetworkAck(id, credits) =>
       val actorID = messageIDToIdentity(id)
-      updateCredits(actorID, credits)
+      flowControl.updateCredits(actorID, credits)
       informParentAboutBackpressure(actorID) // informs if necessary
+      togglePollForCredits(actorID, credits <= 0)
+      flowControl
+        .getMessageToForward(actorID)
+        .foreach(msg => forwardMessageFromFlowControl(actorID, msg))
       if (idToCongestionControls.contains(actorID)) {
         val congestionControl = idToCongestionControls(actorID)
         congestionControl.ack(id)
         congestionControl
-          .getBufferedMessagesToSend(flowControl.receiverIdToCredits(actorID))
+          .getBufferedMessagesToSend()
           .foreach { msg =>
             congestionControl.markMessageInTransit(msg)
-            decrementCreditIfDataMessage(actorID, msg.internalMessage)
-            decrementBacklogIfDataMessage(actorID, msg.internalMessage)
             sendOrGetActorRef(actorID, msg)
           }
       }
