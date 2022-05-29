@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   NetworkAck,
   NetworkMessage
 }
-import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ClosureRequest,
