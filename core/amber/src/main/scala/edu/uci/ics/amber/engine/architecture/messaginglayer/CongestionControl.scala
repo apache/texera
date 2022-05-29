@@ -58,8 +58,8 @@ class CongestionControl {
     }
     sentTime.remove(id)
   }
-  
-  def getBufferedMessagesToSend(): Array[NetworkMessage] = {
+
+  def getBufferedMessagesToSend: Array[NetworkMessage] = {
     messageBuffer.clear()
     while (inTransit.size < windowSize && toBeSent.nonEmpty) {
       val msg = toBeSent.dequeue()

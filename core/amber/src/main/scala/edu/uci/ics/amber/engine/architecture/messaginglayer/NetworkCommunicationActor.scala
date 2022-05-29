@@ -251,8 +251,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
         if (idToCongestionControls.contains(actorID)) {
           val congestionControl = idToCongestionControls(actorID)
           congestionControl.ack(id)
-          congestionControl
-            .getBufferedMessagesToSend()
+          congestionControl.getBufferedMessagesToSend
             .foreach { msg =>
               congestionControl.markMessageInTransit(msg)
               sendOrGetActorRef(actorID, msg)
