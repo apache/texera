@@ -129,9 +129,9 @@ class WorkerSpec
         }
       case NetworkMessage(
             msgID,
-            WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue), _)
+            WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))
           ) =>
-        probe.sender() ! NetworkAck(msgID, Constants.unprocessedBatchesCreditLimitPerSender)
+        probe.sender() ! NetworkAck(msgID, Some(Constants.unprocessedBatchesCreditLimitPerSender))
         returnValue match {
           case e: Throwable => throw e
           case _ =>

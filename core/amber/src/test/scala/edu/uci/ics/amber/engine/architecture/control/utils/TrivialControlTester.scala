@@ -24,7 +24,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
     disallowActorRefRelatedMessages orElse {
       case NetworkMessage(
             id,
-            internalMessage @ WorkflowControlMessage(from, sequenceNumber, payload, _)
+            internalMessage @ WorkflowControlMessage(from, sequenceNumber, payload)
           ) =>
         logger.info(s"received $internalMessage")
         this.controlInputPort.handleMessage(

@@ -83,7 +83,9 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
       message.sequenceNumber,
       message.payload
     )
-    testActor.expectMsg(NetworkAck(messageID, Constants.unprocessedBatchesCreditLimitPerSender))
+    testActor.expectMsg(
+      NetworkAck(messageID, Some(Constants.unprocessedBatchesCreditLimitPerSender))
+    )
   }
 
 }
