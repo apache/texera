@@ -1,12 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
-import edu.uci.ics.amber.engine.common.Constants
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.util.control.Breaks.{break, breakable}
 
 class CongestionControl {
 
@@ -60,10 +58,7 @@ class CongestionControl {
     }
     sentTime.remove(id)
   }
-
-  /**
-    * Gets an amount of messages allowed by congestion control windows and credit limit
-    */
+  
   def getBufferedMessagesToSend(): Array[NetworkMessage] = {
     messageBuffer.clear()
     while (inTransit.size < windowSize && toBeSent.nonEmpty) {

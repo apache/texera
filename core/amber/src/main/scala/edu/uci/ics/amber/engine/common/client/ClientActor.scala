@@ -58,7 +58,7 @@ private[client] class ClientActor extends Actor {
           mId,
           _ @WorkflowControlMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn))
         ) =>
-      sender ! NetworkAck(mId) // Client actor is assumed to have enough credits
+      sender ! NetworkAck(mId)
       if (handlers.isDefinedAt(controlReturn)) {
         handlers(controlReturn)
       }
@@ -71,11 +71,8 @@ private[client] class ClientActor extends Actor {
         }
         promiseMap.remove(originalCommandID)
       }
-    case NetworkMessage(
-          mId,
-          _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command))
-        ) =>
-      sender ! NetworkAck(mId) // Client actor is assumed to have enough credits
+    case NetworkMessage(mId, _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command))) =>
+      sender ! NetworkAck(mId)
       if (handlers.isDefinedAt(command)) {
         handlers(command)
       }

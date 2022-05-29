@@ -48,10 +48,7 @@ object NetworkCommunicationActor {
     * @param messageId       Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
     * @param internalMessage WorkflowMessage, the message payload
     */
-  final case class NetworkMessage(
-      messageId: Long,
-      internalMessage: WorkflowMessage
-  )
+  final case class NetworkMessage(messageId: Long, internalMessage: WorkflowMessage)
 
   /** Ack for NetworkMessage
     * note that it should NEVER be handled by the main thread
@@ -99,7 +96,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   var networkMessageID = 0L
 
   // data structures needed by flow control
-  var nextSeqNumForMainActor = 0L // used to send backpressure enable/disable messages to parent
+  var nextSeqNumForMainActor = 0L // used to send backpressure enable/disable messages to parent.
   val flowControl = new FlowControl()
 
   /**
@@ -216,8 +213,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
     if (messageStash.contains(actorId)) {
       val stash = messageStash(actorId)
       while (stash.nonEmpty) {
-        val msg = stash.dequeue()
-        forwardMessage(actorId, msg)
+        forwardMessage(actorId, stash.dequeue())
       }
     }
   }
