@@ -81,7 +81,7 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   private getUserProjectMetadata() {
-    // TODO : temporarily removed, revert back to retrieving data for just a single project after file service refactor PR approved
+    // TODO : temporarily removed, revert back to retrieving data for just a single project after future PR to reuse UserFileSection component
     // this.userProjectService
     //   .retrieveProject(this.pid)
     //   .pipe(untilDestroyed(this))
@@ -199,14 +199,12 @@ export class UserProjectSectionComponent implements OnInit {
       });
   }
 
-  // temporary TODO: will be removed after user file refactor
+  // TODO: will be removed in future refactor to reuse UserFileSection component
   public removeFileFromProject(pid: number, fid: number): void {
     this.userProjectService
       .removeFileFromProject(pid, fid)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.userFileService.refreshDashboardUserFileEntries();
-      });
+      .subscribe(() => {});
   }
 
   // ----------------- for file card
