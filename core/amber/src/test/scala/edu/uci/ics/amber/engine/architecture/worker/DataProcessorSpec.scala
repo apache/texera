@@ -260,34 +260,34 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }(ExecutionContext.global)
   }
 
-  "data processor" should "reduce credits" in {
-    Constants.flowControlEnabled = true
-    val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
-    val operator = mock[OperatorExecutor]
-    val asyncRPCServer: AsyncRPCServer = null
-    val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
-    val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
-    inAnyOrder {
-      (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
-      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
-      inSequence {
-        (operator.open _).expects().once()
-        tuplesToSend.foreach { x =>
-          (operator.processTuple _).expects(Left(x), linkID)
-        }
-        (operator.processTuple _).expects(Right(InputExhausted()), linkID)
-        (operator.close _).expects().once()
-      }
-    }
-
-    val dp = wire[DataProcessor]
-    operator.open()
-    val senderWorker = ActorVirtualIdentity("sender")
-    assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit)
-    Await.result(monitorCredits(ActorVirtualIdentity("sender"), dp, tuplesToSend), 3.seconds)
-    waitForDataProcessing(workerStateManager)
-    dp.shutdown()
-
-  }
+//  "data processor" should "reduce credits" in {
+//    Constants.flowControlEnabled = true
+//    val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+//    val operator = mock[OperatorExecutor]
+//    val asyncRPCServer: AsyncRPCServer = null
+//    val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
+//    val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
+//    inAnyOrder {
+//      (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
+//      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
+//      inSequence {
+//        (operator.open _).expects().once()
+//        tuplesToSend.foreach { x =>
+//          (operator.processTuple _).expects(Left(x), linkID)
+//        }
+//        (operator.processTuple _).expects(Right(InputExhausted()), linkID)
+//        (operator.close _).expects().once()
+//      }
+//    }
+//
+//    val dp = wire[DataProcessor]
+//    operator.open()
+//    val senderWorker = ActorVirtualIdentity("sender")
+//    assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit)
+//    Await.result(monitorCredits(ActorVirtualIdentity("sender"), dp, tuplesToSend), 3.seconds)
+//    waitForDataProcessing(workerStateManager)
+//    dp.shutdown()
+//
+//  }
 
 }
