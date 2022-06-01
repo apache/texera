@@ -47,7 +47,6 @@ export class UserFileUploadService {
 
   /**
    * upload all the files in this service and then clear it.
-   * This method will automatically refresh the user-file service when any files finish uploading.
    */
   public uploadAllFiles(): void {
     this.filesToBeUploaded
@@ -56,7 +55,6 @@ export class UserFileUploadService {
         this.uploadFile(fileUploadItem).subscribe(
           () => {
             this.removeFileFromUploadArray(fileUploadItem);
-            this.userFileService.refreshDashboardUserFileEntries();
           },
           (err: unknown) => {
             alert(
