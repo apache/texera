@@ -192,6 +192,9 @@ libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
 // https://mvnrepository.com/artifact/com.github.tototoshi/scala-csv
 libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.6"
 
+// https://mvnrepository.com/artifact/com.univocity/univocity-parsers
+libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
+
 // https://mvnrepository.com/artifact/com.konghq/unirest-java
 libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 
