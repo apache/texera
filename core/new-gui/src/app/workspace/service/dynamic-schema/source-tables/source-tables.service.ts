@@ -166,11 +166,7 @@ export class SourceTablesService {
   private registerUpdateUserFileInFileSourceOp(): void {
     this.userFileService
       .getUserFilesChangedEvent()
-      .pipe(
-        concatMap(_ => {
-          return this.userFileService.retrieveDashboardUserFileEntryList();
-        })
-      )
+      .pipe(concatMap(_ => this.userFileService.retrieveDashboardUserFileEntryList()))
       .subscribe(dashboardFileEntries => {
         this.userFileNames = dashboardFileEntries.map(file => `${file.ownerName}/${file.file.name}`);
 

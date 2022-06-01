@@ -10,18 +10,15 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.apache.arrow.flight._
-import org.apache.arrow.flight.example.InMemoryStore
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
 
 import scala.collection.mutable
 
 private class AmberProducer(
-    allocator: BufferAllocator,
-    location: Location,
     controlOutputPort: NetworkOutputPort[ControlPayload],
     dataOutputPort: NetworkOutputPort[DataPayload]
-) extends InMemoryStore(allocator, location) {
+) extends NoOpFlightProducer {
 
   override def doAction(
       context: FlightProducer.CallContext,
@@ -102,8 +99,8 @@ class PythonProxyServer(
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-  val mem: InMemoryStore = new AmberProducer(allocator, location, controlOutputPort, dataOutputPort)
-  val server: FlightServer = FlightServer.builder(allocator, location, mem).build()
+  val producer: FlightProducer = new AmberProducer(controlOutputPort, dataOutputPort)
+  val server: FlightServer = FlightServer.builder(allocator, location, producer).build()
 
   override def run(): Unit = {
     server.start()
@@ -111,7 +108,7 @@ class PythonProxyServer(
 
   @throws[Exception]
   override def close(): Unit = {
-    AutoCloseables.close(mem, server, allocator)
+    AutoCloseables.close(server, allocator)
   }
 
 }

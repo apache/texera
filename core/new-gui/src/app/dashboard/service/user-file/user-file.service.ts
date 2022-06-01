@@ -3,7 +3,6 @@ import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
-import { UserService } from "../../../common/service/user/user.service";
 import { AccessEntry } from "../../type/access.interface";
 
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
@@ -22,7 +21,7 @@ export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/update/name`;
 export class UserFileService {
   private dashboardUserFileEntryChanged = new Subject<void>();
 
-  constructor(private http: HttpClient, private userService: UserService) {}
+  constructor(private http: HttpClient) {}
 
   public getUserFilesChangedEvent(): Observable<void> {
     return this.dashboardUserFileEntryChanged.asObservable();

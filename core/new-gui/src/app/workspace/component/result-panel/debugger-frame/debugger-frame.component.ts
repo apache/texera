@@ -158,9 +158,9 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
     const changes = [
       collectionViewer.viewChange,
       this.treeControl.expansionModel.changed.pipe(tap(change => this.handleExpansionChange(change))),
-      this.flattenedDataSubject,
+      this.flattenedDataSubject.asObservable(),
     ];
-    return merge(changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue())));
+    return merge(...changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue())));
   }
 
   expandFlattenedNodes(nodes: FlatTreeNode[]): FlatTreeNode[] {
