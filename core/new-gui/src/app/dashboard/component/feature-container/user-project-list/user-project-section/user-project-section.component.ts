@@ -147,7 +147,7 @@ export class UserProjectSectionComponent implements OnInit {
           downloadLink.click();
           URL.revokeObjectURL(downloadLink.href);
         },
-        (err) => {
+        (err: unknown) => {
           // TODO: fix this with notification component
           this.notificationService.error(err.error.message);
         }
