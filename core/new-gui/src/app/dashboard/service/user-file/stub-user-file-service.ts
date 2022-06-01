@@ -35,7 +35,7 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
     return of();
   }
 
-  public getUserFilesChangedEvent(): Observable<null> {
+  public getUserFilesChangedEvent(): Observable<void> {
     return of();
   }
 

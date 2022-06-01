@@ -20,16 +20,16 @@ export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/update/name`;
   providedIn: "root",
 })
 export class UserFileService {
-  private dashboardUserFileEntryChanged = new Subject<null>();
+  private dashboardUserFileEntryChanged = new Subject<void>();
 
   constructor(private http: HttpClient, private userService: UserService) {}
 
-  public getUserFilesChangedEvent(): Observable<null> {
+  public getUserFilesChangedEvent(): Observable<void> {
     return this.dashboardUserFileEntryChanged.asObservable();
   }
 
   public updateUserFilesChangedEvent(): void {
-    this.dashboardUserFileEntryChanged.next(null);
+    this.dashboardUserFileEntryChanged.next();
   }
 
   /**
