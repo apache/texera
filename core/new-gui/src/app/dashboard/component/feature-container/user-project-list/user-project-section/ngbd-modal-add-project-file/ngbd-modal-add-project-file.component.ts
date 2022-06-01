@@ -18,7 +18,6 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
 
   public unaddedFiles: ReadonlyArray<DashboardUserFileEntry> = [];
   public checkedFiles: boolean[] = [];
-  private filesRetrieved: boolean = false;
   private addedFileKeys: Set<number> = new Set<number>();
 
   constructor(
@@ -31,34 +30,7 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
     /* determine which files are already part of this project. 
        this is used to filter which files are shown to the user */
     this.addedFiles.forEach(fileEntry => this.addedFileKeys.add(fileEntry.file.fid!));
-  }
-
-  public getFileArray(): ReadonlyArray<DashboardUserFileEntry> {
-    // don't call API again once a files list has been received
-    if (this.filesRetrieved) {
-      return this.unaddedFiles;
-    }
-
-    // at this point, either no file list or files have not yet been updated by service
-    const fileArray = this.userFileService.getUserFiles();
-
-    if (!fileArray) {
-      return [];
-    } else {
-      // list of files have been updated by service
-      this.unaddedFiles = fileArray.filter(
-        fileEntry => fileEntry.file.fid !== undefined && !this.addedFileKeys.has(fileEntry.file.fid!)
-      );
-
-      // initialize check box tracking & stop callling backend once files have been receieved
-      // prevent continual resetting of checkboxes
-      if (this.unaddedFiles.length > 0) {
-        this.checkedFiles = new Array(this.unaddedFiles.length).fill(false); // tracks checkboxes for check all feature
-        this.filesRetrieved = true; // used to track whether to call backend or not
-      }
-
-      return this.unaddedFiles;
-    }
+    this.refreshProjectFileEntries();
   }
 
   public isAllChecked() {
@@ -92,5 +64,17 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
 
   public addFileSizeUnit(fileSize: number): string {
     return this.userFileService.addFileSizeUnit(fileSize);
+  }
+
+  private refreshProjectFileEntries(): void {
+    this.userFileService
+      .retrieveDashboardUserFileEntryList()
+      .pipe(untilDestroyed(this))
+      .subscribe(dashboardFileEntries => {
+        this.unaddedFiles = dashboardFileEntries.filter(
+          fileEntry => fileEntry.file.fid !== undefined && !this.addedFileKeys.has(fileEntry.file.fid!)
+        );
+        this.checkedFiles = new Array(this.unaddedFiles.length).fill(false);
+      });
   }
 }
