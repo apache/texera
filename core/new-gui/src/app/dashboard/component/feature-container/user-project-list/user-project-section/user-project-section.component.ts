@@ -132,8 +132,8 @@ export class UserProjectSectionComponent implements OnInit {
     this.userFileService
       .downloadUserFile(userFileEntry.file)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        (response: Blob) => {
+      .subscribe({
+        next: (response: Blob) => {
           // prepare the data to be downloaded.
           const dataType = response.type;
           const binaryData = [];
@@ -147,11 +147,11 @@ export class UserProjectSectionComponent implements OnInit {
           downloadLink.click();
           URL.revokeObjectURL(downloadLink.href);
         },
-        (err: unknown) => {
+        error: (err: unknown) => {
           // TODO: fix this with notification component
-          this.notificationService.error(err.error.message);
-        }
-      );
+          this.notificationService.error((err as any).error.message);
+        },
+      });
   }
 
   /**
