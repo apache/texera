@@ -372,19 +372,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mapSource.hideExpectedValue
         );
       }
-      mappedField.expressionProperties = {
-        "templateOptions.attributes": () => {
-          if (
-            mappedField !== null &&
-            typeof mappedField.key === "string" &&
-            this.fieldStyleOverride.has(mappedField.key)
-          ) {
-            return { style: this.fieldStyleOverride.get(mappedField.key) };
-          } else {
-            return {};
-          }
-        },
-      };
+      
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
