@@ -7,7 +7,7 @@ import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { cloneDeep, isEqual } from "lodash-es";
-import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { CustomJSONSchema7, HideType, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
@@ -17,6 +17,7 @@ import {
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
   createOutputFormChangeEventStream,
+  createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
@@ -81,6 +82,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyOptions: FormlyFormOptions = {};
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
+
+  // The field name and its css style to be overridden, e.g., for showing the diff between two workflows.
+  // example: new Map([
+  //     ["attribute", "outline: 3px solid green; transition: 0.3s ease-in-out outline;"],
+  //     ["condition", "background: red; border-color: red;"],
+  //   ]);
+  fieldStyleOverride: Map<String, String> = new Map([]);
 
   editingTitle: boolean = false;
 
@@ -330,6 +338,35 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField: FormlyFieldConfig,
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
+      // apply the overridden css style if applicable
+      mappedField.expressionProperties = {
+        "templateOptions.attributes": () => {
+          if (
+            isDefined(mappedField) &&
+            typeof mappedField.key === "string" &&
+            this.fieldStyleOverride.has(mappedField.key)
+          ) {
+            return { style: this.fieldStyleOverride.get(mappedField.key) };
+          } else {
+            return {};
+          }
+        },
+      };
+
+      // conditionally hide the field according to the schema
+      if (
+        isDefined(mapSource.hideExpectedValue) &&
+        isDefined(mapSource.hideTarget) &&
+        isDefined(mapSource.hideType) &&
+        hideTypes.includes(mapSource.hideType)
+      ) {
+        mappedField.hideExpression = createShouldHideFieldFunc(
+          mapSource.hideTarget,
+          mapSource.hideType,
+          mapSource.hideExpectedValue
+        );
+      }
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
