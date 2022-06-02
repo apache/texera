@@ -86,7 +86,6 @@ export class UserProjectService {
       .delete<Response>(`${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`)
       .subscribe(
         () => {
-          this.userFileService.refreshDashboardUserFileEntries();
           this.refreshFilesOfProject(pid); // refresh files within project
         },
         // @ts-ignore // TODO: fix this with notification component
