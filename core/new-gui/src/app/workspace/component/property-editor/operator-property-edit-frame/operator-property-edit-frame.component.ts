@@ -342,7 +342,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField.expressionProperties = {
         "templateOptions.attributes": () => {
           if (
-            mappedField !== null &&
+            isDefined(mappedField) &&
             typeof mappedField.key === "string" &&
             this.fieldStyleOverride.has(mappedField.key)
           ) {
