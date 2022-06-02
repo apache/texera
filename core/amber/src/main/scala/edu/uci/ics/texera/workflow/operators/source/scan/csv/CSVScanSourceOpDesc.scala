@@ -1,18 +1,21 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
-import scala.collection.{breakOut, mutable}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
