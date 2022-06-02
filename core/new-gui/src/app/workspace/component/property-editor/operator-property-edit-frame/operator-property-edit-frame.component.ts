@@ -82,11 +82,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
-  // The field names within this set will be highlighted, e.g., for showing the diff between two workflows.
-  fieldStyleOverride: Map<String, String> = new Map([
-    ["attribute", "outline: 3px solid green; transition: 0.3s ease-in-out outline;"],
-    ["condition", "background: red; border-color: red;"],
-  ]);
+  // The field name and its css style to be overridden, e.g., for showing the diff between two workflows.
+  // example: new Map([
+  //     ["attribute", "outline: 3px solid green; transition: 0.3s ease-in-out outline;"],
+  //     ["condition", "background: red; border-color: red;"],
+  //   ]);
+  fieldStyleOverride: Map<String, String> = new Map([]);
 
   editingTitle: boolean = false;
 
@@ -336,6 +337,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField: FormlyFieldConfig,
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
+      // apply the overridden css style if applicable
       mappedField.expressionProperties = {
         "templateOptions.attributes": () => {
           if (
