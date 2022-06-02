@@ -83,6 +83,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
+  // The field name and its css style to be overridden, e.g., for showing the diff between two workflows.
+  // example: new Map([
+  //     ["attribute", "outline: 3px solid green; transition: 0.3s ease-in-out outline;"],
+  //     ["condition", "background: red; border-color: red;"],
+  //   ]);
+  fieldStyleOverride: Map<String, String> = new Map([]);
+
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
@@ -331,6 +338,21 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField: FormlyFieldConfig,
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
+      // apply the overridden css style if applicable
+      mappedField.expressionProperties = {
+        "templateOptions.attributes": () => {
+          if (
+            isDefined(mappedField) &&
+            typeof mappedField.key === "string" &&
+            this.fieldStyleOverride.has(mappedField.key)
+          ) {
+            return { style: this.fieldStyleOverride.get(mappedField.key) };
+          } else {
+            return {};
+          }
+        },
+      };
+
       // conditionally hide the field according to the schema
       if (
         isDefined(mapSource.hideExpectedValue) &&
