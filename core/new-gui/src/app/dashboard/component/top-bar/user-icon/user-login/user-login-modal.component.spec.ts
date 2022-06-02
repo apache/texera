@@ -1,8 +1,7 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { NgbdModalUserLoginComponent } from "./ngbdmodal-user-login.component";
+import { UserLoginModalComponent } from "./user-login-modal.component";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { MatDialogModule } from "@angular/material/dialog";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
@@ -11,33 +10,41 @@ import { FormBuilder, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
+import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 
 describe("UserLoginComponent", () => {
-  let component: NgbdModalUserLoginComponent;
-  let fixture: ComponentFixture<NgbdModalUserLoginComponent>;
+  let component: UserLoginModalComponent;
+  let fixture: ComponentFixture<UserLoginModalComponent>;
+  let nzModalRefSpy: jasmine.SpyObj<NzModalRef>;
 
   beforeEach(
     waitForAsync(() => {
+      const nzModalRefSpyObj = jasmine.createSpyObj("NzModalRef", ["close"]);
       TestBed.configureTestingModule({
-        declarations: [NgbdModalUserLoginComponent],
-        providers: [NgbActiveModal, { provide: UserService, useClass: StubUserService }, FormBuilder],
+        declarations: [UserLoginModalComponent],
+        providers: [
+          { provide: NzModalRef, useValue: nzModalRefSpyObj },
+          { provide: UserService, useClass: StubUserService },
+          FormBuilder,
+        ],
         imports: [
           BrowserAnimationsModule,
           HttpClientTestingModule,
           MatTabsModule,
           MatFormFieldModule,
           MatInputModule,
-          NgbModule,
+          NzModalModule,
           FormsModule,
           ReactiveFormsModule,
           MatDialogModule,
         ],
       }).compileComponents();
+      nzModalRefSpy = TestBed.inject(NzModalRef) as jasmine.SpyObj<NzModalRef>;
     })
   );
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalUserLoginComponent);
+    fixture = TestBed.createComponent(UserLoginModalComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

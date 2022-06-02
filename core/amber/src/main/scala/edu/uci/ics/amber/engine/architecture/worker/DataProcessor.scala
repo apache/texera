@@ -150,7 +150,7 @@ class DataProcessor( // dependencies:
     while (!isCompleted) {
       // take the next data element from internal queue, blocks if not available.
       getElement match {
-        case InputTuple(tuple) =>
+        case InputTuple(from, tuple) =>
           currentInputTuple = Left(tuple)
           handleInputTuple()
         case SenderChangeMarker(link) =>
