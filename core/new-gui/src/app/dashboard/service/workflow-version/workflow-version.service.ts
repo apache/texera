@@ -30,7 +30,7 @@ export class WorkflowVersionService {
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
-  public operatorPropertyDiff: { [key: string]: string[] } = {};
+  public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
@@ -177,10 +177,10 @@ export class WorkflowVersionService {
   }
 
   public getOperatorsDifference(operator1: OperatorPredicate, operator2: OperatorPredicate) {
-    var difference: string[] = [];
+    var difference: Map<String, String> = new Map();
     for (var property of Object.keys(operator1.operatorProperties)) {
       if (operator1.operatorProperties[property] != operator2.operatorProperties[property]) {
-        difference.push(property);
+        difference.set(property, "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
       }
     }
     return difference;

@@ -333,10 +333,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
-    var fieldNamesToHighlight: string[] = [];
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
-      fieldNamesToHighlight = operatorPropertyDiff[this.currentOperatorId];
+      this.fieldStyleOverride = operatorPropertyDiff[this.currentOperatorId];
     }
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
@@ -374,16 +373,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
       mappedField.expressionProperties = {
-        // Highlight the field names with keys specified in property fieldNamesToHighlight.
-        className: _ => {
+        "templateOptions.attributes": () => {
           if (
             mappedField !== null &&
             typeof mappedField.key === "string" &&
-            fieldNamesToHighlight.includes(mappedField.key)
+            this.fieldStyleOverride.has(mappedField.key)
           ) {
-            return "highlighted";
+            return { style: this.fieldStyleOverride.get(mappedField.key) };
           } else {
-            return "";
+            return {};
           }
         },
       };
