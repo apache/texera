@@ -30,6 +30,7 @@ const testFileEntry: DashboardUserFileEntry = {
   file: testFile,
   accessLevel: "Write",
   isOwner: true,
+  projectIDs: [],
 };
 
 describe("UserFileService", () => {

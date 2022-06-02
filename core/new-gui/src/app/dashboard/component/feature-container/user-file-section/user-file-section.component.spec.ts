@@ -11,6 +11,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { DashboardUserFileEntry, UserFile } from "../../../type/dashboard-user-file-entry";
 import { NgbdModalWorkflowShareAccessComponent } from "../saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("UserFileSectionComponent", () => {
   let component: UserFileSectionComponent;
@@ -35,6 +36,7 @@ describe("UserFileSectionComponent", () => {
     file: fileContent,
     accessLevel: "Write",
     isOwner: true,
+    projectIDs: [],
   };
   beforeEach(
     waitForAsync(() => {
@@ -48,6 +50,7 @@ describe("UserFileSectionComponent", () => {
           ReactiveFormsModule,
           MatListModule,
           HttpClientTestingModule,
+          RouterTestingModule,
         ],
       }).compileComponents();
     })

@@ -17,12 +17,13 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserProject implements IUserProject {
 
-    private static final long serialVersionUID = -392079231;
+    private static final long serialVersionUID = -1632066760;
 
     private UInteger  pid;
     private String    name;
     private UInteger  ownerId;
     private Timestamp creationTime;
+    private String    color;
 
     public UserProject() {}
 
@@ -31,18 +32,21 @@ public class UserProject implements IUserProject {
         this.name = value.getName();
         this.ownerId = value.getOwnerId();
         this.creationTime = value.getCreationTime();
+        this.color = value.getColor();
     }
 
     public UserProject(
         UInteger  pid,
         String    name,
         UInteger  ownerId,
-        Timestamp creationTime
+        Timestamp creationTime,
+        String    color
     ) {
         this.pid = pid;
         this.name = name;
         this.ownerId = ownerId;
         this.creationTime = creationTime;
+        this.color = color;
     }
 
     @Override
@@ -86,6 +90,16 @@ public class UserProject implements IUserProject {
     }
 
     @Override
+    public String getColor() {
+        return this.color;
+    }
+
+    @Override
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("UserProject (");
 
@@ -93,6 +107,7 @@ public class UserProject implements IUserProject {
         sb.append(", ").append(name);
         sb.append(", ").append(ownerId);
         sb.append(", ").append(creationTime);
+        sb.append(", ").append(color);
 
         sb.append(")");
         return sb.toString();
@@ -108,6 +123,7 @@ public class UserProject implements IUserProject {
         setName(from.getName());
         setOwnerId(from.getOwnerId());
         setCreationTime(from.getCreationTime());
+        setColor(from.getColor());
     }
 
     @Override

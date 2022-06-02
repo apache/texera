@@ -36,7 +36,6 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
-
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
@@ -193,7 +192,11 @@ class ProjectResource {
             workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
           ).toString,
           workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow])
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          workflowOfProjectDao
+            .fetchByWid(workflowRecord.into(WORKFLOW).getWid)
+            .map(workflowOfProject => workflowOfProject.getPid)
+            .toList
         )
       )
       .toList
@@ -240,7 +243,11 @@ class ProjectResource {
           fileRecord.into(USER).getName,
           toFileAccessLevel(fileRecord.into(USER_FILE_ACCESS).into(classOf[UserFileAccess])),
           fileRecord.into(USER).getName == user.getName,
-          fileRecord.into(FILE).into(classOf[File])
+          fileRecord.into(FILE).into(classOf[File]),
+          fileOfProjectDao
+            .fetchByFid(fileRecord.into(FILE).getFid)
+            .map(fileOfProject => fileOfProject.getPid)
+            .toList
         )
       )
       .toList
@@ -278,7 +285,7 @@ class ProjectResource {
   ): UserProject = {
     val oid = sessionUser.getUser.getUid
 
-    val userProject = new UserProject(null, name, oid, null)
+    val userProject = new UserProject(null, name, oid, null, null)
     try {
       userProjectDao.insert(userProject)
     } catch {
@@ -339,6 +346,39 @@ class ProjectResource {
     } catch {
       case _: Throwable => throw new BadRequestException("Cannot rename project to provided name.");
     }
+  }
+
+  /**
+    * This method updates a project's color.
+    *
+    * @param pid id of project to be updated
+    * @param colorHex new HEX formatted color to be set
+    */
+  @POST
+  @Path("/{pid}/color/{colorHex}/add")
+  def updateProjectColor(
+      @PathParam("pid") pid: UInteger,
+      @PathParam("colorHex") colorHex: String
+  ): Unit = {
+    if (
+      colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
+        "^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$"
+      )
+    ) {
+      throw new BadRequestException("Cannot assign invalid HEX format color to project.")
+    }
+
+    val userProject = userProjectDao.fetchOneByPid(pid)
+    userProject.setColor(colorHex)
+    userProjectDao.update(userProject)
+  }
+
+  @POST
+  @Path("/{pid}/color/delete")
+  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
+    val userProject = userProjectDao.fetchOneByPid(pid)
+    userProject.setColor(null)
+    userProjectDao.update(userProject)
   }
 
   /**

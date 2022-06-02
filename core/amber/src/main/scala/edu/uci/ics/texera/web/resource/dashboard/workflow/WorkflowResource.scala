@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW,
+  WORKFLOW_OF_PROJECT,
   WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
@@ -26,6 +27,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   workflowOfUserExists
 }
 import io.dropwizard.auth.Auth
+import org.jooq.impl.DSL.groupConcat
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
@@ -74,9 +76,9 @@ object WorkflowResource {
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
-      workflow: Workflow
+      workflow: Workflow,
+      projectIDs: List[UInteger]
   )
-
 }
 
 @PermitAll
@@ -105,7 +107,8 @@ class WorkflowResource {
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME
+        USER.NAME,
+        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -114,7 +117,10 @@ class WorkflowResource {
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
     workflowEntries
       .map(workflowRecord =>
@@ -124,7 +130,9 @@ class WorkflowResource {
             workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
           ).toString,
           workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow])
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          if (workflowRecord.component9() == null) List[UInteger]()
+          else workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
@@ -247,7 +255,8 @@ class WorkflowResource {
         isOwner = true,
         WorkflowAccess.WRITE.toString,
         user.getName,
-        workflowDao.fetchOneByWid(workflow.getWid)
+        workflowDao.fetchOneByWid(workflow.getWid),
+        List[UInteger]()
       )
     }
 

@@ -15,7 +15,71 @@
   </nz-card>
 
   <nz-card class="user-file-list subsection-grid-container">
-    <nz-input-group [nzSuffix]="suffixIconSearch" class="texera-dashboard-user-file-search-box-input">
+    <div *ngIf="isSearchByProject" class="texera-dashboard-user-file-project-box-select">
+      <i
+        style="margin-right: 10px; align-self: center"
+        nz-icon
+        nz-popover
+        nzPopoverTitle="Filter Instructions"
+        nzType="question-circle"
+        nzTheme="outline"
+        [nzPopoverContent]="filterPopContent"
+      ></i>
+      <button
+        style="align-self: center; margin-right: 0%"
+        nz-button
+        nz-tooltip="Switch to workflow search"
+        nzTooltipPlacement="bottom"
+        type="button"
+        (click)="toggleSearchMode()"
+      >
+        <i nz-icon nzType="search" nzTheme="outline"></i>
+      </button>
+      <nz-select
+        style="width: 100%"
+        nzMode="tags"
+        nzPlaceHolder="Filter by project(s)"
+        [nzMaxTagCount]="3"
+        [nzMaxTagPlaceholder]="tagPlaceHolder"
+        [nzBorderless]="true"
+        [nzOpen]="true"
+        [(ngModel)]="projectFilterList"
+        (ngModelChange)="isTyping = false"
+      >
+        <nz-option-group nzLabel="Colored Projects">
+          <div *ngFor="let project of userProjectsList">
+            <nz-option *ngIf="project.color != null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+              <nz-tag
+                [nzColor]="'#' + project.color"
+                [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}"
+                >{{project.pid}}</nz-tag
+              >
+              {{project.name}}
+            </nz-option>
+          </div>
+        </nz-option-group>
+        <nz-option-group nzLabel="Colorless Projects">
+          <div *ngFor="let project of userProjectsList">
+            <nz-option *ngIf="project.color == null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+              <nz-tag [nzColor]="'#595959'">{{project.pid}}</nz-tag>
+              {{project.name}}
+            </nz-option>
+          </div>
+        </nz-option-group>
+      </nz-select>
+      <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
+      <ng-template #filterPopContent>
+        To search for a file by project(s) it belongs to, click on the search bar to view and select the appropriate
+        projects.
+      </ng-template>
+    </div>
+
+    <nz-input-group
+      *ngIf="!isSearchByProject"
+      [nzPrefix]="prefixPopoverButton"
+      [nzSuffix]="suffixIconSearch"
+      class="texera-dashboard-user-file-search-box-input"
+    >
       <input
         [(ngModel)]="userFileSearchValue"
         nz-input
@@ -26,6 +90,17 @@
         (ngModelChange)="searchInputOnChange($event)"
         [nzAutocomplete]="auto"
       />
+      <ng-template #prefixPopoverButton>
+        <button
+          (click)="toggleSearchMode()"
+          nz-button
+          nz-tooltip="Filter files by project"
+          nzTooltipPlacement="bottom"
+          type="button"
+        >
+          <i nz-icon nzType="filter" nzTheme="outline"></i>
+        </button>
+      </ng-template>
       <ng-template #suffixIconSearch>
         <i nz-icon nzType="search"></i>
       </ng-template>
@@ -93,6 +168,34 @@
               {{ addFileSizeUnit(dashboardUserFileEntry.file.size) }}
             </nz-list-item-meta-description>
           </nz-list-item-meta>
+
+          <div *ngIf="userProjectsLoaded" class="file-project-label-container">
+            <div *ngFor="let pid of dashboardUserFileEntry.projectIDs" class="file-project-label">
+              <div
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+                nz-tooltip="Go to project page"
+                nzTooltipPlacement="bottom"
+                id="left-div"
+                [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
+                [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
+                (click)="jumpToProject(userProjectsMap.get(pid)!)"
+              >
+                {{userProjectsMap.get(pid)!.name}}
+              </div>
+              <div
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+                nz-tooltip="Remove from project"
+                nzTooltipPlacement="bottom"
+                id="right-div"
+                [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
+                [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
+                (click)="removeFileFromProject(pid, dashboardUserFileEntry.file.fid)"
+              >
+                x
+              </div>
+            </div>
+          </div>
+
           <ul nz-list-item-actions>
             <nz-list-item-action>
               <button

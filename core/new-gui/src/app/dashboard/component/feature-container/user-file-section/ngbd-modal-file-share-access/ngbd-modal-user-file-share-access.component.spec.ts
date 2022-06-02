@@ -31,6 +31,7 @@ describe("NgbdModalFileShareAccessComponent", () => {
     file: fileContent,
     accessLevel: "Write",
     isOwner: true,
+    projectIDs: [],
   };
 
   beforeEach(

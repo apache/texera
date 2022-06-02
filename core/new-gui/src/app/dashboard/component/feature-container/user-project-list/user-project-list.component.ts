@@ -14,10 +14,17 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   styleUrls: ["./user-project-list.component.scss"],
 })
 export class UserProjectListComponent implements OnInit {
+  // store list of projects / variables to create and edit projects
   public userProjectEntries: UserProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
+
+  // used to manage setting project colors
+  public userProjectToColorInputIndexMap: Map<number, number> = new Map(); // maps each project to its color wheel input index, even after reordering / sorting of projects
+  public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
+  public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
+  public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
 
   constructor(
     private userProjectService: UserProjectService,
@@ -35,6 +42,21 @@ export class UserProjectListComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(projectEntries => {
         this.userProjectEntries = projectEntries;
+
+        // map each pid to important color information, for access in HTML template
+        let index = 0;
+        for (var project of projectEntries) {
+          // used to store each project's updated color (via color wheel)
+          this.userProjectToColorInputIndexMap.set(project.pid, index);
+          this.userProjectInputColors.push(project.color == null ? "#ffffff" : "#" + project.color);
+          this.colorInputToggleArray.push(false);
+
+          // determine whether each project's color is light or dark
+          if (project.color != null) {
+            this.colorBrightnessMap.set(project.pid, this.userProjectService.isLightColor(project.color));
+          }
+          index++;
+        }
       });
   }
 
@@ -79,6 +101,13 @@ export class UserProjectListComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.userProjectEntries.splice(index, 1); // update local list of projects
+
+        // remove records of this project from color data structures
+        if (this.colorBrightnessMap.has(pid)) {
+          this.colorBrightnessMap.delete(pid);
+        }
+        this.userProjectToColorInputIndexMap.delete(pid);
+        this.colorInputToggleArray.splice(index, 1);
       });
   }
 
@@ -99,6 +128,12 @@ export class UserProjectListComponent implements OnInit {
         .subscribe(
           createdProject => {
             this.userProjectEntries.push(createdProject); // update local list of projects
+
+            // add color wheel input record for the newly created, colorless project
+            this.userProjectToColorInputIndexMap.set(createdProject.pid, this.userProjectEntries.length - 1);
+            this.userProjectInputColors.push("#ffffff");
+            this.colorInputToggleArray.push(false);
+
             this.unclickCreateButton();
           },
           (err: unknown) => {
@@ -124,6 +159,78 @@ export class UserProjectListComponent implements OnInit {
           0
       );
     }
+  }
+
+  public updateProjectColor(dashboardProjectEntry: UserProject, index: number) {
+    let color: string =
+      this.userProjectInputColors[this.userProjectToColorInputIndexMap.get(dashboardProjectEntry.pid)!].substring(1);
+    this.colorInputToggleArray[index] = false;
+
+    // validate that color is in proper HEX format
+    if (this.userProjectService.isInvalidColorFormat(color)) {
+      this.notificationService.error(
+        `Cannot update color for project: "${dashboardProjectEntry.name}".  It must be a valid HEX color format`
+      );
+      return;
+    }
+
+    if (color === this.userProjectEntries[index].color) {
+      return;
+    }
+
+    this.userProjectService
+      .updateProjectColor(dashboardProjectEntry.pid, color)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          // update local cache of project entries
+          let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
+          updatedDashboardProjectEntry.color = color;
+          const newProjectEntries = this.userProjectEntries.slice();
+          newProjectEntries[index] = updatedDashboardProjectEntry;
+          this.userProjectEntries = newProjectEntries;
+
+          // update color brightness record for this project
+          this.colorBrightnessMap.set(dashboardProjectEntry.pid, this.userProjectService.isLightColor(color));
+        },
+        error: (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+        },
+      });
+  }
+
+  public removeProjectColor(dashboardProjectEntry: UserProject, index: number) {
+    this.colorInputToggleArray[index] = false;
+
+    if (dashboardProjectEntry.color == null) {
+      this.notificationService.error(`There is no color to delete for project: "${dashboardProjectEntry.name}"`);
+      return;
+    }
+
+    this.userProjectService
+      .deleteProjectColor(dashboardProjectEntry.pid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: _ => {
+          // update local cache of project entries
+          let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
+          updatedDashboardProjectEntry.color = null;
+          const newProjectEntries = this.userProjectEntries.slice();
+          newProjectEntries[index] = updatedDashboardProjectEntry;
+          this.userProjectEntries = newProjectEntries;
+
+          // remove records of this project from color data structures
+          if (this.colorBrightnessMap.has(dashboardProjectEntry.pid)) {
+            this.colorBrightnessMap.delete(dashboardProjectEntry.pid);
+          }
+          this.userProjectInputColors[index] = "#ffffff"; // reset color wheel
+        },
+        error: (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+        },
+      });
   }
 
   public sortByCreationTime(): void {

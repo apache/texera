@@ -71,6 +71,7 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
       .retrieveWorkflowsOfProject(this.projectId)
       .pipe(
         concatMap((dashboardWorkflowEntries: DashboardWorkflowEntry[]) => {
+          this.addedWorkflows = dashboardWorkflowEntries;
           dashboardWorkflowEntries.forEach(workflowEntry => this.addedWorkflowKeys.add(workflowEntry.workflow.wid!));
           return this.workflowPersistService.retrieveWorkflowsBySessionUser();
         }),
