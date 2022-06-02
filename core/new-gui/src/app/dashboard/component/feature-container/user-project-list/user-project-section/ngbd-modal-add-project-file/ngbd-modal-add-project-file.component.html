@@ -17,7 +17,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let fileEntry of getFileArray(); let i = index">
+      <tr *ngFor="let fileEntry of unaddedFiles; let i = index">
         <td><input type="checkbox" [(ngModel)]="checkedFiles[i]" /></td>
         <td>{{fileEntry.file.fid}}</td>
         <td>{{fileEntry.ownerName}}</td>
