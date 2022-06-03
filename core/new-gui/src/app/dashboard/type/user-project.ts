@@ -4,4 +4,5 @@ export interface UserProject
     name: string;
     ownerID: number;
     creationTime: number;
+    color: string | null;
   }> {}

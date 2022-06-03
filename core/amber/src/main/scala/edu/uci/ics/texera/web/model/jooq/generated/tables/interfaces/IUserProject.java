@@ -56,6 +56,16 @@ public interface IUserProject extends Serializable {
      */
     public Timestamp getCreationTime();
 
+    /**
+     * Setter for <code>texera_db.user_project.color</code>.
+     */
+    public void setColor(String value);
+
+    /**
+     * Getter for <code>texera_db.user_project.color</code>.
+     */
+    public String getColor();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
