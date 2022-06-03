@@ -102,4 +102,18 @@ public class UserProjectDao extends DAOImpl<UserProjectRecord, edu.uci.ics.texer
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserProject> fetchByCreationTime(Timestamp... values) {
         return fetch(UserProject.USER_PROJECT.CREATION_TIME, values);
     }
+
+    /**
+     * Fetch records that have <code>color BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserProject> fetchRangeOfColor(String lowerInclusive, String upperInclusive) {
+        return fetchRange(UserProject.USER_PROJECT.COLOR, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>color IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserProject> fetchByColor(String... values) {
+        return fetch(UserProject.USER_PROJECT.COLOR, values);
+    }
 }
