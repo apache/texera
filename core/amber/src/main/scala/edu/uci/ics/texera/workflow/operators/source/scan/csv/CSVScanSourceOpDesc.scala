@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
@@ -77,7 +76,9 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     for (i <- 0 until readLimit) {
       val row = parser.parseNext()
-      data = data :+ row
+      if (row != null) {
+        data = data :+ row
+      }
     }
     parser.stopParsing()
     inputReader.close()
