@@ -1,9 +1,40 @@
 # Texera
-Collaborative big data analytics as cloud services using GUI-based workflows. 
 
-To use Texera, follow instructions on the [Getting Started](https://github.com/Texera/texera/wiki/Getting-Started) page
+Texera is a system to support collaborative, ML-centric data analytics as a cloud-based service using GUI-based workflows. It supports scalable computation with a parallel backend engine, and enables advanced AI/ML techniques. "Collaboration" is a key focus, and we want to enable an experience similar to existing services such as Google Docs, but for data analytics, especially for people with different backgrounds, including IT developers and domain scientists with limited programming background.
 
-[![Actions Status](https://github.com/Texera/texera/workflows/build/badge.svg)](https://github.com/Texera/texera/actions)
+# Motivation
+
+* Many data analysts need to spend a significant amount of effort on low-level computation to do data wrangling and preparation, and want to use latest AI/ML techniques. These tasks are especially tough for non-IT users. 
+
+* Many workflow-based analysis systems are not parallel, making them not capable of dealing with big data sets. 
+
+* Cloud-based services and technologies have emerged and advanced significantly in the past decade. Emerging browser-based techniques make it possible to develop powerful browser-based interfaces, which also benefit from high-speed networks.
+
+* Existing big data systems support little interaction during the execution of a long running job, making them hard to manage once they are started.
+ 
+
+# Goals
+
+* Provide data analytics as cloud services;
+* Provide a browser-based GUI to form a workflow without writing code;
+* Allow non-IT people to do data analytics;
+* Support collaborative data analytics;
+* Allow users to interact with the execution of a job;
+* Support huge volumes of data efficiently.
+
+# Sample Workflow
+
+The following is a workflow formulated using the Texera GUI in a Web browser, which consists of operators such as regex search, sentiment analysis, user-defined function (UDF) in Python, and visualization.
+
+![Sample Texera Workflow](https://user-images.githubusercontent.com/12926365/171459157-1792971d-a31f-49e7-ab98-6f3b9ead9f5b.png)
+
+
+# Getting Started
+
+* For users, visit [Guide to Use Texera](https://github.com/Texera/texera/wiki/Getting-Started).
+* For developers, visit [Guide to Develop Texera](https://github.com/Texera/texera/wiki/Guide-for-Developers).
+
+Texera was formally known as "TextDB" before August 28, 2017.
 
 ## Publications:
 
@@ -18,8 +49,7 @@ Distributed Dataflows in Texera, Zuozhi Wang, Avinash Kumar, Shengquan Ni, Chen 
 
 * [Texera demo in VLDB 2020](https://www.youtube.com/watch?v=SP-XiDADbw0)
 * [Amber engine presentation in VLDB 2020](https://www.youtube.com/watch?v=T5ShFRfHmgI)
-
-To access a live deployment and do tweet analysis, go to [texera.ics.uci.edu/twitter](http://texera.ics.uci.edu/twitter/) (accessible inside UCI).
+* Check this [video](https://www.youtube.com/watch?v=NXfynBUwdVg) to see Texera in action! 
 
 ## Snapshots of the system at work ##
 Texera UI showing a paused workflow
