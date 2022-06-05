@@ -50,8 +50,8 @@ Distributed Dataflows in Texera, Zuozhi Wang, Avinash Kumar, Shengquan Ni, Chen 
 
 Texera was formally known as "TextDB" before August 28, 2017.
 
-## Acknowledgements ##
+## Acknowledgements
 
-This project is supported by the National Science Foundation under the awards [III 1745673](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1745673) and [III 2107150](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2107150).
+This project is supported by the <a href="http://www.nsf.gov">National Science Foundation<img src="https://www.nsf.gov/images/logos/NSF_4-Color_bitmap_Logo.png" alt="NSF" height="30"/></a> under the awards [III 1745673](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1745673), [III 2107150](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2107150), AWS Research Credits, and Google Cloud Platform Education Programs.
 
 * <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project. 
