@@ -31,7 +31,7 @@ class DifferenceOpExecConf[K](
   }
 
   override def checkStartDependencies(workflow: Workflow): Unit = {
-    val rightLink = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
+    val rightLink = inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == 1 }).get._1
     topology.layers.head.initIOperatorExecutor = _ => new DifferenceOpExec(rightLink)
   }
 
