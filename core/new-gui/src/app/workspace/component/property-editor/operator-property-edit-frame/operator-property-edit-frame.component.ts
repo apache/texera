@@ -32,6 +32,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
 import { WorkflowCollabService } from "../../../service/workflow-collab/workflow-collab.service";
+import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -110,7 +111,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private schemaPropagationService: SchemaPropagationService,
     private notificationService: NotificationService,
     private workflowCollabService: WorkflowCollabService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private workflowVersionService: WorkflowVersionService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -331,6 +333,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
+    var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
+    if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
+      this.fieldStyleOverride = operatorPropertyDiff[this.currentOperatorId];
+    }
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
