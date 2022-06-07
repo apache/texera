@@ -69,30 +69,35 @@ describe("SavedWorkflowSectionComponent", () => {
       isOwner: true,
       ownerName: "Texera",
       accessLevel: "Write",
+      projectIDs: [],
     },
     {
       workflow: testWorkflow2,
       isOwner: true,
       ownerName: "Texera",
       accessLevel: "Write",
+      projectIDs: [],
     },
     {
       workflow: testWorkflow3,
       isOwner: true,
       ownerName: "Texera",
       accessLevel: "Write",
+      projectIDs: [],
     },
     {
       workflow: testWorkflow4,
       isOwner: true,
       ownerName: "Texera",
       accessLevel: "Write",
+      projectIDs: [],
     },
     {
       workflow: testWorkflow5,
       isOwner: true,
       ownerName: "Texera",
       accessLevel: "Write",
+      projectIDs: [],
     },
   ];
 
