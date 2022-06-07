@@ -1,4 +1,5 @@
 import { Component } from "@angular/core";
+import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
@@ -6,8 +7,12 @@ import { DashboardUserFileEntry, UserFile } from "../../../type/dashboard-user-f
 import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { UserProjectService } from "../../../service/user-project/user-project.service";
+import { UserProject } from "../../../type/user-project";
 import Fuse from "fuse.js";
+
+export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
 @Component({
@@ -18,15 +23,17 @@ import Fuse from "fuse.js";
 export class UserFileSectionComponent {
   constructor(
     private modalService: NgbModal,
+    private userProjectService: UserProjectService,
     private userFileService: UserFileService,
     private userService: UserService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private router: Router
   ) {}
 
   ngOnInit() {
     this.registerDashboardFileEntriesRefresh();
   }
-
+  // variables for file editing / search
   public dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   public isEditingName: number[] = [];
   public userFileSearchValue: string = "";
@@ -40,6 +47,16 @@ export class UserFileSectionComponent {
     minMatchCharLength: 1,
     keys: ["file.name"],
   });
+
+  // variables for project color tags
+  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
+  public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
+
+  // variables for filtering files by projects
+  public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
+  public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
+  public isSearchByProject: boolean = false; // track searching mode user currently selects
 
   public openFileAddComponent() {
     const modalRef = this.modalService.open(NgbdModalFileAddComponent);
@@ -69,11 +86,17 @@ export class UserFileSectionComponent {
     const fileArray = this.dashboardUserFileEntries;
     if (!fileArray) {
       return [];
-    } else if (this.userFileSearchValue !== "" && this.isTyping === false) {
+    } else if (this.userFileSearchValue !== "" && this.isTyping === false && !this.isSearchByProject) {
       this.fuse.setCollection(fileArray);
       return this.fuse.search(this.userFileSearchValue).map(item => {
         return item.item;
       });
+    } else if (this.isTyping === false && this.isSearchByProject) {
+      let newFileEntries = fileArray.slice();
+      this.projectFilterList.forEach(
+        pid => (newFileEntries = newFileEntries.filter(file => file.projectIDs.includes(pid)))
+      );
+      return newFileEntries;
     }
     return fileArray;
   }
@@ -144,12 +167,38 @@ export class UserFileSectionComponent {
       .add(() => (this.isEditingName = this.isEditingName.filter(fileIsEditing => fileIsEditing != index)));
   }
 
+  public toggleSearchMode(): void {
+    this.isSearchByProject = !this.isSearchByProject;
+
+    // TODO : update local cache & switch here after refactoring for reuse in  User Projects is done
+    // if (this.isSearchByProject) {
+    // } else {
+    // }
+  }
+
+  /**
+   * navigate to individual project page
+   */
+  public jumpToProject({ pid }: UserProject): void {
+    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
+  }
+
+  public removeFileFromProject(pid: number, fid: number): void {
+    this.userProjectService
+      .removeFileFromProject(pid, fid)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.refreshDashboardFileEntries();
+      });
+  }
+
   private registerDashboardFileEntriesRefresh(): void {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.userService.isLogin()) {
+          this.refreshUserProjects();
           this.refreshDashboardFileEntries();
         } else {
           this.clearDashboardFileEntries();
@@ -157,6 +206,30 @@ export class UserFileSectionComponent {
       });
   }
 
+  private refreshUserProjects(): void {
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe((userProjectList: UserProject[]) => {
+        if (userProjectList != null && userProjectList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+
+          // calculate whether project colors are light or dark
+          const projectColorBrightnessMap: Map<number, boolean> = new Map();
+          userProjectList.forEach(userProject => {
+            if (userProject.color != null) {
+              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+            }
+          });
+          this.colorBrightnessMap = projectColorBrightnessMap;
+
+          // store all projects containing these files
+          this.userProjectsList = userProjectList;
+          this.userProjectsLoaded = true;
+        }
+      });
+  }
   private refreshDashboardFileEntries(): void {
     this.userFileService
       .retrieveDashboardUserFileEntryList()
