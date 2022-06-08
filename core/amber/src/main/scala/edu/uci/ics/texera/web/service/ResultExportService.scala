@@ -17,11 +17,15 @@ import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader
 import org.jooq.types.UInteger
 
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -88,7 +92,13 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       writer.writeRow(tuple.getFields.toSeq)
     }
     writer.close()
-    val fileName = s"${request.workflowName}-${request.operatorId}.csv"
+    val latestVersion =
+      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+    val timestamp = LocalDateTime
+      .now()
+      .truncatedTo(ChronoUnit.SECONDS)
+      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+    val fileName = s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.csv"
     val fileNameStored = UserFileResource.saveUserFileSafe(
       uid,
       fileName,

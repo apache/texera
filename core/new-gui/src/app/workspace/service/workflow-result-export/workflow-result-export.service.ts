@@ -64,16 +64,27 @@ export class WorkflowResultExportService {
       return;
     }
 
+    const workflowId = this.workflowActionService.getWorkflow().wid;
+    if (!workflowId) {
+      return;
+    }
+
     this.notificationService.loading("exporting...");
     this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()
-      .filter(operatorId => isSink(this.workflowActionService.getTexeraGraph().getOperator(operatorId)))
       .forEach(operatorId => {
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+        if (!isSink(operator)) {
+          return;
+        }
+        const operatorName = operator.customDisplayName ?? operator.operatorType;
         this.workflowWebsocketService.send("ResultExportRequest", {
           exportType,
+          workflowId,
           workflowName,
           operatorId,
+          operatorName,
         });
       });
   }

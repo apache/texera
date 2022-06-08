@@ -82,8 +82,10 @@ export type PaginatedResultEvent = Readonly<{
 
 export type ResultExportRequest = Readonly<{
   exportType: string;
+  workflowId: number;
   workflowName: string;
   operatorId: string;
+  operatorName: string;
 }>;
 
 export type CacheStatusUpdateRequest = LogicalPlan;
