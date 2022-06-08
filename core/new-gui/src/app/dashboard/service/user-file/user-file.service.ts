@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
 import { AccessEntry } from "../../type/access.interface";
@@ -19,7 +19,7 @@ export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/update/name`;
   providedIn: "root",
 })
 export class UserFileService {
-  private dashboardUserFileEntryChanged = new Subject<void>();
+  private dashboardUserFileEntryChanged = new BehaviorSubject<void>(undefined);
 
   constructor(private http: HttpClient) {}
 
