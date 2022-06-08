@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
@@ -100,7 +101,8 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
     new Type(value = classOf[DifferenceOpDesc], name = "Difference"),
     new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin"),
     new Type(value = classOf[UnnestStringOpDesc], name = "UnnestString"),
-    new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher")
+    new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher"),
+    new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions")
   )
 )
 abstract class OperatorDescriptor extends Serializable {

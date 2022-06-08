@@ -34,6 +34,7 @@ import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
+import { ColorPickerModule } from "ngx-color-picker";
 import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
@@ -225,6 +226,7 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzPaginationModule,
     NzCommentModule,
+    ColorPickerModule,
   ],
   providers: [
     DatePipe,
