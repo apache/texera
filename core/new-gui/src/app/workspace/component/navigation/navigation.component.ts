@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, ViewChild } from "@angular/core";
+import { ChangeDetectorRef, Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -7,7 +7,6 @@ import { Workflow } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { WorkflowCacheService } from "../../service/workflow-cache/workflow-cache.service";
 import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -19,6 +18,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { concatMap, catchError } from "rxjs/operators";
+import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 
 /**
@@ -42,12 +43,13 @@ import { WorkflowCollabService } from "../../service/workflow-collab/workflow-co
   templateUrl: "./navigation.component.html",
   styleUrls: ["./navigation.component.scss"],
 })
-export class NavigationComponent {
+export class NavigationComponent implements OnInit {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
 
+  @Input() private pid: number = 0;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
@@ -87,11 +89,12 @@ export class NavigationComponent {
     public workflowPersistService: WorkflowPersistService,
     public workflowVersionService: WorkflowVersionService,
     public userService: UserService,
-    private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
     public workflowCollabService: WorkflowCollabService,
-    public workflowUtilService: WorkflowUtilService
+    public workflowUtilService: WorkflowUtilService,
+    private userProjectService: UserProjectService,
+    public changeDetectionRef: ChangeDetectorRef
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -102,8 +105,10 @@ export class NavigationComponent {
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
+  }
 
-    executeWorkflowService
+  public ngOnInit(): void {
+    this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
@@ -112,7 +117,7 @@ export class NavigationComponent {
       });
 
     // set the map of operatorStatusMap
-    validationWorkflowService
+    this.validationWorkflowService
       .getWorkflowValidationErrorStream()
       .pipe(untilDestroyed(this))
       .subscribe(value => {
@@ -231,6 +236,14 @@ export class NavigationComponent {
    */
   public isZoomRatioMax(): boolean {
     return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
+  }
+
+  /**
+   * This method will flip the current status of whether to draw grids in jointPaper.
+   * This option is only for the current session and will be cleared on refresh.
+   */
+  public onClickToggleGrids(): void {
+    this.workflowActionService.getJointGraphWrapper().toggleGrids();
   }
 
   /**
@@ -390,19 +403,43 @@ export class NavigationComponent {
   public persistWorkflow(): void {
     if (this.workflowCollabService.isLockGranted()) {
       this.isSaving = true;
-      this.workflowPersistService
-        .persistWorkflow(this.workflowActionService.getWorkflow())
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          (updatedWorkflow: Workflow) => {
-            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            this.isSaving = false;
-          },
-          (error: unknown) => {
-            alert(error);
-            this.isSaving = false;
-          }
-        );
+      if (this.pid === 0) {
+        this.workflowPersistService
+          .persistWorkflow(this.workflowActionService.getWorkflow())
+          .pipe(untilDestroyed(this))
+          .subscribe(
+            (updatedWorkflow: Workflow) => {
+              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              this.isSaving = false;
+            },
+            (error: unknown) => {
+              alert(error);
+              this.isSaving = false;
+            }
+          );
+      } else {
+        // add workflow to project, backend will create new mapping if not already added
+        this.workflowPersistService
+          .persistWorkflow(this.workflowActionService.getWorkflow())
+          .pipe(
+            concatMap((updatedWorkflow: Workflow) => {
+              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              this.isSaving = false;
+              return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
+            }),
+            catchError((err: unknown) => {
+              throw err;
+            }),
+            untilDestroyed(this)
+          )
+          .subscribe(
+            () => {},
+            (error: unknown) => {
+              alert(error);
+              this.isSaving = false;
+            }
+          );
+      }
     }
   }
 
@@ -536,6 +573,7 @@ export class NavigationComponent {
       .pipe(untilDestroyed(this))
       .subscribe((lockGranted: boolean) => {
         this.lockGranted = lockGranted;
+        this.changeDetectionRef.detectChanges();
       });
   }
 

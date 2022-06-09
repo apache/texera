@@ -1,19 +1,22 @@
-<div ngbDropdown class="d-inline-block user-icon">
-  <button *ngIf="!user?.name;else user_avatar" class="btn btn-outline-primary" id="dropdownBasic1" ngbDropdownToggle>
-    Sign In
-  </button>
-  <ng-template #user_avatar>
+<div class="user-icon">
+  <button *ngIf="!user" nz-button nzType="primary" nzGhost nzSize="large" (click)="onClickLogin()">Sign In</button>
+
+  <div *ngIf="user">
     <texera-user-avatar
       class="user-avatar caret-off"
-      ngbDropdownToggle
       [googleId]="user?.googleId || '' "
       [userName]="user?.name || ''"
+      nz-button
+      nz-dropdown
+      nzTrigger="click"
+      [nzDropdownMenu]="menu"
+      nzPlacement="bottomRight"
     >
     </texera-user-avatar>
-  </ng-template>
-  <div aria-labelledby="dropdownBasic1" class="user-dropdown" ngbDropdownMenu>
-    <button (click)="onClickLogin()" *ngIf="!user" class="dropdown-item">Sign In</button>
-    <button (click)="onClickRegister()" *ngIf="!user" class="dropdown-item">Sign up</button>
-    <button (click)="onClickLogout()" *ngIf="user" class="dropdown-item">Sign Out</button>
   </div>
+  <nz-dropdown-menu #menu="nzDropdownMenu">
+    <ul nz-menu>
+      <li nz-menu-item (click)="onClickLogout()">Sign Out</li>
+    </ul>
+  </nz-dropdown-menu>
 </div>

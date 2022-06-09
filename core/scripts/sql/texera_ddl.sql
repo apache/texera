@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS user_project
     `name`            VARCHAR(128)                     NOT NULL,
     `owner_id`        INT UNSIGNED                     NOT NULL,
     `creation_time`   TIMESTAMP                        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `color`           VARCHAR(6),
     UNIQUE(`owner_id`, `name`),
     PRIMARY KEY (`pid`),
     FOREIGN KEY (`owner_id`) REFERENCES user (`uid`)   ON DELETE CASCADE
@@ -157,6 +158,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `result`          TEXT, #pointer to volume
     `starting_time`   TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `completion_time`   TIMESTAMP,
+    `bookmarked`      BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE

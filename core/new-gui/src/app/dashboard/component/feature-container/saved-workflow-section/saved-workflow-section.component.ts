@@ -1,21 +1,27 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { cloneDeep } from "lodash-es";
-import { from } from "rxjs";
+import { from, Observable } from "rxjs";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalDeleteWorkflowComponent } from "./ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { NgbdModalAddProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
+import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
+import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
+import { concatMap, catchError } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
+import { UserProject } from "../../../type/user-project";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
+export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
 @Component({
@@ -23,8 +29,15 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
   templateUrl: "./saved-workflow-section.component.html",
   styleUrls: ["./saved-workflow-section.component.scss", "../../dashboard.component.scss"],
 })
-export class SavedWorkflowSectionComponent implements OnInit {
-  public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
+  // receive input from parent components (UserProjectSection), if any
+  @Input() public pid: number = 0;
+  @Input() public updateProjectStatus: string = ""; // track changes to user project(s) (i.e color update / removal)
+
+  /* variables for workflow editing / search */
+  // virtual scroll requires replacing the entire array reference in order to update view
+  // see https://github.com/angular/components/issues/14635
+  public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
@@ -47,8 +60,19 @@ export class SavedWorkflowSectionComponent implements OnInit {
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
+  /* variables for project color tags */
+  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
+  public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
+
+  /* variables for filtering workflows by projects */
+  public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
+  public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
+  public isSearchByProject: boolean = false; // track searching mode user currently selects
+
   constructor(
     private userService: UserService,
+    private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
     private modalService: NgbModal,
@@ -57,6 +81,20 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   ngOnInit() {
     this.registerDashboardWorkflowEntriesRefresh();
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    for (const propName in changes) {
+      if (propName == "pid" && changes[propName].currentValue) {
+        // listen to see if component is to be re-rendered inside a different project
+        this.pid = changes[propName].currentValue;
+        this.refreshDashboardWorkflowEntries();
+      } else if (propName == "updateProjectStatus" && changes[propName].currentValue) {
+        // listen to see if parent component has been mutated (e.g. project color changed)
+        this.updateProjectStatus = changes[propName].currentValue;
+        this.refreshUserProjects();
+      }
+    }
   }
 
   /**
@@ -78,16 +116,47 @@ export class SavedWorkflowSectionComponent implements OnInit {
     modalRef.componentInstance.workflow = workflow;
   }
 
+  /**
+   * open the Modal to add workflow(s) to project
+   */
+  public onClickOpenAddWorkflow() {
+    const modalRef = this.modalService.open(NgbdModalAddProjectWorkflowComponent);
+    modalRef.componentInstance.projectId = this.pid;
+
+    // retrieve updated values from modal via promise
+    modalRef.result.then(result => {
+      if (result) {
+        this.updateDashboardWorkflowEntryCache(result);
+      }
+    });
+  }
+
+  /**
+   * open the Modal to remove workflow(s) from project
+   */
+  public onClickOpenRemoveWorkflow() {
+    const modalRef = this.modalService.open(NgbdModalRemoveProjectWorkflowComponent);
+    modalRef.componentInstance.projectId = this.pid;
+
+    // retrieve updated values from modal via promise
+    modalRef.result.then(result => {
+      if (result) {
+        this.updateDashboardWorkflowEntryCache(result);
+      }
+    });
+  }
+
   public searchInputOnChange(value: string): void {
     // enable autocomplete only when searching for workflow name
     if (!value.includes(":")) {
-      this.filteredDashboardWorkflowNames = [];
+      const filteredDashboardWorkflowNames: string[] = [];
       this.allDashboardWorkflowEntries.forEach(dashboardEntry => {
         const workflowName = dashboardEntry.workflow.name;
         if (workflowName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
-          this.filteredDashboardWorkflowNames.push(workflowName);
+          filteredDashboardWorkflowNames.push(workflowName);
         }
       });
+      this.filteredDashboardWorkflowNames = filteredDashboardWorkflowNames;
     }
   }
 
@@ -111,21 +180,14 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public searchWorkflow(): void {
     let andPathQuery: Object[] = [];
-    this.dashboardWorkflowEntries = [];
     // empty search value, return all workflow entries
     if (this.workflowSearchValue.trim() === "") {
-      this.dashboardWorkflowEntries = cloneDeep(this.allDashboardWorkflowEntries);
+      this.dashboardWorkflowEntries = [...this.allDashboardWorkflowEntries];
       return;
     } else if (!this.workflowSearchValue.includes(":")) {
       // search only by workflow name
       andPathQuery.push(this.buildAndPathQuery("workflowName", this.workflowSearchValue));
-      this.fuse
-        .search({
-          $and: andPathQuery,
-        })
-        .forEach(res => {
-          this.dashboardWorkflowEntries.push(res.item);
-        });
+      this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
       return;
     }
     const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
@@ -149,78 +211,100 @@ export class SavedWorkflowSectionComponent implements OnInit {
         andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
       }
     });
-    this.fuse
-      .search({
-        $and: andPathQuery,
-      })
-      .forEach(res => {
-        this.dashboardWorkflowEntries.push(res.item);
-      });
+    this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
   }
 
   /**
    * sort the workflow by name in ascending order
    */
   public ascSort(): void {
-    this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase())
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((t1, t2) => t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by name in descending order
    */
   public dscSort(): void {
-    this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase())
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((t1, t2) => t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-      left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined
-        ? left.workflow.creationTime - right.workflow.creationTime
-        : 0
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((left, right) =>
+        left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined
+          ? left.workflow.creationTime - right.workflow.creationTime
+          : 0
+      );
   }
 
   /**
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-      left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined
-        ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
-        : 0
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((left, right) =>
+        left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined
+          ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
+          : 0
+      );
   }
 
   /**
    * create a new workflow. will redirect to a pre-emptied workspace
    */
   public onClickCreateNewWorkflowFromDashboard(): void {
-    this.router.navigate([`${ROUTER_WORKFLOW_CREATE_NEW_URL}`]).then(null);
+    this.router.navigate([`${ROUTER_WORKFLOW_CREATE_NEW_URL}`], { queryParams: { pid: this.pid } }).then(null);
   }
 
   /**
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
+   *
+   * for workflow components inside a project-section, it will also add
+   * the workflow to the project
    */
   public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     if (wid) {
-      this.workflowPersistService
-        .duplicateWorkflow(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          (duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
-            this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
-          },
-          // @ts-ignore // TODO: fix this with notification component
-          (err: unknown) => alert(err.error)
-        );
+      if (this.pid == 0) {
+        // not nested within user project section
+        this.workflowPersistService
+          .duplicateWorkflow(wid)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: duplicatedWorkflowInfo => {
+              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, duplicatedWorkflowInfo];
+            }, // TODO: fix this with notification component
+            error: (err: unknown) => alert(err),
+          });
+      } else {
+        // is nested within project section, also add duplicate workflow to project
+        this.workflowPersistService
+          .duplicateWorkflow(wid)
+          .pipe(
+            concatMap((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
+              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, duplicatedWorkflowInfo];
+              return this.userProjectService.addWorkflowToProject(this.pid, duplicatedWorkflowInfo.workflow.wid!);
+            }),
+            catchError((err: unknown) => {
+              throw err;
+            }),
+            untilDestroyed(this)
+          )
+          .subscribe(
+            () => {},
+            // @ts-ignore // TODO: fix this with notification component
+            (err: unknown) => alert(err.error)
+          );
+      }
     }
   }
 
@@ -262,6 +346,13 @@ export class SavedWorkflowSectionComponent implements OnInit {
     this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
   }
 
+  /**
+   * navigate to individual project page
+   */
+  public jumpToProject({ pid }: UserProject): void {
+    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
+  }
+
   private registerDashboardWorkflowEntriesRefresh(): void {
     this.userService
       .userChanged()
@@ -269,25 +360,151 @@ export class SavedWorkflowSectionComponent implements OnInit {
       .subscribe(() => {
         if (this.userService.isLogin()) {
           this.refreshDashboardWorkflowEntries();
+          this.refreshUserProjects();
         } else {
           this.clearDashboardWorkflowEntries();
         }
       });
   }
 
-  private refreshDashboardWorkflowEntries(): void {
-    this.workflowPersistService
-      .retrieveWorkflowsBySessionUser()
+  /**
+   * Retrieves from the backend endpoint for projects all user projects
+   * that are accessible from the current user.  This is used for
+   * the project color tags
+   */
+  private refreshUserProjects(): void {
+    this.userProjectService
+      .retrieveProjectList()
       .pipe(untilDestroyed(this))
-      .subscribe(dashboardWorkflowEntries => {
-        this.dashboardWorkflowEntries = dashboardWorkflowEntries;
-        this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
-        this.fuse.setCollection(this.allDashboardWorkflowEntries);
-        dashboardWorkflowEntries.forEach(dashboardWorkflowEntry => {
-          const workflow = dashboardWorkflowEntry.workflow;
-          this.filteredDashboardWorkflowNames.push(workflow.name);
-        });
+      .subscribe((userProjectList: UserProject[]) => {
+        if (userProjectList != null && userProjectList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+
+          // calculate whether project colors are light or dark
+          const projectColorBrightnessMap: Map<number, boolean> = new Map();
+          userProjectList.forEach(userProject => {
+            if (userProject.color != null) {
+              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+            }
+          });
+          this.colorBrightnessMap = projectColorBrightnessMap;
+
+          // store the projects containing these workflows
+          this.userProjectsList = userProjectList;
+          this.userProjectsLoaded = true;
+        }
       });
+  }
+
+  /**
+   * This is a search function that filters displayed workflows by
+   * the project(s) they belong to.  It is currently separated
+   * from the fuzzy search logic
+   */
+  public filterWorkflowsByProject() {
+    let newWorkflowEntries = this.allDashboardWorkflowEntries.slice();
+    this.projectFilterList.forEach(
+      pid => (newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.projectIDs.includes(pid)))
+    );
+    this.dashboardWorkflowEntries = newWorkflowEntries;
+  }
+
+  /**
+   * This is a helper function that toggles between the default
+   * workflow search bar and the filter by project search mode.
+   */
+  public toggleWorkflowSearchMode() {
+    this.isSearchByProject = !this.isSearchByProject;
+    if (this.isSearchByProject) {
+      this.filterWorkflowsByProject();
+    } else {
+      this.searchWorkflow();
+    }
+  }
+
+  /**
+   * For color tags, enable clicking 'x' to remove a workflow from a project
+   *
+   * @param pid
+   * @param dashboardWorkflowEntry
+   * @param index
+   */
+  public removeWorkflowFromProject(pid: number, dashboardWorkflowEntry: DashboardWorkflowEntry, index: number): void {
+    this.userProjectService
+      .removeWorkflowFromProject(pid, dashboardWorkflowEntry.workflow.wid!)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+        updatedDashboardWorkFlowEntry.projectIDs = dashboardWorkflowEntry.projectIDs.filter(
+          projectID => projectID != pid
+        );
+
+        // update allDashboardWorkflowEntries
+        const newAllDashboardEntries = this.allDashboardWorkflowEntries.slice();
+        for (let i = 0; i < newAllDashboardEntries.length; ++i) {
+          if (newAllDashboardEntries[i].workflow.wid == dashboardWorkflowEntry.workflow.wid) {
+            newAllDashboardEntries[i] = updatedDashboardWorkFlowEntry;
+            break;
+          }
+        }
+        this.allDashboardWorkflowEntries = newAllDashboardEntries;
+        this.fuse.setCollection(this.allDashboardWorkflowEntries);
+
+        // update dashboardWorkflowEntries
+        const newEntries = this.dashboardWorkflowEntries.slice();
+        newEntries[index] = updatedDashboardWorkFlowEntry;
+        this.dashboardWorkflowEntries = newEntries;
+
+        // update filtering results by project, if applicable
+        if (this.isSearchByProject) {
+          // refilter workflows by projects (to include / exclude changed workflows)
+          this.filterWorkflowsByProject();
+        }
+      });
+  }
+
+  private refreshDashboardWorkflowEntries(): void {
+    let observable: Observable<DashboardWorkflowEntry[]>;
+
+    if (this.pid === 0) {
+      // not nested within user project section
+      observable = this.workflowPersistService.retrieveWorkflowsBySessionUser();
+    } else {
+      // is nested within project section, get workflows belonging to project
+      observable = this.userProjectService.retrieveWorkflowsOfProject(this.pid);
+    }
+
+    observable.pipe(untilDestroyed(this)).subscribe(dashboardWorkflowEntries => {
+      this.dashboardWorkflowEntries = dashboardWorkflowEntries;
+      this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+      this.fuse.setCollection(this.allDashboardWorkflowEntries);
+      const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
+      this.filteredDashboardWorkflowNames = [...newEntries];
+    });
+  }
+
+  /**
+   * Used for adding / removing workflow(s) from a project.
+   *
+   * Updates local caches to reflect what was pushed into backend / returned
+   * from the modal
+   *
+   * @param dashboardWorkflowEntries - returned local cache of workflows
+   */
+  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
+    this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+    this.fuse.setCollection(this.allDashboardWorkflowEntries);
+
+    // update searching / filtering
+    if (this.isSearchByProject) {
+      // refilter workflows by projects (to include / exclude changed w)
+      this.filterWorkflowsByProject();
+    } else {
+      // (regular search mode) : update search results / autcomplete for current search value
+      this.searchInputOnChange(this.workflowSearchValue);
+      this.searchWorkflow();
+    }
   }
 
   private clearDashboardWorkflowEntries(): void {
@@ -307,8 +524,9 @@ export class SavedWorkflowSectionComponent implements OnInit {
         let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
         updatedDashboardWorkFlowEntry.workflow = { ...workflow };
         updatedDashboardWorkFlowEntry.workflow.name = name || this.defaultWorkflowName;
-
-        this.dashboardWorkflowEntries[index] = updatedDashboardWorkFlowEntry;
+        const newEntries = this.dashboardWorkflowEntries.slice();
+        newEntries[index] = updatedDashboardWorkFlowEntry;
+        this.dashboardWorkflowEntries = newEntries;
       })
       .add(() => {
         this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(

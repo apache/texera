@@ -90,7 +90,7 @@ abstract class SQLSourceOpExec(
                 if (resultSet.next()) {
 
                   // manually skip until the offset position in order to adapt to progressive batches
-                  curOffset.fold()(offset => {
+                  curOffset.foreach(offset => {
                     if (offset > 0) {
                       curOffset = Option(offset - 1)
                       break
@@ -104,7 +104,7 @@ abstract class SQLSourceOpExec(
                     break
 
                   // update the limit in order to adapt to progressive batches
-                  curLimit.fold()(limit => {
+                  curLimit.foreach(limit => {
                     if (limit > 0) {
                       curLimit = Option(limit - 1)
                     }

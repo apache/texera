@@ -5,16 +5,12 @@
   height: 100%;
 }
 
-#sortDropdown {
-  margin-right: 20px;
-}
-
 .add-button {
   margin-left: 5px;
 }
 
 .ant-btn-icon-only {
-  margin-right: 10px;
+  margin-right: 15px;
 
   &.ant-btn-sm {
     transform: translateY(-5px);
@@ -42,6 +38,12 @@ $header-height: 120px;
   grid-template-rows: $header-height calc((100% - #{$header-height}));
 }
 
+.virtual-scroll-infinite-container {
+  height: 600px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
 /**
 * the grid of the first row which contains the add and sort button.
 * The position of the first row is fix. no adaptation
@@ -53,15 +55,23 @@ $header-height: 120px;
 
 /**
 * the grid of the list of saved workflow. Each workflow contains the name, created time and last
-* edited time. This section is flexible to expand downward.
+* edited time. This section is flexible to expand downward and upwards (e.g. workflows add / removed from project)
 **/
 .workflow-list-container {
   grid-row-start: 2;
   grid-row-end: 3;
   overflow: auto;
+  min-height: 0%;
 
   .texera-dashboard-saved-workflow-search-box-input {
     margin-bottom: 30px;
+  }
+
+  .texera-dashboard-saved-workflow-project-box-select {
+    margin-bottom: 30px;
+    display: flex;
+    padding: 4px 11px;
+    border: 1px solid #d9d9d9;
   }
 }
 
@@ -115,4 +125,46 @@ $header-height: 120px;
 
 .page-title {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.workflow-project-label-container {
+  width: 40%;
+  display: flex;
+  flex-direction: row-reverse;
+  overflow-x: auto;
+
+  .workflow-project-label {
+    display: inline;
+    white-space: nowrap;
+
+    .color-tag {
+      display: inline-block;
+      cursor: pointer;
+    }
+
+    #left-div {
+      padding: 1.5px 7px;
+      border-top-left-radius: 2px;
+      border-bottom-left-radius: 2px;
+    }
+
+    #right-div {
+      padding: 1.5px 7px;
+      border-top-right-radius: 2px;
+      border-bottom-right-radius: 2px;
+      margin-right: 10px;
+    }
+
+    .light-color {
+      border: 1px solid gainsboro;
+    }
+
+    .light-color:hover {
+      background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
+    }
+
+    .dark-color:hover {
+      background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
+    }
+  }
 }

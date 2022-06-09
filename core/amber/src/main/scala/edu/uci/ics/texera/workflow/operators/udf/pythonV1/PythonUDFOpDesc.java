@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV1;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -18,12 +19,14 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import scala.Function1;
 
+import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.collection.JavaConverters.mapAsScalaMap;
 
-
+@Deprecated
 public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @JsonProperty()
@@ -81,17 +84,17 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                         batchSize
                 );
         if (PythonUDFType.supportsParallel.contains(pythonUDFType)) {
-            return new OneToOneOpExecConfig(operatorIdentifier(), exec);
+            return new OneToOneOpExecConfig(operatorIdentifier(), exec, Constants.currentWorkerNum(),  mapAsScalaMap(Collections.emptyMap()));
         } else {
-            // changed it to 1 because training with python needs all data in one node.
-            return new ManyToOneOpExecConfig(operatorIdentifier(), exec);
+            // changed it to 1 because training with Python needs all data in one node.
+            return new ManyToOneOpExecConfig(operatorIdentifier(), exec,  mapAsScalaMap(Collections.emptyMap()));
         }
     }
 
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "Python UDF",
+                "Python UDF V1",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
@@ -105,7 +108,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
         // check if inputColumns are presented in inputSchema.
         if (inputColumns != null) {
             for (String column : inputColumns) {
-                if (!inputSchema.containsAttribute(column)) throw new RuntimeException("No such column:" + column + ".");
+                if (!inputSchema.containsAttribute(column))
+                    throw new RuntimeException("No such column:" + column + ".");
             }
         }
 
@@ -126,8 +130,9 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
         // for any pythonUDFType, it can add custom output columns (attributes).
         if (outputColumns != null) {
             for (Attribute column : outputColumns) {
-                if (inputSchema.containsAttribute(column.getName())) throw new RuntimeException("Column name " + column.getName()
-                        + " already exists!");
+                if (inputSchema.containsAttribute(column.getName()))
+                    throw new RuntimeException("Column name " + column.getName()
+                            + " already exists!");
             }
             outputSchemaBuilder.add(outputColumns).build();
         }

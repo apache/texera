@@ -7,6 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   FILE_OF_PROJECT,
   USER,
   USER_FILE_ACCESS,
+  USER_PROJECT,
   WORKFLOW,
   WORKFLOW_OF_PROJECT,
   WORKFLOW_OF_USER,
@@ -30,7 +31,8 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
   fileOfProjectDao,
   userProjectDao,
-  workflowOfProjectDao
+  workflowOfProjectDao,
+  workflowOfProjectExists
 }
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
@@ -48,7 +50,7 @@ import javax.annotation.security.PermitAll
 
 /**
   * This file handles various request related to projects.
-  * It sends mysql queries to the MysqlDB regarding the 'project',
+  * It sends mysql queries to the MysqlDB regarding the 'user_project',
   * 'workflow_of_project', and 'file_of_project' Tables
   * The details of these tables can be found in /core/scripts/sql/texera_ddl.sql
   */
@@ -58,6 +60,61 @@ object ProjectResource {
   final private val userProjectDao = new UserProjectDao(context.configuration)
   final private val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private val fileOfProjectDao = new FileOfProjectDao(context.configuration)
+
+  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+    workflowOfProjectDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
+        .values(wid, pid)
+    )
+  }
+
+  /**
+    * This method is used to insert any CSV files created from ResultExportService
+    * handleCSVRequest function into all project(s) that the workflow belongs to.
+    *
+    * No insertion occurs if the workflow does not belong to any projects.
+    *
+    * @param uid user ID
+    * @param wid workflow ID
+    * @param fileName name of exported file
+    * @return String containing status of adding exported file to project(s)
+    */
+  def addExportedFileToProject(uid: UInteger, wid: UInteger, fileName: String): String = {
+    // get map of PIDs and project names
+    val pidMap = context
+      .select(WORKFLOW_OF_PROJECT.PID, USER_PROJECT.NAME)
+      .from(WORKFLOW_OF_PROJECT)
+      .leftJoin(USER_PROJECT)
+      .on(WORKFLOW_OF_PROJECT.PID.eq(USER_PROJECT.PID))
+      .where(WORKFLOW_OF_PROJECT.WID.eq(wid))
+      .fetch()
+      .intoMap(WORKFLOW_OF_PROJECT.PID, USER_PROJECT.NAME)
+
+    if (pidMap.size() > 0) { // workflow belongs to project(s)
+      // get fid using fileName & cast to UInteger
+      val fid = context
+        .select(FILE.FID)
+        .from(FILE)
+        .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileName)))
+        .fetchOneInto(FILE)
+        .getFid
+
+      // add file to all projects this workflow belongs to
+      pidMap
+        .keySet()
+        .forEach((pid: UInteger) => fileOfProjectDao.insert(new FileOfProject(fid, pid)))
+
+      // generate string for ResultExportResponse
+      if (pidMap.size() == 1) {
+        s"and added to project: ${pidMap.values().toArray()(0)}"
+      } else {
+        s"and added to projects: ${pidMap.values().mkString(", ")}"
+      }
+    } else { // workflow does not belong to a project
+      ""
+    }
+  }
 }
 
 @Path("/project")
@@ -135,7 +192,11 @@ class ProjectResource {
             workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
           ).toString,
           workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow])
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          workflowOfProjectDao
+            .fetchByWid(workflowRecord.into(WORKFLOW).getWid)
+            .map(workflowOfProject => workflowOfProject.getPid)
+            .toList
         )
       )
       .toList
@@ -182,7 +243,11 @@ class ProjectResource {
           fileRecord.into(USER).getName,
           toFileAccessLevel(fileRecord.into(USER_FILE_ACCESS).into(classOf[UserFileAccess])),
           fileRecord.into(USER).getName == user.getName,
-          fileRecord.into(FILE).into(classOf[File])
+          fileRecord.into(FILE).into(classOf[File]),
+          fileOfProjectDao
+            .fetchByFid(fileRecord.into(FILE).getFid)
+            .map(fileOfProject => fileOfProject.getPid)
+            .toList
         )
       )
       .toList
@@ -220,7 +285,7 @@ class ProjectResource {
   ): UserProject = {
     val oid = sessionUser.getUser.getUid
 
-    val userProject = new UserProject(null, name, oid, null)
+    val userProject = new UserProject(null, name, oid, null, null)
     try {
       userProjectDao.insert(userProject)
     } catch {
@@ -243,7 +308,9 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger
   ): Unit = {
-    workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
+    if (!workflowOfProjectExists(wid, pid)) {
+      workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
+    }
   }
 
   /**
@@ -279,6 +346,39 @@ class ProjectResource {
     } catch {
       case _: Throwable => throw new BadRequestException("Cannot rename project to provided name.");
     }
+  }
+
+  /**
+    * This method updates a project's color.
+    *
+    * @param pid id of project to be updated
+    * @param colorHex new HEX formatted color to be set
+    */
+  @POST
+  @Path("/{pid}/color/{colorHex}/add")
+  def updateProjectColor(
+      @PathParam("pid") pid: UInteger,
+      @PathParam("colorHex") colorHex: String
+  ): Unit = {
+    if (
+      colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
+        "^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$"
+      )
+    ) {
+      throw new BadRequestException("Cannot assign invalid HEX format color to project.")
+    }
+
+    val userProject = userProjectDao.fetchOneByPid(pid)
+    userProject.setColor(colorHex)
+    userProjectDao.update(userProject)
+  }
+
+  @POST
+  @Path("/{pid}/color/delete")
+  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
+    val userProject = userProjectDao.fetchOneByPid(pid)
+    userProject.setColor(null)
+    userProjectDao.update(userProject)
   }
 
   /**
