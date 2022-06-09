@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.PAUSED
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object BackpressureHandler {
@@ -20,7 +21,9 @@ trait BackpressureHandler {
       dataProcessor.disableDataQueue()
       dataProcessor.backpressured = true
     } else {
-      dataProcessor.enableDataQueue()
+      if (stateManager.getCurrentState != PAUSED) {
+        dataProcessor.enableDataQueue()
+      }
       dataProcessor.backpressured = false
     }
   }
