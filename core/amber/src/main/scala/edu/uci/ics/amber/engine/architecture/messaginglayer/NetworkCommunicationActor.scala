@@ -237,12 +237,13 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       if (msgToForward.nonEmpty) {
         forwardMessageFromFlowControl(id, msgToForward.get)
       }
+      informParentAboutBackpressure(id) // enable backpressure if necessary
     case NetworkAck(id, credits) =>
       if (messageIDToIdentity.contains(id)) {
         val actorID = messageIDToIdentity.remove(id).get
         if (credits.nonEmpty) {
           flowControl.updateCredits(actorID, credits.get)
-          informParentAboutBackpressure(actorID) // informs if necessary
+          informParentAboutBackpressure(actorID) // enables/disables backpressure if necessary
           togglePollForCredits(actorID, credits.get <= 0)
           flowControl
             .getMessagesToForward(actorID)
