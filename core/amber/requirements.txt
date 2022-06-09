@@ -18,7 +18,7 @@ six==1.15.0
 toml==0.10.2
 pytest-timeout==1.4.2
 protobuf==3.19.4
-betterproto~=1.2.5
+betterproto
 typing~=3.7.4.3
 asyncio~=3.4.3
 pampy==0.3.0
