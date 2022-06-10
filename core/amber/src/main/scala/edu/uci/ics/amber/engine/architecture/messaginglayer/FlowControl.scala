@@ -102,6 +102,7 @@ class FlowControl {
       ) > 0
     ) {
       messageBuffer.append(dataMessagesAwaitingCredits(receiverId).dequeue())
+      receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
     }
     messageBuffer.toArray
   }
@@ -114,7 +115,10 @@ class FlowControl {
     Constants.flowControlEnabled &&
     dataMessagesAwaitingCredits
       .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-      .size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits(receiverId)
+      .size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits.getOrElseUpdate(
+      receiverId,
+      Constants.unprocessedBatchesCreditLimitPerSender
+    )
   }
 
   def updateCredits(receiverId: ActorVirtualIdentity, credits: Int): Unit = {
