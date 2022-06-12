@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.operators.sortPartitions.SortPartitionOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,

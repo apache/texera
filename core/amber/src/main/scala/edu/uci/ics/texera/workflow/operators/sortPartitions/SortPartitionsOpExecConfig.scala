@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.operators.sortPartitions
+package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
@@ -34,7 +34,11 @@ class SortPartitionsOpExecConfig(
           i =>
             new SortPartitionOpExec(
               sortAttributeName,
-              operatorSchemaInfo
+              operatorSchemaInfo,
+              i,
+              domainMin,
+              domainMax,
+              numOfWorkers
             ),
           numOfWorkers,
           UseAll(),

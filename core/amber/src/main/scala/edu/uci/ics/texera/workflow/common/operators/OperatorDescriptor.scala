@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.amber.engine.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
@@ -50,6 +49,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 
 import java.util.UUID
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 
 @JsonTypeInfo(
