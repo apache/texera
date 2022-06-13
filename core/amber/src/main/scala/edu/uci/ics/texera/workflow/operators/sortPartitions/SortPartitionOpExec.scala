@@ -9,13 +9,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorS
 import scala.collection.mutable.ArrayBuffer
 
 class SortPartitionOpExec(
-    sortAttributeName: String,
-    operatorSchemaInfo: OperatorSchemaInfo,
-    localIdx: Int,
-    domainMin: Long,
-    domainMax: Long,
-    numberOfWorkers: Int
-) extends OperatorExecutor {
+                           sortAttributeName: String,
+                           operatorSchemaInfo: OperatorSchemaInfo,
+                           localIdx: Int,
+                           domainMin: Long,
+                           domainMax: Long,
+                           numberOfWorkers: Int
+                         ) extends OperatorExecutor {
 
   var ownTuples: ArrayBuffer[Tuple] = _
 
@@ -26,6 +26,7 @@ class SortPartitionOpExec(
   // used by skewed worker
   var waitingForTuplesFromHelper: Boolean = false
   var numOfTuplesReceivedFromHelper: Long = 0
+  var helperWorkerIdentity: ActorVirtualIdentity = null
 
   def getWorkerIdxForKey(key: Long): Int = {
     val keysPerReceiver = ((domainMax - domainMin) / numberOfWorkers).toLong + 1
@@ -39,9 +40,9 @@ class SortPartitionOpExec(
   }
 
   override def processTexeraTuple(
-      tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity
-  ): Iterator[Tuple] = {
+                                   tuple: Either[Tuple, InputExhausted],
+                                   input: LinkIdentity
+                                 ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         if (Constants.reshapeSkewHandlingEnabled) {
@@ -71,7 +72,22 @@ class SortPartitionOpExec(
 
         Iterator()
       case Right(_) =>
-        ownTuples.sortWith(compareTuples).iterator
+        if (helperWorkerIdentity == null && skewedWorkerIdentity == null) {
+          // this worker is neither the skewed worker nor the helper worker
+          ownTuples.sortWith(compareTuples).iterator
+        } else if (helperWorkerIdentity != null) {
+          // this worker is the skewed worker.
+          if (!waitingForTuplesFromHelper) {
+            // It has received the state and can output the results
+            ownTuples.sortWith(compareTuples).iterator
+          } else {
+            // It will pause its execution here. The execution will be resumed once the state is received
+            // from the helper worker
+          }
+        } else {
+          // this worker is the helper worker. It needs to send state to the skewed worker.
+        }
+
     }
   }
 
@@ -92,10 +108,12 @@ class SortPartitionOpExec(
 
   override def open = {
     ownTuples = new ArrayBuffer[Tuple]()
+    skewedWorkerTuples = new ArrayBuffer[Tuple]()
   }
 
   override def close = {
     ownTuples.clear()
+    skewedWorkerTuples.clear()
   }
 
 }
