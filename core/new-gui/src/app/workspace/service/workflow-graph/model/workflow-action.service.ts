@@ -1100,6 +1100,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxAddStream(),
       this.getTexeraGraph().getCommentBoxDeleteStream(),
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
+      this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
+      this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getCachedOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream()
     );
@@ -1177,6 +1179,26 @@ export class WorkflowActionService {
     const commandMessage: CommandMessage = {
       action: "addComment",
       parameters: [comment, commentBoxID],
+      type: "execute",
+    };
+    this.workflowCollabService.propagateChange(commandMessage);
+  }
+
+  public deleteComment(creatorID: number, creationTime: string, commentBoxID: string): void {
+    this.texeraGraph.deleteCommentFromCommentBox(creatorID, creationTime, commentBoxID);
+    const commandMessage: CommandMessage = {
+      action: "deleteComment",
+      parameters: [creatorID, creationTime, commentBoxID],
+      type: "execute",
+    };
+    this.workflowCollabService.propagateChange(commandMessage);
+  }
+
+  public editComment(creatorID: number, creationTime: string, commentBoxID: string, newContent: string): void {
+    this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
+    const commandMessage: CommandMessage = {
+      action: "editComment",
+      parameters: [creatorID, creationTime, commentBoxID, newContent],
       type: "execute",
     };
     this.workflowCollabService.propagateChange(commandMessage);
