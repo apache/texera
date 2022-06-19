@@ -54,15 +54,16 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 7).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1, null, null)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1, null, null).isEmpty)
 
     (5 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), linkID2)
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID2, null, null)
     })
 
-    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID2).toSet
+    val outputTuples: Set[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), linkID2, null, null).toSet
     assert(
       outputTuples.equals(commonTuples.slice(0, 5).toSet.union(commonTuples.slice(8, 10).toSet))
     )
@@ -77,11 +78,17 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
     assertThrows[IllegalArgumentException] {
       (1 to 100).map(_ => {
-        opExec.processTexeraTuple(Left(tuple()), linkID())
-        opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID())
+        opExec.processTexeraTuple(Left(tuple()), linkID(), null, null)
+        opExec.processTexeraTuple(
+          Left(commonTuples(Random.nextInt(commonTuples.size))),
+          linkID(),
+          null,
+          null
+        )
       })
 
-      val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), null).toSet
+      val outputTuples: Set[Tuple] =
+        opExec.processTexeraTuple(Right(InputExhausted()), null, null, null).toSet
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
       outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
@@ -97,11 +104,12 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1, null, null)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1, null, null).isEmpty)
 
-    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID2).toSet
+    val outputTuples: Set[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), linkID2, null, null).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -114,11 +122,12 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), linkID2)
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID2, null, null)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2, null, null).isEmpty)
 
-    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID1).toSet
+    val outputTuples: Set[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), linkID1, null, null).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -130,12 +139,13 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2, null, null).isEmpty)
     (0 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1, null, null)
     })
 
-    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID1).toSet
+    val outputTuples: Set[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), linkID1, null, null).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -148,14 +158,15 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 5).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1, null, null)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2, null, null).isEmpty)
     (6 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1, null, null)
     })
 
-    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID1).toSet
+    val outputTuples: Set[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), linkID1, null, null).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -163,8 +174,8 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "work with two empty input upstreams" in {
 
     opExec.open()
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID()).isEmpty)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID()).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID(), null, null).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID(), null, null).isEmpty)
     opExec.close()
   }
 

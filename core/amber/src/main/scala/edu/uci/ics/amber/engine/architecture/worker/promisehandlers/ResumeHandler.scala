@@ -18,7 +18,9 @@ trait ResumeHandler {
       if (pauseManager.isPaused) {
         pauseManager.resume()
       }
-      dataProcessor.enableDataQueue()
+      if (!pauseManager.pausedByOperatorLogic) {
+        dataProcessor.enableDataQueue()
+      }
       stateManager.transitTo(RUNNING)
     }
     stateManager.getCurrentState

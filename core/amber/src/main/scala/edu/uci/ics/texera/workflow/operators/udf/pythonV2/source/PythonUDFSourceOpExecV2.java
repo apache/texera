@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
 
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager;
 import edu.uci.ics.amber.engine.common.InputExhausted;
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient;
 import edu.uci.ics.amber.engine.common.tuple.ITuple;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
@@ -21,8 +23,8 @@ public class PythonUDFSourceOpExecV2 extends PythonUDFOpExecV2 implements Source
 
 
     @Override
-    public Iterator<Tuple2<ITuple, Option<LinkIdentity>>> processTuple(Either<ITuple, InputExhausted> tuple, LinkIdentity input) {
-        return SourceOperatorExecutor.super.processTuple(tuple, input);
+    public Iterator<Tuple2<ITuple, Option<LinkIdentity>>> processTuple(Either<ITuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
+        return SourceOperatorExecutor.super.processTuple(tuple, input, pauseManager, asyncRPCClient);
         // Will not be used. The real implementation is in the Python UDF.
     }
 
