@@ -57,6 +57,7 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
+  // TODO: Implement credit calculation logic in python worker
   override def getSenderCredits(sender: ActorVirtualIdentity) = {
     Constants.unprocessedBatchesCreditLimitPerSender
   }
@@ -71,6 +72,7 @@ class PythonWorkflowWorker(
   ): Unit = {
     controlPayload match {
       case ControlInvocation(_, c) =>
+        // TODO: Implement backpressure message handling for python worker
         if (!c.isInstanceOf[Backpressure]) {
           pythonProxyClient.enqueueCommand(controlPayload, from)
         }
