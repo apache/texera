@@ -84,6 +84,10 @@ class WorkflowWorker(
   workerStateManager.assertState(UNINITIALIZED)
   workerStateManager.transitTo(READY)
 
+  def getSenderCredits(sender: ActorVirtualIdentity) = {
+    tupleProducer.getSenderCredits(sender)
+  }
+
   override def receive: Receive = receiveAndProcessMessages
 
   def receiveAndProcessMessages: Receive =
@@ -92,7 +96,7 @@ class WorkflowWorker(
         case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
           dataInputPort.handleMessage(
             this.sender(),
-            tupleProducer.getSenderCredits(from),
+            getSenderCredits(from),
             id,
             from,
             seqNum,
@@ -101,14 +105,14 @@ class WorkflowWorker(
         case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
           controlInputPort.handleMessage(
             this.sender(),
-            tupleProducer.getSenderCredits(from),
+            getSenderCredits(from),
             id,
             from,
             seqNum,
             payload
           )
         case NetworkMessage(id, CreditRequest(from, _)) =>
-          sender ! NetworkAck(id, Some(tupleProducer.getSenderCredits(from)))
+          sender ! NetworkAck(id, Some(getSenderCredits(from)))
         case other =>
           throw new WorkflowRuntimeException(s"unhandled message: $other")
       }

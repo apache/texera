@@ -39,7 +39,6 @@ class FlowControl {
   var receiverToCreditPollingHandle = new mutable.HashMap[ActorVirtualIdentity, Cancellable]()
   private val dataMessagesAwaitingCredits =
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]()
-  private val messageBuffer = new ArrayBuffer[WorkflowMessage]()
 
   def getOverloadedReceivers(): ArrayBuffer[ActorVirtualIdentity] = {
     val overloadedReceivers = new ArrayBuffer[ActorVirtualIdentity]()
@@ -92,7 +91,7 @@ class FlowControl {
   }
 
   def getMessagesToForward(receiverId: ActorVirtualIdentity): Array[WorkflowMessage] = {
-    messageBuffer.clear()
+    val messageBuffer = new ArrayBuffer[WorkflowMessage]()
     while (
       dataMessagesAwaitingCredits
         .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
