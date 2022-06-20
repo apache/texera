@@ -140,27 +140,31 @@ class SortPartitionOpExec(
 
         Iterator()
       case Right(_) =>
-        if (helperWorkerIdentity == null && skewedWorkerIdentity == null) {
-          // this worker is neither the skewed worker nor the helper worker
-          sortTuples()
-        } else if (helperWorkerIdentity != null) {
-          // this worker is the skewed worker.
-          if (!waitingForTuplesFromHelper) {
-            // It has received the state and can output the results
+        if (Constants.reshapeSkewHandlingEnabled) {
+          if (helperWorkerIdentity == null && skewedWorkerIdentity == null) {
+            // this worker is neither the skewed worker nor the helper worker
+            sortTuples()
+          } else if (helperWorkerIdentity != null) {
+            // this worker is the skewed worker.
+            if (!waitingForTuplesFromHelper) {
+              // It has received the state and can output the results
+              sortTuples()
+            } else {
+              // It will pause its execution here. The execution will be resumed once the state is received
+              // from the helper worker
+              pauseManager.pausedByOperatorLogic = true
+              Iterator()
+            }
+          } else if (skewedWorkerIdentity != null) {
+            // this worker is the helper worker. It needs to send state to the skewed worker.
+            sendTuplesToSkewedWorker(asyncRPCClient)
             sortTuples()
           } else {
-            // It will pause its execution here. The execution will be resumed once the state is received
-            // from the helper worker
-            pauseManager.pausedByOperatorLogic = true
+            // shouldn't arrive here
             Iterator()
           }
-        } else if (skewedWorkerIdentity != null) {
-          // this worker is the helper worker. It needs to send state to the skewed worker.
-          sendTuplesToSkewedWorker(asyncRPCClient)
-          sortTuples()
         } else {
-          // shouldn't arrive here
-          Iterator()
+          sortTuples()
         }
 
     }

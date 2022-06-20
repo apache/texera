@@ -238,17 +238,25 @@ object SkewDetectionHandler {
     * by Reshape.
     */
   def getPreviousWorkerLayer(opId: OperatorIdentity, workflow: Workflow): WorkerLayer = {
-    workflow
-      .getUpStreamConnectedWorkerLayers(opId)
-      .values
-      .find(layer =>
-        layer.id != workflow
-          .getOperator(opId)
-          .asInstanceOf[HashJoinOpExecConfig[Any]]
-          .buildTable
-          .from
-      )
-      .get
+    if (workflow.getOperator(opId).isInstanceOf[HashJoinOpExecConfig[Any]]) {
+      workflow
+        .getUpStreamConnectedWorkerLayers(opId)
+        .values
+        .find(layer =>
+          layer.id != workflow
+            .getOperator(opId)
+            .asInstanceOf[HashJoinOpExecConfig[Any]]
+            .buildTable
+            .from
+        )
+        .get
+    } else {
+      // Should be sort operator
+      workflow
+        .getUpStreamConnectedWorkerLayers(opId)
+        .values
+        .toList(0)
+    }
   }
 
   /**
@@ -390,6 +398,9 @@ trait SkewDetectionHandler {
           workflowReshapeState.firstPhaseRequestsFinished = false
           var firstPhaseFinishedCount = 0
           val prevWorkerLayer = getPreviousWorkerLayer(opConfig.id, workflow)
+          if (skewedAndHelperPairsForFirstPhase.isEmpty) {
+            workflowReshapeState.firstPhaseRequestsFinished = true
+          }
           skewedAndHelperPairsForFirstPhase.foreach(skewedAndHelper => {
             val currSkewedWorker = skewedAndHelper._1
             val currHelperWorker = skewedAndHelper._2
@@ -483,6 +494,9 @@ trait SkewDetectionHandler {
                 .toString()}"
             )
           )
+          if (skewedAndHelperPairsForSecondPhase.isEmpty) {
+            workflowReshapeState.secondPhaseRequestsFinished = true
+          }
           val allPairsSecondPhaseFutures = new ArrayBuffer[Future[Seq[Boolean]]]()
           skewedAndHelperPairsForSecondPhase.foreach(sh => {
             val currSkewedWorker = sh._1
@@ -526,6 +540,9 @@ trait SkewDetectionHandler {
                 .toString()}"
             )
           )
+          if (skewedAndHelperPairsForPauseMitigationPhase.isEmpty) {
+            workflowReshapeState.pauseMitigationRequestsFinished = true
+          }
           val allPairsPauseMitigationFutures = new ArrayBuffer[Future[Seq[Boolean]]]()
           skewedAndHelperPairsForPauseMitigationPhase.foreach(sh => {
             val currSkewedWorker = sh._1
