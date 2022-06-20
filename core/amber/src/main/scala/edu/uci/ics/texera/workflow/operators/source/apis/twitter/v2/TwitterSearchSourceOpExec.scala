@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, AttributeTypeUtils, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo
+}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
@@ -9,8 +13,6 @@ import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
-import java.time.format.DateTimeFormatter
-import java.time.{ZoneId, ZoneOffset}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}

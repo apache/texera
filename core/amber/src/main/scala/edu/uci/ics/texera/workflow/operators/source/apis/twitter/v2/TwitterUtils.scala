@@ -11,7 +11,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object TwitterUtils {
 
-  def tweetDataToTuple(tweetData: TweetData, user : Option[UserData], tweetSchema:Schema ): Tuple = {
+  def tweetDataToTuple(tweetData: TweetData, user: Option[UserData], tweetSchema: Schema): Tuple = {
     val fields = AttributeTypeUtils.parseFields(
       Array[Object](
         tweetData.getId,
@@ -72,7 +72,7 @@ object TwitterUtils {
         Boolean.box(user.get.isProtectedAccount),
         Boolean.box(user.get.isVerified)
       ),
-      tweetSchema.getAttributes.map((attribute: Attribute) => {attribute.getType}).toArray
+      tweetSchema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
     )
     Tuple.newBuilder(tweetSchema).addSequentially(fields).build
   }
