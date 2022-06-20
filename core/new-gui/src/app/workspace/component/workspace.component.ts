@@ -75,7 +75,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      * 2. Routed to this component from SavedWorkflowSection component
      *    - there is no related project
      */
-    this.pid = this.route.snapshot.queryParams.pid ?? 0;
+    this.pid = parseInt(this.route.snapshot.queryParams.pid) ?? 0;
   }
 
   ngAfterViewInit(): void {

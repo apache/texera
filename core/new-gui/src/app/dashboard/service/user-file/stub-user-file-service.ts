@@ -35,8 +35,12 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
     return of();
   }
 
-  public getUserFilesChangedEvent(): Observable<null> {
+  public getUserFilesChangedEvent(): Observable<void> {
     return of();
+  }
+
+  public updateUserFilesChangedEvent(): void {
+    return;
   }
 
   /**
@@ -52,8 +56,8 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
    * this function will automatically refresh the files in the service when succeed.
    * @param targetFile
    */
-  public deleteDashboardUserFileEntry(targetFile: DashboardUserFileEntry): void {
-    return;
+  public deleteDashboardUserFileEntry(targetFile: DashboardUserFileEntry): Observable<Response> {
+    return of();
   }
 
   addFileSizeUnit(fileSize: number): string {
@@ -81,6 +85,13 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
    */
   private static detectUserChanges(): void {
     return;
+  }
+
+  /**
+   * retrieve the files from the backend
+   */
+  public retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
+    return of();
   }
 
   public updateFileName(fid: number, name: string): Observable<void> {
