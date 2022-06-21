@@ -87,9 +87,7 @@ class AggregateOpExecConfig[P <: AnyRef](
     }
   }
 
-  override def setInputToBlockingInfo(input: LinkIdentity): Unit = {
-    inputToBlockingInfo(input) = true
-  }
+  override def getInputBlockingInfo(input: LinkIdentity): Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     aggFunc

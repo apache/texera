@@ -50,9 +50,7 @@ class SortPartitionsOpExecConfig(
     t.asInstanceOf[Tuple].getField(sortAttributeName).asInstanceOf[Float].toString()
   }
 
-  override def setInputToBlockingInfo(input: LinkIdentity): Unit = {
-    inputToBlockingInfo(input) = true
-  }
+  override def getInputBlockingInfo(input: LinkIdentity): Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     Array(operatorSchemaInfo.inputSchemas(0).getIndex(sortAttributeName))

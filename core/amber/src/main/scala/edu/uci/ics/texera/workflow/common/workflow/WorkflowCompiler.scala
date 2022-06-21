@@ -120,20 +120,6 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
         .setOutputToOrdinalMapping(layerLink, link.origin.portOrdinal, link.origin.portName)
     })
 
-    // set blocking info for each input of an operator
-    workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentity(this.context.jobId, link.origin.operatorID)
-      val dest = OperatorIdentity(this.context.jobId, link.destination.operatorID)
-      val layerLink = LinkIdentity(
-        amberOperators(origin).topology.layers.last.id,
-        amberOperators(dest).topology.layers.head.id
-      )
-      amberOperators(dest).setInputToBlockingInfo(
-        layerLink
-      ) // This should come after all `setInputToOrdinalMapping` calls have finished because some operators rely
-      // on port numbers to find blocking inputs.
-    })
-
     val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
       outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
 
