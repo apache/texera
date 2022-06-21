@@ -66,6 +66,15 @@ class HashJoinOpExecConfig[K](
       )
   }
 
+  override def setInputToBlockingInfo(input: LinkIdentity): Unit = {
+    val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
+    if (input == buildLink) {
+      inputToBlockingInfo(input) = true
+    } else {
+      inputToBlockingInfo(input) = false
+    }
+  }
+
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     if (layer == buildTable.from) {
       Array(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))

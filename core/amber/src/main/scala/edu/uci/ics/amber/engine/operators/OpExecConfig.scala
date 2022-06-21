@@ -31,6 +31,11 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   lazy val topology: Topology = null
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, (Int, String)]()
+  var inputToBlockingInfo =
+    new mutable.HashMap[
+      LinkIdentity,
+      Boolean
+    ]() // tells whether an input is blocking i.e. the operator waits for all tuples from this input before producing output.
   var outputToOrdinalMapping = new mutable.HashMap[LinkIdentity, (Int, String)]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
@@ -104,6 +109,8 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def setOutputToOrdinalMapping(output: LinkIdentity, ordinal: Integer, name: String): Unit = {
     this.outputToOrdinalMapping.update(output, (ordinal, name))
   }
+
+  def setInputToBlockingInfo(input: LinkIdentity): Unit = inputToBlockingInfo(input) = false
 
   def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 

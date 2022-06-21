@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{RoundRobinDeployment}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
+  LinkIdentity,
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType}
@@ -47,6 +48,10 @@ class SortPartitionsOpExecConfig(
 
   def getShuffleKey(layer: LayerIdentity): ITuple => String = { t: ITuple =>
     t.asInstanceOf[Tuple].getField(sortAttributeName).asInstanceOf[Float].toString()
+  }
+
+  override def setInputToBlockingInfo(input: LinkIdentity): Unit = {
+    inputToBlockingInfo(input) = true
   }
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
