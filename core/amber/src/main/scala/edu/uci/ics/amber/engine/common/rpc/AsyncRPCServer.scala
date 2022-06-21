@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.common.rpc
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AcceptImmutableStateHandler.AcceptImmutableState
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AcceptMutableStateHandler.AcceptMutableState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
@@ -97,9 +98,12 @@ class AsyncRPCServer(
     if (call.command.isInstanceOf[QueryStatistics]) {
       return
     }
-    if (call.command.isInstanceOf[AcceptImmutableState]) {
+    if (
+      call.command.isInstanceOf[AcceptImmutableState] || call.command
+        .isInstanceOf[AcceptMutableState]
+    ) {
       logger.info(
-        s"receive command: AcceptImmutableState from $sender (controlID: ${call.commandID}). Content of control message not printed to be succinct."
+        s"receive command: State from $sender (controlID: ${call.commandID}) for Reshape state transfer. Content of control message not printed to be succinct."
       )
       return
     }

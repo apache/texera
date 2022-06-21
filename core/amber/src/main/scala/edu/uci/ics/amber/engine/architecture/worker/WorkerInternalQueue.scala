@@ -101,9 +101,17 @@ trait WorkerInternalQueue {
     elem
   }
 
-  def disableDataQueue(): Unit = dataQueue.enable(false)
+  def disableDataQueue(): Unit = {
+    if (dataQueue.isEnabled) {
+      dataQueue.enable(false)
+    }
+  }
 
-  def enableDataQueue(): Unit = dataQueue.enable(true)
+  def enableDataQueue(): Unit = {
+    if (!dataQueue.isEnabled) {
+      dataQueue.enable(true)
+    }
+  }
 
   def getDataQueueLength: Int = dataQueue.size()
 

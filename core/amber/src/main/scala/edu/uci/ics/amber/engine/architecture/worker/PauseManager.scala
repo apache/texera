@@ -12,6 +12,10 @@ class PauseManager {
   // current pause privilege level
   private var pausePrivilegeLevel = PauseManager.NoPause
 
+  // used temporarily for reshape in sort.
+  // TODO: Refactor to expose various pause levels
+  var pausedByOperatorLogic = false
+
   /** pause functionality
     * both dp thread and actor can call this function
     * @param

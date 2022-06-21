@@ -67,7 +67,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc())
     opExec.open()
     assertThrows[NullPointerException] {
-      opExec.processTexeraTuple(Left(allNullTuple), linkID)
+      opExec.processTexeraTuple(Left(allNullTuple), linkID, null, null)
     }
     opExec.close()
   }
@@ -77,7 +77,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList()
     })
     opExec.open()
-    assert(opExec.processTexeraTuple(Left(allNullTuple), linkID).isEmpty)
+    assert(opExec.processTexeraTuple(Left(allNullTuple), linkID, null, null).isEmpty)
     opExec.close()
   }
 
@@ -86,7 +86,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
     })
     opExec.open()
-    assert(!opExec.processTexeraTuple(Left(allNullTuple), linkID).isEmpty)
+    assert(!opExec.processTexeraTuple(Left(allNullTuple), linkID, null, null).isEmpty)
     opExec.close()
   }
 
@@ -95,7 +95,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
     })
     opExec.open()
-    assert(opExec.processTexeraTuple(Left(allNullTuple), linkID).isEmpty)
+    assert(opExec.processTexeraTuple(Left(allNullTuple), linkID, null, null).isEmpty)
     opExec.close()
   }
 
@@ -111,7 +111,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         })
 
         opExec.open()
-        assert(!opExec.processTexeraTuple(Left(nullTuple), linkID).isEmpty)
+        assert(!opExec.processTexeraTuple(Left(nullTuple), linkID, null, null).isEmpty)
         opExec.close()
       })
   }
@@ -121,7 +121,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
     })
     opExec.open()
-    assert(opExec.processTexeraTuple(Left(nonNullTuple), linkID).isEmpty)
+    assert(opExec.processTexeraTuple(Left(nonNullTuple), linkID, null, null).isEmpty)
     opExec.close()
   }
 
@@ -130,7 +130,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
     })
     opExec.open()
-    assert(!opExec.processTexeraTuple(Left(nonNullTuple), linkID).isEmpty)
+    assert(!opExec.processTexeraTuple(Left(nonNullTuple), linkID, null, null).isEmpty)
     opExec.close()
   }
 
@@ -147,7 +147,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         })
 
         opExec.open()
-        assert(opExec.processTexeraTuple(Left(nullTuple), linkID).isEmpty)
+        assert(opExec.processTexeraTuple(Left(nullTuple), linkID, null, null).isEmpty)
         opExec.close()
       })
   }

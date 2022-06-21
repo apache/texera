@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart;
 
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager;
 import edu.uci.ics.amber.engine.common.InputExhausted;
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -15,6 +17,7 @@ import java.util.*;
 
 /**
  * Simply extract relevant fields and do partial sorting.
+ *
  * @author Mingji Han, Xiaozhen Liu
  */
 public class PieChartOpPartialExec implements OperatorExecutor {
@@ -26,7 +29,7 @@ public class PieChartOpPartialExec implements OperatorExecutor {
     public PieChartOpPartialExec(String nameColumn, String dataColumn) {
         this.nameColumn = nameColumn;
         this.noDataCol = dataColumn == null || dataColumn.equals("");
-        this.dataColumn = noDataCol? "count": dataColumn;
+        this.dataColumn = noDataCol ? "count" : dataColumn;
     }
 
     @Override
@@ -44,7 +47,7 @@ public class PieChartOpPartialExec implements OperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         if (tuple.isLeft()) {
             Tuple inputTuple = tuple.left().get();
             String name = inputTuple.getField(nameColumn);
@@ -65,8 +68,7 @@ public class PieChartOpPartialExec implements OperatorExecutor {
                 result.add(Tuple.newBuilder(newSchema).addSequentially(new Object[]{name, data}).build());
             }
             return JavaConverters.asScalaIterator(Collections.emptyIterator());
-        }
-        else {
+        } else {
             result.sort((left, right) -> {
                 double leftValue;
                 double rightValue;

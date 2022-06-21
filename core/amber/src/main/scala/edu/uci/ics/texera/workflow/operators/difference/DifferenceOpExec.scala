@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -19,7 +21,9 @@ class DifferenceOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity
+      input: LinkIdentity,
+      pauseManager: PauseManager,
+      asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
     if (!linkIdentityHashSet.contains(input)) {
       linkIdentityHashSet.add(input)

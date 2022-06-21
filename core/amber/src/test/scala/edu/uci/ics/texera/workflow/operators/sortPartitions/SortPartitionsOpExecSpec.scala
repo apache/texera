@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.operators.sortPartitions.SortPartitionOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -33,8 +32,14 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var opExec: SortPartitionOpExec = _
   before {
-    opExec =
-      new SortPartitionOpExec("field2", OperatorSchemaInfo(Array(tupleSchema), Array(tupleSchema)))
+    opExec = new SortPartitionOpExec(
+      "field2",
+      OperatorSchemaInfo(Array(tupleSchema), Array(tupleSchema)),
+      0,
+      0,
+      6,
+      1
+    )
   }
 
   it should "open" in {
@@ -43,15 +48,16 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   }
 
-  it should "preserve the insertion order" in {
+  it should "output in order" in {
 
     opExec.open()
-    opExec.processTexeraTuple(Left(tuple(3)), null)
-    opExec.processTexeraTuple(Left(tuple(1)), null)
-    opExec.processTexeraTuple(Left(tuple(2)), null)
-    opExec.processTexeraTuple(Left(tuple(5)), null)
+    opExec.processTexeraTuple(Left(tuple(3)), null, null, null)
+    opExec.processTexeraTuple(Left(tuple(1)), null, null, null)
+    opExec.processTexeraTuple(Left(tuple(2)), null, null, null)
+    opExec.processTexeraTuple(Left(tuple(5)), null, null, null)
 
-    val outputTuples: List[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), null).toList
+    val outputTuples: List[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), null, null, null).toList
     assert(outputTuples.size == 4)
     assert(outputTuples(0).equals(tuple(1)))
     assert(outputTuples(1).equals(tuple(2)))
