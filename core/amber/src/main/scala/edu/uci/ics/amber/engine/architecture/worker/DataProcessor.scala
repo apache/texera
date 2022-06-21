@@ -99,9 +99,14 @@ class DataProcessor( // dependencies:
   private[this] def processInputTuple(): Iterator[(ITuple, Option[LinkIdentity])] = {
     var outputIterator: Iterator[(ITuple, Option[LinkIdentity])] = null
     try {
-      outputIterator = operator.processTuple(currentInputTuple, currentInputLink)
+      outputIterator =
+        operator.processTuple(currentInputTuple, currentInputLink, pauseManager, asyncRPCClient)
       if (currentInputTuple.isLeft) {
         inputTupleCount += 1
+      }
+      if (pauseManager.pausedByOperatorLogic) {
+        // if the operatorLogic decides to pause, we need to disable the data queue for this worker.
+        disableDataQueue()
       }
     } catch safely {
       case e =>
@@ -213,6 +218,17 @@ class DataProcessor( // dependencies:
     }
   }
 
+  /**
+    * Called by skewed worker in Reshape when it has received the tuples from the helper
+    * and is ready to output tuples.
+    * The call comes from AcceptMutableStateHandler.
+    *
+    * @param iterator
+    */
+  def setCurrentOutputIterator(iterator: Iterator[ITuple]): Unit = {
+    currentOutputIterator = iterator.map(t => (t, Option.empty))
+  }
+
   private[this] def outputAvailable(
       outputIterator: Iterator[(ITuple, Option[LinkIdentity])]
   ): Boolean = {
@@ -226,7 +242,7 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    while (!isControlQueueEmpty || pauseManager.isPaused) {
+    while (!isControlQueueEmpty || pauseManager.isPaused || pauseManager.pausedByOperatorLogic) {
       takeOneControlCommandAndProcess()
     }
   }

@@ -23,6 +23,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   DataPayload,
   WorkflowControlMessage
 }
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -66,7 +67,9 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity
+          input: LinkIdentity,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
       ): Iterator[(ITuple, Option[LinkIdentity])] = ???
     }
 
@@ -101,7 +104,9 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity
+          input: LinkIdentity,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
       ): Iterator[(ITuple, Option[LinkIdentity])] = { return Iterator() }
     }
 

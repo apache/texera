@@ -130,9 +130,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       inSequence {
         (operator.open _).expects().once()
         tuples.foreach { x =>
-          (operator.processTuple _).expects(Left(x), linkID)
+          (operator.processTuple _).expects(Left(x), linkID, pauseManager, asyncRPCClient)
         }
-        (operator.processTuple _).expects(Right(InputExhausted()), linkID)
+        (operator.processTuple _).expects(
+          Right(InputExhausted()),
+          linkID,
+          pauseManager,
+          asyncRPCClient
+        )
         (operator.close _).expects().once()
       }
     }
@@ -157,11 +162,16 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         (operator.open _).expects().once()
         inAnyOrder {
           tuples.map { x =>
-            (operator.processTuple _).expects(Left(x), linkID)
+            (operator.processTuple _).expects(Left(x), linkID, pauseManager, asyncRPCClient)
           }
           (asyncRPCServer.receive _).expects(*, *).atLeastOnce() //process controls during execution
         }
-        (operator.processTuple _).expects(Right(InputExhausted()), linkID)
+        (operator.processTuple _).expects(
+          Right(InputExhausted()),
+          linkID,
+          pauseManager,
+          asyncRPCClient
+        )
         (asyncRPCServer.receive _)
           .expects(*, *)
           .anyNumberOfTimes() // process controls before execution completes
@@ -218,9 +228,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val dp: DataProcessor = wire[DataProcessor]
     val handlerInitializer = wire[WorkerAsyncRPCHandlerInitializer]
     inSequence {
-      (operator.processTuple _).expects(*, *).once()
+      (operator.processTuple _).expects(*, *, *, *).once()
       (mockControlOutputHandler.apply _).expects(*, *, *, *).repeat(4)
-      (operator.processTuple _).expects(*, *).repeat(4)
+      (operator.processTuple _).expects(*, *, *, *).repeat(4)
       (batchProducer.emitEndOfUpstream _).expects().once()
       (operator.close _).expects().once()
     }
