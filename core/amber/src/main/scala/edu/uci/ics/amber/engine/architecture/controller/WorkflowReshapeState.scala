@@ -26,7 +26,7 @@ class WorkflowReshapeState {
   var skewedToHelperMappingHistory =
     new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
   // contains skewed worker and whether state has been successfully transferred
-  var skewedToStateTransferDone =
+  var skewedToStateTransferOrIntimationDone =
     new mutable.HashMap[ActorVirtualIdentity, Boolean]()
   // contains pairs which are in first phase of mitigation
   var skewedAndHelperInFirstPhase =
