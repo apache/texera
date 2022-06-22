@@ -66,7 +66,7 @@ class HashJoinOpExecConfig[K](
       )
   }
 
-  override def getInputBlockingInfo(input: LinkIdentity): Boolean = {
+  override def isInputBlocking(input: LinkIdentity): Boolean = {
     input == inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
   }
 

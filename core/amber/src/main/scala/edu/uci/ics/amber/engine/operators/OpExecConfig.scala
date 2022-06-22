@@ -109,7 +109,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
     * outputs all its tuples
     */
-  def getInputBlockingInfo(input: LinkIdentity): Boolean = false
+  def isInputBlocking(input: LinkIdentity): Boolean = false
 
   def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 
