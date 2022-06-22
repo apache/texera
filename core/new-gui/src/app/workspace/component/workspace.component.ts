@@ -23,6 +23,7 @@ import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { WorkflowCollabService } from "../service/workflow-collab/workflow-collab.service";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
+import {RtcService} from "../service/workflow-collab/rtc.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -60,7 +61,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
-    private userProjectService: UserProjectService
+    private userProjectService: UserProjectService,
+    private rtcService: RtcService
   ) {}
 
   ngOnInit() {
@@ -100,6 +102,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      * reflecting changes from WorkflowActionService.
      */
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
+    this.rtcService.destroyYModel();
     this.workflowActionService.resetAsNewWorkflow();
 
     if (this.userSystemEnabled) {
@@ -168,6 +171,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
+          this.rtcService.setNewYModel(wid);
           // enable workspace for modification
           this.workflowActionService.toggleLockListen(false);
           this.workflowActionService.enableWorkflowModification();
@@ -187,7 +191,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-
           this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
       );
@@ -221,6 +224,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // responsible for persisting the workflow to the backend
           this.registerAutoPersistWorkflow();
         } else {
+          // TODO: ?
           // load the cached workflow
           this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
           // clear stack
