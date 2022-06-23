@@ -1,4 +1,5 @@
 import { JSONSchema7 } from "json-schema";
+import * as Y from "yjs";
 
 /**
  * This file contains multiple type declarations related to workflow-graph.

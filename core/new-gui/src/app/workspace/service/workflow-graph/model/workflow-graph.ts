@@ -10,6 +10,9 @@ import {
   Comment,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
+import * as Y from "yjs";
+import {WebsocketProvider} from "y-websocket";
+import {YMap} from "yjs/dist/src/types/YMap";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -52,6 +55,25 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
+  public yDoc?: Y.Doc;
+  public wsProvider?: WebsocketProvider;
+  public yOperatorIDMap?: YMap<OperatorPredicate>;
+  public yOperatorPositionMap?: YMap<Point>;
+  public yOperatorLinkMap?: YMap<OperatorLink>;
+
+  public loadNewYModel(workflowId: number) {
+    this.yDoc = new Y.Doc();
+    this.wsProvider = new WebsocketProvider("ws://localhost:1234", `workflow-${workflowId}`, this.yDoc);
+    this.yOperatorIDMap = this.yDoc.getMap("yOperatorIDMap");
+    this.yOperatorPositionMap = this.yDoc.getMap("yOperatorPositionMap");
+    this.yOperatorLinkMap = this.yDoc.getMap("yOperatorLinkMap");
+  }
+
+  public destroyYModel(): void {
+    this.wsProvider?.disconnect();
+    this.yDoc?.destroy();
+  }
+
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly commentBoxMap = new Map<string, CommentBox>();

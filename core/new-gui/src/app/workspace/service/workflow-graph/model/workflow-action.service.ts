@@ -29,6 +29,7 @@ import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.ser
 import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
+import * as Y from "yjs";
 
 type OperatorPosition = {
   position: Point;
@@ -108,6 +109,79 @@ export class WorkflowActionService {
     this.handleHighlightedElementPositionChange();
     this.listenToRemoteChange();
     this.listenToLockChange();
+  }
+
+  public observeFromYModel(): void {
+    this.texeraGraph.yOperatorIDMap?.observe((event: Y.YMapEvent<any>) => {
+      console.log(event);
+      if (!event.transaction.local) {
+        event.changes.keys.forEach((change, key)=>{
+          if (change.action === "add") {
+            const newOperator = this.texeraGraph.yOperatorIDMap?.get(key) as OperatorPredicate;
+            const syncedPosition = this.texeraGraph.yOperatorPositionMap?.get(newOperator.operatorID);
+            this.addOperator(newOperator, syncedPosition || {x: 0, y: 0});
+          }
+          if (change.action === "delete") {
+            this.deleteOperator(key);
+          }
+        });
+      }
+    });
+
+    this.texeraGraph.yOperatorPositionMap?.observe((event: Y.YMapEvent<Point>) => {
+      if (!event.transaction.local) {
+        event.changes.keys.forEach((change, key)=> {
+          if (change.action === "update") {
+            const newPosition = this.texeraGraph.yOperatorPositionMap?.get(key);
+            if (newPosition) this.getJointGraphWrapper().setAbsolutePosition(key, newPosition.x, newPosition.y);
+          }
+        });
+      }
+    });
+
+    this.texeraGraph.yOperatorLinkMap?.observe((event: Y.YMapEvent<OperatorLink>) => {
+      if (!event.transaction.local) {
+        event.changes.keys.forEach((change, key)=>{
+          if (change.action === "add") {
+            const newLink = this.texeraGraph.yOperatorLinkMap?.get(key) as OperatorLink;
+            this.addLink(newLink);
+          }
+          if (change.action === "delete") {
+            this.deleteLinkWithID(key);
+          }
+        });
+      }
+    });
+  }
+
+  public observeFromTexeraGraph(): void {
+      this.getTexeraGraph().getOperatorAddStream().subscribe(newOp => {
+        this.texeraGraph.yOperatorIDMap?.set(newOp.operatorID, newOp);
+        this.texeraGraph.yOperatorPositionMap?.set(newOp.operatorID,
+          this.getJointGraphWrapper().getElementPosition(newOp.operatorID));
+      });
+      this.getTexeraGraph().getOperatorDeleteStream().subscribe(deletedOpSubj => {
+        this.texeraGraph.yOperatorIDMap?.delete(deletedOpSubj.deletedOperator.operatorID);
+      });
+      this.getJointGraphWrapper().getElementPositionChangeEvent().subscribe(element => {
+        this.texeraGraph.yOperatorPositionMap?.set(element.elementID, element.newPosition);
+      });
+      this.getTexeraGraph().getLinkAddStream().subscribe(newLink => {
+        this.texeraGraph.yOperatorLinkMap?.set(newLink.linkID, newLink);
+      });
+      this.getTexeraGraph().getLinkDeleteStream().subscribe(deletedLinkSubj =>{
+        this.texeraGraph.yOperatorLinkMap?.delete(deletedLinkSubj.deletedLink.linkID);
+      });
+  }
+
+  public setNewYModel(workflowId: number) {
+    this.texeraGraph.loadNewYModel(workflowId);
+    this.observeFromTexeraGraph();
+    this.observeFromYModel();
+  }
+
+  public destroyYModel(): void {
+    this.texeraGraph.destroyYModel();
   }
 
   /**
@@ -1254,6 +1328,7 @@ export class WorkflowActionService {
   }
 
   public resetAsNewWorkflow() {
+    this.destroyYModel();
     this.reloadWorkflow(undefined);
     this.undoRedoService.clearUndoStack();
     this.undoRedoService.clearRedoStack();
