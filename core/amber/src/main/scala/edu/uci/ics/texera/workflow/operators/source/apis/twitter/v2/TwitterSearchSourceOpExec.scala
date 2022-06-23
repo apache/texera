@@ -13,15 +13,13 @@ import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
-class TwitterFullArchiveSearchSourceOpExec(
-    desc: TwitterFullArchiveSearchSourceOpDesc,
+class TwitterSearchSourceOpExec(
+    desc: TwitterSearchSourceOpDesc,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
   val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo
@@ -49,8 +47,6 @@ class TwitterFullArchiveSearchSourceOpExec(
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
             desc.searchQuery,
-            LocalDateTime.parse(desc.fromDateTime, DateTimeFormatter.ISO_DATE_TIME),
-            LocalDateTime.parse(desc.toDateTime, DateTimeFormatter.ISO_DATE_TIME),
             curLimit.min(TWITTER_API_BATCH_SIZE_MAX)
           )
         }
@@ -76,8 +72,6 @@ class TwitterFullArchiveSearchSourceOpExec(
 
   private def queryForNextBatch(
       query: String,
-      startDateTime: LocalDateTime,
-      endDateTime: LocalDateTime,
       maxResults: Int
   ): Unit = {
     def enforceRateLimit(): Unit = {
@@ -95,8 +89,6 @@ class TwitterFullArchiveSearchSourceOpExec(
 
     val params = AdditionalParameters
       .builder()
-      .startTime(startDateTime)
-      .endTime(endDateTime)
       .maxResults(maxResults.max(TWITTER_API_BATCH_SIZE_MIN))
       .recursiveCall(false)
       .nextToken(nextToken)
@@ -113,7 +105,7 @@ class TwitterFullArchiveSearchSourceOpExec(
     var retry = 2
     do {
       enforceRateLimit()
-      response = twitterClient.searchAllTweets(query, params)
+      response = twitterClient.searchTweets(query, params)
       retry -= 1
 
       if (response == null || response.getMeta == null) {
