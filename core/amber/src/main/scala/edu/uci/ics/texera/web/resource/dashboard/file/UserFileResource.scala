@@ -145,7 +145,7 @@ class UserFileResource {
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
       .join(USER)
       .on(FILE.UID.eq(USER.UID))
-      .where(USER.UID.eq(user.getUid))
+      .where(USER_FILE_ACCESS.UID.eq(user.getUid))
       .fetch()
 
     // fetch the entire table of fileOfProject in memory, assuming this table is small
