@@ -1671,10 +1671,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.gridOn) {
-          this.getJointPaper().clearGrid();
+          this.getJointPaper().setGridSize(0);
           this.gridOn = false;
         } else {
-          this.getJointPaper().drawGrid();
+          this.getJointPaper().setGridSize(2);
           this.gridOn = true;
         }
       });
