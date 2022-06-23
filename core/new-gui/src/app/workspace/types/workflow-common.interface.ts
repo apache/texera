@@ -18,6 +18,7 @@ export interface OperatorPort
     portID: string;
   }> {}
 
+// TODO:
 export interface OperatorPredicate
   extends Readonly<{
     operatorID: string;

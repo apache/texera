@@ -12,7 +12,6 @@ import {
 import { isEqual } from "lodash-es";
 import * as Y from "yjs";
 import {WebsocketProvider} from "y-websocket";
-import {YMap} from "yjs/dist/src/types/YMap";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -22,7 +21,9 @@ type restrictedMethods =
   | "deleteLink"
   | "deleteLinkWithID"
   | "setOperatorProperty"
-  | "setLinkBreakpoint";
+  | "setLinkBreakpoint"
+  | "yDoc"
+  | "wsProvider";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -57,16 +58,16 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
 export class WorkflowGraph {
   public yDoc?: Y.Doc;
   public wsProvider?: WebsocketProvider;
-  public yOperatorIDMap?: YMap<OperatorPredicate>;
-  public yOperatorPositionMap?: YMap<Point>;
-  public yOperatorLinkMap?: YMap<OperatorLink>;
+  public yOperatorPositionMap?: Y.Map<Point>;
+  public yOperatorLinkMap?: Y.Map<OperatorLink>;
 
   public loadNewYModel(workflowId: number) {
     this.yDoc = new Y.Doc();
     this.wsProvider = new WebsocketProvider("ws://localhost:1234", `workflow-${workflowId}`, this.yDoc);
-    this.yOperatorIDMap = this.yDoc.getMap("yOperatorIDMap");
+    this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.yOperatorPositionMap = this.yDoc.getMap("yOperatorPositionMap");
     this.yOperatorLinkMap = this.yDoc.getMap("yOperatorLinkMap");
+    this.observeFromYModel();
   }
 
   public destroyYModel(): void {
@@ -74,8 +75,24 @@ export class WorkflowGraph {
     this.yDoc?.destroy();
   }
 
-  private readonly operatorIDMap = new Map<string, OperatorPredicate>();
-  private readonly operatorLinkMap = new Map<string, OperatorLink>();
+  private observeFromYModel(): void {
+    this.operatorIDMap.observe((event: Y.YMapEvent<any>) => {
+      if (!event.transaction.local) {
+        event.changes.keys.forEach((change, key)=>{
+          if (change.action === "add") {
+            const newOperator = this.operatorIDMap.get(key) as OperatorPredicate;
+            this.operatorAddSubject.next(newOperator);
+          }
+          if (change.action === "delete") {
+            this.operatorDeleteSubject.next({ deletedOperator: change.oldValue });
+          }
+        });
+      }
+    });
+  }
+
+  private operatorIDMap = new Y.Map<OperatorPredicate>();
+  private operatorLinkMap = new Map<string, OperatorLink>();
   private readonly commentBoxMap = new Map<string, CommentBox>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
@@ -252,7 +269,7 @@ export class WorkflowGraph {
   }
 
   public getDisabledOperators(): ReadonlySet<string> {
-    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorDisabled(op)));
+    return new Set(Array.from(this.operatorIDMap.keys() as IterableIterator<string>).filter(op => this.isOperatorDisabled(op)));
   }
 
   public cacheOperator(operatorID: string): void {
@@ -297,7 +314,7 @@ export class WorkflowGraph {
   }
 
   public getCachedOperators(): ReadonlySet<string> {
-    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorCached(op)));
+    return new Set(Array.from(this.operatorIDMap.keys() as IterableIterator<string>).filter(op => this.isOperatorCached(op)));
   }
 
   /**
@@ -305,7 +322,7 @@ export class WorkflowGraph {
    * @param operatorID operator ID
    */
   public hasOperator(operatorID: string): boolean {
-    return this.operatorIDMap.has(operatorID);
+    return this.operatorIDMap.has(operatorID) as boolean;
   }
 
   public hasCommentBox(commentBoxId: string): boolean {
@@ -318,10 +335,10 @@ export class WorkflowGraph {
    * @param operatorID operator ID
    */
   public getOperator(operatorID: string): OperatorPredicate {
-    const operator = this.operatorIDMap.get(operatorID);
-    if (!operator) {
+    if (!this.operatorIDMap.has(operatorID)) {
       throw new Error(`operator ${operatorID} does not exist`);
     }
+    const operator = this.operatorIDMap.get(operatorID) as OperatorPredicate;
     return operator;
   }
 
@@ -337,11 +354,11 @@ export class WorkflowGraph {
    * Returns an array of all operators in the graph
    */
   public getAllOperators(): OperatorPredicate[] {
-    return Array.from(this.operatorIDMap.values());
+    return Array.from(this.operatorIDMap.values() as IterableIterator<OperatorPredicate>);
   }
 
   public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {
-    return Array.from(this.operatorIDMap.values()).filter(op => !this.isOperatorDisabled(op.operatorID));
+    return Array.from(this.operatorIDMap.values() as IterableIterator<OperatorPredicate>).filter(op => !this.isOperatorDisabled(op.operatorID));
   }
 
   public getAllCommentBoxes(): CommentBox[] {

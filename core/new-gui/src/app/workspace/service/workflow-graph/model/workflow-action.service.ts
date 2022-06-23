@@ -30,6 +30,7 @@ import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/c
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import * as Y from "yjs";
+import {untilDestroyed} from "@ngneat/until-destroy";
 
 type OperatorPosition = {
   position: Point;
@@ -54,6 +55,17 @@ type GroupInfo = {
  * For an overview of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
+
+// class MyOpPredicate implements OperatorPredicate {
+//
+//   get operatorID(): string {
+//     return "";
+//   }
+//   set operatorID(value: string) {
+//   }
+//
+//
+// }
 
 @Injectable({
   providedIn: "root",
@@ -112,25 +124,54 @@ export class WorkflowActionService {
   }
 
   public observeFromYModel(): void {
-    this.texeraGraph.yOperatorIDMap?.observe((event: Y.YMapEvent<any>) => {
-      console.log(event);
-      if (!event.transaction.local) {
-        event.changes.keys.forEach((change, key)=>{
-          if (change.action === "add") {
-            const newOperator = this.texeraGraph.yOperatorIDMap?.get(key) as OperatorPredicate;
-            const syncedPosition = this.texeraGraph.yOperatorPositionMap?.get(newOperator.operatorID);
-            this.addOperator(newOperator, syncedPosition || {x: 0, y: 0});
+    // this.texeraGraph.yOperatorIDMap?.observe((event: Y.YMapEvent<any>) => {
+    //   console.log(event);
+    //   if (!event.transaction.local) {
+    //     event.changes.keys.forEach((change, key)=>{
+    //       if (change.action === "add") {
+    //         const newOperator = this.texeraGraph.yOperatorIDMap?.get(key) as OperatorPredicate;
+    //         const syncedPosition = this.texeraGraph.yOperatorPositionMap?.get(newOperator.operatorID);
+    //         this.addOperator(newOperator, syncedPosition || {x: 0, y: 0});
+    //       }
+    //       if (change.action === "delete") {
+    //         this.deleteOperator(key);
+    //       }
+    //     });
+    //   }
+    // });
+
+    this.texeraGraph.getOperatorAddStream().subscribe( newOp => {
+        if (!this.jointGraph.attributes.cells?.has(newOp.operatorID)) {
+          const syncedPosition = this.texeraGraph.yOperatorPositionMap?.get(newOp.operatorID);
+          if (syncedPosition) {
+            const operatorJointElement = this.jointUIService.getJointOperatorElement(newOp, syncedPosition);
+            this.jointGraph.addCell(operatorJointElement);
           }
-          if (change.action === "delete") {
-            this.deleteOperator(key);
-          }
-        });
+        }
+    });
+
+    this.getTexeraGraph()
+
+    this.texeraGraph.getOperatorDeleteStream().subscribe(deletedOpSubj => {
+      const operatorID = deletedOpSubj.deletedOperator.operatorID;
+      if (this.jointGraph.attributes.cells?.has(operatorID)) {
+        this.jointGraphWrapper.jointGraph.getCell(operatorID).remove();
       }
     });
 
     this.texeraGraph.yOperatorPositionMap?.observe((event: Y.YMapEvent<Point>) => {
       if (!event.transaction.local) {
         event.changes.keys.forEach((change, key)=> {
+          if (change.action === "add") {
+            if (this.texeraGraph.hasOperator(key)) {
+              const newOp = this.texeraGraph.getOperator(key);
+              const newPosition = this.texeraGraph.yOperatorPositionMap?.get(key);
+              if (newPosition) {
+                const operatorJointElement = this.jointUIService.getJointOperatorElement(newOp, newPosition);
+                this.jointGraph.addCell(operatorJointElement);
+              }
+            }
+          }
           if (change.action === "update") {
             const newPosition = this.texeraGraph.yOperatorPositionMap?.get(key);
             if (newPosition) this.getJointGraphWrapper().setAbsolutePosition(key, newPosition.x, newPosition.y);
@@ -156,13 +197,14 @@ export class WorkflowActionService {
 
   public observeFromTexeraGraph(): void {
       this.getTexeraGraph().getOperatorAddStream().subscribe(newOp => {
-        this.texeraGraph.yOperatorIDMap?.set(newOp.operatorID, newOp);
-        this.texeraGraph.yOperatorPositionMap?.set(newOp.operatorID,
-          this.getJointGraphWrapper().getElementPosition(newOp.operatorID));
+        if (this.jointGraph.attributes.cells?.has(newOp.operatorID)) {
+          this.texeraGraph.yOperatorPositionMap?.set(newOp.operatorID,
+            this.getJointGraphWrapper().getElementPosition(newOp.operatorID));
+        }
       });
-      this.getTexeraGraph().getOperatorDeleteStream().subscribe(deletedOpSubj => {
-        this.texeraGraph.yOperatorIDMap?.delete(deletedOpSubj.deletedOperator.operatorID);
-      });
+      // this.getTexeraGraph().getOperatorDeleteStream().subscribe(deletedOpSubj => {
+      //   this.texeraGraph.yOperatorIDMap?.delete(deletedOpSubj.deletedOperator.operatorID);
+      // });
       this.getJointGraphWrapper().getElementPositionChangeEvent().subscribe(element => {
         this.texeraGraph.yOperatorPositionMap?.set(element.elementID, element.newPosition);
       });
