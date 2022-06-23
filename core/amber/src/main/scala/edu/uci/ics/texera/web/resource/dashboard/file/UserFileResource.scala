@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileDao,
   FileOfProjectDao,
@@ -135,11 +135,32 @@ class UserFileResource {
   }
 
   private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
-    val accesses = userFileAccessDao.fetchByUid(user.getUid)
+    // fetch the user files:
+    // user_file_access JOIN file on FID (to get all files this user can access)
+    // then JOIN USER on UID (to get the name of the file owner)
+    val fileRecords = context
+      .select()
+      .from(USER_FILE_ACCESS)
+      .join(FILE)
+      .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
+      .join(USER)
+      .on(FILE.UID.eq(USER.UID))
+      .where(USER_FILE_ACCESS.UID.eq(user.getUid))
+      .fetch()
+
+    // fetch the entire table of fileOfProject in memory, assuming this table is small
+    val fileOfProjectMap = fileOfProjectDao
+      .findAll()
+      .asScala
+      .groupBy(record => record.getFid)
+      .mapValues(values => values.map(v => v.getPid).toList)
+
     val fileEntries: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
-    accesses.asScala.toList.map(access => {
-      val fid = access.getFid
-      val file = fileDao.fetchOneByFid(fid)
+    fileRecords.forEach(fileRecord => {
+      val file = fileRecord.into(FILE)
+      val ownerUser = fileRecord.into(USER)
+      val access = fileRecord.into(USER_FILE_ACCESS)
+
       var accessLevel = "None"
       if (access.getWriteAccess) {
         accessLevel = "Write"
@@ -148,19 +169,13 @@ class UserFileResource {
       } else {
         accessLevel = "None"
       }
-      val ownerName = userDao.fetchOneByUid(file.getUid).getName
-      val projectIDs = fileOfProjectDao
-        .fetchByFid(file.getFid)
-        .asScala
-        .toList
-        .map(fileOfProject => {
-          fileOfProject.getPid
-        })
+      val ownerName = ownerUser.getName
+      val projectIDs = fileOfProjectMap.getOrElse(file.getFid, List())
       fileEntries += DashboardFileEntry(
         ownerName,
         accessLevel,
         ownerName == user.getName,
-        file,
+        new File(file),
         projectIDs
       )
     })
