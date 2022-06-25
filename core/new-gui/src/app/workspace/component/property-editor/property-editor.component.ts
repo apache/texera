@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
@@ -35,7 +35,8 @@ export class PropertyEditorComponent implements OnInit {
 
   constructor(
     public workflowActionService: WorkflowActionService,
-    public workflowVersionService: WorkflowVersionService
+    public workflowVersionService: WorkflowVersionService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -102,6 +103,7 @@ export class PropertyEditorComponent implements OnInit {
         } else {
           this.switchFrameComponent(undefined);
         }
+        this.changeDetectorRef.detectChanges();
       });
   }
 }
