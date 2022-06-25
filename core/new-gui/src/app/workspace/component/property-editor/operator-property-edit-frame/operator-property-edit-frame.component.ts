@@ -216,6 +216,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     setTimeout(() => {
       const interactive = this.evaluateInteractivity();
       this.setInteractivity(interactive);
+      this.changeDetectorRef.detectChanges();
     }, 0);
   }
 
