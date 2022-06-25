@@ -56,6 +56,7 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
 
     val csvFormat = new CsvFormat()
     csvFormat.setDelimiter(desc.customDelimiter.get.charAt(0))
+    csvFormat.setComment('\0') // disable skipping lines starting with # (default comment character)
     val csvSetting = new CsvParserSettings()
     csvSetting.setMaxCharsPerColumn(-1)
     csvSetting.setFormat(csvFormat)
