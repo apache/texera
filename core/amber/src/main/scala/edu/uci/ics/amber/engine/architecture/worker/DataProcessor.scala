@@ -7,12 +7,11 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerEx
 import edu.uci.ics.amber.engine.architecture.logging.LogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandConvertUtils
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED}
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlInvocationV2, ControlPayload, ControlPayloadV2}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
@@ -23,7 +22,6 @@ import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputEx
 import edu.uci.ics.amber.error.ErrorUtils.safely
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
-import scala.collection.mutable
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
@@ -33,7 +31,7 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
-    logManager:LogManager,
+    logManager: LogManager,
     val actorId: ActorVirtualIdentity
 ) extends WorkerInternalQueue
     with AmberLogging {
@@ -52,7 +50,7 @@ class DataProcessor( // dependencies:
             FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
             CONTROLLER
           )
-      } finally{
+      } finally {
         // dp thread will stop here
         logManager.terminate()
       }

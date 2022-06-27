@@ -2,16 +2,30 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{Actor, ActorRef, Stash}
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.logging.storage.{DeterminantLogStorage, LocalFSLogStorage}
+import edu.uci.ics.amber.engine.architecture.logging.storage.{
+  DeterminantLogStorage,
+  LocalFSLogStorage
+}
 import edu.uci.ics.amber.engine.architecture.logging.{AsyncLogWriter, LogManager}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkSenderActorRef, RegisterActorRef, SendRequest}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkCommunicationActor, NetworkOutputPort}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  GetActorRef,
+  NetworkSenderActorRef,
+  RegisterActorRef,
+  SendRequest
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  NetworkCommunicationActor,
+  NetworkOutputPort
+}
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-
 
 abstract class WorkflowActor(
     val actorId: ActorVirtualIdentity,
