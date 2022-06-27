@@ -40,11 +40,13 @@ class HashJoinOpExecConfig[K](
       Array()
     )
   }
-  var buildTable: LinkIdentity = _
+
+  def getBuildTableLinkId(): LinkIdentity = {
+    inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
+  }
 
   override def checkStartDependencies(workflow: Workflow): Unit = {
     val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
-    buildTable = buildLink
     val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
     val dependerLink = probeLink
     val dependeeLink = buildLink
@@ -58,7 +60,7 @@ class HashJoinOpExecConfig[K](
     }
     topology.layers.head.initIOperatorExecutor = _ =>
       new HashJoinOpExec[K](
-        buildTable,
+        getBuildTableLinkId(),
         buildAttributeName,
         probeAttributeName,
         joinType,
@@ -67,11 +69,19 @@ class HashJoinOpExecConfig[K](
   }
 
   override def isInputBlocking(input: LinkIdentity): Boolean = {
-    input == inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
+    input == getBuildTableLinkId()
+  }
+
+  override def getInputProcessingOrder(): Array[OperatorIdentity] = {
+    val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
+    val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
+    val buildInput = toOperatorIdentity(buildLink.from)
+    val probeInput = toOperatorIdentity(probeLink.from)
+    Array(buildInput, probeInput)
   }
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
-    if (layer == buildTable.from) {
+    if (layer == getBuildTableLinkId().from) {
       Array(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))
 
     } else {

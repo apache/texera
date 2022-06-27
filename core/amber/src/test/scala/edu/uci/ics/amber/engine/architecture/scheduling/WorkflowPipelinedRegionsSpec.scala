@@ -18,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable
 
-class PipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
+class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
 
   def buildWorkflow(
       operators: mutable.MutableList[OperatorDescriptor],
@@ -49,24 +49,8 @@ class PipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegion = new PipelinedRegions(workflow)
-    pipelinedRegion.findAllPipelinedRegions
-    assert(pipelinedRegion.allPipelinedRegions.size == 1)
-    assert(
-      pipelinedRegion
-        .allPipelinedRegions(0)
-        .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc.operatorID))
-    )
-    assert(
-      pipelinedRegion
-        .allPipelinedRegions(0)
-        .contains(OperatorIdentity(workflow.getWorkflowId().id, keywordOpDesc.operatorID))
-    )
-    assert(
-      pipelinedRegion
-        .allPipelinedRegions(0)
-        .contains(OperatorIdentity(workflow.getWorkflowId().id, sink.operatorID))
-    )
+    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
+    assert(pipelinedRegions.idToPipelinedRegions.size == 1)
   }
 
   "Pipelined Regions" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
@@ -96,9 +80,29 @@ class PipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegion = new PipelinedRegions(workflow)
-    pipelinedRegion.findAllPipelinedRegions
-    assert(pipelinedRegion.allPipelinedRegions.size == 2)
+    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
+    assert(pipelinedRegions.idToPipelinedRegions.size == 2)
+
+    val buildRegion = pipelinedRegions.idToPipelinedRegions.values
+      .find(p =>
+        p.getOperators()
+          .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID))
+      )
+      .get
+    val probeRegion = pipelinedRegions.idToPipelinedRegions.values
+      .find(p =>
+        p.getOperators()
+          .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID))
+      )
+      .get
+    assert(probeRegion.dependsOn.size == 1)
+    assert(probeRegion.dependsOn.contains(buildRegion.getId()))
+    assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.size == 1)
+    assert(
+      buildRegion.blockingDowstreamOperatorsInOtherRegions.contains(
+        OperatorIdentity(workflow.getWorkflowId().id, joinOpDesc.operatorID)
+      )
+    )
   }
 
   "Pipelined Regions" should "correctly find regions in csv->->filter->join->sink workflow" in {
@@ -132,9 +136,8 @@ class PipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegion = new PipelinedRegions(workflow)
-    pipelinedRegion.findAllPipelinedRegions
-    assert(pipelinedRegion.allPipelinedRegions.size == 1)
+    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
+    assert(pipelinedRegions.idToPipelinedRegions.size == 1)
   }
 
 }
