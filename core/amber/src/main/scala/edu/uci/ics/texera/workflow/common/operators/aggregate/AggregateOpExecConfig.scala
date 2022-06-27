@@ -17,7 +17,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
-  LinkIdentity,
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -86,8 +85,6 @@ class AggregateOpExecConfig[P <: AnyRef](
       )
     }
   }
-
-  override def isInputBlocking(input: LinkIdentity): Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     aggFunc
