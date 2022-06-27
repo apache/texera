@@ -103,6 +103,9 @@ val luceneDependencies = Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
+// Hadoop related
+libraryDependencies += "org.apache.hadoop" % "hadoop-hdfs" % "3.3.3"
+libraryDependencies += "org.apache.hadoop" % "hadoop-common" % "3.3.3"
 
 /////////////////////////////////////////////////////////////////////////////
 // Google Service related
@@ -242,3 +245,4 @@ libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 // https://mvnrepository.com/artifact/org.jasypt/jasypt
 libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
+

@@ -5,8 +5,8 @@ import java.nio.file.{Files, Path, Paths}
 
 class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
-  private val currentRelativePath: Path = Paths.get("")
-  private val filePath = currentRelativePath.resolve(name + ".logfile")
+  private val recoveryLogFolder: Path = Paths.get("").resolve("recovery-logs")
+  private val filePath = recoveryLogFolder.resolve(name + ".logfile")
   if (!Files.exists(filePath)) {
     Files.createFile(filePath)
   }

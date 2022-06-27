@@ -135,7 +135,7 @@ class WorkflowWorker(
       payload: DataPayload
   ): Unit = {
     val msg = WorkflowDataMessage(self, seqNum, payload)
-    networkCommunicationActor ! SendRequest(to, msg)
+    logManager.sendDirectlyOrCommitted(SendRequest(to, msg))
   }
 
   override def postStop(): Unit = {

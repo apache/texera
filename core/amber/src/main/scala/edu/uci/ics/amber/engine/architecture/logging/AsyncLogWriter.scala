@@ -3,8 +3,7 @@ package edu.uci.ics.amber.engine.architecture.logging
 import com.google.common.collect.Queues
 import edu.uci.ics.amber.engine.architecture.logging.determinants.{
   CursorUpdate,
-  Determinant,
-  DeterminantMessage
+  Determinant
 }
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
