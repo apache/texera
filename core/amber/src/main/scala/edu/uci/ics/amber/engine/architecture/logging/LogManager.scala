@@ -23,7 +23,7 @@ class LogManager(
   private var cursor: Long = 0L
   private var prevCount: Long = 0L
   private var currentInput: ActorVirtualIdentity = _
-  val enabledLogging: Boolean = AmberUtils.amberConfig.getBoolean("enable-determinant-logging")
+  val enabledLogging: Boolean = AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
 
   private val writer = if (enabledLogging) {
     new AsyncLogWriter(networkCommunicationActor, logStorage)
