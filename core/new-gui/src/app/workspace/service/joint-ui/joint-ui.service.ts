@@ -103,7 +103,6 @@ export const linkPathStrokeColor = "#919191";
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup = `<g class="element-node">
       <rect class="body"></rect>
-      <rect class="boundary"></rect>
       <image class="${operatorIconClass}"></image>
       <text class="${operatorNameBGClass}"></text>
       <text class="${operatorNameClass}"></text>
@@ -117,6 +116,9 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorStateClass}"></text>
       <text class="${operatorCacheTextClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
+      <rect class="boundary"></rect>
+      <path class="left-boundary"></path>
+      <path class="right-boundary"></path>
       ${deleteButtonSVG}
     </g>`;
 }
@@ -769,12 +771,30 @@ export class JointUIService {
         ry: "5px",
       },
       "rect.boundary": {
-        fill: "rgba(0,0,0,0)",
-        width: this.DEFAULT_OPERATOR_WIDTH + 50,
-        height: this.DEFAULT_OPERATOR_HEIGHT + 100,
+        fill: "rgba(0, 0, 0, 0)",
+        width: this.DEFAULT_OPERATOR_WIDTH + 20,
+        height: this.DEFAULT_OPERATOR_HEIGHT + 20,
         ref: "rect.body",
-        "ref-x": -25,
-        "ref-y": -50,
+        "ref-x": -10,
+        "ref-y": -10,
+      },
+      "path.right-boundary": {
+        ref: "rect.body",
+        d: "M 20 80 C 0 60 0 20 20 0",
+        stroke: "rgba(0,0,0,0)",
+        "stroke-width": "10",
+        fill: "transparent",
+        "ref-x": 70,
+        "ref-y": -10,
+      },
+      "path.left-boundary": {
+        ref: "rect.body",
+        d: "M 0 80 C 20 60 20 20 0 0",
+        stroke: "rgba(0,0,0,0)",
+        "stroke-width": "10",
+        fill: "transparent",
+        "ref-x": -30,
+        "ref-y": -10,
       },
       ".texera-operator-name-background": {
         text: operatorDisplayName,

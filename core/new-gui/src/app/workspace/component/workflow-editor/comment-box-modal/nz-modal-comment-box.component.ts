@@ -34,6 +34,7 @@ export class NzModalCommentBoxComponent {
 
   inputValue = "";
   submitting = false;
+  editValue = "";
 
   public onClickAddComment(): void {
     this.submitting = true;
@@ -56,6 +57,54 @@ export class NzModalCommentBoxComponent {
     );
   }
 
+  public deleteComment(creatorID: number, creationTime: string): void {
+    if (!this.user) {
+      return;
+    }
+    this.workflowActionService.deleteComment(creatorID, creationTime, this.commentBox.commentBoxID);
+  }
+
+  public toggleEditInput(creatorName: string, creationTime: string): void {
+    const currTxArea = document.getElementById("txarea" + creatorName + creationTime);
+    const currComment = document.getElementById("comment" + creatorName + creationTime);
+    const btn = document.getElementById("editbtn" + creatorName + creationTime);
+    if (currTxArea == null || btn == null || currComment == null) {
+      return;
+    }
+    const hiddenTextArea = currTxArea.getAttribute("hidden");
+    const hiddenComment = currComment.getAttribute("hidden");
+    if (hiddenTextArea && !hiddenComment) {
+      currComment.setAttribute("hidden", "hidden");
+      currTxArea.removeAttribute("hidden");
+      btn.removeAttribute("hidden");
+      if (currComment.textContent != null) {
+        this.editValue = currComment.textContent;
+      }
+    } else {
+      currTxArea.setAttribute("hidden", "hidden");
+      btn.setAttribute("hidden", "hidden");
+      currComment.removeAttribute("hidden");
+      this.editValue = "";
+    }
+  }
+  public editComment(creatorID: number, creatorName: string, creationTime: string): void {
+    if (!this.user) {
+      return;
+    }
+    const newContent = this.editValue;
+    this.editValue = "";
+    this.workflowActionService.editComment(creatorID, creationTime, this.commentBox.commentBoxID, newContent);
+    const currTxArea = document.getElementById("txarea" + creatorName + creationTime);
+    const btn = document.getElementById("editbtn" + creatorName + creationTime);
+    if (currTxArea == null || btn == null) {
+      return;
+    }
+    currTxArea.setAttribute("hidden", "hidden");
+    btn.setAttribute("hidden", "hidden");
+  }
+  public replyToComment(creatorName: string, content: string) {
+    this.inputValue += "@" + creatorName + ":\"" + content + "\"\n";
+  }
   toRelative(datetime: string): string {
     return formatDate(new Date(datetime), "MM/dd/yyyy, hh:mm:ss a z", this.locale);
   }

@@ -4,6 +4,7 @@ export interface DashboardUserFileEntry
     file: UserFile;
     accessLevel: string;
     isOwner: boolean;
+    projectIDs: number[];
   }> {}
 
 /**
