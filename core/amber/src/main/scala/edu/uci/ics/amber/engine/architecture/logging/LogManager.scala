@@ -89,7 +89,9 @@ class LogManager(
   }
 
   def terminate(): Unit = {
-    writer.terminate()
+    if (enabledLogging) {
+      writer.terminate()
+    }
   }
 
 }
