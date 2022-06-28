@@ -61,6 +61,7 @@ class DataProcessor( // dependencies:
   private var currentInputLink: LinkIdentity = _
   private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
   private var isCompleted = false
+  var backpressured = false
 
   def getOperatorExecutor(): IOperatorExecutor = operator
 
@@ -242,7 +243,9 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    while (!isControlQueueEmpty || pauseManager.isPaused || pauseManager.pausedByOperatorLogic) {
+    while (
+      !isControlQueueEmpty || pauseManager.isPaused || backpressured || pauseManager.pausedByOperatorLogic
+    ) {
       takeOneControlCommandAndProcess()
     }
   }

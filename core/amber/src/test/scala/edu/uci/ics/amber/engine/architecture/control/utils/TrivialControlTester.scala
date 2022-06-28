@@ -5,6 +5,7 @@ import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
@@ -28,6 +29,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
         logger.info(s"received $internalMessage")
         this.controlInputPort.handleMessage(
           this.sender(),
+          Constants.unprocessedBatchesCreditLimitPerSender,
           id,
           from,
           sequenceNumber,

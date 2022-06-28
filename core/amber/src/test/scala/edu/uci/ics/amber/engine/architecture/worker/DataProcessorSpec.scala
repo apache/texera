@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, RUNNING}
-import edu.uci.ics.amber.engine.common.{Constants, InputExhausted}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -264,40 +264,49 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       data.foreach { x =>
         dp.appendElement(InputTuple(senderWorker, x))
       }
-      assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit - 1)
+      assert(
+        dp.getSenderCredits(senderWorker) == Constants.unprocessedBatchesCreditLimitPerSender - 1
+      )
       dp.appendElement(EndMarker)
       dp.appendElement(EndOfAllMarker)
     }(ExecutionContext.global)
   }
 
-//  "data processor" should "reduce credits" in {
-//    Constants.flowControlEnabled = true
-//    val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
-//    val operator = mock[OperatorExecutor]
-//    val asyncRPCServer: AsyncRPCServer = null
-//    val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
-//    val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
-//    inAnyOrder {
-//      (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
-//      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
-//      inSequence {
-//        (operator.open _).expects().once()
-//        tuplesToSend.foreach { x =>
-//          (operator.processTuple _).expects(Left(x), linkID)
-//        }
-//        (operator.processTuple _).expects(Right(InputExhausted()), linkID)
-//        (operator.close _).expects().once()
-//      }
-//    }
-//
-//    val dp = wire[DataProcessor]
-//    operator.open()
-//    val senderWorker = ActorVirtualIdentity("sender")
-//    assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit)
-//    Await.result(monitorCredits(ActorVirtualIdentity("sender"), dp, tuplesToSend), 3.seconds)
-//    waitForDataProcessing(workerStateManager)
-//    dp.shutdown()
-//
-//  }
+  "data processor" should "reduce credits" in {
+    Constants.flowControlEnabled = true
+    val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val operator = new IOperatorExecutor {
+      override def open(): Unit = {}
+
+      override def close(): Unit = {}
+
+      override def processTuple(
+          tuple: Either[ITuple, InputExhausted],
+          input: LinkIdentity,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
+      ): Iterator[(ITuple, Option[LinkIdentity])] = {
+        Await.result(
+          Future {
+            Thread.sleep(3000); 42
+          }(ExecutionContext.global),
+          3.seconds
+        )
+        return Iterator()
+      }
+    }
+
+    val asyncRPCServer: AsyncRPCServer = null
+    val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
+    val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
+
+    val dp = wire[DataProcessor]
+    operator.open()
+    val senderWorker = ActorVirtualIdentity("sender")
+    assert(dp.getSenderCredits(senderWorker) == Constants.unprocessedBatchesCreditLimitPerSender)
+    Await.result(monitorCredits(ActorVirtualIdentity("sender"), dp, tuplesToSend), 3.seconds)
+    dp.shutdown()
+
+  }
 
 }

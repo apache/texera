@@ -148,7 +148,14 @@ class Controller(
   def running: Receive = {
     acceptDirectInvocations orElse {
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-        controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+        controlInputPort.handleMessage(
+          this.sender(),
+          Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
+          id,
+          from,
+          seqNum,
+          payload
+        )
       case other =>
         logger.info(s"unhandled message: $other")
     }
@@ -190,14 +197,19 @@ class Controller(
   def initializing: Receive = {
     case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
       //process reply messages
-      controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-    case NetworkMessage(
-          id,
-          WorkflowControlMessage(CONTROLLER, seqNum, payload)
-        ) =>
+      controlInputPort.handleMessage(
+        this.sender(),
+        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
+        id,
+        from,
+        seqNum,
+        payload
+      )
+    case NetworkMessage(id, WorkflowControlMessage(CONTROLLER, seqNum, payload)) =>
       //process control messages from self
       controlInputPort.handleMessage(
         this.sender(),
+        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
         id,
         CONTROLLER,
         seqNum,

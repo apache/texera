@@ -4,13 +4,13 @@ import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.texera.Utils
 
 import java.io.IOException
@@ -57,6 +57,11 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
+  // TODO: Implement credit calculation logic in python worker
+  override def getSenderCredits(sender: ActorVirtualIdentity) = {
+    Constants.unprocessedBatchesCreditLimitPerSender
+  }
+
   override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
     pythonProxyClient.enqueueData(DataElement(dataPayload, from))
   }
@@ -66,7 +71,12 @@ class PythonWorkflowWorker(
       controlPayload: ControlPayload
   ): Unit = {
     controlPayload match {
-      case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
+      case ControlInvocation(_, c) =>
+        // TODO: Implement backpressure message handling for python worker
+        if (!c.isInstanceOf[Backpressure]) {
+          pythonProxyClient.enqueueCommand(controlPayload, from)
+        }
+      case ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>
         logger.error(s"unhandled control payload: $controlPayload")

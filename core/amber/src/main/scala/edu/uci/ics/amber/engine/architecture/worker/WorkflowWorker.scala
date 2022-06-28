@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
   NetworkMessage,
   RegisterActorRef,
   SendRequest
@@ -27,6 +28,7 @@ import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
+  CreditRequest,
   DataPayload,
   WorkflowControlMessage,
   WorkflowDataMessage
@@ -82,15 +84,35 @@ class WorkflowWorker(
   workerStateManager.assertState(UNINITIALIZED)
   workerStateManager.transitTo(READY)
 
+  def getSenderCredits(sender: ActorVirtualIdentity) = {
+    tupleProducer.getSenderCredits(sender)
+  }
+
   override def receive: Receive = receiveAndProcessMessages
 
   def receiveAndProcessMessages: Receive =
     try {
       disallowActorRefRelatedMessages orElse {
         case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
-          dataInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+          dataInputPort.handleMessage(
+            this.sender(),
+            getSenderCredits(from),
+            id,
+            from,
+            seqNum,
+            payload
+          )
         case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-          controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+          controlInputPort.handleMessage(
+            this.sender(),
+            getSenderCredits(from),
+            id,
+            from,
+            seqNum,
+            payload
+          )
+        case NetworkMessage(id, CreditRequest(from, _)) =>
+          sender ! NetworkAck(id, Some(getSenderCredits(from)))
         case other =>
           throw new WorkflowRuntimeException(s"unhandled message: $other")
       }

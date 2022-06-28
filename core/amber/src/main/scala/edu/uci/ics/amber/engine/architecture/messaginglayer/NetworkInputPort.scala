@@ -18,12 +18,13 @@ class NetworkInputPort[T](
 
   def handleMessage(
       sender: ActorRef,
+      senderCredits: Int,
       messageID: Long,
       from: ActorVirtualIdentity,
       sequenceNumber: Long,
       payload: T
   ): Unit = {
-    sender ! NetworkAck(messageID)
+    sender ! NetworkAck(messageID, Some(senderCredits))
 
     OrderingEnforcer.reorderMessage[T](
       idToOrderingEnforcers,

@@ -52,6 +52,7 @@ class WorkerAsyncRPCHandlerInitializer(
     with AcceptImmutableStateHandler
     with SharePartitionHandler
     with PauseSkewMitigationHandler
+    with BackpressureHandler
     with SaveSkewedWorkerInfoHandler
     with AcceptMutableStateHandler {
   var lastReportTime = 0L

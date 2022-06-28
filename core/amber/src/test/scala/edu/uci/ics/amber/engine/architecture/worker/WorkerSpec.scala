@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, Re
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -132,8 +132,11 @@ class WorkerSpec
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }
-      case NetworkMessage(msgID, WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))) =>
-        probe.sender() ! NetworkAck(msgID)
+      case NetworkMessage(
+            msgID,
+            WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))
+          ) =>
+        probe.sender() ! NetworkAck(msgID, Some(Constants.unprocessedBatchesCreditLimitPerSender))
         returnValue match {
           case e: Throwable => throw e
           case _ =>

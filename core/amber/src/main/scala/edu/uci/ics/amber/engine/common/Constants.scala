@@ -19,6 +19,7 @@ object Constants {
   var masterNodeAddr: Address = Address("akka", "Amber", "localhost", 2552)
   var defaultTau: FiniteDuration = 10.milliseconds
 
+  // monitoring and reshape related
   var monitoringEnabled: Boolean =
     AmberUtils.amberConfig.getBoolean("monitoring.monitoring-enabled")
   var monitoringIntervalInMs: Int =
@@ -46,8 +47,15 @@ object Constants {
   var reshapeFirstPhaseSharingDenominator: Int =
     AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-denominator")
 
+  // flow control related
   var flowControlEnabled: Boolean =
     AmberUtils.amberConfig.getBoolean("flow-control.credit-based-flow-control-enabled")
-  var pairWiseUnprocessedBatchesLimit: Int =
+  var unprocessedBatchesCreditLimitPerSender: Int =
     AmberUtils.amberConfig.getInt("flow-control.unprocessed-batches-limit-per-worker-pair")
+  var localSendingBufferLimitPerReceiver: Int =
+    AmberUtils.amberConfig.getInt("flow-control.local-sending-buffer-limit-per-receiver")
+  var creditPollingInitialDelayInMs: Int =
+    AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-initial-delay-in-ms")
+  var creditPollingIntervalinMs: Int =
+    AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-interval-in-ms")
 }

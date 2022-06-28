@@ -18,7 +18,9 @@ trait ResumeHandler {
       if (pauseManager.isPaused) {
         pauseManager.resume()
       }
-      if (!pauseManager.pausedByOperatorLogic) {
+      if (!dataProcessor.backpressured && !pauseManager.pausedByOperatorLogic) {
+        // if the processor is backpressured or paused by operator logic,
+        // it should not enable the data queue.
         dataProcessor.enableDataQueue()
       }
       stateManager.transitTo(RUNNING)
