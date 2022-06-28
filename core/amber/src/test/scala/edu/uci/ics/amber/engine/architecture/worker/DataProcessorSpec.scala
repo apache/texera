@@ -282,9 +282,16 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity
+          input: LinkIdentity,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
       ): Iterator[(ITuple, Option[LinkIdentity])] = {
-        Await.result(Future { Thread.sleep(3000); 42 }(ExecutionContext.global), 3.seconds)
+        Await.result(
+          Future {
+            Thread.sleep(3000); 42
+          }(ExecutionContext.global),
+          3.seconds
+        )
         return Iterator()
       }
     }
