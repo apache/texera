@@ -23,7 +23,10 @@ import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDe
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.TwitterFullArchiveSearchSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
+  TwitterFullArchiveSearchSourceOpDesc,
+  TwitterSearchSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
@@ -66,6 +69,10 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
     new Type(
       value = classOf[TwitterFullArchiveSearchSourceOpDesc],
       name = "TwitterFullArchiveSearch"
+    ),
+    new Type(
+      value = classOf[TwitterSearchSourceOpDesc],
+      name = "TwitterSearch"
     ),
     new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),

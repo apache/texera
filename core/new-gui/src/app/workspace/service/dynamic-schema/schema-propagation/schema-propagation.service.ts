@@ -153,6 +153,9 @@ export class SchemaPropagationService {
 
     // recursive function that removes the attribute properties and returns the new object
     const walkPropertiesRecurse = (propertyObject: { [key: string]: any }) => {
+      if (propertyObject === null || propertyObject === undefined) {
+        return propertyObject;
+      }
       Object.keys(propertyObject).forEach(key => {
         if (key === "attribute" || key === "attributes") {
           const {
