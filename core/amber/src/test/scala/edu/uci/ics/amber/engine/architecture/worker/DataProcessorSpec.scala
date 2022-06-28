@@ -124,6 +124,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    (logManager.logDataInputOrder _).expects(*).anyNumberOfTimes()
+    (logManager.logControlInput _).expects(*, *).anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     inAnyOrder {
@@ -156,6 +158,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    (logManager.logDataInputOrder _).expects(*).anyNumberOfTimes()
+    (logManager.logControlInput _).expects(*, *).anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -199,6 +203,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    (logManager.logDataInputOrder _).expects(*).anyNumberOfTimes()
+    (logManager.logControlInput _).expects(*, *).anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -226,6 +232,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val ctx: ActorContext = null
     val batchToTupleConverter = mock[BatchToTupleConverter]
     val logManager = mock[LogManager]
+    (logManager.logDataInputOrder _).expects(*).anyNumberOfTimes()
+    (logManager.logControlInput _).expects(*, *).anyNumberOfTimes()
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     (asyncRPCClient.send _).expects(*, *).anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
