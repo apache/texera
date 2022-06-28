@@ -39,4 +39,10 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   override def getReader: InputStream = {
     hdfs.open(recoveryLogPath)
   }
+
+  override def deleteLog(): Unit = {
+    if (hdfs.exists(recoveryLogPath)) {
+      hdfs.delete(recoveryLogPath, false)
+    }
+  }
 }

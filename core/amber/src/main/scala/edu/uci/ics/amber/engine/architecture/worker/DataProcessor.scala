@@ -43,6 +43,8 @@ class DataProcessor( // dependencies:
         runDPThreadMainLogic()
       } catch safely {
         case _: InterruptedException =>
+          // dp thread will stop here
+          logManager.terminate()
           logger.info("DP Thread exits")
         case err: Exception =>
           logger.error("DP Thread exists unexpectedly", err)
@@ -50,9 +52,6 @@ class DataProcessor( // dependencies:
             FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
             CONTROLLER
           )
-      } finally {
-        // dp thread will stop here
-        logManager.terminate()
       }
     }
   })

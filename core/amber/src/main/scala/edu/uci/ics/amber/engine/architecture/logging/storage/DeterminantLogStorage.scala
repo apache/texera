@@ -14,4 +14,6 @@ abstract class DeterminantLogStorage {
 
   def getReader: InputStream
 
+  def deleteLog(): Unit
+
 }

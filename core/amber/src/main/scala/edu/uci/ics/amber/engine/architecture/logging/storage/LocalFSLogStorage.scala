@@ -7,6 +7,9 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
   private val recoveryLogFolder: Path = Paths.get("").resolve("recovery-logs")
   private val filePath = recoveryLogFolder.resolve(name + ".logfile")
+  if (!Files.exists(recoveryLogFolder)) {
+    Files.createDirectory(recoveryLogFolder)
+  }
   if (!Files.exists(filePath)) {
     Files.createFile(filePath)
   }
@@ -27,5 +30,11 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
   override def getReader: InputStream = {
     Files.newInputStream(filePath)
+  }
+
+  override def deleteLog(): Unit = {
+    if (Files.exists(filePath)) {
+      Files.delete(filePath)
+    }
   }
 }

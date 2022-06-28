@@ -1,7 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.logging
 
 import edu.uci.ics.amber.engine.architecture.logging.determinants.{ControlInput, DataInputOrder}
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
+import edu.uci.ics.amber.engine.architecture.logging.storage.{
+  DeterminantLogStorage,
+  LocalFSLogStorage
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandConvertUtils
@@ -17,16 +20,25 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class LogManager(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
-    logStorage: DeterminantLogStorage
+    actorId: ActorVirtualIdentity
 ) {
 
   private var cursor: Long = 0L
   private var prevCount: Long = 0L
   private var currentInput: ActorVirtualIdentity = _
-  val enabledLogging: Boolean = AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
+  val enabledLogging: Boolean =
+    AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
+
+  private val logStorage: DeterminantLogStorage = if (enabledLogging) {
+    new LocalFSLogStorage(actorId.name.replace("Worker:", ""))
+  } else {
+    null
+  }
 
   private val writer = if (enabledLogging) {
-    new AsyncLogWriter(networkCommunicationActor, logStorage)
+    val res = new AsyncLogWriter(networkCommunicationActor, logStorage)
+    res.start()
+    res
   } else {
     null
   }
@@ -48,25 +60,29 @@ class LogManager(
     if (!enabledLogging) {
       return
     }
-    val payloadV2 = command match {
-      case invocation: AsyncRPCClient.ControlInvocation =>
-        val cmdV2 = ControlCommandConvertUtils.controlCommandToV2(invocation.command)
-        ControlInvocationV2(invocation.commandID, cmdV2)
-      case ret: AsyncRPCClient.ReturnInvocation =>
-        val retV2 = ControlCommandConvertUtils.controlReturnToV2(ret.controlReturn)
-        ReturnInvocationV2(ret.originalCommandID, retV2)
-      case _ =>
-        throw new RuntimeException(
-          s"control payload $command is neither an invocation nor a return value"
-        )
+    try {
+      val payloadV2 = command match {
+        case invocation: AsyncRPCClient.ControlInvocation =>
+          val cmdV2 = ControlCommandConvertUtils.controlCommandToV2(invocation.command)
+          ControlInvocationV2(invocation.commandID, cmdV2)
+        case ret: AsyncRPCClient.ReturnInvocation =>
+          val retV2 = ControlCommandConvertUtils.controlReturnToV2(ret.controlReturn)
+          ReturnInvocationV2(ret.originalCommandID, retV2)
+        case _ =>
+          throw new RuntimeException(
+            s"control payload $command is neither an invocation nor a return value"
+          )
+      }
+      writer.putDeterminant(ControlInput(cursor, payloadV2, from))
+      cursor += 1
+    } catch {
+      case throwable: Throwable => //skip
     }
-    writer.putDeterminant(ControlInput(cursor, payloadV2, from))
-    cursor += 1
   }
 
   def sendDirectlyOrCommitted(sendRequest: SendRequest): Unit = {
     if (!enabledLogging) {
-      networkCommunicationActor ! SendRequest
+      networkCommunicationActor ! sendRequest
     } else {
       writer.putOutput(sendRequest, cursor)
     }

@@ -144,7 +144,6 @@ class WorkflowWorker(
       ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
       SELF
     )
-
     logger.info("stopped!")
   }
 

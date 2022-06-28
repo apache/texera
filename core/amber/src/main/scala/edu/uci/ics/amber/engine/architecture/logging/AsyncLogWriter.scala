@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
 
 import java.util
+import scala.util.control.Breaks.{break, breakable}
 
 class AsyncLogWriter(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
@@ -32,30 +33,39 @@ class AsyncLogWriter(
 
   def terminate(): Unit = {
     stopped = true
+    interrupt()
   }
 
   override def run(): Unit = {
-    while (!stopped) {
-      if (logInterval > 0) {
-        Thread.sleep(logInterval)
+    breakable {
+      while (!stopped) {
+        try {
+          if (logInterval > 0) {
+            Thread.sleep(logInterval)
+          }
+          if (writerQueue.drainTo(drained) == 0) {
+            drained.add(writerQueue.take())
+          }
+        } catch {
+          case t: InterruptedException =>
+            break
+        }
+        var cursor = 0L
+        drained.forEach {
+          case Left(value)  => logWriter.writeLogRecord(value.asMessage.toByteArray)
+          case Right(value) => cursor = value.cursor
+        }
+        logWriter.writeLogRecord(CursorUpdate(cursor).toByteArray)
+        logWriter.flush()
+        drained.forEach {
+          case Left(value)  => // skip
+          case Right(value) => networkCommunicationActor ! value.request
+        }
+        drained.clear()
       }
-      if (writerQueue.drainTo(drained) == 0) {
-        drained.add(writerQueue.take())
-      }
-      var cursor = 0L
-      drained.forEach {
-        case Left(value)  => logWriter.writeLogRecord(value.asMessage.toByteArray)
-        case Right(value) => cursor = value.cursor
-      }
-      logWriter.writeLogRecord(CursorUpdate(cursor).toByteArray)
-      logWriter.flush()
-      drained.forEach {
-        case Left(value)  => // skip
-        case Right(value) => networkCommunicationActor ! value.request
-      }
-      drained.clear()
     }
     logWriter.close()
+    logStorage.deleteLog()
   }
 
 }

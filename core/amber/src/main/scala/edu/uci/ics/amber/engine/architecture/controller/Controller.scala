@@ -163,6 +163,7 @@ class Controller(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
+    logManager.logControlInput(controlPayload, from)
     try {
       controlPayload match {
         // use control input port to pass control messages
@@ -211,6 +212,7 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
+    logManager.terminate()
     logger.info("stopped!")
   }
 }

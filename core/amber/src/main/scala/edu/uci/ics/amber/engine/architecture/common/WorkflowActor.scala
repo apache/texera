@@ -42,7 +42,6 @@ abstract class WorkflowActor(
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, actorId))
   )
   lazy val logManager: LogManager = wire[LogManager]
-  lazy val logStorage: DeterminantLogStorage = new LocalFSLogStorage(actorId.name)
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
