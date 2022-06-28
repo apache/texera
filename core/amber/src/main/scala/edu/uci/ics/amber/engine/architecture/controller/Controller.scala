@@ -17,6 +17,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.scheduling.{
+  WorkflowPipelinedRegions,
+  WorkflowScheduler
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
@@ -73,6 +77,8 @@ class Controller(
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
+  val workflowRegions = new WorkflowPipelinedRegions(workflow)
+  val workflowScheduler = new WorkflowScheduler(availableNodes, networkCommunicationActor, context)
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
     wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _

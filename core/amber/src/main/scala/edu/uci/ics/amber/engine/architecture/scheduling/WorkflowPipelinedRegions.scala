@@ -18,8 +18,8 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
     * and the edge (LinkIdentity) is not blocking.
     */
   private def getAdjacentReachableOperators(
-                                             operatorId: OperatorIdentity
-                                           ): ArrayBuffer[OperatorIdentity] = {
+      operatorId: OperatorIdentity
+  ): ArrayBuffer[OperatorIdentity] = {
     val adjacentOperators = new ArrayBuffer[OperatorIdentity]()
     val upstreamOps = workflow.getDirectUpstreamOperators(operatorId)
     val downstreamOps = workflow.getDirectDownStreamOperators(operatorId)
@@ -47,10 +47,10 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
   }
 
   private def findOtherOperatorsInComponent(
-                                             operatorId: OperatorIdentity,
-                                             component: ArrayBuffer[OperatorIdentity],
-                                             visited: mutable.HashSet[OperatorIdentity]
-                                           ): Unit = {
+      operatorId: OperatorIdentity,
+      component: ArrayBuffer[OperatorIdentity],
+      visited: mutable.HashSet[OperatorIdentity]
+  ): Unit = {
     getAdjacentReachableOperators(operatorId).foreach(adjOp => {
       if (!visited.contains(adjOp)) {
         visited.add(adjOp)

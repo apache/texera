@@ -41,6 +41,8 @@ class Workflow(
 
   private val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
 
+  val builtOperators = new mutable.HashSet[OperatorIdentity]()
+
   def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
 
   def getAllOperatorIds: Iterable[OperatorIdentity] = operatorToOpExecConfig.keys
