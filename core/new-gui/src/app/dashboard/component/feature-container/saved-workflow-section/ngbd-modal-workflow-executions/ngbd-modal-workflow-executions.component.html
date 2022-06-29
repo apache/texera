@@ -29,8 +29,9 @@
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>
           <i nz-icon 
-          [nzType]="getExecutionStatus(row.status)" 
-          class="status-icon"></i>
+            [nzType]="getExecutionStatus(row.status)" 
+            class="status-icon"
+          ></i>
         </td>
       </tr>
     </tbody>
