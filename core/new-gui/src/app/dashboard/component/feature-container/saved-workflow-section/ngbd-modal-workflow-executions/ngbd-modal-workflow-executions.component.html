@@ -27,7 +27,11 @@
         <td nzEllipsis>{{(i + 1)}}</td>
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-        <td nzEllipsis>{{getExecutionStatus(row.status)}}</td>
+        <td nzEllipsis>
+          <i nz-icon 
+          [nzType]="getExecutionStatus(row.status)" 
+          class="status-icon"></i>
+        </td>
       </tr>
     </tbody>
   </nz-table>

@@ -42,18 +42,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  getExecutionStatus(statusCode: number): String {
+  getExecutionStatus(statusCode: number): string {
     switch (statusCode) {
       case 0:
-        return ExecutionState.Initializing.toString();
+        return "right-circle";
       case 1:
-        return ExecutionState.Running.toString();
+        return "play-circle";
       case 2:
-        return ExecutionState.Paused.toString();
+        return "pause-circle";
       case 3:
-        return ExecutionState.Completed.toString();
+        return "check-circle";
       case 4:
-        return ExecutionState.Aborted.toString();
+        return "close-circle";
     }
     return "";
   }
