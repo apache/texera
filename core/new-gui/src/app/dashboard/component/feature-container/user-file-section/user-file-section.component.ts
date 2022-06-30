@@ -244,4 +244,35 @@ export class UserFileSectionComponent {
     this.dashboardUserFileEntries = [];
     this.userFileService.updateUserFilesChangedEvent();
   }
+
+  /**
+   * sort the workflow by name in ascending order
+   */
+  public ascSort(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((t1, t2) => t1.file.name.toLowerCase().localeCompare(t2.file.name.toLowerCase()));
+  }
+
+  /**
+   * sort the project by name in descending order
+   */
+  public dscSort(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((t1, t2) => t2.file.name.toLowerCase().localeCompare(t1.file.name.toLowerCase()));
+  }
+
+  /**
+   * sort the project by size in descending order
+   */
+  public sizeSort(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((left, right) =>
+        left.file.size !== undefined && right.file.size !== undefined
+          ? right.file.size - left.file.size
+          : 0
+      );
+  }
 }
