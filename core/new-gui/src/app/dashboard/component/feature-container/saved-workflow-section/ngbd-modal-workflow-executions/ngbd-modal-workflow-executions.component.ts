@@ -45,7 +45,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   getExecutionStatus(statusCode: number): string {
     switch (statusCode) {
       case 0:
-        return "right-circle";
+        return "sync";
       case 1:
         return "play-circle";
       case 2:
@@ -53,7 +53,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       case 3:
         return "check-circle";
       case 4:
-        return "close-circle";
+        return "exclamation-circle";
     }
     return "";
   }
