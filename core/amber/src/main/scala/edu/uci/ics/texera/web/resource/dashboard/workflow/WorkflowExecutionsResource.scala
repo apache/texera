@@ -124,8 +124,8 @@ class WorkflowExecutionsResource {
     /* re-display the workflow execution after deletion */
     val user = sessionUser.getUser
     if (
-        WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
     ) {
       List()
     } else {
