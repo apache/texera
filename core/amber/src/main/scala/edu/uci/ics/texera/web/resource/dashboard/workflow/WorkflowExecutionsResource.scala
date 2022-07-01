@@ -104,4 +104,47 @@ class WorkflowExecutionsResource {
     )
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
   }
+
+  /** Delete a single execution */
+  @GET
+  @Path("/{wid}-{eid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def retrieveExecutionsOfWorkflow(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("eid") eid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): List[WorkflowExecutionEntry] = {
+    /* delete the execution in sql */
+    context
+      .delete(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.WID.eq(wid))
+      .and(WORKFLOW_EXECUTIONS.EID.eq(eid))
+      .execute();
+
+    /* re-display the workflow execution after deletion */
+    val user = sessionUser.getUser
+    if (
+        WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+    ) {
+      List()
+    } else {
+      context
+        .select(
+          WORKFLOW_EXECUTIONS.EID,
+          WORKFLOW_EXECUTIONS.VID,
+          WORKFLOW_EXECUTIONS.STARTING_TIME,
+          WORKFLOW_EXECUTIONS.COMPLETION_TIME,
+          WORKFLOW_EXECUTIONS.STATUS,
+          WORKFLOW_EXECUTIONS.RESULT,
+          WORKFLOW_EXECUTIONS.BOOKMARKED
+        )
+        .from(WORKFLOW_EXECUTIONS)
+        .leftJoin(WORKFLOW)
+        .on(WORKFLOW_EXECUTIONS.WID.eq(WORKFLOW.WID))
+        .where(WORKFLOW_EXECUTIONS.WID.eq(wid))
+        .fetchInto(classOf[WorkflowExecutionEntry])
+        .toList
+    }
+  }
 }

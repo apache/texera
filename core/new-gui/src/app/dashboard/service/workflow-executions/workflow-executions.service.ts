@@ -27,4 +27,8 @@ export class WorkflowExecutionsService {
       isBookmarked,
     });
   }
+
+  deleteWorkflowExecutions(wid: number, eid: number): Observable<WorkflowExecutionsEntry[]> {
+    return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}-${eid}`);
+  }
 }
