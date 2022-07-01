@@ -76,15 +76,15 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   /* delete a single execution and display current workflow execution */
 
-  onDelete(row: WorkflowExecutionsEntry): void {
+  onDelete(row: WorkflowExecutionsEntry) {
     if (this.workflow.wid === undefined) {
       return;
     }
     this.workflowExecutionsService
       .deleteWorkflowExecutions(this.workflow.wid, row.eId)
       .pipe(untilDestroyed(this))
-      .subscribe(workflowExecutions => {
-        this.workflowExecutionsList = workflowExecutions;
+      .subscribe({
+        complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
       });
   }
 }
