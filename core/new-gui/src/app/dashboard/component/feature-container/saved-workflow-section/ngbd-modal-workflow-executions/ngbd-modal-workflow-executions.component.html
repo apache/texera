@@ -14,6 +14,9 @@
     <tbody>
       <tr *ngFor="let row of workflowExecutionsList; let i=index;">
         <td nzEllipsis>
+          <input type="checkbox" />
+        </td>
+        <td nzEllipsis>
           <i
             nz-icon
             nzType="star"
@@ -28,6 +31,9 @@
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{getExecutionStatus(row.status)}}</td>
+        <td nzEllipsis>
+          <i nz-icon nzType="delete" class="trash-icon" (click)="onDelete(row)"></i>
+        </td>
       </tr>
     </tbody>
   </nz-table>
