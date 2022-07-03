@@ -18,3 +18,9 @@ case class WorkflowDataMessage(
     sequenceNumber: Long,
     payload: DataPayload
 ) extends WorkflowMessage
+
+// sent from network communicator to next worker to poll for credit information
+case class CreditRequest(
+    from: ActorVirtualIdentity,
+    sequenceNumber: Long = -1
+) extends WorkflowMessage
