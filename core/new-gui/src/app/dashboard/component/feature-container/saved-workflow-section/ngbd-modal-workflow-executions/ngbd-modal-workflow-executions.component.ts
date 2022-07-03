@@ -21,7 +21,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
-
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
@@ -42,20 +41,20 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  getExecutionStatus(statusCode: number): string {
+  getExecutionStatus(statusCode: number): string[] {
     switch (statusCode) {
       case 0:
-        return "sync";
+        return [ExecutionState.Initializing.toString(), "sync", "#a6bd37"];
       case 1:
-        return "play-circle";
+        return [ExecutionState.Running.toString(), "play-circle", "orange"];
       case 2:
-        return "pause-circle";
+        return [ExecutionState.Paused.toString(), "pause-circle", "magenta"];
       case 3:
-        return "check-circle";
+        return [ExecutionState.Completed.toString(), "check-circle", "green"];
       case 4:
-        return "exclamation-circle";
+        return [ExecutionState.Aborted.toString(), "exclamation-circle", "gray"];
     }
-    return "";
+    return [];
   }
 
   onBookmarkToggle(row: WorkflowExecutionsEntry) {

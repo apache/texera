@@ -27,8 +27,14 @@
         <td nzEllipsis>{{(i + 1)}}</td>
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-        <td nzEllipsis>
-          <i nz-icon [nzType]="getExecutionStatus(row.status)" class="status-icon"></i>
+        <td nzEllipsis [ngbTooltip]="getExecutionStatus(row.status)[0]" placement="top">
+          <i
+            nz-icon
+            nzTheme="outline"
+            [nzType]="getExecutionStatus(row.status)[1]"
+            [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
+            class="status-icon"
+          ></i>
         </td>
       </tr>
     </tbody>
