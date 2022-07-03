@@ -246,21 +246,25 @@ export class UserFileSectionComponent {
   }
 
   /**
-   * sort the workflow by name in ascending order
+   * sort the workflow by owner name + file name in ascending order
    */
   public ascSort(): void {
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
-      .sort((t1, t2) => t1.file.name.toLowerCase().localeCompare(t2.file.name.toLowerCase()));
+      .sort((t1, t2) => (t1.ownerName + t1.file.name).toLowerCase().localeCompare(
+        (t2.ownerName + t2.file.name).toLowerCase()
+        ));
   }
 
   /**
-   * sort the project by name in descending order
+   * sort the project by owner name + file name in descending order
    */
   public dscSort(): void {
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
-      .sort((t1, t2) => t2.file.name.toLowerCase().localeCompare(t1.file.name.toLowerCase()));
+      .sort((t1, t2) => (t2.ownerName + t2.file.name).toLowerCase().localeCompare(
+        (t1.ownerName + t1.file.name).toLowerCase()
+        ));
   }
 
   /**
