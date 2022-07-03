@@ -251,9 +251,9 @@ export class UserFileSectionComponent {
   public ascSort(): void {
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
-      .sort((t1, t2) => (t1.ownerName + t1.file.name).toLowerCase().localeCompare(
-        (t2.ownerName + t2.file.name).toLowerCase()
-        ));
+      .sort((t1, t2) =>
+        (t1.ownerName + t1.file.name).toLowerCase().localeCompare((t2.ownerName + t2.file.name).toLowerCase())
+      );
   }
 
   /**
@@ -262,9 +262,9 @@ export class UserFileSectionComponent {
   public dscSort(): void {
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
-      .sort((t1, t2) => (t2.ownerName + t2.file.name).toLowerCase().localeCompare(
-        (t1.ownerName + t1.file.name).toLowerCase()
-        ));
+      .sort((t1, t2) =>
+        (t2.ownerName + t2.file.name).toLowerCase().localeCompare((t1.ownerName + t1.file.name).toLowerCase())
+      );
   }
 
   /**
@@ -274,9 +274,7 @@ export class UserFileSectionComponent {
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((left, right) =>
-        left.file.size !== undefined && right.file.size !== undefined
-          ? right.file.size - left.file.size
-          : 0
+        left.file.size !== undefined && right.file.size !== undefined ? right.file.size - left.file.size : 0
       );
   }
 }

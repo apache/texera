@@ -48,7 +48,7 @@ describe("UserFileSectionComponent", () => {
       name: "File 1",
       path: "test/path",
       description: "This is the test file 1",
-      size: 128
+      size: 128,
     },
     accessLevel: "Write",
     isOwner: true,
@@ -62,7 +62,7 @@ describe("UserFileSectionComponent", () => {
       name: "File 2",
       path: "test/path",
       description: "This is the test file 2",
-      size: 0
+      size: 0,
     },
     accessLevel: "Write",
     isOwner: true,
@@ -76,7 +76,7 @@ describe("UserFileSectionComponent", () => {
       name: "A File 3",
       path: "test/path",
       description: "This is the test file 3",
-      size: 64
+      size: 64,
     },
     accessLevel: "Write",
     isOwner: true,
@@ -90,7 +90,7 @@ describe("UserFileSectionComponent", () => {
       name: "File 2",
       path: "test/path",
       description: "Alice's file 2",
-      size: 512
+      size: 512,
     },
     accessLevel: "Write",
     isOwner: true,
@@ -104,21 +104,14 @@ describe("UserFileSectionComponent", () => {
       name: "File 3",
       path: "test/path",
       description: "Alex's file 3",
-      size: 8
+      size: 8,
     },
     accessLevel: "Write",
     isOwner: true,
     projectIDs: [],
   };
 
-  const testFileEntries: DashboardUserFileEntry[] = [
-    testFile,
-    testFile1,
-    testFile2,
-    testFile3,
-    testFile4,
-    testFile5,
-  ];
+  const testFileEntries: DashboardUserFileEntry[] = [testFile, testFile1, testFile2, testFile3, testFile4, testFile5];
 
   beforeEach(
     waitForAsync(() => {
@@ -184,5 +177,4 @@ describe("UserFileSectionComponent", () => {
     // Order: Texera/testFile, Alice/File 2, Texera/File 1, Texera/A File 3,  Alex/File 3, Texera/File 2
     expect(SortedCase).toEqual([1, 5, 2, 4, 6, 3]);
   });
-
 });
