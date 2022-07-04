@@ -1,4 +1,8 @@
+
 <div [hidden]="!currentColumns" class="result-table">
+
+
+  <div ngClass="scroll">
   <nz-table
     #basicTable
     (nzQueryParams)="onTableQueryParamsChange($event)"
@@ -27,4 +31,5 @@
       </tr>
     </tbody>
   </nz-table>
+  </div>
 </div>
