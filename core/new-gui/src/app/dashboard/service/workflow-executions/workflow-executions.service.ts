@@ -1,5 +1,6 @@
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { Observable, throwError } from "rxjs";
+import { catchError } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
@@ -33,5 +34,17 @@ export class WorkflowExecutionsService {
       wid,
       eId,
     });
+  }
+
+  updateWorkflowExecutionsName(wid: number | undefined, eid: number, executionName: string): Observable<Response> {
+    return this.http
+      .post<Response>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/update_name_${wid}_${eid}_${executionName}`, null)
+      .pipe(
+        catchError((error: unknown) => {
+          // @ts-ignore // TODO: fix this with notification component
+          this.notificationService.error(error.error.message);
+          return throwError(error);
+        })
+      );
   }
 }

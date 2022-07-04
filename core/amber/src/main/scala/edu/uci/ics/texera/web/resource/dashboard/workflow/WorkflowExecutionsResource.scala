@@ -32,7 +32,8 @@ object WorkflowExecutionsResource {
       completionTime: Timestamp,
       status: Byte,
       result: String,
-      bookmarked: Boolean
+      bookmarked: Boolean,
+      name: String
   )
 
 }
@@ -72,7 +73,8 @@ class WorkflowExecutionsResource {
           WORKFLOW_EXECUTIONS.COMPLETION_TIME,
           WORKFLOW_EXECUTIONS.STATUS,
           WORKFLOW_EXECUTIONS.RESULT,
-          WORKFLOW_EXECUTIONS.BOOKMARKED
+          WORKFLOW_EXECUTIONS.BOOKMARKED,
+          WORKFLOW_EXECUTIONS.NAME
         )
         .from(WORKFLOW_EXECUTIONS)
         .leftJoin(WORKFLOW)
@@ -123,4 +125,20 @@ class WorkflowExecutionsResource {
       .execute();
   }
 
+  /** Name a single execution * */
+  @POST
+  @Path("/update_name_{wid}_{eid}_{executionName}")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def updateWorkflowExecutionsName(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("eid") eid: UInteger,
+      @PathParam("executionName") executionName: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+    val execution = getExecutionById(eid)
+    execution.setName(executionName)
+    executionsDao.update(execution)
+  }
 }

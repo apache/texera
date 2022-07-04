@@ -16,8 +16,19 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
+  public workflowExecutionsIsEditingName: number[] = [];
+  private defaultWorkflowExecutionsName: string = "Untitled Execution";
 
-  public executionsTableHeaders: string[] = ["", "", "Execution#", "Starting Time", "Updated Time", "Status", ""];
+  public executionsTableHeaders: string[] = [
+    "",
+    "",
+    "Execution#",
+    "Name",
+    "Starting Time",
+    "Updated Time",
+    "Status",
+    "",
+  ];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
@@ -85,6 +96,26 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+      });
+  }
+
+  confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+    this.workflowExecutionsService
+      .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name || this.defaultWorkflowExecutionsName)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.workflowExecutionsList === undefined) {
+          return;
+        }
+        this.workflowExecutionsList[index].name = name;
+      })
+      .add(() => {
+        this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
       });
   }
 }
