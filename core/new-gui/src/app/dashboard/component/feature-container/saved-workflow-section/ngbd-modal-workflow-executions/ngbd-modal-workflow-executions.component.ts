@@ -42,7 +42,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   /**
-   * Notes: Status colors match with @file new-gui/src/app/workspace/service/joint-ui/joint-ui.service.ts
+   * display icons corresponding to workflow execution status
+   *
+   * NOTES: Colors match with @file new-gui/src/app/workspace/service/joint-ui/joint-ui.service.ts
    * TODO: Move colors to a config file for changing them once for many files
    */
   getExecutionStatus(statusCode: number): string[] {
@@ -55,9 +57,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         return [ExecutionState.Paused.toString(), "pause-circle", "magenta"];
       case 3:
         return [ExecutionState.Completed.toString(), "check-circle", "green"];
-      default:
-        return [ExecutionState.Aborted.toString(), "question-circle", "gray"];
+      case 4:
+        return [ExecutionState.Aborted.toString(), "exclamation-circle", "gray"];
     }
+    return ["", "question-circle", "gray"];
   }
 
   onBookmarkToggle(row: WorkflowExecutionsEntry) {
