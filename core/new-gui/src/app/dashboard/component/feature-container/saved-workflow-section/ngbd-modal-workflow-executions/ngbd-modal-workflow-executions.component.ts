@@ -44,7 +44,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   /**
    * display icons corresponding to workflow execution status
    *
-   * NOTES: Colors match with @file new-gui/src/app/workspace/service/joint-ui/joint-ui.service.ts
+   * NOTES: Colors match with new-gui/src/app/workspace/service/joint-ui/joint-ui.service.ts line 347
    * TODO: Move colors to a config file for changing them once for many files
    */
   getExecutionStatus(statusCode: number): string[] {
