@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
 
 import java.io.InputStream
 
-object DeterminantLogStorage{
+object DeterminantLogStorage {
   abstract class DeterminantLogWriter {
     def writeLogRecord(payload: Array[Byte]): Unit
     def flush(): Unit

@@ -14,7 +14,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 sealed trait InMemDeterminant
 case class SenderChangeTo(actorVirtualIdentity: ActorVirtualIdentity) extends InMemDeterminant
 case object ProcessDataTuple extends InMemDeterminant
-case class ProcessControlMessage(controlPayload:ControlPayload, from:ActorVirtualIdentity) extends InMemDeterminant
+case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirtualIdentity)
+    extends InMemDeterminant
 
 class LogManager(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,

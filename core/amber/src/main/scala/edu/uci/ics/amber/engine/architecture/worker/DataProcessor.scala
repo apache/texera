@@ -4,7 +4,12 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.logging.{LogManager, ProcessDataTuple, SenderChangeTo}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  LogManager,
+  ProcessControlMessage,
+  ProcessDataTuple,
+  SenderChangeTo
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -160,7 +165,7 @@ class DataProcessor( // dependencies:
       // take the next data element from internal queue, blocks if not available.
       getElement match {
         case InputTuple(from, tuple) =>
-          if(currentInputActor != from){
+          if (currentInputActor != from) {
             logManager.logInMemDeterminant(SenderChangeTo(from))
             currentInputActor = from
           }
@@ -273,7 +278,7 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
-    logManager.logControlInput(payload, from)
+    logManager.logInMemDeterminant(ProcessControlMessage(payload, from))
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)

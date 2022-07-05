@@ -1,16 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.logging
 
-import edu.uci.ics.amber.engine.architecture.logging.determinants.{ControlDeterminant, DataOrderDeterminant, Determinant}
+import edu.uci.ics.amber.engine.architecture.logging.determinants.{
+  ControlDeterminant,
+  DataOrderDeterminant,
+  Determinant
+}
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandConvertUtils
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlInvocationV2, ControlPayload, ReturnInvocationV2}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlInvocationV2,
+  ControlPayload,
+  ReturnInvocationV2
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class SerializationManager(determinantLogWriter: DeterminantLogWriter) {
 
-  def compressedWrite(allDeterminants:Iterable[InMemDeterminant]):Unit= {
-    var sender:ActorVirtualIdentity = null
+  def compressedWrite(allDeterminants: Iterable[InMemDeterminant]): Unit = {
+    var sender: ActorVirtualIdentity = null
     var count = 0
     allDeterminants.foreach {
       case pcm: ProcessControlMessage =>
@@ -26,7 +34,7 @@ class SerializationManager(determinantLogWriter: DeterminantLogWriter) {
     }
   }
 
-  def serializeControl(control: ProcessControlMessage):Array[Byte] = {
+  private def serializeControl(control: ProcessControlMessage): Array[Byte] = {
     try {
       val payloadV2 = control.controlPayload match {
         case invocation: AsyncRPCClient.ControlInvocation =>
