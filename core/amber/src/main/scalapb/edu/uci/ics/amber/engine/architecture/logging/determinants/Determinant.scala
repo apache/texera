@@ -21,15 +21,13 @@ object Determinant {
   
   implicit val DeterminantTypeMapper: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage, edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant] = new _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage, edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant] {
     override def toCustom(__base: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage): edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant = __base.sealedValue match {
-      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataInputOrder => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.ControlInput => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.CursorUpdate => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataOrder => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Control => __v.value
       case edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Empty => Empty
     }
     override def toBase(__custom: edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant): edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage(__custom match {
-      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder => edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataInputOrder(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput => edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.ControlInput(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate => edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.CursorUpdate(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant => edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataOrder(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant => edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Control(__v)
       case Empty => edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Empty
     })
   }
@@ -42,16 +40,12 @@ final case class DeterminantMessage(
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      if (sealedValue.dataInputOrder.isDefined) {
-        val __value = sealedValue.dataInputOrder.get
+      if (sealedValue.dataOrder.isDefined) {
+        val __value = sealedValue.dataOrder.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.controlInput.isDefined) {
-        val __value = sealedValue.controlInput.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      if (sealedValue.cursorUpdate.isDefined) {
-        val __value = sealedValue.cursorUpdate.get
+      if (sealedValue.control.isDefined) {
+        val __value = sealedValue.control.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       __size
@@ -65,46 +59,36 @@ final case class DeterminantMessage(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      sealedValue.dataInputOrder.foreach { __v =>
+      sealedValue.dataOrder.foreach { __v =>
         val __m = __v
         _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.controlInput.foreach { __v =>
+      sealedValue.control.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.cursorUpdate.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(3, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
     }
-    def getDataInputOrder: edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder = sealedValue.dataInputOrder.getOrElse(edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder.defaultInstance)
-    def withDataInputOrder(__v: edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder): DeterminantMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataInputOrder(__v))
-    def getControlInput: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput = sealedValue.controlInput.getOrElse(edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput.defaultInstance)
-    def withControlInput(__v: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput): DeterminantMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.ControlInput(__v))
-    def getCursorUpdate: edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate = sealedValue.cursorUpdate.getOrElse(edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate.defaultInstance)
-    def withCursorUpdate(__v: edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate): DeterminantMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.CursorUpdate(__v))
+    def getDataOrder: edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant = sealedValue.dataOrder.getOrElse(edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant.defaultInstance)
+    def withDataOrder(__v: edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant): DeterminantMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataOrder(__v))
+    def getControl: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant = sealedValue.control.getOrElse(edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant.defaultInstance)
+    def withControl(__v: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant): DeterminantMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Control(__v))
     def clearSealedValue: DeterminantMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Empty)
     def withSealedValue(__v: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue): DeterminantMessage = copy(sealedValue = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => sealedValue.dataInputOrder.orNull
-        case 2 => sealedValue.controlInput.orNull
-        case 3 => sealedValue.cursorUpdate.orNull
+        case 1 => sealedValue.dataOrder.orNull
+        case 2 => sealedValue.control.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => sealedValue.dataInputOrder.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 2 => sealedValue.controlInput.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 3 => sealedValue.cursorUpdate.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => sealedValue.dataOrder.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 2 => sealedValue.control.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -123,11 +107,9 @@ object DeterminantMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataInputOrder(__sealedValue.dataInputOrder.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataOrder(__sealedValue.dataOrder.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.ControlInput(__sealedValue.controlInput.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 26 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.CursorUpdate(__sealedValue.cursorUpdate.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Control(__sealedValue.control.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -139,9 +121,8 @@ object DeterminantMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage(
-        sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder]]).map(edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataInputOrder(_))
-            .orElse[edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput]]).map(edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.ControlInput(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate]]).map(edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.CursorUpdate(_)))
+        sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant]]).map(edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataOrder(_))
+            .orElse[edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant]]).map(edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Control(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -151,9 +132,8 @@ object DeterminantMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder
-      case 2 => __out = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput
-      case 3 => __out = edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant
+      case 2 => __out = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant
     }
     __out
   }
@@ -165,12 +145,10 @@ object DeterminantMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   sealed trait SealedValue extends _root_.scalapb.GeneratedOneof {
     def isEmpty: _root_.scala.Boolean = false
     def isDefined: _root_.scala.Boolean = true
-    def isDataInputOrder: _root_.scala.Boolean = false
-    def isControlInput: _root_.scala.Boolean = false
-    def isCursorUpdate: _root_.scala.Boolean = false
-    def dataInputOrder: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder] = _root_.scala.None
-    def controlInput: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput] = _root_.scala.None
-    def cursorUpdate: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate] = _root_.scala.None
+    def isDataOrder: _root_.scala.Boolean = false
+    def isControl: _root_.scala.Boolean = false
+    def dataOrder: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant] = _root_.scala.None
+    def control: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant] = _root_.scala.None
   }
   object SealedValue {
     @SerialVersionUID(0L)
@@ -183,36 +161,27 @@ object DeterminantMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     }
   
     @SerialVersionUID(0L)
-    final case class DataInputOrder(value: edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder) extends edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder
-      override def isDataInputOrder: _root_.scala.Boolean = true
-      override def dataInputOrder: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder] = Some(value)
+    final case class DataOrder(value: edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant) extends edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant
+      override def isDataOrder: _root_.scala.Boolean = true
+      override def dataOrder: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant] = Some(value)
       override def number: _root_.scala.Int = 1
     }
     @SerialVersionUID(0L)
-    final case class ControlInput(value: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput) extends edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput
-      override def isControlInput: _root_.scala.Boolean = true
-      override def controlInput: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput] = Some(value)
+    final case class Control(value: edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant) extends edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant
+      override def isControl: _root_.scala.Boolean = true
+      override def control: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant] = Some(value)
       override def number: _root_.scala.Int = 2
-    }
-    @SerialVersionUID(0L)
-    final case class CursorUpdate(value: edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate) extends edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate
-      override def isCursorUpdate: _root_.scala.Boolean = true
-      override def cursorUpdate: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate] = Some(value)
-      override def number: _root_.scala.Int = 3
     }
   }
   implicit class DeterminantMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage](_l) {
-    def dataInputOrder: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder] = field(_.getDataInputOrder)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataInputOrder(f_)))
-    def controlInput: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput] = field(_.getControlInput)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.ControlInput(f_)))
-    def cursorUpdate: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate] = field(_.getCursorUpdate)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.CursorUpdate(f_)))
+    def dataOrder: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant] = field(_.getDataOrder)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.DataOrder(f_)))
+    def control: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant] = field(_.getControl)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue.Control(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
-  final val DATAINPUTORDER_FIELD_NUMBER = 1
-  final val CONTROLINPUT_FIELD_NUMBER = 2
-  final val CURSORUPDATE_FIELD_NUMBER = 3
+  final val DATAORDER_FIELD_NUMBER = 1
+  final val CONTROL_FIELD_NUMBER = 2
   def of(
     sealedValue: edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage.SealedValue
   ): _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage = _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage(
@@ -222,26 +191,26 @@ object DeterminantMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
 }
 
 @SerialVersionUID(0L)
-final case class DataInputOrder(
-    prevCount: _root_.scala.Long,
-    newSender: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant.NonEmpty with scalapb.lenses.Updatable[DataInputOrder] {
+final case class DataOrderDeterminant(
+    sender: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
+    count: _root_.scala.Long
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant.NonEmpty with scalapb.lenses.Updatable[DataOrderDeterminant] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
-        val __value = prevCount
-        if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(1, __value)
+        val __value = sender
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
-        val __value = newSender
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) {
-          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        val __value = count
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(2, __value)
         }
       };
       __size
@@ -256,74 +225,74 @@ final case class DataInputOrder(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = prevCount
-        if (__v != 0L) {
-          _output__.writeInt64(1, __v)
-        }
-      };
-      {
-        val __v = newSender
+        val __v = sender
         if (__v != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) {
-          _output__.writeTag(2, 2)
+          _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
         }
       };
+      {
+        val __v = count
+        if (__v != 0L) {
+          _output__.writeInt64(2, __v)
+        }
+      };
     }
-    def withPrevCount(__v: _root_.scala.Long): DataInputOrder = copy(prevCount = __v)
-    def withNewSender(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): DataInputOrder = copy(newSender = __v)
+    def withSender(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): DataOrderDeterminant = copy(sender = __v)
+    def withCount(__v: _root_.scala.Long): DataOrderDeterminant = copy(count = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = prevCount
-          if (__t != 0L) __t else null
+          val __t = sender
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) __t else null
         }
         case 2 => {
-          val __t = newSender
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) __t else null
+          val __t = count
+          if (__t != 0L) __t else null
         }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PLong(prevCount)
-        case 2 => newSender.toPMessage
+        case 1 => sender.toPMessage
+        case 2 => _root_.scalapb.descriptors.PLong(count)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.logging.DataInputOrder])
+    def companion = edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.logging.DataOrderDeterminant])
 }
 
-object DataInputOrder extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder = {
-    var __prevCount: _root_.scala.Long = 0L
-    var __newSender: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
+object DataOrderDeterminant extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant = {
+    var __sender: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
+    var __count: _root_.scala.Long = 0L
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
-        case 8 =>
-          __prevCount = _input__.readInt64()
-        case 18 =>
-          __newSender = _root_.scala.Some(__newSender.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 10 =>
+          __sender = _root_.scala.Some(__sender.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 16 =>
+          __count = _input__.readInt64()
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder(
-        prevCount = __prevCount,
-        newSender = __newSender.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
+    edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant(
+        sender = __sender.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
+        count = __count
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder(
-        prevCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        newSender = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
+      edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant(
+        sender = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
+        count = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -332,52 +301,44 @@ object DataInputOrder extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder(
-    prevCount = 0L,
-    newSender = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant(
+    sender = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance,
+    count = 0L
   )
-  implicit class DataInputOrderLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder](_l) {
-    def prevCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.prevCount)((c_, f_) => c_.copy(prevCount = f_))
-    def newSender: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.newSender)((c_, f_) => c_.copy(newSender = f_))
+  implicit class DataOrderDeterminantLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant](_l) {
+    def sender: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.sender)((c_, f_) => c_.copy(sender = f_))
+    def count: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.count)((c_, f_) => c_.copy(count = f_))
   }
-  final val PREVCOUNT_FIELD_NUMBER = 1
-  final val NEWSENDER_FIELD_NUMBER = 2
+  final val SENDER_FIELD_NUMBER = 1
+  final val COUNT_FIELD_NUMBER = 2
   def of(
-    prevCount: _root_.scala.Long,
-    newSender: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-  ): _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder = _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.DataInputOrder(
-    prevCount,
-    newSender
+    sender: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
+    count: _root_.scala.Long
+  ): _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant = _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant(
+    sender,
+    count
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.DataInputOrder])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.DataOrderDeterminant])
 }
 
 @SerialVersionUID(0L)
-final case class ControlInput(
-    cursor: _root_.scala.Long,
+final case class ControlDeterminant(
     payload: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2,
     from: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant.NonEmpty with scalapb.lenses.Updatable[ControlInput] {
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant.NonEmpty with scalapb.lenses.Updatable[ControlDeterminant] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
-        val __value = cursor
-        if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(1, __value)
-        }
-      };
-      
-      {
-        val __value = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput._typemapper_payload.toBase(payload)
+        val __value = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant._typemapper_payload.toBase(payload)
         if (__value != edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
@@ -401,15 +362,9 @@ final case class ControlInput(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = cursor
-        if (__v != 0L) {
-          _output__.writeInt64(1, __v)
-        }
-      };
-      {
-        val __v = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput._typemapper_payload.toBase(payload)
+        val __v = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant._typemapper_payload.toBase(payload)
         if (__v != edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance) {
-          _output__.writeTag(2, 2)
+          _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
         }
@@ -417,26 +372,21 @@ final case class ControlInput(
       {
         val __v = from
         if (__v != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) {
-          _output__.writeTag(3, 2)
+          _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
         }
       };
     }
-    def withCursor(__v: _root_.scala.Long): ControlInput = copy(cursor = __v)
-    def withPayload(__v: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2): ControlInput = copy(payload = __v)
-    def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): ControlInput = copy(from = __v)
+    def withPayload(__v: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2): ControlDeterminant = copy(payload = __v)
+    def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): ControlDeterminant = copy(from = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = cursor
-          if (__t != 0L) __t else null
-        }
-        case 2 => {
-          val __t = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput._typemapper_payload.toBase(payload)
+          val __t = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant._typemapper_payload.toBase(payload)
           if (__t != edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance) __t else null
         }
-        case 3 => {
+        case 2 => {
           val __t = from
           if (__t != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) __t else null
         }
@@ -445,20 +395,18 @@ final case class ControlInput(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PLong(cursor)
-        case 2 => edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput._typemapper_payload.toBase(payload).toPMessage
-        case 3 => from.toPMessage
+        case 1 => edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant._typemapper_payload.toBase(payload).toPMessage
+        case 2 => from.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.logging.ControlInput])
+    def companion = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.logging.ControlDeterminant])
 }
 
-object ControlInput extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput = {
-    var __cursor: _root_.scala.Long = 0L
+object ControlDeterminant extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant = {
     var __payload: _root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message] = _root_.scala.None
     var __from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
     var _done__ = false
@@ -466,28 +414,24 @@ object ControlInput extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
-        case 8 =>
-          __cursor = _input__.readInt64()
-        case 18 =>
+        case 10 =>
           __payload = _root_.scala.Some(__payload.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 26 =>
+        case 18 =>
           __from = _root_.scala.Some(__from.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput(
-        cursor = __cursor,
-        payload = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput._typemapper_payload.toCustom(__payload.getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance)),
+    edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant(
+        payload = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant._typemapper_payload.toCustom(__payload.getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance)),
         from = __from.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput(
-        cursor = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        payload = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput._typemapper_payload.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message]).getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance)),
-        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
+      edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant(
+        payload = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant._typemapper_payload.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message]).getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance)),
+        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -496,135 +440,31 @@ object ControlInput extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message
-      case 3 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput(
-    cursor = 0L,
-    payload = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput._typemapper_payload.toCustom(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance),
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant(
+    payload = edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant._typemapper_payload.toCustom(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance),
     from = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance
   )
-  implicit class ControlInputLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput](_l) {
-    def cursor: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.cursor)((c_, f_) => c_.copy(cursor = f_))
+  implicit class ControlDeterminantLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant](_l) {
     def payload: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] = field(_.payload)((c_, f_) => c_.copy(payload = f_))
     def from: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.from)((c_, f_) => c_.copy(from = f_))
   }
-  final val CURSOR_FIELD_NUMBER = 1
-  final val PAYLOAD_FIELD_NUMBER = 2
-  final val FROM_FIELD_NUMBER = 3
+  final val PAYLOAD_FIELD_NUMBER = 1
+  final val FROM_FIELD_NUMBER = 2
   @transient
   private[determinants] val _typemapper_payload: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2]]
   def of(
-    cursor: _root_.scala.Long,
     payload: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2,
     from: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-  ): _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput = _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.ControlInput(
-    cursor,
+  ): _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant = _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant(
     payload,
     from
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.ControlInput])
-}
-
-@SerialVersionUID(0L)
-final case class CursorUpdate(
-    cursor: _root_.scala.Long
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.logging.determinants.Determinant.NonEmpty with scalapb.lenses.Updatable[CursorUpdate] {
-    @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = cursor
-        if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(1, __value)
-        }
-      };
-      __size
-    }
-    override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
-      }
-      read
-    }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = cursor
-        if (__v != 0L) {
-          _output__.writeInt64(1, __v)
-        }
-      };
-    }
-    def withCursor(__v: _root_.scala.Long): CursorUpdate = copy(cursor = __v)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = cursor
-          if (__t != 0L) __t else null
-        }
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PLong(cursor)
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.logging.CursorUpdate])
-}
-
-object CursorUpdate extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate = {
-    var __cursor: _root_.scala.Long = 0L
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case 8 =>
-          __cursor = _input__.readInt64()
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate(
-        cursor = __cursor
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate(
-        cursor = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = DeterminantsProto.javaDescriptor.getMessageTypes().get(3)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = DeterminantsProto.scalaDescriptor.messages(3)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate(
-    cursor = 0L
-  )
-  implicit class CursorUpdateLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate](_l) {
-    def cursor: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.cursor)((c_, f_) => c_.copy(cursor = f_))
-  }
-  final val CURSOR_FIELD_NUMBER = 1
-  def of(
-    cursor: _root_.scala.Long
-  ): _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate = _root_.edu.uci.ics.amber.engine.architecture.logging.determinants.CursorUpdate(
-    cursor
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.CursorUpdate])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.logging.ControlDeterminant])
 }

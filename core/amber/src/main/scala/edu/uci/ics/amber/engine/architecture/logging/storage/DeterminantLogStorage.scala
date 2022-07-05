@@ -1,14 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
+
 import java.io.InputStream
 
-abstract class DeterminantLogStorage {
-
+object DeterminantLogStorage{
   abstract class DeterminantLogWriter {
     def writeLogRecord(payload: Array[Byte]): Unit
     def flush(): Unit
     def close(): Unit
   }
+}
+
+abstract class DeterminantLogStorage {
 
   def getWriter: DeterminantLogWriter
 

@@ -1,5 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
+
 import java.io.InputStream
 import java.nio.file.{Files, Path, Paths}
 

@@ -1,34 +1,32 @@
 package edu.uci.ics.amber.engine.architecture.logging
 
 import com.google.common.collect.Queues
-import edu.uci.ics.amber.engine.architecture.logging.determinants.{CursorUpdate, Determinant}
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
 
 import java.util
+import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 class AsyncLogWriter(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
     logStorage: DeterminantLogStorage
 ) extends Thread {
-
-  case class SendRequestWithCursor(request: SendRequest, cursor: Long)
-
-  private val drained = new util.ArrayList[Either[Determinant, SendRequestWithCursor]]()
+  private val drained = new util.ArrayList[Either[InMemDeterminant, SendRequest]]()
   private val writerQueue =
-    Queues.newLinkedBlockingQueue[Either[Determinant, SendRequestWithCursor]]()
+    Queues.newLinkedBlockingQueue[Either[InMemDeterminant, SendRequest]]()
   @volatile private var stopped = false
   private val logInterval = 500
   private val logWriter = logStorage.getWriter
+  private val serializationManager = new SerializationManager(logWriter)
 
-  def putDeterminant(determinant: Determinant): Unit = {
+  def putDeterminant(determinant: InMemDeterminant): Unit = {
     writerQueue.put(Left(determinant))
   }
 
-  def putOutput(output: SendRequest, cursor: Long): Unit = {
-    writerQueue.put(Right(SendRequestWithCursor(output, cursor)))
+  def putOutput(output: SendRequest): Unit = {
+    writerQueue.put(Right(output))
   }
 
   def terminate(): Unit = {
@@ -50,17 +48,10 @@ class AsyncLogWriter(
           case t: InterruptedException =>
             break
         }
-        var cursor = 0L
-        drained.forEach {
-          case Left(value)  => logWriter.writeLogRecord(value.asMessage.toByteArray)
-          case Right(value) => cursor = value.cursor
-        }
-        logWriter.writeLogRecord(CursorUpdate(cursor).toByteArray)
+        val drainedScala = drained.asScala
+        serializationManager.compressedWrite(drainedScala.filter(_.isLeft).map(_.left.get))
         logWriter.flush()
-        drained.forEach {
-          case Left(value)  => // skip
-          case Right(value) => networkCommunicationActor ! value.request
-        }
+        drainedScala.filter(_.isRight).foreach(x => networkCommunicationActor ! x.right.get)
         drained.clear()
       }
     }

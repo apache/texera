@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.logging.LogManager
+import edu.uci.ics.amber.engine.architecture.logging.{LogManager, ProcessDataTuple, SenderChangeTo}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -61,6 +61,7 @@ class DataProcessor( // dependencies:
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
   private var currentInputLink: LinkIdentity = _
+  private var currentInputActor: ActorVirtualIdentity = _
   private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
   private var isCompleted = false
 
@@ -158,7 +159,11 @@ class DataProcessor( // dependencies:
       // take the next data element from internal queue, blocks if not available.
       getElement match {
         case InputTuple(from, tuple) =>
-          logManager.logDataInputOrder(from)
+          if(currentInputActor != from){
+            logManager.logInMemDeterminant(SenderChangeTo(from))
+            currentInputActor = from
+          }
+          logManager.logInMemDeterminant(ProcessDataTuple)
           currentInputTuple = Left(tuple)
           handleInputTuple()
         case SenderChangeMarker(link) =>
