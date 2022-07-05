@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
+import edu.uci.ics.amber.engine.architecture.logging.ProcessControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
   RegisterActorRef
@@ -170,7 +171,7 @@ class Controller(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
-    logManager.logControlInput(controlPayload, from)
+    logManager.logInMemDeterminant(ProcessControlMessage(controlPayload, from))
     try {
       controlPayload match {
         // use control input port to pass control messages
