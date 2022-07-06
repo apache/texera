@@ -88,7 +88,7 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
   private def orderRegions(): Unit = {
     val regionDependence =
       new mutable.HashMap[PipelinedRegion, ArrayBuffer[PipelinedRegionIdentity]]()
-    val regionTerminalOperator =
+    val regionTerminalOperatorInOtherRegions =
       new mutable.HashMap[PipelinedRegion, ArrayBuffer[OperatorIdentity]]()
     val allOperatorIds = workflow.getAllOperatorIds
     allOperatorIds.foreach(opId => {
@@ -108,17 +108,12 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
               nextInOrder
             ) || !regionDependence(nextInOrder).contains(prevInOrder.getId()))
           ) {
-            //            if (
-            //              prevInOrder.getId() != nextInOrder.getId() && !nextInOrder.dependsOn
-            //                .contains(prevInOrder.getId())
-            //            )
-            val alreadyThere = regionDependence.getOrElseUpdate(
+            val dependencies = regionDependence.getOrElseUpdate(
               nextInOrder,
               new ArrayBuffer[PipelinedRegionIdentity]()
             )
-            alreadyThere.append(prevInOrder.getId())
-            regionDependence(nextInOrder) = alreadyThere
-            //            nextInOrder.dependsOn.append(prevInOrder.getId())
+            dependencies.append(prevInOrder.getId())
+            regionDependence(nextInOrder) = dependencies
           }
         }
       }
@@ -136,37 +131,43 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
           val nextInOrder = getPipelinedRegionFromOperatorId(opId)
           if (prevInOrder.getId() != nextInOrder.getId()) {
             if (
-              !regionTerminalOperator.contains(
-                prevInOrder
-              ) || !regionTerminalOperator(prevInOrder).contains(opId)
-            ) {
-
-              val alreadyThere = regionTerminalOperator.getOrElseUpdate(
-                prevInOrder,
-                new ArrayBuffer[OperatorIdentity]()
-              )
-              alreadyThere.append(opId)
-              regionTerminalOperator(prevInOrder) = alreadyThere
-            }
-
-            if (
               !regionDependence.contains(
                 nextInOrder
               ) || !regionDependence(nextInOrder).contains(prevInOrder.getId())
             ) {
-
-              val alreadyThere = regionDependence.getOrElseUpdate(
+              val dependencies = regionDependence.getOrElseUpdate(
                 nextInOrder,
                 new ArrayBuffer[PipelinedRegionIdentity]()
               )
-              alreadyThere.append(prevInOrder.getId())
-              regionDependence(nextInOrder) = alreadyThere
+              dependencies.append(prevInOrder.getId())
+              regionDependence(nextInOrder) = dependencies
+            }
+
+            if (
+              !regionTerminalOperatorInOtherRegions.contains(
+                prevInOrder
+              ) || !regionTerminalOperatorInOtherRegions(prevInOrder).contains(opId)
+            ) {
+
+              val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
+                prevInOrder,
+                new ArrayBuffer[OperatorIdentity]()
+              )
+              terminalOps.append(opId)
+              regionTerminalOperatorInOtherRegions(prevInOrder) = terminalOps
             }
 
           }
         }
       })
     })
+
+    for ((region, dependence) <- regionDependence) {
+      region.dependsOn = dependence.toArray
+    }
+    for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
+      region.blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray
+    }
   }
 
   private def createPipelinedRegions(): Unit = {
