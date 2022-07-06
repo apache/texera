@@ -21,13 +21,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   public executionsTableHeaders: string[] = [
     "",
-    "",
     "Execution#",
     "Name",
     "Starting Time",
     "Updated Time",
     "Status",
-    "",
   ];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
@@ -85,24 +83,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  /* delete a single execution and display current workflow execution */
-
-  onDelete(row: WorkflowExecutionsEntry) {
-    if (this.workflow.wid === undefined) {
-      return;
-    }
-    this.workflowExecutionsService
-      .deleteWorkflowExecutions(this.workflow.wid, row.eId)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
-      });
-  }
-
   confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
     if (this.workflow.wid === undefined) {
       return;
     }
+    
     this.workflowExecutionsService
       .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name || this.defaultWorkflowExecutionsName)
       .pipe(untilDestroyed(this))

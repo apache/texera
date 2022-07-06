@@ -14,9 +14,6 @@
     <tbody>
       <tr *ngFor="let row of workflowExecutionsList; let i=index;">
         <td nzEllipsis>
-          <input type="checkbox" />
-        </td>
-        <td nzEllipsis>
           <i
             nz-icon
             nzType="star"
@@ -28,7 +25,7 @@
           ></i>
         </td>
         <td nzEllipsis>{{(i + 1)}}</td>
-        <td nzEllipsis>
+        <td nzEllipsis ngbTooltip="Custom Execution" placement="left">
           <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="workflow-name"
             >{{ row.name }}</label
           >
@@ -54,9 +51,6 @@
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{getExecutionStatus(row.status)}}</td>
-        <td nzEllipsis>
-          <i nz-icon nzType="delete" class="trash-icon" (click)="onDelete(row)"></i>
-        </td>
       </tr>
     </tbody>
   </nz-table>

@@ -10,15 +10,10 @@
   max-width: 90%;
 }
 
-.trash-icon {
-  font-size: 1.3rem;
-}
-
-.trash-icon:hover {
-  cursor: pointer;
-  color: #007bff;
-}
-
 .rename-icon:hover {
   color: #007bff;
+}
+
+.tooltip {
+  align-items: center;
 }

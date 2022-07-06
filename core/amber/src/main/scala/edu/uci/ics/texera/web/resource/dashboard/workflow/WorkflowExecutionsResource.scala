@@ -108,28 +108,10 @@ class WorkflowExecutionsResource {
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
   }
 
-  /** Delete a single execution */
-  @PUT
-  @Path("/delete_execution")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  def deleteExecutionsOfWorkflow(
-      request: ExecutionDeleteRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    /* delete the execution in sql */
-    context
-      .delete(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.WID.eq(request.wid))
-      .and(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
-      .execute();
-  }
-
   /** Name a single execution * */
   @POST
   @Path("/update_name_{wid}_{eid}_{executionName}")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
   def updateWorkflowExecutionsName(
       @PathParam("wid") wid: UInteger,
       @PathParam("eid") eid: UInteger,
