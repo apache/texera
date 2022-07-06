@@ -47,7 +47,8 @@ class DataProcessor( // dependencies:
   private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
-        operator.setContext(new OperatorContext(new TimeService(logManager))) // setup context
+        // TODO: setup context
+        // operator.context = new OperatorContext(new TimeService(logManager))
         runDPThreadMainLogic()
       } catch safely {
         case _: InterruptedException =>

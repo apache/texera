@@ -10,12 +10,6 @@ case class InputExhausted()
 
 trait IOperatorExecutor {
 
-  var context: OperatorContext = _
-
-  def setContext(c: OperatorContext): Unit = {
-    context = c
-  }
-
   def open(): Unit
 
   def close(): Unit
