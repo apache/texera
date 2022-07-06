@@ -28,7 +28,7 @@
           ></i>
         </td>
         <td nzEllipsis>{{(i + 1)}}</td>
-        <td nzEllipsis ngbTooltip="Custom Execution" placement="left">
+        <td nzEllipsis>
           <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="workflow-name"
             >{{ row.name }}</label
           >
