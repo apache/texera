@@ -1,10 +1,13 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
+import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
+import { cloneDeep } from "lodash-es";
+import { from } from "rxjs";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
+import { NgbdModalDeleteWorkflowComponent } from "../ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
 
 @UntilDestroy()
 @Component({
@@ -20,7 +23,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public executionsTableHeaders: string[] = ["", "", "Execution#", "Starting Time", "Updated Time", "Status", ""];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
-  constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
+  constructor(
+    public activeModal: NgbActiveModal,
+    private workflowExecutionsService: WorkflowExecutionsService,
+    private modalService: NgbModal
+  ) {}
 
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
@@ -77,14 +84,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   /* delete a single execution and display current workflow execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
-    if (this.workflow.wid === undefined) {
-      return;
-    }
-    this.workflowExecutionsService
-      .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+    // Confirmation prompt for deletion
+    const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
+    modalRef.componentInstance.workflow = cloneDeep(row);
+
+    from(modalRef.result)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && this.workflow.wid !== undefined) {
+          this.workflowExecutionsService
+            .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+            });
+        }
       });
   }
 }
