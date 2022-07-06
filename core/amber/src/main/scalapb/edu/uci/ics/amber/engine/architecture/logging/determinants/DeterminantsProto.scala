@@ -15,7 +15,8 @@ object DeterminantsProto extends _root_.scalapb.GeneratedFileObject {
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
       edu.uci.ics.amber.engine.architecture.logging.determinants.DeterminantMessage,
       edu.uci.ics.amber.engine.architecture.logging.determinants.DataOrderDeterminant,
-      edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant
+      edu.uci.ics.amber.engine.architecture.logging.determinants.ControlDeterminant,
+      edu.uci.ics.amber.engine.architecture.logging.determinants.TimeStampDeterminant
     )
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
@@ -30,7 +31,8 @@ object DeterminantsProto extends _root_.scalapb.GeneratedFileObject {
   g7iPwsSBnNlbmRlcvABAVIGc2VuZGVyEiAKBWNvdW50GAIgASgDQgriPwcSBWNvdW50UgVjb3VudCLLAQoSQ29udHJvbERldGVyb
   WluYW50ElwKB3BheWxvYWQYASABKAsyMS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkNvbnRyb2xQYXlsb2FkVjJCD
   +I/DBIHcGF5bG9hZPABAVIHcGF5bG9hZBJXCgRmcm9tGAIgASgLMjUuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5BY
-  3RvclZpcnR1YWxJZGVudGl0eUIM4j8JEgRmcm9t8AEBUgRmcm9tQgniPwZIAFgAeAFiBnByb3RvMw=="""
+  3RvclZpcnR1YWxJZGVudGl0eUIM4j8JEgRmcm9t8AEBUgRmcm9tIjUKFFRpbWVTdGFtcERldGVybWluYW50Eh0KBHRpbWUYASABK
+  ANCCeI/BhIEdGltZVIEdGltZUIJ4j8GSABYAHgBYgZwcm90bzM="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)

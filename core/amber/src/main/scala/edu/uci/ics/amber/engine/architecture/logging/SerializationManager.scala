@@ -3,7 +3,8 @@ package edu.uci.ics.amber.engine.architecture.logging
 import edu.uci.ics.amber.engine.architecture.logging.determinants.{
   ControlDeterminant,
   DataOrderDeterminant,
-  Determinant
+  Determinant,
+  TimeStampDeterminant
 }
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandConvertUtils
@@ -21,6 +22,8 @@ class SerializationManager(determinantLogWriter: DeterminantLogWriter) {
     var sender: ActorVirtualIdentity = null
     var count = 0
     allDeterminants.foreach {
+      case TimeStamp(value) =>
+        determinantLogWriter.writeLogRecord(TimeStampDeterminant(value).toByteArray)
       case pcm: ProcessControlMessage =>
         determinantLogWriter.writeLogRecord(serializeControl(pcm))
       case SenderChangeTo(actorVirtualIdentity) =>

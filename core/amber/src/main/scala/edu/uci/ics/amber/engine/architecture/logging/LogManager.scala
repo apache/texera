@@ -16,6 +16,7 @@ case class SenderChangeTo(actorVirtualIdentity: ActorVirtualIdentity) extends In
 case object ProcessDataTuple extends InMemDeterminant
 case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirtualIdentity)
     extends InMemDeterminant
+case class TimeStamp(value: Long) extends InMemDeterminant
 
 class LogManager(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,

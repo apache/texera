@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
 import edu.uci.ics.amber.engine.architecture.logging.{
   LogManager,
   ProcessControlMessage,
@@ -25,6 +26,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
+import edu.uci.ics.texera.workflow.common.operators.OperatorContext
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
 
@@ -45,6 +47,7 @@ class DataProcessor( // dependencies:
   private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
+        operator.setContext(new OperatorContext(new TimeService(logManager))) // setup context
         runDPThreadMainLogic()
       } catch safely {
         case _: InterruptedException =>
