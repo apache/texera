@@ -8,19 +8,14 @@ case class PipelinedRegionIdentity(workflowId: WorkflowIdentity, pipelineId: Str
 
 class PipelinedRegion(
     id: PipelinedRegionIdentity,
-    operators: ArrayBuffer[OperatorIdentity]
+    operators: Array[OperatorIdentity]
 ) {
-  var dependsOn: ArrayBuffer[PipelinedRegionIdentity] =
-    new ArrayBuffer[
-      PipelinedRegionIdentity
-    ]() // The regions that must complete before this can start
-  var completed = false
-  var blockingDowstreamOperatorsInOtherRegions: ArrayBuffer[OperatorIdentity] =
-    new ArrayBuffer[
-      OperatorIdentity
-    ] // These are the operators that receive blocking inputs from this region
+  var dependsOn: Array[PipelinedRegionIdentity] =
+    null // The regions that must complete before this can start
+  var blockingDowstreamOperatorsInOtherRegions: Array[OperatorIdentity] =
+    null // These are the operators that receive blocking inputs from this region
 
   def getId(): PipelinedRegionIdentity = id
 
-  def getOperators(): ArrayBuffer[OperatorIdentity] = operators
+  def getOperators(): Array[OperatorIdentity] = operators
 }

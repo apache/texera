@@ -72,13 +72,11 @@ class HashJoinOpExecConfig[K](
     input == getBuildTableLinkId()
   }
 
-  override def getInputProcessingOrder(): Array[OperatorIdentity] = {
-    val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
-    val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
-    val buildInput = toOperatorIdentity(buildLink.from)
-    val probeInput = toOperatorIdentity(probeLink.from)
-    Array(buildInput, probeInput)
-  }
+  override def getInputProcessingOrder(): Array[LinkIdentity] =
+    Array(
+      inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1,
+      inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
+    )
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     if (layer == getBuildTableLinkId().from) {

@@ -1,15 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowPipelinedRegions(workflow: Workflow) {
 
-  val idToPipelinedRegions: mutable.HashMap[PipelinedRegionIdentity, PipelinedRegion] =
-    new mutable.HashMap[PipelinedRegionIdentity, PipelinedRegion]()
+  var idToPipelinedRegions: Map[PipelinedRegionIdentity, PipelinedRegion] = null
 
   createPipelinedRegions()
 
@@ -18,8 +19,8 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
     * and the edge (LinkIdentity) is not blocking.
     */
   private def getAdjacentReachableOperators(
-                                             operatorId: OperatorIdentity
-                                           ): ArrayBuffer[OperatorIdentity] = {
+      operatorId: OperatorIdentity
+  ): ArrayBuffer[OperatorIdentity] = {
     val adjacentOperators = new ArrayBuffer[OperatorIdentity]()
     val upstreamOps = workflow.getDirectUpstreamOperators(operatorId)
     val downstreamOps = workflow.getDirectDownStreamOperators(operatorId)
@@ -47,10 +48,10 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
   }
 
   private def findOtherOperatorsInComponent(
-                                             operatorId: OperatorIdentity,
-                                             component: ArrayBuffer[OperatorIdentity],
-                                             visited: mutable.HashSet[OperatorIdentity]
-                                           ): Unit = {
+      operatorId: OperatorIdentity,
+      component: ArrayBuffer[OperatorIdentity],
+      visited: mutable.HashSet[OperatorIdentity]
+  ): Unit = {
     getAdjacentReachableOperators(operatorId).foreach(adjOp => {
       if (!visited.contains(adjOp)) {
         visited.add(adjOp)
@@ -61,6 +62,7 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
   }
 
   private def findAllPipelinedRegions(): Unit = {
+    val idToPipelinedRegionBuilder = new mutable.HashMap[PipelinedRegionIdentity, PipelinedRegion]()
     val allOperatorIds = workflow.getAllOperatorIds
     val visited = new mutable.HashSet[OperatorIdentity]()
     var regionCount = 0
@@ -71,10 +73,12 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
         weakConnComponent.append(opId)
         findOtherOperatorsInComponent(opId, weakConnComponent, visited)
         val regionId = PipelinedRegionIdentity(workflow.getWorkflowId(), regionCount.toString())
-        idToPipelinedRegions(regionId) = new PipelinedRegion(regionId, weakConnComponent)
+        idToPipelinedRegionBuilder(regionId) =
+          new PipelinedRegion(regionId, weakConnComponent.toArray)
         regionCount += 1
       }
     })
+    idToPipelinedRegions = idToPipelinedRegionBuilder.toMap
   }
 
   private def getPipelinedRegionFromOperatorId(operatorId: OperatorIdentity): PipelinedRegion = {
@@ -82,6 +86,10 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
   }
 
   private def orderRegions(): Unit = {
+    val regionDependence =
+      new mutable.HashMap[PipelinedRegion, ArrayBuffer[PipelinedRegionIdentity]]()
+    val regionTerminalOperator =
+      new mutable.HashMap[PipelinedRegion, ArrayBuffer[OperatorIdentity]]()
     val allOperatorIds = workflow.getAllOperatorIds
     allOperatorIds.foreach(opId => {
       // 1. Find dependencies between pipelined regions enforced by inputs of operators.
@@ -89,14 +97,28 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
       val inputProcessingOrderForOp = workflow.getOperator(opId).getInputProcessingOrder()
       if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
         for (i <- 1 to inputProcessingOrderForOp.length - 1) {
-          val prevInOrder = getPipelinedRegionFromOperatorId(inputProcessingOrderForOp(i - 1))
-          val nextInOrder = getPipelinedRegionFromOperatorId(inputProcessingOrderForOp(i))
+          val prevInOrder = getPipelinedRegionFromOperatorId(
+            toOperatorIdentity(inputProcessingOrderForOp(i - 1).from)
+          )
+          val nextInOrder =
+            getPipelinedRegionFromOperatorId(toOperatorIdentity(inputProcessingOrderForOp(i).from))
 
           if (
-            prevInOrder.getId() != nextInOrder.getId() && !nextInOrder.dependsOn
-              .contains(prevInOrder.getId())
+            prevInOrder.getId() != nextInOrder.getId() && (!regionDependence.contains(
+              nextInOrder
+            ) || !regionDependence(nextInOrder).contains(prevInOrder.getId()))
           ) {
-            nextInOrder.dependsOn.append(prevInOrder.getId())
+            //            if (
+            //              prevInOrder.getId() != nextInOrder.getId() && !nextInOrder.dependsOn
+            //                .contains(prevInOrder.getId())
+            //            )
+            val alreadyThere = regionDependence.getOrElseUpdate(
+              nextInOrder,
+              new ArrayBuffer[PipelinedRegionIdentity]()
+            )
+            alreadyThere.append(prevInOrder.getId())
+            regionDependence(nextInOrder) = alreadyThere
+            //            nextInOrder.dependsOn.append(prevInOrder.getId())
           }
         }
       }
@@ -113,12 +135,34 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
           val prevInOrder = getPipelinedRegionFromOperatorId(upstreamOp)
           val nextInOrder = getPipelinedRegionFromOperatorId(opId)
           if (prevInOrder.getId() != nextInOrder.getId()) {
-            if (!prevInOrder.blockingDowstreamOperatorsInOtherRegions.contains(opId)) {
-              prevInOrder.blockingDowstreamOperatorsInOtherRegions.append(opId)
+            if (
+              !regionTerminalOperator.contains(
+                prevInOrder
+              ) || !regionTerminalOperator(prevInOrder).contains(opId)
+            ) {
+
+              val alreadyThere = regionTerminalOperator.getOrElseUpdate(
+                prevInOrder,
+                new ArrayBuffer[OperatorIdentity]()
+              )
+              alreadyThere.append(opId)
+              regionTerminalOperator(prevInOrder) = alreadyThere
             }
-            if (!nextInOrder.dependsOn.contains(prevInOrder.getId())) {
-              nextInOrder.dependsOn.append(prevInOrder.getId())
+
+            if (
+              !regionDependence.contains(
+                nextInOrder
+              ) || !regionDependence(nextInOrder).contains(prevInOrder.getId())
+            ) {
+
+              val alreadyThere = regionDependence.getOrElseUpdate(
+                nextInOrder,
+                new ArrayBuffer[PipelinedRegionIdentity]()
+              )
+              alreadyThere.append(prevInOrder.getId())
+              regionDependence(nextInOrder) = alreadyThere
             }
+
           }
         }
       })
@@ -129,21 +173,4 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
     findAllPipelinedRegions()
     orderRegions()
   }
-
-  def getScheduleableRegions(): ArrayBuffer[PipelinedRegion] = {
-    val nextRegions = new ArrayBuffer[PipelinedRegion]()
-    for (region <- idToPipelinedRegions.values) {
-      if (!region.completed) {
-        if (
-          region.dependsOn.isEmpty || region.dependsOn
-            .forall(p => idToPipelinedRegions(p).completed)
-        ) {
-          nextRegions.append(region)
-        }
-      }
-    }
-    nextRegions
-  }
-
-  def regionCompleted(region: PipelinedRegion): Unit = region.completed = true
 }
