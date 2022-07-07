@@ -10,10 +10,6 @@
   max-width: 90%;
 }
 
-.icon-container {
-  align-items: center;
-}
-
 .status-icon {
   font-size: 1.2rem;
 }
@@ -25,4 +21,8 @@
 .trash-icon:hover {
   cursor: pointer;
   color: #007bff;
+}
+
+.col-tooltip {
+  z-index: 10000;
 }
