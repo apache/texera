@@ -47,16 +47,17 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     location: 0,
     distance: 100,
     minMatchCharLength: 1,
-    keys: ["workflow.wid", "workflow.name", "ownerName"],
+    keys: ["workflow.wid", "workflow.name", "ownerName", "workflow.content.operators"],
   });
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["workflowName", ["workflow", "name"]],
     ["id", ["workflow", "wid"]],
     ["owner", ["ownerName"]],
+    ["operator", ["workflow", "content", "operators"]],
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
-  public searchCriteria: string[] = ["owner", "id"];
+  public searchCriteria: string[] = ["owner", "id", "operator"];
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
@@ -233,7 +234,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * sort the project by creating time
+   * sort the project by create time
    */
   public dateSort(): void {
     this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
@@ -451,6 +452,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         this.allDashboardWorkflowEntries = newAllDashboardEntries;
         this.fuse.setCollection(this.allDashboardWorkflowEntries);
 
+
         // update dashboardWorkflowEntries
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
@@ -479,6 +481,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.dashboardWorkflowEntries = dashboardWorkflowEntries;
       this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
       this.fuse.setCollection(this.allDashboardWorkflowEntries);
+      console.log(this.fuse);
+      console.log(this.dashboardWorkflowEntries);
       const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
       this.filteredDashboardWorkflowNames = [...newEntries];
     });
@@ -495,6 +499,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
     this.fuse.setCollection(this.allDashboardWorkflowEntries);
+    console.log(this.fuse);
+    console.log(this.dashboardWorkflowEntries);
 
     // update searching / filtering
     if (this.isSearchByProject) {
