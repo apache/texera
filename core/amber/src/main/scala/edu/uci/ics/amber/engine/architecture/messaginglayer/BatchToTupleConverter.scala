@@ -66,4 +66,13 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     }
   }
 
+  /**
+    * This method is used by flow control logic. It returns the number of credits available for this particular sender
+    * worker.
+    * @param sender the worker sending the network message
+    * @return
+    */
+  def getSenderCredits(sender: ActorVirtualIdentity): Int =
+    workerInternalQueue.getSenderCredits(sender)
+
 }

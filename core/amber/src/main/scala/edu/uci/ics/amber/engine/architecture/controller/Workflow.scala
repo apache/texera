@@ -32,14 +32,14 @@ class Workflow(
   private val sinkOperators: Iterable[OperatorIdentity] =
     operatorToOpExecConfig.keys.filter(!outLinks.contains(_))
 
-  private val workerToLayer = new mutable.HashMap[ActorVirtualIdentity, WorkerLayer]()
-  private val layerToOperatorExecConfig = new mutable.HashMap[LayerIdentity, OpExecConfig]()
-  private val operatorLinks = {
+  val workerToLayer = new mutable.HashMap[ActorVirtualIdentity, WorkerLayer]()
+  val layerToOperatorExecConfig = new mutable.HashMap[LayerIdentity, OpExecConfig]()
+  val operatorLinks = {
     new mutable.HashMap[OperatorIdentity, mutable.ArrayBuffer[LinkStrategy]]
   }
-  private val idToLink = new mutable.HashMap[LinkIdentity, LinkStrategy]()
+  val idToLink = new mutable.HashMap[LinkIdentity, LinkStrategy]()
 
-  private val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
+  val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
 
   val builtOperators = new mutable.HashSet[OperatorIdentity]()
 

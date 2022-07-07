@@ -60,6 +60,7 @@ class WorkerLayer(
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
       workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
   ): Unit = {
+    println(s"\t\t Building layer for ${id.operator}")
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     workers = ListMap((0 until numWorkers).map { i =>
       val operatorExecutor: IOperatorExecutor = initIOperatorExecutor(i)

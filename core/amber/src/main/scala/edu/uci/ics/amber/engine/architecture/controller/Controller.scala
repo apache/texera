@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.{
-  WorkflowPipelinedRegions,
+  WorkflowPipelinedRegionsBuilder,
   WorkflowScheduler
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
@@ -77,8 +77,6 @@ class Controller(
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
-  val workflowRegions = new WorkflowPipelinedRegions(workflow)
-  val workflowScheduler = new WorkflowScheduler(availableNodes, networkCommunicationActor, context)
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
     wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _
@@ -91,6 +89,9 @@ class Controller(
   // register controller itself and client
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
   networkCommunicationActor ! RegisterActorRef(CLIENT, context.parent)
+
+  val workflowScheduler =
+    new WorkflowScheduler(availableNodes, networkCommunicationActor, context, workflow)
 
   // build whole workflow
   workflow.build(availableNodes, networkCommunicationActor, context)
@@ -154,7 +155,14 @@ class Controller(
   def running: Receive = {
     acceptDirectInvocations orElse {
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-        controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+        controlInputPort.handleMessage(
+          this.sender(),
+          Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
+          id,
+          from,
+          seqNum,
+          payload
+        )
       case other =>
         logger.info(s"unhandled message: $other")
     }
@@ -196,14 +204,19 @@ class Controller(
   def initializing: Receive = {
     case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
       //process reply messages
-      controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-    case NetworkMessage(
-          id,
-          WorkflowControlMessage(CONTROLLER, seqNum, payload)
-        ) =>
+      controlInputPort.handleMessage(
+        this.sender(),
+        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
+        id,
+        from,
+        seqNum,
+        payload
+      )
+    case NetworkMessage(id, WorkflowControlMessage(CONTROLLER, seqNum, payload)) =>
       //process control messages from self
       controlInputPort.handleMessage(
         this.sender(),
+        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
         id,
         CONTROLLER,
         seqNum,

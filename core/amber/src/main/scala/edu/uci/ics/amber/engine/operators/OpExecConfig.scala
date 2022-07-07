@@ -115,7 +115,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
-  def getInputProcessingOrder(): Array[OperatorIdentity] = null
+  def getInputProcessingOrder(): Array[LinkIdentity] = null
 
   def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 

@@ -209,7 +209,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val inputSchemas =
       Array(schema(leftKey, dataType), schema(rightKey, dataType))
     opDesc = new IntervalJoinOpDesc(
-      left,
       leftKey,
       rightKey,
       inputSchemas,
@@ -221,7 +220,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
       OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
-      opDesc
+      opDesc,
+      left
     )
     opExec.open()
     counter = 0
@@ -405,7 +405,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       Array(schema("point", AttributeType.DOUBLE), schema("range", AttributeType.DOUBLE))
 
     val opDesc = new IntervalJoinOpDesc(
-      left,
       "point_1",
       "range_1",
       inputSchemas,
@@ -417,7 +416,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
       OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
-      opDesc
+      opDesc,
+      left
     )
 
     opExec.open()

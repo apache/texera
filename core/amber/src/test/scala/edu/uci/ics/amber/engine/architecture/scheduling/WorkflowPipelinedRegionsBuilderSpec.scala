@@ -18,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable
 
-class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
+class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
   def buildWorkflow(
       operators: mutable.MutableList[OperatorDescriptor],
@@ -49,8 +49,8 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
-    assert(pipelinedRegions.idToPipelinedRegions.size == 1)
+    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    assert(pipelinedRegions.size == 1)
   }
 
   "Pipelined Regions" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
@@ -80,16 +80,16 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
-    assert(pipelinedRegions.idToPipelinedRegions.size == 2)
+    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    assert(pipelinedRegions.size == 2)
 
-    val buildRegion = pipelinedRegions.idToPipelinedRegions.values
+    val buildRegion = pipelinedRegions.values
       .find(p =>
         p.getOperators()
           .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID))
       )
       .get
-    val probeRegion = pipelinedRegions.idToPipelinedRegions.values
+    val probeRegion = pipelinedRegions.values
       .find(p =>
         p.getOperators()
           .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID))
@@ -136,8 +136,8 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
-    assert(pipelinedRegions.idToPipelinedRegions.size == 1)
+    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    assert(pipelinedRegions.size == 1)
   }
 
 }
