@@ -8,7 +8,14 @@
   <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
     <thead>
       <tr>
-        <th *ngFor="let column of executionsTableHeaders" [ngbTooltip]="executionTooltip[column]" container="body" placement="auto">{{column}}</th>
+        <th
+          *ngFor="let column of executionsTableHeaders"
+          [ngbTooltip]="executionTooltip[column]"
+          container="body"
+          placement="auto"
+        >
+          {{column}}
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -48,7 +55,14 @@
             nzType="text"
             class="rename-icon"
           >
-            <i nz-icon nzTheme="outline" ngbTooltip="Custom Execution#{{i}} Name" container="body" placement="auto" nzType="edit"></i>
+            <i
+              nz-icon
+              nzTheme="outline"
+              ngbTooltip="Custom Execution#{{i}} Name"
+              container="body"
+              placement="auto"
+              nzType="edit"
+            ></i>
           </button>
         </td>
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
@@ -66,7 +80,15 @@
           ></i>
         </td>
         <td nzEllipsis>
-          <i nz-icon nzType="delete" ngbTooltip='Delete the Execution "{{row.name}}"' container="body" placement="auto" class="trash-icon" (click)="onDelete(row)"></i>
+          <i
+            nz-icon
+            nzType="delete"
+            ngbTooltip='Delete the Execution "{{row.name}}"'
+            container="body"
+            placement="auto"
+            class="trash-icon"
+            (click)="onDelete(row)"
+          ></i>
         </td>
       </tr>
     </tbody>

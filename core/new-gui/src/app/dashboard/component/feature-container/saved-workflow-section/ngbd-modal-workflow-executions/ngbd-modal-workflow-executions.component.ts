@@ -33,22 +33,16 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
     "Execution#": "Workflow Execution ID",
-    "Name": "Workflow Name",
+    Name: "Workflow Name",
     "Starting Time": "Stariting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Tme of Workflow Execution",
-    "Status": "Current Status of Workflow Execution"
+    Status: "Current Status of Workflow Execution",
   };
 
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
-  constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService){};
-    // public executionTooltip: Record<string, string>) {
-    //   this.executionTooltip = {"Execution#": "Workflow Execution ID",
-    //                           "Name": "Workflow Name",
-    //                           "Starting Time": "Stariting Time of Workflow Execution",
-    //                           "Last Status Updated Time": "Latest Status Updated Tme of Workflow Execution",
-    //                           "Status": "Current Status of Workflow Execution"};
-    // }
+  constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
+
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
