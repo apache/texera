@@ -21,6 +21,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
 import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
+import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model-service.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -94,7 +95,8 @@ export class NavigationComponent implements OnInit {
     public workflowCollabService: WorkflowCollabService,
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
-    public changeDetectionRef: ChangeDetectorRef
+    public changeDetectionRef: ChangeDetectorRef,
+    public syncJointModelService: SyncJointModelService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either

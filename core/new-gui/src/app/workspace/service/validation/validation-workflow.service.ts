@@ -148,7 +148,7 @@ export class ValidationWorkflowService {
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorDeleteStream()
-      .subscribe(operator => this.updateValidationStateOnDelete(operator.deletedOperator.operatorID));
+      .subscribe(operator => this.updateValidationStateOnDelete(operator.deletedOperatorID));
 
     // Capture the link add and delete event and validate the source and target operators for this link
     merge(

@@ -33,10 +33,17 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 import { environment } from "src/environments/environment";
 import { WorkflowCollabService } from "../../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
+import {QuillBinding} from "y-quill";
+import Quill from "quill";
+import QuillCursors from "quill-cursors";
+import * as Y from "yjs";
+import {OperatorPredicate, YType} from "../../../types/workflow-common.interface";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
 export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisplayComponent>;
+
+Quill.register("modules/cursors", QuillCursors);
 
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
@@ -102,6 +109,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
   public lockGranted: boolean = true;
+
+  quillBinding!: QuillBinding;
+  quill!: Quill;
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -333,6 +343,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  // TODO
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
@@ -464,7 +475,43 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       this.workflowActionService.setOperatorCustomName(this.currentOperatorId, newDisplayName, userFriendlyName);
       this.formTitle = newDisplayName;
     }
+  }
 
-    this.editingTitle = false;
+  private registerQuillBinding() {
+    // Operator name editor
+    const element = document.getElementById("customName") as Element;
+    this.quill = new Quill(element, {
+      modules: {
+        cursors: true,
+        toolbar: false,
+        history: {
+          // Local undo shouldn't undo changes
+          // from remote users
+          userOnly: true
+        }
+      },
+      formats: [],
+      placeholder: "Start collaborating...",
+      theme: "snow"
+    });
+  }
+
+  public connectQuillToText() {
+    this.registerQuillBinding();
+    if (this.currentOperatorId) {
+      if (!(this.workflowActionService.getTexeraGraph().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).has("customDisplayName")) {
+        (this.workflowActionService.getTexeraGraph().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).set("customDisplayName", new Y.Text());
+        console.log("CREATED");
+      } else {
+        console.log("EXISTED");
+      }
+      const ytext = this.workflowActionService.getTexeraGraph().operatorIDMap.get(this.currentOperatorId)?.get("customDisplayName");
+      console.log(ytext);
+      this.quillBinding = new QuillBinding(
+        ytext as Y.Text,
+        this.quill,
+        this.workflowActionService.getTexeraGraph().awareness
+      );
+    }
   }
 }

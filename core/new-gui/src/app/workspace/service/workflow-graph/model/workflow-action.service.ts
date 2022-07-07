@@ -30,7 +30,6 @@ import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/c
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import * as Y from "yjs";
-import {untilDestroyed} from "@ngneat/until-destroy";
 
 type OperatorPosition = {
   position: Point;
@@ -56,16 +55,6 @@ type GroupInfo = {
  *
  */
 
-// class MyOpPredicate implements OperatorPredicate {
-//
-//   get operatorID(): string {
-//     return "";
-//   }
-//   set operatorID(value: string) {
-//   }
-//
-//
-// }
 
 @Injectable({
   providedIn: "root",
@@ -79,9 +68,9 @@ export class WorkflowActionService {
     lastModifiedTime: undefined,
   };
 
-  private readonly texeraGraph: WorkflowGraph;
-  private readonly jointGraph: joint.dia.Graph;
-  private readonly jointGraphWrapper: JointGraphWrapper;
+  public readonly texeraGraph: WorkflowGraph;
+  public readonly jointGraph: joint.dia.Graph;
+  public readonly jointGraphWrapper: JointGraphWrapper;
   private readonly operatorGroup: OperatorGroup;
   private readonly syncTexeraModel: SyncTexeraModel;
   private readonly syncOperatorGroup: SyncOperatorGroup;
@@ -124,22 +113,6 @@ export class WorkflowActionService {
   }
 
   public observeFromYModel(): void {
-    // this.texeraGraph.yOperatorIDMap?.observe((event: Y.YMapEvent<any>) => {
-    //   console.log(event);
-    //   if (!event.transaction.local) {
-    //     event.changes.keys.forEach((change, key)=>{
-    //       if (change.action === "add") {
-    //         const newOperator = this.texeraGraph.yOperatorIDMap?.get(key) as OperatorPredicate;
-    //         const syncedPosition = this.texeraGraph.yOperatorPositionMap?.get(newOperator.operatorID);
-    //         this.addOperator(newOperator, syncedPosition || {x: 0, y: 0});
-    //       }
-    //       if (change.action === "delete") {
-    //         this.deleteOperator(key);
-    //       }
-    //     });
-    //   }
-    // });
-
     this.texeraGraph.getOperatorAddStream().subscribe( newOp => {
         if (!this.jointGraph.attributes.cells?.has(newOp.operatorID)) {
           const syncedPosition = this.texeraGraph.yOperatorPositionMap?.get(newOp.operatorID);
@@ -150,16 +123,16 @@ export class WorkflowActionService {
         }
     });
 
-    this.getTexeraGraph()
-
     this.texeraGraph.getOperatorDeleteStream().subscribe(deletedOpSubj => {
-      const operatorID = deletedOpSubj.deletedOperator.operatorID;
+      // console.log(deletedOpSubj);
+      const operatorID = deletedOpSubj.deletedOperatorID;
       if (this.jointGraph.attributes.cells?.has(operatorID)) {
         this.jointGraphWrapper.jointGraph.getCell(operatorID).remove();
       }
     });
 
     this.texeraGraph.yOperatorPositionMap?.observe((event: Y.YMapEvent<Point>) => {
+      // console.log(event);
       if (!event.transaction.local) {
         event.changes.keys.forEach((change, key)=> {
           if (change.action === "add") {
@@ -1166,7 +1139,7 @@ export class WorkflowActionService {
       workflowContent.operators.forEach(op => {
         const opPosition = workflowContent.operatorPositions[op.operatorID];
         if (!opPosition) {
-          throw new Error("position error");
+          throw new Error(`position error: ${op.operatorID}`);
         }
         operatorsAndPositions.push({ op: op, pos: opPosition });
       });
@@ -1266,7 +1239,7 @@ export class WorkflowActionService {
     texeraGraph
       .getAllOperators()
       .forEach(
-        op => (operatorPositions[op.operatorID] = this.getJointGraphWrapper().getElementPosition(op.operatorID))
+        op => (operatorPositions[op.operatorID] = this.texeraGraph.yOperatorPositionMap?.get(op.operatorID) as Point)
       );
     commentBoxes.forEach(
       commentBox =>
@@ -1503,55 +1476,26 @@ export class WorkflowActionService {
   }
 
   private addOperatorsInternal(operatorsAndPositions: readonly { operator: OperatorPredicate; point: Point }[]): void {
-    const operatorJointElements: joint.dia.Element[] = new Array(operatorsAndPositions.length);
-
-    for (let i = 0; i < operatorsAndPositions.length; i++) {
-      let operator = operatorsAndPositions[i].operator;
-      let point = operatorsAndPositions[i].point;
-
-      // check that the operator doesn't exist
-      this.texeraGraph.assertOperatorNotExists(operator.operatorID);
-      // check that the operator type exists
-      if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
-        throw new Error(`operator type ${operator.operatorType} is invalid`);
-      }
-
-      // get the JointJS UI element for operator
-      operatorJointElements[i] = this.jointUIService.getJointOperatorElement(operator, point);
-    }
-
-    // add operator to joint graph first
-    // if jointJS throws an error, it won't cause the inconsistency in texera graph
-
-    if (environment.asyncRenderingEnabled) {
-      // addCells emits jointjs events asynchronously, async context ensures safety for event listeners which expect synchrony
-      this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
-        this.jointGraph.addCells(operatorJointElements);
-      });
-    } else {
+    // TODO: (Maybe?) wrap this callback inside TexeraGraph as an API.
+    this.texeraGraph.yDoc?.transact(()=> {
       for (let i = 0; i < operatorsAndPositions.length; i++) {
-        this.jointGraph.addCell(operatorJointElements[i]);
+        let operator = operatorsAndPositions[i].operator;
+        // check that the operator doesn't exist
+        this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+        // check that the operator type exists
+        if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+          throw new Error(`operator type ${operator.operatorType} is invalid`);
+        }
+        // add operator to texera graph
+        this.texeraGraph.yOperatorPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
+        this.texeraGraph.addOperator(operator);
       }
-    }
-
-    for (let i = 0; i < operatorsAndPositions.length; i++) {
-      let operator = operatorsAndPositions[i].operator;
-      this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
-      // add operator to texera graph
-      this.texeraGraph.addOperator(operator);
-    }
+    });
   }
 
   private deleteOperatorInternal(operatorID: string): void {
     this.texeraGraph.assertOperatorExists(operatorID);
-    const group = this.operatorGroup.getGroupByOperator(operatorID);
-    if (group && group.collapsed) {
-      this.texeraGraph.deleteOperator(operatorID);
-    } else {
-      // remove the operator from JointJS
-      this.jointGraph.getCell(operatorID).remove();
-      // JointJS operator delete event will propagate and trigger Texera operator delete
-    }
+    this.texeraGraph.deleteOperator(operatorID);
   }
 
   private addLinksInternal(links: readonly OperatorLink[]): void {

@@ -95,3 +95,27 @@ export type PythonPrintTriggerInfo = Readonly<{
   message: Readonly<string>;
   operatorID: string;
 }>;
+
+export type YTextify<T> = T extends string ? Y.Text : T;
+
+export type YType<T> = Omit<Y.Map<any>, "get" | "set" | "has" | "toJSON"> & {
+  get<TKey extends keyof T>(key: TKey): YTextify<T[TKey]>;
+  set<TKey extends keyof T>(key: TKey, value: YTextify<T[TKey]>): void;
+  has<TKey extends keyof T>(key: TKey): boolean;
+  toJSON(): T
+}
+
+export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
+  // return new
+  const yMap = new Y.Map();
+  Object.keys(obj).forEach((k: string) => {
+    const value = obj[k as keyof T] as any;
+    if (typeof value === "string") {
+      yMap.set(k, new Y.Text(value));
+    } else {
+      yMap.set(k, value);
+    }
+  });
+
+  return yMap as any as YType<T>;
+}

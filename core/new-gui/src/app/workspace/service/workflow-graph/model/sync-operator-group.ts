@@ -29,14 +29,14 @@ export class SyncOperatorGroup {
   private handleTexeraGraphOperatorDelete(): void {
     this.texeraGraph
       .getOperatorDeleteStream()
-      .pipe(map(operator => operator.deletedOperator))
-      .subscribe(deletedOperator => {
-        const group = this.operatorGroup.getGroupByOperator(deletedOperator.operatorID);
+      .pipe(map(operator => operator.deletedOperatorID))
+      .subscribe(deletedOperatorID => {
+        const group = this.operatorGroup.getGroupByOperator(deletedOperatorID);
         if (group && !group.collapsed && group.operators.size > 1) {
-          group.operators.delete(deletedOperator.operatorID);
+          group.operators.delete(deletedOperatorID);
           this.operatorGroup.repositionGroup(group);
         } else if (group) {
-          group.operators.delete(deletedOperator.operatorID);
+          group.operators.delete(deletedOperatorID);
         }
       });
   }

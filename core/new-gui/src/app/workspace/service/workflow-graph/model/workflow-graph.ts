@@ -8,10 +8,13 @@ import {
   Point,
   CommentBox,
   Comment,
+  YType,
+  createYTypeFromObject,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import * as Y from "yjs";
 import {WebsocketProvider} from "y-websocket";
+import {Awareness} from "y-protocols/awareness";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -60,6 +63,7 @@ export class WorkflowGraph {
   public wsProvider?: WebsocketProvider;
   public yOperatorPositionMap?: Y.Map<Point>;
   public yOperatorLinkMap?: Y.Map<OperatorLink>;
+  public awareness?: Awareness;
 
   public loadNewYModel(workflowId: number) {
     this.yDoc = new Y.Doc();
@@ -67,6 +71,8 @@ export class WorkflowGraph {
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.yOperatorPositionMap = this.yDoc.getMap("yOperatorPositionMap");
     this.yOperatorLinkMap = this.yDoc.getMap("yOperatorLinkMap");
+    this.awareness = this.wsProvider.awareness;
+    this.newYDocLoadedSubject.next(undefined);
     this.observeFromYModel();
   }
 
@@ -77,21 +83,37 @@ export class WorkflowGraph {
 
   private observeFromYModel(): void {
     this.operatorIDMap.observe((event: Y.YMapEvent<any>) => {
-      if (!event.transaction.local) {
         event.changes.keys.forEach((change, key)=>{
           if (change.action === "add") {
-            const newOperator = this.operatorIDMap.get(key) as OperatorPredicate;
-            this.operatorAddSubject.next(newOperator);
+            const newOperator = this.operatorIDMap.get(key) as YType<OperatorPredicate>;
+            this.operatorAddSubject.next(newOperator.toJSON());
           }
           if (change.action === "delete") {
-            this.operatorDeleteSubject.next({ deletedOperator: change.oldValue });
+            console.log("delete", change);
+            // this.operatorDeleteSubject.next({ deletedOperatorID: key });
+          }
+          if (change.action === "update") {
+            console.log("update", change);
+            // console.log(key, this.operatorIDMap.get(key)?.get("customDisplayName"));
           }
         });
-      }
+    });
+
+    this.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
+      events.forEach(event => {
+        if (event.target !== this.operatorIDMap) {
+          if (event.path[event.path.length-1] === "customDisplayName") {
+            const operatorID = event.path[0] as string;
+            const newName = this.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
+            this.operatorDisplayNameChangedSubject.next({operatorID: operatorID, newDisplayName: newName.toJSON()});
+          }
+        }
+      });
     });
   }
 
-  private operatorIDMap = new Y.Map<OperatorPredicate>();
+  public newYDocLoadedSubject = new Subject();
+  public operatorIDMap = new Y.Map<YType<OperatorPredicate>>();
   private operatorLinkMap = new Map<string, OperatorLink>();
   private readonly commentBoxMap = new Map<string, CommentBox>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
@@ -99,7 +121,7 @@ export class WorkflowGraph {
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
   private readonly operatorDeleteSubject = new Subject<{
-    deletedOperator: OperatorPredicate;
+    deletedOperatorID: string;
   }>();
   private readonly disabledOperatorChangedSubject = new Subject<{
     newDisabled: string[];
@@ -136,7 +158,7 @@ export class WorkflowGraph {
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
-    operatorPredicates.forEach(op => this.operatorIDMap.set(op.operatorID, op));
+    operatorPredicates.forEach(op => this.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox => this.commentBoxMap.set(commentBox.commentBoxID, commentBox));
   }
@@ -148,8 +170,10 @@ export class WorkflowGraph {
    */
   public addOperator(operator: OperatorPredicate): void {
     this.assertOperatorNotExists(operator.operatorID);
-    this.operatorIDMap.set(operator.operatorID, operator);
-    this.operatorAddSubject.next(operator);
+    const newOp = createYTypeFromObject(operator);
+    this.operatorIDMap.set(operator.operatorID, newOp);
+    // this.operatorAddSubject.next(operator);
+    // console.log(this.operatorIDMap.get(operator.operatorID));
   }
 
   public addCommentBox(commentBox: CommentBox): void {
@@ -206,7 +230,7 @@ export class WorkflowGraph {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     this.operatorIDMap.delete(operatorID);
-    this.operatorDeleteSubject.next({ deletedOperator: operator });
+    this.operatorDeleteSubject.next({ deletedOperatorID: operator.operatorID });
   }
 
   public deleteCommentBox(commentBoxID: string): void {
@@ -226,7 +250,7 @@ export class WorkflowGraph {
     if (this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: true });
+    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
     this.disabledOperatorChangedSubject.next({
       newDisabled: [operatorID],
       newEnabled: [],
@@ -241,7 +265,7 @@ export class WorkflowGraph {
     if (!this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: false });
+    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
     this.disabledOperatorChangedSubject.next({
       newDisabled: [],
       newEnabled: [operatorID],
@@ -253,10 +277,7 @@ export class WorkflowGraph {
     if (operator.customDisplayName === newDisplayName) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {
-      ...operator,
-      customDisplayName: newDisplayName,
-    });
+    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator) );
     this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
   }
 
@@ -283,7 +304,7 @@ export class WorkflowGraph {
     if (this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isCached: true });
+    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
     this.cachedOperatorChangedSubject.next({
       newCached: [operatorID],
       newUnCached: [],
@@ -298,7 +319,7 @@ export class WorkflowGraph {
     if (!this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isCached: false });
+    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
     this.cachedOperatorChangedSubject.next({
       newCached: [],
       newUnCached: [operatorID],
@@ -335,10 +356,12 @@ export class WorkflowGraph {
    * @param operatorID operator ID
    */
   public getOperator(operatorID: string): OperatorPredicate {
+    // console.log(operatorID, this.operatorIDMap.get(operatorID)?.get("customDisplayName"));
     if (!this.operatorIDMap.has(operatorID)) {
       throw new Error(`operator ${operatorID} does not exist`);
     }
-    const operator = this.operatorIDMap.get(operatorID) as OperatorPredicate;
+    const yoperator = this.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
+    const operator = yoperator.toJSON();
     return operator;
   }
 
@@ -354,11 +377,14 @@ export class WorkflowGraph {
    * Returns an array of all operators in the graph
    */
   public getAllOperators(): OperatorPredicate[] {
-    return Array.from(this.operatorIDMap.values() as IterableIterator<OperatorPredicate>);
+    return Array.from(this.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>)
+      .map(v => v.toJSON());
   }
 
   public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {
-    return Array.from(this.operatorIDMap.values() as IterableIterator<OperatorPredicate>).filter(op => !this.isOperatorDisabled(op.operatorID));
+    return Array.from(this.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>)
+      .map(v => v.toJSON())
+      .filter(op => !this.isOperatorDisabled(op.operatorID));
   }
 
   public getAllCommentBoxes(): CommentBox[] {
@@ -505,7 +531,7 @@ export class WorkflowGraph {
    * @param newProperty new property to set
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
-    const originalOperatorData = this.operatorIDMap.get(operatorID);
+    const originalOperatorData = (this.operatorIDMap.get(operatorID) as YType<OperatorPredicate>).toJSON();
     if (originalOperatorData === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
@@ -517,7 +543,7 @@ export class WorkflowGraph {
       operatorProperties: newProperty,
     };
     // set the new copy back to the operator ID map
-    this.operatorIDMap.set(operatorID, operator);
+    this.operatorIDMap.get(operatorID)?.set("operatorProperties", newProperty);
 
     this.operatorPropertyChangeSubject.next({ oldProperty, operator });
   }
@@ -576,7 +602,7 @@ export class WorkflowGraph {
    * The observable value is the deleted operator.
    */
   public getOperatorDeleteStream(): Observable<{
-    deletedOperator: OperatorPredicate;
+    deletedOperatorID: string;
   }> {
     return this.operatorDeleteSubject.asObservable();
   }
