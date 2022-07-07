@@ -2,6 +2,18 @@
   <nz-card class="button-area subsection-grid-container">
     <h2 class="page-title">Files</h2>
     <div class="d-inline-block">
+      <a nz-dropdown [nzDropdownMenu]="menu">
+        <button nz-button>
+          <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #menu="nzDropdownMenu">
+        <ul nz-menu nzSelectable>
+          <li (click)="ascSort()" nz-menu-item>A -> Z</li>
+          <li (click)="dscSort()" nz-menu-item>Z -> A</li>
+          <li (click)="sizeSort()" nz-menu-item>By Size (Descending)</li>
+        </ul>
+      </nz-dropdown-menu>
       <button
         (click)="openFileAddComponent()"
         [disabled]="disableAddButton()"
