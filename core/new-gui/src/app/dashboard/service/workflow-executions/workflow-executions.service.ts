@@ -3,7 +3,6 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
-import { NgbdModalWorkflowExecutionsComponent } from "../../component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
@@ -32,6 +31,14 @@ export class WorkflowExecutionsService {
     return this.http.put(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/delete_execution`, {
       wid,
       eId,
+    });
+  }
+
+  updateWorkflowExecutionsName(wid: number | undefined, eId: number, executionName: string): Observable<Response> {
+    return this.http.post<Response>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/update_execution_name`, {
+      wid,
+      eId,
+      executionName,
     });
   }
 }

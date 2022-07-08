@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row8;
+import org.jooq.Row9;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = 154313534;
+    private static final long serialVersionUID = 642245709;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -89,6 +89,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.bookmarked</code>.
      */
     public final TableField<WorkflowExecutionsRecord, Byte> BOOKMARKED = createField(DSL.name("bookmarked"), org.jooq.impl.SQLDataType.TINYINT.defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.TINYINT)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.name</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false).defaultValue(org.jooq.impl.DSL.inline("Untitle Execution", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -188,11 +193,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row8 type methods
+    // Row9 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row8<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte> fieldsRow() {
-        return (Row8) super.fieldsRow();
+    public Row9<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String> fieldsRow() {
+        return (Row9) super.fieldsRow();
     }
 }
