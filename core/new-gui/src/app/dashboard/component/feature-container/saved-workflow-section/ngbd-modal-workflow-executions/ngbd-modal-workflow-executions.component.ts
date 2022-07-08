@@ -17,7 +17,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
-  // private defaultWorkflowExecutionsName: string = "Untitled Execution";
 
   public executionsTableHeaders: string[] = [
     "",
@@ -111,12 +110,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       return;
     }
     // if name doesn't change, no need to call API
-    // if (name === row.name) {
-    //   this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
-    //     entryIsEditingIndex => entryIsEditingIndex != index
-    //   );
-    //   return;
-    // }
+    if (name === row.name) {
+      this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+        entryIsEditingIndex => entryIsEditingIndex != index
+      );
+      return;
+    }
 
     this.workflowExecutionsService
       .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name)

@@ -1,9 +1,8 @@
 import { Injectable } from "@angular/core";
-import { Observable} from "rxjs";
+import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
-
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
@@ -36,12 +35,10 @@ export class WorkflowExecutionsService {
   }
 
   updateWorkflowExecutionsName(wid: number | undefined, eId: number, executionName: string): Observable<Response> {
-    return this.http.post<Response>(
-      `${WORKFLOW_EXECUTIONS_API_BASE_URL}/update_execution_name`, {
-        wid,
-        eId,
-        executionName
-      }
-    );
+    return this.http.post<Response>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/update_execution_name`, {
+      wid,
+      eId,
+      executionName,
+    });
   }
 }

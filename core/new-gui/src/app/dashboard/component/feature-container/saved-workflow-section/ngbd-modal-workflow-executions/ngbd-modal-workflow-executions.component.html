@@ -29,7 +29,7 @@
         </td>
         <td nzEllipsis>{{(i + 1)}}</td>
         <td nzEllipsis>
-          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="workflow-name"
+          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="execution-name"
             >{{ row.name }}</label
           >
           <ng-template #customeWorkflow>
