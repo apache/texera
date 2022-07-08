@@ -52,11 +52,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["workflowName", ["workflow", "name"]],
     ["id", ["workflow", "wid"]],
-    ["owner", ["ownerName"]],
+    ["owner", ["ownerName"]]
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
-  public searchCriteria: string[] = ["owner", "id"];
+  public searchCriteria: string[] = ["owner", "id", "ctime"];
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
@@ -160,6 +160,34 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  public searchCreationTime(date: string, filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>): ReadonlyArray<DashboardWorkflowEntry> {
+    const date_regex: RegExp = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+    // if(!date_regex.test(date)) {
+    //   //when date is not correctly formatted
+    //   throw Error();
+    // }
+    const search_date: RegExpMatchArray | null = date.match(date_regex);
+    if(!search_date){
+      throw new Error();
+    }
+    const search_year: number= parseInt(search_date[1]);
+    const search_month: number = parseInt(search_date[2]); //month : 1-12
+    const search_day: number = parseInt(search_date[3]);
+    console.log(search_year, search_month, search_day)
+    const search_date_obj: Date = new Date(search_year, search_month-1, search_day); // month: 0-11
+    console.log(search_date_obj.getTime())
+    return filteredDashboardWorkflowEntries.filter( (workflow_entry) => {
+      //filters for workflows that were created on the specified date
+      if(workflow_entry.workflow.creationTime)
+      {
+        console.log(workflow_entry.workflow.name)
+        console.log(workflow_entry.workflow.creationTime)
+        return workflow_entry.workflow.creationTime >= search_date_obj.getTime() && workflow_entry.workflow.creationTime < search_date_obj.getTime()+86400000;
+      }
+      return false
+    } )
+  }
+
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
   public buildAndPathQuery(
     workflowSearchField: string,
@@ -191,6 +219,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       return;
     }
     const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    let date: string = "";
     searchConsitionsSet.forEach(condition => {
       // field search
       if (condition.includes(":")) {
@@ -205,13 +234,23 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           this.notificationService.error("Cannot search by " + workflowSearchField);
           return;
         }
-        andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
+        if(workflowSearchField === "ctime") {
+          date = workflowSearchValue;
+        } else {
+          andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
+        }
       } else {
         //search by workflow name
         andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
       }
     });
-    this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    let searchResults: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries;
+    if(andPathQuery.length !== 0)
+      searchResults = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    if(date) {
+      searchResults = this.searchCreationTime(date, searchResults);
+    }
+    this.dashboardWorkflowEntries = searchResults;
   }
 
   /**
