@@ -162,29 +162,23 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   public searchCreationTime(date: string, filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>): ReadonlyArray<DashboardWorkflowEntry> {
     const date_regex: RegExp = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
-    // if(!date_regex.test(date)) {
-    //   //when date is not correctly formatted
-    //   throw Error();
-    // }
     const search_date: RegExpMatchArray | null = date.match(date_regex);
     if(!search_date){
-      throw new Error();
+      this.notificationService.error("Date format is incorrect");
+      return this.dashboardWorkflowEntries;
+      //maintains the displayed saved workflows
     }
     const search_year: number= parseInt(search_date[1]);
     const search_month: number = parseInt(search_date[2]); //month : 1-12
     const search_day: number = parseInt(search_date[3]);
-    console.log(search_year, search_month, search_day)
     const search_date_obj: Date = new Date(search_year, search_month-1, search_day); // month: 0-11
-    console.log(search_date_obj.getTime())
     return filteredDashboardWorkflowEntries.filter( (workflow_entry) => {
       //filters for workflows that were created on the specified date
       if(workflow_entry.workflow.creationTime)
       {
-        console.log(workflow_entry.workflow.name)
-        console.log(workflow_entry.workflow.creationTime)
         return workflow_entry.workflow.creationTime >= search_date_obj.getTime() && workflow_entry.workflow.creationTime < search_date_obj.getTime()+86400000;
       }
-      return false
+      return false;
     } )
   }
 
@@ -519,8 +513,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.dashboardWorkflowEntries = dashboardWorkflowEntries;
       this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
       this.fuse.setCollection(this.allDashboardWorkflowEntries);
-      console.log(this.fuse);
-      console.log(this.dashboardWorkflowEntries);
       const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
       this.filteredDashboardWorkflowNames = [...newEntries];
     });
@@ -537,9 +529,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
     this.fuse.setCollection(this.allDashboardWorkflowEntries);
-    console.log(this.fuse);
-    console.log(this.dashboardWorkflowEntries);
-
     // update searching / filtering
     if (this.isSearchByProject) {
       // refilter workflows by projects (to include / exclude changed w)
