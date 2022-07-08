@@ -59,62 +59,8 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
-  public yDoc?: Y.Doc;
-  public wsProvider?: WebsocketProvider;
-  public yOperatorPositionMap?: Y.Map<Point>;
-  public yOperatorLinkMap?: Y.Map<OperatorLink>;
-  public awareness?: Awareness;
 
-  public loadNewYModel(workflowId: number) {
-    this.yDoc = new Y.Doc();
-    this.wsProvider = new WebsocketProvider("ws://localhost:1234", `workflow-${workflowId}`, this.yDoc);
-    this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
-    this.yOperatorPositionMap = this.yDoc.getMap("yOperatorPositionMap");
-    this.yOperatorLinkMap = this.yDoc.getMap("yOperatorLinkMap");
-    this.awareness = this.wsProvider.awareness;
-    this.newYDocLoadedSubject.next(undefined);
-    this.observeFromYModel();
-  }
 
-  public destroyYModel(): void {
-    this.wsProvider?.disconnect();
-    this.yDoc?.destroy();
-  }
-
-  private observeFromYModel(): void {
-    this.operatorIDMap.observe((event: Y.YMapEvent<any>) => {
-        event.changes.keys.forEach((change, key)=>{
-          if (change.action === "add") {
-            const newOperator = this.operatorIDMap.get(key) as YType<OperatorPredicate>;
-            this.operatorAddSubject.next(newOperator.toJSON());
-          }
-          if (change.action === "delete") {
-            console.log("delete", change);
-            // this.operatorDeleteSubject.next({ deletedOperatorID: key });
-          }
-          if (change.action === "update") {
-            console.log("update", change);
-            // console.log(key, this.operatorIDMap.get(key)?.get("customDisplayName"));
-          }
-        });
-    });
-
-    this.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
-      events.forEach(event => {
-        if (event.target !== this.operatorIDMap) {
-          if (event.path[event.path.length-1] === "customDisplayName") {
-            const operatorID = event.path[0] as string;
-            const newName = this.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
-            this.operatorDisplayNameChangedSubject.next({operatorID: operatorID, newDisplayName: newName.toJSON()});
-          }
-        }
-      });
-    });
-  }
-
-  public newYDocLoadedSubject = new Subject();
-  public operatorIDMap = new Y.Map<YType<OperatorPredicate>>();
-  private operatorLinkMap = new Map<string, OperatorLink>();
   private readonly commentBoxMap = new Map<string, CommentBox>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
@@ -153,14 +99,103 @@ export class WorkflowGraph {
   private readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   private readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
 
+  public yDoc: Y.Doc = new Y.Doc();
+  public wsProvider: WebsocketProvider = new WebsocketProvider("ws://localhost:1234", "workflow-NULL", this.yDoc);
+  public operatorIDMap: Y.Map<YType<OperatorPredicate>> = this.yDoc.getMap("operatorIDMap");
+  public operatorLinkMap: Y.Map<OperatorLink> = this.yDoc.getMap("operatorLinkMap");
+  public operatorPositionMap: Y.Map<Point> = this.yDoc.getMap("operatorPositionMap");
+  public awareness: Awareness = this.wsProvider.awareness;
+  public undoManager: Y.UndoManager = new Y.UndoManager([this.operatorIDMap, this.operatorPositionMap, this.operatorLinkMap]);
+  public newYDocLoadedSubject = new Subject();
+  private syncTexeraGraph = true;
+
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
+    this.wsProvider.disconnect();
     operatorPredicates.forEach(op => this.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox => this.commentBoxMap.set(commentBox.commentBoxID, commentBox));
+  }
+
+  public loadNewYModel(workflowId: number) {
+    this.yDoc = new Y.Doc();
+    this.wsProvider = new WebsocketProvider("ws://localhost:1234", `workflow-${workflowId}`, this.yDoc);
+    this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
+    this.operatorPositionMap = this.yDoc.getMap("operatorPositionMap");
+    this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
+    this.undoManager = new Y.UndoManager([this.operatorIDMap, this.operatorPositionMap, this.operatorLinkMap]);
+    this.awareness = this.wsProvider.awareness;
+    this.newYDocLoadedSubject.next(undefined);
+    this.observeFromYModel();
+  }
+
+  /**
+   * Returns the boolean value that indicates whether
+   * or not sync JointJS changes to texera graph.
+   */
+  public getSyncTexeraGraph(): boolean {
+    return this.syncTexeraGraph;
+  }
+
+  /**
+   * Sets the boolean value that indicates whether
+   * or not sync JointJS changes to texera graph.
+   */
+  public setSyncTexeraGraph(syncTexeraGraph: boolean): void {
+    this.syncTexeraGraph = syncTexeraGraph;
+  }
+
+  public destroyYModel(): void {
+    this.wsProvider?.disconnect();
+    this.yDoc?.destroy();
+  }
+
+  private observeFromYModel(): void {
+    this.operatorIDMap.observe((event: Y.YMapEvent<any>) => {
+      event.changes.keys.forEach((change, key)=>{
+        if (change.action === "add") {
+          const newOperator = this.operatorIDMap.get(key) as YType<OperatorPredicate>;
+          this.operatorAddSubject.next(newOperator.toJSON());
+        }
+        if (change.action === "delete") {
+          console.log("delete", change);
+          // this.operatorDeleteSubject.next({ deletedOperatorID: key });
+        }
+        if (change.action === "update") {
+          console.log("update", change);
+          // console.log(key, this.operatorIDMap.get(key)?.get("customDisplayName"));
+        }
+      });
+    });
+
+    this.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
+      events.forEach(event => {
+        if (event.target !== this.operatorIDMap) {
+          if (event.path[event.path.length-1] === "customDisplayName") {
+            const operatorID = event.path[0] as string;
+            const newName = this.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
+            this.operatorDisplayNameChangedSubject.next({operatorID: operatorID, newDisplayName: newName.toJSON()});
+          }
+        }
+      });
+    });
+
+    this.operatorLinkMap.observe((event: Y.YMapEvent<OperatorLink>) => {
+      event.changes.keys.forEach((change, key) => {
+        if (change.action === "add") {
+          const newLink = this.operatorLinkMap.get(key) as OperatorLink;
+          this.linkAddSubject.next(newLink);
+        }
+        if (change.action === "delete") {
+          // TODO: Seems deleted ymap cannot be accessed via oldValue.
+          const deletedLink = change.oldValue as OperatorLink;
+          this.linkDeleteSubject.next({deletedLink: deletedLink});
+        }
+      });
+    });
   }
 
   /**
@@ -172,8 +207,6 @@ export class WorkflowGraph {
     this.assertOperatorNotExists(operator.operatorID);
     const newOp = createYTypeFromObject(operator);
     this.operatorIDMap.set(operator.operatorID, newOp);
-    // this.operatorAddSubject.next(operator);
-    // console.log(this.operatorIDMap.get(operator.operatorID));
   }
 
   public addCommentBox(commentBox: CommentBox): void {
@@ -402,7 +435,6 @@ export class WorkflowGraph {
     this.assertLinkNotExists(link);
     this.assertLinkIsValid(link);
     this.operatorLinkMap.set(link.linkID, link);
-    this.linkAddSubject.next(link);
   }
 
   /**
@@ -416,7 +448,6 @@ export class WorkflowGraph {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.operatorLinkMap.delete(linkID);
-    this.linkDeleteSubject.next({ deletedLink: link });
     // delete its breakpoint
     this.linkBreakpointMap.delete(linkID);
   }
@@ -434,7 +465,6 @@ export class WorkflowGraph {
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
     this.operatorLinkMap.delete(link.linkID);
-    this.linkDeleteSubject.next({ deletedLink: link });
     // delete its breakpoint
     this.linkBreakpointMap.delete(link.linkID);
   }

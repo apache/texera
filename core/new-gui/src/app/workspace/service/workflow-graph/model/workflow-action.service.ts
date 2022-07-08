@@ -72,8 +72,8 @@ export class WorkflowActionService {
   public readonly jointGraph: joint.dia.Graph;
   public readonly jointGraphWrapper: JointGraphWrapper;
   private readonly operatorGroup: OperatorGroup;
-  private readonly syncTexeraModel: SyncTexeraModel;
-  private readonly syncOperatorGroup: SyncOperatorGroup;
+  public readonly syncTexeraModel: SyncTexeraModel;
+  public readonly syncOperatorGroup: SyncOperatorGroup;
   // variable to temporarily hold the current workflow to switch view to a particular version
   private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
@@ -112,87 +112,16 @@ export class WorkflowActionService {
     this.listenToLockChange();
   }
 
-  public observeFromYModel(): void {
-    this.texeraGraph.getOperatorAddStream().subscribe( newOp => {
-        if (!this.jointGraph.attributes.cells?.has(newOp.operatorID)) {
-          const syncedPosition = this.texeraGraph.yOperatorPositionMap?.get(newOp.operatorID);
-          if (syncedPosition) {
-            const operatorJointElement = this.jointUIService.getJointOperatorElement(newOp, syncedPosition);
-            this.jointGraph.addCell(operatorJointElement);
-          }
-        }
-    });
-
-    this.texeraGraph.getOperatorDeleteStream().subscribe(deletedOpSubj => {
-      // console.log(deletedOpSubj);
-      const operatorID = deletedOpSubj.deletedOperatorID;
-      if (this.jointGraph.attributes.cells?.has(operatorID)) {
-        this.jointGraphWrapper.jointGraph.getCell(operatorID).remove();
-      }
-    });
-
-    this.texeraGraph.yOperatorPositionMap?.observe((event: Y.YMapEvent<Point>) => {
-      // console.log(event);
-      if (!event.transaction.local) {
-        event.changes.keys.forEach((change, key)=> {
-          if (change.action === "add") {
-            if (this.texeraGraph.hasOperator(key)) {
-              const newOp = this.texeraGraph.getOperator(key);
-              const newPosition = this.texeraGraph.yOperatorPositionMap?.get(key);
-              if (newPosition) {
-                const operatorJointElement = this.jointUIService.getJointOperatorElement(newOp, newPosition);
-                this.jointGraph.addCell(operatorJointElement);
-              }
-            }
-          }
-          if (change.action === "update") {
-            const newPosition = this.texeraGraph.yOperatorPositionMap?.get(key);
-            if (newPosition) this.getJointGraphWrapper().setAbsolutePosition(key, newPosition.x, newPosition.y);
-          }
-        });
-      }
-    });
-
-    this.texeraGraph.yOperatorLinkMap?.observe((event: Y.YMapEvent<OperatorLink>) => {
-      if (!event.transaction.local) {
-        event.changes.keys.forEach((change, key)=>{
-          if (change.action === "add") {
-            const newLink = this.texeraGraph.yOperatorLinkMap?.get(key) as OperatorLink;
-            this.addLink(newLink);
-          }
-          if (change.action === "delete") {
-            this.deleteLinkWithID(key);
-          }
-        });
-      }
-    });
-  }
-
   public observeFromTexeraGraph(): void {
-      this.getTexeraGraph().getOperatorAddStream().subscribe(newOp => {
-        if (this.jointGraph.attributes.cells?.has(newOp.operatorID)) {
-          this.texeraGraph.yOperatorPositionMap?.set(newOp.operatorID,
-            this.getJointGraphWrapper().getElementPosition(newOp.operatorID));
-        }
-      });
-      // this.getTexeraGraph().getOperatorDeleteStream().subscribe(deletedOpSubj => {
-      //   this.texeraGraph.yOperatorIDMap?.delete(deletedOpSubj.deletedOperator.operatorID);
-      // });
       this.getJointGraphWrapper().getElementPositionChangeEvent().subscribe(element => {
-        this.texeraGraph.yOperatorPositionMap?.set(element.elementID, element.newPosition);
-      });
-      this.getTexeraGraph().getLinkAddStream().subscribe(newLink => {
-        this.texeraGraph.yOperatorLinkMap?.set(newLink.linkID, newLink);
-      });
-      this.getTexeraGraph().getLinkDeleteStream().subscribe(deletedLinkSubj =>{
-        this.texeraGraph.yOperatorLinkMap?.delete(deletedLinkSubj.deletedLink.linkID);
+        if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.operatorPositionMap.get(element.elementID) as Point != element.newPosition)
+          this.texeraGraph.operatorPositionMap?.set(element.elementID, element.newPosition);
       });
   }
 
   public setNewYModel(workflowId: number) {
     this.texeraGraph.loadNewYModel(workflowId);
     this.observeFromTexeraGraph();
-    this.observeFromYModel();
   }
 
   public destroyYModel(): void {
@@ -610,25 +539,27 @@ export class WorkflowActionService {
         // unhighlight previous highlights
         this.jointGraphWrapper.unhighlightElements(currentHighlights);
         this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
-        this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
-        operatorsAndPositions.forEach(o => {
-          this.jointGraphWrapper.highlightOperators(o.op.operatorID);
-        });
-        if (links) {
-          this.addLinksInternal(links);
-          if (breakpoints !== undefined) {
-            breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
-          }
-        }
-
-        if (groups) {
-          groups.forEach(group => {
-            // make a copy, because groups can be mutated after being given to operatorGroup (deletion for example)
-            const groupCopy = cloneDeep(group);
-            this.addGroupInternal(groupCopy);
-            this.operatorGroup.moveGroupToLayer(groupCopy, this.operatorGroup.getHighestLayer() + 1);
+        this.texeraGraph.yDoc.transact(() => {
+          this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
+          operatorsAndPositions.forEach(o => {
+            this.jointGraphWrapper.highlightOperators(o.op.operatorID);
           });
-        }
+          if (links) {
+            this.addLinksInternal(links);
+            if (breakpoints !== undefined) {
+              breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
+            }
+          }
+
+          if (groups) {
+            groups.forEach(group => {
+              // make a copy, because groups can be mutated after being given to operatorGroup (deletion for example)
+              const groupCopy = cloneDeep(group);
+              this.addGroupInternal(groupCopy);
+              this.operatorGroup.moveGroupToLayer(groupCopy, this.operatorGroup.getHighestLayer() + 1);
+            });
+          }
+        });
       },
       undo: () => {
         if (groups) {
@@ -1239,7 +1170,7 @@ export class WorkflowActionService {
     texeraGraph
       .getAllOperators()
       .forEach(
-        op => (operatorPositions[op.operatorID] = this.texeraGraph.yOperatorPositionMap?.get(op.operatorID) as Point)
+        op => (operatorPositions[op.operatorID] = this.texeraGraph.operatorPositionMap?.get(op.operatorID) as Point)
       );
     commentBoxes.forEach(
       commentBox =>
@@ -1487,7 +1418,7 @@ export class WorkflowActionService {
           throw new Error(`operator type ${operator.operatorType} is invalid`);
         }
         // add operator to texera graph
-        this.texeraGraph.yOperatorPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
+        this.texeraGraph.operatorPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
         this.texeraGraph.addOperator(operator);
       }
     });
@@ -1499,64 +1430,19 @@ export class WorkflowActionService {
   }
 
   private addLinksInternal(links: readonly OperatorLink[]): void {
-    const jointLinkCells: joint.dia.Link[] = new Array(links.length);
-
-    for (let i = 0; i < links.length; i++) {
-      let link = links[i];
-
-      this.texeraGraph.assertLinkNotExists(link);
-      this.texeraGraph.assertLinkIsValid(link);
-
-      const sourceGroup = this.operatorGroup.getGroupByOperator(link.source.operatorID);
-      const targetGroup = this.operatorGroup.getGroupByOperator(link.target.operatorID);
-
-      if (sourceGroup && targetGroup && sourceGroup.groupID === targetGroup.groupID && sourceGroup.collapsed) {
-        this.texeraGraph.addLink(link);
-      } else {
-        // if a group is collapsed, jointjs target is the group not the operator
-        const jointLinkCell = JointUIService.getJointLinkCell(link);
-        if (sourceGroup && sourceGroup.collapsed) {
-          jointLinkCell.set("source", { id: sourceGroup.groupID });
-        }
-        if (targetGroup && targetGroup.collapsed) {
-          jointLinkCell.set("target", { id: targetGroup.groupID });
-        }
-
-        jointLinkCells[i] = jointLinkCell;
-      }
-    }
-
-    this.operatorGroup.setSyncTexeraGraph(false);
-
-    if (environment.asyncRenderingEnabled) {
-      // addCells emits jointjs events asynchronously, async context ensures safety for event listeners which expect synchrony
-      this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
-        this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
-      });
-    } else {
+    this.texeraGraph.yDoc?.transact(()=> {
       for (let i = 0; i < links.length; i++) {
-        this.jointGraph.addCell(jointLinkCells[i]);
+        let link = links[i];
+        this.texeraGraph.assertLinkNotExists(link);
+        this.texeraGraph.assertLinkIsValid(link);
+        this.texeraGraph.addLink(link);
       }
-    }
-
-    for (let i = 0; i < links.length; i++) {
-      // this.jointGraph.addCell(jointLinkCells[i]);
-      this.texeraGraph.addLink(links[i]);
-      this.jointGraphWrapper.setCellLayer(links[i].linkID, this.operatorGroup.getHighestLayer() + 1);
-    }
-    this.operatorGroup.setSyncTexeraGraph(true);
+    });
   }
 
   private deleteLinkWithIDInternal(linkID: string): void {
     this.texeraGraph.assertLinkWithIDExists(linkID);
-
-    const group = this.operatorGroup.getGroupByLink(linkID);
-    if (group && group.collapsed) {
-      this.texeraGraph.deleteLinkWithID(linkID);
-    } else {
-      this.jointGraph.getCell(linkID).remove();
-      // JointJS link delete event will propagate and trigger Texera link delete
-    }
+    this.texeraGraph.deleteLinkWithID(linkID);
   }
 
   private addGroupInternal(group: Group): void {

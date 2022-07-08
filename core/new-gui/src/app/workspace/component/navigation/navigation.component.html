@@ -212,8 +212,8 @@
     >
       <nz-button-group nzSize="large">
         <button
-          (click)="undoRedoService.undoAction()"
-          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo() || !lockGranted"
+          (click)="workflowActionService.texeraGraph.undoManager.undo()"
+          [disabled]="displayParticularWorkflowVersion || !workflowActionService.texeraGraph.undoManager.canUndo()"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"
@@ -221,8 +221,8 @@
           <i nz-icon nzTheme="outline" nzType="undo"></i>
         </button>
         <button
-          (click)="undoRedoService.redoAction()"
-          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo() || !lockGranted"
+          (click)="workflowActionService.texeraGraph.undoManager.redo()"
+          [disabled]="displayParticularWorkflowVersion || !workflowActionService.texeraGraph.undoManager.canRedo()"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"

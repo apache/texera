@@ -21,7 +21,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
 import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
-import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model-service.service";
+import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
