@@ -1,10 +1,9 @@
 import { Injectable } from "@angular/core";
-import { Observable, throwError } from "rxjs";
-import { catchError } from "rxjs/operators";
+import { Observable} from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
-import { NgbdModalWorkflowExecutionsComponent } from "../../component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
@@ -36,10 +35,13 @@ export class WorkflowExecutionsService {
     });
   }
 
-  updateWorkflowExecutionsName(wid: number | undefined, eid: number, executionName: string): Observable<Response> {
+  updateWorkflowExecutionsName(wid: number | undefined, eId: number, executionName: string): Observable<Response> {
     return this.http.post<Response>(
-      `${WORKFLOW_EXECUTIONS_API_BASE_URL}/update_name_${wid}_${eid}_${executionName}`,
-      null
+      `${WORKFLOW_EXECUTIONS_API_BASE_URL}/update_execution_name`, {
+        wid,
+        eId,
+        executionName
+      }
     );
   }
 }
