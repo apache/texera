@@ -47,17 +47,16 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     location: 0,
     distance: 100,
     minMatchCharLength: 1,
-    keys: ["workflow.wid", "workflow.name", "ownerName", "workflow.content.operators"],
+    keys: ["workflow.wid", "workflow.name", "ownerName"],
   });
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["workflowName", ["workflow", "name"]],
     ["id", ["workflow", "wid"]],
     ["owner", ["ownerName"]],
-    ["operator", ["workflow", "content", "operators"]],
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
-  public searchCriteria: string[] = ["owner", "id", "operator"];
+  public searchCriteria: string[] = ["owner", "id"];
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
