@@ -13,12 +13,11 @@ import { DeletePromptComponent } from "./delete-prompt.component";
 describe("DeletePromptComponent", () => {
   let deleteComponent: DeletePromptComponent;
   let deleteFixture: ComponentFixture<DeletePromptComponent>;
-  
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ DeletePromptComponent ]
-    })
-    .compileComponents();
+      declarations: [DeletePromptComponent],
+    }).compileComponents();
   });
 
   beforeEach(
@@ -30,7 +29,7 @@ describe("DeletePromptComponent", () => {
       }).compileComponents();
     })
   );
-  
+
   beforeEach(() => {
     deleteFixture = TestBed.createComponent(DeletePromptComponent);
     deleteComponent = deleteFixture.componentInstance;

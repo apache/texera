@@ -37,7 +37,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NgbModal
   ) {}
-  
+
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();

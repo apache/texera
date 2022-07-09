@@ -120,8 +120,7 @@ export class UserFileSectionComponent {
             }
           );
         }
-    });
-    
+      });
   }
 
   public disableAddButton(): boolean {

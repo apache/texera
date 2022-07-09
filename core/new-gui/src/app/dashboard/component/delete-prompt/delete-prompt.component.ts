@@ -4,7 +4,7 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 @Component({
   selector: "texera-delete-prompt",
   templateUrl: "./delete-prompt.component.html",
-  styleUrls: ["./delete-prompt.component.css"]
+  styleUrls: ["./delete-prompt.component.css"],
 })
 export class DeletePromptComponent {
   @Input() deletionType!: string;
@@ -18,5 +18,4 @@ export class DeletePromptComponent {
   public delete(): void {
     this.activeModal.close(true);
   }
-
 }

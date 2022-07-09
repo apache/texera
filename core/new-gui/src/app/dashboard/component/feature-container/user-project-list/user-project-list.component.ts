@@ -32,7 +32,7 @@ export class UserProjectListComponent implements OnInit {
     private userProjectService: UserProjectService,
     private router: Router,
     private notificationService: NotificationService,
-    private modalService: NgbModal,
+    private modalService: NgbModal
   ) {}
 
   ngOnInit(): void {
@@ -109,15 +109,14 @@ export class UserProjectListComponent implements OnInit {
         if (confirmToDelete && pid != undefined) {
           this.userProjectEntries.splice(index, 1); // update local list of projects
 
-        // remove records of this project from color data structures
-        if (this.colorBrightnessMap.has(pid)) {
-          this.colorBrightnessMap.delete(pid);
+          // remove records of this project from color data structures
+          if (this.colorBrightnessMap.has(pid)) {
+            this.colorBrightnessMap.delete(pid);
+          }
+          this.userProjectToColorInputIndexMap.delete(pid);
+          this.colorInputToggleArray.splice(index, 1);
         }
-        this.userProjectToColorInputIndexMap.delete(pid);
-        this.colorInputToggleArray.splice(index, 1);
-      }
-    });
-
+      });
   }
 
   public clickCreateButton(): void {
