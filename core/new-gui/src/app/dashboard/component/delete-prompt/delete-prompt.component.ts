@@ -13,8 +13,7 @@ export class DeletePromptComponent {
   constructor(public activeModal: NgbActiveModal) {}
 
   /**
-   * deleteSavedWorkflow sends the user
-   * confirm to the main component. It does not call any method in service.
+   * sends the user confirm to the main component. It does not call any method in service.
    */
   public delete(): void {
     this.activeModal.close(true);

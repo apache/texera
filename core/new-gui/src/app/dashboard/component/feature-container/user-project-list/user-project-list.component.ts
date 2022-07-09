@@ -3,8 +3,10 @@ import { UserProjectService } from "../../../service/user-project/user-project.s
 import { UserProject } from "../../../type/user-project";
 import { Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-
+import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
+import { from } from "rxjs";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -29,7 +31,8 @@ export class UserProjectListComponent implements OnInit {
   constructor(
     private userProjectService: UserProjectService,
     private router: Router,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private modalService: NgbModal,
   ) {}
 
   ngOnInit(): void {
@@ -95,12 +98,16 @@ export class UserProjectListComponent implements OnInit {
     }
   }
 
-  public deleteProject(pid: number, index: number): void {
-    this.userProjectService
-      .deleteProject(pid)
+  public deleteProject(pid: number, name: string, index: number): void {
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "project";
+    modalRef.componentInstance.deletionName = name;
+
+    from(modalRef.result)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.userProjectEntries.splice(index, 1); // update local list of projects
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && pid != undefined) {
+          this.userProjectEntries.splice(index, 1); // update local list of projects
 
         // remove records of this project from color data structures
         if (this.colorBrightnessMap.has(pid)) {
@@ -108,7 +115,9 @@ export class UserProjectListComponent implements OnInit {
         }
         this.userProjectToColorInputIndexMap.delete(pid);
         this.colorInputToggleArray.splice(index, 1);
-      });
+      }
+    });
+
   }
 
   public clickCreateButton(): void {
