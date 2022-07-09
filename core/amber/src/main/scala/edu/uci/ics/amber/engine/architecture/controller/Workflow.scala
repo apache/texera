@@ -18,6 +18,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, Workfl
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class Workflow(
     workflowId: WorkflowIdentity,
@@ -134,6 +135,34 @@ class Workflow(
         case (_: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
           operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
       }) map { case (workerId: ActorVirtualIdentity, _: IOperatorExecutor) => workerId }
+
+  def getAllWorkersForOperators(
+      operators: Array[OperatorIdentity]
+  ): Array[ActorVirtualIdentity] = {
+    operators.map(opId => operatorToOpExecConfig(opId).getAllWorkers).flatten
+  }
+
+  def getPythonOperators(operators: Array[OperatorIdentity]): Array[OperatorIdentity] = {
+    operators.filter(opId =>
+      operatorToOpExecConfig(opId).getAllWorkers.size > 0 && operatorToOpExecConfig(
+        opId
+      ).getAllWorkers.forall(wid => workerToOperatorExec(wid).isInstanceOf[PythonUDFOpExecV2])
+    )
+  }
+
+  def getPythonWorkerToOperatorExec(
+      pythonOperators: Array[OperatorIdentity]
+  ): Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] = {
+    val allWorkers = pythonOperators
+      .map(opId => operatorToOpExecConfig(opId).getAllWorkers)
+      .flatten
+    workerToOperatorExec
+      .filter({
+        case (id: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
+          allWorkers.contains(id)
+      })
+      .asInstanceOf[Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)]]
+  }
 
   def getPythonWorkerToOperatorExec: Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] =
     workerToOperatorExec

@@ -30,7 +30,8 @@ class WorkerLayer(
 ) extends Serializable {
 
   private val startDependencies = mutable.HashSet[LinkIdentity]()
-  var workers: ListMap[ActorVirtualIdentity, WorkerInfo] = _
+  var workers: ListMap[ActorVirtualIdentity, WorkerInfo] =
+    ListMap[ActorVirtualIdentity, WorkerInfo]()
 
   def startAfter(link: LinkIdentity): Unit = {
     startDependencies.add(link)
@@ -44,7 +45,7 @@ class WorkerLayer(
 
   def canStart: Boolean = startDependencies.isEmpty
 
-  def isBuilt: Boolean = workers != null
+  def isBuilt: Boolean = workers.nonEmpty
 
   def identifiers: Array[ActorVirtualIdentity] = workers.values.map(_.id).toArray
 
@@ -60,7 +61,6 @@ class WorkerLayer(
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
       workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
   ): Unit = {
-    println(s"\t\t Building layer for ${id.operator}")
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     workers = ListMap((0 until numWorkers).map { i =>
       val operatorExecutor: IOperatorExecutor = initIOperatorExecutor(i)

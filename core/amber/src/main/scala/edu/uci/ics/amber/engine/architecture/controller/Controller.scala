@@ -77,8 +77,6 @@ class Controller(
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
-  val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
-    wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _
 
   def availableNodes: Array[Address] =
@@ -86,18 +84,28 @@ class Controller(
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
       .asInstanceOf[Array[Address]]
 
+  val workflowScheduler =
+    new WorkflowScheduler(
+      availableNodes,
+      networkCommunicationActor,
+      context,
+      asyncRPCClient,
+      logger,
+      workflow
+    )
+
+  val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
+    wire[ControllerAsyncRPCHandlerInitializer]
+
   // register controller itself and client
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
   networkCommunicationActor ! RegisterActorRef(CLIENT, context.parent)
 
-  val workflowScheduler =
-    new WorkflowScheduler(availableNodes, networkCommunicationActor, context, workflow)
-
   // build whole workflow
-  workflow.build(availableNodes, networkCommunicationActor, context)
+  //workflow.build(availableNodes, networkCommunicationActor, context)
 
   // bring all workers into a ready state
-  prepareWorkers()
+  //prepareWorkers()
 
   def prepareWorkers(): Future[Unit] = {
     Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
@@ -199,7 +207,7 @@ class Controller(
     }
   }
 
-  override def receive: Receive = initializing
+  override def receive: Receive = running
 
   def initializing: Receive = {
     case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>

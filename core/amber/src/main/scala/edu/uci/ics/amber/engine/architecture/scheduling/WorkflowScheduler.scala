@@ -1,7 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import akka.actor.{ActorContext, Address}
+import com.twitter.util.Future
+import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{
   AllToOne,
@@ -12,9 +18,16 @@ import edu.uci.ics.amber.engine.architecture.linksemantics.{
   RangeBasedShuffle
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
+import edu.uci.ics.amber.engine.common.{AmberLogging, Constants, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -23,9 +36,10 @@ class WorkflowScheduler(
     availableNodes: Array[Address],
     networkCommunicationActor: NetworkSenderActorRef,
     ctx: ActorContext,
+    asyncRPCClient: AsyncRPCClient,
+    logger: Logger,
     workflow: Workflow
 ) {
-
   val idToRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
   val regionsToSchedule = new ArrayBuffer[PipelinedRegion]()
   val regionsCurrentlyScheduled = new ArrayBuffer[PipelinedRegion]()
@@ -34,6 +48,10 @@ class WorkflowScheduler(
       OperatorIdentity
     ]() // Since one operator can belong to multiple regions, we need to keep
   // track of the operators already built
+  val openedOperators = new mutable.HashSet[OperatorIdentity]()
+  val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
+  val activatedLink = new mutable.HashSet[LinkStrategy]()
+  var preparedRegions: Boolean = false
 
   def getSourcesOfRegion(region: PipelinedRegion): Array[OperatorIdentity] = {
     val sources = new ArrayBuffer[OperatorIdentity]()
@@ -55,7 +73,7 @@ class WorkflowScheduler(
     sources.toArray
   }
 
-  def build(region: PipelinedRegion): Unit = {
+  def buildRegion(region: PipelinedRegion): Unit = {
     val builtOpsInRegion = new mutable.HashSet[OperatorIdentity]()
     var frontier: Iterable[OperatorIdentity] = getSourcesOfRegion(region)
     while (frontier.nonEmpty) {
@@ -202,6 +220,111 @@ class WorkflowScheduler(
     } else {
       new FullRoundRobin(sender, receiver, Constants.defaultBatchSize)
     }
+  }
+
+  def prepareRegion(region: PipelinedRegion): Future[Unit] = {
+    Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
+      .flatMap(_ => {
+        val uninitializedPythonOperators = workflow.getPythonOperators(
+          (region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions).filter(opId =>
+            !initializedPythonOperators.contains(opId)
+          )
+        )
+        Future
+          .collect(
+            // initialize python operator code
+            workflow
+              .getPythonWorkerToOperatorExec(
+                uninitializedPythonOperators
+              )
+              .map {
+                case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+                  asyncRPCClient.send(
+                    InitializeOperatorLogic(
+                      pythonOperatorExec.getCode,
+                      pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
+                      pythonOperatorExec.getOutputSchema
+                    ),
+                    workerID
+                  )
+              }
+              .toSeq
+          )
+          .onSuccess(_ =>
+            uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
+          )
+          .onFailure((err: Throwable) => {
+            logger.error("Failure when sending Python UDF code", err)
+            // report error to frontend
+            asyncRPCClient.sendToClient(FatalError(err))
+          })
+      })
+      .flatMap(_ => {
+        val allOperatorsInRegion =
+          region.blockingDowstreamOperatorsInOtherRegions ++ region.getOperators()
+        Future.collect(
+          // activate all links
+          workflow.getAllLinks
+            .filter(link => {
+              !activatedLink.contains(link) &&
+                allOperatorsInRegion.contains(
+                  OperatorIdentity(link.from.id.workflow, link.from.id.operator)
+                ) &&
+                allOperatorsInRegion.contains(
+                  OperatorIdentity(link.to.id.workflow, link.to.id.operator)
+                )
+            })
+            .map { link: LinkStrategy =>
+              asyncRPCClient
+                .send(LinkWorkers(link), CONTROLLER)
+                .onSuccess(_ => activatedLink.add(link))
+            }
+            .toSeq
+        )
+      })
+      .flatMap(
+        // open all operators
+        _ => {
+          val allNotOpenedOperators =
+            (region.blockingDowstreamOperatorsInOtherRegions ++ region.getOperators())
+              .filter(opId => !openedOperators.contains(opId))
+          Future
+            .collect(
+              workflow
+                .getAllWorkersForOperators(allNotOpenedOperators)
+                .map { workerID =>
+                  asyncRPCClient.send(OpenOperator(), workerID)
+                }
+                .toSeq
+            )
+            .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
+        }
+      )
+      .flatMap(_ =>
+        Future {
+          (region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions)
+            .filter(opId =>
+              workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED
+            )
+            .foreach(opId => workflow.getOperator(opId).setAllWorkerState(READY))
+          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
+      )
+      .flatMap(_ => {
+        if (!preparedRegions) {
+          preparedRegions = true
+          asyncRPCClient.send(StartWorkflow(), CONTROLLER)
+        } else {
+          Future.Unit
+        }
+      })
+  }
+
+  def buildAndPrepare(): Unit = {
+    idToRegions.values.foreach(region => {
+      buildRegion(region)
+      prepareRegion(region)
+    })
   }
 
 }
