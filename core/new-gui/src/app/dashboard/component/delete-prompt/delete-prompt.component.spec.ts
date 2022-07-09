@@ -38,7 +38,7 @@ describe('DeletePromptComponent', () => {
   it("deletion returns a result of true", () => {
     deleteFixture = TestBed.createComponent(DeletePromptComponent);
     deleteComponent = deleteFixture.componentInstance;
-    deleteComponent.deletionType = "project";
+    deleteComponent.deletionType = "project"; //the string values do not change the test results
     deleteComponent.deletionName = "test entity";
 
     spyOn(deleteComponent.activeModal, "close");
