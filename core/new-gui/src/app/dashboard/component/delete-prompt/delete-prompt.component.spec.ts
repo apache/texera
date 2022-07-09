@@ -30,6 +30,11 @@ describe('DeletePromptComponent', () => {
       }).compileComponents();
     })
   );
+  
+  beforeEach(() => {
+    deleteFixture = TestBed.createComponent(DeletePromptComponent);
+    deleteComponent = deleteFixture.componentInstance;
+  });
 
   it('should create', () => {
     expect(deleteComponent).toBeTruthy();
