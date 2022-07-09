@@ -105,7 +105,7 @@ import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wr
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
-import { DeletePromptComponent } from './dashboard/component/delete-prompt/delete-prompt.component';
+import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
 
 registerLocaleData(en);
 
