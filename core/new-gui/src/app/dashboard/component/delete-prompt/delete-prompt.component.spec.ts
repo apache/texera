@@ -10,7 +10,7 @@ import { DeletePromptComponent } from "./delete-prompt.component";
 /**
  * Test deletion for workflow, project, file, and execution
  */
-describe('DeletePromptComponent', () => {
+describe("DeletePromptComponent", () => {
   let deleteComponent: DeletePromptComponent;
   let deleteFixture: ComponentFixture<DeletePromptComponent>;
   
@@ -36,7 +36,7 @@ describe('DeletePromptComponent', () => {
     deleteComponent = deleteFixture.componentInstance;
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(deleteComponent).toBeTruthy();
   });
 

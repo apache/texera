@@ -1,10 +1,10 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 
 @Component({
-  selector: 'delete-prompt',
-  templateUrl: './delete-prompt.component.html',
-  styleUrls: ['./delete-prompt.component.css']
+  selector: "texera-delete-prompt",
+  templateUrl: "./delete-prompt.component.html",
+  styleUrls: ["./delete-prompt.component.css"]
 })
 export class DeletePromptComponent {
   @Input() deletionType!: string;
