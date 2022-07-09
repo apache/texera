@@ -118,7 +118,8 @@ object JobResultService {
   */
 class JobResultService(
     val opResultStorage: OpResultStorage,
-    val workflowStateStore: WorkflowStateStore
+    val workflowStateStore: WorkflowStateStore,
+    var workflowExecutionId: String = "" // Dummy initialization
 ) extends SubscriptionManager {
 
   var progressiveResults: mutable.HashMap[String, ProgressiveResultService] =
@@ -130,6 +131,7 @@ class JobResultService(
   def attachToJob(
       stateStore: JobStateStore,
       workflowInfo: WorkflowInfo,
+      workflowExeId: Long,
       client: AmberClient
   ): Unit = {
 
@@ -164,6 +166,8 @@ class JobResultService(
           if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
             // immediately perform final update
             onResultUpdate()
+            // Assign workflow eid once the execution is completed
+            workflowExecutionId = "exe" + workflowExeId
           }
         })
     )
@@ -226,15 +230,18 @@ class JobResultService(
         case other => // skip other non-texera-managed sinks, if any
       }
     })
+
   }
 
+  // Iterate and send output to frontend
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val opId = request.operatorID
+//    val opId = request.operatorID
+
     val paginationIterable =
-      if (opResultStorage.contains(opId)) {
-        opResultStorage.get(opId).getRange(from, from + request.pageSize)
+      if (opResultStorage.contains(workflowExecutionId)) {
+        opResultStorage.get(workflowExecutionId).getRange(from, from + request.pageSize) // mapping
       } else {
         Iterable.empty
       }
