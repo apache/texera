@@ -101,7 +101,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  /* delete a single execution and display current workflow execution */
+  /* delete a single execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
     if (this.workflow.wid === undefined) {
@@ -115,13 +115,22 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
+  /* rename a single execution */
+
   confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
     if (this.workflow.wid === undefined) {
       return;
     }
+    // if name doesn't change, no need to call API
+    if (name === row.name) {
+      this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+        entryIsEditingIndex => entryIsEditingIndex != index
+      );
+      return;
+    }
 
     this.workflowExecutionsService
-      .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name || this.defaultWorkflowExecutionsName)
+      .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.workflowExecutionsList === undefined) {

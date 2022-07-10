@@ -40,6 +40,7 @@ object WorkflowExecutionsResource {
 
 case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: Boolean)
 case class ExecutionDeleteRequest(wid: UInteger, eId: UInteger)
+case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @PermitAll
 @Path("/executions")
@@ -127,17 +128,15 @@ class WorkflowExecutionsResource {
 
   /** Name a single execution * */
   @POST
-  @Path("/update_name_{wid}_{eid}_{executionName}")
+  @Path("/update_execution_name")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def updateWorkflowExecutionsName(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("eid") eid: UInteger,
-      @PathParam("executionName") executionName: String,
+      request: ExecutionRenameRequest,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
-    val execution = getExecutionById(eid)
-    execution.setName(executionName)
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    val execution = getExecutionById(request.eId)
+    execution.setName(request.executionName)
     executionsDao.update(execution)
   }
 }
