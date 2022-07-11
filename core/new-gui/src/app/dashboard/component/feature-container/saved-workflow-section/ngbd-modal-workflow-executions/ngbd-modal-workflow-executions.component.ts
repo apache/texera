@@ -15,7 +15,7 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
-  public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined; // Experiment map Workflow Execution Entry
+  public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
 
   public executionsTableHeaders: string[] = ["", "", "Execution#", "Starting Time", "Updated Time", "Status", ""];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
