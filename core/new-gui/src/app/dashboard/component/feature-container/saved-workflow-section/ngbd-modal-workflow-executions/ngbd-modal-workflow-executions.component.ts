@@ -15,15 +15,21 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
-  public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
+  public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined; // Experiment map Workflow Execution Entry
 
   public executionsTableHeaders: string[] = ["", "", "Execution#", "Starting Time", "Updated Time", "Status", ""];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
+
+  // Pagination attributes
+  public currentPageIndex: number = 1;
+  public pageSize: number = 8;
+  public totalItems: number = 0;
 
   constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
+    this.changePaginatedExecutions(this.currentPageIndex);
   }
 
   /**
@@ -37,7 +43,15 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .retrieveWorkflowExecutions(this.workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
+        this.totalItems = workflowExecutions.length;
         this.workflowExecutionsList = workflowExecutions;
+
+        // Map workflow execution
+        this.workflowExecutionsList.map(executions => executions);
+
+        // Check output (will remove after review)
+        console.log("Check total items: ", this.totalItems);
+        console.log("Check mapped executions list: ", this.workflowExecutionsList);
       });
   }
 
@@ -80,7 +94,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   /* delete a single execution and display current workflow execution */
-
   onDelete(row: WorkflowExecutionsEntry) {
     if (this.workflow.wid === undefined) {
       return;
@@ -90,6 +103,44 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+      });
+  }
+
+  // Pagination handler
+  // Changing Page Index
+  onPageIndexChange(pageIndex: any): void {
+    this.currentPageIndex = pageIndex;
+
+    // Check output (will remove after review)
+    console.log("Check recieve page index: ", this.currentPageIndex);
+
+    this.changePaginatedExecutions(pageIndex);
+  }
+
+  // Render executions by page index
+  // To-do: WorkflowExecutionEntry does not have pageIndex,
+  // will implement a PaginatedWorkflowEntry model for quick api call by pageIndex
+  changePaginatedExecutions(pageIndex: number) {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+    this.workflowExecutionsService
+      .retrieveWorkflowExecutions(this.workflow.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(data => {
+        this.workflowExecutionsList = [];
+
+        let limit = this.currentPageIndex * this.pageSize;
+        let iter = (this.currentPageIndex - 1) * this.pageSize;
+        for (let i = iter; i < limit; i++) {
+          if (limit > this.totalItems) {
+            limit = this.totalItems;
+          }
+          this.workflowExecutionsList.push(data[i]);
+        }
+
+        // Check output (will remove after review)
+        console.log("Check after traverse: ", this.workflowExecutionsList);
       });
   }
 }

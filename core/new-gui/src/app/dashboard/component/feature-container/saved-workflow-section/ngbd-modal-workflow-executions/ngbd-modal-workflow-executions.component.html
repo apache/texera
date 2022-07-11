@@ -5,14 +5,23 @@
   </button>
 </div>
 <div class="modal-body table-responsive">
-  <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
+  <nz-table
+    *ngIf="workflowExecutionsList"
+    [nzData]="workflowExecutionsList"
+    [nzShowPagination]="true"
+    [nzPageSize]="pageSize"
+    [nzPageIndex]="currentPageIndex"
+    [nzTotal]="totalItems"
+    [nzFrontPagination]="false"
+    (nzPageIndexChange)="onPageIndexChange($event)"
+  >
     <thead>
       <tr>
         <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of workflowExecutionsList; let i=index;">
+      <tr *ngFor="let row of workflowExecutionsList; let i=index">
         <td nzEllipsis>
           <input type="checkbox" />
         </td>
@@ -27,7 +36,7 @@
             (click)="onBookmarkToggle(row)"
           ></i>
         </td>
-        <td nzEllipsis>{{(i + 1)}}</td>
+        <td nzEllipsis>{{i + 1 + (currentPageIndex - 1)*pageSize}}</td>
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>
