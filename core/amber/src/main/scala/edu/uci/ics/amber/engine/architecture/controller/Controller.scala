@@ -78,6 +78,8 @@ class Controller(
     wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _
 
+  override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
+
   def availableNodes: Array[Address] =
     Await
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)

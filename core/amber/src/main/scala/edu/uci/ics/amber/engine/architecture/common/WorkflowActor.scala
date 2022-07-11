@@ -41,10 +41,13 @@ abstract class WorkflowActor(
     // create a network communication actor on the same machine as the WorkflowActor itself
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, actorId))
   )
-  lazy val logManager: LogManager = wire[LogManager]
+  lazy val logManager: LogManager = new LogManager(networkCommunicationActor, getLogName)
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
+
+  // Get log file name
+  def getLogName: String = ""
 
   def outputControlPayload(
       to: ActorVirtualIdentity,

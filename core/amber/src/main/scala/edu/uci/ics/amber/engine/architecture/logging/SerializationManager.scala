@@ -1,34 +1,42 @@
 package edu.uci.ics.amber.engine.architecture.logging
 
-import edu.uci.ics.amber.engine.architecture.logging.determinants.{
-  ControlDeterminant,
-  DataOrderDeterminant,
-  Determinant,
-  TimeStampDeterminant
-}
+import com.twitter.chill.{Kryo, KryoInstantiator, KryoPool}
+import edu.uci.ics.amber.engine.architecture.logging.SerializationManager.kryo
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandConvertUtils
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlInvocationV2,
   ControlPayload,
   ReturnInvocationV2
 }
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
+object SerializationManager {
+  val POOL_SIZE = 10
+  val kryo: KryoPool = KryoPool.withByteArrayOutputStream(POOL_SIZE, new KryoInstantiator)
+}
+
 class SerializationManager(determinantLogWriter: DeterminantLogWriter) {
+
+  sealed trait SerializedDeterminant
+  case class TimeStampDeterminant(timestamp: Long) extends SerializedDeterminant
+  case class ControlDeterminant(controlPayload: ControlPayload, from: ActorVirtualIdentity)
+      extends SerializedDeterminant
+  case class DataOrderDeterminant(sender: ActorVirtualIdentity, count: Long)
+      extends SerializedDeterminant
 
   def compressedWrite(allDeterminants: Iterable[InMemDeterminant]): Unit = {
     var sender: ActorVirtualIdentity = null
     var count = 0
     allDeterminants.foreach {
       case TimeStamp(value) =>
-        determinantLogWriter.writeLogRecord(TimeStampDeterminant(value).toByteArray)
+        determinantLogWriter.writeLogRecord(serialize(TimeStampDeterminant(value)))
       case pcm: ProcessControlMessage =>
-        determinantLogWriter.writeLogRecord(serializeControl(pcm))
+        determinantLogWriter.writeLogRecord(
+          serialize(ControlDeterminant(pcm.controlPayload, pcm.from))
+        )
       case SenderChangeTo(actorVirtualIdentity) =>
         if (sender != null) {
-          determinantLogWriter.writeLogRecord(DataOrderDeterminant(sender, count).toByteArray)
+          determinantLogWriter.writeLogRecord(serialize(DataOrderDeterminant(sender, count)))
         }
         sender = actorVirtualIdentity
         count = 1
@@ -37,25 +45,12 @@ class SerializationManager(determinantLogWriter: DeterminantLogWriter) {
     }
   }
 
-  private def serializeControl(control: ProcessControlMessage): Array[Byte] = {
-    try {
-      val payloadV2 = control.controlPayload match {
-        case invocation: AsyncRPCClient.ControlInvocation =>
-          val cmdV2 = ControlCommandConvertUtils.controlCommandToV2(invocation.command)
-          ControlInvocationV2(invocation.commandID, cmdV2)
-        case ret: AsyncRPCClient.ReturnInvocation =>
-          val retV2 = ControlCommandConvertUtils.controlReturnToV2(ret.controlReturn)
-          ReturnInvocationV2(ret.originalCommandID, retV2)
-        case _ =>
-          throw new RuntimeException(
-            s"control payload ${control.controlPayload} is neither an invocation nor a return value"
-          )
-      }
-      ControlDeterminant(payloadV2, control.from).toByteArray
-    } catch {
-      case t: Throwable =>
-        throw t
-    }
+  private def serialize(serializedDeterminant: SerializedDeterminant): Array[Byte] = {
+    kryo.toBytesWithClass(serializedDeterminant)
+  }
+
+  private def deserialize(x: Array[Byte]): SerializedDeterminant = {
+    kryo.fromBytes(x).asInstanceOf[SerializedDeterminant]
   }
 
 }

@@ -20,14 +20,14 @@ case class TimeStamp(value: Long) extends InMemDeterminant
 
 class LogManager(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
-    actorId: ActorVirtualIdentity
+    logName: String
 ) {
 
   val enabledLogging: Boolean =
     AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
 
   private val logStorage: DeterminantLogStorage = if (enabledLogging) {
-    new LocalFSLogStorage(actorId.name.replace("Worker:", ""))
+    new LocalFSLogStorage(logName)
   } else {
     null
   }

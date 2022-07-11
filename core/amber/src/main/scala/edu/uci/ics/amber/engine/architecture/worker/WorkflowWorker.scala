@@ -84,6 +84,8 @@ class WorkflowWorker(
   workerStateManager.assertState(UNINITIALIZED)
   workerStateManager.transitTo(READY)
 
+  override def getLogName: String = actorId.name.replace("Worker:", "")
+
   def getSenderCredits(sender: ActorVirtualIdentity) = {
     tupleProducer.getSenderCredits(sender)
   }
