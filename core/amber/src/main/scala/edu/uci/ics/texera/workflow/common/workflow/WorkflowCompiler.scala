@@ -92,17 +92,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           sink.getCachedUpstreamId match {
             case Some(upstreamId) =>
               sink.setStorage(opResultStorage.create(upstreamId, outputSchemas(0)))
-            case None =>
-//              sink.setStorage(
-//                opResultStorage.create(o.operatorID, outputSchemas(0))
-//              )
-              sink.setStorage(
-                // Warning: executionId stay consistent for every executions need generate every new collections
-                opResultStorage.create(
-                  key = "" + context.executionID,
-                  outputSchemas(0)
-                )
-              )
+            case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchemas(0)))
           }
         case _ =>
       }

@@ -56,30 +56,21 @@ class WorkflowJobService(
     workflowCompiler.initOperator(req.operator)
     client.sendAsync(ModifyLogic(req.operator))
   }))
+
   workflowContext.executionID = -1 // for every new execution,
   // reset it so that the value doesn't carry over across executions
-
   def startWorkflow(): Unit = {
-    if (WorkflowService.userSystemEnabled) {
-      workflowContext.executionID =
-        ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId)
-      // add new storage in memory
-    }
-
     for (pair <- workflowInfo.breakpoints) {
       Await.result(
         jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
         Duration.fromSeconds(10)
       )
     }
-
-    resultService.attachToJob(
-      stateStore,
-      workflowInfo,
-      workflowContext.executionID,
-      client
-    )
-
+    resultService.attachToJob(stateStore, workflowInfo, client)
+    if (WorkflowService.userSystemEnabled) {
+      workflowContext.executionID =
+        ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId)
+    }
     stateStore.jobMetadataStore.updateState(jobInfo =>
       jobInfo.withState(READY).withEid(workflowContext.executionID).withError(null)
     )
@@ -87,7 +78,6 @@ class WorkflowJobService(
       StartWorkflow(),
       _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
     )
-
   }
 
   private[this] def createWorkflowInfo(): WorkflowInfo = {
@@ -134,4 +124,5 @@ class WorkflowJobService(
     jobPythonService.unsubscribeAll()
     jobStatsService.unsubscribeAll()
   }
+
 }
