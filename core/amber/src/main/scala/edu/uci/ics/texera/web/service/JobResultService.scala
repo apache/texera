@@ -135,6 +135,9 @@ class JobResultService(
       client: AmberClient
   ): Unit = {
 
+    // Assign workflow eid once the execution is completed
+    workflowExecutionId = "exe" + workflowExeId
+
     if (resultUpdateCancellable != null && !resultUpdateCancellable.isCancelled) {
       resultUpdateCancellable.cancel()
     }
@@ -166,8 +169,7 @@ class JobResultService(
           if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
             // immediately perform final update
             onResultUpdate()
-            // Assign workflow eid once the execution is completed
-            workflowExecutionId = "exe" + workflowExeId
+
           }
         })
     )
