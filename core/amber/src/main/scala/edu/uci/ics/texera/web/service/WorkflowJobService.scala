@@ -14,11 +14,8 @@ import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, Websoc
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter
-}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter}
+import org.jooq.types.UInteger
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
@@ -69,7 +66,7 @@ class WorkflowJobService(
     resultService.attachToJob(stateStore, workflowInfo, client)
     if (WorkflowService.userSystemEnabled) {
       workflowContext.executionID =
-        ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId)
+        ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId, workflowContext.userId)
     }
     stateStore.jobMetadataStore.updateState(jobInfo =>
       jobInfo.withState(READY).withEid(workflowContext.executionID).withError(null)

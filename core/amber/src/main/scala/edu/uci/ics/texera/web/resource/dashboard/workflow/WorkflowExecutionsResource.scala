@@ -28,6 +28,7 @@ object WorkflowExecutionsResource {
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
+      uId: UInteger,
       startingTime: Timestamp,
       completionTime: Timestamp,
       status: Byte,
@@ -70,6 +71,7 @@ class WorkflowExecutionsResource {
         .select(
           WORKFLOW_EXECUTIONS.EID,
           WORKFLOW_EXECUTIONS.VID,
+          WORKFLOW_EXECUTIONS.UID,
           WORKFLOW_EXECUTIONS.STARTING_TIME,
           WORKFLOW_EXECUTIONS.COMPLETION_TIME,
           WORKFLOW_EXECUTIONS.STATUS,
