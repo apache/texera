@@ -10,9 +10,9 @@
       <tr>
         <th
           *ngFor="let column of executionsTableHeaders"
-          [ngbTooltip]="executionTooltip[column]"
-          container="body"
-          placement="auto"
+          nz-tooltip
+          [nzTooltipTitle]="executionTooltip[column]"
+          nzTooltipPlacement="top"
         >
           {{column}}
         </th>
@@ -58,9 +58,9 @@
             <i
               nz-icon
               nzTheme="outline"
-              ngbTooltip='Rename Execution "{{row.name}}"'
-              container="body"
-              placement="auto"
+              nz-tooltip
+              nzTooltipTitle='Rename Execution "{{row.name}}"'
+              nzTooltipPlacement="top"
               nzType="edit"
             ></i>
           </button>
@@ -71,9 +71,9 @@
           <i
             nz-icon
             nzTheme="outline"
-            placement="auto"
-            container="body"
-            [ngbTooltip]="getExecutionStatus(row.status)[0]"
+            nz-tooltip
+            [nzTooltipTitle]="getExecutionStatus(row.status)[0]"
+            nzTooltipPlacement="top"
             [nzType]="getExecutionStatus(row.status)[1]"
             [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
             class="status-icon"
@@ -83,9 +83,9 @@
           <i
             nz-icon
             nzType="delete"
-            ngbTooltip='Delete the Execution "{{row.name}}"'
-            container="body"
-            placement="auto"
+            nz-tooltip
+            nzTooltipTitle='Delete the Execution "{{row.name}}"'
+            nzTooltipPlacement="top"
             class="trash-icon"
             (click)="onDelete(row)"
           ></i>
