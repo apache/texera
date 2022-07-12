@@ -7,12 +7,15 @@
 <div class="modal-body table-responsive">
   <nz-table
     *ngIf="workflowExecutionsList"
+    [nzShowSizeChanger]="true"
+    [nzPageSizeOptions]="[10,20,30,40]"
     [nzData]="workflowExecutionsList"
     [nzShowPagination]="true"
     [nzPageSize]="pageSize"
     [nzPageIndex]="currentPageIndex"
     [nzTotal]="totalItems"
     [nzFrontPagination]="false"
+    (nzPageSizeChange)="onPageSizeChange($event)"
     (nzPageIndexChange)="onPageIndexChange($event)"
   >
     <thead>
@@ -40,12 +43,7 @@
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>
-          <span
-            [ngbTooltip]="getExecutionStatus(row.status)[0]"
-            placement="auto"
-            container="body"
-            class="icon-container"
-          >
+          <span nz-tooltip [nzTooltipTitle]="getExecutionStatus(row.status)[0]" nzTooltipPlacement="top">
             <i
               nz-icon
               nzTheme="outline"

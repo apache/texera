@@ -22,7 +22,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   // Pagination attributes
   public currentPageIndex: number = 1;
-  public pageSize: number = 8;
+  public pageSize: number = 10;
   public totalItems: number = 0;
 
   constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
@@ -106,9 +106,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  // Pagination handler
-  // Changing Page Index
-  onPageIndexChange(pageIndex: any): void {
+  /* Pagination handler */
+  onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;
 
     // Check output (will remove after review)
@@ -117,9 +116,15 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     this.changePaginatedExecutions(pageIndex);
   }
 
-  // Render executions by page index
-  // To-do: WorkflowExecutionEntry does not have pageIndex,
-  // will implement a PaginatedWorkflowEntry model for quick api call by pageIndex
+  onPageSizeChange(pageSize: number): void {
+    this.pageSize = pageSize;
+  }
+
+  /**  Render executions by page index
+   * To-do: create WorkflowExecutionEntry to handle pageIndex, or
+   * add page attributes to workflowExecutionService with function
+   * getPaginatedExecutions()
+   */
   changePaginatedExecutions(pageIndex: number) {
     if (this.workflow.wid === undefined) {
       return;
