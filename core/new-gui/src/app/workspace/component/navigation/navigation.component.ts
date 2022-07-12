@@ -2,8 +2,11 @@ import { DatePipe, Location } from "@angular/common";
 import { ChangeDetectorRef, Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import { Workflow } from "../../../common/type/workflow";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "../../../common/service/workflow-persist/workflow-persist.service";
+import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
@@ -22,6 +25,7 @@ import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
+import { saveAs } from "file-saver";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -332,7 +336,27 @@ export class NavigationComponent implements OnInit {
     reader.onload = () => {
       const result = reader.result;
       if (typeof result === "string") {
-        const workflow = JSON.parse(result) as Workflow;
+        const workflowContent = JSON.parse(result) as WorkflowContent;
+
+        // set the workflow name using the file name without the extension
+        const fileExtensionIndex = file.name.lastIndexOf(".");
+        var workflowName: string;
+        if (fileExtensionIndex === -1) {
+          workflowName = file.name;
+        } else {
+          workflowName = file.name.substring(0, fileExtensionIndex);
+        }
+        if (workflowName.trim() === "") {
+          workflowName = DEFAULT_WORKFLOW_NAME;
+        }
+
+        const workflow: Workflow = {
+          content: workflowContent,
+          name: workflowName,
+          wid: undefined,
+          creationTime: undefined,
+          lastModifiedTime: undefined,
+        };
         this.workflowActionService.reloadWorkflow(workflow, true);
       }
     };
@@ -340,23 +364,10 @@ export class NavigationComponent implements OnInit {
   };
 
   public onClickExportWorkflow(): void {
-    const workflow: Workflow = this.workflowActionService.getWorkflow();
-    // make a copy of the workflow with erased metadata info, such as workflow id
-    const workflowCopy: Workflow = {
-      ...workflow,
-      wid: undefined,
-      creationTime: undefined,
-      lastModifiedTime: undefined,
-    };
-
-    var workflowJson = JSON.stringify(workflowCopy);
-    var element = document.createElement("a");
-    element.setAttribute("href", "data:text/json;charset=UTF-8," + encodeURIComponent(workflowJson));
-    element.setAttribute("download", workflow.name + ".json");
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click(); // simulate click
-    document.body.removeChild(element);
+    const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
+    const workflowContentJson = JSON.stringify(workflowContent);
+    const fileName = this.currentWorkflowName + ".json";
+    saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }
 
   /**
