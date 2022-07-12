@@ -1,13 +1,12 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { cloneDeep } from "lodash-es";
 import { from } from "rxjs";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
-import { NgbdModalDeleteWorkflowComponent } from "../ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
+import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 
 @UntilDestroy()
 @Component({
@@ -19,8 +18,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
+  public workflowExecutionsIsEditingName: number[] = [];
 
-  public executionsTableHeaders: string[] = ["", "", "Execution#", "Starting Time", "Updated Time", "Status", ""];
+  public executionsTableHeaders: string[] = [
+    "",
+    "",
+    "Execution#",
+    "Name",
+    "Starting Time",
+    "Updated Time",
+    "Status",
+    "",
+  ];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   constructor(
@@ -87,12 +96,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  /* delete a single execution and display current workflow execution */
+  /* delete a single execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
-    // Confirmation prompt for deletion
-    const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
-    modalRef.componentInstance.workflow = cloneDeep(row);
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "execution";
+    modalRef.componentInstance.deletionName = row.name;
 
     from(modalRef.result)
       .pipe(untilDestroyed(this))
@@ -105,6 +114,36 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
               complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
             });
         }
+      });
+  }
+
+  /* rename a single execution */
+
+  confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+    // if name doesn't change, no need to call API
+    if (name === row.name) {
+      this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+        entryIsEditingIndex => entryIsEditingIndex != index
+      );
+      return;
+    }
+
+    this.workflowExecutionsService
+      .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.workflowExecutionsList === undefined) {
+          return;
+        }
+        this.workflowExecutionsList[index].name = name;
+      })
+      .add(() => {
+        this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
       });
   }
 }
