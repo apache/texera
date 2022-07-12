@@ -29,7 +29,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
-    this.changePaginatedExecutions(this.currentPageIndex);
+    this.changePaginatedExecutions();
   }
 
   /**
@@ -45,13 +45,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .subscribe(workflowExecutions => {
         this.totalItems = workflowExecutions.length;
         this.workflowExecutionsList = workflowExecutions;
-
-        // Map workflow execution
-        this.workflowExecutionsList.map(executions => executions);
-
-        // Check output (will remove after review)
-        console.log("Check total items: ", this.totalItems);
-        console.log("Check mapped executions list: ", this.workflowExecutionsList);
       });
   }
 
@@ -109,23 +102,20 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   /* Pagination handler */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;
-
-    // Check output (will remove after review)
-    console.log("Check recieve page index: ", this.currentPageIndex);
-
-    this.changePaginatedExecutions(pageIndex);
+    this.changePaginatedExecutions();
   }
 
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
+    this.changePaginatedExecutions();
   }
 
-  /**  Render executions by page index
+  /**  Render executions when changing page
    * To-do: create WorkflowExecutionEntry to handle pageIndex, or
    * add page attributes to workflowExecutionService with function
    * getPaginatedExecutions()
    */
-  changePaginatedExecutions(pageIndex: number) {
+  changePaginatedExecutions() {
     if (this.workflow.wid === undefined) {
       return;
     }

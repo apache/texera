@@ -43,15 +43,16 @@
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>
-          <span nz-tooltip [nzTooltipTitle]="getExecutionStatus(row.status)[0]" nzTooltipPlacement="top">
-            <i
-              nz-icon
-              nzTheme="outline"
-              [nzType]="getExecutionStatus(row.status)[1]"
-              [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
-              class="status-icon"
-            ></i>
-          </span>
+          <i
+            nz-icon
+            nz-tooltip
+            [nzTooltipTitle]="getExecutionStatus(row.status)[0]"
+            nzTooltipPlacement="top"
+            nzTheme="outline"
+            [nzType]="getExecutionStatus(row.status)[1]"
+            [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
+            class="status-icon"
+          ></i>
         </td>
         <td nzEllipsis>
           <i nz-icon nzType="delete" class="trash-icon" (click)="onDelete(row)"></i>
