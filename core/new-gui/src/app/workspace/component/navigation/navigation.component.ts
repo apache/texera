@@ -331,21 +331,29 @@ export class NavigationComponent implements OnInit {
     reader.readAsText(file as any);
     reader.onload = () => {
       const result = reader.result;
-      if (typeof result === 'string') {
+      if (typeof result === "string") {
         const workflow = JSON.parse(result) as Workflow;
         this.workflowActionService.reloadWorkflow(workflow, true);
       }
-    }
+    };
     return false;
   };
 
   public onClickExportWorkflow(): void {
-    const workflow = this.workflowActionService.getWorkflow();
-    var workflowJson = JSON.stringify(workflow);
-    var element = document.createElement('a');
-    element.setAttribute('href', "data:text/json;charset=UTF-8," + encodeURIComponent(workflowJson));
-    element.setAttribute('download', this.currentWorkflowName + ".json");
-    element.style.display = 'none';
+    const workflow: Workflow = this.workflowActionService.getWorkflow();
+    // make a copy of the workflow with erased metadata info, such as workflow id
+    const workflowCopy: Workflow = {
+      ...workflow,
+      wid: undefined,
+      creationTime: undefined,
+      lastModifiedTime: undefined,
+    };
+
+    var workflowJson = JSON.stringify(workflowCopy);
+    var element = document.createElement("a");
+    element.setAttribute("href", "data:text/json;charset=UTF-8," + encodeURIComponent(workflowJson));
+    element.setAttribute("download", workflow.name + ".json");
+    element.style.display = "none";
     document.body.appendChild(element);
     element.click(); // simulate click
     document.body.removeChild(element);
