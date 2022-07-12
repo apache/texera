@@ -1,10 +1,12 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
+import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
+import { from } from "rxjs";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
+import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 
 @UntilDestroy()
 @Component({
@@ -16,8 +18,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
+  public workflowExecutionsIsEditingName: number[] = [];
 
-  public executionsTableHeaders: string[] = ["", "", "Execution#", "Starting Time", "Updated Time", "Status", ""];
+  public executionsTableHeaders: string[] = [
+    "",
+    "",
+    "Execution#",
+    "Name",
+    "Starting Time",
+    "Updated Time",
+    "Status",
+    "",
+  ];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   // Pagination attributes
@@ -25,7 +37,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public pageSize: number = 10;
   public totalItems: number = 0;
 
-  constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
+  constructor(
+    public activeModal: NgbActiveModal,
+    private workflowExecutionsService: WorkflowExecutionsService,
+    private modalService: NgbModal
+  ) {}
+
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
@@ -86,16 +103,52 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  /* delete a single execution and display current workflow execution */
+  /* delete a single execution */
   onDelete(row: WorkflowExecutionsEntry) {
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "execution";
+    modalRef.componentInstance.deletionName = row.name;
+
+    from(modalRef.result)
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && this.workflow.wid !== undefined) {
+          this.workflowExecutionsService
+            .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+            });
+        }
+      });
+  }
+
+  /* rename a single execution */
+  confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
     if (this.workflow.wid === undefined) {
       return;
     }
+    // if name doesn't change, no need to call API
+    if (name === row.name) {
+      this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+        entryIsEditingIndex => entryIsEditingIndex != index
+      );
+      return;
+    }
+
     this.workflowExecutionsService
-      .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+      .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+      .subscribe(() => {
+        if (this.workflowExecutionsList === undefined) {
+          return;
+        }
+        this.workflowExecutionsList[index].name = name;
+      })
+      .add(() => {
+        this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
       });
   }
 

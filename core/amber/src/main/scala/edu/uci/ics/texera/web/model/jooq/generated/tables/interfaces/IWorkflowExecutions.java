@@ -96,6 +96,16 @@ public interface IWorkflowExecutions extends Serializable {
      */
     public Byte getBookmarked();
 
+    /**
+     * Setter for <code>texera_db.workflow_executions.name</code>.
+     */
+    public void setName(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.name</code>.
+     */
+    public String getName();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
