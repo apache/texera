@@ -21,6 +21,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
 import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
+import { NzUploadFile } from "ng-zorro-antd/upload";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -323,6 +324,31 @@ export class NavigationComponent implements OnInit {
       .getAllOperators()
       .map(op => op.operatorID);
     this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
+  }
+
+  public onClickImportWorkflow = (file: NzUploadFile): boolean => {
+    const reader = new FileReader();
+    reader.readAsText(file as any);
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        const workflow = JSON.parse(result) as Workflow;
+        this.workflowActionService.reloadWorkflow(workflow, true);
+      }
+    }
+    return false;
+  };
+
+  public onClickExportWorkflow(): void {
+    const workflow = this.workflowActionService.getWorkflow();
+    var workflowJson = JSON.stringify(workflow);
+    var element = document.createElement('a');
+    element.setAttribute('href', "data:text/json;charset=UTF-8," + encodeURIComponent(workflowJson));
+    element.setAttribute('download', this.currentWorkflowName + ".json");
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click(); // simulate click
+    document.body.removeChild(element);
   }
 
   /**
