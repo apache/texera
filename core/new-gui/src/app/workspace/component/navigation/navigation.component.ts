@@ -26,6 +26,7 @@ import { UserProjectService } from "src/app/dashboard/service/user-project/user-
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -99,6 +100,7 @@ export class NavigationComponent implements OnInit {
     public workflowCollabService: WorkflowCollabService,
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
+    private notificationService: NotificationService,
     public changeDetectionRef: ChangeDetectorRef
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
@@ -334,8 +336,12 @@ export class NavigationComponent implements OnInit {
     const reader = new FileReader();
     reader.readAsText(file as any);
     reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
+      try {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          throw new Error("incorrect format: file is not a string");
+        }
+
         const workflowContent = JSON.parse(result) as WorkflowContent;
 
         // set the workflow name using the file name without the extension
@@ -357,7 +363,13 @@ export class NavigationComponent implements OnInit {
           creationTime: undefined,
           lastModifiedTime: undefined,
         };
+
         this.workflowActionService.reloadWorkflow(workflow, true);
+      } catch (error) {
+        this.notificationService.error(
+          "An error occured when importing the workflow. Please import a workflow json file."
+        );
+        console.error(error);
       }
     };
     return false;
