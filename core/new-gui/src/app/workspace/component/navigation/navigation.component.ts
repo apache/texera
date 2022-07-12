@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { ChangeDetectorRef, Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -43,7 +43,7 @@ import { WorkflowCollabService } from "../../service/workflow-collab/workflow-co
   templateUrl: "./navigation.component.html",
   styleUrls: ["./navigation.component.scss"],
 })
-export class NavigationComponent implements OnInit, OnDestroy {
+export class NavigationComponent implements OnInit {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
@@ -107,10 +107,6 @@ export class NavigationComponent implements OnInit, OnDestroy {
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
   }
 
-  public ngOnDestroy(): void {
-    this.unregisterKeyboard();
-  }
-
   public ngOnInit(): void {
     this.executeWorkflowService
       .getExecutionStateStream()
@@ -135,35 +131,6 @@ export class NavigationComponent implements OnInit, OnDestroy {
     this.handleCacheOperatorStatusChange();
     this.handleLockChange();
     this.handleWorkflowAccessChange();
-    this.registerKeyboard();
-  }
-
-  public unregisterKeyboard() {
-    document.removeEventListener("keydown", this.handleKeyboardAction.bind(this));
-  }
-
-  public registerKeyboard() {
-    document.addEventListener("keydown", this.handleKeyboardAction.bind(this));
-  }
-
-  public handleKeyboardAction(e: any) {
-    console.log(e);
-    // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
-    if ((e.mtaKey || e.ctrlKey) && e.keyCode == 90) {
-      // UNDO
-      if (!(this.displayParticularWorkflowVersion || !this.undoRedoService.canUndo() || !this.lockGranted)) {
-        this.undoRedoService.undoAction();
-      }
-    } else if (
-      ((e.mtaKey || e.ctrlKey) && e.keyCode == 89) ||
-      ((e.mtaKey || e.ctrlKey) && e.shiftKey && e.keyCode == 90)
-    ) {
-      // redo
-      if (!(this.displayParticularWorkflowVersion || !this.undoRedoService.canRedo() || !this.lockGranted)) {
-        this.undoRedoService.redoAction();
-      }
-    }
-    // for other keyboard
   }
 
   // apply a behavior to the run button via bound variables

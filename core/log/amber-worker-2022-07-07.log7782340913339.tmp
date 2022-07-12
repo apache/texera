@@ -1,0 +1,32 @@
+[2022-07-08 01:26:07,284] [INFO] [akka.event.slf4j.Slf4jLogger] [Amber-akka.actor.default-dispatcher-4] - Slf4jLogger started 
+[2022-07-08 01:26:07,683] [ERROR] [akka.io.TcpListener] [Amber-akka.actor.default-dispatcher-4] - Bind failed for TCP channel on endpoint [localhost/127.0.0.1:2552] 
+java.net.BindException: [localhost/127.0.0.1:2552] Address already in use
+	at java.base/sun.nio.ch.Net.bind0(Native Method)
+	at java.base/sun.nio.ch.Net.bind(Net.java:459)
+	at java.base/sun.nio.ch.Net.bind(Net.java:448)
+	at java.base/sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:227)
+	at java.base/sun.nio.ch.ServerSocketAdaptor.bind(ServerSocketAdaptor.java:80)
+	at akka.io.TcpListener.liftedTree1$1(TcpListener.scala:60)
+	at akka.io.TcpListener.<init>(TcpListener.scala:57)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:490)
+	at akka.util.Reflect$.instantiate(Reflect.scala:73)
+	at akka.actor.ArgsReflectConstructor.produce(IndirectActorProducer.scala:101)
+	at akka.actor.Props.newActor(Props.scala:226)
+	at akka.actor.ActorCell.newActor(ActorCell.scala:613)
+	at akka.actor.ActorCell.create(ActorCell.scala:640)
+	at akka.actor.ActorCell.invokeAll$1(ActorCell.scala:513)
+	at akka.actor.ActorCell.systemInvoke(ActorCell.scala:535)
+	at akka.dispatch.Mailbox.processAllSystemMessages(Mailbox.scala:295)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:230)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:243)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:290)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1020)
+	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1656)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1594)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:183)
+[2022-07-08 01:26:07,713] [INFO] [akka.remote.RemoteActorRefProvider$RemotingTerminator] [Amber-akka.actor.default-dispatcher-4] - Shutting down remote daemon. 
+[2022-07-08 01:26:07,720] [INFO] [akka.remote.RemoteActorRefProvider$RemotingTerminator] [Amber-akka.actor.default-dispatcher-4] - Remote daemon shut down; proceeding with flushing remote transports. 
+[2022-07-08 01:26:07,733] [INFO] [akka.remote.RemoteActorRefProvider$RemotingTerminator] [Amber-akka.actor.default-dispatcher-4] - Remoting shut down. 
