@@ -9,3 +9,24 @@
 .modal-xl .modal-lg {
   max-width: 90%;
 }
+
+.icon-container {
+  align-items: center;
+}
+
+.status-icon {
+  font-size: 1.2rem;
+}
+
+.rename-icon:hover {
+  color: #007bff;
+}
+
+.trash-icon {
+  font-size: 1.3rem;
+}
+
+.trash-icon:hover {
+  cursor: pointer;
+  color: #007bff;
+}

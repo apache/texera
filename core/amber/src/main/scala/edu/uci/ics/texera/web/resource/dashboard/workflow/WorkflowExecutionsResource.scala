@@ -32,12 +32,15 @@ object WorkflowExecutionsResource {
       completionTime: Timestamp,
       status: Byte,
       result: String,
-      bookmarked: Boolean
+      bookmarked: Boolean,
+      name: String
   )
 
 }
 
 case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: Boolean)
+case class ExecutionDeleteRequest(wid: UInteger, eId: UInteger)
+case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @PermitAll
 @Path("/executions")
@@ -71,7 +74,8 @@ class WorkflowExecutionsResource {
           WORKFLOW_EXECUTIONS.COMPLETION_TIME,
           WORKFLOW_EXECUTIONS.STATUS,
           WORKFLOW_EXECUTIONS.RESULT,
-          WORKFLOW_EXECUTIONS.BOOKMARKED
+          WORKFLOW_EXECUTIONS.BOOKMARKED,
+          WORKFLOW_EXECUTIONS.NAME
         )
         .from(WORKFLOW_EXECUTIONS)
         .leftJoin(WORKFLOW)
@@ -103,5 +107,36 @@ class WorkflowExecutionsResource {
       WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
     )
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+  }
+
+  /** Delete a single execution */
+  @PUT
+  @Path("/delete_execution")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def deleteExecutionsOfWorkflow(
+      request: ExecutionDeleteRequest,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    /* delete the execution in sql */
+    context
+      .delete(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.WID.eq(request.wid))
+      .and(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
+      .execute();
+  }
+
+  /** Name a single execution * */
+  @POST
+  @Path("/update_execution_name")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def updateWorkflowExecutionsName(
+      request: ExecutionRenameRequest,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    val execution = getExecutionById(request.eId)
+    execution.setName(request.executionName)
+    executionsDao.update(execution)
   }
 }
