@@ -3,6 +3,9 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.OperatorLink
+import org.jgrapht.alg.connectivity.BiconnectivityInspector
+import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
@@ -13,6 +16,24 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
   var idToPipelinedRegions: Map[PipelinedRegionIdentity, PipelinedRegion] = null
 
   createPipelinedRegions()
+
+  private def getBlockingEdgesRemovedDAG(): DirectedAcyclicGraph[OperatorIdentity, LinkIdentity] = {
+    val dag = new DirectedAcyclicGraph[OperatorIdentity, LinkIdentity](classOf[LinkIdentity])
+    workflow.getAllOperatorIds.foreach(opId => dag.addVertex(opId))
+    workflow.getAllOperatorIds.foreach(opId => {
+      val upstreamOps = workflow.getDirectUpstreamOperators(opId)
+      upstreamOps.foreach(upOpId => {
+        val linkFromUpstreamOp = LinkIdentity(
+          workflow.getOperator(upOpId).topology.layers.last.id,
+          workflow.getOperator(opId).topology.layers.head.id
+        )
+        if (!workflow.getOperator(opId).isInputBlocking(linkFromUpstreamOp)) {
+          dag.addEdge(upOpId, opId, linkFromUpstreamOp)
+        }
+      })
+    })
+    dag
+  }
 
   /**
     * Operators are reachable if they are connected directly by an upstream or downstream edge
@@ -66,18 +87,26 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
     val allOperatorIds = workflow.getAllOperatorIds
     val visited = new mutable.HashSet[OperatorIdentity]()
     var regionCount = 0
-    allOperatorIds.foreach(opId => {
-      if (!visited.contains(opId)) {
-        visited.add(opId)
-        val weakConnComponent = new ArrayBuffer[OperatorIdentity]()
-        weakConnComponent.append(opId)
-        findOtherOperatorsInComponent(opId, weakConnComponent, visited)
+//    allOperatorIds.foreach(opId => {
+//      if (!visited.contains(opId)) {
+//        visited.add(opId)
+//        val weakConnComponent = new ArrayBuffer[OperatorIdentity]()
+//        weakConnComponent.append(opId)
+//        findOtherOperatorsInComponent(opId, weakConnComponent, visited)
+//        val regionId = PipelinedRegionIdentity(workflow.getWorkflowId(), regionCount.toString())
+//        idToPipelinedRegionBuilder(regionId) =
+//          new PipelinedRegion(regionId, weakConnComponent.toArray)
+//        regionCount += 1
+//      }
+//    })
+    val biconnectivityInspector =
+      new BiconnectivityInspector[OperatorIdentity, LinkIdentity](getBlockingEdgesRemovedDAG())
+    biconnectivityInspector
+      .getConnectedComponents()
+      .forEach(component => {
         val regionId = PipelinedRegionIdentity(workflow.getWorkflowId(), regionCount.toString())
-        idToPipelinedRegionBuilder(regionId) =
-          new PipelinedRegion(regionId, weakConnComponent.toArray)
-        regionCount += 1
-      }
-    })
+        idToPipelinedRegionBuilder(regionId) = new PipelinedRegion(regionId, component.vertexSet())
+      })
     idToPipelinedRegions = idToPipelinedRegionBuilder.toMap
   }
 
