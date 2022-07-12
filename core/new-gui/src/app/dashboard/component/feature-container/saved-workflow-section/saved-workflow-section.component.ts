@@ -1,10 +1,8 @@
 import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { cloneDeep } from "lodash-es";
 import { from, Observable } from "rxjs";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { NgbdModalDeleteWorkflowComponent } from "./ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
@@ -18,6 +16,7 @@ import { concatMap, catchError } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
+import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -315,8 +314,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * calls the deleteProject method in service which implements backend API.
    */
   public openNgbdModalDeleteWorkflowComponent({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
-    modalRef.componentInstance.workflow = cloneDeep(workflow);
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "workflow";
+    modalRef.componentInstance.deletionName = workflow.name;
 
     from(modalRef.result)
       .pipe(untilDestroyed(this))
