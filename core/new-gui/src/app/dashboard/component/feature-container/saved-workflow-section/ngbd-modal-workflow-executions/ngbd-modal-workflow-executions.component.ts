@@ -151,14 +151,38 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   ascSort(): void {
     this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((t1, t2) => t1.name.toLowerCase().localeCompare(t2.name.toLowerCase()));
+      .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
   }
 
   /* sort executions based on descending alphabetical order */
 
   dscSort(): void {
     this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((t1, t2) => t2.name.toLowerCase().localeCompare(t1.name.toLowerCase()));
+      .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
   }
 
+  /* sort executions based on starting time */
+
+  startTimeSort(): void {
+    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+      .sort((exe1, exe2) => exe1.startingTime > exe2.startingTime ? 1 :
+      exe2.startingTime > exe1.startingTime ? -1 : 0)
+  }
+
+  /* sort executions based on last status updated time */
+
+  updateTimeSort(): void {
+    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+      .sort((exe1, exe2) => exe1.completionTime > exe2.completionTime ? 1 :
+      exe2.completionTime > exe1.completionTime ? -1 : 0)
+  }
+
+  // /* sort executions based on execution number */
+
+  // executionIDSort(): void {
+  //   this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+  //     .sort((exe1, exe2) => )
+  // }
+
+  
 }

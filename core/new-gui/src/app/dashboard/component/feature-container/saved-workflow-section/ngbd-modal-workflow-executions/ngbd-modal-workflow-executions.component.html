@@ -11,12 +11,16 @@
         </a>
         <nz-dropdown-menu #menu="nzDropdownMenu">
           <ul nz-menu nzSelectable>
+            <!-- <li (click)="executionIDSort()" nz-menu-item>By Execution#</li> -->
+            <li (click)="startTimeSort()" nz-menu-item>By Start Time</li>
+            <li (click)="updateTimeSort()" nz-menu-item>By Update Time</li>
             <li (click)="ascSort()" nz-menu-item>A -> Z</li>
             <li (click)="dscSort()" nz-menu-item>Z -> A</li>
           </ul>
         </nz-dropdown-menu>
     </nz-card>
-  </div>
+
+    
   <div class="modal-body table-responsive">
     <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
       <thead>
