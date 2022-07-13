@@ -10,8 +10,6 @@ class PipelinedRegion(
     id: PipelinedRegionIdentity,
     operators: Array[OperatorIdentity]
 ) {
-  var dependsOn: Array[PipelinedRegionIdentity] =
-    null // The regions that must complete before this can start
   var blockingDowstreamOperatorsInOtherRegions: Array[OperatorIdentity] =
     null // These are the operators that receive blocking inputs from this region
 

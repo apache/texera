@@ -50,7 +50,7 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
     )
 
     val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
-    assert(pipelinedRegions.idToPipelinedRegions.size == 1)
+    assert(pipelinedRegions.pipelinedRegionsDAG.vertexSet().size == 1)
   }
 
   "Pipelined Regions" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
@@ -81,22 +81,38 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
       )
     )
     val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
-    assert(pipelinedRegions.idToPipelinedRegions.size == 2)
+    assert(pipelinedRegions.pipelinedRegionsDAG.vertexSet().size == 2)
 
-    val buildRegion = pipelinedRegions.idToPipelinedRegions.values
-      .find(p =>
-        p.getOperators()
-          .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID))
+    var buildRegion: PipelinedRegion = null
+    pipelinedRegions.pipelinedRegionsDAG
+      .vertexSet()
+      .forEach(p =>
+        if (
+          p.getOperators()
+            .contains(
+              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID)
+            )
+        ) {
+          buildRegion = p
+        }
       )
-      .get
-    val probeRegion = pipelinedRegions.idToPipelinedRegions.values
-      .find(p =>
-        p.getOperators()
-          .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID))
+
+    var probeRegion: PipelinedRegion = null
+    pipelinedRegions.pipelinedRegionsDAG
+      .vertexSet()
+      .forEach(p =>
+        if (
+          p.getOperators()
+            .contains(
+              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID)
+            )
+        ) {
+          probeRegion = p
+        }
       )
-      .get
-    assert(probeRegion.dependsOn.size == 1)
-    assert(probeRegion.dependsOn.contains(buildRegion.getId()))
+
+    assert(pipelinedRegions.pipelinedRegionsDAG.getAncestors(probeRegion).size() == 1)
+    assert(pipelinedRegions.pipelinedRegionsDAG.getAncestors(probeRegion).contains(buildRegion))
     assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.size == 1)
     assert(
       buildRegion.blockingDowstreamOperatorsInOtherRegions.contains(
@@ -137,7 +153,7 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
       )
     )
     val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
-    assert(pipelinedRegions.idToPipelinedRegions.size == 1)
+    assert(pipelinedRegions.pipelinedRegionsDAG.vertexSet().size == 1)
   }
 
 }
