@@ -3,7 +3,7 @@ import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
-import { fromEvent, merge, take } from "rxjs";
+import { fromEvent, merge, Observable, of, Subject, take } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { assertType } from "src/app/common/util/assert";
@@ -22,7 +22,7 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map } from "rxjs/operators";
+import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
@@ -100,6 +100,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private copiedOperators = new Map<string, CopiedOperator>(); // References to operators that will be copied
   private copiedGroups = new Map<string, CopiedGroup>(); // NOT REFERENCES, stores this.copyGroup() copies because groups aren't constant
 
+  private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -172,29 +174,30 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private _unregisterKeyboard() {
-    document.removeEventListener("keydown", this.handleKeyboardAction.bind(this));
+    document.removeEventListener("keydown", this._handleKeyboardAction.bind(this));
   }
 
   private _registerKeyboard() {
-    document.addEventListener("keydown", this.handleKeyboardAction.bind(this));
+    document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
   }
 
-  public handleKeyboardAction(e: any) {
-    e.preventDefault();
+  private _handleKeyboardAction(event: any) {
+    this._onProcessKeyboardActionObservable = new Subject();
+    event.preventDefault();
     this.workflowVersionService
       .getDisplayParticularVersionStream()
-      .pipe(take(1))
+      .pipe(takeUntil(this._onProcessKeyboardActionObservable))
       .subscribe(displayParticularWorkflowVersion => {
         if (!displayParticularWorkflowVersion && this.workflowCollabService.isLockGranted()) {
           // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
-          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+          if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
             // UNDO
             if (this.undoRedoService.canUndo()) {
               this.undoRedoService.undoAction();
             }
           } else if (
-            ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") ||
-            ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "y")
+            ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "y") ||
+            ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z")
           ) {
             // redo
             if (this.undoRedoService.canRedo()) {
@@ -203,6 +206,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
           // below for future hotkeys
         }
+        this._onProcessKeyboardActionObservable.complete();
       });
   }
 
