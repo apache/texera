@@ -23,32 +23,9 @@ trait StartWorkflowHandler {
 
   registerHandler { (msg: StartWorkflow, sender) =>
     {
-      if (scheduler.preparedRegions) {
-        val startedLayers = mutable.HashSet[WorkerLayer]()
-        Future
-          .collect(
-            workflow.getSourceLayers
-              // get all start-able layers
-              .filter(layer => layer.canStart)
-              .flatMap { layer =>
-                startedLayers.add(layer)
-                layer.workers.keys.map { worker =>
-                  send(StartWorker(), worker).map { ret =>
-                    // update worker state
-                    workflow.getWorkerInfo(worker).state = ret
-                  }
-                }
-              }
-              .toSeq
-          )
-          .map { _ =>
-            enableStatusUpdate()
-            enableMonitoring()
-            enableSkewHandling()
-          }
-      } else {
-        scheduler.buildAndPrepare()
-        Future.Unit
+      val region = scheduler.getNextRegionToConstructAndPrepare()
+      if (region != null) {
+        scheduler.constructAndPrepare(region)
       }
     }
   }

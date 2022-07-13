@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartPipelinedRegionHandler.StartPipelinedRegion
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{
@@ -28,6 +29,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -38,21 +41,44 @@ class WorkflowScheduler(
     ctx: ActorContext,
     asyncRPCClient: AsyncRPCClient,
     logger: Logger,
-    workflow: Workflow
+    workflow: Workflow,
+    workflowPipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]
 ) {
-  val regionsDAG = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
-  val regionsToSchedule = new ArrayBuffer[PipelinedRegion]()
-  val regionsCurrentlyScheduled = new ArrayBuffer[PipelinedRegion]()
-  val builtOperators =
+  private val regionsScheduleOrderIterator =
+    new TopologicalOrderIterator[PipelinedRegion, DefaultEdge](workflowPipelinedRegionsDAG)
+
+  // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
+  // track of those already built
+  private val builtOperators =
     new mutable.HashSet[
       OperatorIdentity
-    ]() // Since one operator can belong to multiple regions, we need to keep
-  // track of the operators already built
-  val openedOperators = new mutable.HashSet[OperatorIdentity]()
-  val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
-  val activatedLink = new mutable.HashSet[LinkStrategy]()
-  var preparedRegions: Boolean = false
+    ]()
+  private val openedOperators = new mutable.HashSet[OperatorIdentity]()
+  private val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
+  private val activatedLink = new mutable.HashSet[LinkStrategy]()
 
+  private var constructingRegions = new mutable.HashSet[PipelinedRegion]()
+  private var constructedRegions = new mutable.HashSet[PipelinedRegion]()
+  var completedRegions = new mutable.HashSet[PipelinedRegion]()
+  var runningRegions = new mutable.HashSet[PipelinedRegion]()
+
+  private var nextRegion: PipelinedRegion = null
+
+  def getNextRegionToConstructAndPrepare(): PipelinedRegion = {
+    if (
+      (nextRegion == null || completedRegions.contains(
+        nextRegion
+      )) && regionsScheduleOrderIterator.hasNext
+    ) {
+      nextRegion = regionsScheduleOrderIterator.next()
+      return nextRegion
+    }
+    return null
+  }
+
+  /**
+    * Returns the operators in a region whose all inputs are from operators that are not in this region.
+    */
   def getSourcesOfRegion(region: PipelinedRegion): Array[OperatorIdentity] = {
     val sources = new ArrayBuffer[OperatorIdentity]()
     region
@@ -73,13 +99,13 @@ class WorkflowScheduler(
     sources.toArray
   }
 
-  def buildRegion(region: PipelinedRegion): Unit = {
+  private def constructRegion(region: PipelinedRegion): Unit = {
+    constructingRegions.add(region)
     val builtOpsInRegion = new mutable.HashSet[OperatorIdentity]()
     var frontier: Iterable[OperatorIdentity] = getSourcesOfRegion(region)
     while (frontier.nonEmpty) {
       frontier.foreach { (op: OperatorIdentity) =>
-        workflow.getOperator(op).checkStartDependencies(workflow)
-        val prev: Array[(OperatorIdentity, WorkerLayer)] = // used to decide deployment of workers
+        val prev: Array[(OperatorIdentity, WorkerLayer)] =
           workflow
             .getDirectUpstreamOperators(op)
             .filter(upStreamOp =>
@@ -91,12 +117,13 @@ class WorkflowScheduler(
                 workflow.getOperator(upStreamOp).topology.layers.last
               )
             )
-            .toArray
+            .toArray // Last layer of upstream operators in the same region.
         if (!builtOperators.contains(op)) {
           buildOperator(prev, op)
           builtOperators.add(op)
         }
-        buildLinks(prev, op)
+        buildLinks(prev, op) // link between operators are unique to a region.
+        // Hence, they would not have been built in some other region
         builtOpsInRegion.add(op)
       }
 
@@ -111,7 +138,7 @@ class WorkflowScheduler(
     }
   }
 
-  def buildOperator(
+  private def buildOperator(
       prev: Array[(OperatorIdentity, WorkerLayer)], // used to decide deployment of workers
       operatorIdentity: OperatorIdentity
   ): Unit = {
@@ -170,7 +197,10 @@ class WorkflowScheduler(
     }
   }
 
-  def buildLinks(prev: Array[(OperatorIdentity, WorkerLayer)], to: OperatorIdentity): Unit = {
+  private def buildLinks(
+      prev: Array[(OperatorIdentity, WorkerLayer)],
+      to: OperatorIdentity
+  ): Unit = {
     for (from <- prev) {
       val link = linkOperators(
         (workflow.getOperator(from._1), from._2),
@@ -185,7 +215,7 @@ class WorkflowScheduler(
     }
   }
 
-  def linkOperators(
+  private def linkOperators(
       from: (OpExecConfig, WorkerLayer),
       to: (OpExecConfig, WorkerLayer)
   ): LinkStrategy = {
@@ -222,13 +252,14 @@ class WorkflowScheduler(
     }
   }
 
-  def prepareRegion(region: PipelinedRegion): Future[Unit] = {
+  private def prepareRegion(region: PipelinedRegion): Future[Unit] = {
+    val allOperatorsInRegion =
+      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+
     Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
       .flatMap(_ => {
         val uninitializedPythonOperators = workflow.getPythonOperators(
-          (region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions).filter(opId =>
-            !initializedPythonOperators.contains(opId)
-          )
+          allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
         )
         Future
           .collect(
@@ -260,8 +291,6 @@ class WorkflowScheduler(
           })
       })
       .flatMap(_ => {
-        val allOperatorsInRegion =
-          region.blockingDowstreamOperatorsInOtherRegions ++ region.getOperators()
         Future.collect(
           // activate all links
           workflow.getAllLinks
@@ -286,8 +315,7 @@ class WorkflowScheduler(
         // open all operators
         _ => {
           val allNotOpenedOperators =
-            (region.blockingDowstreamOperatorsInOtherRegions ++ region.getOperators())
-              .filter(opId => !openedOperators.contains(opId))
+            allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
           Future
             .collect(
               workflow
@@ -302,7 +330,7 @@ class WorkflowScheduler(
       )
       .flatMap(_ =>
         Future {
-          (region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions)
+          allOperatorsInRegion
             .filter(opId =>
               workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED
             )
@@ -311,22 +339,21 @@ class WorkflowScheduler(
         }
       )
       .flatMap(_ => {
-        if (!preparedRegions) {
-          preparedRegions = true
-          asyncRPCClient.send(StartWorkflow(), CONTROLLER)
+        constructingRegions.remove(region)
+        constructedRegions.add(region)
+        if (completedRegions.isEmpty) {
+          asyncRPCClient.send(StartPipelinedRegion(region, true), CONTROLLER)
         } else {
-          Future.Unit
+          asyncRPCClient.send(StartPipelinedRegion(region, false), CONTROLLER)
         }
       })
   }
 
-  def buildAndPrepare(): Unit = {
-    regionsDAG
-      .vertexSet()
-      .forEach(region => {
-        buildRegion(region)
-        prepareRegion(region)
-      })
+  def constructAndPrepare(region: PipelinedRegion): Unit = {
+    if (!constructingRegions.contains(region) && !constructedRegions.contains(region)) {
+      constructRegion(region)
+      prepareRegion(region)
+    }
   }
 
 }
