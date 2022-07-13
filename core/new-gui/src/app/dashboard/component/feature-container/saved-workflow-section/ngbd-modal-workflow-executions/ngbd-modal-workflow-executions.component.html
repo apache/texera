@@ -28,6 +28,29 @@
           ></i>
         </td>
         <td nzEllipsis>{{(i + 1)}}</td>
+        <td nzEllipsis>
+          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="execution-name"
+            >{{ row.name }}</label
+          >
+          <ng-template #customeWorkflow>
+            <input
+              #customName
+              (focusout)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
+              (keyup.enter)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
+              placeholder="{{ row.name }}"
+              value="{{ row.name }}"
+            />
+          </ng-template>
+          <button
+            (click)="workflowExecutionsIsEditingName.push(i)"
+            nz-button
+            nzSize="small"
+            nzType="text"
+            class="rename-icon"
+          >
+            <i nz-icon nzTheme="outline" nzType="edit"></i>
+          </button>
+        </td>
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
         <td nzEllipsis>
