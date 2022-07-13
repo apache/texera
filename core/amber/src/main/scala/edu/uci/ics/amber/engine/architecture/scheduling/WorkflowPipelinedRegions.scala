@@ -122,7 +122,7 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
         }
       })
     })
-    
+
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
       region.blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray
     }
