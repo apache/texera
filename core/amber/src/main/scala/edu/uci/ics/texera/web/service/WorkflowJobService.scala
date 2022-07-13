@@ -19,7 +19,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowInfo,
   WorkflowRewriter
 }
-import org.jooq.types.UInteger
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
