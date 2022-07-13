@@ -47,6 +47,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
     * @param wid     the given workflow
+    * @param uid     user id of current user, used to identify ownership
     * @return generated execution ID
     */
 
