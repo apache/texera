@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 
 object LinkCompletedHandler {
   final case class LinkCompleted(linkID: LinkIdentity) extends ControlCommand[Unit]
@@ -26,7 +26,16 @@ trait LinkCompletedHandler {
       // get the target link from workflow
       val link = workflow.getLink(msg.linkID)
       link.incrementCompletedReceiversCount()
-      if (link.isCompleted) {} else {
+      if (link.isCompleted) {
+        val isRegionCompleted = scheduler.linkCompleted(LinkIdentity(link.from.id, link.to.id))
+        if (isRegionCompleted) {
+          val region = scheduler.getNextRegionToConstructAndPrepare()
+          if (region != null) {
+            scheduler.constructAndPrepare(region)
+          }
+        }
+        Future {}
+      } else {
         // if the link is not completed yet, do nothing
         Future {}
       }

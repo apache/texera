@@ -94,6 +94,9 @@ class WorkflowWorker(
     try {
       disallowActorRefRelatedMessages orElse {
         case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
+          if (actorId.toString().contains("Hash")) {
+            println(s"\t\tReceived data from ${from}")
+          }
           dataInputPort.handleMessage(
             this.sender(),
             getSenderCredits(from),
@@ -133,6 +136,9 @@ class WorkflowWorker(
         WorkerStateUpdated(workerStateManager.getCurrentState),
         CONTROLLER
       )
+    }
+    if (actorId.toString().contains("Hash")) {
+      println(s"\t\tReceived fifo data from ${from}")
     }
     tupleProducer.processDataPayload(from, dataPayload)
   }

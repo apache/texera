@@ -16,9 +16,8 @@ trait AddPartitioningHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: AddPartitioning, sender) =>
-    stateManager.assertState(READY)
+    // stateManager.assertState(READY)
     tupleToBatchConverter.addPartitionerWithPartitioning(msg.tag, msg.partitioning)
-
   }
 
 }

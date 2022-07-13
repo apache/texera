@@ -24,7 +24,11 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
@@ -61,9 +65,16 @@ class WorkflowScheduler(
   private var constructedRegions = new mutable.HashSet[PipelinedRegion]()
   var completedRegions = new mutable.HashSet[PipelinedRegion]()
   var runningRegions = new mutable.HashSet[PipelinedRegion]()
+  var completedLinksOfRegion =
+    new mutable.HashMap[PipelinedRegion, mutable.HashSet[LinkIdentity]]()
 
   private var nextRegion: PipelinedRegion = null
 
+  /**
+    * If no region is currently scheduled (nextRegion==null) or the currently
+    * scheduled region has completed, then this function returns the next region
+    * to be scheduled from the iterator.
+    */
   def getNextRegionToConstructAndPrepare(): PipelinedRegion = {
     if (
       (nextRegion == null || completedRegions.contains(
@@ -74,6 +85,77 @@ class WorkflowScheduler(
       return nextRegion
     }
     return null
+  }
+
+  private def getBlockingOutlinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
+    val outlinks = new mutable.HashSet[LinkIdentity]()
+    region.blockingDowstreamOperatorsInOtherRegions.foreach(opId => {
+      workflow
+        .getDirectUpstreamOperators(opId)
+        .foreach(uOpId => {
+          if (region.getOperators().contains(uOpId)) {
+            outlinks.add(
+              LinkIdentity(
+                workflow.getOperator(uOpId).topology.layers.last.id,
+                workflow.getOperator(opId).topology.layers.head.id
+              )
+            )
+          }
+        })
+    })
+    outlinks.toSet
+  }
+
+  private def isRegionCompleted(region: PipelinedRegion): Boolean = {
+    getBlockingOutlinksOfRegion(region).forall(
+      completedLinksOfRegion.getOrElse(region, new mutable.HashSet[LinkIdentity]()).contains
+    ) && region
+      .getOperators()
+      .forall(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.COMPLETED)
+  }
+
+  def workerCompleted(workerId: ActorVirtualIdentity): Boolean = {
+    val opId = workflow.getOperator(workerId).id
+    var region: PipelinedRegion = null
+    runningRegions.foreach(r =>
+      if (r.getOperators().contains(opId)) {
+        region = r
+      }
+    )
+
+    if (region == null) {
+      logger.error("Worker completed from a non-running region")
+    } else {
+      if (isRegionCompleted(region)) {
+        runningRegions.remove(region)
+        completedRegions.add(region)
+        return true
+      }
+    }
+    false
+  }
+
+  def linkCompleted(linkId: LinkIdentity): Boolean = {
+    val upstreamOpId = OperatorIdentity(linkId.from.workflow, linkId.from.operator)
+    var region: PipelinedRegion = null
+    runningRegions.foreach(r =>
+      if (r.getOperators().contains(upstreamOpId)) {
+        region = r
+      }
+    )
+    if (region == null) {
+      logger.error("Link completed from a non-running region")
+    } else {
+      val completedLinks =
+        completedLinksOfRegion.getOrElseUpdate(region, new mutable.HashSet[LinkIdentity]())
+      completedLinks.add(linkId)
+      if (isRegionCompleted(region)) {
+        runningRegions.remove(region)
+        completedRegions.add(region)
+        return true
+      }
+    }
+    false
   }
 
   /**
