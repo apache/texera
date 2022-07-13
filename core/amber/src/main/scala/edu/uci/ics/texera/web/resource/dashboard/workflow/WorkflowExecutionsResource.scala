@@ -121,8 +121,7 @@ class WorkflowExecutionsResource {
     /* delete the execution in sql */
     context
       .delete(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.WID.eq(request.wid))
-      .and(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
+      .where(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
       .execute();
   }
 
