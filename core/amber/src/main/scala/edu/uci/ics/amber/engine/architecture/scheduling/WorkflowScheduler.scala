@@ -40,7 +40,7 @@ class WorkflowScheduler(
     logger: Logger,
     workflow: Workflow
 ) {
-  val idToRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+  val regionsDAG = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
   val regionsToSchedule = new ArrayBuffer[PipelinedRegion]()
   val regionsCurrentlyScheduled = new ArrayBuffer[PipelinedRegion]()
   val builtOperators =
@@ -321,10 +321,12 @@ class WorkflowScheduler(
   }
 
   def buildAndPrepare(): Unit = {
-    idToRegions.values.foreach(region => {
-      buildRegion(region)
-      prepareRegion(region)
-    })
+    regionsDAG
+      .vertexSet()
+      .forEach(region => {
+        buildRegion(region)
+        prepareRegion(region)
+      })
   }
 
 }

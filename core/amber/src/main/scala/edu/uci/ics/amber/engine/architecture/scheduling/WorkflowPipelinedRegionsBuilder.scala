@@ -3,89 +3,64 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import org.jgrapht.alg.connectivity.BiconnectivityInspector
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
-import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowPipelinedRegionsBuilder(workflow: Workflow) {
 
-  var idToPipelinedRegions: Map[PipelinedRegionIdentity, PipelinedRegion] = null
+  var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = null
 
-  /**
-    * Operators are reachable if they are connected directly by an upstream or downstream edge
-    * and the edge (LinkIdentity) is not blocking.
-    */
-  private def getAdjacentReachableOperators(
-      operatorId: OperatorIdentity
-  ): ArrayBuffer[OperatorIdentity] = {
-    val adjacentOperators = new ArrayBuffer[OperatorIdentity]()
-    val upstreamOps = workflow.getDirectUpstreamOperators(operatorId)
-    val downstreamOps = workflow.getDirectDownStreamOperators(operatorId)
-    upstreamOps.foreach(upstreamOp => {
-      val linkFromUpstreamOp = LinkIdentity(
-        workflow.getOperator(upstreamOp).topology.layers.last.id,
-        workflow.getOperator(operatorId).topology.layers.head.id
-      )
-      if (!workflow.getOperator(operatorId).isInputBlocking(linkFromUpstreamOp)) {
-        // Non-blocking edge means that the upstream operator is in this region
-        adjacentOperators.append(upstreamOp)
-      }
+  private def getBlockingEdgesRemovedDAG(): DirectedAcyclicGraph[OperatorIdentity, DefaultEdge] = {
+    val dag = new DirectedAcyclicGraph[OperatorIdentity, DefaultEdge](classOf[DefaultEdge])
+    workflow.getAllOperatorIds.foreach(opId => dag.addVertex(opId))
+    workflow.getAllOperatorIds.foreach(opId => {
+      val upstreamOps = workflow.getDirectUpstreamOperators(opId)
+      upstreamOps.foreach(upOpId => {
+        val linkFromUpstreamOp = LinkIdentity(
+          workflow.getOperator(upOpId).topology.layers.last.id,
+          workflow.getOperator(opId).topology.layers.head.id
+        )
+        if (!workflow.getOperator(opId).isInputBlocking(linkFromUpstreamOp)) {
+          dag.addEdge(upOpId, opId)
+        }
+      })
     })
-    downstreamOps.foreach(downstreamOp => {
-      val linkToDownstreamOp = LinkIdentity(
-        workflow.getOperator(operatorId).topology.layers.last.id,
-        workflow.getOperator(downstreamOp).topology.layers.head.id
-      )
-      if (!workflow.getOperator(downstreamOp).isInputBlocking(linkToDownstreamOp)) {
-        // Non-blocking edge means that the upstream operator is in this region
-        adjacentOperators.append(downstreamOp)
-      }
-    })
-    adjacentOperators
-  }
-
-  private def findOtherOperatorsInComponent(
-      operatorId: OperatorIdentity,
-      component: ArrayBuffer[OperatorIdentity],
-      visited: mutable.HashSet[OperatorIdentity]
-  ): Unit = {
-    getAdjacentReachableOperators(operatorId).foreach(adjOp => {
-      if (!visited.contains(adjOp)) {
-        visited.add(adjOp)
-        component.append(adjOp)
-        findOtherOperatorsInComponent(adjOp, component, visited)
-      }
-    })
+    dag
   }
 
   private def findAllPipelinedRegions(): Unit = {
-    val idToPipelinedRegionBuilder = new mutable.HashMap[PipelinedRegionIdentity, PipelinedRegion]()
-    val allOperatorIds = workflow.getAllOperatorIds
-    val visited = new mutable.HashSet[OperatorIdentity]()
+    pipelinedRegionsDAG = new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
+      classOf[DefaultEdge]
+    )
     var regionCount = 0
-    allOperatorIds.foreach(opId => {
-      if (!visited.contains(opId)) {
-        visited.add(opId)
-        val weakConnComponent = new ArrayBuffer[OperatorIdentity]()
-        weakConnComponent.append(opId)
-        findOtherOperatorsInComponent(opId, weakConnComponent, visited)
+    val biconnectivityInspector =
+      new BiconnectivityInspector[OperatorIdentity, DefaultEdge](getBlockingEdgesRemovedDAG())
+    biconnectivityInspector
+      .getConnectedComponents()
+      .forEach(component => {
         val regionId = PipelinedRegionIdentity(workflow.getWorkflowId(), regionCount.toString())
-        idToPipelinedRegionBuilder(regionId) =
-          new PipelinedRegion(regionId, weakConnComponent.toArray)
+        val operatorArray = new ArrayBuffer[OperatorIdentity]()
+        component.vertexSet().forEach(opId => operatorArray.append(opId))
+        pipelinedRegionsDAG.addVertex(new PipelinedRegion(regionId, operatorArray.toArray))
         regionCount += 1
-      }
-    })
-    idToPipelinedRegions = idToPipelinedRegionBuilder.toMap
+      })
   }
 
   private def getPipelinedRegionFromOperatorId(operatorId: OperatorIdentity): PipelinedRegion = {
-    idToPipelinedRegions.values.find(p => p.getOperators().contains(operatorId)).get
+    pipelinedRegionsDAG
+      .vertexSet()
+      .forEach(region =>
+        if (region.getOperators().contains(operatorId)) {
+          return region
+        }
+      )
+    null
   }
 
-  private def orderRegions(): Unit = {
-    val regionDependence =
-      new mutable.HashMap[PipelinedRegion, ArrayBuffer[PipelinedRegionIdentity]]()
+  private def findDependenciesBetweenRegions(): Unit = {
     val regionTerminalOperatorInOtherRegions =
       new mutable.HashMap[PipelinedRegion, ArrayBuffer[OperatorIdentity]]()
     val allOperatorIds = workflow.getAllOperatorIds
@@ -102,16 +77,10 @@ class WorkflowPipelinedRegionsBuilder(workflow: Workflow) {
             getPipelinedRegionFromOperatorId(toOperatorIdentity(inputProcessingOrderForOp(i).from))
 
           if (
-            prevInOrder.getId() != nextInOrder.getId() && (!regionDependence.contains(
-              nextInOrder
-            ) || !regionDependence(nextInOrder).contains(prevInOrder.getId()))
+            prevInOrder.getId() != nextInOrder
+              .getId() && !pipelinedRegionsDAG.getDescendants(prevInOrder).contains(nextInOrder)
           ) {
-            val dependencies = regionDependence.getOrElseUpdate(
-              nextInOrder,
-              new ArrayBuffer[PipelinedRegionIdentity]()
-            )
-            dependencies.append(prevInOrder.getId())
-            regionDependence(nextInOrder) = dependencies
+            pipelinedRegionsDAG.addEdge(prevInOrder, nextInOrder)
           }
         }
       }
@@ -128,17 +97,8 @@ class WorkflowPipelinedRegionsBuilder(workflow: Workflow) {
           val prevInOrder = getPipelinedRegionFromOperatorId(upstreamOp)
           val nextInOrder = getPipelinedRegionFromOperatorId(opId)
           if (prevInOrder.getId() != nextInOrder.getId()) {
-            if (
-              !regionDependence.contains(
-                nextInOrder
-              ) || !regionDependence(nextInOrder).contains(prevInOrder.getId())
-            ) {
-              val dependencies = regionDependence.getOrElseUpdate(
-                nextInOrder,
-                new ArrayBuffer[PipelinedRegionIdentity]()
-              )
-              dependencies.append(prevInOrder.getId())
-              regionDependence(nextInOrder) = dependencies
+            if (!pipelinedRegionsDAG.getDescendants(prevInOrder).contains(nextInOrder)) {
+              pipelinedRegionsDAG.addEdge(prevInOrder, nextInOrder)
             }
 
             if (
@@ -160,35 +120,31 @@ class WorkflowPipelinedRegionsBuilder(workflow: Workflow) {
       })
     })
 
-    idToPipelinedRegions.values.foreach(region => {
-      region.dependsOn =
-        regionDependence.getOrElse(region, new ArrayBuffer[PipelinedRegionIdentity]()).toArray
-      region.blockingDowstreamOperatorsInOtherRegions = regionTerminalOperatorInOtherRegions
-        .getOrElse(region, new ArrayBuffer[OperatorIdentity]())
-        .toArray
-    })
+    for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
+      region.blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray
+    }
   }
 
-  def buildPipelinedRegions(): Map[PipelinedRegionIdentity, PipelinedRegion] = {
+  def buildPipelinedRegions(): DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = {
     findAllPipelinedRegions()
-    orderRegions()
-    idToPipelinedRegions
+    findDependenciesBetweenRegions()
+    pipelinedRegionsDAG
   }
 
-//  def getScheduleableRegions(): ArrayBuffer[PipelinedRegion] = {
-//    val nextRegions = new ArrayBuffer[PipelinedRegion]()
-//    for (region <- idToPipelinedRegions.values) {
-//      if (!region.completed) {
-//        if (
-//          region.dependsOn.isEmpty || region.dependsOn
-//            .forall(p => idToPipelinedRegions(p).completed)
-//        ) {
-//          nextRegions.append(region)
-//        }
-//      }
-//    }
-//    nextRegions
-//  }
-//
-//  def regionCompleted(region: PipelinedRegion): Unit = region.completed = true
+  //  def getScheduleableRegions(): ArrayBuffer[PipelinedRegion] = {
+  //    val nextRegions = new ArrayBuffer[PipelinedRegion]()
+  //    for (region <- idToPipelinedRegions.values) {
+  //      if (!region.completed) {
+  //        if (
+  //          region.dependsOn.isEmpty || region.dependsOn
+  //            .forall(p => idToPipelinedRegions(p).completed)
+  //        ) {
+  //          nextRegions.append(region)
+  //        }
+  //      }
+  //    }
+  //    nextRegions
+  //  }
+  //
+  //  def regionCompleted(region: PipelinedRegion): Unit = region.completed = true
 }

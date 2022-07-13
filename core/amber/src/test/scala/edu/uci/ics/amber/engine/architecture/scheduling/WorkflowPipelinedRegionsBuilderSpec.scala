@@ -21,9 +21,9 @@ import scala.collection.mutable
 class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
   def buildWorkflow(
-      operators: mutable.MutableList[OperatorDescriptor],
-      links: mutable.MutableList[OperatorLink]
-  ): Workflow = {
+                     operators: mutable.MutableList[OperatorDescriptor],
+                     links: mutable.MutableList[OperatorLink]
+                   ): Workflow = {
     val context = new WorkflowContext
     context.jobId = "workflow-test"
 
@@ -50,7 +50,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     )
 
     val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
-    assert(pipelinedRegions.size == 1)
+    assert(pipelinedRegions.vertexSet().size == 1)
   }
 
   "Pipelined Regions" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
@@ -80,23 +80,40 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
-    assert(pipelinedRegions.size == 2)
 
-    val buildRegion = pipelinedRegions.values
-      .find(p =>
-        p.getOperators()
-          .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID))
+    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    assert(pipelinedRegions.vertexSet().size == 2)
+
+    var buildRegion: PipelinedRegion = null
+    pipelinedRegions
+      .vertexSet()
+      .forEach(p =>
+        if (
+          p.getOperators()
+            .contains(
+              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID)
+            )
+        ) {
+          buildRegion = p
+        }
       )
-      .get
-    val probeRegion = pipelinedRegions.values
-      .find(p =>
-        p.getOperators()
-          .contains(OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID))
+
+    var probeRegion: PipelinedRegion = null
+    pipelinedRegions
+      .vertexSet()
+      .forEach(p =>
+        if (
+          p.getOperators()
+            .contains(
+              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID)
+            )
+        ) {
+          probeRegion = p
+        }
       )
-      .get
-    assert(probeRegion.dependsOn.size == 1)
-    assert(probeRegion.dependsOn.contains(buildRegion.getId()))
+
+    assert(pipelinedRegions.getAncestors(probeRegion).size() == 1)
+    assert(pipelinedRegions.getAncestors(probeRegion).contains(buildRegion))
     assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.size == 1)
     assert(
       buildRegion.blockingDowstreamOperatorsInOtherRegions.contains(
@@ -136,8 +153,50 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
+
     val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
-    assert(pipelinedRegions.size == 1)
+    assert(pipelinedRegions.vertexSet().size == 1)
+  }
+
+  "Pipelined Regions" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
+    val buildCsv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val probeCsv = TestOperators.smallCsvScanOpDesc()
+    val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
+    val hashJoin2 = TestOperators.joinOpDesc("column-2", "Country")
+    val sink = TestOperators.sinkOpDesc()
+    val workflow = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](
+        buildCsv,
+        probeCsv,
+        hashJoin1,
+        hashJoin2,
+        sink
+      ),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(buildCsv.operatorID, 0),
+          OperatorPort(hashJoin1.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(probeCsv.operatorID, 0),
+          OperatorPort(hashJoin1.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(buildCsv.operatorID, 0),
+          OperatorPort(hashJoin2.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(hashJoin1.operatorID, 0),
+          OperatorPort(hashJoin2.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(hashJoin2.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    assert(pipelinedRegions.vertexSet().size == 2)
   }
 
 }
