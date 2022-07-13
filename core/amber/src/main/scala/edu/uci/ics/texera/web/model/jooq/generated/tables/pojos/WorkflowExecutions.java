@@ -17,11 +17,12 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -1377684157;
+    private static final long serialVersionUID = -1729270637;
 
     private UInteger  eid;
     private UInteger  wid;
     private UInteger  vid;
+    private UInteger  uid;
     private Byte      status;
     private String    result;
     private Timestamp startingTime;
@@ -35,6 +36,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.eid = value.getEid();
         this.wid = value.getWid();
         this.vid = value.getVid();
+        this.uid = value.getUid();
         this.status = value.getStatus();
         this.result = value.getResult();
         this.startingTime = value.getStartingTime();
@@ -47,6 +49,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         UInteger  eid,
         UInteger  wid,
         UInteger  vid,
+        UInteger  uid,
         Byte      status,
         String    result,
         Timestamp startingTime,
@@ -57,6 +60,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.eid = eid;
         this.wid = wid;
         this.vid = vid;
+        this.uid = uid;
         this.status = status;
         this.result = result;
         this.startingTime = startingTime;
@@ -93,6 +97,16 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     @Override
     public void setVid(UInteger vid) {
         this.vid = vid;
+    }
+
+    @Override
+    public UInteger getUid() {
+        return this.uid;
+    }
+
+    @Override
+    public void setUid(UInteger uid) {
+        this.uid = uid;
     }
 
     @Override
@@ -162,6 +176,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(eid);
         sb.append(", ").append(wid);
         sb.append(", ").append(vid);
+        sb.append(", ").append(uid);
         sb.append(", ").append(status);
         sb.append(", ").append(result);
         sb.append(", ").append(startingTime);
@@ -182,6 +197,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setEid(from.getEid());
         setWid(from.getWid());
         setVid(from.getVid());
+        setUid(from.getUid());
         setStatus(from.getStatus());
         setResult(from.getResult());
         setStartingTime(from.getStartingTime());

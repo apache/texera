@@ -28,6 +28,7 @@
           ></i>
         </td>
         <td nzEllipsis>{{(i + 1)}}</td>
+        <td nzEllipsis>{{row.userName || "anonymous" }}</td>
         <td nzEllipsis>
           <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="execution-name"
             >{{ row.name }}</label

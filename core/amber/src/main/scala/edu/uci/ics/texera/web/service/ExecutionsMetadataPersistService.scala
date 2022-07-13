@@ -47,11 +47,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
     * @param wid     the given workflow
+    * @param uid     user id that initiated the execution
     * @return generated execution ID
     */
 
   def insertNewExecution(
-      wid: Long
+      wid: Long,
+      uid: Option[UInteger]
   ): Long = {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
@@ -59,6 +61,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     val newExecution = new WorkflowExecutions()
     newExecution.setWid(uint)
     newExecution.setVid(vid)
+    newExecution.setUid(uid.getOrElse(null))
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     workflowExecutionsDao.insert(newExecution)
     newExecution.getEid.longValue()
