@@ -11,6 +11,8 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UserProject } from "../../../type/user-project";
 import Fuse from "fuse.js";
+import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
+import { from } from "rxjs";
 
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
@@ -102,13 +104,23 @@ export class UserFileSectionComponent {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe(
-      () => this.refreshDashboardFileEntries(),
-      (err: unknown) => {
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => alert("Can't delete the file entry: " + err.error);
-      }
-    );
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "file";
+    modalRef.componentInstance.deletionName = userFileEntry.file.name;
+
+    from(modalRef.result)
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && userFileEntry.file.fid !== undefined) {
+          this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe(
+            () => this.refreshDashboardFileEntries(),
+            (err: unknown) => {
+              // @ts-ignore // TODO: fix this with notification component
+              (err: unknown) => alert("Can't delete the file entry: " + err.error);
+            }
+          );
+        }
+      });
   }
 
   public disableAddButton(): boolean {
@@ -243,5 +255,38 @@ export class UserFileSectionComponent {
   private clearDashboardFileEntries(): void {
     this.dashboardUserFileEntries = [];
     this.userFileService.updateUserFilesChangedEvent();
+  }
+
+  /**
+   * sort the workflow by owner name + file name in ascending order
+   */
+  public ascSort(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((t1, t2) =>
+        (t1.ownerName + t1.file.name).toLowerCase().localeCompare((t2.ownerName + t2.file.name).toLowerCase())
+      );
+  }
+
+  /**
+   * sort the project by owner name + file name in descending order
+   */
+  public dscSort(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((t1, t2) =>
+        (t2.ownerName + t2.file.name).toLowerCase().localeCompare((t1.ownerName + t1.file.name).toLowerCase())
+      );
+  }
+
+  /**
+   * sort the project by size in descending order
+   */
+  public sizeSort(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((left, right) =>
+        left.file.size !== undefined && right.file.size !== undefined ? right.file.size - left.file.size : 0
+      );
   }
 }
