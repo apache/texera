@@ -1,7 +1,7 @@
 export interface WorkflowExecutionsEntry {
   eId: number;
   vId: number;
-  uId: number;
+  userName: string;
   name: string;
   startingTime: number;
   completionTime: number;

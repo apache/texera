@@ -2,11 +2,12 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_EXECUTIONS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_EXECUTIONS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
 import io.dropwizard.auth.Auth
+import org.jooq.impl.DSL.field
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -28,7 +29,7 @@ object WorkflowExecutionsResource {
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
-      uId: UInteger,
+      userName: String,
       startingTime: Timestamp,
       completionTime: Timestamp,
       status: Byte,
@@ -71,7 +72,11 @@ class WorkflowExecutionsResource {
         .select(
           WORKFLOW_EXECUTIONS.EID,
           WORKFLOW_EXECUTIONS.VID,
-          WORKFLOW_EXECUTIONS.UID,
+          field(context
+            .select(USER.NAME)
+            .from(USER)
+            .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
+          ),
           WORKFLOW_EXECUTIONS.STARTING_TIME,
           WORKFLOW_EXECUTIONS.COMPLETION_TIME,
           WORKFLOW_EXECUTIONS.STATUS,
