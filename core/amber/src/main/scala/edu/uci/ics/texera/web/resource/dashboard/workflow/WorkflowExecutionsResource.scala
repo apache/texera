@@ -72,10 +72,11 @@ class WorkflowExecutionsResource {
         .select(
           WORKFLOW_EXECUTIONS.EID,
           WORKFLOW_EXECUTIONS.VID,
-          field(context
-            .select(USER.NAME)
-            .from(USER)
-            .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
+          field(
+            context
+              .select(USER.NAME)
+              .from(USER)
+              .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
           ),
           WORKFLOW_EXECUTIONS.STARTING_TIME,
           WORKFLOW_EXECUTIONS.COMPLETION_TIME,
