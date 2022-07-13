@@ -30,3 +30,39 @@
   cursor: pointer;
   color: #007bff;
 }
+
+::ng-deep .cdk-overlay-container {
+  z-index: 1100;
+}
+
+.subsection-grid-container {
+  min-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+}
+
+.sorting_func {
+  text-align: left;
+}
+
+.ant-btn{
+  border: 0px;
+}
+
+.h4 {
+  font-size: 24px;
+}
+
+.ant-btn-icon-only>*{
+  font-size: 20px;
+}
+
+.ant-btn-icon-only {
+  margin-right: 15px;
+
+  &.ant-btn-sm {
+    transform: translateY(-5px);
+  }
+}
+

@@ -146,4 +146,19 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         );
       });
   }
+
+  /* sort executions based on ascending alphabetical order */
+
+  ascSort(): void {
+    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+      .sort((t1, t2) => t1.name.toLowerCase().localeCompare(t2.name.toLowerCase()));
+  }
+
+  /* sort executions based on descending alphabetical order */
+
+  dscSort(): void {
+    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+      .sort((t1, t2) => t2.name.toLowerCase().localeCompare(t1.name.toLowerCase()));
+  }
+
 }
