@@ -156,4 +156,45 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
     assert(pipelinedRegions.pipelinedRegionsDAG.vertexSet().size == 1)
   }
 
+  "Pipelined Regions" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
+    val buildCsv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val probeCsv = TestOperators.smallCsvScanOpDesc()
+    val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
+    val hashJoin2 = TestOperators.joinOpDesc("column-2", "Country")
+    val sink = TestOperators.sinkOpDesc()
+    val workflow = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](
+        buildCsv,
+        probeCsv,
+        hashJoin1,
+        hashJoin2,
+        sink
+      ),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(buildCsv.operatorID, 0),
+          OperatorPort(hashJoin1.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(probeCsv.operatorID, 0),
+          OperatorPort(hashJoin1.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(buildCsv.operatorID, 0),
+          OperatorPort(hashJoin2.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(hashJoin1.operatorID, 0),
+          OperatorPort(hashJoin2.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(hashJoin2.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
+    assert(pipelinedRegions.pipelinedRegionsDAG.vertexSet().size == 2)
+  }
+
 }
