@@ -163,6 +163,6 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `name`				VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
-    FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE
+    FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
     ) ENGINE = INNODB;

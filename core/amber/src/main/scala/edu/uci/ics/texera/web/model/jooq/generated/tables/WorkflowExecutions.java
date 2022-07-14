@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = 337313091;
+    private static final long serialVersionUID = -1623419866;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -140,7 +140,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_VID, Indexes.WORKFLOW_EXECUTIONS_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID, Indexes.WORKFLOW_EXECUTIONS_WID);
     }
 
     @Override
@@ -160,7 +160,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
     }
 
     public Workflow workflow() {
@@ -169,6 +169,10 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     public WorkflowVersion workflowVersion() {
         return new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+    }
+
+    public User user() {
+        return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
     }
 
     @Override
