@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.OperatorLink
@@ -79,11 +80,14 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
           val nextInOrder =
             getPipelinedRegionFromOperatorId(toOperatorIdentity(inputProcessingOrderForOp(i).from))
 
-          if (
-            prevInOrder.getId() != nextInOrder
-              .getId() && !pipelinedRegionsDAG.getDescendants(prevInOrder).contains(nextInOrder)
-          ) {
-            pipelinedRegionsDAG.addEdge(prevInOrder, nextInOrder)
+          if (prevInOrder.getId() == nextInOrder.getId()) {
+            throw new WorkflowRuntimeException(
+              "PipelinedRegionsBuilder: Inputs having a precedence order are in the same region"
+            )
+          } else {
+            if (!pipelinedRegionsDAG.getDescendants(prevInOrder).contains(nextInOrder)) {
+              pipelinedRegionsDAG.addEdge(prevInOrder, nextInOrder)
+            }
           }
         }
       }
@@ -118,6 +122,10 @@ class WorkflowPipelinedRegions(workflow: Workflow) {
               regionTerminalOperatorInOtherRegions(prevInOrder) = terminalOps
             }
 
+          } else {
+            throw new WorkflowRuntimeException(
+              "PipelinedRegionsBuilder: Operators separated by blocking link are in the same region"
+            )
           }
         }
       })
