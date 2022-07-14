@@ -48,6 +48,7 @@ public class Indexes {
     public static final Index USER_PROJECT_PRIMARY = Indexes0.USER_PROJECT_PRIMARY;
     public static final Index WORKFLOW_PRIMARY = Indexes0.WORKFLOW_PRIMARY;
     public static final Index WORKFLOW_EXECUTIONS_PRIMARY = Indexes0.WORKFLOW_EXECUTIONS_PRIMARY;
+    public static final Index WORKFLOW_EXECUTIONS_UID = Indexes0.WORKFLOW_EXECUTIONS_UID;
     public static final Index WORKFLOW_EXECUTIONS_VID = Indexes0.WORKFLOW_EXECUTIONS_VID;
     public static final Index WORKFLOW_EXECUTIONS_WID = Indexes0.WORKFLOW_EXECUTIONS_WID;
     public static final Index WORKFLOW_OF_PROJECT_PID = Indexes0.WORKFLOW_OF_PROJECT_PID;
@@ -79,6 +80,7 @@ public class Indexes {
         public static Index USER_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", UserProject.USER_PROJECT, new OrderField[] { UserProject.USER_PROJECT.PID }, true);
         public static Index WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.WID }, true);
         public static Index WORKFLOW_EXECUTIONS_PRIMARY = Internal.createIndex("PRIMARY", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.EID }, true);
+        public static Index WORKFLOW_EXECUTIONS_UID = Internal.createIndex("uid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.UID }, false);
         public static Index WORKFLOW_EXECUTIONS_VID = Internal.createIndex("vid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.VID }, false);
         public static Index WORKFLOW_EXECUTIONS_WID = Internal.createIndex("wid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.WID }, false);
         public static Index WORKFLOW_OF_PROJECT_PID = Internal.createIndex("pid", WorkflowOfProject.WORKFLOW_OF_PROJECT, new OrderField[] { WorkflowOfProject.WORKFLOW_OF_PROJECT.PID }, false);
