@@ -119,6 +119,10 @@ export class UserFileSectionComponent {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
 
+  public parseTimestampString(timestamp: string): string {
+    return new Date(parseInt(timestamp)).toLocaleString()
+  }
+
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
     this.userFileService
       .downloadUserFile(userFileEntry.file)
@@ -275,6 +279,28 @@ export class UserFileSectionComponent {
       .slice()
       .sort((left, right) =>
         left.file.size !== undefined && right.file.size !== undefined ? right.file.size - left.file.size : 0
+      );
+  }
+
+  /**
+   * sort the project by upload time in descending order
+   */
+     public timeSortDesc(): void {
+      this.dashboardUserFileEntries = this.dashboardUserFileEntries
+        .slice()
+        .sort((left, right) =>
+        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined ? parseInt(right.file.uploadTime) - parseInt(left.file.uploadTime) : 0
+        );
+    }
+
+  /**
+   * sort the project by upload time in ascending order
+   */
+   public timeSortAsc(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((left, right) =>
+        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined ? parseInt(left.file.uploadTime) - parseInt(right.file.uploadTime) : 0
       );
   }
 }
