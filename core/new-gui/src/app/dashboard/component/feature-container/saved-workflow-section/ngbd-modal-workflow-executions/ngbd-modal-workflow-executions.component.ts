@@ -36,6 +36,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public executionTooltip: Record<string, string> = {
     "Execution#": "Workflow Execution ID",
     Name: "Workflow Name",
+    Username: "The User Who Runs This Execution",
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
