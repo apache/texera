@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS file
     `name`        VARCHAR(128)                NOT NULL,
     `path`        VARCHAR(512)                NOT NULL,
     `description` VARCHAR(512)                NOT NULL,
+    `upload_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (`uid`, `name`),
     PRIMARY KEY (`fid`),
     FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
