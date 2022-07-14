@@ -148,18 +148,31 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  /* sort executions based on ascending alphabetical order */
+  /* sort executions by name/username based on ascending alphabetical order */
 
-  ascSort(): void {
-    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
+  ascSort(type: string): void {
+    if (type === "name") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+        .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
+    }
+    else if (type === "username") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+        .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
+    }
+    
   }
 
-  /* sort executions based on descending alphabetical order */
+  /* sort executions by name based on descending alphabetical order */
 
-  dscSort(): void {
-    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
+  dscSort(type: string): void {
+    if (type === "name") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+        .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
+    }
+    else if (type === "username") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+        .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
+    }
   }
 
   /* sort executions based on starting time */

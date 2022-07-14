@@ -14,13 +14,13 @@
             <!-- <li (click)="executionIDSort()" nz-menu-item>By Execution#</li> -->
             <li (click)="startTimeSort()" nz-menu-item>By Start Time</li>
             <li (click)="updateTimeSort()" nz-menu-item>By Update Time</li>
-            <li (click)="ascSort()" nz-menu-item>A -> Z</li>
-            <li (click)="dscSort()" nz-menu-item>Z -> A</li>
+            <li (click)="ascSort('name')" nz-menu-item>By Name: A -> Z</li>
+            <li (click)="dscSort('name')" nz-menu-item>By Name: Z -> A</li>
+            <li (click)="ascSort('username')" nz-menu-item>By Username: A -> Z</li>
+            <li (click)="dscSort('username')" nz-menu-item>By Username: Z -> A</li>
           </ul>
         </nz-dropdown-menu>
     </nz-card>
-
-    
 <div class="modal-body table-responsive">
   <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
     <thead>
