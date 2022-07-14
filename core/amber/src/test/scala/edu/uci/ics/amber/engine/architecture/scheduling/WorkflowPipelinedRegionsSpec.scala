@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -152,8 +153,7 @@ class WorkflowPipelinedRegionsSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = new WorkflowPipelinedRegions(workflow)
-    assert(pipelinedRegions.pipelinedRegionsDAG.vertexSet().size == 1)
+    assertThrows[WorkflowRuntimeException](new WorkflowPipelinedRegions(workflow))
   }
 
   "Pipelined Regions" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
