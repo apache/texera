@@ -183,6 +183,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
   private _handleKeyboardAction(event: any) {
     this._onProcessKeyboardActionObservable = new Subject();
+    event.preventDefault();
     this.workflowVersionService
       .getDisplayParticularVersionStream()
       .pipe(takeUntil(this._onProcessKeyboardActionObservable))

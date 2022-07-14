@@ -24,6 +24,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     "",
     "",
     "Execution#",
+    "Username",
     "Name",
     "Starting Time",
     "Updated Time",
