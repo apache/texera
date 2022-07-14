@@ -31,6 +31,10 @@
   color: #007bff;
 }
 
+/* Refactor default z-index cdk-overlay
+ * to display tooltip and dropdown on top 
+ * of table 
+ */
 ::ng-deep .cdk-overlay-container {
   z-index: 1100;
 }
