@@ -105,6 +105,18 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     this.outputToOrdinalMapping.update(output, (ordinal, name))
   }
 
+  /**
+    * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
+    * outputs all its tuples
+    */
+  def isInputBlocking(input: LinkIdentity): Boolean = false
+
+  /**
+    * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
+    * processes the build input, then the probe input.
+    */
+  def getInputProcessingOrder(): Array[LinkIdentity] = null
+
   def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity]

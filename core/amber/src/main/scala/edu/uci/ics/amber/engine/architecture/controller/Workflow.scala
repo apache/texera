@@ -41,6 +41,10 @@ class Workflow(
 
   private val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
 
+  def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
+
+  def getAllOperatorIds: Iterable[OperatorIdentity] = operatorToOpExecConfig.keys
+
   def getWorkflowId(): WorkflowIdentity = workflowId
 
   def getSources(operator: OperatorIdentity): Set[OperatorIdentity] = {
@@ -75,10 +79,11 @@ class Workflow(
 
   def getOperator(opID: OperatorIdentity): OpExecConfig = operatorToOpExecConfig(opID)
 
-  def getDirectUpstreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] = inLinks(opID)
+  def getDirectUpstreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
+    inLinks.getOrElse(opID, Set())
 
   def getDirectDownStreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
-    outLinks(opID)
+    outLinks.getOrElse(opID, Set())
 
   def getAllOperators: Iterable[OpExecConfig] = operatorToOpExecConfig.values
 
