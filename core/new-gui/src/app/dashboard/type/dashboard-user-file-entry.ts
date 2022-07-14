@@ -20,6 +20,7 @@ export interface UserFile
     path: string;
     size: number;
     description: string;
+    uploadTime: string;
   }> {}
 
 /**
