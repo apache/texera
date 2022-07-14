@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -21,9 +22,9 @@ import scala.collection.mutable
 class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
   def buildWorkflow(
-                     operators: mutable.MutableList[OperatorDescriptor],
-                     links: mutable.MutableList[OperatorLink]
-                   ): Workflow = {
+      operators: mutable.MutableList[OperatorDescriptor],
+      links: mutable.MutableList[OperatorLink]
+  ): Workflow = {
     val context = new WorkflowContext
     context.jobId = "workflow-test"
 
@@ -153,9 +154,9 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-
-    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
-    assert(pipelinedRegions.vertexSet().size == 1)
+    assertThrows[WorkflowRuntimeException](
+      new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    )
   }
 
   "Pipelined Regions" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
