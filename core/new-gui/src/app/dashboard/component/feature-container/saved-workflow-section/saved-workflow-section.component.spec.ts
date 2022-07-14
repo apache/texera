@@ -28,40 +28,43 @@ describe("SavedWorkflowSectionComponent", () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
+  //All times in test Workflows are in PST because our local machine's timezone is PST
+  //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
+
   const testWorkflow1: Workflow = {
     wid: 1,
     name: "workflow 1",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 1,
-    lastModifiedTime: 2,
+    creationTime: 28800000,  //28800000 is 1970-01-01 in PST
+    lastModifiedTime: 28800000+2,
   };
   const testWorkflow2: Workflow = {
     wid: 2,
     name: "workflow 2",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 3,
-    lastModifiedTime: 4,
+    creationTime: 28800000+(86400000+3), // 86400000 is the number of milliseconds in a day
+    lastModifiedTime: 28800000+(86400000+3),
   };
   const testWorkflow3: Workflow = {
     wid: 3,
     name: "workflow 3",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 3,
-    lastModifiedTime: 3,
+    creationTime: 28800000+(86400000),
+    lastModifiedTime: 28800000+(86400000+3),
   };
   const testWorkflow4: Workflow = {
     wid: 4,
     name: "workflow 4",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 4,
-    lastModifiedTime: 6,
+    creationTime: 28800000+86400003*2,
+    lastModifiedTime: 28800000+(86400000*2)+6,
   };
   const testWorkflow5: Workflow = {
     wid: 5,
     name: "workflow 5",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 3,
-    lastModifiedTime: 8,
+    creationTime: 28800000+(86400000*2),
+    lastModifiedTime: 28800000+(86400000*2)+8,
   };
   const testWorkflowEntries: DashboardWorkflowEntry[] = [
     {
@@ -99,6 +102,7 @@ describe("SavedWorkflowSectionComponent", () => {
       accessLevel: "Write",
       projectIDs: [],
     },
+
   ];
 
   beforeEach(
@@ -174,15 +178,43 @@ describe("SavedWorkflowSectionComponent", () => {
     component.dashboardWorkflowEntries = [];
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dateSort();
-    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.creationTime);
-    expect(SortedCase).toEqual([1, 3, 3, 3, 4]);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
+    expect(SortedCase).toEqual(["workflow 1", "workflow 3", "workflow 2", "workflow 5", "workflow 4"]);
   });
 
   it("lastEditSortTest", () => {
     component.dashboardWorkflowEntries = [];
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.lastSort();
-    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.lastModifiedTime);
-    expect(SortedCase).toEqual([2, 3, 4, 6, 8]);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
+    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
+  });
+
+  it("searchByCreationTimeTest", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    const SortedCase = component.searchCreationTime("1970-01-02", component.dashboardWorkflowEntries).map(item=>item.workflow.name);
+    expect(SortedCase).toEqual(["workflow 2", "workflow 3"]); 
+  });
+
+  it("searchByCreationTest (>)", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    const SortedCase = component.searchCreationTime(">1970-01-02", component.dashboardWorkflowEntries).map(item=>item.workflow.name);
+    expect(SortedCase).toEqual(["workflow 2", "workflow 3", "workflow 4", "workflow 5"]); 
+  });
+
+  it("searchByCreationTimeTest (<)", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    const SortedCase = component.searchCreationTime("<1970-01-02", component.dashboardWorkflowEntries).map(item=>item.workflow.name);
+    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]); 
+  });
+
+  it("searchByCreationTime Incorrect Date Format", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    const SortedCase = component.searchCreationTime("19d70-023421-02234", component.dashboardWorkflowEntries).map(item=>item.workflow.name);
+    expect(SortedCase).toEqual(["workflow 1","workflow 2","workflow 3","workflow 4","workflow 5",]);
   });
 });

@@ -183,7 +183,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       if(workflow_entry.workflow.creationTime)
       {
         if(search_date[1] === "<") {
-          return workflow_entry.workflow.creationTime <= search_date_obj.getTime() + 86400000;
+          return workflow_entry.workflow.creationTime < search_date_obj.getTime() + 86400000;
           //checks if creation time is before or on the specified date
         } else if (search_date[1] === ">") {
           return workflow_entry.workflow.creationTime >= search_date_obj.getTime(); 
