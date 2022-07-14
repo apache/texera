@@ -1,10 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LinkIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 
 case class PipelinedRegionIdentity(workflowId: WorkflowIdentity, pipelineId: String)
 

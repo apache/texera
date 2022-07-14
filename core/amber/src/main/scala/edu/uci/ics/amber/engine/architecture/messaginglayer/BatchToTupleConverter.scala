@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, End
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
 
@@ -22,7 +23,9 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     */
   private val inputMap = new mutable.HashMap[ActorVirtualIdentity, LinkIdentity]
   private val upstreamMap = new mutable.HashMap[LinkIdentity, mutable.HashSet[ActorVirtualIdentity]]
+  var allUpstreamLinkIds: mutable.HashSet[LinkIdentity] = null
   private var currentLink: LinkIdentity = _
+  private var linksDoneCount = 0
 
   def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
     upstreamMap.getOrElseUpdate(input, new mutable.HashSet[ActorVirtualIdentity]()).add(identifier)
@@ -57,8 +60,13 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
         if (upstreamMap(link).isEmpty) {
           workerInternalQueue.appendElement(EndMarker)
           upstreamMap.remove(link)
+          linksDoneCount += 1
         }
-        if (upstreamMap.isEmpty) {
+        //if (upstreamMap.isEmpty) {
+        if (linksDoneCount == allUpstreamLinkIds.size) {
+          println(
+            s"\t\tEndOfUpstream received from ${from}: LinksDonecount ${linksDoneCount}: allUpstreamLinksSize ${allUpstreamLinkIds.size}"
+          )
           workerInternalQueue.appendElement(EndOfAllMarker)
         }
       case other =>

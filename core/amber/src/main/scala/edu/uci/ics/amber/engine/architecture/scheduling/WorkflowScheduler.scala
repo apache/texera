@@ -22,6 +22,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -70,6 +71,8 @@ class WorkflowScheduler(
 
   private var nextRegion: PipelinedRegion = null
 
+  updateLinksDataStructures()
+
   /**
     * If no region is currently scheduled (nextRegion==null) or the currently
     * scheduled region has completed, then this function returns the next region
@@ -85,6 +88,21 @@ class WorkflowScheduler(
       return nextRegion
     }
     return null
+  }
+
+  private def updateLinksDataStructures(): Unit = {
+    workflow.getAllOperators.foreach(opExecConfig => {
+      opExecConfig.topology.links.foreach { (linkStrategy: LinkStrategy) =>
+        workflow.idToLink(linkStrategy.id) = linkStrategy
+        val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
+          linkStrategy.id.to,
+          new mutable.HashSet[LinkIdentity]()
+        )
+        existingLinkIds.add(linkStrategy.id)
+        workflow.layerIdToInlinkIdentities(linkStrategy.id.to) = existingLinkIds
+      }
+    })
+    buildLinks()
   }
 
   private def getBlockingOutlinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
@@ -124,7 +142,9 @@ class WorkflowScheduler(
     )
 
     if (region == null) {
-      logger.error("Worker completed from a non-running region")
+      throw new WorkflowRuntimeException(
+        s"WorkflowScheduler: Worker ${workerId} completed from a non-running region"
+      )
     } else {
       if (isRegionCompleted(region)) {
         runningRegions.remove(region)
@@ -144,11 +164,14 @@ class WorkflowScheduler(
       }
     )
     if (region == null) {
-      logger.error("Link completed from a non-running region")
+      throw new WorkflowRuntimeException(
+        s"WorkflowScheduler: Link ${linkId.toString()} completed from a non-running region"
+      )
     } else {
       val completedLinks =
         completedLinksOfRegion.getOrElseUpdate(region, new mutable.HashSet[LinkIdentity]())
       completedLinks.add(linkId)
+      completedLinksOfRegion(region) = completedLinks
       if (isRegionCompleted(region)) {
         runningRegions.remove(region)
         completedRegions.add(region)
@@ -204,7 +227,7 @@ class WorkflowScheduler(
           buildOperator(prev, op)
           builtOperators.add(op)
         }
-        buildLinks(prev, op) // link between operators are unique to a region.
+        //buildLinks(prev, op) // link between operators are unique to a region.
         // Hence, they would not have been built in some other region
         builtOpsInRegion.add(op)
       }
@@ -228,9 +251,15 @@ class WorkflowScheduler(
       workflow.getOperator(
         operatorIdentity
       ) // This metadata gets updated at the end of this function
-    opExecConfig.topology.links.foreach { (linkStrategy: LinkStrategy) =>
-      workflow.idToLink(linkStrategy.id) = linkStrategy
-    }
+    //    opExecConfig.topology.links.foreach { (linkStrategy: LinkStrategy) =>
+    //      workflow.idToLink(linkStrategy.id) = linkStrategy
+    //      val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
+    //        linkStrategy.id.to,
+    //        new mutable.HashSet[LinkIdentity]()
+    //      )
+    //      existingLinkIds.add(linkStrategy.id)
+    //      workflow.layerIdToInlinkIdentities(linkStrategy.id.to) = existingLinkIds
+    //    }
     if (opExecConfig.topology.links.isEmpty) {
       opExecConfig.topology.layers.foreach(workerLayer => {
         workerLayer.build(
@@ -279,22 +308,51 @@ class WorkflowScheduler(
     }
   }
 
-  private def buildLinks(
-      prev: Array[(OperatorIdentity, WorkerLayer)],
-      to: OperatorIdentity
-  ): Unit = {
-    for (from <- prev) {
-      val link = linkOperators(
-        (workflow.getOperator(from._1), from._2),
-        (workflow.getOperator(to), workflow.getOperator(to).topology.layers.head)
-      )
-      workflow.idToLink(link.id) = link
-      if (workflow.operatorLinks.contains(from._1)) {
-        workflow.operatorLinks(from._1).append(link)
-      } else {
-        workflow.operatorLinks(from._1) = mutable.ArrayBuffer[LinkStrategy](link)
+//  private def buildLinks(
+//      prev: Array[(OperatorIdentity, WorkerLayer)],
+//      to: OperatorIdentity
+//  ): Unit = {
+//    for (from <- prev) {
+//      val link = linkOperators(
+//        (workflow.getOperator(from._1), from._2),
+//        (workflow.getOperator(to), workflow.getOperator(to).topology.layers.head)
+//      )
+//      workflow.idToLink(link.id) = link
+//      val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
+//        link.id.to,
+//        new mutable.HashSet[LinkIdentity]()
+//      )
+//      existingLinkIds.add(link.id)
+//      workflow.layerIdToInlinkIdentities(link.id.to) = existingLinkIds
+//      if (workflow.operatorLinks.contains(from._1)) {
+//        workflow.operatorLinks(from._1).append(link)
+//      } else {
+//        workflow.operatorLinks(from._1) = mutable.ArrayBuffer[LinkStrategy](link)
+//      }
+//    }
+//  }
+
+  private def buildLinks(): Unit = {
+    workflow.getAllOperatorIds.foreach(toOpId => {
+      for (from <- workflow.getDirectUpstreamOperators(toOpId)) {
+        val link = linkOperators(
+          (workflow.getOperator(from), workflow.getOperator(from).topology.layers.last),
+          (workflow.getOperator(toOpId), workflow.getOperator(toOpId).topology.layers.head)
+        )
+        workflow.idToLink(link.id) = link
+        val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
+          link.id.to,
+          new mutable.HashSet[LinkIdentity]()
+        )
+        existingLinkIds.add(link.id)
+        workflow.layerIdToInlinkIdentities(link.id.to) = existingLinkIds
+        if (workflow.operatorLinks.contains(from)) {
+          workflow.operatorLinks(from).append(link)
+        } else {
+          workflow.operatorLinks(from) = mutable.ArrayBuffer[LinkStrategy](link)
+        }
       }
-    }
+    })
   }
 
   private def linkOperators(
@@ -335,6 +393,8 @@ class WorkflowScheduler(
   }
 
   private def prepareRegion(region: PipelinedRegion): Future[Unit] = {
+    println(s"\t\t Prepare Region called for ${region
+      .getId()}: Total ${workflowPipelinedRegionsDAG.vertexSet().size()}")
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
 

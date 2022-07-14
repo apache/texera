@@ -34,6 +34,8 @@ class Workflow(
     operatorToOpExecConfig.keys.filter(!outLinks.contains(_))
 
   val workerToLayer = new mutable.HashMap[ActorVirtualIdentity, WorkerLayer]()
+  val layerIdToInlinkIdentities =
+    new mutable.HashMap[LayerIdentity, mutable.HashSet[LinkIdentity]]()
   val layerToOperatorExecConfig = new mutable.HashMap[LayerIdentity, OpExecConfig]()
   val operatorLinks = {
     new mutable.HashMap[OperatorIdentity, mutable.ArrayBuffer[LinkStrategy]]
