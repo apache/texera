@@ -10,10 +10,6 @@
   max-width: 90%;
 }
 
-.icon-container {
-  align-items: center;
-}
-
 .status-icon {
   font-size: 1.2rem;
 }
@@ -29,4 +25,9 @@
 .trash-icon:hover {
   cursor: pointer;
   color: #007bff;
+}
+
+// enable to display nz-library component in ngb modal popout
+::ng-deep .cdk-overlay-container {
+  z-index: 1100;
 }

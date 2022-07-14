@@ -8,7 +8,14 @@
   <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
     <thead>
       <tr>
-        <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
+        <th
+          *ngFor="let column of executionsTableHeaders"
+          nz-tooltip
+          [nzTooltipTitle]="executionTooltip[column]"
+          nzTooltipPlacement="top"
+        >
+          {{column}}
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -30,7 +37,7 @@
         <td nzEllipsis>{{(i + 1)}}</td>
         <td nzEllipsis>{{row.userName || "anonymous" }}</td>
         <td nzEllipsis>
-          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="execution-name"
+          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="workflow-name"
             >{{ row.name }}</label
           >
           <ng-template #customeWorkflow>
@@ -49,29 +56,40 @@
             nzType="text"
             class="rename-icon"
           >
-            <i nz-icon nzTheme="outline" nzType="edit"></i>
-          </button>
-        </td>
-        <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-        <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-        <td nzEllipsis>
-          <span
-            [ngbTooltip]="getExecutionStatus(row.status)[0]"
-            placement="auto"
-            container="body"
-            class="icon-container"
-          >
             <i
               nz-icon
               nzTheme="outline"
-              [nzType]="getExecutionStatus(row.status)[1]"
-              [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
-              class="status-icon"
+              nz-tooltip
+              nzTooltipTitle='Rename Execution "{{row.name}}"'
+              nzTooltipPlacement="top"
+              nzType="edit"
             ></i>
-          </span>
+          </button>
+        </td>
+        <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
+        <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
+        <td nzEllipsis>
+          <i
+            nz-icon
+            nzTheme="outline"
+            nz-tooltip
+            [nzTooltipTitle]="getExecutionStatus(row.status)[0]"
+            nzTooltipPlacement="top"
+            [nzType]="getExecutionStatus(row.status)[1]"
+            [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
+            class="status-icon"
+          ></i>
         </td>
         <td nzEllipsis>
-          <i nz-icon nzType="delete" class="trash-icon" (click)="onDelete(row)"></i>
+          <i
+            nz-icon
+            nzType="delete"
+            nz-tooltip
+            nzTooltipTitle='Delete the Execution "{{row.name}}"'
+            nzTooltipPlacement="top"
+            class="trash-icon"
+            (click)="onDelete(row)"
+          ></i>
         </td>
       </tr>
     </tbody>
