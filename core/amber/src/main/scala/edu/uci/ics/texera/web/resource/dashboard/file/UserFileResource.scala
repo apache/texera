@@ -4,18 +4,9 @@ import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileDao,
-  FileOfProjectDao,
-  UserDao,
-  UserFileAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{
-  DashboardFileEntry,
-  context,
-  saveUserFileSafe
-}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{DashboardFileEntry, context, saveUserFileSafe}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -24,6 +15,8 @@ import org.jooq.types.UInteger
 
 import java.io.{FileInputStream, IOException, InputStream, OutputStream}
 import java.nio.file.Paths
+import java.sql.Timestamp
+import java.time.Instant
 import java.util
 import javax.annotation.security.PermitAll
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
@@ -57,7 +50,8 @@ object UserFileResource {
         size,
         fileNameStored,
         UserFileUtils.getFilePath(uid, fileNameStored).toString,
-        description
+        description,
+        Timestamp.from(Instant.now())
       )
     )
 
