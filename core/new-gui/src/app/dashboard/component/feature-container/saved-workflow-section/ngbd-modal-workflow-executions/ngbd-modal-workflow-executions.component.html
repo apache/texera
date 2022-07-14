@@ -21,75 +21,76 @@
     </nz-card>
 
     
-  <div class="modal-body table-responsive">
-    <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
-      <thead>
-        <tr>
-          <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of workflowExecutionsList; let i=index;">
-          <td nzEllipsis>
-            <input type="checkbox" />
-          </td>
-          <td nzEllipsis>
+<div class="modal-body table-responsive">
+  <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
+    <thead>
+      <tr>
+        <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of workflowExecutionsList; let i=index;">
+        <td nzEllipsis>
+          <input type="checkbox" />
+        </td>
+        <td nzEllipsis>
+          <i
+            nz-icon
+            nzType="star"
+            class="bookmark-icon"
+            [nzTheme]="(row.bookmarked || currentlyHoveredExecution === row) ? 'fill' : 'outline'"
+            (mouseenter)="currentlyHoveredExecution = row"
+            (mouseleave)="currentlyHoveredExecution = undefined"
+            (click)="onBookmarkToggle(row)"
+          ></i>
+        </td>
+        <td nzEllipsis>{{(i + 1)}}</td>
+        <td nzEllipsis>{{row.userName || "anonymous" }}</td>
+        <td nzEllipsis>
+          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="execution-name"
+            >{{ row.name }}</label
+          >
+          <ng-template #customeWorkflow>
+            <input
+              #customName
+              (focusout)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
+              (keyup.enter)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
+              placeholder="{{ row.name }}"
+              value="{{ row.name }}"
+            />
+          </ng-template>
+          <button
+            (click)="workflowExecutionsIsEditingName.push(i)"
+            nz-button
+            nzSize="small"
+            nzType="text"
+            class="rename-icon"
+          >
+            <i nz-icon nzTheme="outline" nzType="edit"></i>
+          </button>
+        </td>
+        <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>
+          <span
+            [ngbTooltip]="getExecutionStatus(row.status)[0]"
+            placement="auto"
+            container="body"
+            class="icon-container"
+          >
             <i
               nz-icon
-              nzType="star"
-              class="bookmark-icon"
-              [nzTheme]="(row.bookmarked || currentlyHoveredExecution === row) ? 'fill' : 'outline'"
-              (mouseenter)="currentlyHoveredExecution = row"
-              (mouseleave)="currentlyHoveredExecution = undefined"
-              (click)="onBookmarkToggle(row)"
+              nzTheme="outline"
+              [nzType]="getExecutionStatus(row.status)[1]"
+              [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
+              class="status-icon"
             ></i>
-          </td>
-          <td nzEllipsis>{{(i + 1)}}</td>
-          <td nzEllipsis>
-            <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="execution-name"
-              >{{ row.name }}</label
-            >
-            <ng-template #customeWorkflow>
-              <input
-                #customName
-                (focusout)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
-                (keyup.enter)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
-                placeholder="{{ row.name }}"
-                value="{{ row.name }}"
-              />
-            </ng-template>
-            <button
-              (click)="workflowExecutionsIsEditingName.push(i)"
-              nz-button
-              nzSize="small"
-              nzType="text"
-              class="rename-icon"
-            >
-              <i nz-icon nzTheme="outline" nzType="edit"></i>
-            </button>
-          </td>
-          <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-          <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-          <td nzEllipsis>
-            <span
-              [ngbTooltip]="getExecutionStatus(row.status)[0]"
-              placement="auto"
-              container="body"
-              class="icon-container"
-            >
-              <i
-                nz-icon
-                nzTheme="outline"
-                [nzType]="getExecutionStatus(row.status)[1]"
-                [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
-                class="status-icon"
-              ></i>
-            </span>
-          </td>
-          <td nzEllipsis>
-            <i nz-icon nzType="delete" class="trash-icon" (click)="onDelete(row)"></i>
-          </td>
-        </tr>
-      </tbody>
-    </nz-table>
+          </span>
+        </td>
+        <td nzEllipsis>
+          <i nz-icon nzType="delete" class="trash-icon" (click)="onDelete(row)"></i>
+        </td>
+      </tr>
+    </tbody>
+  </nz-table>
 </div>
