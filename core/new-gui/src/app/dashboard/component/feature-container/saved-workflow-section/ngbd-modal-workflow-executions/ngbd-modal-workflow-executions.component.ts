@@ -46,10 +46,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   // Pagination attributes
-  public currentPageIndex: number = defaultEnvironment.DEFAULT_PAGE_INDEX;
-  public pageSize: number = defaultEnvironment.DEFAULT_PAGE_SIZE;
-  public pageSizeOptions: number[] = defaultEnvironment.DEFAULT_PAGE_OPTIONS;
-  public numOfExecutions: number = defaultEnvironment.DEFAULT_NUM_OF_ITEMS;
+  public currentPageIndex: number = defaultEnvironment.defaultPageIndex;
+  public pageSize: number = defaultEnvironment.defaultPageSize;
+  public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
+  public numOfExecutions: number = defaultEnvironment.defaultNumOfItems;
   public currentWorkflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
 
   constructor(
