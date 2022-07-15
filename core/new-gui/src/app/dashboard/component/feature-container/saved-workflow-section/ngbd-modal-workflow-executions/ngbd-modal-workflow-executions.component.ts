@@ -7,6 +7,7 @@ import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-en
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
+import { defaultEnvironment } from "src/environments/environment.default";
 
 @UntilDestroy()
 @Component({
@@ -45,9 +46,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   // Pagination attributes
-  public currentPageIndex: number = 1;
-  public pageSize: number = 10;
-  public totalItems: number = 0;
+  public currentPageIndex: number = defaultEnvironment.DEFAULT_PAGE_INDEX;
+  public pageSize: number = defaultEnvironment.DEFAULT_PAGE_SIZE;
+  public pageSizeOptions: number[] = defaultEnvironment.DEFAULT_PAGE_OPTIONS;
+  public numOfExecutions: number = defaultEnvironment.DEFAULT_NUM_OF_ITEMS;
   public currentWorkflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
 
   constructor(
@@ -72,7 +74,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .retrieveWorkflowExecutions(this.workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
-        this.totalItems = workflowExecutions.length;
+        this.numOfExecutions = workflowExecutions.length;
         this.workflowExecutionsList = workflowExecutions;
         this.changePaginatedExecutions();
       });
