@@ -37,6 +37,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public currentPageIndex: number = 1;
   public pageSize: number = 10;
   public totalItems: number = 0;
+  public currentWorkflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -47,7 +48,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
-    this.changePaginatedExecutions();
   }
 
   /**
@@ -63,6 +63,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .subscribe(workflowExecutions => {
         this.totalItems = workflowExecutions.length;
         this.workflowExecutionsList = workflowExecutions;
+        this.changePaginatedExecutions();
       });
   }
 
@@ -154,42 +155,28 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   /* Pagination handler */
+  /* Assign new page index and change current list */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;
     this.changePaginatedExecutions();
   }
 
+  /* Assign new page size and change current list */
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
     this.changePaginatedExecutions();
   }
 
-  /**  Render executions when changing page
-   * To-do: create WorkflowExecutionEntry to handle pageIndex, or
-   * add page attributes to workflowExecutionService with function
-   * getPaginatedExecutions()
+  /**
+   * Change current page list everytime the page change
    */
   changePaginatedExecutions() {
     if (this.workflow.wid === undefined) {
       return;
     }
-    this.workflowExecutionsService
-      .retrieveWorkflowExecutions(this.workflow.wid)
-      .pipe(untilDestroyed(this))
-      .subscribe(data => {
-        this.workflowExecutionsList = [];
-
-        let limit = this.currentPageIndex * this.pageSize;
-        let iter = (this.currentPageIndex - 1) * this.pageSize;
-        for (let i = iter; i < limit; i++) {
-          if (limit > this.totalItems) {
-            limit = this.totalItems;
-          }
-          this.workflowExecutionsList.push(data[i]);
-        }
-
-        // Check output (will remove after review)
-        console.log("Check after traverse: ", this.workflowExecutionsList);
-      });
+    this.currentWorkflowExecutionsList = this.workflowExecutionsService.getPaginatedExecutions(
+      this.currentPageIndex,
+      this.pageSize
+    );
   }
 }
