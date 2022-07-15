@@ -186,20 +186,36 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     }
   }
 
-  /* sort executions based on starting time */
+  /* sort executions based on starting time in ascending/descending order */
 
-  startTimeSort(): void {
-    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+  startTimeSort(order: string): void {
+    if (order === "ascending") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
       .sort((exe1, exe2) => exe1.startingTime > exe2.startingTime ? 1 :
       exe2.startingTime > exe1.startingTime ? -1 : 0)
+    }
+    else if (order === "descending") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+      .sort((exe1, exe2) => exe1.startingTime < exe2.startingTime ? 1 :
+      exe2.startingTime < exe1.startingTime ? -1 : 0)
+    }
+    
   }
 
-  /* sort executions based on last status updated time */
+  /* sort executions based on last status updated time in ascending/descending order */
 
-  updateTimeSort(): void {
-    this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+  updateTimeSort(order: string): void {
+    if (order === "ascending") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
       .sort((exe1, exe2) => exe1.completionTime > exe2.completionTime ? 1 :
       exe2.completionTime > exe1.completionTime ? -1 : 0)
+    }
+    else if (order === "descending") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
+      .sort((exe1, exe2) => exe1.completionTime < exe2.completionTime ? 1 :
+      exe2.completionTime < exe1.completionTime ? -1 : 0)
+    }
+    
   }
 
   // /* sort executions based on execution number */
@@ -209,5 +225,4 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   //     .sort((exe1, exe2) => )
   // }
 
-  
 }
