@@ -127,7 +127,7 @@ class WorkflowPipelinedRegionsBuilder(workflow: Workflow) {
         }
       })
     })
-    
+
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
       region.blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray
     }
@@ -138,21 +138,4 @@ class WorkflowPipelinedRegionsBuilder(workflow: Workflow) {
     findDependenciesBetweenRegions()
     pipelinedRegionsDAG
   }
-
-  //  def getScheduleableRegions(): ArrayBuffer[PipelinedRegion] = {
-  //    val nextRegions = new ArrayBuffer[PipelinedRegion]()
-  //    for (region <- idToPipelinedRegions.values) {
-  //      if (!region.completed) {
-  //        if (
-  //          region.dependsOn.isEmpty || region.dependsOn
-  //            .forall(p => idToPipelinedRegions(p).completed)
-  //        ) {
-  //          nextRegions.append(region)
-  //        }
-  //      }
-  //    }
-  //    nextRegions
-  //  }
-  //
-  //  def regionCompleted(region: PipelinedRegion): Unit = region.completed = true
 }

@@ -5,20 +5,20 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StoreInlinkI
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-
 object StoreInlinkIdsHandler {
 
-  final case class StoreInlinkIds(inlinkIds: mutable.HashSet[LinkIdentity])
-      extends ControlCommand[Unit]
+  final case class StoreInlinkIds(inlinkIds: Set[LinkIdentity]) extends ControlCommand[Unit]
 }
 
+/**
+  * Used to tell the worker how many upstream links it will get the data from
+  * Sender: Controller
+  */
 trait StoreInlinkIdsHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: StoreInlinkIds, sender) =>
-    batchToTupleConverter.allUpstreamLinkIds = msg.inlinkIds
+    batchToTupleConverter.updateAllUpstreamLinkIds(msg.inlinkIds)
   }
 
 }

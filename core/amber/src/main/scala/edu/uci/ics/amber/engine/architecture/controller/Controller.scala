@@ -104,65 +104,6 @@ class Controller(
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
   networkCommunicationActor ! RegisterActorRef(CLIENT, context.parent)
 
-  // build whole workflow
-  //workflow.build(availableNodes, networkCommunicationActor, context)
-
-  // bring all workers into a ready state
-  //prepareWorkers()
-
-  def prepareWorkers(): Future[Unit] = {
-    Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
-      .flatMap(_ =>
-        Future
-          .collect(
-            // initialize python operator code
-            workflow.getPythonWorkerToOperatorExec.map {
-              case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-                asyncRPCClient.send(
-                  InitializeOperatorLogic(
-                    pythonOperatorExec.getCode,
-                    pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
-                    pythonOperatorExec.getOutputSchema
-                  ),
-                  workerID
-                )
-            }.toSeq
-          )
-          .onFailure((err: Throwable) => {
-            logger.error("Failure when sending Python UDF code", err)
-            // report error to frontend
-            asyncRPCClient.sendToClient(FatalError(err))
-          })
-      )
-      .flatMap(_ =>
-        Future.collect(
-          // activate all links
-          workflow.getAllLinks.map { link: LinkStrategy =>
-            asyncRPCClient.send(LinkWorkers(link), CONTROLLER)
-          }.toSeq
-        )
-      )
-      .flatMap(_ =>
-        Future {
-          context.become(running)
-          unstashAll()
-        }
-      )
-      .flatMap(
-        // open all operators
-        _ =>
-          Future.collect(workflow.getAllWorkers.map { workerID =>
-            asyncRPCClient.send(OpenOperator(), workerID)
-          }.toSeq)
-      )
-      .flatMap(_ =>
-        Future {
-          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        }
-      )
-  }
-
   def running: Receive = {
     acceptDirectInvocations orElse {
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>

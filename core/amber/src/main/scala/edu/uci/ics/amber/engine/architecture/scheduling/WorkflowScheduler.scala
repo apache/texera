@@ -60,7 +60,8 @@ class WorkflowScheduler(
     ]()
   private val openedOperators = new mutable.HashSet[OperatorIdentity]()
   private val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
-  private val activatedLink = new mutable.HashSet[LinkStrategy]()
+  private val activatedLink = new mutable.HashSet[LinkIdentity]()
+  val workersKnowingAllInlinks = new mutable.HashSet[ActorVirtualIdentity]()
 
   private var constructingRegions = new mutable.HashSet[PipelinedRegion]()
   private var constructedRegions = new mutable.HashSet[PipelinedRegion]()
@@ -70,8 +71,6 @@ class WorkflowScheduler(
     new mutable.HashMap[PipelinedRegion, mutable.HashSet[LinkIdentity]]()
 
   private var nextRegion: PipelinedRegion = null
-
-  updateLinksDataStructures()
 
   /**
     * If no region is currently scheduled (nextRegion==null) or the currently
@@ -88,21 +87,6 @@ class WorkflowScheduler(
       return nextRegion
     }
     return null
-  }
-
-  private def updateLinksDataStructures(): Unit = {
-    workflow.getAllOperators.foreach(opExecConfig => {
-      opExecConfig.topology.links.foreach { (linkStrategy: LinkStrategy) =>
-        workflow.idToLink(linkStrategy.id) = linkStrategy
-        val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
-          linkStrategy.id.to,
-          new mutable.HashSet[LinkIdentity]()
-        )
-        existingLinkIds.add(linkStrategy.id)
-        workflow.layerIdToInlinkIdentities(linkStrategy.id.to) = existingLinkIds
-      }
-    })
-    buildLinks()
   }
 
   private def getBlockingOutlinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
@@ -227,8 +211,6 @@ class WorkflowScheduler(
           buildOperator(prev, op)
           builtOperators.add(op)
         }
-        //buildLinks(prev, op) // link between operators are unique to a region.
-        // Hence, they would not have been built in some other region
         builtOpsInRegion.add(op)
       }
 
@@ -247,19 +229,7 @@ class WorkflowScheduler(
       prev: Array[(OperatorIdentity, WorkerLayer)], // used to decide deployment of workers
       operatorIdentity: OperatorIdentity
   ): Unit = {
-    val opExecConfig =
-      workflow.getOperator(
-        operatorIdentity
-      ) // This metadata gets updated at the end of this function
-    //    opExecConfig.topology.links.foreach { (linkStrategy: LinkStrategy) =>
-    //      workflow.idToLink(linkStrategy.id) = linkStrategy
-    //      val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
-    //        linkStrategy.id.to,
-    //        new mutable.HashSet[LinkIdentity]()
-    //      )
-    //      existingLinkIds.add(linkStrategy.id)
-    //      workflow.layerIdToInlinkIdentities(linkStrategy.id.to) = existingLinkIds
-    //    }
+    val opExecConfig = workflow.getOperator(operatorIdentity)
     if (opExecConfig.topology.links.isEmpty) {
       opExecConfig.topology.layers.foreach(workerLayer => {
         workerLayer.build(
@@ -270,7 +240,6 @@ class WorkflowScheduler(
           workflow.workerToLayer,
           workflow.workerToOperatorExec
         )
-        workflow.layerToOperatorExecConfig(workerLayer.id) = opExecConfig
       })
     } else {
       val operatorInLinks: Map[WorkerLayer, Set[WorkerLayer]] =
@@ -288,7 +257,6 @@ class WorkflowScheduler(
           workflow.workerToLayer,
           workflow.workerToOperatorExec
         )
-        workflow.layerToOperatorExecConfig(workerLayer.id) = opExecConfig
       })
       layers = operatorInLinks.filter(x => x._2.forall(_.isBuilt)).keys
       while (layers.nonEmpty) {
@@ -301,100 +269,13 @@ class WorkflowScheduler(
             workflow.workerToLayer,
             workflow.workerToOperatorExec
           )
-          workflow.layerToOperatorExecConfig(layer.id) = opExecConfig
         })
         layers = operatorInLinks.filter(x => !x._1.isBuilt && x._2.forall(_.isBuilt)).keys
       }
     }
   }
 
-//  private def buildLinks(
-//      prev: Array[(OperatorIdentity, WorkerLayer)],
-//      to: OperatorIdentity
-//  ): Unit = {
-//    for (from <- prev) {
-//      val link = linkOperators(
-//        (workflow.getOperator(from._1), from._2),
-//        (workflow.getOperator(to), workflow.getOperator(to).topology.layers.head)
-//      )
-//      workflow.idToLink(link.id) = link
-//      val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
-//        link.id.to,
-//        new mutable.HashSet[LinkIdentity]()
-//      )
-//      existingLinkIds.add(link.id)
-//      workflow.layerIdToInlinkIdentities(link.id.to) = existingLinkIds
-//      if (workflow.operatorLinks.contains(from._1)) {
-//        workflow.operatorLinks(from._1).append(link)
-//      } else {
-//        workflow.operatorLinks(from._1) = mutable.ArrayBuffer[LinkStrategy](link)
-//      }
-//    }
-//  }
-
-  private def buildLinks(): Unit = {
-    workflow.getAllOperatorIds.foreach(toOpId => {
-      for (from <- workflow.getDirectUpstreamOperators(toOpId)) {
-        val link = linkOperators(
-          (workflow.getOperator(from), workflow.getOperator(from).topology.layers.last),
-          (workflow.getOperator(toOpId), workflow.getOperator(toOpId).topology.layers.head)
-        )
-        workflow.idToLink(link.id) = link
-        val existingLinkIds = workflow.layerIdToInlinkIdentities.getOrElseUpdate(
-          link.id.to,
-          new mutable.HashSet[LinkIdentity]()
-        )
-        existingLinkIds.add(link.id)
-        workflow.layerIdToInlinkIdentities(link.id.to) = existingLinkIds
-        if (workflow.operatorLinks.contains(from)) {
-          workflow.operatorLinks(from).append(link)
-        } else {
-          workflow.operatorLinks(from) = mutable.ArrayBuffer[LinkStrategy](link)
-        }
-      }
-    })
-  }
-
-  private def linkOperators(
-      from: (OpExecConfig, WorkerLayer),
-      to: (OpExecConfig, WorkerLayer)
-  ): LinkStrategy = {
-    val sender = from._2
-    val receiver = to._2
-    val receiverOpExecConfig = to._1
-    if (receiverOpExecConfig.requiresShuffle) {
-      if (receiverOpExecConfig.shuffleType == ShuffleType.HASH_BASED) {
-        new HashBasedShuffle(
-          sender,
-          receiver,
-          Constants.defaultBatchSize,
-          receiverOpExecConfig.getPartitionColumnIndices(sender.id)
-        )
-      } else if (receiverOpExecConfig.shuffleType == ShuffleType.RANGE_BASED) {
-        new RangeBasedShuffle(
-          sender,
-          receiver,
-          Constants.defaultBatchSize,
-          receiverOpExecConfig.getPartitionColumnIndices(sender.id),
-          receiverOpExecConfig.getRangeShuffleMinAndMax._1,
-          receiverOpExecConfig.getRangeShuffleMinAndMax._2
-        )
-      } else {
-        // unknown shuffle type. Default to full round-robin
-        new FullRoundRobin(sender, receiver, Constants.defaultBatchSize)
-      }
-    } else if (receiverOpExecConfig.isInstanceOf[SinkOpExecConfig]) {
-      new AllToOne(sender, receiver, Constants.defaultBatchSize)
-    } else if (sender.numWorkers == receiver.numWorkers) {
-      new OneToOne(sender, receiver, Constants.defaultBatchSize)
-    } else {
-      new FullRoundRobin(sender, receiver, Constants.defaultBatchSize)
-    }
-  }
-
   private def prepareRegion(region: PipelinedRegion): Future[Unit] = {
-    println(s"\t\t Prepare Region called for ${region
-      .getId()}: Total ${workflowPipelinedRegionsDAG.vertexSet().size()}")
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
 
@@ -437,7 +318,7 @@ class WorkflowScheduler(
           // activate all links
           workflow.getAllLinks
             .filter(link => {
-              !activatedLink.contains(link) &&
+              !activatedLink.contains(link.id) &&
                 allOperatorsInRegion.contains(
                   OperatorIdentity(link.from.id.workflow, link.from.id.operator)
                 ) &&
@@ -448,7 +329,7 @@ class WorkflowScheduler(
             .map { link: LinkStrategy =>
               asyncRPCClient
                 .send(LinkWorkers(link), CONTROLLER)
-                .onSuccess(_ => activatedLink.add(link))
+                .onSuccess(_ => activatedLink.add(link.id))
             }
             .toSeq
         )

@@ -30,14 +30,16 @@ trait LinkWorkersHandler {
           // send messages to sender worker and receiver workers
           Seq(send(AddPartitioning(link, partitioning), from)) ++ tos.map(
             send(UpdateInputLinking(from, msg.link.id), _)
-          ) ++ tos.map(workerId =>
-            send(
-              StoreInlinkIds(
-                workflow.layerIdToInlinkIdentities(workflow.workerToLayer(workerId).id)
-              ),
-              workerId
-            )
-          )
+          ) ++ tos
+            .filter(workerId => !scheduler.workersKnowingAllInlinks.contains(workerId))
+            .map(workerId => {
+              send(
+                StoreInlinkIds(
+                  workflow.getInlinksIdsToWorkerLayer(workflow.workerToLayer(workerId).id)
+                ),
+                workerId
+              ).map(_ => scheduler.workersKnowingAllInlinks.add(workerId))
+            })
       }
 
       Future.collect(futures.toSeq).map { _ =>
