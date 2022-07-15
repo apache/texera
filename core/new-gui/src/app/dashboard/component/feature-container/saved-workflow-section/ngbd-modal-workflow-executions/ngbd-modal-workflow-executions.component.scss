@@ -10,10 +10,6 @@
   max-width: 90%;
 }
 
-.icon-container {
-  align-items: center;
-}
-
 .status-icon {
   font-size: 1.2rem;
 }
@@ -31,10 +27,7 @@
   color: #007bff;
 }
 
-/* Refactor default z-index cdk-overlay
- * to display tooltip and dropdown on top 
- * of table 
- */
+// enable to display some nz-library components in ngb modal popout
 ::ng-deep .cdk-overlay-container {
   z-index: 1100;
 }
