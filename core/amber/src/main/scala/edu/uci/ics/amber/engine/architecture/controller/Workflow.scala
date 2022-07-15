@@ -215,8 +215,8 @@ class Workflow(
     operators.map(opId => operatorToOpExecConfig(opId).getAllWorkers).flatten
   }
 
-  def getPythonOperators(operators: Array[OperatorIdentity]): Array[OperatorIdentity] = {
-    operators.filter(opId =>
+  def getPythonOperators(fromOperatorsList: Array[OperatorIdentity]): Array[OperatorIdentity] = {
+    fromOperatorsList.filter(opId =>
       operatorToOpExecConfig(opId).getAllWorkers.size > 0 && operatorToOpExecConfig(
         opId
       ).getAllWorkers.forall(wid => workerToOperatorExec(wid).isInstanceOf[PythonUDFOpExecV2])

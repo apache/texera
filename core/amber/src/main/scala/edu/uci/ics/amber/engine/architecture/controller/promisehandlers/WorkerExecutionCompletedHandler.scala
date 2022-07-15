@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -48,11 +49,15 @@ trait WorkerExecutionCompletedHandler {
             disableSkewHandling()
             Future.Done
           } else {
-            val isRegionCompleted = scheduler.workerCompleted(sender)
+            val isRegionCompleted = scheduler.recordWorkerCompletion(sender)
             if (isRegionCompleted) {
               val region = scheduler.getNextRegionToConstructAndPrepare()
               if (region != null) {
                 scheduler.constructAndPrepare(region)
+              } else {
+                throw new WorkflowRuntimeException(
+                  s"No region to schedule after ${sender} worker finished"
+                )
               }
             }
             Future.Done

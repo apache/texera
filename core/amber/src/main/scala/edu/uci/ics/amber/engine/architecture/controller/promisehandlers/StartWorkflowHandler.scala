@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWor
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 import scala.collection.mutable
@@ -26,6 +27,8 @@ trait StartWorkflowHandler {
       val region = scheduler.getNextRegionToConstructAndPrepare()
       if (region != null) {
         scheduler.constructAndPrepare(region)
+      } else {
+        throw new WorkflowRuntimeException(s"No region to be scheduled.")
       }
     }
   }

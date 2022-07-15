@@ -117,10 +117,6 @@ class TupleToBatchConverter(
       case roundRobinPartitioning: RoundRobinPartitioning =>
         RoundRobinPartitioner(roundRobinPartitioning)
       case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>
-        println(
-          s"\t\tAdd partitioning called for ${selfID} with receivers ${hashBasedShufflePartitioning.receivers
-            .mkString(",")}"
-        )
         HashBasedShufflePartitioner(hashBasedShufflePartitioning)
       case rangeBasedShufflePartitioning: RangeBasedShufflePartitioning =>
         RangeBasedShufflePartitioner(rangeBasedShufflePartitioning)

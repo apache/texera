@@ -47,12 +47,15 @@ class IntervalJoinExecConfig(
     )
   }
 
-  override def checkStartDependencies(workflow: Workflow): Unit = {
-    val rightTable = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
-    workflow.getSources(toOperatorIdentity(rightTable.from)).foreach { source =>
-      workflow.getOperator(source).topology.layers.head.startAfter(getLeftInputLink())
-    }
+  override def isInputBlocking(input: LinkIdentity): Boolean = {
+    input == getLeftInputLink()
   }
+
+  override def getInputProcessingOrder(): Array[LinkIdentity] =
+    Array(
+      inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1,
+      inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
+    )
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     if (layer == getLeftInputLink().from) {

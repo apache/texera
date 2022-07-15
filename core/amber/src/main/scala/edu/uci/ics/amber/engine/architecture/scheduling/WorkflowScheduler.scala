@@ -116,7 +116,7 @@ class WorkflowScheduler(
       .forall(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.COMPLETED)
   }
 
-  def workerCompleted(workerId: ActorVirtualIdentity): Boolean = {
+  def recordWorkerCompletion(workerId: ActorVirtualIdentity): Boolean = {
     val opId = workflow.getOperator(workerId).id
     var region: PipelinedRegion = null
     runningRegions.foreach(r =>
@@ -139,7 +139,7 @@ class WorkflowScheduler(
     false
   }
 
-  def linkCompleted(linkId: LinkIdentity): Boolean = {
+  def recordLinkCompletion(linkId: LinkIdentity): Boolean = {
     val upstreamOpId = OperatorIdentity(linkId.from.workflow, linkId.from.operator)
     var region: PipelinedRegion = null
     runningRegions.foreach(r =>
@@ -373,9 +373,15 @@ class WorkflowScheduler(
   }
 
   def constructAndPrepare(region: PipelinedRegion): Unit = {
-    if (!constructingRegions.contains(region) && !constructedRegions.contains(region)) {
+    if (
+      !constructingRegions.contains(region) && !constructedRegions.contains(
+        region
+      ) && !runningRegions.contains(region) && !completedRegions.contains(region)
+    ) {
       constructRegion(region)
       prepareRegion(region)
+    } else {
+      logger.error(s"Pipelined region ${region.getId()} has already been constructed")
     }
   }
 
