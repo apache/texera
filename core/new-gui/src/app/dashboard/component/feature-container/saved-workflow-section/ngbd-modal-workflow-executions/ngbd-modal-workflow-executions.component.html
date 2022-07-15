@@ -20,7 +20,14 @@
   >
     <thead>
       <tr>
-        <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
+        <th
+          *ngFor="let column of executionsTableHeaders"
+          nz-tooltip
+          [nzTooltipTitle]="executionTooltip[column]"
+          nzTooltipPlacement="top"
+        >
+          {{column}}
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -42,7 +49,7 @@
         <td nzEllipsis>{{i + 1 + (currentPageIndex - 1) * pageSize}}</td>
         <td nzEllipsis>{{row.userName || "anonymous" }}</td>
         <td nzEllipsis>
-          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="execution-name"
+          <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="workflow-name"
             >{{ row.name }}</label
           >
           <ng-template #customeWorkflow>
@@ -61,7 +68,14 @@
             nzType="text"
             class="rename-icon"
           >
-            <i nz-icon nzTheme="outline" nzType="edit"></i>
+            <i
+              nz-icon
+              nzTheme="outline"
+              nz-tooltip
+              nzTooltipTitle='Rename Execution "{{row.name}}"'
+              nzTooltipPlacement="top"
+              nzType="edit"
+            ></i>
           </button>
         </td>
         <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
@@ -79,7 +93,15 @@
           ></i>
         </td>
         <td nzEllipsis>
-          <i nz-icon nzType="delete" class="trash-icon" (click)="onDelete(row)"></i>
+          <i
+            nz-icon
+            nzType="delete"
+            nz-tooltip
+            nzTooltipTitle='Delete the Execution "{{row.name}}"'
+            nzTooltipPlacement="top"
+            class="trash-icon"
+            (click)="onDelete(row)"
+          ></i>
         </td>
       </tr>
     </tbody>
