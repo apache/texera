@@ -6,6 +6,9 @@ import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
+// Variable to hold the list of executions
+let retrievedExecutionsList: WorkflowExecutionsEntry[];
+
 @Injectable({
   providedIn: "root",
 })
@@ -16,6 +19,12 @@ export class WorkflowExecutionsService {
    * retrieves a list of execution for a particular workflow from backend database
    */
   retrieveWorkflowExecutions(wid: number): Observable<WorkflowExecutionsEntry[]> {
+    // Subscribe to store retrieved executions
+    this.http
+      .get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`)
+      .subscribe(workflowExecutions => {
+        retrievedExecutionsList = workflowExecutions;
+      });
     return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`);
   }
 
@@ -40,5 +49,21 @@ export class WorkflowExecutionsService {
       eId,
       executionName,
     });
+  }
+
+  getPaginatedExecutions(pageIndex: number, pageSize: number): WorkflowExecutionsEntry[] {
+    let paginatedData: WorkflowExecutionsEntry[] = [];
+    let firstIndex = (pageIndex - 1) * pageSize;
+    let size = pageIndex * pageSize;
+
+    if (size > retrievedExecutionsList.length) {
+      size = retrievedExecutionsList.length;
+    }
+
+    for (let i = firstIndex; i < size; i++) {
+      paginatedData?.push(retrievedExecutionsList[i]);
+    }
+
+    return paginatedData;
   }
 }
