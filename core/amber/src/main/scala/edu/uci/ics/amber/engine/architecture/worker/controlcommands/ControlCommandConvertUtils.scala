@@ -19,6 +19,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StoreInlinkIdsHandler.StoreInlinkIds
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -63,6 +64,8 @@ object ControlCommandConvertUtils {
         EvaluateExpressionV2(expression)
       case QuerySelfWorkloadMetrics() =>
         QuerySelfWorkloadMetricsV2()
+      case StoreInlinkIds(inlinkIds) =>
+        StoreInlinkIdsV2(inlinkIds)
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"

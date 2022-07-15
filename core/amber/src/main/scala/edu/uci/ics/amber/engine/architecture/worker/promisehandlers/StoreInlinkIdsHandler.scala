@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object StoreInlinkIdsHandler {
 
-  final case class StoreInlinkIds(inlinkIds: Set[LinkIdentity]) extends ControlCommand[Unit]
+  final case class StoreInlinkIds(inlinkIds: Array[LinkIdentity]) extends ControlCommand[Unit]
 }
 
 /**
@@ -18,7 +18,7 @@ trait StoreInlinkIdsHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: StoreInlinkIds, sender) =>
-    batchToTupleConverter.updateAllUpstreamLinkIds(msg.inlinkIds)
+    batchToTupleConverter.updateAllUpstreamLinkIds(msg.inlinkIds.toSet)
   }
 
 }
