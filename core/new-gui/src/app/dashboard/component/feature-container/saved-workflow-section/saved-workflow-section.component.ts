@@ -1,7 +1,7 @@
 import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { cloneDeep } from "lodash-es";
+import { cloneDeep, concat, forEach, over } from "lodash-es";
 import { from, Observable } from "rxjs";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalDeleteWorkflowComponent } from "./ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
@@ -56,7 +56,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
-  public searchCriteria: string[] = ["owner", "id", "ctime"];
+  public searchCriteria: string[] = ["owner", "id", "ctime", "operator"];
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
@@ -159,6 +159,15 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.filteredDashboardWorkflowNames = filteredDashboardWorkflowNames;
     }
   }
+
+  private searchOperator(operator: string): void {
+    this.workflowPersistService.retrieveWorkflowByOperator(operator)
+      .pipe(untilDestroyed(this))
+      .subscribe((element) => {
+          this.dashboardWorkflowEntries = element;
+      })
+  }
+
   /**
    * Search workflows based on date string
    * String Formats: 
@@ -229,6 +238,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
     const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
     let date: string = "";
+    let operator: string = ""
     searchConsitionsSet.forEach(condition => {
       // field search
       if (condition.includes(":")) {
@@ -245,6 +255,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         }
         if(workflowSearchField === "ctime") {
           date = workflowSearchValue;
+        } else if (workflowSearchField === "operator") {
+          operator = workflowSearchValue;
         } else {
           andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
         }
@@ -260,6 +272,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       searchResults = this.searchCreationTime(date, searchResults);
     }
     this.dashboardWorkflowEntries = searchResults;
+    if(operator) {
+      this.searchOperator(operator);
+    }
   }
 
   /**

@@ -86,6 +86,34 @@ object WorkflowResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
 
+    @GET
+    @Path("/searchOperators")
+    def searchWorkflowByOperator(
+                                  @QueryParam("operator") operator: String,
+                                  @Auth sessionUser: SessionUser
+                                ): List[DashboardWorkflowEntry] = {
+      // GET localhost:8080/workflow/searchOperators?operator=csv
+    val user = sessionUser.getUser
+    val workflowEntries = context.select()
+      .from(WORKFLOW)
+      .where(WORKFLOW.CONTENT.like(s"%$operator%"))
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflowEntry(
+          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+          toAccessLevel(
+            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+          ).toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          List() // change this
+        )
+      )
+      .toList
+    }
+
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to
     *
