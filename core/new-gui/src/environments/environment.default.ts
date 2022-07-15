@@ -86,6 +86,13 @@ export const defaultEnvironment = {
    * Whether workflow collab should be active
    */
   workflowCollabEnabled: false,
+  /**
+   * Default pagination values
+   */
+  DEFAULT_PAGE_INDEX: 1,
+  DEFAULT_PAGE_SIZE: 10,
+  DEFAULT_NUM_OF_ITEMS: 0,
+  DEFAULT_PAGE_OPTIONS: [5, 10, 20, 30, 40],
 };
 
 export type AppEnv = typeof defaultEnvironment;
