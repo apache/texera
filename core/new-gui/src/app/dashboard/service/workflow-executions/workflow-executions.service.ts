@@ -52,18 +52,6 @@ export class WorkflowExecutionsService {
   }
 
   getPaginatedExecutions(pageIndex: number, pageSize: number): WorkflowExecutionsEntry[] {
-    let paginatedData: WorkflowExecutionsEntry[] = [];
-    let firstIndex = (pageIndex - 1) * pageSize;
-    let size = pageIndex * pageSize;
-
-    if (size > retrievedExecutionsList.length) {
-      size = retrievedExecutionsList.length;
-    }
-
-    for (let i = firstIndex; i < size; i++) {
-      paginatedData?.push(retrievedExecutionsList[i]);
-    }
-
-    return paginatedData;
+    return retrievedExecutionsList?.slice((pageIndex - 1) * pageSize, pageIndex * pageSize);
   }
 }
