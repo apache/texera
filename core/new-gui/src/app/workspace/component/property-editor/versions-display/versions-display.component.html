@@ -1,12 +1,24 @@
 <div>
-  <nz-table *ngIf="versionsList" [nzData]="versionsList">
+  <nz-table
+    *ngIf="versionsList"
+    [nzData]="versionsList"
+    [nzShowSizeChanger]="true"
+    [nzPageSizeOptions]="pageSizeOptions"
+    [nzShowPagination]="isPagination"
+    [nzPageSize]="pageSize"
+    [nzPageIndex]="currentPageIndex"
+    [nzTotal]="numOfVersion"
+    [nzFrontPagination]="false"
+    (nzPageSizeChange)="onPageSizeChange($event)"
+    (nzPageIndexChange)="onPageIndexChange($event)"
+  >
     <thead>
       <tr>
         <th *ngFor="let column of versionTableHeaders">{{column}}</th>
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let row of versionsList; let i=index; let l=count;">
+      <ng-container *ngFor="let row of currentVersionList; let i=index; let l=count;">
         <tr *ngIf="(!row.importance && row.expand) || row.importance">
           <td [nzShowExpand]="row.importance" [(nzExpand)]="row.expand" (nzExpandChange)="collapse(i, $event)">
             {{(l-i)}}

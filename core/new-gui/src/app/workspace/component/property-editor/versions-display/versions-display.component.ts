@@ -12,6 +12,7 @@ import { HttpClient } from "@angular/common/http";
 import { Workflow } from "src/app/common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
+import { defaultEnvironment } from "src/environments/environment.default";
 
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
@@ -26,6 +27,14 @@ export class VersionsListDisplayComponent implements OnInit {
 
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
 
+  // Pagination attributes
+  public isPagination: boolean = false;
+  public currentPageIndex: number = defaultEnvironment.defaultPageIndex;
+  public pageSize: number = defaultEnvironment.defaultPageSize;
+  public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
+  public numOfVersion: number = defaultEnvironment.defaultNumOfItems;
+  public currentVersionList: WorkflowVersionCollapsableEntry[] | undefined;
+
   constructor(
     private http: HttpClient,
     private workflowActionService: WorkflowActionService,
@@ -37,12 +46,14 @@ export class VersionsListDisplayComponent implements OnInit {
       return;
     }
     if (!$event) {
-      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
+      while (++index < this.pageSize && !this.versionsList[index].importance) {
         this.versionsList[index].expand = false;
+        this.isPagination = false;
       }
     } else {
-      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
+      while (++index < this.pageSize && !this.versionsList[index].importance) {
         this.versionsList[index].expand = true;
+        this.isPagination = true;
       }
     }
   }
@@ -77,6 +88,8 @@ export class VersionsListDisplayComponent implements OnInit {
           importance: version.importance,
           expand: false,
         }));
+        this.numOfVersion = versionsList.length
+        this.changePaginatedVersions()
       });
   }
 
@@ -99,5 +112,32 @@ export class VersionsListDisplayComponent implements OnInit {
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
+  }
+
+  /* Pagination handler */
+  /* Assign new page index and change current list */
+  onPageIndexChange(pageIndex: number): void {
+    this.currentPageIndex = pageIndex;
+    this.changePaginatedVersions();
+  }
+
+  /* Assign new page size and change current list */
+  onPageSizeChange(pageSize: number): void {
+    this.pageSize = pageSize;
+    this.changePaginatedVersions();
+  }
+
+  /**
+   * Change current page list everytime the page change
+   */
+  changePaginatedVersions() {
+    if (this.versionsList === undefined) {
+      return;
+    }
+    this.currentVersionList = this.versionsList.slice(
+      (this.currentPageIndex - 1) * this.currentPageIndex,
+      this.currentPageIndex * this.pageSize
+    );
+    console.log("Check paginated version list: ", this.currentVersionList)
   }
 }
