@@ -109,6 +109,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     // Update bookmark state locally.
     row.bookmarked = !wasPreviouslyBookmarked;
 
+    // Update bookmark in retrieved executions list and re-paginate
+    this.workflowExecutionsService.getRetrievedExecutionsList()[
+      this.workflowExecutionsService.getRetrievedExecutionsList().indexOf(row)
+    ].bookmarked = !wasPreviouslyBookmarked;
+    this.changePaginatedExecutions();
+
     // Update on the server.
     this.workflowExecutionsService
       .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
@@ -134,6 +140,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
             .subscribe({
               complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
             });
+          // Remove the deleted execution in retrieved execution list and re-paginate
+          this.workflowExecutionsService
+            .getRetrievedExecutionsList()
+            .splice(this.workflowExecutionsService.getRetrievedExecutionsList().indexOf(row), 1);
+          this.changePaginatedExecutions();
         }
       });
   }
@@ -159,6 +170,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           return;
         }
         this.workflowExecutionsList[index].name = name;
+        // Update the execution name in retrieved executions list and re-paginate
+        this.workflowExecutionsService.getRetrievedExecutionsList()[index].name = name;
+        this.changePaginatedExecutions();
       })
       .add(() => {
         this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
@@ -182,6 +196,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   /**
    * Change current page list everytime the page change
+   * TODO: may need to modify to compatible with filter/sort feature
    */
   changePaginatedExecutions() {
     if (this.workflow.wid === undefined) {

@@ -6,13 +6,12 @@ import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
-// Variable to hold the list of executions
-let retrievedExecutionsList: WorkflowExecutionsEntry[];
-
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowExecutionsService {
+  public retrievedExecutionsList: WorkflowExecutionsEntry[] | undefined;
+
   constructor(private http: HttpClient) {}
 
   /**
@@ -23,7 +22,7 @@ export class WorkflowExecutionsService {
     this.http
       .get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`)
       .subscribe(workflowExecutions => {
-        retrievedExecutionsList = workflowExecutions;
+        this.retrievedExecutionsList = workflowExecutions;
       });
     return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`);
   }
@@ -52,6 +51,16 @@ export class WorkflowExecutionsService {
   }
 
   getPaginatedExecutions(pageIndex: number, pageSize: number): WorkflowExecutionsEntry[] {
-    return retrievedExecutionsList?.slice((pageIndex - 1) * pageSize, pageIndex * pageSize);
+    if (this.retrievedExecutionsList == undefined) {
+      throw "There is no executions";
+    }
+    return this.retrievedExecutionsList?.slice((pageIndex - 1) * pageSize, pageIndex * pageSize);
+  }
+
+  getRetrievedExecutionsList(): WorkflowExecutionsEntry[] {
+    if (this.retrievedExecutionsList == undefined) {
+      throw "There is no executions";
+    }
+    return this.retrievedExecutionsList;
   }
 }
