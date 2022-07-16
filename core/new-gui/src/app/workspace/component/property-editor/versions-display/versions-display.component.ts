@@ -88,8 +88,8 @@ export class VersionsListDisplayComponent implements OnInit {
           importance: version.importance,
           expand: false,
         }));
-        this.numOfVersion = versionsList.length
-        this.changePaginatedVersions()
+        this.numOfVersion = versionsList.length;
+        this.changePaginatedVersions();
       });
   }
 
@@ -138,6 +138,5 @@ export class VersionsListDisplayComponent implements OnInit {
       (this.currentPageIndex - 1) * this.currentPageIndex,
       this.currentPageIndex * this.pageSize
     );
-    console.log("Check paginated version list: ", this.currentVersionList)
   }
 }
