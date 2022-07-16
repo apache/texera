@@ -170,7 +170,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *  - ctime:<YYYY-MM-DD (workflows on or before this date)
    *  - ctime:>YYYY-MM-DD (workflows on or after this date)
    */
-  public searchCreationTime(date: string, filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>): ReadonlyArray<DashboardWorkflowEntry> {
+  private searchCreationTime(date: string, filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>): ReadonlyArray<DashboardWorkflowEntry> {
     const date_regex: RegExp = /^([<>]?)(\d{4})[-/](0[1-9]|1[0-2])[-/](0[1-9]|[12][0-9]|3[01])$/;
     const search_date: RegExpMatchArray | null = date.match(date_regex);
     if(!search_date){
@@ -178,7 +178,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       return this.dashboardWorkflowEntries;
       //maintains the displayed saved workflows
     }
-    const search_year: number= parseInt(search_date[2]);
+    const search_year: number = parseInt(search_date[2]);
     const search_month: number = parseInt(search_date[3]); //month: 1-12
     const search_day: number = parseInt(search_date[4]);
     const search_date_obj: Date = new Date(search_year, search_month-1, search_day); // month: 0-11
