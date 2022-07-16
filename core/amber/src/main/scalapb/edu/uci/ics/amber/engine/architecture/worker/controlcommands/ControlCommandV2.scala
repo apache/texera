@@ -52,7 +52,7 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LinkCompleted(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(__v)
@@ -284,8 +284,8 @@ final case class ControlCommandV2Message(
     def withOpenOperator(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(__v))
     def getLinkCompleted: edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 = sealedValue.linkCompleted.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2.defaultInstance)
     def withLinkCompleted(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LinkCompleted(__v))
-    def getStoreInlinkIds: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2 = sealedValue.storeInlinkIds.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2.defaultInstance)
-    def withStoreInlinkIds(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(__v))
+    def getStoreInlinkIds: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2 = sealedValue.storeInlinkIds.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2.defaultInstance)
+    def withStoreInlinkIds(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(__v))
     def getInitializeOperatorLogic: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = sealedValue.initializeOperatorLogic.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.defaultInstance)
     def withInitializeOperatorLogic(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(__v))
     def getModifyOperatorLogic: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2 = sealedValue.modifyOperatorLogic.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2.defaultInstance)
@@ -383,7 +383,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
         case 82 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LinkCompleted(__sealedValue.linkCompleted.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 90 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(__sealedValue.storeInlinkIds.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(__sealedValue.storeInlinkIds.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 170 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(__sealedValue.initializeOperatorLogic.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 178 =>
@@ -419,7 +419,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(8).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(9).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(10).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LinkCompleted(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(11).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(11).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(21).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(22).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(23).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(_)))
@@ -446,7 +446,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       case 8 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2
       case 9 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2
       case 10 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2
-      case 11 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2
+      case 11 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2
       case 21 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2
       case 22 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2
       case 23 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2
@@ -493,7 +493,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def localOperatorException: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2] = _root_.scala.None
     def openOperator: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] = _root_.scala.None
     def linkCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = _root_.scala.None
-    def storeInlinkIds: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2] = _root_.scala.None
+    def storeInlinkIds: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2] = _root_.scala.None
     def initializeOperatorLogic: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = _root_.scala.None
     def modifyOperatorLogic: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] = _root_.scala.None
     def pythonPrint: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = _root_.scala.None
@@ -583,10 +583,10 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 10
     }
     @SerialVersionUID(0L)
-    final case class StoreInlinkIds(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2
+    final case class StoreInlinkIds(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2
       override def isStoreInlinkIds: _root_.scala.Boolean = true
-      override def storeInlinkIds: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2] = Some(value)
+      override def storeInlinkIds: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2] = Some(value)
       override def number: _root_.scala.Int = 11
     }
     @SerialVersionUID(0L)
@@ -650,7 +650,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def localOperatorException: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2] = field(_.getLocalOperatorException)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(f_)))
     def openOperator: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] = field(_.getOpenOperator)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(f_)))
     def linkCompleted: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = field(_.getLinkCompleted)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LinkCompleted(f_)))
-    def storeInlinkIds: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2] = field(_.getStoreInlinkIds)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(f_)))
+    def storeInlinkIds: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2] = field(_.getStoreInlinkIds)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StoreInlinkIds(f_)))
     def initializeOperatorLogic: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = field(_.getInitializeOperatorLogic)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(f_)))
     def modifyOperatorLogic: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] = field(_.getModifyOperatorLogic)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(f_)))
     def pythonPrint: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = field(_.getPythonPrint)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(f_)))
@@ -1469,14 +1469,14 @@ object LinkCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
 }
 
 @SerialVersionUID(0L)
-final case class StoreInlinkIdsV2(
-    inlinkIds: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[StoreInlinkIdsV2] {
+final case class StoreUpstreamLinkIdsV2(
+    upstreamLinkIds: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[StoreUpstreamLinkIdsV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      inlinkIds.foreach { __item =>
+      upstreamLinkIds.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
@@ -1491,56 +1491,56 @@ final case class StoreInlinkIdsV2(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      inlinkIds.foreach { __v =>
+      upstreamLinkIds.foreach { __v =>
         val __m = __v
         _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
     }
-    def clearInlinkIds = copy(inlinkIds = _root_.scala.Seq.empty)
-    def addInlinkIds(__vs: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity*): StoreInlinkIdsV2 = addAllInlinkIds(__vs)
-    def addAllInlinkIds(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]): StoreInlinkIdsV2 = copy(inlinkIds = inlinkIds ++ __vs)
-    def withInlinkIds(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]): StoreInlinkIdsV2 = copy(inlinkIds = __v)
+    def clearUpstreamLinkIds = copy(upstreamLinkIds = _root_.scala.Seq.empty)
+    def addUpstreamLinkIds(__vs: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity*): StoreUpstreamLinkIdsV2 = addAllUpstreamLinkIds(__vs)
+    def addAllUpstreamLinkIds(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]): StoreUpstreamLinkIdsV2 = copy(upstreamLinkIds = upstreamLinkIds ++ __vs)
+    def withUpstreamLinkIds(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]): StoreUpstreamLinkIdsV2 = copy(upstreamLinkIds = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => inlinkIds
+        case 1 => upstreamLinkIds
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PRepeated(inlinkIds.iterator.map(_.toPMessage).toVector)
+        case 1 => _root_.scalapb.descriptors.PRepeated(upstreamLinkIds.iterator.map(_.toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.StoreInlinkIdsV2])
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.StoreUpstreamLinkIdsV2])
 }
 
-object StoreInlinkIdsV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2 = {
-    val __inlinkIds: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
+object StoreUpstreamLinkIdsV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2 = {
+    val __upstreamLinkIds: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __inlinkIds += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__)
+          __upstreamLinkIds += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__)
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2(
-        inlinkIds = __inlinkIds.result()
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2(
+        upstreamLinkIds = __upstreamLinkIds.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2(
-        inlinkIds = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]]).getOrElse(_root_.scala.Seq.empty)
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2(
+        upstreamLinkIds = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1555,19 +1555,19 @@ object StoreInlinkIdsV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.am
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2(
-    inlinkIds = _root_.scala.Seq.empty
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2(
+    upstreamLinkIds = _root_.scala.Seq.empty
   )
-  implicit class StoreInlinkIdsV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2](_l) {
-    def inlinkIds: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]] = field(_.inlinkIds)((c_, f_) => c_.copy(inlinkIds = f_))
+  implicit class StoreUpstreamLinkIdsV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2](_l) {
+    def upstreamLinkIds: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]] = field(_.upstreamLinkIds)((c_, f_) => c_.copy(upstreamLinkIds = f_))
   }
-  final val INLINKIDS_FIELD_NUMBER = 1
+  final val UPSTREAMLINKIDS_FIELD_NUMBER = 1
   def of(
-    inlinkIds: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreInlinkIdsV2(
-    inlinkIds
+    upstreamLinkIds: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.StoreUpstreamLinkIdsV2(
+    upstreamLinkIds
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.StoreInlinkIdsV2])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.StoreUpstreamLinkIdsV2])
 }
 
 @SerialVersionUID(0L)

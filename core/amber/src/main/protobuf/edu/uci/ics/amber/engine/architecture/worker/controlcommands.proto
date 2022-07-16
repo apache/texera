@@ -30,8 +30,8 @@ message AddPartitioningV2 {
   architecture.sendsemantics.Partitioning partitioning = 2 [(scalapb.field).no_box = true];
 }
 
-message StoreInlinkIdsV2 {
-  repeated common.LinkIdentity inlinkIds = 1;
+message StoreUpstreamLinkIdsV2 {
+  repeated common.LinkIdentity upstreamLinkIds = 1;
 }
 
 message WorkerExecutionCompletedV2 {
@@ -93,7 +93,7 @@ message ControlCommandV2 {
     OpenOperatorV2 open_operator = 9;
     LinkCompletedV2 link_completed = 10;
 
-    StoreInlinkIdsV2 store_inlink_ids = 11;
+    StoreUpstreamLinkIdsV2 store_inlink_ids = 11;
 
     InitializeOperatorLogicV2 initialize_operator_logic = 21;
     ModifyOperatorLogicV2 modify_operator_logic = 22;

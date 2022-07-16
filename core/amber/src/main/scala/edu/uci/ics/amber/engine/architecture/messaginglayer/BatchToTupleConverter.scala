@@ -22,7 +22,6 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     */
   private val inputMap = new mutable.HashMap[ActorVirtualIdentity, LinkIdentity]
   private var currentLink: LinkIdentity = _
-  private var linksDoneCount = 0
 
   /**
     * The scheduler may not schedule the entire workflow at once. Consider a 2-phase hash join where the first
@@ -73,8 +72,8 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
           endReceivedFromWorkers.getOrElseUpdate(link, new mutable.HashSet[ActorVirtualIdentity]())
         existingEndReceived.add(from)
         if (upstreamMap(link).equals(endReceivedFromWorkers(link))) {
-          workerInternalQueue.appendElement(EndMarker)
           completedLinkIds.add(link)
+          workerInternalQueue.appendElement(EndMarker)
         }
         if (completedLinkIds.equals(allUpstreamLinkIds)) {
           workerInternalQueue.appendElement(EndOfAllMarker)
