@@ -4,24 +4,66 @@
         <span aria-hidden="true"> × </span>
       </button>
       <h4 class="modal-title">Execution results of this workflow</h4>
-      <a nz-dropdown [nzDropdownMenu]="menu">
-        <button nz-button>
-          <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-        </button>
-      </a>
-      <nz-dropdown-menu #menu="nzDropdownMenu">
-        <ul nz-menu nzSelectable>
-          <!-- <li (click)="executionIDSort()" nz-menu-item>By Execution#</li> -->
-          <li (click)="startTimeSort('ascending')" nz-menu-item>By Start Time (Ascending)</li>
-          <li (click)="startTimeSort('descending')" nz-menu-item>By Start Time (Descending)</li>
-          <li (click)="updateTimeSort('ascending')" nz-menu-item>By Update Time (Ascending)</li>
-          <li (click)="updateTimeSort('descending')" nz-menu-item>By Update Time (Descending)</li>
-          <li (click)="ascSort('name')" nz-menu-item>By Name: A -> Z</li>
-          <li (click)="dscSort('name')" nz-menu-item>By Name: Z -> A</li>
-          <li (click)="ascSort('username')" nz-menu-item>By Username: A -> Z</li>
-          <li (click)="dscSort('username')" nz-menu-item>By Username: Z -> A</li>
-        </ul>
-      </nz-dropdown-menu>
+      <nz-input-group
+        [nzPrefix]="prefixPopoverButton"
+        [nzSuffix]="suffixIconSearch"
+        class="texera-dashboard-saved-workflow-search-box-input"
+      >
+        <input
+          [(ngModel)]="executionSearchValue"
+          autocomplete="on"
+          nz-input
+          placeholder="Search all workflows"
+          (ngModelChange)="searchInputOnChange($event)"
+          type="text"
+          [nzAutocomplete]="auto"
+          (keyup.enter)="searchExecution()"
+        />
+        <ng-template #suffixIconSearch>
+          <i nz-icon nzType="search"></i>
+        </ng-template>
+        <ng-template #popContent>
+          We support the following search criteria:
+          <ul>
+            <li>Search by Execution Name: <strong>executionName</strong></li>
+            <li>Search by Execution Id: <strong>id:executionId</strong></li>
+            <li>Search by Execution Owner: <strong>owner:John</strong></li>
+          </ul>
+          <strong>
+            For any execution name and owner name, if the name contains space, using double quotes to enclose the name is
+            required.
+          </strong>
+          <br />
+          Example: "Untitled Execution" id:1 owner:John<br />
+          Meaning: Search for the execution with name Untitled Execution, id 1, and the owner called John.
+        </ng-template>
+        <ng-template #prefixPopoverButton>
+          <i
+            style="vertical-align: baseline; margin-right: 10px"
+            nz-icon
+            nz-popover
+            nzPopoverTitle="Search Instructions"
+            [nzPopoverContent]="popContent"
+            nzType="question-circle"
+            nzTheme="outline"
+          ></i>
+          <button
+            (click)="toggleExecutionSearchMode()"
+            nz-button
+            nz-tooltip="Filter workflows by project"
+            nzTooltipPlacement="bottom"
+            type="button"
+          >
+            <i nz-icon nzType="filter" nzTheme="outline"></i>
+          </button>
+        </ng-template>
+        <nz-autocomplete
+          [nzDefaultActiveFirstOption]="false"
+          [nzDataSource]="!executionSearchValue.includes(':') ? filteredDashboardWorkflowNames : []"
+          nzBackfill
+          #auto
+        ></nz-autocomplete>
+      </nz-input-group>
     </nz-card>
 <div class="modal-body table-responsive">
   <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
@@ -34,16 +76,6 @@
           nzTooltipPlacement="top"
         >
           {{column}}
-          <!-- <span
-          *ngIf="executionsTableHeaders[i] !== ''">
-            <i 
-            nz-icon
-            nz-Theme="outline"
-            nzType="sort-ascending"></i>
-            <i nz-icon
-            nz-Theme="outline"
-            nzType="sort-descending"></i>
-          </span> -->
         </th>
       </tr>
     </thead>

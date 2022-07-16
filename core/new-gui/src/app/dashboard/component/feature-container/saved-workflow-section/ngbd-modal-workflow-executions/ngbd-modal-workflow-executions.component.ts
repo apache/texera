@@ -42,6 +42,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     Status: "Current Status of Workflow Execution",
   };
 
+  public allExecutionEntries: WorkflowExecutionsEntry[] = [];
+  public filteredExecutionNames: Array<string> = [];
+  public executionSearchValue: string = "";
+  public searchCriteria: string[] = ["owner", "id"];
+
+
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   constructor(
@@ -159,70 +165,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  /* sort executions by name/username based on ascending alphabetical order */
-
-  ascSort(type: string): void {
-    if (type === "name") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-        .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
-    }
-    else if (type === "username") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-        .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
-    }
-    
-  }
-
-  /* sort executions by name based on descending alphabetical order */
-
-  dscSort(type: string): void {
-    if (type === "name") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-        .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
-    }
-    else if (type === "username") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-        .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
+  public searchInputOnChange(value: string): void {
+    // enable autocomplete only when searching for execution name
+    if (!value.includes(":")) {
+      const filteredExecutionNames: string[] = [];
+      this.allExecutionEntries.forEach(executionEntry => {
+        const executionName = executionEntry.name;
+        if (executionName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
+          filteredExecutionNames.push(executionName);
+        }
+      });
+      this.filteredExecutionNames = filteredExecutionNames;
     }
   }
-
-  /* sort executions based on starting time in ascending/descending order */
-
-  startTimeSort(order: string): void {
-    if (order === "ascending") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((exe1, exe2) => exe1.startingTime > exe2.startingTime ? 1 :
-      exe2.startingTime > exe1.startingTime ? -1 : 0)
-    }
-    else if (order === "descending") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((exe1, exe2) => exe1.startingTime < exe2.startingTime ? 1 :
-      exe2.startingTime < exe1.startingTime ? -1 : 0)
-    }
-    
-  }
-
-  /* sort executions based on last status updated time in ascending/descending order */
-
-  updateTimeSort(order: string): void {
-    if (order === "ascending") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((exe1, exe2) => exe1.completionTime > exe2.completionTime ? 1 :
-      exe2.completionTime > exe1.completionTime ? -1 : 0)
-    }
-    else if (order === "descending") {
-      this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-      .sort((exe1, exe2) => exe1.completionTime < exe2.completionTime ? 1 :
-      exe2.completionTime < exe1.completionTime ? -1 : 0)
-    }
-    
-  }
-
-  // /* sort executions based on execution number */
-
-  // executionIDSort(): void {
-  //   this.workflowExecutionsList = this.workflowExecutionsList?.slice()
-  //     .sort((exe1, exe2) => )
-  // }
 
 }
