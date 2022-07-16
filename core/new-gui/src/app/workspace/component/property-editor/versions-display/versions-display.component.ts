@@ -33,7 +33,7 @@ export class VersionsListDisplayComponent implements OnInit {
   public pageSize: number = defaultEnvironment.defaultPageSize;
   public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
   public numOfVersion: number = defaultEnvironment.defaultNumOfItems;
-  public currentVersionList: WorkflowVersionCollapsableEntry[] | undefined;
+  public currentVersionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
   constructor(
     private http: HttpClient,
@@ -134,7 +134,7 @@ export class VersionsListDisplayComponent implements OnInit {
     if (this.versionsList === undefined) {
       return;
     }
-    this.currentVersionList = this.versionsList.slice(
+    this.currentVersionsList = this.versionsList.slice(
       (this.currentPageIndex - 1) * this.currentPageIndex,
       this.currentPageIndex * this.pageSize
     );
