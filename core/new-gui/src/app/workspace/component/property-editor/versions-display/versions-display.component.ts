@@ -46,12 +46,12 @@ export class VersionsListDisplayComponent implements OnInit {
       return;
     }
     if (!$event) {
-      while (++index < this.pageSize && !this.versionsList[index].importance) {
+      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
         this.versionsList[index].expand = false;
         this.isPagination = false;
       }
     } else {
-      while (++index < this.pageSize && !this.versionsList[index].importance) {
+      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
         this.versionsList[index].expand = true;
         this.isPagination = true;
       }
@@ -135,7 +135,7 @@ export class VersionsListDisplayComponent implements OnInit {
       return;
     }
     this.currentVersionsList = this.versionsList.slice(
-      (this.currentPageIndex - 1) * this.currentPageIndex,
+      (this.currentPageIndex - 1) * this.pageSize,
       this.currentPageIndex * this.pageSize
     );
   }

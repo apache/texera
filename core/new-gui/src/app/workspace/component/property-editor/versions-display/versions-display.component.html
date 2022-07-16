@@ -18,10 +18,10 @@
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let row of currentVersionList; let i=index; let l=count;">
+      <ng-container *ngFor="let row of currentVersionsList; let i=index;">
         <tr *ngIf="(!row.importance && row.expand) || row.importance">
           <td [nzShowExpand]="row.importance" [(nzExpand)]="row.expand" (nzExpandChange)="collapse(i, $event)">
-            {{(l-i)}}
+            {{ numOfVersion - (i + (currentPageIndex - 1) * pageSize) }}
           </td>
           <td nzEllipsis (click)="getVersion(row.vId)">{{row.creationTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
         </tr>
