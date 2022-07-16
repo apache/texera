@@ -52,14 +52,14 @@ export class WorkflowExecutionsService {
 
   getPaginatedExecutions(pageIndex: number, pageSize: number): WorkflowExecutionsEntry[] {
     if (this.retrievedExecutionsList == undefined) {
-      throw "There is no executions";
+      throw "There is no execution";
     }
     return this.retrievedExecutionsList?.slice((pageIndex - 1) * pageSize, pageIndex * pageSize);
   }
 
   getRetrievedExecutionsList(): WorkflowExecutionsEntry[] {
     if (this.retrievedExecutionsList == undefined) {
-      throw "There is no executions";
+      throw "There is no execution";
     }
     return this.retrievedExecutionsList;
   }
