@@ -42,23 +42,23 @@
   text-align: left;
 }
 
-.ant-btn{
+.ant-btn {
   border: 0px;
+  background-color: transparent;
 }
 
 .h4 {
   font-size: 24px;
 }
 
-.ant-btn-icon-only>*{
-  font-size: 20px;
+.ant-btn-icon-only > * {
+  font-size: 16px;
 }
 
 .ant-btn-icon-only {
-  margin-right: 15px;
+  margin-right: 0px;
 
   &.ant-btn-sm {
     transform: translateY(-5px);
   }
 }
-

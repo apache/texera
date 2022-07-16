@@ -1,49 +1,28 @@
-<div class="saved-execution-container subsection-grid-container">
-    <nz-card class="workflow-section-title subsection-grid-container">
-      <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
-        <span aria-hidden="true"> × </span>
-      </button>
-      <h4 class="modal-title">Execution results of this workflow</h4>
-      <a nz-dropdown [nzDropdownMenu]="menu">
-        <button nz-button>
-          <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-        </button>
-      </a>
-      <nz-dropdown-menu #menu="nzDropdownMenu">
-        <ul nz-menu nzSelectable>
-          <!-- <li (click)="executionIDSort()" nz-menu-item>By Execution#</li> -->
-          <li (click)="startTimeSort('ascending')" nz-menu-item>By Start Time (Ascending)</li>
-          <li (click)="startTimeSort('descending')" nz-menu-item>By Start Time (Descending)</li>
-          <li (click)="updateTimeSort('ascending')" nz-menu-item>By Update Time (Ascending)</li>
-          <li (click)="updateTimeSort('descending')" nz-menu-item>By Update Time (Descending)</li>
-          <li (click)="ascSort('name')" nz-menu-item>By Name: A -> Z</li>
-          <li (click)="dscSort('name')" nz-menu-item>By Name: Z -> A</li>
-          <li (click)="ascSort('username')" nz-menu-item>By Username: A -> Z</li>
-          <li (click)="dscSort('username')" nz-menu-item>By Username: Z -> A</li>
-        </ul>
-      </nz-dropdown-menu>
-    </nz-card>
+<div class="modal-header">
+  <h4 class="modal-title">Execution results of this workflow</h4>
+  <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
+    <span aria-hidden="true"> × </span>
+  </button>
+</div>
 <div class="modal-body table-responsive">
   <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
     <thead>
       <tr>
         <th
-          *ngFor="let column of executionsTableHeaders; let i=index"
+          *ngFor="let column of executionsTableHeaders"
           nz-tooltip
           [nzTooltipTitle]="executionTooltip[column]"
           nzTooltipPlacement="top"
         >
           {{column}}
-          <!-- <span
-          *ngIf="executionsTableHeaders[i] !== ''">
-            <i 
-            nz-icon
-            nz-Theme="outline"
-            nzType="sort-ascending"></i>
-            <i nz-icon
-            nz-Theme="outline"
-            nzType="sort-descending"></i>
-          </span> -->
+          <span *ngIf="column !== '' && column !== 'Status'">
+            <button nz-button (click)="ascSort(column)">
+              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+            </button>
+            <button nz-button (click)="dscSort(column)">
+              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
+            </button>
+          </span>
         </th>
       </tr>
     </thead>
