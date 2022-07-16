@@ -166,7 +166,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *  - ctime:<YYYY-MM-DD (workflows on or before this date)
    *  - ctime:>YYYY-MM-DD (workflows on or after this date)
    */
-  public searchCreationTime(date: string, filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>): ReadonlyArray<DashboardWorkflowEntry> {
+  private searchCreationTime(date: string, filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>): ReadonlyArray<DashboardWorkflowEntry> {
     const date_regex: RegExp = /^([<>]?)(\d{4})[-/](0[1-9]|1[0-2])[-/](0[1-9]|[12][0-9]|3[01])$/;
     const search_date: RegExpMatchArray | null = date.match(date_regex);
     if(!search_date){
