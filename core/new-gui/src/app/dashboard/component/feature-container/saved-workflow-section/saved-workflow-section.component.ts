@@ -174,7 +174,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       return this.dashboardWorkflowEntries;
       //maintains the displayed saved workflows
     }
-    const search_year: number= parseInt(search_date[2]);
+    const search_year: number = parseInt(search_date[2]);
     const search_month: number = parseInt(search_date[3]); //month: 1-12
     const search_day: number = parseInt(search_date[4]);
     const search_date_obj: Date = new Date(search_year, search_month-1, search_day); // month: 0-11
@@ -254,8 +254,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       }
     });
     let searchResults: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries;
-    if(andPathQuery.length !== 0)
+    if(andPathQuery.length !== 0) {
       searchResults = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    }
     if(date) {
       searchResults = this.searchCreationTime(date, searchResults);
     }
