@@ -10,7 +10,7 @@ export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}
   providedIn: "root",
 })
 export class WorkflowExecutionsService {
-  public retrievedExecutionsList: WorkflowExecutionsEntry[] | undefined;
+  public retrievedExecutionsList: WorkflowExecutionsEntry[] = [];
 
   constructor(private http: HttpClient) {}
 
@@ -48,19 +48,5 @@ export class WorkflowExecutionsService {
       eId,
       executionName,
     });
-  }
-
-  getPaginatedExecutions(pageIndex: number, pageSize: number): WorkflowExecutionsEntry[] {
-    if (this.retrievedExecutionsList == undefined) {
-      throw "There is no execution";
-    }
-    return this.retrievedExecutionsList?.slice((pageIndex - 1) * pageSize, pageIndex * pageSize);
-  }
-
-  getRetrievedExecutionsList(): WorkflowExecutionsEntry[] {
-    if (this.retrievedExecutionsList == undefined) {
-      throw "There is no execution";
-    }
-    return this.retrievedExecutionsList;
   }
 }

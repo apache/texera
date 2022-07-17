@@ -6,10 +6,10 @@
 </div>
 <div class="modal-body table-responsive">
   <nz-table
-    *ngIf="workflowExecutionsList"
+    *ngIf="currentWorkflowExecutionsList"
     [nzShowSizeChanger]="true"
     [nzPageSizeOptions]="pageSizeOptions"
-    [nzData]="workflowExecutionsList"
+    [nzData]="currentWorkflowExecutionsList"
     [nzShowPagination]="true"
     [nzPageSize]="pageSize"
     [nzPageIndex]="currentPageIndex"
