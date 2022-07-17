@@ -10,20 +10,12 @@ export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}
   providedIn: "root",
 })
 export class WorkflowExecutionsService {
-  public retrievedExecutionsList: WorkflowExecutionsEntry[] = [];
-
   constructor(private http: HttpClient) {}
 
   /**
    * retrieves a list of execution for a particular workflow from backend database
    */
   retrieveWorkflowExecutions(wid: number): Observable<WorkflowExecutionsEntry[]> {
-    // Subscribe to store retrieved executions
-    this.http
-      .get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`)
-      .subscribe(workflowExecutions => {
-        this.retrievedExecutionsList = workflowExecutions;
-      });
     return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`);
   }
 

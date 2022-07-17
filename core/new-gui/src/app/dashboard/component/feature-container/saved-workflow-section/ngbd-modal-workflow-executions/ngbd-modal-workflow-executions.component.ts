@@ -18,6 +18,7 @@ import { defaultEnvironment } from "src/environments/environment.default";
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
+  public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
 
   public executionsTableHeaders: string[] = [
@@ -49,7 +50,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public pageSize: number = defaultEnvironment.defaultPageSize;
   public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
   public numOfExecutions: number = defaultEnvironment.defaultNumOfItems;
-  public currentWorkflowExecutionsList: WorkflowExecutionsEntry[] = []; 
+  public currentWorkflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -74,6 +75,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.numOfExecutions = workflowExecutions.length;
+        this.workflowExecutionsList = workflowExecutions;
         this.changePaginatedExecutions();
       });
   }
@@ -107,11 +109,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     // Update bookmark state locally.
     row.bookmarked = !wasPreviouslyBookmarked;
 
-    // Update bookmark in retrieved executions list and re-paginate
-    this.workflowExecutionsService.retrievedExecutionsList[
-      this.workflowExecutionsService.retrievedExecutionsList.indexOf(row)
-    ].bookmarked = !wasPreviouslyBookmarked;
-
     // Update on the server.
     this.workflowExecutionsService
       .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
@@ -136,11 +133,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
             .pipe(untilDestroyed(this))
             .subscribe({
               complete: () => {
-                // Remove the deleted execution in retrieved execution list and re-paginate
-                this.workflowExecutionsService.retrievedExecutionsList?.splice(
-                  this.workflowExecutionsService.retrievedExecutionsList.indexOf(row),
-                  1
-                );
+                this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1);
                 this.changePaginatedExecutions();
               },
             });
@@ -165,11 +158,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        // Update the execution name in retrieved executions list and re-paginate
-        this.workflowExecutionsService.retrievedExecutionsList[
-          index * (this.currentPageIndex - 1) + this.pageSize
-        ].name = name;
-        this.currentWorkflowExecutionsList[index].name = name;
+        if (this.workflowExecutionsList === undefined) {
+          return;
+        }
+        this.workflowExecutionsList[index].name = name;
+        this.changePaginatedExecutions();
       })
       .add(() => {
         this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
@@ -193,10 +186,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   /**
    * Change current page list everytime the page change
-   * TODO: may need to modify to compatible with filter/sort feature
+   * TODO: need to be with filter/sort feature
    */
   changePaginatedExecutions() {
-    this.currentWorkflowExecutionsList = this.workflowExecutionsService.retrievedExecutionsList?.slice(
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+    this.currentWorkflowExecutionsList = this.workflowExecutionsList?.slice(
       (this.currentPageIndex - 1) * this.pageSize,
       this.currentPageIndex * this.pageSize
     );
