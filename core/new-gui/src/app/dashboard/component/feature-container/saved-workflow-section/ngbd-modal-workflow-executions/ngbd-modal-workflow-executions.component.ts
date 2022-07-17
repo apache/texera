@@ -161,7 +161,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         if (this.workflowExecutionsList === undefined) {
           return;
         }
-        this.workflowExecutionsList[index].name = name;
+        this.workflowExecutionsList[this.workflowExecutionsList.indexOf(row)].name = name;
         this.changePaginatedExecutions();
       })
       .add(() => {
