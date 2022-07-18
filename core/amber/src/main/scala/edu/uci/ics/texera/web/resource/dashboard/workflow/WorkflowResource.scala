@@ -91,25 +91,22 @@ class WorkflowResource {
     def searchWorkflowByOperator(
                                   @QueryParam("operator") operator: String,
                                   @Auth sessionUser: SessionUser
-                                ): List[DashboardWorkflowEntry] = {
+                                ): List[UInteger] = {
       // GET localhost:8080/workflow/searchOperators?operator=csv
     val user = sessionUser.getUser
-    val workflowEntries = context.select()
+    val workflowEntries = context
+      .select(
+        WORKFLOW.WID
+      )
       .from(WORKFLOW)
-      .where(WORKFLOW.CONTENT.like(s"%$operator%"))
+      .join(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .where(WORKFLOW.CONTENT.like(s"%${operator}%").and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid)))
       .fetch()
 
-    workflowEntries
-      .map(workflowRecord =>
-        DashboardWorkflowEntry(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ).toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          List() // change this
-        )
+      workflowEntries.map(
+        workflowRecord =>
+          workflowRecord.into(WORKFLOW).getWid()
       )
       .toList
     }
