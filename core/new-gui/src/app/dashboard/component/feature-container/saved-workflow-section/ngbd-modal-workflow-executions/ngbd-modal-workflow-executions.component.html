@@ -15,6 +15,14 @@
           nzTooltipPlacement="top"
         >
           {{column}}
+          <span *ngIf="column !== '' && column !== 'Status'">
+            <button nz-button (click)="ascSort(column)">
+              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+            </button>
+            <button nz-button (click)="dscSort(column)">
+              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
+            </button>
+          </span>
         </th>
       </tr>
     </thead>
