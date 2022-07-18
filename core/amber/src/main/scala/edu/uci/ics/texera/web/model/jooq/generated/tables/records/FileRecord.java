@@ -6,14 +6,15 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.records;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile;
+
+import java.sql.Timestamp;
+
 import org.jooq.Field;
 import org.jooq.Record1;
 import org.jooq.Record7;
 import org.jooq.Row7;
 import org.jooq.impl.UpdatableRecordImpl;
 import org.jooq.types.UInteger;
-
-import java.sql.Timestamp;
 
 
 /**

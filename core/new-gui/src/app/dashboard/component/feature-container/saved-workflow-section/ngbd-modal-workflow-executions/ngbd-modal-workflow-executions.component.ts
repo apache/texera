@@ -1,10 +1,12 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
+import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
+import { from } from "rxjs";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
+import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 
 @UntilDestroy()
 @Component({
@@ -22,15 +24,32 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     "",
     "",
     "Execution#",
+    "Username",
     "Name",
     "Starting Time",
-    "Updated Time",
+    "Last Status Updated Time",
     "Status",
     "",
   ];
+
+  /*Tooltip for each header in execution table*/
+  public executionTooltip: Record<string, string> = {
+    "Execution#": "Workflow Execution ID",
+    Name: "Workflow Name",
+    Username: "The User Who Runs This Execution",
+    "Starting Time": "Starting Time of Workflow Execution",
+    "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
+    Status: "Current Status of Workflow Execution",
+  };
+
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
-  constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
+  constructor(
+    public activeModal: NgbActiveModal,
+    private workflowExecutionsService: WorkflowExecutionsService,
+    private modalService: NgbModal
+  ) {}
+
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
@@ -92,14 +111,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   /* delete a single execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
-    if (this.workflow.wid === undefined) {
-      return;
-    }
-    this.workflowExecutionsService
-      .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "execution";
+    modalRef.componentInstance.deletionName = row.name;
+
+    from(modalRef.result)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && this.workflow.wid !== undefined) {
+          this.workflowExecutionsService
+            .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+            });
+        }
       });
   }
 

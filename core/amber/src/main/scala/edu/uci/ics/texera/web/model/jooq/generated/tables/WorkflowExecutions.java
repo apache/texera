@@ -8,14 +8,25 @@ import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowExecutionsRecord;
-import org.jooq.*;
-import org.jooq.impl.DSL;
-import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
+
+import org.jooq.Field;
+import org.jooq.ForeignKey;
+import org.jooq.Identity;
+import org.jooq.Index;
+import org.jooq.Name;
+import org.jooq.Record;
+import org.jooq.Row10;
+import org.jooq.Schema;
+import org.jooq.Table;
+import org.jooq.TableField;
+import org.jooq.UniqueKey;
+import org.jooq.impl.DSL;
+import org.jooq.impl.TableImpl;
+import org.jooq.types.UInteger;
 
 
 /**
@@ -24,7 +35,7 @@ import java.util.List;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = 1626854111;
+    private static final long serialVersionUID = -1623419866;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -53,6 +64,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.vid</code>.
      */
     public final TableField<WorkflowExecutionsRecord, UInteger> VID = createField(DSL.name("vid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.uid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.status</code>.
@@ -124,7 +140,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_VID, Indexes.WORKFLOW_EXECUTIONS_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID, Indexes.WORKFLOW_EXECUTIONS_WID);
     }
 
     @Override
@@ -144,7 +160,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
     }
 
     public Workflow workflow() {
@@ -153,6 +169,10 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     public WorkflowVersion workflowVersion() {
         return new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+    }
+
+    public User user() {
+        return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
     }
 
     @Override
@@ -182,11 +202,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row9 type methods
+    // Row10 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row9<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String> fieldsRow() {
-        return (Row9) super.fieldsRow();
+    public Row10<UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String> fieldsRow() {
+        return (Row10) super.fieldsRow();
     }
 }

@@ -5,9 +5,10 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile;
-import org.jooq.types.UInteger;
 
 import java.sql.Timestamp;
+
+import org.jooq.types.UInteger;
 
 
 /**

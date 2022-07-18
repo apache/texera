@@ -6,12 +6,13 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
-import org.jooq.Configuration;
-import org.jooq.impl.DAOImpl;
-import org.jooq.types.UInteger;
 
 import java.sql.Timestamp;
 import java.util.List;
+
+import org.jooq.Configuration;
+import org.jooq.impl.DAOImpl;
+import org.jooq.types.UInteger;
 
 
 /**
