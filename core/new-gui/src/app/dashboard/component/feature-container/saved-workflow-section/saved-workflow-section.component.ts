@@ -18,6 +18,8 @@ import { concatMap, catchError } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
+import { ListKeyManager } from "@angular/cdk/a11y";
+import { sync } from "backbone";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -160,14 +162,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
-  private searchOperator(operator: string): void {
-    this.workflowPersistService.retrieveWorkflowByOperator(operator)
-      .pipe(untilDestroyed(this))
-      .subscribe((element) => {
-          this.dashboardWorkflowEntries = element;
-      })
-  }
-
   /**
    * Search workflows based on date string
    * String Formats: 
@@ -211,8 +205,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     workflowSearchField: string,
     workflowSearchValue: string
   ): {
-    $path: ReadonlyArray<string>;
-    $val: string;
+    $path: ReadonlyArray<string>,
+    $val: string
   } {
     return {
       $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
@@ -236,10 +230,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
       return;
     }
-    const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    const searchConditionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
     let date: string = "";
     let operator: string = ""
-    searchConsitionsSet.forEach(condition => {
+    searchConditionsSet.forEach(condition => {
       // field search
       if (condition.includes(":")) {
         const conditionArray = condition.split(":");
@@ -265,16 +259,40 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
       }
     });
-    let searchResults: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries;
+    this.combineSearchTypes(date, operator, andPathQuery);
+  }
+
+
+  private combineSearchTypes(date: string, operator: string, andPathQuery: Object[]): void {
+    if(operator){
+      //async search that requires backend call
+      this.workflowPersistService.retrieveWorkflowByOperator(operator).pipe(untilDestroyed(this))
+      .subscribe(
+        (list_of_wids) => {
+          let orPathQuery: Object[] = []
+          list_of_wids
+            .map((wid: number) => this.buildAndPathQuery("id", wid.toString()))
+            .forEach(pathQuery => orPathQuery.push(pathQuery));
+          if(orPathQuery.length != 0) {
+            andPathQuery.push({$or: orPathQuery});
+          }
+          this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
+          console.log(this.dashboardWorkflowEntries)
+        }
+      )
+    } else {
+      this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
+    }
+  }
+
+  private synchronousSearch(andPathQuery: Object[], date: string): ReadonlyArray<DashboardWorkflowEntry>{
+    let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries;
     if(andPathQuery.length !== 0)
-      searchResults = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+      searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
     if(date) {
-      searchResults = this.searchCreationTime(date, searchResults);
+      searchOutput = this.searchCreationTime(date, searchOutput);
     }
-    this.dashboardWorkflowEntries = searchResults;
-    if(operator) {
-      this.searchOperator(operator);
-    }
+    return searchOutput; 
   }
 
   /**

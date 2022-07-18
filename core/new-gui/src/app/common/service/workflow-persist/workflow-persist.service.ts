@@ -96,18 +96,10 @@ export class WorkflowPersistService {
     );
   }
 
-  public retrieveWorkflowByOperator(operator: string): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`).pipe(
-      map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
-      dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
-        return {
-          ...workflowEntry,
-          dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow),
-        };
-      })
-    )
-    );
+  public retrieveWorkflowByOperator(operator: string): Observable<number[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`)
   }
+  
   /**
    * deletes the given workflow, the user in the session must own the workflow.
    */
