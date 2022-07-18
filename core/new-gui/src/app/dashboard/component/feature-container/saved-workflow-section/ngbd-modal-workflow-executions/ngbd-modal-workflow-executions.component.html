@@ -47,19 +47,10 @@
             nzType="question-circle"
             nzTheme="outline"
           ></i>
-          <button
-            (click)="toggleExecutionSearchMode()"
-            nz-button
-            nz-tooltip="Filter workflows by project"
-            nzTooltipPlacement="bottom"
-            type="button"
-          >
-            <i nz-icon nzType="filter" nzTheme="outline"></i>
-          </button>
         </ng-template>
         <nz-autocomplete
           [nzDefaultActiveFirstOption]="false"
-          [nzDataSource]="!executionSearchValue.includes(':') ? filteredDashboardWorkflowNames : []"
+          [nzDataSource]="!executionSearchValue.includes(':') ? filteredExecutionNames : []"
           nzBackfill
           #auto
         ></nz-autocomplete>
