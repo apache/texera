@@ -48,14 +48,14 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public allExecutionEntries: WorkflowExecutionsEntry[] = [];
   public filteredExecutionNames: Array<string> = [];
   public executionSearchValue: string = "";
-  public searchCriteria: string[] = ["owner", "id"];
+  public searchCriteria: string[] = ["user", "id"];
   public fuse = new Fuse([] as ReadonlyArray<WorkflowExecutionsEntry>, {
     shouldSort: true,
     threshold: 0.2,
     location: 0,
     distance: 100,
     minMatchCharLength: 1,
-    keys: ["eid", "name", "userName", "startingTime", "completionTime"],
+    keys: ["name", "userName", "startingTime", "completionTime"],
   });
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["executionName", ["name"]],
@@ -88,7 +88,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .retrieveWorkflowExecutions(this.workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
-        this.workflowExecutionsList = workflowExecutions;
+        this.allExecutionEntries = workflowExecutions;
+        this.workflowExecutionsList = this.allExecutionEntries;
+        this.fuse.setCollection(this.allExecutionEntries);
       });
   }
 
@@ -182,6 +184,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   public searchInputOnChange(value: string): void {
+    if (this.workflowExecutionsList === undefined) {
+      return;
+    }
     // enable autocomplete only when searching for execution name
     if (!value.includes(":")) {
       const filteredExecutionNames: string[] = [];
@@ -215,14 +220,17 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    */
    public searchExecution(): void {
     let andPathQuery: Object[] = [];
+    if (this.workflowExecutionsList === undefined) {
+      return;
+    }
     // empty search value, return all workflow entries
     if (this.executionSearchValue.trim() === "") {
-      this.executionEntries = [...this.allExecutionEntries];
+      this.workflowExecutionsList = [...this.allExecutionEntries];
       return;
     } else if (!this.executionSearchValue.includes(":")) {
-      // search only by workflow name
+      // search only by execution name
       andPathQuery.push(this.buildAndPathQuery("executionName", this.executionSearchValue));
-      this.executionEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+      this.workflowExecutionsList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
       return;
     }
     const searchConsitionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
@@ -242,10 +250,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         }
         andPathQuery.push(this.buildAndPathQuery(executionSearchField, executionSearchValue));
       } else {
-        //search by workflow name
-        andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
+        //search by execution name
+        andPathQuery.push(this.buildAndPathQuery("executionName", condition));
       }
     });
-    this.executionEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    this.workflowExecutionsList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
   }
 }
