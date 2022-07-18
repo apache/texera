@@ -55,7 +55,12 @@ trait WorkerInternalQueue {
 
   // logging related variables:
   def logManager: LogManager // require dp thread to have log manager
-  protected val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
+  protected val determinantLogger: DeterminantLogger =
+    if (logManager != null) {
+      logManager.getDeterminantLogger
+    } else {
+      null
+    }
 
   // the values in below maps are in tuples (not batches)
   private var inputTuplesPutInQueue =
