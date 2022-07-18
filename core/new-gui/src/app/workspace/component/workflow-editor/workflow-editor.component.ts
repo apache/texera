@@ -145,8 +145,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleDisableOperator();
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
-    this.handleViewCollapseGroup();
-    this.handleViewExpandGroup();
     this.handlePaperPan();
     this.handleGroupResize();
     this.handleViewMouseoverOperator();
@@ -873,45 +871,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  /**
-   * Handles the event where the Collapse button is clicked for a Group,
-   *  and call groupOperator to collapse the corresponding group.
-   *
-   * JointJS doesn't have collapse button built-in with a group element,
-   *  the collapse button is Texera's own customized element.
-   * Therefore JointJS doesn't come with default handler for collapse a group,
-   *  we need to handle the callback event `element:collapse`.
-   * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
-   */
-  private handleViewCollapseGroup(): void {
-    fromJointPaperEvent(this.getJointPaper(), "element:collapse")
-      .pipe(map(value => value[0]))
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        const groupID = elementView.model.id.toString();
-        this.workflowActionService.collapseGroups(groupID);
-      });
-  }
 
-  /**
-   * Handles the event where the Expand button is clicked for a Group,
-   *  and call groupOperator to expand the corresponding group.
-   *
-   * JointJS doesn't have expand button built-in with a group element,
-   *  the expand button is Texera's own customized element.
-   * Therefore JointJS doesn't come with default handler for expand a group,
-   *  we need to handle the callback event `element:expand`.
-   * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
-   */
-  private handleViewExpandGroup(): void {
-    fromJointPaperEvent(this.getJointPaper(), "element:expand")
-      .pipe(map(value => value[0]))
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        const groupID = elementView.model.id.toString();
-        this.workflowActionService.expandGroups(groupID);
-      });
-  }
 
   /**
    * if the operator is valid , the border of the box will be default

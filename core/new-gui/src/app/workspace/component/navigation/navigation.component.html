@@ -146,22 +146,6 @@
             <!--            </li>-->
           </ul>
         </nz-dropdown-menu>
-        <!-- <button
-          (click)="onClickGroupOperators()"
-          [disabled]="!highlightedElementsGroupable()"
-          nz-button
-          title="group"
-        >
-          <i nz-icon nzTheme="outline" nzType="group"></i>
-        </button>
-        <button
-          (click)="onClickUngroupOperators()"
-          [disabled]="!highlightedElementsUngroupable()"
-          nz-button
-          title="ungroup"
-        >
-          <i nz-icon nzTheme="outline" nzType="ungroup"></i>
-        </button> -->
         <button
           (click)="onClickDisableOperators()"
           *ngIf="isDisableOperator || !isDisableOperatorClickable"
@@ -212,8 +196,8 @@
     >
       <nz-button-group nzSize="large">
         <button
-          (click)="workflowActionService.texeraGraph.undoManager.undo()"
-          [disabled]="displayParticularWorkflowVersion || !workflowActionService.texeraGraph.undoManager.canUndo()"
+          (click)="undoRedoService.undoAction()"
+          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo() || !lockGranted"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"
@@ -221,8 +205,8 @@
           <i nz-icon nzTheme="outline" nzType="undo"></i>
         </button>
         <button
-          (click)="workflowActionService.texeraGraph.undoManager.redo()"
-          [disabled]="displayParticularWorkflowVersion || !workflowActionService.texeraGraph.undoManager.canRedo()"
+          (click)="undoRedoService.redoAction()"
+          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo() || !lockGranted"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"

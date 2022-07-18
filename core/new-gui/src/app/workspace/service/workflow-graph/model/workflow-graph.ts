@@ -59,55 +59,55 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
-
-
-  private readonly commentBoxMap = new Map<string, CommentBox>();
-  private readonly linkBreakpointMap = new Map<string, Breakpoint>();
-
-  private readonly operatorAddSubject = new Subject<OperatorPredicate>();
-
-  private readonly operatorDeleteSubject = new Subject<{
-    deletedOperatorID: string;
-  }>();
-  private readonly disabledOperatorChangedSubject = new Subject<{
-    newDisabled: string[];
-    newEnabled: string[];
-  }>();
-  private readonly cachedOperatorChangedSubject = new Subject<{
-    newCached: string[];
-    newUnCached: string[];
-  }>();
-  private readonly operatorDisplayNameChangedSubject = new Subject<{
-    operatorID: string;
-    newDisplayName: string;
-  }>();
-  private readonly linkAddSubject = new Subject<OperatorLink>();
-  private readonly linkDeleteSubject = new Subject<{
-    deletedLink: OperatorLink;
-  }>();
-  private readonly operatorPropertyChangeSubject = new Subject<{
-    oldProperty: object;
-    operator: OperatorPredicate;
-  }>();
-  private readonly breakpointChangeStream = new Subject<{
-    oldBreakpoint: object | undefined;
-    linkID: string;
-  }>();
-  private readonly commentBoxAddSubject = new Subject<CommentBox>();
-  private readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
-  private readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
-  private readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
-  private readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
-
   public yDoc: Y.Doc = new Y.Doc();
   public wsProvider: WebsocketProvider = new WebsocketProvider("ws://localhost:1234", "workflow-NULL", this.yDoc);
   public operatorIDMap: Y.Map<YType<OperatorPredicate>> = this.yDoc.getMap("operatorIDMap");
   public operatorLinkMap: Y.Map<OperatorLink> = this.yDoc.getMap("operatorLinkMap");
-  public operatorPositionMap: Y.Map<Point> = this.yDoc.getMap("operatorPositionMap");
+  public commentBoxMap: Y.Map<YType<CommentBox>> = this.yDoc.getMap("commentBoxMap");
+  public linkBreakpointMap: Y.Map<Breakpoint> = this.yDoc.getMap("linkBreakPointMap");
+  public elementPositionMap: Y.Map<Point> = this.yDoc.getMap("elementPositionMap");
   public awareness: Awareness = this.wsProvider.awareness;
-  public undoManager: Y.UndoManager = new Y.UndoManager([this.operatorIDMap, this.operatorPositionMap, this.operatorLinkMap]);
+  public undoManager: Y.UndoManager = new Y.UndoManager([this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap, this.linkBreakpointMap]);
   public newYDocLoadedSubject = new Subject();
   private syncTexeraGraph = true;
+
+
+  public readonly operatorAddSubject = new Subject<OperatorPredicate>();
+
+  public readonly operatorDeleteSubject = new Subject<{
+    deletedOperatorID: string;
+  }>();
+  public readonly disabledOperatorChangedSubject = new Subject<{
+    newDisabled: string[];
+    newEnabled: string[];
+  }>();
+  public readonly cachedOperatorChangedSubject = new Subject<{
+    newCached: string[];
+    newUnCached: string[];
+  }>();
+  public readonly operatorDisplayNameChangedSubject = new Subject<{
+    operatorID: string;
+    newDisplayName: string;
+  }>();
+  public readonly linkAddSubject = new Subject<OperatorLink>();
+  public readonly linkDeleteSubject = new Subject<{
+    deletedLink: OperatorLink;
+  }>();
+  public readonly operatorPropertyChangeSubject = new Subject<{
+    oldProperty: object;
+    operator: OperatorPredicate;
+  }>();
+  public readonly breakpointChangeStream = new Subject<{
+    oldBreakpoint: object | undefined;
+    linkID: string;
+  }>();
+  public readonly commentBoxAddSubject = new Subject<CommentBox>();
+  public readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
+  public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
+  public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
+  public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
+
+
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -117,19 +117,20 @@ export class WorkflowGraph {
     this.wsProvider.disconnect();
     operatorPredicates.forEach(op => this.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.operatorLinkMap.set(link.linkID, link));
-    commentBoxes.forEach(commentBox => this.commentBoxMap.set(commentBox.commentBoxID, commentBox));
+    commentBoxes.forEach(commentBox => this.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox)));
   }
 
   public loadNewYModel(workflowId: number) {
     this.yDoc = new Y.Doc();
     this.wsProvider = new WebsocketProvider("ws://localhost:1234", `workflow-${workflowId}`, this.yDoc);
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
-    this.operatorPositionMap = this.yDoc.getMap("operatorPositionMap");
+    this.elementPositionMap = this.yDoc.getMap("elementPositionMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
-    this.undoManager = new Y.UndoManager([this.operatorIDMap, this.operatorPositionMap, this.operatorLinkMap]);
+    this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
+    this.linkBreakpointMap = this.yDoc.getMap("linkBreakPointMap");
+    this.undoManager = new Y.UndoManager([this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap, this.linkBreakpointMap]);
     this.awareness = this.wsProvider.awareness;
     this.newYDocLoadedSubject.next(undefined);
-    this.observeFromYModel();
   }
 
   /**
@@ -153,51 +154,6 @@ export class WorkflowGraph {
     this.yDoc?.destroy();
   }
 
-  private observeFromYModel(): void {
-    this.operatorIDMap.observe((event: Y.YMapEvent<any>) => {
-      event.changes.keys.forEach((change, key)=>{
-        if (change.action === "add") {
-          const newOperator = this.operatorIDMap.get(key) as YType<OperatorPredicate>;
-          this.operatorAddSubject.next(newOperator.toJSON());
-        }
-        if (change.action === "delete") {
-          console.log("delete", change);
-          // this.operatorDeleteSubject.next({ deletedOperatorID: key });
-        }
-        if (change.action === "update") {
-          console.log("update", change);
-          // console.log(key, this.operatorIDMap.get(key)?.get("customDisplayName"));
-        }
-      });
-    });
-
-    this.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
-      events.forEach(event => {
-        if (event.target !== this.operatorIDMap) {
-          if (event.path[event.path.length-1] === "customDisplayName") {
-            const operatorID = event.path[0] as string;
-            const newName = this.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
-            this.operatorDisplayNameChangedSubject.next({operatorID: operatorID, newDisplayName: newName.toJSON()});
-          }
-        }
-      });
-    });
-
-    this.operatorLinkMap.observe((event: Y.YMapEvent<OperatorLink>) => {
-      event.changes.keys.forEach((change, key) => {
-        if (change.action === "add") {
-          const newLink = this.operatorLinkMap.get(key) as OperatorLink;
-          this.linkAddSubject.next(newLink);
-        }
-        if (change.action === "delete") {
-          // TODO: Seems deleted ymap cannot be accessed via oldValue.
-          const deletedLink = change.oldValue as OperatorLink;
-          this.linkDeleteSubject.next({deletedLink: deletedLink});
-        }
-      });
-    });
-  }
-
   /**
    * Adds a new operator to the graph.
    * Throws an error the operator has a duplicate operatorID with an existing operator.
@@ -211,29 +167,28 @@ export class WorkflowGraph {
 
   public addCommentBox(commentBox: CommentBox): void {
     this.assertCommentBoxNotExists(commentBox.commentBoxID);
-    this.commentBoxMap.set(commentBox.commentBoxID, commentBox);
-    this.commentBoxAddSubject.next(commentBox);
+    const newCommentBox = createYTypeFromObject(commentBox);
+    this.commentBoxMap.set(commentBox.commentBoxID, newCommentBox);
+    // console.log(this.commentBoxMap.values().next().value);
   }
 
   public addCommentToCommentBox(comment: Comment, commentBoxID: string): void {
     this.assertCommentBoxExists(commentBoxID);
-    const commentBox = this.commentBoxMap.get(commentBoxID);
+    const commentBox = this.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
     if (commentBox != null) {
-      commentBox.comments.push(comment);
-      this.commentBoxAddCommentSubject.next({ addedComment: comment, commentBox: commentBox });
+      commentBox.get("comments").push([comment as any]);
     }
   }
 
   public deleteCommentFromCommentBox(creatorID: number, creationTime: string, commentBoxID: string): void {
     this.assertCommentBoxExists(commentBoxID);
-    const commentBox = this.commentBoxMap.get(commentBoxID);
+    const commentBox = this.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
     if (commentBox != null) {
-      commentBox.comments.forEach((comment, index) => {
+      commentBox.get("comments").forEach((comment, index) => {
         if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
-          commentBox.comments.splice(index, 1);
+          // commentBox.get("comments").splice(index, 1);
         }
       });
-      this.commentBoxDeleteCommentSubject.next({ commentBox: commentBox });
     }
   }
 
@@ -241,14 +196,14 @@ export class WorkflowGraph {
     this.assertCommentBoxExists(commentBoxID);
     const commentBox = this.commentBoxMap.get(commentBoxID);
     if (commentBox != null) {
-      commentBox.comments.forEach((comment, index) => {
+      commentBox.get("comments").forEach((comment, index) => {
         if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
           let creatorName = comment.creatorName;
           let newComment: Comment = { content, creationTime, creatorName, creatorID };
-          commentBox.comments[index] = newComment;
+          // commentBox.get("comments")[index] = newComment;
         }
       });
-      this.commentBoxEditCommentSubject.next({ commentBox: commentBox });
+      this.commentBoxEditCommentSubject.next({ commentBox: commentBox.toJSON() });
     }
   }
 
@@ -283,11 +238,7 @@ export class WorkflowGraph {
     if (this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
-    this.disabledOperatorChangedSubject.next({
-      newDisabled: [operatorID],
-      newEnabled: [],
-    });
+    this.operatorIDMap.get(operatorID)?.set("isDisabled", true);
   }
 
   public enableOperator(operatorID: string): void {
@@ -298,11 +249,7 @@ export class WorkflowGraph {
     if (!this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
-    this.disabledOperatorChangedSubject.next({
-      newDisabled: [],
-      newEnabled: [operatorID],
-    });
+    this.operatorIDMap.get(operatorID)?.set("isDisabled", false);
   }
 
   public changeOperatorDisplayName(operatorID: string, newDisplayName: string): void {
@@ -311,7 +258,6 @@ export class WorkflowGraph {
       return;
     }
     this.operatorIDMap.set(operatorID, createYTypeFromObject(operator) );
-    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
   }
 
   public isOperatorDisabled(operatorID: string): boolean {
@@ -337,11 +283,8 @@ export class WorkflowGraph {
     if (this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
-    this.cachedOperatorChangedSubject.next({
-      newCached: [operatorID],
-      newUnCached: [],
-    });
+    this.operatorIDMap.get(operatorID)?.set("isCached", true);
+
   }
 
   public unCacheOperator(operatorID: string): void {
@@ -352,11 +295,7 @@ export class WorkflowGraph {
     if (!this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, createYTypeFromObject(operator));
-    this.cachedOperatorChangedSubject.next({
-      newCached: [],
-      newUnCached: [operatorID],
-    });
+    this.operatorIDMap.get(operatorID)?.set("isCached", false);
   }
 
   public isOperatorCached(operatorID: string): boolean {
@@ -389,7 +328,6 @@ export class WorkflowGraph {
    * @param operatorID operator ID
    */
   public getOperator(operatorID: string): OperatorPredicate {
-    // console.log(operatorID, this.operatorIDMap.get(operatorID)?.get("customDisplayName"));
     if (!this.operatorIDMap.has(operatorID)) {
       throw new Error(`operator ${operatorID} does not exist`);
     }
@@ -399,11 +337,11 @@ export class WorkflowGraph {
   }
 
   public getCommentBox(commentBoxID: string): CommentBox {
-    const commentBox = this.commentBoxMap.get(commentBoxID);
+    const commentBox = this.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
     if (!commentBox) {
       throw new Error(`commentBox ${commentBoxID} does not exist`);
     }
-    return commentBox;
+    return commentBox.toJSON();
   }
 
   /**
@@ -561,21 +499,8 @@ export class WorkflowGraph {
    * @param newProperty new property to set
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
-    const originalOperatorData = (this.operatorIDMap.get(operatorID) as YType<OperatorPredicate>).toJSON();
-    if (originalOperatorData === undefined) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
-    }
-    const oldProperty = originalOperatorData.operatorProperties;
-
-    // constructor a new copy with new operatorProperty and all other original attributes
-    const operator = {
-      ...originalOperatorData,
-      operatorProperties: newProperty,
-    };
     // set the new copy back to the operator ID map
     this.operatorIDMap.get(operatorID)?.set("operatorProperties", newProperty);
-
-    this.operatorPropertyChangeSubject.next({ oldProperty, operator });
   }
 
   /**
@@ -587,13 +512,11 @@ export class WorkflowGraph {
    */
   public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint | undefined): void {
     this.assertLinkWithIDExists(linkID);
-    const oldBreakpoint = this.linkBreakpointMap.get(linkID);
     if (breakpoint === undefined || Object.keys(breakpoint).length === 0) {
       this.linkBreakpointMap.delete(linkID);
     } else {
       this.linkBreakpointMap.set(linkID, breakpoint);
     }
-    this.breakpointChangeStream.next({ oldBreakpoint, linkID });
   }
 
   /**

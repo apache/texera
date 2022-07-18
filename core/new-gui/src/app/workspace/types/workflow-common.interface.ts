@@ -1,5 +1,7 @@
 import { JSONSchema7 } from "json-schema";
 import * as Y from "yjs";
+import {types} from "sass";
+import List = types.List;
 
 /**
  * This file contains multiple type declarations related to workflow-graph.
@@ -18,7 +20,6 @@ export interface OperatorPort
     portID: string;
   }> {}
 
-// TODO:
 export interface OperatorPredicate
   extends Readonly<{
     operatorID: string;
@@ -97,21 +98,31 @@ export type PythonPrintTriggerInfo = Readonly<{
 }>;
 
 export type YTextify<T> = T extends string ? Y.Text : T;
+export type YArrayify<T> = T extends Array<any> ? Y.Array<any> : T;
 
 export type YType<T> = Omit<Y.Map<any>, "get" | "set" | "has" | "toJSON"> & {
-  get<TKey extends keyof T>(key: TKey): YTextify<T[TKey]>;
-  set<TKey extends keyof T>(key: TKey, value: YTextify<T[TKey]>): void;
+  get<TKey extends keyof T>(key: TKey): YArrayify<YTextify<T[TKey]>>;
+  set<TKey extends keyof T>(key: TKey, value: YArrayify<YTextify<T[TKey]>>): void;
   has<TKey extends keyof T>(key: TKey): boolean;
   toJSON(): T
 }
 
+/**
+ * TODO: Recursive?
+ * @param obj
+ */
 export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
   // return new
   const yMap = new Y.Map();
   Object.keys(obj).forEach((k: string) => {
     const value = obj[k as keyof T] as any;
-    if (typeof value === "string") {
+    const type = value.constructor.name;
+    if (type === "String") {
       yMap.set(k, new Y.Text(value));
+    } else if (type === "Array") {
+      const yArray = new Y.Array();
+      yArray.push(value);
+      yMap.set(k, yArray);
     } else {
       yMap.set(k, value);
     }

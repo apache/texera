@@ -158,8 +158,11 @@ export class ValidationWorkflowService {
         .getLinkDeleteStream()
         .pipe(map(link => link.deletedLink))
     ).subscribe(link => {
-      this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
-      this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
+      if (this.workflowActionService.getTexeraGraph().hasOperator(link.source.operatorID) &&
+        this.workflowActionService.getTexeraGraph().hasOperator(link.target.operatorID)) {
+        this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
+        this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
+      }
     });
 
     // Capture the operator property change event and validate the current operator being changed

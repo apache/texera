@@ -6,7 +6,6 @@ export type commandFuncs =
   | "deleteOperator"
   | "addOperatorsAndLinks"
   | "deleteOperatorsAndLinks"
-  | "changeOperatorPosition"
   | "autoLayoutWorkflow"
   | "setOperatorProperty"
   | "addLink"
@@ -26,7 +25,6 @@ export type commandFuncs =
   | "unhighlightLinks"
   | "addCommentBox"
   | "deleteCommentBox"
-  | "changeCommentBoxPosition"
   | "addComment"
   | "editComment"
   | "deleteComment";
