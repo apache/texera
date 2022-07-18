@@ -118,7 +118,9 @@ trait WorkerInternalQueue {
   def getControlQueueLength: Int = controlQueue.size()
 
   def isControlQueueEmpty: Boolean = {
-    determinantLogger.stepIncrement()
+    if (determinantLogger != null) {
+      determinantLogger.stepIncrement()
+    }
     controlQueue.isEmpty
   }
 
