@@ -197,7 +197,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       this.currentPageIndex * this.pageSize
     );
   }
-  
+
   /* sort executions by name/username/start time/update time
    based in ascending alphabetical order */
 
