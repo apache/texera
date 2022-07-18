@@ -93,6 +93,3 @@ scalapb/scalapb
 # Ignoring credentials
 client_secret_*
 StoredCredential*
-
-# Ignoring Coursier cache
-core/amber/null/Coursier/cache
