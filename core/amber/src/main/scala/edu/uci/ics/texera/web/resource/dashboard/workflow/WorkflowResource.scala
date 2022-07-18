@@ -101,7 +101,9 @@ class WorkflowResource {
       .from(WORKFLOW)
       .join(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.CONTENT.like(s"%${operator}%").and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid)))
+      .where(WORKFLOW.CONTENT
+        .like(s"%${operator}%")
+        .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid)))
       .fetch()
 
       workflowEntries.map(

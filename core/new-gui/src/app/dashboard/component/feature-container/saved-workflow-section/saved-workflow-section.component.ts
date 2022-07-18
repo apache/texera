@@ -44,6 +44,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
+    useExtendedSearch: true,
     shouldSort: true,
     threshold: 0.2,
     location: 0,
@@ -215,7 +216,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Search workflows by owner name, workflow name or workflow id
+   * Search workflows by owner name, workflow name, or workflow id
    * Use fuse.js https://fusejs.io/ as the tool for searching
    */
   public searchWorkflow(): void {
@@ -262,22 +263,24 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.combineSearchTypes(date, operator, andPathQuery);
   }
 
-
+  /**
+   * Search and display workflows based on the specified conditions (name, owner, id, creation time, operator)
+   *  - operator requires backend, so any searches with the operator conditions are asynchronous
+   */
   private combineSearchTypes(date: string, operator: string, andPathQuery: Object[]): void {
     if(operator){
       //async search that requires backend call
       this.workflowPersistService.retrieveWorkflowByOperator(operator).pipe(untilDestroyed(this))
       .subscribe(
         (list_of_wids) => {
-          let orPathQuery: Object[] = []
+          let orPathQuery: Object[] = [];
           list_of_wids
-            .map((wid: number) => this.buildAndPathQuery("id", wid.toString()))
+            .map((wid: number) => this.buildAndPathQuery("id", "="+wid.toString())) // exact match extended searching (see https://fusejs.io/)
             .forEach(pathQuery => orPathQuery.push(pathQuery));
           if(orPathQuery.length != 0) {
             andPathQuery.push({$or: orPathQuery});
           }
           this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
-          console.log(this.dashboardWorkflowEntries)
         }
       )
     } else {
@@ -285,6 +288,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  /**
+   * Searches workflows with given Frontend data
+   * no backend calls so runs synchronously
+   */
   private synchronousSearch(andPathQuery: Object[], date: string): ReadonlyArray<DashboardWorkflowEntry>{
     let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries;
     if(andPathQuery.length !== 0)
