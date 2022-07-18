@@ -132,7 +132,7 @@ export class UserFileSectionComponent {
   }
 
   public parseTimestampString(timestamp: string): string {
-    return new Date(parseInt(timestamp)).toLocaleString()
+    return new Date(parseInt(timestamp)).toLocaleString();
   }
 
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
@@ -297,22 +297,26 @@ export class UserFileSectionComponent {
   /**
    * sort the project by upload time in descending order
    */
-     public timeSortDesc(): void {
-      this.dashboardUserFileEntries = this.dashboardUserFileEntries
-        .slice()
-        .sort((left, right) =>
-        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined ? parseInt(right.file.uploadTime) - parseInt(left.file.uploadTime) : 0
-        );
-    }
+  public timeSortDesc(): void {
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((left, right) =>
+        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
+          ? parseInt(right.file.uploadTime) - parseInt(left.file.uploadTime)
+          : 0
+      );
+  }
 
   /**
    * sort the project by upload time in ascending order
    */
-   public timeSortAsc(): void {
+  public timeSortAsc(): void {
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((left, right) =>
-        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined ? parseInt(left.file.uploadTime) - parseInt(right.file.uploadTime) : 0
+        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
+          ? parseInt(left.file.uploadTime) - parseInt(right.file.uploadTime)
+          : 0
       );
   }
 }
