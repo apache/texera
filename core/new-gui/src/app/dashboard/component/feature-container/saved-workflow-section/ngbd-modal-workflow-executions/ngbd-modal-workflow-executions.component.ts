@@ -7,6 +7,7 @@ import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-en
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 
 @UntilDestroy()
@@ -54,12 +55,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     location: 0,
     distance: 100,
     minMatchCharLength: 1,
-    keys: ["execution.wid", "execution.name", "ownerName"],
+    keys: ["eid", "name", "userName", "startingTime", "completionTime"],
   });
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
-    ["executionName", ["workflow", "name"]],
-    ["id", ["workflow", "wid"]],
-    ["owner", ["ownerName"]],
+    ["executionName", ["name"]],
+    ["id", ["eId"]],
+    ["user", ["userName"]],
   ]);
 
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
@@ -67,7 +68,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   constructor(
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
-    private modalService: NgbModal
+    private modalService: NgbModal,
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -207,43 +209,43 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     };
   }
 
-  // /**
-  //  * Search workflows by owner name, workflow name or workflow id
-  //  * Use fuse.js https://fusejs.io/ as the tool for searching
-  //  */
-  //  public searchWorkflow(): void {
-  //   let andPathQuery: Object[] = [];
-  //   // empty search value, return all workflow entries
-  //   if (this.executionSearchValue.trim() === "") {
-  //     this.executionEntries = [...this.allExecutionEntries];
-  //     return;
-  //   } else if (!this.executionSearchValue.includes(":")) {
-  //     // search only by workflow name
-  //     andPathQuery.push(this.buildAndPathQuery("executionName", this.executionSearchValue));
-  //     this.executionEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-  //     return;
-  //   }
-  //   const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
-  //   searchConsitionsSet.forEach(condition => {
-  //     // field search
-  //     if (condition.includes(":")) {
-  //       const conditionArray = condition.split(":");
-  //       if (conditionArray.length !== 2) {
-  //         this.notificationService.error("Please check the format of the search query");
-  //         return;
-  //       }
-  //       const workflowSearchField = conditionArray[0];
-  //       const workflowSearchValue = conditionArray[1];
-  //       if (!this.searchCriteria.includes(workflowSearchField)) {
-  //         this.notificationService.error("Cannot search by " + workflowSearchField);
-  //         return;
-  //       }
-  //       andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
-  //     } else {
-  //       //search by workflow name
-  //       andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
-  //     }
-  //   });
-  //   this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-  // }
+  /**
+   * Search workflows by owner name, workflow name or workflow id
+   * Use fuse.js https://fusejs.io/ as the tool for searching
+   */
+   public searchWorkflow(): void {
+    let andPathQuery: Object[] = [];
+    // empty search value, return all workflow entries
+    if (this.executionSearchValue.trim() === "") {
+      this.executionEntries = [...this.allExecutionEntries];
+      return;
+    } else if (!this.executionSearchValue.includes(":")) {
+      // search only by workflow name
+      andPathQuery.push(this.buildAndPathQuery("executionName", this.executionSearchValue));
+      this.executionEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+      return;
+    }
+    const searchConsitionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    searchConsitionsSet.forEach(condition => {
+      // field search
+      if (condition.includes(":")) {
+        const conditionArray = condition.split(":");
+        if (conditionArray.length !== 2) {
+          this.notificationService.error("Please check the format of the search query");
+          return;
+        }
+        const executionSearchField = conditionArray[0];
+        const executionSearchValue = conditionArray[1];
+        if (!this.searchCriteria.includes(executionSearchField)) {
+          this.notificationService.error("Cannot search by " + executionSearchField);
+          return;
+        }
+        andPathQuery.push(this.buildAndPathQuery(executionSearchField, executionSearchValue));
+      } else {
+        //search by workflow name
+        andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
+      }
+    });
+    this.executionEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+  }
 }
