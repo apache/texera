@@ -124,11 +124,11 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     fixture = TestBed.createComponent(NgbdModalWorkflowExecutionsComponent);
     component = fixture.componentInstance;
     modalService = TestBed.get(NgbActiveModal);
-    component.workflow = workflow;
     fixture.detectChanges();
   });
 
   it("executionNameSortTest increasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.ascSort("Name");
@@ -138,6 +138,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   });
 
   it("executionNameSortTest decreasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.dscSort("Name");
@@ -147,6 +148,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   });
 
   it("userNameSortTest increasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.ascSort("Username");
@@ -156,6 +158,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   });
 
   it("userNameSortTest decreasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.dscSort("Username");
@@ -165,6 +168,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   });
 
   it("startingTimeSortTest increasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.ascSort("Starting Time");
@@ -174,6 +178,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   });
 
   it("startingTimeSortTest decreasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.dscSort("Starting Time");
@@ -183,6 +188,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   });
 
   it("updatingTimeSortTest increasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.ascSort("Last Status Updated Time");
@@ -192,6 +198,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   });
 
   it("updatingTimeSortTest decreasingOrder", () => {
+    component.workflow = workflow;
     component.workflowExecutionsList = [];
     component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
     component.dscSort("Last Status Updated Time");
