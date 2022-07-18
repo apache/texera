@@ -213,7 +213,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    * Search workflows by owner name, workflow name or workflow id
    * Use fuse.js https://fusejs.io/ as the tool for searching
    */
-   public searchWorkflow(): void {
+   public searchExecution(): void {
     let andPathQuery: Object[] = [];
     // empty search value, return all workflow entries
     if (this.executionSearchValue.trim() === "") {
