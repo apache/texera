@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.logging.service
 
-import edu.uci.ics.amber.engine.architecture.logging.{LogManager, TimeStamp}
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LogManager, TimeStamp}
 
-class TimeService(logManager: LogManager) {
+class TimeService(determinantLogger: DeterminantLogger) {
 
   def getCurrentTime: Long = {
     // Add recovery logic later
     val time = System.currentTimeMillis()
-    logManager.logInMemDeterminant(TimeStamp(time))
+    determinantLogger.logDeterminant(TimeStamp(time))
     time
   }
 

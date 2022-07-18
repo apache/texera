@@ -19,10 +19,10 @@ class AsyncLogWriter(
   @volatile private var stopped = false
   private val logInterval = 500
   private val logWriter = logStorage.getWriter
-  private val serializationManager = new SerializationManager(logWriter)
+  private val serializationManager = new SerializationManager()
 
-  def putDeterminant(determinant: InMemDeterminant): Unit = {
-    writerQueue.put(Left(determinant))
+  def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {
+    determinants.foreach(x => writerQueue.put(Left(x)))
   }
 
   def putOutput(output: SendRequest): Unit = {
@@ -49,7 +49,10 @@ class AsyncLogWriter(
             break
         }
         val drainedScala = drained.asScala
-        serializationManager.compressedWrite(drainedScala.filter(_.isLeft).map(_.left.get))
+        drainedScala
+          .filter(_.isLeft)
+          .map(_.left.get)
+          .foreach(x => logWriter.writeLogRecord(serializationManager.serialize(x)))
         logWriter.flush()
         drainedScala.filter(_.isRight).foreach(x => networkCommunicationActor ! x.right.get)
         drained.clear()

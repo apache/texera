@@ -8,8 +8,7 @@ import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
 import edu.uci.ics.amber.engine.architecture.logging.{
   LogManager,
   ProcessControlMessage,
-  ProcessDataTuple,
-  SenderChangeTo
+  SenderChange
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
@@ -38,7 +37,7 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
-    logManager: LogManager,
+    val logManager: LogManager,
     val actorId: ActorVirtualIdentity
 ) extends WorkerInternalQueue
     with AmberLogging {
@@ -170,10 +169,11 @@ class DataProcessor( // dependencies:
       getElement match {
         case InputTuple(from, tuple) =>
           if (currentInputActor != from) {
-            logManager.logInMemDeterminant(SenderChangeTo(from))
+            if (determinantLogger != null) {
+              determinantLogger.logDeterminant(SenderChange(from))
+            }
             currentInputActor = from
           }
-          logManager.logInMemDeterminant(ProcessDataTuple)
           currentInputTuple = Left(tuple)
           handleInputTuple()
         case SenderChangeMarker(link) =>
@@ -282,7 +282,9 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
-    logManager.logInMemDeterminant(ProcessControlMessage(payload, from))
+    if (determinantLogger != null) {
+      determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
+    }
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)

@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.logging.ProcessControlMessage
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, ProcessControlMessage}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
   RegisterActorRef
@@ -79,6 +79,7 @@ class Controller(
   var statusUpdateAskHandle: Cancellable = _
 
   override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
+  val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   def availableNodes: Array[Address] =
     Await
@@ -173,7 +174,9 @@ class Controller(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
-    logManager.logInMemDeterminant(ProcessControlMessage(controlPayload, from))
+    if (determinantLogger != null) {
+      determinantLogger.logDeterminant(ProcessControlMessage(controlPayload, from))
+    }
     try {
       controlPayload match {
         // use control input port to pass control messages

@@ -12,8 +12,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 //In-mem formats:
 sealed trait InMemDeterminant
-case class SenderChangeTo(actorVirtualIdentity: ActorVirtualIdentity) extends InMemDeterminant
-case object ProcessDataTuple extends InMemDeterminant
+case class SenderChange(actorVirtualIdentity: ActorVirtualIdentity) extends InMemDeterminant
+case class StepDelta(steps: Long) extends InMemDeterminant
 case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirtualIdentity)
     extends InMemDeterminant
 case class TimeStamp(value: Long) extends InMemDeterminant
@@ -25,6 +25,12 @@ class LogManager(
 
   val enabledLogging: Boolean =
     AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
+
+  private val determinantLogger = if (enabledLogging) {
+    new DeterminantLogger()
+  } else {
+    null
+  }
 
   private val logStorage: DeterminantLogStorage = if (enabledLogging) {
     new LocalFSLogStorage(logName)
@@ -40,17 +46,13 @@ class LogManager(
     null
   }
 
-  def logInMemDeterminant(determinant: InMemDeterminant): Unit = {
-    if (!enabledLogging) {
-      return
-    }
-    writer.putDeterminant(determinant)
-  }
+  def getDeterminantLogger: DeterminantLogger = determinantLogger
 
   def sendDirectlyOrCommitted(sendRequest: SendRequest): Unit = {
     if (!enabledLogging) {
       networkCommunicationActor ! sendRequest
     } else {
+      writer.putDeterminants(determinantLogger.drainCurrentLogRecords())
       writer.putOutput(sendRequest)
     }
   }
