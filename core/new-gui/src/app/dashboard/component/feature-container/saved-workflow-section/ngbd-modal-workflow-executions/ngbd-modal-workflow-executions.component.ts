@@ -59,7 +59,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    * calls the service to display the workflow executions on the table
    */
   displayWorkflowExecutions(): void {
-    if (this.workflow.wid === undefined) {
+    if (this.workflow === undefined || this.workflow.wid === undefined) {
       return;
     }
     this.workflowExecutionsService
