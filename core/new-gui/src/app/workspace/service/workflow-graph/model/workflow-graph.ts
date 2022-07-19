@@ -503,7 +503,7 @@ export class WorkflowGraph {
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     // set the new copy back to the operator ID map
-    this.operatorIDMap.get(operatorID)?.set("operatorProperties", newProperty);
+    this.operatorIDMap.get(operatorID)?.set("operatorProperties", createYTypeFromObject(newProperty));
   }
 
   /**

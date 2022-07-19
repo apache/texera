@@ -106,7 +106,6 @@ export type YType<T> = Omit<Y.Map<any>, "get" | "set" | "has" | "toJSON"> & {
 }
 
 /**
- * TODO: Recursive?
  * @param obj
  */
 export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
@@ -114,15 +113,19 @@ export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
   const yMap = new Y.Map();
   Object.keys(obj).forEach((k: string) => {
     const value = obj[k as keyof T] as any;
-    const type = value.constructor.name;
-    if (type === "String") {
-      yMap.set(k, new Y.Text(value));
-    } else if (type === "Array") {
-      const yArray = new Y.Array();
-      yArray.push(value);
-      yMap.set(k, yArray);
-    } else {
-      yMap.set(k, value);
+    if (value) {
+      const type = value.constructor.name;
+      if (type === "String") {
+        yMap.set(k, new Y.Text(value));
+      } else if (type === "Array") {
+        const yArray = new Y.Array();
+        yArray.push(value);
+        yMap.set(k, yArray);
+      } else if (type === "Object") {
+        yMap.set(k, createYTypeFromObject(value));
+      } else {
+        yMap.set(k, value);
+      }
     }
   });
 
