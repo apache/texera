@@ -1,13 +1,14 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { from } from "rxjs";
+import { from, throwIfEmpty } from "rxjs";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { defaultEnvironment } from "src/environments/environment.default";
+import { slice } from "lodash";
 
 @UntilDestroy()
 @Component({
@@ -46,6 +47,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   // Pagination attributes
+  public isAscSort: boolean = true;
   public currentPageIndex: number = defaultEnvironment.defaultPageIndex;
   public pageSize: number = defaultEnvironment.defaultPageSize;
   public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
@@ -186,7 +188,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   /**
    * Change current page list everytime the page change
-   * TODO: need to be with filter/sort feature
    */
   changePaginatedExecutions() {
     if (this.workflow.wid === undefined) {
@@ -202,7 +203,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    based in ascending alphabetical order */
 
   ascSort(type: string): void {
-    if (type === "Name") {
+    this.isAscSort = true;
+
+    if (type === "Execution#") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice().sort((exe1, exe2) => exe1.eId - exe2.eId);
+    } else if (type === "Name") {
       this.workflowExecutionsList = this.workflowExecutionsList
         ?.slice()
         .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
@@ -223,20 +228,38 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
         );
     }
+
+    this.changePaginatedExecutions();
   }
 
   /* sort executions by name/username/start time/update time
    based in descending alphabetical order */
 
   dscSort(type: string): void {
-    if (type === "Name") {
-      this.workflowExecutionsList = this.workflowExecutionsList
-        ?.slice()
-        .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
+    this.isAscSort = false;
+    let numOfSameName = 1; // Start with 1 since there is n-1 comparisons
+    let isNameSorted = false;
+
+    if (type === "Execution#") {
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice().sort((exe1, exe2) => exe2.eId - exe1.eId);
+    } else if (type === "Name") {
+      isNameSorted = true;
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice().sort((exe1, exe2) => {
+        let comparisonResult = exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase());
+        if (comparisonResult == 0) {
+          numOfSameName += 1;
+        }
+        return comparisonResult;
+      });
     } else if (type === "Username") {
-      this.workflowExecutionsList = this.workflowExecutionsList
-        ?.slice()
-        .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
+      isNameSorted = true;
+      this.workflowExecutionsList = this.workflowExecutionsList?.slice().sort((exe1, exe2) => {
+        let comparisonResult = exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase());
+        if (comparisonResult == 0) {
+          numOfSameName += 1;
+        }
+        return comparisonResult;
+      });
     } else if (type === "Starting Time") {
       this.workflowExecutionsList = this.workflowExecutionsList
         ?.slice()
@@ -250,5 +273,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
         );
     }
+
+    // Prevent sort Execution# when all user names are same
+    if (isNameSorted && this.numOfExecutions === numOfSameName) {
+      this.isAscSort = true;
+    }
+    this.changePaginatedExecutions();
   }
 }

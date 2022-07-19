@@ -54,7 +54,8 @@
             (click)="onBookmarkToggle(row)"
           ></i>
         </td>
-        <td nzEllipsis>{{i + 1 + (currentPageIndex - 1) * pageSize}}</td>
+        <td nzEllipsis *ngIf="isAscSort; else dscBlock">{{i + 1 + (currentPageIndex - 1) * pageSize}}</td>
+        <ng-template #dscBlock><td>{{numOfExecutions - ( i + (currentPageIndex - 1) * pageSize)}}</td></ng-template>
         <td nzEllipsis>{{row.userName || "anonymous" }}</td>
         <td nzEllipsis>
           <label *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow " class="workflow-name"
