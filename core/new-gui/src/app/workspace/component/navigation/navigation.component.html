@@ -48,16 +48,16 @@
         <span *ngIf="displayParticularWorkflowVersion" class="particular-version-metadata" spellcheck="false">
           {{particularVersionDate}}
         </span>
+        <button
+          *ngIf="displayParticularWorkflowVersion"
+          [disabled]="!lockGranted"
+          nz-button
+          nzType="primary"
+          (click)="revertToVersion()"
+        >
+          Restore this version
+        </button>
       </label>
-      <button
-        *ngIf="displayParticularWorkflowVersion"
-        [disabled]="!lockGranted"
-        nz-button
-        nzType="primary"
-        (click)="revertToVersion()"
-      >
-        Restore this version
-      </button>
       <button
         *ngIf="!displayParticularWorkflowVersion"
         nz-button
