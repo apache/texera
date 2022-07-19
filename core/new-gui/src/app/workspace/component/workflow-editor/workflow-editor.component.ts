@@ -732,7 +732,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private openCommentBox(commentBoxID: string): void {
-    const commentBox = this.workflowActionService.getTexeraGraph().getCommentBox(commentBoxID);
+    const commentBox = this.workflowActionService.getTexeraGraph().commentBoxMap.get(commentBoxID);
     const modalRef: NzModalRef = this.nzModalService.create({
       // modal title
       nzTitle: "Comments",

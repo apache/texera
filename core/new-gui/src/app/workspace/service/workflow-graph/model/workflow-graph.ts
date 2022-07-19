@@ -176,7 +176,7 @@ export class WorkflowGraph {
     this.assertCommentBoxExists(commentBoxID);
     const commentBox = this.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
     if (commentBox != null) {
-      commentBox.get("comments").push([comment as any]);
+      commentBox.get("comments").push([comment]);
     }
   }
 
@@ -186,7 +186,7 @@ export class WorkflowGraph {
     if (commentBox != null) {
       commentBox.get("comments").forEach((comment, index) => {
         if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
-          // commentBox.get("comments").splice(index, 1);
+          commentBox.get("comments").delete(index);
         }
       });
     }
@@ -200,7 +200,10 @@ export class WorkflowGraph {
         if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
           let creatorName = comment.creatorName;
           let newComment: Comment = { content, creationTime, creatorName, creatorID };
-          // commentBox.get("comments")[index] = newComment;
+          this.yDoc.transact(()=>{
+            commentBox.get("comments").delete(index);
+            commentBox.get("comments").insert(index, [newComment]);
+          });
         }
       });
       this.commentBoxEditCommentSubject.next({ commentBox: commentBox.toJSON() });

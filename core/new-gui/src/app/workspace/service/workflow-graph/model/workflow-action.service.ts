@@ -172,8 +172,12 @@ export class WorkflowActionService {
 
   public handleJointElementDrag(): void {
     this.getJointGraphWrapper().getElementPositionChangeEvent().subscribe(element => {
-      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.elementPositionMap.get(element.elementID) as Point != element.newPosition)
+      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
         this.texeraGraph.elementPositionMap?.set(element.elementID, element.newPosition);
+        if (element.elementID.includes("commentBox")) {
+          this.texeraGraph.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
+        };
+      }
     });
   }
 

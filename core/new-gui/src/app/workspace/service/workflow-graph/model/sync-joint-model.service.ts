@@ -252,13 +252,20 @@ export class SyncJointModelService {
     this.texeraGraph.commentBoxMap.observeDeep((events: Y.YEvent<any>[]) => {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.commentBoxMap) {
+          const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
           if (event.path.length === 2 && event.path[event.path.length-1] === "comments") {
-            const deltaChange = event.delta[1];
-            const newComments = deltaChange.insert as Comment[];
-            for (let i = 0; i < newComments.length; i++) {
-              const newComment = newComments[i];
-              // TODO
-              // this.texeraGraph.commentBoxAddCommentSubject.next({ addedComment: newComment, commentBox: commentBox });
+            const addedComments = Array.from(event.changes.added.values());
+            const deletedComments = Array.from(event.changes.deleted.values());
+            if (addedComments.length == deletedComments.length) {
+              this.texeraGraph.commentBoxEditCommentSubject.next({commentBox: commentBox});
+            } else {
+              if (addedComments.length > 0) {
+                const newComment = addedComments[0].content.getContent()[0];
+                this.texeraGraph.commentBoxAddCommentSubject.next({ addedComment: newComment, commentBox: commentBox });
+              }
+              if (deletedComments.length > 0) {
+                this.texeraGraph.commentBoxDeleteCommentSubject.next({commentBox: commentBox});
+              }
             }
           }
         }

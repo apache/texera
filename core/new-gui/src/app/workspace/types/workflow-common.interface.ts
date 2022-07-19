@@ -1,7 +1,5 @@
 import { JSONSchema7 } from "json-schema";
 import * as Y from "yjs";
-import {types} from "sass";
-import List = types.List;
 
 /**
  * This file contains multiple type declarations related to workflow-graph.
