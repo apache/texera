@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { from} from "rxjs";
+import { from } from "rxjs";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
