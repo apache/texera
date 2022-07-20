@@ -273,14 +273,18 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.workflowPersistService.retrieveWorkflowByOperator(operator).pipe(untilDestroyed(this))
       .subscribe(
         (list_of_wids) => {
-          let orPathQuery: Object[] = [];
-          list_of_wids
-            .map((wid: number) => this.buildAndPathQuery("id", "="+wid.toString())) // exact match extended searching (see https://fusejs.io/)
-            .forEach(pathQuery => orPathQuery.push(pathQuery));
-          if(orPathQuery.length != 0) {
-            andPathQuery.push({$or: orPathQuery});
+          if(list_of_wids.length !== 0) {
+            let orPathQuery: Object[] = [];
+            list_of_wids
+              .map((wid: number) => this.buildAndPathQuery("id", "="+wid.toString())) // exact match extended searching (see https://fusejs.io/)
+              .forEach(pathQuery => orPathQuery.push(pathQuery));
+            if(orPathQuery.length != 0) {
+              andPathQuery.push({$or: orPathQuery});
+            }
+            this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
+          } else {
+            this.notificationService.error("Operator name invalid");
           }
-          this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
         }
       )
     } else {
