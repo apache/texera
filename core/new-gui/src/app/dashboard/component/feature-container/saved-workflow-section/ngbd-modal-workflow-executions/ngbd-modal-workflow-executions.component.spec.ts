@@ -248,4 +248,28 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     const SortedCase = component.workflowExecutionsList.map(item => item.eId);
     expect(SortedCase).toEqual([1, 2, 6, 7]);
   });
+
+  it("statusFilterTest", () => {
+    component.workflow = workflow;
+    component.allExecutionEntries = [];
+    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.fuse.setCollection(component.allExecutionEntries);
+    component.workflowExecutionsList = component.allExecutionEntries;
+    component.executionSearchValue = "status:Completed";
+    component.searchExecution();
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    expect(SortedCase).toEqual([1, 2, 3]);
+  });
+
+  it("filterComboTest", () => {
+    component.workflow = workflow;
+    component.allExecutionEntries = [];
+    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.fuse.setCollection(component.allExecutionEntries);
+    component.workflowExecutionsList = component.allExecutionEntries;
+    component.executionSearchValue = "execution1 user:texera uTime:07/13/2022";
+    component.searchExecution();
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    expect(SortedCase).toEqual([1]);
+  });
 });
