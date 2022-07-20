@@ -27,10 +27,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     "Username",
     "Name",
     "Starting Time",
-    "Updated Time",
+    "Last Status Updated Time",
     "Status",
     "",
   ];
+
+  /*Tooltip for each header in execution table*/
+  public executionTooltip: Record<string, string> = {
+    "Execution#": "Workflow Execution ID",
+    Name: "Workflow Name",
+    Username: "The User Who Runs This Execution",
+    "Starting Time": "Starting Time of Workflow Execution",
+    "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
+    Status: "Current Status of Workflow Execution",
+  };
+
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   constructor(
@@ -48,7 +59,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    * calls the service to display the workflow executions on the table
    */
   displayWorkflowExecutions(): void {
-    if (this.workflow.wid === undefined) {
+    if (this.workflow === undefined || this.workflow.wid === undefined) {
       return;
     }
     this.workflowExecutionsService
@@ -146,5 +157,59 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           entryIsEditingIndex => entryIsEditingIndex != index
         );
       });
+  }
+
+  /* sort executions by name/username/start time/update time
+   based in ascending alphabetical order */
+
+  ascSort(type: string): void {
+    if (type === "Name") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
+    } else if (type === "Username") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
+    } else if (type === "Starting Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.startingTime > exe2.startingTime ? 1 : exe2.startingTime > exe1.startingTime ? -1 : 0
+        );
+    } else if (type == "Last Status Updated Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
+        );
+    }
+  }
+
+  /* sort executions by name/username/start time/update time
+   based in descending alphabetical order */
+
+  dscSort(type: string): void {
+    if (type === "Name") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
+    } else if (type === "Username") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
+    } else if (type === "Starting Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.startingTime < exe2.startingTime ? 1 : exe2.startingTime < exe1.startingTime ? -1 : 0
+        );
+    } else if (type == "Last Status Updated Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
+        );
+    }
   }
 }
