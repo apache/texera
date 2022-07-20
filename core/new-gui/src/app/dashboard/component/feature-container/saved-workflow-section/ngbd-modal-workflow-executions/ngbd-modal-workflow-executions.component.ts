@@ -195,6 +195,60 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
+  /* sort executions by name/username/start time/update time
+   based in ascending alphabetical order */
+
+  ascSort(type: string): void {
+    if (type === "Name") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
+    } else if (type === "Username") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
+    } else if (type === "Starting Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.startingTime > exe2.startingTime ? 1 : exe2.startingTime > exe1.startingTime ? -1 : 0
+        );
+    } else if (type == "Last Status Updated Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
+        );
+    }
+  }
+
+  /* sort executions by name/username/start time/update time
+   based in descending alphabetical order */
+
+  dscSort(type: string): void {
+    if (type === "Name") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
+    } else if (type === "Username") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
+    } else if (type === "Starting Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.startingTime < exe2.startingTime ? 1 : exe2.startingTime < exe1.startingTime ? -1 : 0
+        );
+    } else if (type == "Last Status Updated Time") {
+      this.workflowExecutionsList = this.workflowExecutionsList
+        ?.slice()
+        .sort((exe1, exe2) =>
+          exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
+        );
+    }
+  }
+
   public searchInputOnChange(value: string): void {
     if (this.workflowExecutionsList === undefined) {
       return;

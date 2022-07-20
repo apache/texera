@@ -28,7 +28,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     lastModifiedTime: 1705673070000,
   };
 
-  // for filter tests
+  // for filter & sorting tests
   // eId,vId,status,result,bookmarked values are meaningless in this test
   const testWorkflowExecution1: WorkflowExecutionsEntry = {
     eId: 1,
@@ -271,5 +271,85 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.searchExecution();
     const SortedCase = component.workflowExecutionsList.map(item => item.eId);
     expect(SortedCase).toEqual([1]);
+  });
+
+  it("executionNameSortTest increasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.ascSort("Name");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: 123/Exe4, cancer/Exe6, covid/Exe5, execution1/Exe1, healthcare/Exe3, twitter/Exe2*/
+    expect(SortedCase).toEqual([4, 6, 5, 1, 3, 2]);
+  });
+
+  it("executionNameSortTest decreasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.dscSort("Name");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: twitter/Exe2, healthcare/Exe3, execution1/Exe1, covid/Exe5, cancer/Exe6, 123/Exe4*/
+    expect(SortedCase).toEqual([2, 3, 1, 5, 6, 4]);
+  });
+
+  it("userNameSortTest increasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.ascSort("Username");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: Amy/Exe3, edison/Exe5, johnny270/Exe6, Peter/Exe2, sarahchen/Exe4, texera/Exe1*/
+    expect(SortedCase).toEqual([3, 5, 6, 2, 4, 1]);
+  });
+
+  it("userNameSortTest decreasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.dscSort("Username");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: texera/Exe1, sarahchen/Exe4, Peter/Exe2, johnny270/Exe6, edison/Exe5, Amy/Exe3*/
+    expect(SortedCase).toEqual([1, 4, 2, 6, 5, 3]);
+  });
+
+  it("startingTimeSortTest increasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.ascSort("Starting Time");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: Exe3, Exe4, Exe5, Exe1, Exe2, Exe6*/
+    expect(SortedCase).toEqual([3, 4, 5, 1, 2, 6]);
+  });
+
+  it("startingTimeSortTest decreasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.dscSort("Starting Time");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: Exe6, Exe2, Exe1, Exe5, Exe4, Exe3*/
+    expect(SortedCase).toEqual([6, 2, 1, 5, 4, 3]);
+  });
+
+  it("updatingTimeSortTest increasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.ascSort("Last Status Updated Time");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: Exe3, Exe4, Exe5, Exe1, Exe2, Exe6*/
+    expect(SortedCase).toEqual([3, 4, 5, 1, 2, 6]);
+  });
+
+  it("updatingTimeSortTest decreasingOrder", () => {
+    component.workflow = workflow;
+    component.workflowExecutionsList = [];
+    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.dscSort("Last Status Updated Time");
+    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    /* Order: Exe6, Exe2, Exe1, Exe5, Exe4, Exe3*/
+    expect(SortedCase).toEqual([6, 2, 1, 5, 4, 3]);
   });
 });
