@@ -59,8 +59,9 @@ trait WorkerExecutionCompletedHandler {
                   s"No region to schedule after ${sender} worker finished"
                 )
               }
+            } else {
+              Future()
             }
-            Future.Done
           }
         })
     }
