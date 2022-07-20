@@ -372,7 +372,7 @@ class WorkflowScheduler(
       })
   }
 
-  def constructAndPrepare(region: PipelinedRegion): Unit = {
+  def constructAndPrepare(region: PipelinedRegion): Future[Unit] = {
     if (
       !constructingRegions.contains(region) && !constructedRegions.contains(
         region
@@ -382,6 +382,7 @@ class WorkflowScheduler(
       prepareRegion(region)
     } else {
       logger.error(s"Pipelined region ${region.getId()} has already been constructed")
+      Future()
     }
   }
 

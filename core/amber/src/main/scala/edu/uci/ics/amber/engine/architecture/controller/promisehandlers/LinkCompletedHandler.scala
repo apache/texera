@@ -39,11 +39,12 @@ trait LinkCompletedHandler {
               s"No region to schedule after ${msg.linkID} link completed"
             )
           }
+        } else {
+          Future()
         }
-        Future {}
       } else {
         // if the link is not completed yet, do nothing
-        Future {}
+        Future()
       }
     }
   }
