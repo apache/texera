@@ -30,6 +30,10 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
+import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
+import { expressionType } from "@angular/compiler/src/output/output_ast";
+import { of } from "rxjs";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -139,6 +143,9 @@ describe("WorkflowEditorComponent", () => {
     let dragDropService: DragDropService;
     let jointUIService: JointUIService;
     let nzModalService: NzModalService;
+    let undoRedoService: UndoRedoService;
+    let workflowVersionService: WorkflowVersionService;
+    let workflowCollabService: WorkflowCollabService;
 
     beforeEach(
       waitForAsync(() => {
@@ -160,6 +167,9 @@ describe("WorkflowEditorComponent", () => {
             },
             WorkflowStatusService,
             ExecuteWorkflowService,
+            UndoRedoService,
+            WorkflowVersionService,
+            WorkflowCollabService,
           ],
         }).compileComponents();
       })
@@ -174,6 +184,9 @@ describe("WorkflowEditorComponent", () => {
       // detect changes to run ngAfterViewInit and bind Model
       jointUIService = TestBed.inject(JointUIService);
       nzModalService = TestBed.inject(NzModalService);
+      undoRedoService = TestBed.inject(UndoRedoService);
+      workflowVersionService = TestBed.inject(WorkflowVersionService);
+      workflowCollabService = TestBed.inject(WorkflowCollabService);
       fixture.detectChanges();
     });
 
@@ -858,6 +871,70 @@ describe("WorkflowEditorComponent", () => {
       // assert that all operators are highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+    });
+
+    //undo
+    it("should undo action when press command + Z or control + Z", () => {
+      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
+      spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
+      spyOn(undoRedoService, "canUndo").and.returnValue(true);
+      let undoSpy = spyOn(undoRedoService, "undoAction");
+      fixture.detectChanges();
+      const event1 = new KeyboardEvent("keydown", { key: "Z", metaKey: true, shiftKey: false });
+      (document.activeElement as HTMLElement)?.blur();
+      document.dispatchEvent(event1);
+      fixture.detectChanges();
+      setTimeout(() => {
+        expect(undoSpy).toHaveBeenCalled();
+      }, 0);
+
+      const event2 = new KeyboardEvent("keydown", { key: "Z", ctrlKey: true, shiftKey: false });
+      (document.activeElement as HTMLElement)?.blur();
+      document.dispatchEvent(event2);
+      fixture.detectChanges();
+      setTimeout(() => {
+        expect(undoSpy).toHaveBeenCalled();
+      }, 0);
+    });
+
+    //redo
+    it("should redo action when press command + Z or control + Z", () => {
+      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
+      spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
+      spyOn(undoRedoService, "canRedo").and.returnValue(true);
+      let redoSpy = spyOn(undoRedoService, "redoAction");
+      fixture.detectChanges();
+      const event1 = new KeyboardEvent("keydown", { key: "y", metaKey: true, shiftKey: false });
+      (document.activeElement as HTMLElement)?.blur();
+      document.dispatchEvent(event1);
+      fixture.detectChanges();
+      setTimeout(() => {
+        expect(redoSpy).toHaveBeenCalled();
+      }, 0);
+
+      const event2 = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, shiftKey: false });
+      (document.activeElement as HTMLElement)?.blur();
+      document.dispatchEvent(event2);
+      fixture.detectChanges();
+      setTimeout(() => {
+        expect(redoSpy).toHaveBeenCalled();
+      }, 0);
+
+      const event3 = new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true });
+      (document.activeElement as HTMLElement)?.blur();
+      document.dispatchEvent(event3);
+      fixture.detectChanges();
+      setTimeout(() => {
+        expect(redoSpy).toHaveBeenCalled();
+      }, 0);
+
+      const event4 = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true });
+      (document.activeElement as HTMLElement)?.blur();
+      document.dispatchEvent(event4);
+      fixture.detectChanges();
+      setTimeout(() => {
+        expect(redoSpy).toHaveBeenCalled();
+      }, 0);
     });
   });
 });
