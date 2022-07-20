@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { from } from "rxjs";
+import { from} from "rxjs";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
@@ -25,7 +25,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public executionsTableHeaders: string[] = [
     "",
     "",
-    "Execution#",
     "Username",
     "Name",
     "Starting Time",
@@ -36,7 +35,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
-    "Execution#": "Workflow Execution ID",
     Name: "Workflow Name",
     Username: "The User Who Runs This Execution",
     "Starting Time": "Starting Time of Workflow Execution",
@@ -48,19 +46,28 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public allExecutionEntries: WorkflowExecutionsEntry[] = [];
   public filteredExecutionNames: Array<string> = [];
   public executionSearchValue: string = "";
-  public searchCriteria: string[] = ["user", "id"];
+  public searchCriteria: string[] = ["user", "sTime", "uTime", "status"];
   public fuse = new Fuse([] as ReadonlyArray<WorkflowExecutionsEntry>, {
     shouldSort: true,
     threshold: 0.2,
     location: 0,
     distance: 100,
     minMatchCharLength: 1,
-    keys: ["name", "userName", "startingTime", "completionTime"],
+    keys: ["name", "userName", "sTime", "uTime", "status"],
   });
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["executionName", ["name"]],
-    ["id", ["eId"]],
     ["user", ["userName"]],
+    ["sTime", ["startingTime"]],
+    ["uTime", ["completionTime"]],
+    ["status", ["status"]],
+  ]);
+  public statusMapping: Map<string, number> = new Map([
+    ["Initializing", 0],
+    ["Running", 1],
+    ["Paused", 2],
+    ["Completed", 3],
+    ["Aborted", 4],
   ]);
 
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
@@ -81,7 +88,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    * calls the service to display the workflow executions on the table
    */
   displayWorkflowExecutions(): void {
-    if (this.workflow.wid === undefined) {
+    if (this.workflow === undefined || this.workflow.wid === undefined) {
       return;
     }
     this.workflowExecutionsService
@@ -147,7 +154,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
             .deleteWorkflowExecutions(this.workflow.wid, row.eId)
             .pipe(untilDestroyed(this))
             .subscribe({
-              complete: () => this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1),
+              complete: () => {
+                this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
+                this.workflowExecutionsList = this.allExecutionEntries;
+              },
             });
         }
       });
@@ -174,6 +184,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         if (this.workflowExecutionsList === undefined) {
           return;
         }
+        // change the execution name globally
+        this.allExecutionEntries[this.allExecutionEntries.indexOf(this.workflowExecutionsList[index])].name = name;
         this.workflowExecutionsList[index].name = name;
       })
       .add(() => {
@@ -218,7 +230,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    * Search workflows by owner name, workflow name or workflow id
    * Use fuse.js https://fusejs.io/ as the tool for searching
    */
-   public searchExecution(): void {
+  public searchExecution(): void {
     let andPathQuery: Object[] = [];
     if (this.workflowExecutionsList === undefined) {
       return;
@@ -234,6 +246,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       return;
     }
     const searchConsitionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    var searchDateTimestamp = "";
+    var compareOperator = "";
+    var searchDateType = "";
     searchConsitionsSet.forEach(condition => {
       // field search
       if (condition.includes(":")) {
@@ -248,12 +263,102 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           this.notificationService.error("Cannot search by " + executionSearchField);
           return;
         }
-        andPathQuery.push(this.buildAndPathQuery(executionSearchField, executionSearchValue));
+        // handle time searching
+        if (executionSearchField === "sTime" || executionSearchField === "uTime") {
+          const dateRegex = /^([<>]?)(0\d{1}|1[0-2])\/([0-2]\d{1}|3[0-1])\/\d{4}/;
+          var searchDate: RegExpMatchArray | null = executionSearchValue.match(dateRegex);
+          if (!searchDate) {
+            this.notificationService.error("Date format is incorrect");
+            return;
+          }
+          compareOperator = searchDate[1];
+          if (compareOperator == "") {
+            compareOperator = ":";
+            searchDateTimestamp = searchDate[0];
+          } else {
+            compareOperator = searchDate[1];
+            searchDateTimestamp = searchDate[0].substring(1);
+          }
+          // convert string Date to timestamp
+          searchDateTimestamp = Date.parse(searchDateTimestamp).toString();
+          searchDateType = executionSearchField;
+        }
+        // handle status searching
+        else if (executionSearchField === "status") {
+          var statusSearchValue = this.statusMapping.get(executionSearchValue)?.toString();
+          // check if user type correct status
+          if (statusSearchValue === undefined) {
+            this.notificationService.error("Status " + executionSearchValue + " is not avaliable to execution");
+            return;
+          }
+          andPathQuery.push(this.buildAndPathQuery(executionSearchField, statusSearchValue));
+        }
+        // handle all other searches
+        else {
+          andPathQuery.push(this.buildAndPathQuery(executionSearchField, executionSearchValue));
+        }
       } else {
         //search by execution name
         andPathQuery.push(this.buildAndPathQuery("executionName", condition));
+        return;
       }
     });
-    this.workflowExecutionsList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    let searchResults: WorkflowExecutionsEntry[] = this.allExecutionEntries;
+    if (andPathQuery.length !== 0) {
+      searchResults = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    }
+    if (searchDateTimestamp) {
+      searchResults = this.searchTime(searchDateType, compareOperator, searchDateTimestamp, searchResults);
+    }
+    this.workflowExecutionsList = searchResults;
+  }
+
+  /*
+   * Search execution based on date string
+   * String Formats:
+   *  - stime/utime:MM/DD/YYYY (workflows on this date)
+   *  - stime/utime:<MM/DD/YYYY (workflows on or before this date)
+   *  - stime/utime:>MM/DD/YYYY (workflows on or after this date)
+   */
+  private searchTime(
+    searchDateType: string,
+    operator: string,
+    searchDateTimeStamp: string,
+    searchResults: WorkflowExecutionsEntry[]
+  ): WorkflowExecutionsEntry[] {
+    if (searchDateType === "sTime") {
+      return searchResults.filter(executionEntry => {
+        if (executionEntry.startingTime) {
+          if (operator === "<") {
+            return executionEntry.startingTime <= parseInt(searchDateTimeStamp) + 86400000; // 86400000 is the timestamp value of a day
+          } else if (operator === ">") {
+            return executionEntry.startingTime >= parseInt(searchDateTimeStamp);
+          } else if (operator === ":") {
+            return (
+              executionEntry.startingTime >= parseInt(searchDateTimeStamp) &&
+              executionEntry.startingTime <= parseInt(searchDateTimeStamp) + 86400000
+            );
+          }
+          return false;
+        }
+      });
+    } else if (searchDateType === "uTime") {
+      return searchResults.filter(executionEntry => {
+        if (executionEntry.completionTime) {
+          if (operator === "<") {
+            return executionEntry.completionTime <= parseInt(searchDateTimeStamp) + 86400000; // 86400000 is the timestamp value of a day
+          } else if (operator === ">") {
+            return executionEntry.completionTime >= parseInt(searchDateTimeStamp);
+          } else if (operator === ":") {
+            return (
+              executionEntry.completionTime >= parseInt(searchDateTimeStamp) &&
+              executionEntry.completionTime <= parseInt(searchDateTimeStamp) + 86400000
+            );
+          }
+          return false;
+        }
+      });
+    }
+    return searchResults;
   }
 }
