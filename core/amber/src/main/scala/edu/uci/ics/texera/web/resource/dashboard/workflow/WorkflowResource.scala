@@ -2,32 +2,13 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
-  DashboardWorkflowEntry,
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL.groupConcat
+import org.jooq.impl.DSL.{groupConcat, jsonValue}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
@@ -91,7 +72,7 @@ class WorkflowResource {
     def searchWorkflowByOperator(
                                   @QueryParam("operator") operator: String,
                                   @Auth sessionUser: SessionUser
-                                ): List[UInteger] = {
+                                ): List[Int] = {
       // GET localhost:8080/workflow/searchOperators?operator=csv
     val user = sessionUser.getUser
     val quotes = "\""
@@ -111,7 +92,7 @@ class WorkflowResource {
 
       workflowEntries.map(
         workflowRecord =>
-          workflowRecord.into(WORKFLOW).getWid()
+          workflowRecord.into(WORKFLOW).getWid().intValue()
       )
       .toList
     }

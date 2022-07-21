@@ -249,11 +249,12 @@ describe("SavedWorkflowSectionComponent", () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.dashboardWorkflowEntries = component.allDashboardWorkflowEntries; //for if workflows are already displayed, they will remain displayed
     component.workflowSearchValue = "ctime:191090";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual([]);
+    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
   });
 
   it("searchOwner", () => {
