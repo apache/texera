@@ -1,9 +1,9 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
-import { fromEvent, merge } from "rxjs";
+import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { assertType } from "src/app/common/util/assert";
@@ -22,8 +22,11 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map } from "rxjs/operators";
+import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
+import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
+import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 
 // This type represents the copied operator and its information:
 // - operator: the copied operator itself, and its properties, etc.
@@ -78,7 +81,7 @@ export const WORKFLOW_EDITOR_JOINTJS_ID = "texera-workflow-editor-jointjs-body-i
   templateUrl: "./workflow-editor.component.html",
   styleUrls: ["./workflow-editor.component.scss"],
 })
-export class WorkflowEditorComponent implements AfterViewInit {
+export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID;
@@ -97,6 +100,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private copiedOperators = new Map<string, CopiedOperator>(); // References to operators that will be copied
   private copiedGroups = new Map<string, CopiedGroup>(); // NOT REFERENCES, stores this.copyGroup() copies because groups aren't constant
 
+  private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -109,7 +114,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowUtilService: WorkflowUtilService,
     private executeWorkflowService: ExecuteWorkflowService,
     private nzModalService: NzModalService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private undoRedoService: UndoRedoService,
+    private workflowVersionService: WorkflowVersionService,
+    private workflowCollabService: WorkflowCollabService
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -120,7 +128,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return this.paper;
   }
 
+  ngOnDestroy(): void {
+    this._unregisterKeyboard();
+  }
+
   ngAfterViewInit() {
+    this._registerKeyboard();
     this.initializeJointPaper();
     this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
@@ -158,6 +171,42 @@ export class WorkflowEditorComponent implements AfterViewInit {
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
     }
+  }
+
+  private _unregisterKeyboard() {
+    document.removeEventListener("keydown", this._handleKeyboardAction.bind(this));
+  }
+
+  private _registerKeyboard() {
+    document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
+  }
+
+  private _handleKeyboardAction(event: any) {
+    this._onProcessKeyboardActionObservable = new Subject();
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(takeUntil(this._onProcessKeyboardActionObservable))
+      .subscribe(displayParticularWorkflowVersion => {
+        if (!displayParticularWorkflowVersion && this.workflowCollabService.isLockGranted()) {
+          // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
+          if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
+            // UNDO
+            if (this.undoRedoService.canUndo()) {
+              this.undoRedoService.undoAction();
+            }
+          } else if (
+            ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "y") ||
+            ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z")
+          ) {
+            // redo
+            if (this.undoRedoService.canRedo()) {
+              this.undoRedoService.redoAction();
+            }
+          }
+          // below for future hotkeys
+        }
+        this._onProcessKeyboardActionObservable.complete();
+      });
   }
 
   private initializeJointPaper(): void {
