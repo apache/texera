@@ -68,8 +68,11 @@ export class SyncJointModelService {
           }
         }
         if (change.action === "delete") {
+          // Disables JointGraph -> TexeraGraph sync temporarily
+          this.texeraGraph.setSyncTexeraGraph(false);
           this.jointGraph.getCell(key).remove();
           // Emit the event streams here, after joint graph is synced.
+          this.texeraGraph.setSyncTexeraGraph(true);
           this.texeraGraph.operatorDeleteSubject.next({deletedOperatorID:key});
         }
       });
@@ -97,6 +100,7 @@ export class SyncJointModelService {
         // Only highlight when this is added by current user.
         this.jointGraphWrapper.highlightOperators(...newOpIDs);
       }
+      this.texeraGraph.setSyncTexeraGraph(true);
     });
   }
 
@@ -126,7 +130,8 @@ export class SyncJointModelService {
         // Disables JointGraph -> TexeraGraph sync temporarily
         this.texeraGraph.setSyncTexeraGraph(false);
         for (let i = 0; i < keysToDelete.length; i++) {
-          this.jointGraph.getCell(keysToDelete[i]).remove();
+          if (this.jointGraph.getCell(keysToDelete[i]))
+            this.jointGraph.getCell(keysToDelete[i]).remove();
         }
         if (environment.asyncRenderingEnabled) {
           this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
@@ -191,8 +196,10 @@ export class SyncJointModelService {
           this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
         }
         if (change.action === "delete") {
-          this.jointGraphWrapper.hideLinkBreakpoint(key);
-          this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
+          if (this.texeraGraph.operatorLinkMap.has(key)) {
+            this.jointGraphWrapper.hideLinkBreakpoint(key);
+            this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
+          }
         }
       });
     });

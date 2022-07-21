@@ -47,7 +47,6 @@ export class UndoRedoService {
     }
     if (this.undoManager && this.undoManager.canUndo()) {
       this.setListenJointCommand(false);
-      console.log(this.undoManager.undoStack);
       this.undoManager.undo();
       this.setListenJointCommand(true);
     }
@@ -60,7 +59,6 @@ export class UndoRedoService {
     }
     if (this.undoManager && this.undoManager.canRedo()) {
       this.setListenJointCommand(false);
-      console.log(this.undoManager.redoStack);
       this.undoManager.redo();
       this.setListenJointCommand(true);
     }

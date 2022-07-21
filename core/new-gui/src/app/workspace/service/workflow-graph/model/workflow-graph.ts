@@ -169,7 +169,6 @@ export class WorkflowGraph {
     this.assertCommentBoxNotExists(commentBox.commentBoxID);
     const newCommentBox = createYTypeFromObject(commentBox);
     this.commentBoxMap.set(commentBox.commentBoxID, newCommentBox);
-    // console.log(this.commentBoxMap.values().next().value);
   }
 
   public addCommentToCommentBox(comment: Comment, commentBoxID: string): void {
@@ -206,7 +205,6 @@ export class WorkflowGraph {
           });
         }
       });
-      this.commentBoxEditCommentSubject.next({ commentBox: commentBox.toJSON() });
     }
   }
 
@@ -221,7 +219,6 @@ export class WorkflowGraph {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     this.operatorIDMap.delete(operatorID);
-    this.operatorDeleteSubject.next({ deletedOperatorID: operator.operatorID });
   }
 
   public deleteCommentBox(commentBoxID: string): void {
@@ -230,7 +227,6 @@ export class WorkflowGraph {
       throw new Error(`CommentBox with ID ${commentBoxID} does not exist`);
     }
     this.commentBoxMap.delete(commentBoxID);
-    this.commentBoxDeleteSubject.next({ deletedCommentBox: commentBox });
   }
 
   public disableOperator(operatorID: string): void {
