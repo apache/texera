@@ -15,6 +15,8 @@ export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 
+export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
+
 @Injectable({
   providedIn: "root",
 })
@@ -48,7 +50,7 @@ export class WorkflowPersistService {
    */
   public createWorkflow(
     newWorkflowContent: WorkflowContent,
-    newWorkflowName: string = "Untitled workflow"
+    newWorkflowName: string = DEFAULT_WORKFLOW_NAME
   ): Observable<DashboardWorkflowEntry> {
     return this.http
       .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {

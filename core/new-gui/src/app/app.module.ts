@@ -32,6 +32,7 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzUploadModule } from "ng-zorro-antd/upload";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { ColorPickerModule } from "ngx-color-picker";
@@ -214,6 +215,7 @@ registerLocaleData(en);
     NzSliderModule,
     NzSpaceModule,
     NzBadgeModule,
+    NzUploadModule,
     NgxJsonViewerModule,
     MatDialogModule,
     NzCardModule,
