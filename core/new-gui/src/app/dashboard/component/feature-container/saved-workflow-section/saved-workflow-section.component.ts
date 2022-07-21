@@ -55,7 +55,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["workflowName", ["workflow", "name"]],
     ["id", ["workflow", "wid"]],
-    ["owner", ["ownerName"]]
+    ["owner", ["ownerName"]],
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
@@ -165,15 +165,18 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   /**
    * Search workflows based on date string
-   * String Formats: 
+   * String Formats:
    *  - ctime:YYYY-MM-DD (workflows on this date)
    *  - ctime:<YYYY-MM-DD (workflows on or before this date)
    *  - ctime:>YYYY-MM-DD (workflows on or after this date)
    */
-  private searchCreationTime(date: string, filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>): ReadonlyArray<DashboardWorkflowEntry> {
-    const date_regex: RegExp = /^([<>]?)(\d{4})[-/](0[1-9]|1[0-2])[-/](0[1-9]|[12][0-9]|3[01])$/;
+  private searchCreationTime(
+    date: string,
+    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
+  ): ReadonlyArray<DashboardWorkflowEntry> {
+    const date_regex = /^([<>]?)(\d{4})[-/](0[1-9]|1[0-2])[-/](0[1-9]|[12][0-9]|3[01])$/;
     const search_date: RegExpMatchArray | null = date.match(date_regex);
-    if(!search_date){
+    if (!search_date) {
       this.notificationService.error("Date format is incorrect");
       return this.dashboardWorkflowEntries;
       //maintains the displayed saved workflows
@@ -181,24 +184,26 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     const search_year: number = parseInt(search_date[2]);
     const search_month: number = parseInt(search_date[3]); //month: 1-12
     const search_day: number = parseInt(search_date[4]);
-    const search_date_obj: Date = new Date(search_year, search_month-1, search_day); // month: 0-11
-    return filteredDashboardWorkflowEntries.filter( (workflow_entry) => {
+    const search_date_obj: Date = new Date(search_year, search_month - 1, search_day); // month: 0-11
+    return filteredDashboardWorkflowEntries.filter(workflow_entry => {
       //filters for workflows that were created on the specified date
-      if(workflow_entry.workflow.creationTime)
-      {
-        if(search_date[1] === "<") {
+      if (workflow_entry.workflow.creationTime) {
+        if (search_date[1] === "<") {
           return workflow_entry.workflow.creationTime < search_date_obj.getTime() + 86400000;
           //checks if creation time is before or on the specified date
         } else if (search_date[1] === ">") {
-          return workflow_entry.workflow.creationTime >= search_date_obj.getTime(); 
+          return workflow_entry.workflow.creationTime >= search_date_obj.getTime();
           //checks if creation time is after or on the specfied date
         } else {
-          return workflow_entry.workflow.creationTime >= search_date_obj.getTime() && workflow_entry.workflow.creationTime < search_date_obj.getTime() + 86400000; 
+          return (
+            workflow_entry.workflow.creationTime >= search_date_obj.getTime() &&
+            workflow_entry.workflow.creationTime < search_date_obj.getTime() + 86400000
+          );
           //checks if creation time is within the range of the whole day
         }
       }
       return false;
-    } )
+    });
   }
 
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
@@ -206,8 +211,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     workflowSearchField: string,
     workflowSearchValue: string
   ): {
-    $path: ReadonlyArray<string>,
-    $val: string
+    $path: ReadonlyArray<string>;
+    $val: string;
   } {
     return {
       $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
@@ -232,8 +237,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       return;
     }
     const searchConditionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
-    let date: string = "";
-    let operator: string = ""
+    let date = "";
+    let operator = "";
     searchConditionsSet.forEach(condition => {
       // field search
       if (condition.includes(":")) {
@@ -248,7 +253,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           this.notificationService.error("Cannot search by " + workflowSearchField);
           return;
         }
-        if(workflowSearchField === "ctime") {
+        if (workflowSearchField === "ctime") {
           date = workflowSearchValue;
         } else if (workflowSearchField === "operator") {
           operator = workflowSearchValue;
@@ -268,25 +273,25 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *  - operator requires backend, so any searches with the operator conditions are asynchronous
    */
   private combineSearchTypes(date: string, operator: string, andPathQuery: Object[]): void {
-    if(operator){
+    if (operator) {
       //async search that requires backend call
-      this.workflowPersistService.retrieveWorkflowByOperator(operator).pipe(untilDestroyed(this))
-      .subscribe(
-        (list_of_wids) => {
-          if(list_of_wids.length !== 0) {
+      this.workflowPersistService
+        .retrieveWorkflowByOperator(operator)
+        .pipe(untilDestroyed(this))
+        .subscribe(list_of_wids => {
+          if (list_of_wids.length !== 0) {
             let orPathQuery: Object[] = [];
             list_of_wids
-              .map((wid: number) => this.buildAndPathQuery("id", "="+wid.toString())) // exact match extended searching (see https://fusejs.io/)
+              .map((wid: number) => this.buildAndPathQuery("id", "=" + wid.toString())) // exact match extended searching (see https://fusejs.io/)
               .forEach(pathQuery => orPathQuery.push(pathQuery));
-            if(orPathQuery.length != 0) {
-              andPathQuery.push({$or: orPathQuery});
+            if (orPathQuery.length != 0) {
+              andPathQuery.push({ $or: orPathQuery });
             }
             this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
           } else {
             this.notificationService.error("Operator name invalid");
           }
-        }
-      )
+        });
     } else {
       this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
     }
@@ -296,14 +301,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Searches workflows with given Frontend data
    * no backend calls so runs synchronously
    */
-  private synchronousSearch(andPathQuery: Object[], date: string): ReadonlyArray<DashboardWorkflowEntry>{
+  private synchronousSearch(andPathQuery: Object[], date: string): ReadonlyArray<DashboardWorkflowEntry> {
     let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries;
-    if(andPathQuery.length !== 0)
-      searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-    if(date) {
+    if (andPathQuery.length !== 0) searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    if (date) {
       searchOutput = this.searchCreationTime(date, searchOutput);
     }
-    return searchOutput; 
+    return searchOutput;
   }
 
   /**
@@ -542,7 +546,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         }
         this.allDashboardWorkflowEntries = newAllDashboardEntries;
         this.fuse.setCollection(this.allDashboardWorkflowEntries);
-
 
         // update dashboardWorkflowEntries
         const newEntries = this.dashboardWorkflowEntries.slice();

@@ -103,7 +103,7 @@ class WorkflowResource {
       .join(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
       .where(WORKFLOW.CONTENT
-        .like("%"+quotes+"operatorType"+quotes+":"+quotes+s"$operator"+quotes+"%")
+        .likeIgnoreCase("%"+quotes+"operatorType"+quotes+":"+quotes+s"$operator"+quotes+"%")
         //gives error when I try to combine escape character with formatted string
         //may be due to old scala version bug
         .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid)))

@@ -14,7 +14,7 @@ export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
-export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/searchOperators"
+export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/searchOperators";
 
 @Injectable({
   providedIn: "root",
@@ -97,9 +97,9 @@ export class WorkflowPersistService {
   }
 
   public retrieveWorkflowByOperator(operator: string): Observable<number[]> {
-    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`)
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
   }
-  
+
   /**
    * deletes the given workflow, the user in the session must own the workflow.
    */

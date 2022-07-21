@@ -36,36 +36,36 @@ describe("SavedWorkflowSectionComponent", () => {
     wid: 1,
     name: "workflow 1",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000,  //28800000 is 1970-01-01 in PST 
-    lastModifiedTime: 28800000+2,
+    creationTime: 28800000, //28800000 is 1970-01-01 in PST
+    lastModifiedTime: 28800000 + 2,
   };
   const testWorkflow2: Workflow = {
     wid: 2,
     name: "workflow 2",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000+(86400000+3), // 86400000 is the number of milliseconds in a day
-    lastModifiedTime: 28800000+(86400000+3),
+    creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
+    lastModifiedTime: 28800000 + (86400000 + 3),
   };
   const testWorkflow3: Workflow = {
     wid: 3,
     name: "workflow 3",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000+(86400000),
-    lastModifiedTime: 28800000+(86400000+3),
+    creationTime: 28800000 + 86400000,
+    lastModifiedTime: 28800000 + (86400000 + 3),
   };
   const testWorkflow4: Workflow = {
     wid: 4,
     name: "workflow 4",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000+86400003*2,
-    lastModifiedTime: 28800000+(86400000*2)+6,
+    creationTime: 28800000 + 86400003 * 2,
+    lastModifiedTime: 28800000 + 86400000 * 2 + 6,
   };
   const testWorkflow5: Workflow = {
     wid: 5,
     name: "workflow 5",
     content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000+(86400000*2),
-    lastModifiedTime: 28800000+(86400000*2)+8,
+    creationTime: 28800000 + 86400000 * 2,
+    lastModifiedTime: 28800000 + 86400000 * 2 + 8,
   };
   const testWorkflowEntries: DashboardWorkflowEntry[] = [
     {
@@ -103,7 +103,6 @@ describe("SavedWorkflowSectionComponent", () => {
       accessLevel: "Write",
       projectIDs: [],
     },
-
   ];
 
   beforeEach(
@@ -198,8 +197,8 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
-    expect(SortedCase).toEqual(["workflow 1","workflow 2","workflow 3","workflow 4","workflow 5"]);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
   });
 
   it("searchWorkflow", () => {
@@ -209,7 +208,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "1";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]);
   });
 
@@ -220,7 +219,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "ctime:1970-01-02";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 2", "workflow 3"]);
   });
 
@@ -231,7 +230,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "ctime:<1970-01-02";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
   });
 
@@ -242,7 +241,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "ctime:>1970-01-02";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
   });
 
@@ -253,7 +252,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "ctime:191090";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual([]);
   });
 
@@ -264,7 +263,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "owner:Angular";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 4"]);
   });
 
@@ -275,7 +274,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "id:1";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]);
   });
 
@@ -286,7 +285,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.workflowSearchValue = "workflow ctime:1970-01-03 owner:Texera id:5";
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name); 
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 5"]);
   });
 });
