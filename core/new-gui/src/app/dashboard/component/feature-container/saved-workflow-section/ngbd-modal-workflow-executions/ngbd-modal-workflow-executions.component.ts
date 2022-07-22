@@ -68,7 +68,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["Aborted", 4],
   ]);
 
-
   constructor(
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
@@ -314,12 +313,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       this.workflowExecutionsList = this.allExecutionEntries;
       return;
     }
-    // search only by execution name
-    if (!this.executionSearchValue.includes(":")) {
-      andPathQuery.push(this.buildAndPathQuery("executionName", this.executionSearchValue));
-      this.workflowExecutionsList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-      return;
-    }
+
     const searchConditionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
     searchConditionsSet.forEach(condition => {
       // field search
