@@ -149,8 +149,8 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflowExecutionsList = component.allExecutionEntries;
     component.executionSearchValue = "";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    const filteredCase = component.workflowExecutionsList.map(item => item.eId);
+    expect(filteredCase).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it("executionNameFilterTest correctName", () => {
@@ -161,8 +161,8 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflowExecutionsList = component.allExecutionEntries;
     component.executionSearchValue = "cancer";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([6]);
+    const filteredCase = component.workflowExecutionsList.map(item => item.eId);
+    expect(filteredCase).toEqual([6]);
   });
 
   it("userNameFilterTest", () => {
@@ -173,8 +173,8 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflowExecutionsList = component.allExecutionEntries;
     component.executionSearchValue = "user:Amy";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([3]);
+    const filteredCase = component.workflowExecutionsList.map(item => item.eId);
+    expect(filteredCase).toEqual([3]);
   });
 
   it("statusFilterTest", () => {
@@ -185,8 +185,8 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflowExecutionsList = component.allExecutionEntries;
     component.executionSearchValue = "status:Completed";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 2, 3]);
+    const filteredCase = component.workflowExecutionsList.map(item => item.eId);
+    expect(filteredCase).toEqual([1, 2, 3]);
   });
 
   it("filterComboTest", () => {
@@ -197,8 +197,8 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflowExecutionsList = component.allExecutionEntries;
     component.executionSearchValue = "execution1 user:texera";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 7]);
+    const filteredCase = component.workflowExecutionsList.map(item => item.eId);
+    expect(filteredCase).toEqual([1, 7]);
   });
 
   it("executionNameSortTest increasingOrder", () => {

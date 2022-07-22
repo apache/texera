@@ -18,6 +18,7 @@ import Fuse from "fuse.js";
 })
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
+  @Input() workflowName!: string;
 
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
