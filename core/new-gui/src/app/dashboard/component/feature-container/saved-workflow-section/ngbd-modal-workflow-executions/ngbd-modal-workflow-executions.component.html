@@ -27,21 +27,16 @@
         <ul>
           <li>Search by Execution Name: <strong>executionName</strong></li>
           <li>Search by Execution User: <strong>user:John</strong></li>
-          <li>Search by Execution Starting Time: <strong>sTime:MM-DD-YYYY</strong></li>
-          <li>Search by Execution Last Status Updated Time: <strong>uTime:MM-DD-YYYY</strong></li>
           <li>Search by Execution Status: <strong>status:Initializing/Running/Paused/Completed/Aborted</strong></li>
         </ul>
         <strong>
           For any execution name and user name, if the name contains space, using double quotes to enclose the name is
           required.
           <br />
-          For starting time and last status updated time, "before" and "after" searched time is also allowed.
-          <br />Before syntax: sTime:&lt;MM-DD-YYYY; After syntax: sTime:>MM-DD-YYYY
         </strong>
         <br />
-        Example: "Untitled Execution" user:John sTime:07/13/2022 uTime:07/18/2022<br />
-        Meaning: Search for the execution with name Untitled Execution and run by user called John starting on
-        07/13/2022 and last status updated time is 07/18/2022.
+        Example: "Untitled Execution" user:John<br />
+        Meaning: Search for the execution with name Untitled Execution and run by user called John.
       </ng-template>
       <ng-template #prefixPopoverButton>
         <i
