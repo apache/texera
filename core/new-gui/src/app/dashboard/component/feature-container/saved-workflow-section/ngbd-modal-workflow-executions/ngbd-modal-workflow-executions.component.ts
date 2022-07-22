@@ -300,11 +300,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   /**
-   * Search executions by execution name, user name, starting time, last status updating time, or status
+   * Search executions by execution name, user name, or status
    * Use fuse.js https://fusejs.io/ as the tool for searching
    */
   public searchExecution(): void {
-    let andPathQuery: Object[] = [];
     if (this.workflowExecutionsList === undefined) {
       return;
     }
@@ -313,7 +312,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       this.workflowExecutionsList = this.allExecutionEntries;
       return;
     }
-
+    let andPathQuery: Object[] = [];
     const searchConditionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
     searchConditionsSet.forEach(condition => {
       // field search
@@ -337,7 +336,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
             return;
           }
           andPathQuery.push(this.buildAndPathQuery(executionSearchField, statusSearchValue));
-        } else {         // handle all other searches
+        } else {
+          // handle all other searches
           andPathQuery.push(this.buildAndPathQuery(executionSearchField, executionSearchValue));
         }
       } else {
