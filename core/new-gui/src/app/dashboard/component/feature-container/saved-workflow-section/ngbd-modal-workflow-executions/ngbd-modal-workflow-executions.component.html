@@ -56,7 +56,7 @@
       </ng-template>
       <nz-autocomplete
         [nzDefaultActiveFirstOption]="false"
-        [nzDataSource]="!executionSearchValue.includes(':') ? filteredExecutionNames : []"
+        [nzDataSource]="filteredExecutionNames"
         nzBackfill
         #auto
       ></nz-autocomplete>
@@ -100,7 +100,6 @@
               (click)="onBookmarkToggle(row)"
             ></i>
           </td>
-          <td nzEllipsis>{{(i + 1)}}</td>
           <td nzEllipsis>{{row.userName || "anonymous" }}</td>
           <td nzEllipsis>
             <label
