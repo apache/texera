@@ -145,6 +145,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
     component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "";
@@ -157,6 +158,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
     component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "cancer";
@@ -169,6 +171,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
     component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "user:Amy";
@@ -181,6 +184,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
     component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "status:Completed";
@@ -193,6 +197,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
     component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "execution1 user:texera";
