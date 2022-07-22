@@ -32,6 +32,7 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzUploadModule } from "ng-zorro-antd/upload";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { ColorPickerModule } from "ngx-color-picker";
@@ -51,7 +52,6 @@ import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { FeatureBarComponent } from "./dashboard/component/feature-bar/feature-bar.component";
 import { FeatureContainerComponent } from "./dashboard/component/feature-container/feature-container.component";
 import { NgbdModalAddWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component";
-import { NgbdModalDeleteWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
 import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
@@ -106,6 +106,7 @@ import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wr
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
 
 registerLocaleData(en);
 
@@ -128,7 +129,6 @@ registerLocaleData(en);
     FeatureContainerComponent,
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
-    NgbdModalDeleteWorkflowComponent,
     UserLoginModalComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
@@ -165,6 +165,7 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
+    DeletePromptComponent,
   ],
   imports: [
     BrowserModule,
@@ -214,6 +215,7 @@ registerLocaleData(en);
     NzSliderModule,
     NzSpaceModule,
     NzBadgeModule,
+    NzUploadModule,
     NgxJsonViewerModule,
     MatDialogModule,
     NzCardModule,
