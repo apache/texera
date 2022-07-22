@@ -46,20 +46,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public allExecutionEntries: WorkflowExecutionsEntry[] = [];
   public filteredExecutionNames: Array<string> = [];
   public executionSearchValue: string = "";
-  public searchCriteria: string[] = ["user", "sTime", "uTime", "status"];
+  public searchCriteria: string[] = ["user", "status"];
   public fuse = new Fuse([] as ReadonlyArray<WorkflowExecutionsEntry>, {
     shouldSort: true,
     threshold: 0.2,
     location: 0,
     distance: 100,
     minMatchCharLength: 1,
-    keys: ["name", "userName", "sTime", "uTime", "status"],
+    keys: ["name", "userName", "status"],
   });
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["executionName", ["name"]],
     ["user", ["userName"]],
-    ["sTime", ["startingTime"]],
-    ["uTime", ["completionTime"]],
     ["status", ["status"]],
   ]);
   public statusMapping: Map<string, number> = new Map([

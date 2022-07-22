@@ -198,7 +198,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.executionSearchValue = "execution1 user:texera";
     component.searchExecution();
     const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1]);
+    expect(SortedCase).toEqual([1, 7]);
   });
 
   it("executionNameSortTest increasingOrder", () => {
