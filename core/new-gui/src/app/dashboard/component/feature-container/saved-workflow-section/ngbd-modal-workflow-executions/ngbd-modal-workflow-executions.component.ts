@@ -21,7 +21,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
-
+  public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
     "",
     "",
@@ -32,7 +32,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     "Status",
     "",
   ];
-
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
     Name: "Workflow Name",
@@ -42,7 +41,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     Status: "Current Status of Workflow Execution",
   };
 
-  public executionEntries: ReadonlyArray<WorkflowExecutionsEntry> = [];
+  /** variables related to executions filtering
+   */
   public allExecutionEntries: WorkflowExecutionsEntry[] = [];
   public filteredExecutionNames: Array<string> = [];
   public executionSearchValue: string = "";
@@ -67,8 +67,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["completed", 3],
     ["aborted", 4],
   ]);
-
-  public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -304,26 +302,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   /**
-   * Search workflows by owner name, workflow name or workflow id
+   * Search executions by execution name, user name, or status
    * Use fuse.js https://fusejs.io/ as the tool for searching
    */
   public searchExecution(): void {
-    let andPathQuery: Object[] = [];
     if (this.workflowExecutionsList === undefined) {
       return;
     }
-    // empty search value, return all workflow entries
+    // empty search value, return all execution entries
     if (this.executionSearchValue.trim() === "") {
-      this.workflowExecutionsList = [...this.allExecutionEntries];
-      return;
-    } else if (!this.executionSearchValue.includes(":")) {
-      // search only by execution name
-      andPathQuery.push(this.buildAndPathQuery("executionName", this.executionSearchValue));
-      this.workflowExecutionsList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+      this.workflowExecutionsList = this.allExecutionEntries;
       return;
     }
-    const searchConsitionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
-    searchConsitionsSet.forEach(condition => {
+    let andPathQuery: Object[] = [];
+    const searchConditionsSet = new Set(this.executionSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    searchConditionsSet.forEach(condition => {
       // field search
       if (condition.includes(":")) {
         const conditionArray = condition.split(":");
@@ -341,13 +334,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           var statusSearchValue = this.statusMapping.get(executionSearchValue)?.toString();
           // check if user type correct status
           if (statusSearchValue === undefined) {
-            this.notificationService.error("Status " + executionSearchValue + " is not avaliable to execution");
+            this.notificationService.error("Status " + executionSearchValue + " is not available to execution");
             return;
           }
           andPathQuery.push(this.buildAndPathQuery(executionSearchField, statusSearchValue));
-        }
-        // handle all other searches
-        else {
+        } else {
+          // handle all other searches
           andPathQuery.push(this.buildAndPathQuery(executionSearchField, executionSearchValue));
         }
       } else {
