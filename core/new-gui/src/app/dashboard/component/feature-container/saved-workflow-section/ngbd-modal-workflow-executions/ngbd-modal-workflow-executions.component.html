@@ -101,8 +101,6 @@
               nzType="star"
               class="bookmark-icon"
               [nzTheme]="(row.bookmarked || currentlyHoveredExecution === row) ? 'fill' : 'outline'"
-              (mouseenter)="currentlyHoveredExecution = row"
-              (mouseleave)="currentlyHoveredExecution = undefined"
               (click)="onBookmarkToggle(row)"
             ></i>
           </td>
