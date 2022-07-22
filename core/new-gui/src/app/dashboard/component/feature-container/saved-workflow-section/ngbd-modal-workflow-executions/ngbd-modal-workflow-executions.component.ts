@@ -19,7 +19,6 @@ import Fuse from "fuse.js";
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
-
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
@@ -56,7 +55,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     minMatchCharLength: 1,
     keys: ["name", "userName", "status"],
   });
-  
+
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["executionName", ["name"]],
     ["user", ["userName"]],
@@ -74,7 +73,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NgbModal,
-    private notificationService: NotificationService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -249,7 +248,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   public searchInputOnChange(value: string): void {
-    console.log(this.filteredExecutionNames)
+    console.log(this.filteredExecutionNames);
     // enable autocomplete only when searching for execution name
     if (!value.includes(":")) {
       const filteredExecutionNames: string[] = [];
@@ -263,18 +262,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     }
     if (value.includes("user:")) {
       const filteredExecutionNames: string[] = [];
-      const searchUserName = value.slice(value.indexOf("user:")+5);
+      const searchUserName = value.slice(value.indexOf("user:") + 5);
       this.allExecutionEntries.forEach(executionEntry => {
         const userName = executionEntry.userName;
         if (userName.toLowerCase().indexOf(searchUserName.toLowerCase()) !== -1) {
-          filteredExecutionNames.push(value.slice(0,value.indexOf("user:")+5)+userName);
+          filteredExecutionNames.push(value.slice(0, value.indexOf("user:") + 5) + userName);
         }
       });
       this.filteredExecutionNames = [...new Set(filteredExecutionNames)];
     }
     if (value.includes("status:")) {
       const filteredExecutionNames: string[] = [];
-      const searchStatus = value.slice(value.indexOf("status:")+7).toLowerCase();
+      const searchStatus = value.slice(value.indexOf("status:") + 7).toLowerCase();
       this.allExecutionEntries.forEach(executionEntry => {
         // map value to key
         const status = [...this.statusMapping.entries()]
@@ -284,7 +283,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           return;
         }
         if (status.toLowerCase().indexOf(searchStatus.toLowerCase()) !== -1) {
-          filteredExecutionNames.push(value.slice(0,value.indexOf("status:")+7)+status);
+          filteredExecutionNames.push(value.slice(0, value.indexOf("status:") + 7) + status);
         }
       });
       this.filteredExecutionNames = [...new Set(filteredExecutionNames)];
