@@ -19,6 +19,7 @@ import Fuse from "fuse.js";
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
 
+
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
@@ -55,6 +56,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     minMatchCharLength: 1,
     keys: ["name", "userName", "status"],
   });
+  
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["executionName", ["name"]],
     ["user", ["userName"]],
@@ -72,7 +74,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NgbModal,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
   ) {}
 
   ngOnInit(): void {
@@ -258,7 +260,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         }
       });
       this.filteredExecutionNames = [...new Set(filteredExecutionNames)];
-    } else if (value.includes("user:")) {
+    }
+    if (value.includes("user:")) {
       const filteredExecutionNames: string[] = [];
       const searchUserName = value.slice(value.indexOf("user:")+5);
       this.allExecutionEntries.forEach(executionEntry => {
@@ -268,7 +271,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         }
       });
       this.filteredExecutionNames = [...new Set(filteredExecutionNames)];
-    } else if (value.includes("status:")) {
+    }
+    if (value.includes("status:")) {
       const filteredExecutionNames: string[] = [];
       const searchStatus = value.slice(value.indexOf("status:")+7).toLowerCase();
       this.allExecutionEntries.forEach(executionEntry => {
