@@ -76,6 +76,12 @@ class WorkflowResource {
       // GET localhost:8080/workflow/searchOperators?operator=csv
     val user = sessionUser.getUser
     val quotes = "\""
+    var operator_name = ""
+    if(operator.startsWith("\"") && operator.endsWith("\"")) {
+      operator_name = operator.stripPrefix("\"").stripSuffix("\"").replaceAllLiterally(" ", "")
+    } else {
+      operator_name = operator
+    }
     val workflowEntries = context
       .select(
         WORKFLOW.WID
@@ -84,7 +90,7 @@ class WorkflowResource {
       .join(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
       .where(WORKFLOW.CONTENT
-        .likeIgnoreCase("%"+quotes+"operatorType"+quotes+":"+quotes+s"$operator"+quotes+"%")
+        .likeIgnoreCase("%"+quotes+"operatorType"+quotes+":"+quotes+s"$operator_name"+quotes+"%")
         //gives error when I try to combine escape character with formatted string
         //may be due to old scala version bug
         .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid)))
