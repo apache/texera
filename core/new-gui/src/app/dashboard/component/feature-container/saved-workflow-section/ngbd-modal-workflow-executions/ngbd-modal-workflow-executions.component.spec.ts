@@ -177,78 +177,6 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     expect(SortedCase).toEqual([3]);
   });
 
-  it("startingTimeFilterTest ':'", () => {
-    component.workflow = workflow;
-    component.allExecutionEntries = [];
-    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
-    component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
-    component.executionSearchValue = "sTime:07/13/2022";
-    component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1]);
-  });
-
-  it("startingTimeFilterTest '<'", () => {
-    component.workflow = workflow;
-    component.allExecutionEntries = [];
-    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
-    component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
-    component.executionSearchValue = "sTime:<07/13/2022";
-    component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 3, 4, 5]);
-  });
-
-  it("startingTimeFilterTest '>'", () => {
-    component.workflow = workflow;
-    component.allExecutionEntries = [];
-    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
-    component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
-    component.executionSearchValue = "sTime:>07/13/2022";
-    component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 2, 6, 7]);
-  });
-
-  it("updatingTimeFilterTest ':'", () => {
-    component.workflow = workflow;
-    component.allExecutionEntries = [];
-    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
-    component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
-    component.executionSearchValue = "uTime:07/13/2022";
-    component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1]);
-  });
-
-  it("updatingTimeFilterTest '<'", () => {
-    component.workflow = workflow;
-    component.allExecutionEntries = [];
-    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
-    component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
-    component.executionSearchValue = "uTime:<07/13/2022";
-    component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 3, 4, 5]);
-  });
-
-  it("updatingTimeFilterTest '>'", () => {
-    component.workflow = workflow;
-    component.allExecutionEntries = [];
-    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
-    component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
-    component.executionSearchValue = "uTime:>07/13/2022";
-    component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 2, 6, 7]);
-  });
-
   it("statusFilterTest", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
@@ -267,7 +195,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
     component.fuse.setCollection(component.allExecutionEntries);
     component.workflowExecutionsList = component.allExecutionEntries;
-    component.executionSearchValue = "execution1 user:texera uTime:07/13/2022";
+    component.executionSearchValue = "execution1 user:texera";
     component.searchExecution();
     const SortedCase = component.workflowExecutionsList.map(item => item.eId);
     expect(SortedCase).toEqual([1]);
