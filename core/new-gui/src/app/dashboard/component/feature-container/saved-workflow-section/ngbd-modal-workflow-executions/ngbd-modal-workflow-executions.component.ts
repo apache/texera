@@ -248,7 +248,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   public searchInputOnChange(value: string): void {
-    console.log(this.filteredExecutionNames);
     // enable autocomplete only when searching for execution name
     if (!value.includes(":")) {
       const filteredExecutionNames: string[] = [];
@@ -328,7 +327,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           return;
         }
         const executionSearchField = conditionArray[0];
-        const executionSearchValue = conditionArray[1];
+        const executionSearchValue = conditionArray[1].toLowerCase();
         if (!this.searchCriteria.includes(executionSearchField)) {
           this.notificationService.error("Cannot search by " + executionSearchField);
           return;
@@ -348,7 +347,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       } else {
         //search by execution name
         andPathQuery.push(this.buildAndPathQuery("executionName", condition));
-        return;
       }
     });
     this.workflowExecutionsList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
