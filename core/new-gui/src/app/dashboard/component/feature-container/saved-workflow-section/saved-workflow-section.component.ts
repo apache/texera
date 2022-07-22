@@ -17,6 +17,9 @@ import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-exec
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
 import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
+import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { NzUploadFile } from "ng-zorro-antd/upload";
+import { saveAs } from "file-saver";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -113,6 +116,28 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       windowClass: "modal-xl",
     });
     modalRef.componentInstance.workflow = workflow;
+  }
+
+  /**
+   * Download the workflow as a json file
+   */
+  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
+    if (wid) {
+      this.workflowPersistService
+        .retrieveWorkflow(wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(data => {
+          const workflowCopy: Workflow = {
+            ...data,
+            wid: undefined,
+            creationTime: undefined,
+            lastModifiedTime: undefined,
+          };
+          const workflowJson = JSON.stringify(workflowCopy);
+          const fileName = workflowCopy.name + ".json";
+          saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
+        });
+    }
   }
 
   /**
@@ -263,6 +288,39 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public onClickCreateNewWorkflowFromDashboard(): void {
     this.router.navigate([`${ROUTER_WORKFLOW_CREATE_NEW_URL}`], { queryParams: { pid: this.pid } }).then(null);
   }
+
+  /**
+   * create a new workflow based on uploaded json file
+   */
+  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
+    var reader = new FileReader();
+    reader.readAsText(file as unknown as Blob);
+    reader.onload = () => {
+      try {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          throw new Error("Incorrect format: file is not a string");
+        }
+        const workflowContent = JSON.parse(result).content as WorkflowContent;
+        const workflowName = JSON.parse(result).name as string;
+        this.workflowPersistService
+          .createWorkflow(workflowContent, workflowName)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: uploadedWorkflow => {
+              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
+            },
+            error: (err: unknown) => alert(err),
+          });
+      } catch (error) {
+        this.notificationService.error(
+          "An error occurred when importing the workflow. Please import a workflow json file."
+        );
+        console.error(error);
+      }
+    };
+    return false;
+  };
 
   /**
    * duplicate the current workflow. A new record will appear in frontend
@@ -422,7 +480,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.searchWorkflow();
     }
   }
-
   /**
    * For color tags, enable clicking 'x' to remove a workflow from a project
    *
