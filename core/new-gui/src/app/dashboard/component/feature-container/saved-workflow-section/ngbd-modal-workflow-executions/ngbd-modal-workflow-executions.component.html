@@ -14,7 +14,6 @@
         autocomplete="on"
         nz-input
         placeholder="Search all workflows"
-        (ngModelChange)="searchInputOnChange($event)"
         type="text"
         [nzAutocomplete]="auto"
         (keyup.enter)="searchExecution()"
@@ -58,7 +57,19 @@
     </nz-input-group>
   </nz-card>
   <div class="modal-body table-responsive">
-    <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
+    <nz-table
+      *ngIf="workflowExecutionsDisplayedList"
+      [nzShowSizeChanger]="true"
+      [nzPageSizeOptions]="pageSizeOptions"
+      [nzData]="workflowExecutionsDisplayedList"
+      [nzShowPagination]="true"
+      [nzPageSize]="pageSize"
+      [nzPageIndex]="currentPageIndex"
+      [nzTotal]="numOfExecutions"
+      [nzFrontPagination]="false"
+      (nzPageSizeChange)="onPageSizeChange($event)"
+      (nzPageIndexChange)="onPageIndexChange($event)"
+    >
       <thead>
         <tr>
           <th
@@ -80,7 +91,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let row of workflowExecutionsList; let i=index;">
+        <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
           <td nzEllipsis>
             <input type="checkbox" />
           </td>

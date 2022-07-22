@@ -24,8 +24,6 @@ object WorkflowExecutionsResource {
     executionsDao.fetchOneByEid(eId)
   }
 
-  // TODO: determine if this is necessary in providing more information of the
-  //  execution than pre-existing jooq tables e.g. the underlying result rows.
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
