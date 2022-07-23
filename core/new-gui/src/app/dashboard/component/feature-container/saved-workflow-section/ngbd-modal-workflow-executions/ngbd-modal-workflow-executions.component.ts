@@ -283,7 +283,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           : value;
       }
       const filteredExecutionInfo: string[] = [];
-      this.allExecutionEntries.forEach(executionEntry => {
+      this.paginatedExecutionEntries.forEach(executionEntry => {
         const searchField = this.searchCriteriaPathMapping.get(executionSearchField);
         var executionInfo = "";
         if (searchField === undefined) {
@@ -395,6 +395,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    * Change current page list everytime the page change
    */
   changePaginatedExecutions(): WorkflowExecutionsEntry[] {
+    this.executionSearchValue = "";
     return this.allExecutionEntries?.slice(
       (this.currentPageIndex - 1) * this.pageSize,
       this.currentPageIndex * this.pageSize
