@@ -55,6 +55,6 @@ class WorkerAsyncRPCHandlerInitializer(
     with BackpressureHandler
     with SaveSkewedWorkerInfoHandler
     with AcceptMutableStateHandler
-    with StoreInlinkIdsHandler {
+    with StoreUpstreamLinkIdsHandler {
   var lastReportTime = 0L
 }

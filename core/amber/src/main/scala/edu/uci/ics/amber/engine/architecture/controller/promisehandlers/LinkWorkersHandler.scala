@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StoreInlinkIdsHandler.StoreUpstreamlinkIds
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StoreUpstreamLinkIdsHandler.StoreUpstreamLinkIds
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
@@ -34,11 +34,14 @@ trait LinkWorkersHandler {
             .filter(workerId => !scheduler.workersKnowingAllInlinks.contains(workerId))
             .map(workerId => {
               send(
-                StoreUpstreamlinkIds(
+                StoreUpstreamLinkIds(
                   workflow.getInlinksIdsToWorkerLayer(workflow.workerToLayer(workerId).id)
                 ),
                 workerId
-              ).map(_ => scheduler.workersKnowingAllInlinks.add(workerId))
+              ).map(_ => {
+                scheduler.workersKnowingAllInlinks.add(workerId)
+                Unit
+              })
             })
       }
 

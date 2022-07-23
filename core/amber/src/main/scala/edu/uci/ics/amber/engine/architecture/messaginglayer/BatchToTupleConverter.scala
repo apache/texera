@@ -42,7 +42,7 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     inputMap(identifier) = input
   }
 
-  def updateAllUpstreamLinkIds(linkIds: Set[LinkIdentity]) = allUpstreamLinkIds = linkIds
+  def updateAllUpstreamLinkIds(linkIds: Set[LinkIdentity]): Unit = { allUpstreamLinkIds = linkIds }
 
   /** This method handles various data payloads and put different
     * element into the internal queue.
