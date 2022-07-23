@@ -18,8 +18,8 @@ import { concatMap, catchError } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
-import { ListKeyManager } from "@angular/cdk/a11y";
-import { sync } from "backbone";
+import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
+
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -78,6 +78,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
+    private operatorMetadataService: OperatorMetadataService,
     private modalService: NgbModal,
     private router: Router
   ) {}
@@ -207,7 +208,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
-  public buildAndPathQuery(
+  private buildAndPathQuery(
     workflowSearchField: string,
     workflowSearchValue: string
   ): {
@@ -218,6 +219,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
       $val: workflowSearchValue,
     };
+  }
+
+  private getPureWorkflowSearchValue(workflowSearchValue: string): string{
+    if(workflowSearchValue.startsWith("\"") && workflowSearchValue.endsWith("\""))
+    {
+      return workflowSearchValue.substring(1, workflowSearchValue.length-1);
+    }
+    return workflowSearchValue;
   }
 
   /**
@@ -256,7 +265,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         if (workflowSearchField === "ctime") {
           date = workflowSearchValue;
         } else if (workflowSearchField === "operator") {
-          operator = workflowSearchValue;
+          operator = this.getPureWorkflowSearchValue(workflowSearchValue)
         } else {
           andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
         }
@@ -269,12 +278,16 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Search and display workflows based on the specified conditions (name, owner, id, creation time, operator)
+   * Search and display workflows based on specified conditions (name, owner, id, creation time, operator)
    *  - operator requires backend, so any searches with the operator conditions are asynchronous
    */
   private combineSearchTypes(date: string, operator: string, andPathQuery: Object[]): void {
     if (operator) {
       //async search that requires backend call
+      if(!this.operatorMetadataService.operatorTypeExists(operator, true, true)) {
+        this.notificationService.error("Operator Name Invalid");
+        return;
+      }
       this.workflowPersistService
         .retrieveWorkflowByOperator(operator)
         .pipe(untilDestroyed(this))
@@ -288,8 +301,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
               andPathQuery.push({ $or: orPathQuery });
             }
             this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
-          } else {
-            this.notificationService.error("Operator name invalid");
           }
         });
     } else {

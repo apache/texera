@@ -81,17 +81,30 @@ export class OperatorMetadataService {
   }
 
   /**
-   * Returns if the operator type exists *in the current operator metadata*.
+   * Returns true if the operator type exists *in the current operator metadata*.
    * For example, if the first HTTP request to the backend hasn't returned yet,
    *  the current operator metadata is empty, and no operator type exists.
    *
    * @param operatorType
    */
-  public operatorTypeExists(operatorType: string): boolean {
+  public operatorTypeExists(operatorType: string, userFriendlyNameFilter: boolean = false, caseInsensitive: boolean = false): boolean {
     if (!this.currentOperatorMetadata) {
       return false;
     }
-    const operator = this.currentOperatorMetadata.operators.filter(op => op.operatorType === operatorType);
+    const operator = this.currentOperatorMetadata.operators.filter((op) => {
+      let operatorTypeInMetadata= op.operatorType;
+      let operatorNameInMetadata = op.additionalMetadata.userFriendlyName;
+      if(caseInsensitive) {
+        operatorTypeInMetadata = operatorTypeInMetadata.toLowerCase();
+        operatorNameInMetadata = operatorNameInMetadata.toLowerCase();
+        operatorType = operatorType.toLowerCase();
+      }
+      if(userFriendlyNameFilter) {
+        return operatorTypeInMetadata === operatorType || operatorNameInMetadata === operatorType;
+      } else {
+        return operatorTypeInMetadata === operatorType;
+      }
+    });
     if (operator.length === 0) {
       return false;
     }

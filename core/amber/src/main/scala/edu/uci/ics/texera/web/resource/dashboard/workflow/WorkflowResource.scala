@@ -76,12 +76,7 @@ class WorkflowResource {
       // GET localhost:8080/workflow/searchOperators?operator=csv
     val user = sessionUser.getUser
     val quotes = "\""
-    var operator_name = ""
-    if(operator.startsWith("\"") && operator.endsWith("\"")) {
-      operator_name = operator.stripPrefix("\"").stripSuffix("\"").replaceAllLiterally(" ", "")
-    } else {
-      operator_name = operator
-    }
+    val operator_name = operator.replaceAllLiterally(" ", "")
     val workflowEntries = context
       .select(
         WORKFLOW.WID
