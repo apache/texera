@@ -268,8 +268,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   public searchInputOnChange(value: string): void {
     const searchConditionsSet = [...new Set(value.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g))];
-    searchConditionsSet.forEach((condition,index) => {
-      const preCondition = searchConditionsSet.slice(0,index);
+    searchConditionsSet.forEach((condition, index) => {
+      const preCondition = searchConditionsSet.slice(0, index);
       var executionSearchField = "";
       var executionSearchValue = "";
       if (condition.includes(":")) {
@@ -278,38 +278,40 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         executionSearchValue = conditionArray[1];
       } else {
         executionSearchField = "executionName";
-        executionSearchValue = (preCondition)
-                              ? value.slice(preCondition.map(c => c.length).reduce((a,b)=>a+b,0)+preCondition.length) 
-                              : value;
+        executionSearchValue = preCondition
+          ? value.slice(preCondition.map(c => c.length).reduce((a, b) => a + b, 0) + preCondition.length)
+          : value;
       }
       const filteredExecutionInfo: string[] = [];
       this.allExecutionEntries.forEach(executionEntry => {
         const searchField = this.searchCriteriaPathMapping.get(executionSearchField);
         var executionInfo = "";
         if (searchField === undefined) {
-          return 
+          return;
         } else {
-          executionInfo = (searchField[0]==="status")
-                          ? [...this.statusMapping.entries()]
-                            .filter(({ 1: val }) => val === executionEntry.status)
-                            .map(([key]) => key)[0]
-                          : Object.values(executionEntry)[Object.keys(executionEntry).indexOf(searchField[0])];
-}
-        if (executionInfo.toLowerCase().indexOf((executionSearchValue).toLowerCase()) !== -1) {
+          executionInfo =
+            searchField[0] === "status"
+              ? [...this.statusMapping.entries()]
+                  .filter(({ 1: val }) => val === executionEntry.status)
+                  .map(([key]) => key)[0]
+              : Object.values(executionEntry)[Object.keys(executionEntry).indexOf(searchField[0])];
+        }
+        if (executionInfo.toLowerCase().indexOf(executionSearchValue.toLowerCase()) !== -1) {
           var filterQuery = "";
           if (preCondition.length !== 0) {
-            filterQuery =  (executionSearchField==="executionName")
-                          ? preCondition.join(" ") + " " + executionInfo 
-                          : preCondition.join(" ") + " " + executionSearchField + ":" + executionInfo;
+            filterQuery =
+              executionSearchField === "executionName"
+                ? preCondition.join(" ") + " " + executionInfo
+                : preCondition.join(" ") + " " + executionSearchField + ":" + executionInfo;
           } else {
-            filterQuery = (executionSearchField==="executionName")
-                        ? executionInfo : (executionSearchField+":")+executionInfo;
+            filterQuery =
+              executionSearchField === "executionName" ? executionInfo : executionSearchField + ":" + executionInfo;
           }
           filteredExecutionInfo.push(filterQuery);
         }
       });
       this.filteredExecutionInfo = [...new Set(filteredExecutionInfo)];
-    })
+    });
   }
 
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
