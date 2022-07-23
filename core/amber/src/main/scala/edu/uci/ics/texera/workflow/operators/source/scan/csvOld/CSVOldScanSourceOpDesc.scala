@@ -31,7 +31,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonPropertyDescription("whether the CSV file contains a header line")
   var hasHeader: Boolean = true
 
-  fileTypeName = Option("CSV")
+  fileTypeName = Option("CSVOld")
 
   @throws[IOException]
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {

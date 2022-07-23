@@ -18,7 +18,7 @@ class CSVOldScanSourceOpExec private[csv] (val desc: CSVOldScanSourceOpDesc)
       .map(fields =>
         try {
           val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-            fields.toArray,
+            fields.toArray.asInstanceOf[Array[Object]],
             schema.getAttributes
               .map((attr: Attribute) => attr.getType)
               .toArray
