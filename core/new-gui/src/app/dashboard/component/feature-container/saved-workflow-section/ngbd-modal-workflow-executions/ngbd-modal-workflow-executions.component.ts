@@ -10,6 +10,7 @@ import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.comp
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 import { filter } from "lodash";
+import { defaultEnvironment } from "../../../../../../environments/environment.default";
 
 @UntilDestroy()
 @Component({
@@ -19,8 +20,9 @@ import { filter } from "lodash";
 })
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   @Input() workflow!: Workflow;
+  @Input() workflowName!: string;
 
-  public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
+  public workflowExecutionsDisplayedList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
@@ -56,6 +58,14 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     minMatchCharLength: 1,
     keys: ["name", "userName", "status"],
   });
+
+  // Pagination attributes
+  public isAscSort: boolean = true;
+  public currentPageIndex: number = defaultEnvironment.defaultPageIndex;
+  public pageSize: number = defaultEnvironment.defaultPageSize;
+  public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
+  public numOfExecutions: number = defaultEnvironment.defaultNumOfItems;
+  public paginatedExecutionEntries: WorkflowExecutionsEntry[] = [];
 
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["executionName", ["name"]],
@@ -94,8 +104,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
-        this.workflowExecutionsList = this.allExecutionEntries;
-        this.fuse.setCollection(this.allExecutionEntries);
+        this.numOfExecutions = workflowExecutions.length;
+        this.paginatedExecutionEntries = this.changePaginatedExecutions();
+        this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+        this.fuse.setCollection(this.paginatedExecutionEntries);
       });
   }
 
@@ -154,8 +166,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
             .subscribe({
               complete: () => {
                 this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-                this.workflowExecutionsList?.splice(this.workflowExecutionsList.indexOf(row), 1);
-                this.fuse.setCollection(this.allExecutionEntries);
+                this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
+                this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
+                this.fuse.setCollection(this.paginatedExecutionEntries);
               },
             });
         }
@@ -180,12 +193,17 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (this.workflowExecutionsList === undefined) {
+        if (this.workflowExecutionsDisplayedList === undefined) {
           return;
         }
         // change the execution name globally
-        this.allExecutionEntries[this.allExecutionEntries.indexOf(this.workflowExecutionsList[index])].name = name;
-        this.workflowExecutionsList[index].name = name;
+        this.allExecutionEntries[this.allExecutionEntries.indexOf(this.workflowExecutionsDisplayedList[index])].name =
+          name;
+        this.paginatedExecutionEntries[
+          this.paginatedExecutionEntries.indexOf(this.workflowExecutionsDisplayedList[index])
+        ].name = name;
+        this.workflowExecutionsDisplayedList[index].name = name;
+        this.fuse.setCollection(this.paginatedExecutionEntries);
       })
       .add(() => {
         this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
@@ -199,21 +217,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   ascSort(type: string): void {
     if (type === "Name") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
     } else if (type === "Username") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
     } else if (type === "Starting Time") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
           exe1.startingTime > exe2.startingTime ? 1 : exe2.startingTime > exe1.startingTime ? -1 : 0
         );
     } else if (type == "Last Status Updated Time") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
           exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
@@ -226,21 +244,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   dscSort(type: string): void {
     if (type === "Name") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
     } else if (type === "Username") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
     } else if (type === "Starting Time") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
           exe1.startingTime < exe2.startingTime ? 1 : exe2.startingTime < exe1.startingTime ? -1 : 0
         );
     } else if (type == "Last Status Updated Time") {
-      this.workflowExecutionsList = this.workflowExecutionsList
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
           exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
@@ -313,12 +331,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
    * Use fuse.js https://fusejs.io/ as the tool for searching
    */
   public searchExecution(): void {
-    if (this.workflowExecutionsList === undefined) {
-      return;
-    }
     // empty search value, return all execution entries
     if (this.executionSearchValue.trim() === "") {
-      this.workflowExecutionsList = this.allExecutionEntries;
+      this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
       return;
     }
     let andPathQuery: Object[] = [];
@@ -332,7 +347,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           return;
         }
         const executionSearchField = conditionArray[0];
-        const executionSearchValue = conditionArray[1];
+        const executionSearchValue = conditionArray[1].toLowerCase();
         if (!this.searchCriteria.includes(executionSearchField)) {
           this.notificationService.error("Cannot search by " + executionSearchField);
           return;
@@ -352,9 +367,35 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       } else {
         //search by execution name
         andPathQuery.push(this.buildAndPathQuery("executionName", condition));
-        return;
       }
     });
-    this.workflowExecutionsList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    this.workflowExecutionsDisplayedList = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+  }
+
+  /* Pagination handler */
+  /* Assign new page index and change current list */
+  onPageIndexChange(pageIndex: number): void {
+    this.currentPageIndex = pageIndex;
+    this.paginatedExecutionEntries = this.changePaginatedExecutions();
+    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+    this.fuse.setCollection(this.paginatedExecutionEntries);
+  }
+
+  /* Assign new page size and change current list */
+  onPageSizeChange(pageSize: number): void {
+    this.pageSize = pageSize;
+    this.paginatedExecutionEntries = this.changePaginatedExecutions();
+    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+    this.fuse.setCollection(this.paginatedExecutionEntries);
+  }
+
+  /**
+   * Change current page list everytime the page change
+   */
+  changePaginatedExecutions(): WorkflowExecutionsEntry[] {
+    return this.allExecutionEntries?.slice(
+      (this.currentPageIndex - 1) * this.pageSize,
+      this.currentPageIndex * this.pageSize
+    );
   }
 }

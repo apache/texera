@@ -145,138 +145,143 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
+    component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    const filteredCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
+    expect(filteredCase).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it("executionNameFilterTest correctName", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
+    component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "cancer";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([6]);
+    const filteredCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
+    expect(filteredCase).toEqual([6]);
   });
 
   it("userNameFilterTest", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
+    component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "user:Amy";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([3]);
+    const filteredCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
+    expect(filteredCase).toEqual([3]);
   });
 
   it("statusFilterTest", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
+    component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "status:Completed";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 2, 3]);
+    const filteredCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
+    expect(filteredCase).toEqual([1, 2, 3]);
   });
 
   it("filterComboTest", () => {
     component.workflow = workflow;
     component.allExecutionEntries = [];
     component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
+    component.paginatedExecutionEntries = component.allExecutionEntries;
     component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsList = component.allExecutionEntries;
+    component.workflowExecutionsDisplayedList = component.allExecutionEntries;
     component.executionSearchValue = "execution1 user:texera";
     component.searchExecution();
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
-    expect(SortedCase).toEqual([1, 7]);
+    const filteredCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
+    expect(filteredCase).toEqual([1, 7]);
   });
 
   it("executionNameSortTest increasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.ascSort("Name");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: 123/Exe4, cancer/Exe6, covid/Exe5, execution1/Exe1, healthcare/Exe3, twitter/Exe2, Untitled Execution/Exe7*/
     expect(SortedCase).toEqual([4, 6, 5, 1, 3, 2, 7]);
   });
 
   it("executionNameSortTest decreasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.dscSort("Name");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: Untitled Execution/Exe7, twitter/Exe2, healthcare/Exe3, execution1/Exe1, covid/Exe5, cancer/Exe6, 123/Exe4*/
     expect(SortedCase).toEqual([7, 2, 3, 1, 5, 6, 4]);
   });
 
   it("userNameSortTest increasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.ascSort("Username");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: Amy/Exe3, edison/Exe5, johnny270/Exe6, Peter/Exe2, sarahchen/Exe4, texera/Exe1, texera/Exe7*/
     expect(SortedCase).toEqual([3, 5, 6, 2, 4, 1, 7]);
   });
 
   it("userNameSortTest decreasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.dscSort("Username");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: texera/Exe1, texera/Exe7, sarahchen/Exe4, Peter/Exe2, johnny270/Exe6, edison/Exe5, Amy/Exe3*/
     expect(SortedCase).toEqual([1, 7, 4, 2, 6, 5, 3]);
   });
 
   it("startingTimeSortTest increasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.ascSort("Starting Time");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: Exe3, Exe4, Exe5, Exe1, Exe2, Exe7, Exe6*/
     expect(SortedCase).toEqual([3, 4, 5, 1, 2, 7, 6]);
   });
 
   it("startingTimeSortTest decreasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.dscSort("Starting Time");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: Exe6, Exe7, Exe2, Exe1, Exe5, Exe4, Exe3*/
     expect(SortedCase).toEqual([6, 7, 2, 1, 5, 4, 3]);
   });
 
   it("updatingTimeSortTest increasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.ascSort("Last Status Updated Time");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: Exe3, Exe4, Exe5, Exe1, Exe2, Exe7, Exe6*/
     expect(SortedCase).toEqual([3, 4, 5, 1, 2, 7, 6]);
   });
 
   it("updatingTimeSortTest decreasingOrder", () => {
     component.workflow = workflow;
-    component.workflowExecutionsList = [];
-    component.workflowExecutionsList = component.workflowExecutionsList.concat(testExecutionEntries);
+    component.workflowExecutionsDisplayedList = [];
+    component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
     component.dscSort("Last Status Updated Time");
-    const SortedCase = component.workflowExecutionsList.map(item => item.eId);
+    const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: Exe6, Exe7, Exe2, Exe1, Exe5, Exe4, Exe3*/
     expect(SortedCase).toEqual([6, 7, 2, 1, 5, 4, 3]);
   });

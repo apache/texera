@@ -3,7 +3,7 @@
     <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
       <span aria-hidden="true"> × </span>
     </button>
-    <h4 class="modal-title">Execution results of this workflow</h4>
+    <h4 class="modal-title">Execution results of Workflow {{workflowName}}</h4>
     <nz-input-group
       [nzPrefix]="prefixPopoverButton"
       [nzSuffix]="suffixIconSearch"
@@ -14,7 +14,6 @@
         autocomplete="on"
         nz-input
         placeholder="Search all workflows"
-        (ngModelChange)="searchInputOnChange($event)"
         type="text"
         [nzAutocomplete]="auto"
         (keyup.enter)="searchExecution()"
@@ -58,7 +57,19 @@
     </nz-input-group>
   </nz-card>
   <div class="modal-body table-responsive">
-    <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
+    <nz-table
+      *ngIf="workflowExecutionsDisplayedList"
+      [nzShowSizeChanger]="true"
+      [nzPageSizeOptions]="pageSizeOptions"
+      [nzData]="workflowExecutionsDisplayedList"
+      [nzShowPagination]="true"
+      [nzPageSize]="pageSize"
+      [nzPageIndex]="currentPageIndex"
+      [nzTotal]="numOfExecutions"
+      [nzFrontPagination]="false"
+      (nzPageSizeChange)="onPageSizeChange($event)"
+      (nzPageIndexChange)="onPageIndexChange($event)"
+    >
       <thead>
         <tr>
           <th
@@ -80,7 +91,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let row of workflowExecutionsList; let i=index;">
+        <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
           <td nzEllipsis>
             <input type="checkbox" />
           </td>
@@ -90,8 +101,6 @@
               nzType="star"
               class="bookmark-icon"
               [nzTheme]="(row.bookmarked || currentlyHoveredExecution === row) ? 'fill' : 'outline'"
-              (mouseenter)="currentlyHoveredExecution = row"
-              (mouseleave)="currentlyHoveredExecution = undefined"
               (click)="onBookmarkToggle(row)"
             ></i>
           </td>
