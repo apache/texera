@@ -9,6 +9,7 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
+import { filter } from "lodash";
 
 @UntilDestroy()
 @Component({
@@ -44,7 +45,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   /** variables related to executions filtering
    */
   public allExecutionEntries: WorkflowExecutionsEntry[] = [];
-  public filteredExecutionNames: Array<string> = [];
+  public filteredExecutionInfo: Array<string> = [];
   public executionSearchValue: string = "";
   public searchCriteria: string[] = ["user", "status"];
   public fuse = new Fuse([] as ReadonlyArray<WorkflowExecutionsEntry>, {
@@ -248,46 +249,49 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   public searchInputOnChange(value: string): void {
-    console.log(this.filteredExecutionNames);
-    // enable autocomplete only when searching for execution name
-    if (!value.includes(":")) {
-      const filteredExecutionNames: string[] = [];
+    const searchConditionsSet = [...new Set(value.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g))];
+    searchConditionsSet.forEach((condition,index) => {
+      const preCondition = searchConditionsSet.slice(0,index);
+      var executionSearchField = "";
+      var executionSearchValue = "";
+      if (condition.includes(":")) {
+        const conditionArray = condition.split(":");
+        executionSearchField = conditionArray[0];
+        executionSearchValue = conditionArray[1];
+      } else {
+        executionSearchField = "executionName";
+        executionSearchValue = (preCondition)
+                              ? value.slice(preCondition.map(c => c.length).reduce((a,b)=>a+b,0)+preCondition.length) 
+                              : value;
+      }
+      const filteredExecutionInfo: string[] = [];
       this.allExecutionEntries.forEach(executionEntry => {
-        const executionName = executionEntry.name;
-        if (executionName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
-          filteredExecutionNames.push(executionName);
+        const searchField = this.searchCriteriaPathMapping.get(executionSearchField);
+        var executionInfo = "";
+        if (searchField === undefined) {
+          return 
+        } else {
+          executionInfo = (searchField[0]==="status")
+                          ? [...this.statusMapping.entries()]
+                            .filter(({ 1: val }) => val === executionEntry.status)
+                            .map(([key]) => key)[0]
+                          : Object.values(executionEntry)[Object.keys(executionEntry).indexOf(searchField[0])];
+}
+        if (executionInfo.toLowerCase().indexOf((executionSearchValue).toLowerCase()) !== -1) {
+          var filterQuery = "";
+          if (preCondition.length !== 0) {
+            filterQuery =  (executionSearchField==="executionName")
+                          ? preCondition.join(" ") + " " + executionInfo 
+                          : preCondition.join(" ") + " " + executionSearchField + ":" + executionInfo;
+          } else {
+            filterQuery = (executionSearchField==="executionName")
+                        ? executionInfo : (executionSearchField+":")+executionInfo;
+          }
+          filteredExecutionInfo.push(filterQuery);
         }
       });
-      this.filteredExecutionNames = [...new Set(filteredExecutionNames)];
-    }
-    if (value.includes("user:")) {
-      const filteredExecutionNames: string[] = [];
-      const searchUserName = value.slice(value.indexOf("user:") + 5);
-      this.allExecutionEntries.forEach(executionEntry => {
-        const userName = executionEntry.userName;
-        if (userName.toLowerCase().indexOf(searchUserName.toLowerCase()) !== -1) {
-          filteredExecutionNames.push(value.slice(0, value.indexOf("user:") + 5) + userName);
-        }
-      });
-      this.filteredExecutionNames = [...new Set(filteredExecutionNames)];
-    }
-    if (value.includes("status:")) {
-      const filteredExecutionNames: string[] = [];
-      const searchStatus = value.slice(value.indexOf("status:") + 7).toLowerCase();
-      this.allExecutionEntries.forEach(executionEntry => {
-        // map value to key
-        const status = [...this.statusMapping.entries()]
-          .filter(({ 1: val }) => val === executionEntry.status)
-          .map(([key]) => key)[0];
-        if (status === undefined) {
-          return;
-        }
-        if (status.toLowerCase().indexOf(searchStatus.toLowerCase()) !== -1) {
-          filteredExecutionNames.push(value.slice(0, value.indexOf("status:") + 7) + status);
-        }
-      });
-      this.filteredExecutionNames = [...new Set(filteredExecutionNames)];
-    }
+      this.filteredExecutionInfo = [...new Set(filteredExecutionInfo)];
+    })
   }
 
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
