@@ -14,6 +14,7 @@
         autocomplete="on"
         nz-input
         placeholder="Search all workflows"
+        (ngModelChange)="searchInputOnChange($event)"
         type="text"
         [nzAutocomplete]="auto"
         (keyup.enter)="searchExecution()"
