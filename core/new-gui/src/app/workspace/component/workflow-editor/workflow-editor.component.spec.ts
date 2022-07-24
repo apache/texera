@@ -880,21 +880,17 @@ describe("WorkflowEditorComponent", () => {
       spyOn(undoRedoService, "canUndo").and.returnValue(true);
       let undoSpy = spyOn(undoRedoService, "undoAction");
       fixture.detectChanges();
-      const event1 = new KeyboardEvent("keydown", { key: "Z", metaKey: true, shiftKey: false });
+      const commandZEvent = new KeyboardEvent("keydown", { key: "Z", metaKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(event1);
+      document.dispatchEvent(commandZEvent);
       fixture.detectChanges();
-      setTimeout(() => {
-        expect(undoSpy).toHaveBeenCalled();
-      }, 0);
+      expect(undoSpy).toHaveBeenCalled();
 
-      const event2 = new KeyboardEvent("keydown", { key: "Z", ctrlKey: true, shiftKey: false });
+      const controlZEvent = new KeyboardEvent("keydown", { key: "Z", ctrlKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(event2);
+      document.dispatchEvent(controlZEvent);
       fixture.detectChanges();
-      setTimeout(() => {
-        expect(undoSpy).toHaveBeenCalled();
-      }, 0);
+      expect(undoSpy).toHaveBeenCalled();
     });
 
     //redo
@@ -904,37 +900,29 @@ describe("WorkflowEditorComponent", () => {
       spyOn(undoRedoService, "canRedo").and.returnValue(true);
       let redoSpy = spyOn(undoRedoService, "redoAction");
       fixture.detectChanges();
-      const event1 = new KeyboardEvent("keydown", { key: "y", metaKey: true, shiftKey: false });
+      const commandYEvent = new KeyboardEvent("keydown", { key: "y", metaKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(event1);
+      document.dispatchEvent(commandYEvent);
       fixture.detectChanges();
-      setTimeout(() => {
-        expect(redoSpy).toHaveBeenCalled();
-      }, 0);
+      expect(redoSpy).toHaveBeenCalled();
 
-      const event2 = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, shiftKey: false });
+      const controlYEvent = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(event2);
+      document.dispatchEvent(controlYEvent);
       fixture.detectChanges();
-      setTimeout(() => {
-        expect(redoSpy).toHaveBeenCalled();
-      }, 0);
+      expect(redoSpy).toHaveBeenCalled();
 
-      const event3 = new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true });
+      const commandShitZEvent = new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true });
       (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(event3);
+      document.dispatchEvent(commandShitZEvent);
       fixture.detectChanges();
-      setTimeout(() => {
-        expect(redoSpy).toHaveBeenCalled();
-      }, 0);
+      expect(redoSpy).toHaveBeenCalled();
 
-      const event4 = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true });
+      const controlShitZEvent = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true });
       (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(event4);
+      document.dispatchEvent(controlShitZEvent);
       fixture.detectChanges();
-      setTimeout(() => {
-        expect(redoSpy).toHaveBeenCalled();
-      }, 0);
+      expect(redoSpy).toHaveBeenCalled();
     });
   });
 });
