@@ -232,27 +232,27 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * sort the project by creating time
+   * sort the project by creating time in descending order
    */
   public dateSort(): void {
     this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
       .slice()
       .sort((left, right) =>
         left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined
-          ? left.workflow.creationTime - right.workflow.creationTime
+          ? right.workflow.creationTime - left.workflow.creationTime
           : 0
       );
   }
 
   /**
-   * sort the project by last modified time
+   * sort the project by last modified time in descending order
    */
   public lastSort(): void {
     this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
       .slice()
       .sort((left, right) =>
         left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined
-          ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
+          ? right.workflow.lastModifiedTime - left.workflow.lastModifiedTime
           : 0
       );
   }
