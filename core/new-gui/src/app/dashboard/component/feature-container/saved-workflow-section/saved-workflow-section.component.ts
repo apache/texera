@@ -6,7 +6,7 @@ import { WorkflowPersistService } from "../../../../common/service/workflow-pers
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
+import { DashboardWorkflowEntry, SortMethod } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -33,7 +33,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   @Input() public pid: number = 0;
   @Input() public updateProjectStatus: string = ""; // track changes to user project(s) (i.e color update / removal)
 
-  /* variables for workflow editing / search */
+  /* variables for workflow editing / search / sort */
   // virtual scroll requires replacing the entire array reference in order to update view
   // see https://github.com/angular/components/issues/14635
   public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
@@ -56,6 +56,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
   public searchCriteria: string[] = ["owner", "id"];
+  public sortMethod = SortMethod.EditTimeDesc;
+
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
@@ -214,9 +216,30 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
+   * Sort the workflows according to the sortMethod variable
+   */
+  public sortWorkflows(): void {
+    switch(this.sortMethod) {
+      case SortMethod.NameAsc:
+        this.ascSort();
+        break;
+      case SortMethod.NameDesc:
+        this.dscSort();
+        break;
+      case SortMethod.EditTimeDesc:
+        this.lastSort();
+        break;
+      case SortMethod.CreateTimeDesc:
+        this.dateSort();
+        break;
+    }
+  }
+
+  /**
    * sort the workflow by name in ascending order
    */
   public ascSort(): void {
+    this.sortMethod = SortMethod.NameAsc;
     this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
       .slice()
       .sort((t1, t2) => t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase()));
@@ -226,6 +249,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * sort the project by name in descending order
    */
   public dscSort(): void {
+    this.sortMethod = SortMethod.NameDesc;
     this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
       .slice()
       .sort((t1, t2) => t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase()));
@@ -235,6 +259,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * sort the project by creating time in descending order
    */
   public dateSort(): void {
+    this.sortMethod = SortMethod.CreateTimeDesc;
     this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
       .slice()
       .sort((left, right) =>
@@ -248,6 +273,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * sort the project by last modified time in descending order
    */
   public lastSort(): void {
+    this.sortMethod = SortMethod.EditTimeDesc;
     this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
       .slice()
       .sort((left, right) =>
@@ -477,6 +503,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
     observable.pipe(untilDestroyed(this)).subscribe(dashboardWorkflowEntries => {
       this.dashboardWorkflowEntries = dashboardWorkflowEntries;
+      this.sortWorkflows();
       this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
       this.fuse.setCollection(this.allDashboardWorkflowEntries);
       const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
