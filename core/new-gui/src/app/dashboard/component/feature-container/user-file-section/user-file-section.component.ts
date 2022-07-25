@@ -35,7 +35,7 @@ export class UserFileSectionComponent {
   ngOnInit() {
     this.registerDashboardFileEntriesRefresh();
   }
-  // variables for file editing / search
+  // variables for file editing / search / sort
   public dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   public isEditingName: number[] = [];
   public userFileSearchValue: string = "";
