@@ -81,11 +81,6 @@ class AddPartitioningV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class StoreUpstreamLinkIdsV2(betterproto.Message):
-    upstream_link_ids: List["__common__.LinkIdentity"] = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class WorkerExecutionCompletedV2(betterproto.Message):
     pass
 
@@ -108,9 +103,10 @@ class LocalOperatorExceptionV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
-    is_source: bool = betterproto.bool_field(2)
+    upstream_link_ids: List["__common__.LinkIdentity"] = betterproto.message_field(2)
+    is_source: bool = betterproto.bool_field(3)
     output_schema: Dict[str, str] = betterproto.map_field(
-        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        4, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 
@@ -168,9 +164,6 @@ class ControlCommandV2(betterproto.Message):
     open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
     link_completed: "LinkCompletedV2" = betterproto.message_field(
         10, group="sealed_value"
-    )
-    store_inlink_ids: "StoreUpstreamLinkIdsV2" = betterproto.message_field(
-        11, group="sealed_value"
     )
     initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
         21, group="sealed_value"

@@ -19,7 +19,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StoreUpstreamLinkIdsHandler.StoreUpstreamLinkIds
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -50,9 +49,10 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource, schema) =>
+      case InitializeOperatorLogic(code, allUpstreamLinkIds, isSource, schema) =>
         InitializeOperatorLogicV2(
           code,
+          allUpstreamLinkIds,
           isSource,
           schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
         )
@@ -64,8 +64,6 @@ object ControlCommandConvertUtils {
         EvaluateExpressionV2(expression)
       case QuerySelfWorkloadMetrics() =>
         QuerySelfWorkloadMetricsV2()
-      case StoreUpstreamLinkIds(upstreamLinkIds) =>
-        StoreUpstreamLinkIdsV2(upstreamLinkIds)
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"

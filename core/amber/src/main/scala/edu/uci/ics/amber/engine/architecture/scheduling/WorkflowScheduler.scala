@@ -237,6 +237,7 @@ class WorkflowScheduler(
           availableNodes,
           networkCommunicationActor.ref,
           ctx,
+          workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
           workflow.workerToOperatorExec
         )
@@ -254,6 +255,7 @@ class WorkflowScheduler(
           availableNodes,
           networkCommunicationActor.ref,
           ctx,
+          workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
           workflow.workerToOperatorExec
         )
@@ -266,6 +268,7 @@ class WorkflowScheduler(
             availableNodes,
             networkCommunicationActor.ref,
             ctx,
+            workflow.getInlinksIdsToWorkerLayer(layer.id),
             workflow.workerToLayer,
             workflow.workerToOperatorExec
           )
@@ -296,6 +299,9 @@ class WorkflowScheduler(
                   asyncRPCClient.send(
                     InitializeOperatorLogic(
                       pythonOperatorExec.getCode,
+                      workflow
+                        .getInlinksIdsToWorkerLayer(workflow.workerToLayer(workerID).id)
+                        .toArray,
                       pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
                       pythonOperatorExec.getOutputSchema
                     ),

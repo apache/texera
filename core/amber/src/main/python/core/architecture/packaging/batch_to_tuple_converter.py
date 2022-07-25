@@ -23,17 +23,19 @@ class BatchToTupleConverter:
         ] = defaultdict(set)
         self._completed_link_ids: Set[LinkIdentity] = set()
 
-    def update_all_upstream_link_ids(self, upstream_link_ids: Set[LinkIdentity]) -> None:
+    def update_all_upstream_link_ids(
+        self, upstream_link_ids: Set[LinkIdentity]
+    ) -> None:
         self._all_upstream_link_ids = upstream_link_ids
 
     def register_input(
-            self, identifier: ActorVirtualIdentity, input_: LinkIdentity
+        self, identifier: ActorVirtualIdentity, input_: LinkIdentity
     ) -> None:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_
 
     def process_data_payload(
-            self, from_: ActorVirtualIdentity, payload: DataPayload
+        self, from_: ActorVirtualIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
         # special case used to yield for source op
         if from_ == BatchToTupleConverter.SOURCE_STARTER:

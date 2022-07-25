@@ -178,14 +178,14 @@ class Workflow(
 
   def getWorkerLayer(workerID: ActorVirtualIdentity): WorkerLayer = workerToLayer(workerID)
 
-  def getInlinksIdsToWorkerLayer(layerIdentity: LayerIdentity): Array[LinkIdentity] = {
-    val inlinkIds = new mutable.ArrayBuffer[LinkIdentity]()
+  def getInlinksIdsToWorkerLayer(layerIdentity: LayerIdentity): Set[LinkIdentity] = {
+    val inlinkIds = new mutable.HashSet[LinkIdentity]()
     idToLink.keys.foreach(linkId => {
       if (linkId.to == layerIdentity) {
-        inlinkIds.append(linkId)
+        inlinkIds.add(linkId)
       }
     })
-    inlinkIds.toArray
+    inlinkIds.toSet
   }
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = workerToLayer.keys

@@ -58,6 +58,7 @@ class WorkerLayer(
       all: Array[Address],
       parentNetworkCommunicationActorRef: ActorRef,
       context: ActorContext,
+      allUpstreamLinkIds: Set[LinkIdentity],
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
       workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
   ): Unit = {
@@ -71,11 +72,21 @@ class WorkerLayer(
       val ref: ActorRef = context.actorOf(
         if (operatorExecutor.isInstanceOf[PythonUDFOpExecV2]) {
           PythonWorkflowWorker
-            .props(workerId, operatorExecutor, parentNetworkCommunicationActorRef)
+            .props(
+              workerId,
+              operatorExecutor,
+              parentNetworkCommunicationActorRef,
+              allUpstreamLinkIds
+            )
             .withDeploy(Deploy(scope = RemoteScope(address)))
         } else {
           WorkflowWorker
-            .props(workerId, operatorExecutor, parentNetworkCommunicationActorRef)
+            .props(
+              workerId,
+              operatorExecutor,
+              parentNetworkCommunicationActorRef,
+              allUpstreamLinkIds
+            )
             .withDeploy(Deploy(scope = RemoteScope(address)))
         }
       )

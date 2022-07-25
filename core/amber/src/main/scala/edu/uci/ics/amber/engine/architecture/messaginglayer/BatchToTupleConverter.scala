@@ -12,7 +12,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 import scala.collection.mutable
 
-class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
+class BatchToTupleConverter(
+    workerInternalQueue: WorkerInternalQueue,
+    allUpstreamLinkIds: Set[LinkIdentity]
+) {
 
   /**
     * Map from Identifier to input number. Used to convert the Identifier
@@ -31,7 +34,6 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     * the build part completes. Therefore, we have a `allUpstreamLinkIds` to track the number of actual upstream
     * links that a worker receives data from.
     */
-  private var allUpstreamLinkIds: Set[LinkIdentity] = null
   private val upstreamMap = new mutable.HashMap[LinkIdentity, mutable.HashSet[ActorVirtualIdentity]]
   private val endReceivedFromWorkers =
     new mutable.HashMap[LinkIdentity, mutable.HashSet[ActorVirtualIdentity]]
@@ -41,8 +43,6 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     upstreamMap.getOrElseUpdate(input, new mutable.HashSet[ActorVirtualIdentity]()).add(identifier)
     inputMap(identifier) = input
   }
-
-  def updateAllUpstreamLinkIds(linkIds: Set[LinkIdentity]): Unit = { allUpstreamLinkIds = linkIds }
 
   /** This method handles various data payloads and put different
     * element into the internal queue.

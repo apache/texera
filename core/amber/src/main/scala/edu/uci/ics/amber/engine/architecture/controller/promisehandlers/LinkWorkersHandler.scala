@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StoreUpstreamLinkIdsHandler.StoreUpstreamLinkIds
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
@@ -30,19 +29,7 @@ trait LinkWorkersHandler {
           // send messages to sender worker and receiver workers
           Seq(send(AddPartitioning(link, partitioning), from)) ++ tos.map(
             send(UpdateInputLinking(from, msg.link.id), _)
-          ) ++ tos
-            .filter(workerId => !scheduler.workersKnowingAllInlinks.contains(workerId))
-            .map(workerId => {
-              send(
-                StoreUpstreamLinkIds(
-                  workflow.getInlinksIdsToWorkerLayer(workflow.workerToLayer(workerId).id)
-                ),
-                workerId
-              ).map(_ => {
-                scheduler.workersKnowingAllInlinks.add(workerId)
-                Unit
-              })
-            })
+          )
       }
 
       Future.collect(futures.toSeq).map { _ =>
