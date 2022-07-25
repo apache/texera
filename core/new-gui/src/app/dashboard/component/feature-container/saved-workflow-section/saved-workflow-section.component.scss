@@ -92,6 +92,26 @@ $header-height: 120px;
   text-align: left;
 }
 
+.searchOwners {
+  position: absolute;
+  left: 70%;
+}
+
+.searchID {
+  position: absolute;
+  left: 75%;
+}
+
+.searchOperators {
+  position: absolute;
+  left: 80%;
+}
+
+// .dropdownScroll {
+//   max-height:100px;
+//   overflow:scroll;
+// }
+
 .gap-filler {
   flex: 1 1 auto;
 }

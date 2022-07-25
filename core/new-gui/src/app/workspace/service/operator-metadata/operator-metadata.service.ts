@@ -87,19 +87,23 @@ export class OperatorMetadataService {
    *
    * @param operatorType
    */
-  public operatorTypeExists(operatorType: string, userFriendlyNameFilter: boolean = false, caseInsensitive: boolean = false): boolean {
+  public operatorTypeExists(
+    operatorType: string,
+    userFriendlyNameFilter: boolean = false,
+    caseInsensitive: boolean = false
+  ): boolean {
     if (!this.currentOperatorMetadata) {
       return false;
     }
-    const operator = this.currentOperatorMetadata.operators.filter((op) => {
-      let operatorTypeInMetadata= op.operatorType;
+    const operator = this.currentOperatorMetadata.operators.filter(op => {
+      let operatorTypeInMetadata = op.operatorType;
       let operatorNameInMetadata = op.additionalMetadata.userFriendlyName;
-      if(caseInsensitive) {
+      if (caseInsensitive) {
         operatorTypeInMetadata = operatorTypeInMetadata.toLowerCase();
         operatorNameInMetadata = operatorNameInMetadata.toLowerCase();
         operatorType = operatorType.toLowerCase();
       }
-      if(userFriendlyNameFilter) {
+      if (userFriendlyNameFilter) {
         return operatorTypeInMetadata === operatorType || operatorNameInMetadata === operatorType;
       } else {
         return operatorTypeInMetadata === operatorType;

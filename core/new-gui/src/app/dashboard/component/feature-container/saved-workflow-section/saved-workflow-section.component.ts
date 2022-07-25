@@ -20,7 +20,6 @@ import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 
-
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
@@ -35,6 +34,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid: number = 0;
   @Input() public updateProjectStatus: string = ""; // track changes to user project(s) (i.e color update / removal)
+
+  //hardcoded search options
+  public owners = ["Tyler", "Tyler2", "Peter Pan"];
+  public ids = [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 11,
+  ];
+  public operators = [];
 
   /* variables for workflow editing / search */
   // virtual scroll requires replacing the entire array reference in order to update view
@@ -221,10 +228,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     };
   }
 
-  private getPureWorkflowSearchValue(workflowSearchValue: string): string{
-    if(workflowSearchValue.startsWith("\"") && workflowSearchValue.endsWith("\""))
-    {
-      return workflowSearchValue.substring(1, workflowSearchValue.length-1);
+  private getPureWorkflowSearchValue(workflowSearchValue: string): string {
+    if (workflowSearchValue.startsWith("\"") && workflowSearchValue.endsWith("\"")) {
+      return workflowSearchValue.substring(1, workflowSearchValue.length - 1);
     }
     return workflowSearchValue;
   }
@@ -265,7 +271,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         if (workflowSearchField === "ctime") {
           date = workflowSearchValue;
         } else if (workflowSearchField === "operator") {
-          operator = this.getPureWorkflowSearchValue(workflowSearchValue)
+          operator = this.getPureWorkflowSearchValue(workflowSearchValue);
         } else {
           andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
         }
@@ -284,7 +290,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private combineSearchTypes(date: string, operator: string, andPathQuery: Object[]): void {
     if (operator) {
       //async search that requires backend call
-      if(!this.operatorMetadataService.operatorTypeExists(operator, true, true)) {
+      if (!this.operatorMetadataService.operatorTypeExists(operator, true, true)) {
         this.notificationService.error("Operator Name Invalid");
         return;
       }
