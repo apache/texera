@@ -3,7 +3,7 @@ import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { DashboardUserFileEntry, UserFile } from "../../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile, SortMethod } from "../../../type/dashboard-user-file-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -49,6 +49,7 @@ export class UserFileSectionComponent {
     minMatchCharLength: 1,
     keys: ["file.name"],
   });
+  public sortMethod: SortMethod = SortMethod.UploadTimeDesc;
 
   // variables for project color tags
   public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
@@ -85,6 +86,7 @@ export class UserFileSectionComponent {
   }
 
   public getFileArray(): ReadonlyArray<DashboardUserFileEntry> {
+    this.sortFileEntries(); // default sorting
     const fileArray = this.dashboardUserFileEntries;
     if (!fileArray) {
       return [];
@@ -262,9 +264,33 @@ export class UserFileSectionComponent {
   }
 
   /**
+   * Sort the files according to sortMethod variable
+   */
+  public sortFileEntries(): void {
+    switch(this.sortMethod) {
+      case SortMethod.NameAsc:
+        this.ascSort();
+        break;
+      case SortMethod.NameDesc:
+        this.dscSort();
+        break;
+      case SortMethod.SizeDesc:
+        this.sizeSort();
+        break;
+      case SortMethod.UploadTimeAsc:
+        this.timeSortAsc();
+        break;
+      case SortMethod.UploadTimeDesc:
+        this.timeSortDesc();
+        break;
+    }
+  }
+
+  /**
    * sort the workflow by owner name + file name in ascending order
    */
   public ascSort(): void {
+    this.sortMethod = SortMethod.NameAsc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((t1, t2) =>
@@ -276,6 +302,7 @@ export class UserFileSectionComponent {
    * sort the project by owner name + file name in descending order
    */
   public dscSort(): void {
+    this.sortMethod = SortMethod.NameDesc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((t1, t2) =>
@@ -287,6 +314,7 @@ export class UserFileSectionComponent {
    * sort the project by size in descending order
    */
   public sizeSort(): void {
+    this.sortMethod = SortMethod.SizeDesc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((left, right) =>
@@ -298,6 +326,7 @@ export class UserFileSectionComponent {
    * sort the project by upload time in descending order
    */
   public timeSortDesc(): void {
+    this.sortMethod = SortMethod.UploadTimeDesc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((left, right) =>
@@ -311,6 +340,7 @@ export class UserFileSectionComponent {
    * sort the project by upload time in ascending order
    */
   public timeSortAsc(): void {
+    this.sortMethod = SortMethod.UploadTimeAsc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((left, right) =>

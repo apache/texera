@@ -34,3 +34,14 @@ export interface FileUploadItem {
   uploadProgress: number;
   isUploadingFlag: boolean;
 }
+
+/**
+ * This enum type helps indicate the method in which DashboardUserFileEntry[] is sorted
+ */
+export enum SortMethod {
+  NameAsc,
+  NameDesc,
+  SizeDesc,
+  UploadTimeAsc,
+  UploadTimeDesc,
+}
