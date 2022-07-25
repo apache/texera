@@ -175,7 +175,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dateSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.creationTime);
-    expect(SortedCase).toEqual([1, 3, 3, 3, 4]);
+    expect(SortedCase).toEqual([4, 3, 3, 3, 1]);
   });
 
   it("lastEditSortTest", () => {
@@ -183,6 +183,6 @@ describe("SavedWorkflowSectionComponent", () => {
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.lastSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.lastModifiedTime);
-    expect(SortedCase).toEqual([2, 3, 4, 6, 8]);
+    expect(SortedCase).toEqual([8, 6, 4, 3, 2]);
   });
 });
