@@ -358,7 +358,8 @@ export class WorkflowGraph {
   }
 
   public getAllCommentBoxes(): CommentBox[] {
-    return Array.from(this.commentBoxMap.values());
+    return Array.from(this.commentBoxMap.values() as IterableIterator<YType<CommentBox>>)
+      .map(v => v.toJSON());
   }
 
   /**
