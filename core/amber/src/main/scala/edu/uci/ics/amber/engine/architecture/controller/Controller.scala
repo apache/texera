@@ -84,8 +84,6 @@ class Controller(
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
       .asInstanceOf[Array[Address]]
 
-  val workflowPipelinedRegionsDAG =
-    new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
   val workflowScheduler =
     new WorkflowScheduler(
       availableNodes,
@@ -93,8 +91,7 @@ class Controller(
       context,
       asyncRPCClient,
       logger,
-      workflow,
-      workflowPipelinedRegionsDAG
+      workflow
     )
 
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =

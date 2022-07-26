@@ -64,12 +64,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegionsDAG = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
     val logger = Logger(
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow, pipelinedRegionsDAG)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
     workflow
       .getOperator(headerlessCsvOpDesc.operatorID)
       .topology
@@ -166,12 +165,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegionsDAG = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
     val logger = Logger(
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow, pipelinedRegionsDAG)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
 
     workflow
       .getOperator(buildCsv.operatorID)

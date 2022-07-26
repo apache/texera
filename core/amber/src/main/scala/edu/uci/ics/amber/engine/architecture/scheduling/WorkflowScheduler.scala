@@ -46,11 +46,10 @@ class WorkflowScheduler(
     ctx: ActorContext,
     asyncRPCClient: AsyncRPCClient,
     logger: Logger,
-    workflow: Workflow,
-    workflowPipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]
+    workflow: Workflow
 ) {
   private val regionsScheduleOrderIterator =
-    new TopologicalOrderIterator[PipelinedRegion, DefaultEdge](workflowPipelinedRegionsDAG)
+    new TopologicalOrderIterator[PipelinedRegion, DefaultEdge](workflow.getPipelinedRegionsDAG())
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built

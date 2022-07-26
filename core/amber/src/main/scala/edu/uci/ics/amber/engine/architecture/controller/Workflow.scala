@@ -4,6 +4,7 @@ import akka.actor.{ActorContext, Address}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
+import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -12,17 +13,19 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor}
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
 
 class Workflow(
     workflowId: WorkflowIdentity,
     operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
-    outLinks: Map[OperatorIdentity, Set[OperatorIdentity]]
+    outLinks: Map[OperatorIdentity, Set[OperatorIdentity]],
+    pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]
 ) {
   // The following data structures are created when workflow object is created.
   private val inLinks: Map[OperatorIdentity, Set[OperatorIdentity]] =
@@ -99,6 +102,8 @@ class Workflow(
       new FullRoundRobin(sender, receiver, Constants.defaultBatchSize)
     }
   }
+
+  def getPipelinedRegionsDAG() = pipelinedRegionsDAG
 
   def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
 

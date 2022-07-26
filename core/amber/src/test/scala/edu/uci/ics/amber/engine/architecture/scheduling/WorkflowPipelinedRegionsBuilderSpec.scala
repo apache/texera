@@ -50,7 +50,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
     assert(pipelinedRegions.vertexSet().size == 1)
   }
 
@@ -82,7 +82,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
     assert(pipelinedRegions.vertexSet().size == 2)
 
     var buildRegion: PipelinedRegion = null
@@ -128,34 +128,33 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](
-        headerlessCsvOpDesc1,
-        keywordOpDesc,
-        joinOpDesc,
-        sink
-      ),
-      mutable.MutableList[OperatorLink](
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
-          OperatorPort(joinOpDesc.operatorID, 0)
+    assertThrows[WorkflowRuntimeException](
+      buildWorkflow(
+        mutable.MutableList[OperatorDescriptor](
+          headerlessCsvOpDesc1,
+          keywordOpDesc,
+          joinOpDesc,
+          sink
         ),
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
-        ),
-        OperatorLink(
-          OperatorPort(keywordOpDesc.operatorID, 0),
-          OperatorPort(joinOpDesc.operatorID, 1)
-        ),
-        OperatorLink(
-          OperatorPort(joinOpDesc.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        mutable.MutableList[OperatorLink](
+          OperatorLink(
+            OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
+            OperatorPort(joinOpDesc.operatorID, 0)
+          ),
+          OperatorLink(
+            OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
+            OperatorPort(keywordOpDesc.operatorID, 0)
+          ),
+          OperatorLink(
+            OperatorPort(keywordOpDesc.operatorID, 0),
+            OperatorPort(joinOpDesc.operatorID, 1)
+          ),
+          OperatorLink(
+            OperatorPort(joinOpDesc.operatorID, 0),
+            OperatorPort(sink.operatorID, 0)
+          )
         )
       )
-    )
-    assertThrows[WorkflowRuntimeException](
-      new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
     )
   }
 
@@ -196,7 +195,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = new WorkflowPipelinedRegionsBuilder(workflow).buildPipelinedRegions()
+    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
