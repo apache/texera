@@ -101,7 +101,7 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_update_input_linking(
-            self, mock_controller, mock_sender_actor, mock_link, command_sequence
+        self, mock_controller, mock_sender_actor, mock_link, command_sequence
     ):
         command = set_one_of(
             ControlCommandV2,
@@ -115,7 +115,7 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_add_partitioning(
-            self, mock_controller, mock_receiver_actor, command_sequence
+        self, mock_controller, mock_receiver_actor, command_sequence
     ):
         command = set_one_of(
             ControlCommandV2,
@@ -135,7 +135,7 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_query_statistics(
-            self, mock_controller, mock_sender_actor, command_sequence
+        self, mock_controller, mock_sender_actor, command_sequence
     ):
         command = set_one_of(ControlCommandV2, QueryStatisticsV2())
         payload = set_one_of(
@@ -149,7 +149,9 @@ class TestDataProcessor:
         data_processor = DataProcessor(input_queue, output_queue)
         # mock the operator binding
         data_processor._operator = mock_udf
-        data_processor.context.batch_to_tuple_converter.update_all_upstream_link_ids({mock_link})
+        data_processor.context.batch_to_tuple_converter.update_all_upstream_link_ids(
+            {mock_link}
+        )
         data_processor._operator.output_schema = {
             "test-1": "string",
             "test-2": "integer",
@@ -173,21 +175,21 @@ class TestDataProcessor:
 
     @pytest.mark.timeout(2)
     def test_dp_thread_can_process_messages(
-            self,
-            mock_link,
-            mock_receiver_actor,
-            mock_controller,
-            input_queue,
-            output_queue,
-            mock_data_element,
-            dp_thread,
-            mock_update_input_linking,
-            mock_add_partitioning,
-            mock_end_of_upstream,
-            mock_query_statistics,
-            mock_tuple,
-            command_sequence,
-            reraise,
+        self,
+        mock_link,
+        mock_receiver_actor,
+        mock_controller,
+        input_queue,
+        output_queue,
+        mock_data_element,
+        dp_thread,
+        mock_update_input_linking,
+        mock_add_partitioning,
+        mock_end_of_upstream,
+        mock_query_statistics,
+        mock_tuple,
+        command_sequence,
+        reraise,
     ):
         dp_thread.start()
 
