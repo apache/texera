@@ -495,10 +495,12 @@ export class JointUIService {
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
     const basic = new joint.shapes.standard.Rectangle();
-    basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    if (commentBox.commentBoxPosition)
+      basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    else basic.position(0, 0);
     basic.resize(120, 50);
     const commentElement = new TexeraCustomCommentElement({
-      position: commentBox.commentBoxPosition,
+      position: commentBox.commentBoxPosition || {x:0, y:0},
       size: {
         width: JointUIService.DEFAULT_COMMENT_WIDTH,
         height: JointUIService.DEFAULT_COMMENT_HEIGHT,
@@ -971,6 +973,17 @@ export class JointUIService {
       },
     };
     return commentStyleAttrs;
+  }
+
+  public static getJointUserPointerCell(userNameAndClientID: string, position: Point, color: string): joint.dia.Element {
+    const userCursor = new joint.shapes.standard.Circle({
+      id: userNameAndClientID
+    });
+    userCursor.resize(15, 15);
+    userCursor.position(position.x, position.y);
+    userCursor.attr("body/fill", color);
+    userCursor.attr("body/stroke", color);
+    return userCursor;
   }
 }
 

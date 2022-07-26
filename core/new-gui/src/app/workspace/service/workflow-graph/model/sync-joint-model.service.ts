@@ -15,6 +15,7 @@ import {JointUIService} from "../../joint-ui/joint-ui.service";
 import {WorkflowActionService} from "./workflow-action.service";
 import * as joint from "jointjs";
 import {environment} from "../../../../../environments/environment";
+import {UserState} from "../../../../common/type/user";
 
 @Injectable({
   providedIn: "root"
@@ -23,6 +24,7 @@ export class SyncJointModelService {
   private texeraGraph: WorkflowGraph;
   private jointGraph: joint.dia.Graph;
   private jointGraphWrapper: JointGraphWrapper;
+  private otherUserStates!: UserState[];
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -39,6 +41,7 @@ export class SyncJointModelService {
         this.handleBreakpointAddAndDelete();
         this.handleOperatorDeep();
         this.handleCommentBoxDeep();
+        this.observeUserCursor();
       }
     );
   }
@@ -50,15 +53,15 @@ export class SyncJointModelService {
    */
   private handleOperatorAddAndDelete(): void {
     // A new key in the map means a new operator
-    this.texeraGraph.operatorIDMap.observe((event: Y.YMapEvent<YType<OperatorPredicate>>) => {
+    this.texeraGraph.sharedModel.operatorIDMap.observe((event: Y.YMapEvent<YType<OperatorPredicate>>) => {
       const jointElementsToAdd: joint.dia.Element[] = [];
       const newOpIDs: string[] = [];
       event.changes.keys.forEach((change, key) => {
         if (change.action === "add") {
-          const newOperator = this.texeraGraph.operatorIDMap.get(key) as YType<OperatorPredicate>;
+          const newOperator = this.texeraGraph.sharedModel.operatorIDMap.get(key) as YType<OperatorPredicate>;
           // Also find its position
-          if (this.texeraGraph.elementPositionMap?.has(key)) {
-            const newPos = this.texeraGraph.elementPositionMap?.get(key) as Point;
+          if (this.texeraGraph.sharedModel.elementPositionMap?.has(key)) {
+            const newPos = this.texeraGraph.sharedModel.elementPositionMap?.get(key) as Point;
             // Add the operator into joint graph
             const jointOperator = this.jointUIService.getJointOperatorElement(newOperator.toJSON(), newPos);
             jointElementsToAdd.push(jointOperator);
@@ -92,7 +95,7 @@ export class SyncJointModelService {
       // Emit the event streams here, after joint graph is synced and before highlighting.
       for (let i = 0; i < newOpIDs.length; i++) {
         const newOpID = newOpIDs[i];
-        const newOperator = this.texeraGraph.operatorIDMap.get(newOpID) as YType<OperatorPredicate>;
+        const newOperator = this.texeraGraph.sharedModel.operatorIDMap.get(newOpID) as YType<OperatorPredicate>;
         this.texeraGraph.operatorAddSubject.next(newOperator.toJSON());
       }
 
@@ -109,14 +112,14 @@ export class SyncJointModelService {
    * @private
    */
   private handleLinkAddAndDelete(): void {
-    this.texeraGraph.operatorLinkMap.observe((event: Y.YMapEvent<OperatorLink>) => {
+    this.texeraGraph.sharedModel.operatorLinkMap.observe((event: Y.YMapEvent<OperatorLink>) => {
         const jointElementsToAdd: joint.dia.Link[] = [];
         const linksToAdd: OperatorLink[] = [];
         const keysToDelete: string[] = [];
         const linksToDelete: OperatorLink[] = [];
         event.changes.keys.forEach((change, key)=>{
           if (change.action === "add") {
-            const newLink = this.texeraGraph.operatorLinkMap.get(key) as OperatorLink;
+            const newLink = this.texeraGraph.sharedModel.operatorLinkMap.get(key) as OperatorLink;
             const jointLinkCell = JointUIService.getJointLinkCell(newLink);
             jointElementsToAdd.push(jointLinkCell);
             linksToAdd.push(newLink);
@@ -159,11 +162,11 @@ export class SyncJointModelService {
   }
 
   private handleElementPositionChange(): void {
-    this.texeraGraph.elementPositionMap?.observe((event: Y.YMapEvent<Point>) => {
+    this.texeraGraph.sharedModel.elementPositionMap?.observe((event: Y.YMapEvent<Point>) => {
       event.changes.keys.forEach((change, key)=> {
         if (change.action === "update") {
           this.texeraGraph.setSyncTexeraGraph(false);
-          const newPosition = this.texeraGraph.elementPositionMap?.get(key);
+          const newPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(key);
           if (newPosition) this.jointGraphWrapper.setAbsolutePosition(key, newPosition.x, newPosition.y);
           this.texeraGraph.setSyncTexeraGraph(true);
         }
@@ -172,10 +175,10 @@ export class SyncJointModelService {
   }
 
   private handleCommentBoxAddAndDelete(): void {
-    this.texeraGraph.commentBoxMap.observe((event: Y.YMapEvent<YType<CommentBox>>) => {
+    this.texeraGraph.sharedModel.commentBoxMap.observe((event: Y.YMapEvent<YType<CommentBox>>) => {
       event.changes.keys.forEach((change, key) => {
         if (change.action === "add") {
-          const commentBox = this.texeraGraph.commentBoxMap.get(key) as YType<CommentBox>;
+          const commentBox = this.texeraGraph.sharedModel.commentBoxMap.get(key) as YType<CommentBox>;
           const commentElement = this.jointUIService.getCommentElement(commentBox.toJSON());
           this.jointGraph.addCell(commentElement);
           this.texeraGraph.commentBoxAddSubject.next(commentBox.toJSON());
@@ -188,7 +191,7 @@ export class SyncJointModelService {
   }
 
   private handleBreakpointAddAndDelete(): void {
-    this.texeraGraph.linkBreakpointMap.observe((event: Y.YMapEvent<Breakpoint>) => {
+    this.texeraGraph.sharedModel.linkBreakpointMap.observe((event: Y.YMapEvent<Breakpoint>) => {
       event.changes.keys.forEach((change, key) => {
         const oldBreakpoint = change.oldValue as Breakpoint | undefined;
         if (change.action === "add") {
@@ -196,7 +199,7 @@ export class SyncJointModelService {
           this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
         }
         if (change.action === "delete") {
-          if (this.texeraGraph.operatorLinkMap.has(key)) {
+          if (this.texeraGraph.sharedModel.operatorLinkMap.has(key)) {
             this.jointGraphWrapper.hideLinkBreakpoint(key);
             this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
           }
@@ -206,12 +209,12 @@ export class SyncJointModelService {
   }
 
   private handleOperatorDeep(): void {
-    this.texeraGraph.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
+    this.texeraGraph.sharedModel.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
       events.forEach(event => {
-        if (event.target !== this.texeraGraph.operatorIDMap) {
+        if (event.target !== this.texeraGraph.sharedModel.operatorIDMap) {
           const operatorID = event.path[0] as string;
           if (event.path[event.path.length-1] === "customDisplayName") {
-            const newName = this.texeraGraph.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
+            const newName = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
             this.texeraGraph.operatorDisplayNameChangedSubject.next({operatorID: operatorID, newDisplayName: newName.toJSON()});
           } else if (event.path.length === 1) {
             for (const entry of event.changes.keys.entries()) {
@@ -222,7 +225,7 @@ export class SyncJointModelService {
                 const operator = this.texeraGraph.getOperator(operatorID);
                 this.texeraGraph.operatorPropertyChangeSubject.next({oldProperty: oldProperty, operator: operator});
               } else if (contentKey === "isCached") {
-                const newCachedStatus = this.texeraGraph.operatorIDMap.get(operatorID)?.get("isCached") as boolean;
+                const newCachedStatus = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("isCached") as boolean;
                 if (newCachedStatus) {
                   this.texeraGraph.cachedOperatorChangedSubject.next({
                     newCached: [operatorID],
@@ -235,7 +238,7 @@ export class SyncJointModelService {
                   });
                 }
               } else if (contentKey === "isDisabled") {
-                const newDisabledStatus = this.texeraGraph.operatorIDMap.get(operatorID)?.get("isDisabled") as boolean;
+                const newDisabledStatus = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("isDisabled") as boolean;
                 if (newDisabledStatus) {
                   this.texeraGraph.disabledOperatorChangedSubject.next({
                     newDisabled: [operatorID],
@@ -256,9 +259,9 @@ export class SyncJointModelService {
   }
 
   private handleCommentBoxDeep(): void {
-    this.texeraGraph.commentBoxMap.observeDeep((events: Y.YEvent<any>[]) => {
+    this.texeraGraph.sharedModel.commentBoxMap.observeDeep((events: Y.YEvent<any>[]) => {
       events.forEach(event => {
-        if (event.target !== this.texeraGraph.commentBoxMap) {
+        if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
           if (event.path.length === 2 && event.path[event.path.length-1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());
@@ -274,6 +277,38 @@ export class SyncJointModelService {
                 this.texeraGraph.commentBoxDeleteCommentSubject.next({commentBox: commentBox});
               }
             }
+          }
+        }
+      });
+    });
+  }
+
+  /**
+   * Handles changes of other users' cursors.
+   */
+  private observeUserCursor (): void {
+    this.texeraGraph.sharedModel.awareness.on("change", ()=> {
+      this.otherUserStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
+        .filter((userState) => userState.clientID && userState.clientID !== this.texeraGraph.sharedModel.awareness.clientID);
+
+      this.otherUserStates.forEach((userState) => {
+        const userNameAndClientID = userState.user.name + userState.clientID.toString();
+        const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(userNameAndClientID);
+        const userColor = userState.user.color;
+        if (existingPointer) {
+          if (userState.isActive) {
+            existingPointer.remove();
+            if (userColor) {
+              const newPoint = JointUIService.getJointUserPointerCell(userNameAndClientID, userState.userCursor, userColor);
+              this.jointGraph.addCell(newPoint);
+            }
+          } else
+            existingPointer.remove();
+        } else {
+          if (userState.isActive && userColor) {
+            // create new user point (directly updating the point would cause unknown errors)
+            const newPoint = JointUIService.getJointUserPointerCell(userNameAndClientID, userState.userCursor, userColor);
+            this.jointGraph.addCell(newPoint);
           }
         }
       });

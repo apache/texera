@@ -499,18 +499,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   public connectQuillToText() {
     this.registerQuillBinding();
     if (this.currentOperatorId) {
-      if (!(this.workflowActionService.getTexeraGraph().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).has("customDisplayName")) {
-        (this.workflowActionService.getTexeraGraph().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).set("customDisplayName", new Y.Text());
+      if (!(this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).has("customDisplayName")) {
+        (this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).set("customDisplayName", new Y.Text());
         console.log("CREATED");
       } else {
         console.log("EXISTED");
       }
-      const ytext = this.workflowActionService.getTexeraGraph().operatorIDMap.get(this.currentOperatorId)?.get("customDisplayName");
+      const ytext = this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(this.currentOperatorId)?.get("customDisplayName");
       console.log(ytext);
       this.quillBinding = new QuillBinding(
         ytext as Y.Text,
         this.quill,
-        this.workflowActionService.getTexeraGraph().awareness
+        this.workflowActionService.getTexeraGraph().sharedModel.awareness
       );
     }
   }

@@ -30,6 +30,7 @@ import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/c
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import * as Y from "yjs";
+import {User} from "../../../../common/type/user";
 
 type OperatorPosition = {
   position: Point;
@@ -110,9 +111,9 @@ export class WorkflowActionService {
       this.handleJointElementDrag();
   }
 
-  public setNewYModel(workflowId: number) {
-    this.texeraGraph.loadNewYModel(workflowId);
-    this.undoRedoService.setUndoManager(this.texeraGraph.undoManager);
+  public setNewYModel(workflowId: number, user?: User) {
+    this.texeraGraph.loadNewYModel(workflowId, user);
+    this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
     this.observeFromTexeraGraph();
   }
 
@@ -172,10 +173,10 @@ export class WorkflowActionService {
 
   public handleJointElementDrag(): void {
     this.getJointGraphWrapper().getElementPositionChangeEvent().subscribe(element => {
-      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
-        this.texeraGraph.elementPositionMap?.set(element.elementID, element.newPosition);
+      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
+        this.texeraGraph.sharedModel.elementPositionMap?.set(element.elementID, element.newPosition);
         if (element.elementID.includes("commentBox")) {
-          this.texeraGraph.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
+          this.texeraGraph.sharedModel.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
         };
       }
     });
@@ -289,7 +290,7 @@ export class WorkflowActionService {
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
-    this.texeraGraph.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc.transact(()=> {
       const linksToDelete = new Map<OperatorLink, number>();
       this.getTexeraGraph()
         .getAllLinks()
@@ -327,7 +328,7 @@ export class WorkflowActionService {
     // unhighlight previous highlights
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
-    this.texeraGraph.yDoc.transact(() => {
+    this.texeraGraph.sharedModel.yDoc.transact(() => {
       this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
       if (links) {
         this.addLinksInternal(links);
@@ -371,7 +372,7 @@ export class WorkflowActionService {
     // save links to be deleted, including links explicitly deleted and implicitly deleted with their operators
     const linksToDelete = new Map<OperatorLink, number>();
 
-    this.texeraGraph.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc.transact(()=> {
       // delete links required by this command
       linkIDs
         .map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
@@ -580,11 +581,11 @@ export class WorkflowActionService {
     texeraGraph
       .getAllOperators()
       .forEach(
-        op => (operatorPositions[op.operatorID] = this.texeraGraph.elementPositionMap?.get(op.operatorID) as Point)
+        op => (operatorPositions[op.operatorID] = this.texeraGraph.sharedModel.elementPositionMap?.get(op.operatorID) as Point)
       );
     commentBoxes.forEach(
       commentBox =>
-        (commentBox.commentBoxPosition = this.texeraGraph.elementPositionMap?.get(commentBox.commentBoxID) as Point)
+        (commentBox.commentBoxPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(commentBox.commentBoxID) as Point)
     );
     const workflowContent: WorkflowContent = {
       operators,
@@ -662,7 +663,7 @@ export class WorkflowActionService {
   }
 
   public disableOperators(ops: readonly string[]): void {
-    this.texeraGraph.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().disableOperator(op);
       });
@@ -670,7 +671,7 @@ export class WorkflowActionService {
   }
 
   public enableOperators(ops: readonly string[]): void {
-    this.texeraGraph.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().enableOperator(op);
       });
@@ -678,7 +679,7 @@ export class WorkflowActionService {
   }
 
   public cacheOperators(ops: readonly string[]): void {
-    this.texeraGraph.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().cacheOperator(op);
       });
@@ -686,7 +687,7 @@ export class WorkflowActionService {
   }
 
   public unCacheOperators(ops: readonly string[]): void {
-    this.texeraGraph.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().unCacheOperator(op);
       });
@@ -701,7 +702,7 @@ export class WorkflowActionService {
 
   private addOperatorsInternal(operatorsAndPositions: readonly { operator: OperatorPredicate; point: Point }[]): void {
     // TODO: (Maybe?) wrap this callback inside TexeraGraph as an API.
-    this.texeraGraph.yDoc?.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc?.transact(()=> {
       for (let i = 0; i < operatorsAndPositions.length; i++) {
         let operator = operatorsAndPositions[i].operator;
         // check that the operator doesn't exist
@@ -711,7 +712,7 @@ export class WorkflowActionService {
           throw new Error(`operator type ${operator.operatorType} is invalid`);
         }
         // add operator to texera graph
-        this.texeraGraph.elementPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
+        this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
         this.texeraGraph.addOperator(operator);
       }
     });
@@ -723,7 +724,7 @@ export class WorkflowActionService {
   }
 
   private addLinksInternal(links: readonly OperatorLink[]): void {
-    this.texeraGraph.yDoc?.transact(()=> {
+    this.texeraGraph.sharedModel.yDoc?.transact(()=> {
       for (let i = 0; i < links.length; i++) {
         let link = links[i];
         this.texeraGraph.assertLinkNotExists(link);

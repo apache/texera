@@ -168,7 +168,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
-          this.workflowActionService.setNewYModel(wid);
+          this.workflowActionService.destroyYModel();
+          this.workflowActionService.setNewYModel(wid, this.userService.getCurrentUser());
           // enable workspace for modification
           this.workflowActionService.toggleLockListen(false);
           this.workflowActionService.enableWorkflowModification();

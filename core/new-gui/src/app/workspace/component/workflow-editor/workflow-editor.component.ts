@@ -27,6 +27,9 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import MouseMoveEvent = JQuery.MouseMoveEvent;
+import MouseLeaveEvent = JQuery.MouseLeaveEvent;
+import MouseEnterEvent = JQuery.MouseEnterEvent;
 
 // This type represents the copied operator and its information:
 // - operator: the copied operator itself, and its properties, etc.
@@ -168,6 +171,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleGridsToggle();
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
+    }
+
+    if (this.getJointPaper()) {
+      this.handlePointerEvents();
     }
   }
 
@@ -732,7 +739,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private openCommentBox(commentBoxID: string): void {
-    const commentBox = this.workflowActionService.getTexeraGraph().commentBoxMap.get(commentBoxID);
+    const commentBox = this.workflowActionService.getTexeraGraph().sharedModel.commentBoxMap.get(commentBoxID);
     const modalRef: NzModalRef = this.nzModalService.create({
       // modal title
       nzTitle: "Comments",
@@ -1687,5 +1694,24 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.gridOn = true;
         }
       });
+  }
+
+  /**
+   * Handles mouse events to enable shared cursor.
+   */
+  private handlePointerEvents(): void {
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    fromEvent<MouseMoveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mousemove").subscribe(e => {
+      const jointPoint = this.getJointPaper().clientToLocalPoint({x: e.clientX, y: e.clientY});
+      this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("userCursor", jointPoint);
+    });
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    fromEvent<MouseLeaveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseleave").subscribe(() => {
+      this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("isActive", false);
+    });
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    fromEvent<MouseEnterEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseenter").subscribe(() => {
+      this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("isActive", true);
+    });
   }
 }
