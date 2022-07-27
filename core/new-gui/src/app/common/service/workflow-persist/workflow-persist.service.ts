@@ -15,6 +15,8 @@ export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/searchOperators";
+export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
+export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/ids";
 
 @Injectable({
   providedIn: "root",
@@ -98,6 +100,36 @@ export class WorkflowPersistService {
 
   public retrieveWorkflowByOperator(operator: string): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
+  }
+
+  public retrieveOwners(): Observable<{userName: string, checked: boolean}[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`).pipe(
+        map((owners: string[]) => {
+          return owners.map(
+            (user: string) => {
+              return {
+                userName: user,
+                checked: false
+              }
+            }
+          )
+        })
+      );
+  }
+
+  public retrieveIDs(): Observable<{id: number, checked: boolean}[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
+      map((wids: number[]) => {
+        return wids.map(
+          (wid: number) => {
+            return {
+              id: wid,
+              checked: false
+            }
+          }
+        )
+      })
+    )
   }
 
   /**

@@ -60,7 +60,7 @@
       <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let owner of owners">
           <li nz-menu-item>
-            <label nz-checkbox [ngModel]="false">{{owner}}</label>
+            <label nz-checkbox [(ngModel)]="owner.checked" (ngModelChange)="updateSelectedOwners()">{{owner.userName}}</label>
           </li>
         </ul>
       </nz-dropdown-menu>
@@ -71,9 +71,9 @@
         </button>
       </a>
       <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
-        <ul nz-menu *ngFor="let id of ids" class="dropdownScroll">
+        <ul nz-menu *ngFor="let wid of wids">
           <li nz-menu-item>
-            <label nz-checkbox [ngModel]="false">{{id}}</label>
+            <label nz-checkbox [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()">{{wid.id}}</label>
           </li>
         </ul>
       </nz-dropdown-menu>
@@ -84,17 +84,10 @@
         </button>
       </a>
       <nz-dropdown-menu #operatorSearchOptions="nzDropdownMenu">
-        <ul nz-menu>
-          <li nz-submenu nzTitle="sub menu">
-            <ul>
-              <li nz-menu-item><label nz-checkbox [ngModel]="false">one</label></li>
-              <li nz-menu-item><label nz-checkbox [ngModel]="false">two</label></li>
-            </ul>
-          </li>
-          <li nz-submenu nzTitle="sub menu">
-            <ul>
-              <li nz-menu-item><label nz-checkbox [ngModel]="false">one</label></li>
-              <li nz-menu-item><label nz-checkbox [ngModel]="false">two</label></li>
+        <ul nz-menu *ngFor="let group of operatorGroups">
+          <li nz-submenu nzTitle={{group}}>
+            <ul *ngFor="let operator of operators.get(group)">
+              <li nz-menu-item><label nz-checkbox [(ngModel)]="operator.checked" (ngModelChange)="updateSelectedOperators()">{{operator.userFriendlyName}}</label></li>
             </ul>
           </li>
         </ul>
