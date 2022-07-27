@@ -48,6 +48,16 @@
     overflow: visible;
   }
 
+  .texera-navigation-coeditor-icons {
+    display: grid;
+    grid-template-columns: repeat(5, 40px);
+    grid-column: 5/5;
+    grid-row: 1/2;
+    text-align: right;
+    z-index: 2;
+    overflow: visible;
+  }
+
   .texera-navigation-lockholder-status {
     grid-column: 4/5;
     grid-row: 1/2;

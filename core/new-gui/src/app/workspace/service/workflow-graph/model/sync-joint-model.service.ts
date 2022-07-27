@@ -24,7 +24,7 @@ export class SyncJointModelService {
   private texeraGraph: WorkflowGraph;
   private jointGraph: joint.dia.Graph;
   private jointGraphWrapper: JointGraphWrapper;
-  private otherUserStates!: UserState[];
+  public otherUserStates!: UserState[];
 
   constructor(
     private workflowActionService: WorkflowActionService,

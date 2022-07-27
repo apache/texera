@@ -71,6 +71,19 @@
       </button>
     </div>
 
+    <div *ngIf="userSystemEnabled"
+         class="texera-navigation-coeditor-icons"
+    >
+      <ng-container
+        *ngFor="let userState of syncJointModelService.otherUserStates"
+      >
+        <texera-coeditor-user-icon
+          [coeditor]="userState.user"
+        >
+        </texera-coeditor-user-icon>
+      </ng-container>
+    </div>
+
     <div *ngIf="userSystemEnabled" class="texera-navigation-user-icon">
       <texera-user-icon></texera-user-icon>
     </div>

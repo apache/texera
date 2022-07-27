@@ -44,11 +44,6 @@ export class UserAvatarComponent implements OnInit {
         .subscribe(res => {
           this.googleUserAvatarSrc = res.photos[0].url;
         });
-    } else {
-      const avatar = document.getElementById("texera-user-avatar");
-      if (avatar && this.userColor) {
-        avatar.style.backgroundColor = this.userColor;
-      }
     }
   }
 

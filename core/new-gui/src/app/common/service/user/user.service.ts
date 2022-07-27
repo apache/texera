@@ -65,8 +65,10 @@ export class UserService {
       const g = Math.floor(Math.random() * 255);
       const b = Math.floor(Math.random() * 255);
       this.currentUser = {...user, color:"rgba(" + r + "," + g + "," + b + ",0.8)"};
+      this.userChangeSubject.next(this.currentUser);
+    } else {
+      this.userChangeSubject.next(user);
     }
-    this.userChangeSubject.next(user);
   }
 
   private handleAccessToken(accessToken: string): Observable<void> {
