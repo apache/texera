@@ -39,10 +39,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * open the workflow executions page
    */
 
-  public owners: {userName: string, checked: boolean}[] = [];
-  public wids: {id: number, checked: boolean}[] = [];
+  public owners: { userName: string; checked: boolean }[] = [];
+  public wids: { id: number; checked: boolean }[] = [];
   public operatorGroups: string[] = [];
-  public operators: Map<string, {operatorName: string, userFriendlyName: string, checked: boolean}[]>= new Map();
+  public operators: Map<string, { operatorName: string; userFriendlyName: string; checked: boolean }[]> = new Map();
 
   private selectedOwners: string[] = [];
   private selectedIDs: number[] = [];
@@ -179,29 +179,30 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   private searchParameterBackendSetup() {
     this.operatorMetadataService.getOperatorMetadata().subscribe(opdata => {
-      opdata.groups.forEach((group)=>{
-          this.operators.set(group.groupName, opdata.operators
+      opdata.groups.forEach(group => {
+        this.operators.set(
+          group.groupName,
+          opdata.operators
             .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
             .map(operator => {
               return {
                 operatorName: operator.operatorType,
                 userFriendlyName: operator.additionalMetadata.userFriendlyName,
-                checked: false
-              }
+                checked: false,
+              };
             })
-          )
-        }
-      )
-      this.operatorGroups = opdata.groups.map(group => group.groupName)
-      })
+        );
+      });
+      this.operatorGroups = opdata.groups.map(group => group.groupName);
+    });
     this.workflowPersistService
       .retrieveOwners()
       .pipe(untilDestroyed(this))
-      .subscribe(list_of_owners => this.owners = list_of_owners);
+      .subscribe(list_of_owners => (this.owners = list_of_owners));
     this.workflowPersistService
       .retrieveIDs()
       .pipe(untilDestroyed(this))
-      .subscribe(list_of_ids => this.wids = list_of_ids)
+      .subscribe(list_of_ids => (this.wids = list_of_ids));
   }
 
   /**
@@ -259,53 +260,54 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   public updateSelectedOperators(): void {
     const filteredOperators: string[] = [];
-    Array.from(this.operators.values()).forEach((operator_list: {operatorName: string, userFriendlyName: string, checked: boolean}[]) => {
-      operator_list.forEach((operator) => {
-        if(operator.checked) {
-          filteredOperators.push(operator.operatorName);
-        }
-      });
-    })
+    Array.from(this.operators.values()).forEach(
+      (operator_list: { operatorName: string; userFriendlyName: string; checked: boolean }[]) => {
+        operator_list.forEach(operator => {
+          if (operator.checked) {
+            filteredOperators.push(operator.operatorName);
+          }
+        });
+      }
+    );
     this.selectedOperators = filteredOperators;
     this.searchWorkflow();
   }
 
-  //format of workflow search value 
+  //format of workflow search value
   //  - WORKFLOWNAME owner:OWNERNAMES id:IDS operator:OPERATORS
   //  - ctime not implemented yet
   //
   private getWorkflowName(): string {
     let workflowName: string = this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g)[0]; //WORKFLOWNAME
-    if(workflowName.includes(":") || (workflowName.includes("]") && workflowName.includes("[")))
-      return "";
+    if (workflowName.includes(":") || (workflowName.includes("]") && workflowName.includes("["))) return "";
     return workflowName;
   }
 
   private changeSearchValueString(): string {
-    let newSearchQuery: string = "";
+    let newSearchQuery = "";
     newSearchQuery += this.getWorkflowName();
 
-    if(this.selectedOwners.length === 1) {
-      if(this.selectedOwners[0].includes(" ")) {
-        newSearchQuery += ` owner:"${this.selectedOwners[0]}"`
+    if (this.selectedOwners.length === 1) {
+      if (this.selectedOwners[0].includes(" ")) {
+        newSearchQuery += ` owner:"${this.selectedOwners[0]}"`;
       } else {
-        newSearchQuery += ` owner:${this.selectedOwners[0]}`
+        newSearchQuery += ` owner:${this.selectedOwners[0]}`;
       }
     } else if (this.selectedOwners.length > 1) {
       newSearchQuery += ` owner:[${this.selectedOwners.toString()}]`;
     }
 
-    if(this.selectedIDs.length === 1) {
-      newSearchQuery += ` id:${this.selectedIDs[0]}`
+    if (this.selectedIDs.length === 1) {
+      newSearchQuery += ` id:${this.selectedIDs[0]}`;
     } else if (this.selectedIDs.length > 1) {
       newSearchQuery += ` id:[${this.selectedIDs.toString()}]`;
     }
 
-    if(this.selectedOperators.length === 1) {
-      if(this.selectedOperators[0].includes(" ")) {
-        newSearchQuery += ` operator:"${this.selectedOperators[0]}"`
+    if (this.selectedOperators.length === 1) {
+      if (this.selectedOperators[0].includes(" ")) {
+        newSearchQuery += ` operator:"${this.selectedOperators[0]}"`;
       } else {
-        newSearchQuery += ` operator:${this.selectedOperators[0]}`
+        newSearchQuery += ` operator:${this.selectedOperators[0]}`;
       }
     } else if (this.selectedOperators.length > 1) {
       newSearchQuery += ` operator:[${this.selectedOperators.toString()}]`;
@@ -316,13 +318,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private buildOrPathQuery(searchType: string, searchList: string[]) {
     let orPathQuery: Object[] = [];
     searchList
-      .map((searchParameter) => this.buildAndPathQuery(searchType, searchParameter.toString())) // exact match extended searching (see https://fusejs.io/) 
+      .map(searchParameter => this.buildAndPathQuery(searchType, searchParameter.toString())) // exact match extended searching (see https://fusejs.io/)
       .forEach(pathQuery => orPathQuery.push(pathQuery));
     return orPathQuery;
     // if (orPathQuery.length != 0)
     //   andPathQuery.push({ $or: orPathQuery });
   }
-
 
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
   private buildAndPathQuery(
@@ -342,8 +343,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     let newWorkflowSearchValue: any = workflowSearchValue;
     if (workflowSearchValue.startsWith("[") && workflowSearchValue.endsWith("]")) {
       newWorkflowSearchValue = workflowSearchValue.substring(1, workflowSearchValue.length - 1).split(","); //array if brackets
-    }
-    else if (workflowSearchValue.startsWith("\"") && workflowSearchValue.endsWith("\""))
+    } else if (workflowSearchValue.startsWith("\"") && workflowSearchValue.endsWith("\""))
       newWorkflowSearchValue = workflowSearchValue.substring(1, workflowSearchValue.length - 1); //removes ""
     return newWorkflowSearchValue;
   }
@@ -351,8 +351,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * Search workflows by owner name, workflow name, or workflow id
    * Use fuse.js https://fusejs.io/ as the tool for searching
-   * 
-   * To Do: differentiate between workflow name search 
+   *
+   * To Do: differentiate between workflow name search
    *  - "back end" vs. back end -> andPathQuery = [back end] (with spaces) vs. [back, end] (separate without spaces/ AND query)
    */
   public searchWorkflow(): void {
@@ -369,7 +369,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
       return;
     }
-    const searchConditionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g));
+    const searchConditionsSet = new Set(
+      this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g)
+    );
     let date = "";
     let operatorSearchValue;
     searchConditionsSet.forEach(condition => {
@@ -393,9 +395,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           case "operator":
             operatorSearchValue = workflowSearchValue;
             break;
-          default: //id, owner
+          default:
+            //id, owner
             workflowSearchValue = this.getPureWorkflowSearchValue(workflowSearchValue);
-            andPathQuery.push((typeof workflowSearchValue === "object") ? {$or: this.buildOrPathQuery(workflowSearchField, workflowSearchValue)} : this.buildAndPathQuery(workflowSearchField, workflowSearchValue)); 
+            andPathQuery.push(
+              typeof workflowSearchValue === "object"
+                ? { $or: this.buildOrPathQuery(workflowSearchField, workflowSearchValue) }
+                : this.buildAndPathQuery(workflowSearchField, workflowSearchValue)
+            );
             break;
         }
       } else {
@@ -417,7 +424,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
-  private asyncSearch(andPathQuery: Object[], date: string, operatorSearchValue: string){
+  private asyncSearch(andPathQuery: Object[], date: string, operatorSearchValue: string) {
     //async search that requires backend call
     const operatorPureSearchValue = this.getPureWorkflowSearchValue(operatorSearchValue);
     if (typeof operatorPureSearchValue === "string") {
@@ -427,7 +434,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         this.checkOperatorExistence(operator);
       });
     }
-    let operatorQueryParam = (operatorSearchValue.startsWith("\"") && operatorSearchValue.endsWith("\"")) ? operatorSearchValue.substring(1, operatorSearchValue.length - 1) : operatorSearchValue;
+    let operatorQueryParam =
+      operatorSearchValue.startsWith("\"") && operatorSearchValue.endsWith("\"")
+        ? operatorSearchValue.substring(1, operatorSearchValue.length - 1)
+        : operatorSearchValue;
     this.workflowPersistService
       .retrieveWorkflowByOperator(operatorQueryParam)
       .pipe(untilDestroyed(this))
