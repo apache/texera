@@ -15,7 +15,7 @@ import {JointUIService} from "../../joint-ui/joint-ui.service";
 import {WorkflowActionService} from "./workflow-action.service";
 import * as joint from "jointjs";
 import {environment} from "../../../../../environments/environment";
-import {UserState} from "../../../../common/type/user";
+import {User, UserState} from "../../../../common/type/user";
 
 @Injectable({
   providedIn: "root"
@@ -41,7 +41,7 @@ export class SyncJointModelService {
         this.handleBreakpointAddAndDelete();
         this.handleOperatorDeep();
         this.handleCommentBoxDeep();
-        this.observeUserCursor();
+        this.observeUserState();
       }
     );
   }
@@ -167,7 +167,11 @@ export class SyncJointModelService {
         if (change.action === "update") {
           this.texeraGraph.setSyncTexeraGraph(false);
           const newPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(key);
-          if (newPosition) this.jointGraphWrapper.setAbsolutePosition(key, newPosition.x, newPosition.y);
+          if (newPosition) {
+            this.jointGraphWrapper.setListenPositionChange(false);
+            this.jointGraphWrapper.setAbsolutePosition(key, newPosition.x, newPosition.y);
+            this.jointGraphWrapper.setListenPositionChange(true);
+          }
           this.texeraGraph.setSyncTexeraGraph(true);
         }
       });
@@ -286,10 +290,12 @@ export class SyncJointModelService {
   /**
    * Handles changes of other users' cursors.
    */
-  private observeUserCursor (): void {
-    this.texeraGraph.sharedModel.awareness.on("change", ()=> {
+  private observeUserState (): void {
+    this.texeraGraph.sharedModel.awareness.on("change", (changes: any) => {
       this.otherUserStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
         .filter((userState) => userState.clientID && userState.clientID !== this.texeraGraph.sharedModel.awareness.clientID);
+
+      let highlightStates: {coeditor: User, clientId: number, operatorIds: string[]}[] = [];
 
       this.otherUserStates.forEach((userState) => {
         const userNameAndClientID = userState.user.name + userState.clientID.toString();
@@ -297,10 +303,12 @@ export class SyncJointModelService {
         const userColor = userState.user.color;
         if (existingPointer) {
           if (userState.isActive) {
-            existingPointer.remove();
-            if (userColor) {
-              const newPoint = JointUIService.getJointUserPointerCell(userNameAndClientID, userState.userCursor, userColor);
-              this.jointGraph.addCell(newPoint);
+            if (userState.userCursor !== existingPointer.position()) {
+              existingPointer.remove();
+              if (userColor) {
+                const newPoint = JointUIService.getJointUserPointerCell(userNameAndClientID, userState.userCursor, userColor);
+                this.jointGraph.addCell(newPoint);
+              }
             }
           } else
             existingPointer.remove();
@@ -311,7 +319,14 @@ export class SyncJointModelService {
             this.jointGraph.addCell(newPoint);
           }
         }
+
+        // highlighted operators
+        if (userState.highlighted) {
+          highlightStates.push({coeditor: userState.user, clientId: userState.clientID, operatorIds: userState.highlighted});
+        }
       });
+
+      this.texeraGraph.coeditorOperatorHighlightSubject.next(highlightStates);
     });
   }
 }

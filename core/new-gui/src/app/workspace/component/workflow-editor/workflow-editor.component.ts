@@ -105,6 +105,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
 
+  private coeditorHighlightedMap = new Map<string, string[]>();
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -169,6 +171,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
     this.handleLinkCursorHover();
     this.handleGridsToggle();
+    this.handleCoeditorOperatorHighlightEvent();
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
     }
@@ -709,8 +712,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
-        elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).highlight("rect.body", { highlighter: highlightOptions })
+        elementIDs.forEach(elementID => {
+            this.getJointPaper().findViewByModel(elementID).highlight("rect.body", {highlighter: highlightOptions});
+          }
         )
       );
 
@@ -735,6 +739,46 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(commentBoxIDs => {
         this.openCommentBox(commentBoxIDs[0]);
+      });
+  }
+
+  private handleCoeditorOperatorHighlightEvent(): void {
+    this.workflowActionService.getTexeraGraph().getCoeditorOperatorHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((highlightStates) => {
+        let highlightedIds: string[] = [];
+        for (const {coeditor, clientId, operatorIds} of highlightStates) {
+          const highlightIdPrefix = `${coeditor.name}_${clientId}_`;
+          for (const operatorId of operatorIds) {
+            const highlightId = highlightIdPrefix + operatorId;
+            const operatorElement = this.getJointPaper().findViewByModel(operatorId);
+            const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
+            // If not already existing, add
+            if (currentStrokeIds.indexOf(highlightId) < 0) {
+              joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {
+                padding: 5 + 5 * currentStrokeIds.length,
+                rx: 5,
+                ry: 5,
+                attrs: {
+                  "stroke-width": 2,
+                  "stroke": coeditor.color
+                }
+              });
+            }
+            highlightedIds.push(highlightId);
+          }
+        }
+
+        // cleanup unhighlighted operators
+        for (const operatorId of this.workflowActionService.getTexeraGraph().getAllOperators().map(v=>v.operatorID)) {
+          const operatorElement = this.getJointPaper().findViewByModel(operatorId);
+          const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
+          for (const strokeId of currentStrokeIds) {
+            if (strokeId && highlightedIds.indexOf(strokeId) < 0) {
+              joint.highlighters.mask.remove(operatorElement, strokeId);
+            }
+          }
+        }
       });
   }
 

@@ -18,4 +18,7 @@ export interface UserState {
   clientID: number;
   isActive: boolean;
   userCursor: Point;
+  highlighted?: string[];
+  unhighlighted?: string[];
+
 }

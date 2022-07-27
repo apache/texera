@@ -98,8 +98,7 @@ export class WorkflowGraph {
   public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
-
-
+  public readonly coeditorOperatorHighlightSubject = new Subject<{coeditor: User, clientId: number, operatorIds: string[]}[]>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -621,6 +620,10 @@ export class WorkflowGraph {
     linkID: string;
   }> {
     return this.breakpointChangeStream.asObservable();
+  }
+
+  public getCoeditorOperatorHighlightStream(): Observable<{coeditor: User, clientId: number, operatorIds: string[]}[]> {
+    return this.coeditorOperatorHighlightSubject.asObservable();
   }
 
   /**
