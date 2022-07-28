@@ -10,6 +10,7 @@ import {
   YType
 } from "../../../types/workflow-common.interface";
 import {User, UserState} from "../../../../common/type/user";
+import {getWebsocketUrl} from "../../../../common/util/url";
 
 export class SharedModel {
   public yDoc: Y.Doc = new Y.Doc();
@@ -36,7 +37,9 @@ export class SharedModel {
       this.commentBoxMap,
       this.linkBreakpointMap
     ]);
-    this.wsProvider = new WebsocketProvider("ws://localhost:1234", `${wid}`, this.yDoc);
+    const websocketUrl = getWebsocketUrl("rtc");
+
+    this.wsProvider =  new WebsocketProvider(websocketUrl, `${wid}`, this.yDoc);
     if (!wid) this.wsProvider.disconnect();
     this.awareness = this.wsProvider.awareness;
     if (this.user) {
