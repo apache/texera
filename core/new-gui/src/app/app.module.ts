@@ -23,6 +23,7 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzInputModule } from "ng-zorro-antd/input";
 import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzListModule } from "ng-zorro-antd/list";
+import { NzCalendarModule } from 'ng-zorro-antd/calendar';
 import { NzMenuModule } from "ng-zorro-antd/menu";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
@@ -205,6 +206,7 @@ registerLocaleData(en);
     NzListModule,
     NzInputModule,
     NzPopoverModule,
+    NzCalendarModule,
     NzMenuModule,
     NzMessageModule,
     NzCollapseModule,

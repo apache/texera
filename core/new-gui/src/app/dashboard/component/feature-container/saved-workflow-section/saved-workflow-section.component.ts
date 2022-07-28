@@ -36,13 +36,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   @Input() public updateProjectStatus: string = ""; // track changes to user project(s) (i.e color update / removal)
 
   /**
-   * open the workflow executions page
-   */
-
+  * variables for dropdown menus and searching
+  */
   public owners: { userName: string; checked: boolean }[] = [];
   public wids: { id: number; checked: boolean }[] = [];
   public operatorGroups: string[] = [];
   public operators: Map<string, { operatorName: string; userFriendlyName: string; checked: boolean }[]> = new Map();
+  public selectedDate: null | Date = null;
 
   private selectedOwners: string[] = [];
   private selectedIDs: number[] = [];
@@ -177,6 +177,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  /**
+   * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
+   */
   private searchParameterBackendSetup() {
     this.operatorMetadataService.getOperatorMetadata().subscribe(opdata => {
       opdata.groups.forEach(group => {
@@ -248,16 +251,25 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     });
   }
 
+  /**
+   * updates selectedOwners array to match owners checked in dropdown menu 
+   */
   public updateSelectedOwners(): void {
     this.selectedOwners = this.owners.filter(owner => owner.checked).map(owner => owner.userName);
     this.searchWorkflow();
   }
 
+  /**
+   * updates selectedIDs array to match worfklow ids checked in dropdown menu 
+   */
   public updateSelectedIDs(): void {
     this.selectedIDs = this.wids.filter(wid => wid.checked === true).map(wid => wid.id);
     this.searchWorkflow();
   }
 
+  /**
+   * updates selectedOperators array to match operators checked in dropdown menu 
+   */
   public updateSelectedOperators(): void {
     const filteredOperators: string[] = [];
     Array.from(this.operators.values()).forEach(
@@ -273,16 +285,44 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.searchWorkflow();
   }
 
-  //format of workflow search value
-  //  - WORKFLOWNAME owner:OWNERNAMES id:IDS operator:OPERATORS
-  //  - ctime not implemented yet
-  //
+  /**
+   * callback function when calendar is altered
+   */
+  public calendarValueChange(value: Date): void {
+    this.searchWorkflow();
+  }
+
+   /**
+   * callback function for remove date button that removes date from search query
+   */
+  public removeDate(): void {
+    this.selectedDate = null;
+    this.notificationService.success("Date removed from search query")
+  }
+
+  /**
+   * extracts workflow name from search value
+   *  -successful if search value format is followed
+   */
   private getWorkflowName(): string {
     let workflowName: string = this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g)[0]; //WORKFLOWNAME
-    if (workflowName.includes(":") || (workflowName.includes("]") && workflowName.includes("["))) return "";
+    if (workflowName.includes(":"))return "";
     return workflowName;
   }
 
+  /**
+   * returns a formatted string representing a Date object
+   */
+  private getFormattedDateString(date: Date): string {
+    let dateMonth: number = date.getMonth() + 1;
+    let dateDay: number = date.getDate();
+    return `${date.getFullYear()}-${((dateMonth < 10) ? "0" : "")+dateMonth}-${((dateDay < 10) ? "0" : "")+dateDay}`
+  }
+
+  /**
+   * formats workflowSearchValue based on values selected from dropdown menus
+   * output string follows format restrictions
+   */
   private changeSearchValueString(): string {
     let newSearchQuery = "";
     newSearchQuery += this.getWorkflowName();
@@ -312,17 +352,24 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     } else if (this.selectedOperators.length > 1) {
       newSearchQuery += ` operator:[${this.selectedOperators.toString()}]`;
     }
+
+    if(this.selectedDate != null) {
+      newSearchQuery += ` ctime:${this.getFormattedDateString(this.selectedDate)}`
+    }
+
     return newSearchQuery;
   }
 
+  /**
+   * constructs OrPathQuery object for search values with in the same category (owner, id, operator, etc.)
+   *  -returned object is inserted into AndPathQuery
+   */
   private buildOrPathQuery(searchType: string, searchList: string[]) {
     let orPathQuery: Object[] = [];
     searchList
       .map(searchParameter => this.buildAndPathQuery(searchType, searchParameter.toString())) // exact match extended searching (see https://fusejs.io/)
       .forEach(pathQuery => orPathQuery.push(pathQuery));
     return orPathQuery;
-    // if (orPathQuery.length != 0)
-    //   andPathQuery.push({ $or: orPathQuery });
   }
 
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
@@ -339,6 +386,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     };
   }
 
+  /**
+   * converts workflowSearchValue into either a string without quotation marks or an array
+   *  - workflowSearchField:workflowSearchValue (operator:csvfilescan)
+   */
   private getPureWorkflowSearchValue(workflowSearchValue: string): any {
     let newWorkflowSearchValue: any = workflowSearchValue;
     if (workflowSearchValue.startsWith("[") && workflowSearchValue.endsWith("]")) {
@@ -347,16 +398,52 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       newWorkflowSearchValue = workflowSearchValue.substring(1, workflowSearchValue.length - 1); //removes ""
     return newWorkflowSearchValue;
   }
-
+  
+  /**
+   * error checking for search value format
+   */
+  private checkSearchValueFormatting(): boolean {
+    const conditionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g))
+    for (const searchCondition of conditionsSet) {
+      const conditionArray = searchCondition.split(":");
+      const searchField = conditionArray[0] //either workflow name or (owner:, id:, etc.)
+      if (conditionArray.length == 1) {
+        if(searchField.includes(" ") && !searchField.startsWith("\"") && !searchField.endsWith("\"")) {
+          this.notificationService.error("Workflow name is not correctly formatted")
+          return false;
+        }
+      } else if (conditionArray.length === 2) {
+        const searchValue = conditionArray[1];
+        if (searchField === "ctime") {
+            const date_regex = /^([<>]?)(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
+            const search_date: RegExpMatchArray | null = searchValue.match(date_regex);
+            if (!search_date) {
+              this.notificationService.error("Date format is incorrect");
+              return false;
+            }
+        } else if (!this.searchCriteria.includes(searchField)) {
+            this.notificationService.error("Cannot search by " + searchField);
+            return false;
+        }
+      } else if (conditionArray.length > 2) {
+        this.notificationService.error("Please check the format of the search query");
+        return false;
+      }
+    }
+    return true;
+  }
   /**
    * Search workflows by owner name, workflow name, or workflow id
    * Use fuse.js https://fusejs.io/ as the tool for searching
-   *
-   * To Do: differentiate between workflow name search
-   *  - "back end" vs. back end -> andPathQuery = [back end] (with spaces) vs. [back, end] (separate without spaces/ AND query)
+   * 
+   * search value Format (must follow this): 
+   *  - WORKFLOWNAME owner:OWNERNAME(S) id:ID(S) operator:OPERATOR(S)
    */
   public searchWorkflow(): void {
     let andPathQuery: Object[] = [];
+    if(!this.checkSearchValueFormatting()) {
+      return;
+    }
     this.workflowSearchValue = this.changeSearchValueString().trim();
 
     // empty search value, return all workflow entries
@@ -378,16 +465,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       // field search
       if (condition.includes(":")) {
         const conditionArray = condition.split(":");
-        if (conditionArray.length !== 2) {
-          this.notificationService.error("Please check the format of the search query");
-          return;
-        }
         const workflowSearchField = conditionArray[0];
         let workflowSearchValue = conditionArray[1];
-        if (!this.searchCriteria.includes(workflowSearchField)) {
-          this.notificationService.error("Cannot search by " + workflowSearchField);
-          return;
-        }
         switch (workflowSearchField) {
           case "ctime":
             date = workflowSearchValue;
@@ -417,6 +496,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  /**
+   * checks if operatorType or its userFriendly name exists
+   */
   private checkOperatorExistence(operator: string) {
     if (!this.operatorMetadataService.operatorTypeExists(operator, true, true)) {
       this.notificationService.error("Operator Name Invalid");
@@ -424,8 +506,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  /**
+   * backend search that is called if operators are included in search value
+   */
   private asyncSearch(andPathQuery: Object[], date: string, operatorSearchValue: string) {
-    //async search that requires backend call
     const operatorPureSearchValue = this.getPureWorkflowSearchValue(operatorSearchValue);
     if (typeof operatorPureSearchValue === "string") {
       this.checkOperatorExistence(operatorPureSearchValue);

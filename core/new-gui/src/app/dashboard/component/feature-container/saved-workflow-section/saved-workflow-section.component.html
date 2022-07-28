@@ -52,6 +52,22 @@
       >
         <i nz-icon nzTheme="outline" nzType="minus-square"></i>
       </button>
+      <a [nzDropdownMenu]="calendar" nz-dropdown class="searchCreationTime">
+        <button id="ctimeSort" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="calendar" nzTheme="outline"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #calendar="nzDropdownMenu">
+        <div [ngStyle]="{ width: '300px', border: '1px solid #d9d9d9', borderRadius: '4px' }">
+          <nz-calendar
+            [nzFullscreen]="false"
+            (nzSelectChange)="calendarValueChange($event)"
+            [(ngModel)]="selectedDate"
+          ></nz-calendar>
+          <button (click)="removeDate()" [disabled]="selectedDate === null ? true : false" nz-button>Remove Date</button>
+        </div>
+      </nz-dropdown-menu>
+
       <a [nzDropdownMenu]="ownerSearchOptions" nz-dropdown class="searchOwners">
         <button id="sortOwner" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="user"></i>
