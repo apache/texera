@@ -89,10 +89,12 @@ class WorkflowResource {
 
   @GET
   @Path("/ids")
-  def retrieveIDs(): List[Int] = {
+  def retrieveIDs(@Auth sessionUser: SessionUser): List[Int] = {
+    val user = sessionUser.getUser
     val workflowEntries = context
-      .select(WORKFLOW_OF_USER.WID)
-      .from(WORKFLOW_OF_USER)
+      .select(WORKFLOW_USER_ACCESS.WID)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .fetch()
 
     workflowEntries
@@ -102,10 +104,15 @@ class WorkflowResource {
 
   @GET
   @Path("/owners")
-  def retrieveOwners(): List[String] = {
+  def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
+    val user = sessionUser.getUser
     val workflowEntries = context
       .select(USER.NAME)
-      .from(USER)
+      .from(WORKFLOW_USER_ACCESS)
+      .join(WORKFLOW_OF_USER).on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .join(USER).on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(USER.UID)
       .fetch()
 
     workflowEntries
