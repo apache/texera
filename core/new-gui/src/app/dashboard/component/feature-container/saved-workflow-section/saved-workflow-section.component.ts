@@ -219,7 +219,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Sort the workflows according to the sortMethod variable
    */
   public sortWorkflows(): void {
-    switch(this.sortMethod) {
+    switch (this.sortMethod) {
       case SortMethod.NameAsc:
         this.ascSort();
         break;

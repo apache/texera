@@ -267,7 +267,7 @@ export class UserFileSectionComponent {
    * Sort the files according to sortMethod variable
    */
   public sortFileEntries(): void {
-    switch(this.sortMethod) {
+    switch (this.sortMethod) {
       case SortMethod.NameAsc:
         this.ascSort();
         break;
