@@ -20,5 +20,4 @@ export interface UserState {
   userCursor: Point;
   highlighted?: string[];
   unhighlighted?: string[];
-
 }

@@ -75,10 +75,10 @@
          class="texera-navigation-coeditor-icons"
     >
       <ng-container
-        *ngFor="let userState of syncJointModelService.otherUserStates"
+        *ngFor="let user of syncJointModelService.otherUsers"
       >
         <texera-coeditor-user-icon
-          [coeditor]="userState.user"
+          [coeditor]="user"
         >
         </texera-coeditor-user-icon>
       </ng-container>
