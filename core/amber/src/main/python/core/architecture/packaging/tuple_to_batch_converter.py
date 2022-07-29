@@ -29,9 +29,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIden
 
 
 class TupleToBatchConverter:
-    def __init__(
-        self,
-    ):
+    def __init__(self,):
         self._partitioners: OrderedDict[LinkIdentity, Partitioning] = OrderedDict()
         self._partitioning_to_partitioner: dict[
             type(Partitioning), type(Partitioner)
