@@ -79,12 +79,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["completed", 3],
     ["aborted", 4],
   ]);
-  public showORhide: boolean[] = [
-    false,
-    false,
-    false,
-    false,
-  ];
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -270,35 +264,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
         );
     }
-  }
-
-  shortenName(name: string): string {
-    if (name.length > 20) {
-      let spaceIndex = 0;
-      for (let i=0; i<name.length; i++) {
-        if (i <= 20) {
-          if (name[i] == " ") {
-            spaceIndex = i
-          }
-        } else {
-          if (i < 25 && name[i] == " ") {
-            spaceIndex = i;
-            break;
-          }
-        }
-      }
-      return name.slice(0, spaceIndex != 0 ? spaceIndex : 20) + "..."
-    } else {
-      return name;
-    }
-  }
-
-  onHit(column: string, index: number): void {
-    if (this.showORhide[index]) {
-      this.ascSort(column)
-    } else {
-      this.dscSort(column)
-    } this.showORhide[index]=!this.showORhide[index]
   }
 
   public searchInputOnChange(value: string): void {

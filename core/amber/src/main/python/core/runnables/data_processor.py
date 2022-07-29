@@ -271,8 +271,10 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
-        self._current_input_tuple_iter = self.context.batch_to_tuple_converter.process_data_payload(
-            data_element.tag, data_element.payload
+        self._current_input_tuple_iter = (
+            self.context.batch_to_tuple_converter.process_data_payload(
+                data_element.tag, data_element.payload
+            )
         )
 
         if self._current_input_tuple_iter is None:
