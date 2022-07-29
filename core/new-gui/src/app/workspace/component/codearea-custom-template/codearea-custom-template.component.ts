@@ -56,7 +56,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
       .getOperatorPropertyChangeStream()
       .pipe(untilDestroyed(this))
       .subscribe(({ operator }) => {
-        if (this.dialogRef != undefined && !this.lockGranted) {
+        if (this.dialogRef != undefined) {
           // here the assumption is the operator being edited must be highlighted
           const currentOperatorId: string = this.workflowActionService
             .getJointGraphWrapper()
