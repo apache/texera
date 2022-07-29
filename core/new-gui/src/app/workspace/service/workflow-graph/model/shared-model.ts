@@ -23,8 +23,8 @@ export class SharedModel {
   public linkBreakpointMap: Y.Map<Breakpoint>;
   public undoManager: Y.UndoManager;
 
-  constructor(private wid?: number,
-              private user?: User) {
+  constructor(public wid?: number,
+              public user?: User) {
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
@@ -55,5 +55,17 @@ export class SharedModel {
 
   public updateAwareness(field: string, value: any): void {
     this.awareness.setLocalStateField(field, value);
+  }
+
+  public transact(callback: Function) {
+    try {
+      if (this.wsProvider.shouldConnect) {
+        this.yDoc.transact(()=>callback());
+      } else {
+         callback();
+      }
+    } catch (e) {
+      console.log(e, callback);
+    }
   }
 }

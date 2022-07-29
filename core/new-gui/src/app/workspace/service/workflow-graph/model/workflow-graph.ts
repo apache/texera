@@ -105,7 +105,8 @@ export class WorkflowGraph {
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
-    this.sharedModel.wsProvider.disconnect();
+    if (this.sharedModel.wsProvider.wsconnected)
+     this.sharedModel.wsProvider.disconnect();
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox => this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox)));
@@ -135,7 +136,8 @@ export class WorkflowGraph {
 
   public destroyYModel(): void {
     this.sharedModel.awareness.destroy();
-    this.sharedModel.wsProvider?.disconnect();
+    if (this.sharedModel.wsProvider.wsconnected)
+      this.sharedModel.wsProvider?.disconnect();
     this.sharedModel.yDoc?.destroy();
   }
 

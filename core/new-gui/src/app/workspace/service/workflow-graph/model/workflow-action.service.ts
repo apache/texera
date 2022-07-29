@@ -29,7 +29,6 @@ import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.ser
 import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
-import * as Y from "yjs";
 import {User} from "../../../../common/type/user";
 
 type OperatorPosition = {
@@ -290,7 +289,7 @@ export class WorkflowActionService {
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
-    this.texeraGraph.sharedModel.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.transact(()=> {
       const linksToDelete = new Map<OperatorLink, number>();
       this.getTexeraGraph()
         .getAllLinks()
@@ -328,7 +327,7 @@ export class WorkflowActionService {
     // unhighlight previous highlights
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
-    this.texeraGraph.sharedModel.yDoc.transact(() => {
+    this.texeraGraph.sharedModel.transact(() => {
       this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
       if (links) {
         this.addLinksInternal(links);
@@ -372,7 +371,7 @@ export class WorkflowActionService {
     // save links to be deleted, including links explicitly deleted and implicitly deleted with their operators
     const linksToDelete = new Map<OperatorLink, number>();
 
-    this.texeraGraph.sharedModel.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.transact(()=> {
       // delete links required by this command
       linkIDs
         .map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
@@ -618,11 +617,15 @@ export class WorkflowActionService {
   }
 
   public setTempWorkflow(workflow: Workflow): void {
+    if (this.texeraGraph.sharedModel.wsProvider.shouldConnect) {
+      this.texeraGraph.sharedModel.wsProvider.destroy();
+    }
     this.tempWorkflow = workflow;
   }
 
   public resetTempWorkflow(): void {
     this.tempWorkflow = undefined;
+    this.texeraGraph.sharedModel.wsProvider.connect();
   }
 
   public getTempWorkflow(): Workflow | undefined {
@@ -665,7 +668,7 @@ export class WorkflowActionService {
   }
 
   public disableOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().disableOperator(op);
       });
@@ -673,7 +676,7 @@ export class WorkflowActionService {
   }
 
   public enableOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().enableOperator(op);
       });
@@ -681,7 +684,7 @@ export class WorkflowActionService {
   }
 
   public cacheOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().cacheOperator(op);
       });
@@ -689,7 +692,7 @@ export class WorkflowActionService {
   }
 
   public unCacheOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.yDoc.transact(()=> {
+    this.texeraGraph.sharedModel.transact(()=> {
       ops.forEach(op => {
         this.getTexeraGraph().unCacheOperator(op);
       });
@@ -714,8 +717,8 @@ export class WorkflowActionService {
           throw new Error(`operator type ${operator.operatorType} is invalid`);
         }
         // add operator to texera graph
-        this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
         this.texeraGraph.addOperator(operator);
+        this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
       }
     });
   }

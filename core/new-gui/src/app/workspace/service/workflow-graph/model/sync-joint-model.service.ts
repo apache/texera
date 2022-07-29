@@ -16,6 +16,7 @@ import {WorkflowActionService} from "./workflow-action.service";
 import * as joint from "jointjs";
 import {environment} from "../../../../../environments/environment";
 import {User, UserState} from "../../../../common/type/user";
+import _remove from "lodash/remove";
 
 @Injectable({
   providedIn: "root"
@@ -24,7 +25,7 @@ export class SyncJointModelService {
   private texeraGraph: WorkflowGraph;
   private jointGraph: joint.dia.Graph;
   private jointGraphWrapper: JointGraphWrapper;
-  public otherUserStates!: UserState[];
+  public otherUsers: User[] = [];
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -291,13 +292,17 @@ export class SyncJointModelService {
    * Handles changes of other users' cursors.
    */
   private observeUserState (): void {
-    this.texeraGraph.sharedModel.awareness.on("change", (changes: any) => {
-      this.otherUserStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
+    this.texeraGraph.sharedModel.awareness.on("change", () => {
+      const newStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
         .filter((userState) => userState.clientID && userState.clientID !== this.texeraGraph.sharedModel.awareness.clientID);
 
       let highlightStates: {coeditor: User, clientId: number, operatorIds: string[]}[] = [];
 
-      this.otherUserStates.forEach((userState) => {
+      newStates.forEach((userState) => {
+        const user = userState.user;
+        if (!this.otherUsers.find(u => u.name === user.name && u.color === user.color)) {
+          this.otherUsers.push(user);
+        }
         const userNameAndClientID = userState.user.name + userState.clientID.toString();
         const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(userNameAndClientID);
         const userColor = userState.user.color;
@@ -325,6 +330,8 @@ export class SyncJointModelService {
           highlightStates.push({coeditor: userState.user, clientId: userState.clientID, operatorIds: userState.highlighted});
         }
       });
+      const newUsers = newStates.map(userState => userState.user);
+      _remove(this.otherUsers, user => !newUsers.find(u => u.name === user.name && u.color === user.color));
 
       this.texeraGraph.coeditorOperatorHighlightSubject.next(highlightStates);
     });
