@@ -2,11 +2,30 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
+  WorkflowAccess,
+  toAccessLevel
+}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
+  DashboardWorkflowEntry,
+  context,
+  insertWorkflow,
+  workflowDao,
+  workflowOfUserExists
+}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL.{falseCondition, groupConcat, noCondition}
@@ -91,8 +110,10 @@ class WorkflowResource {
     val workflowEntries = context
       .select(USER.NAME)
       .from(WORKFLOW_USER_ACCESS)
-      .join(WORKFLOW_OF_USER).on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
-      .join(USER).on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .join(WORKFLOW_OF_USER)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .join(USER)
+      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .groupBy(USER.UID)
       .fetch()
@@ -116,12 +137,14 @@ class WorkflowResource {
     var orCondition: Condition = noCondition()
     for (i <- operatorArray.indices) {
       val operatorName = operatorArray(i)
-      orCondition = orCondition.or(WORKFLOW.CONTENT
-        .likeIgnoreCase(
-          "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
-          //gives error when I try to combine escape character with formatted string
-          //may be due to old scala version bug
-        ))
+      orCondition = orCondition.or(
+        WORKFLOW.CONTENT
+          .likeIgnoreCase(
+            "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
+            //gives error when I try to combine escape character with formatted string
+            //may be due to old scala version bug
+          )
+      )
 
     }
 
@@ -134,15 +157,16 @@ class WorkflowResource {
         .join(WORKFLOW_USER_ACCESS)
         .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
         .where(
-            orCondition
+          orCondition
             .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
         )
         .fetch()
 
-    workflowEntries.map(workflowRecord => {
-      workflowRecord.into(WORKFLOW).getWid().intValue().toString()
-    })
-    .toList
+    workflowEntries
+      .map(workflowRecord => {
+        workflowRecord.into(WORKFLOW).getWid().intValue().toString()
+      })
+      .toList
   }
 
   /**
