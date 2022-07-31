@@ -124,7 +124,7 @@ export class WorkflowPersistService {
   public retrieveIDs(): Observable<{ id: string; checked: boolean }[]> {
     return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
       map((wids: string[]) => {
-        return wids.map((wid) => {
+        return wids.map(wid => {
           return {
             id: wid,
             checked: false,

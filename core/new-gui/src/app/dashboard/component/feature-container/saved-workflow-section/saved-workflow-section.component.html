@@ -334,9 +334,7 @@
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"
-              >
-                x
-              </div>
+              ></div>
             </div>
           </div>
 
