@@ -64,7 +64,6 @@
             (nzSelectChange)="calendarValueChange($event)"
             [(ngModel)]="selectedDate"
           ></nz-calendar>
-          <button (click)="removeDate()" [disabled]="selectedDate === null ? true : false" nz-button>Remove Date</button>
         </div>
       </nz-dropdown-menu>
 
@@ -145,9 +144,10 @@
         [nzMaxTagCount]="3"
         [nzMaxTagPlaceholder]="tagPlaceHolder"
         [nzBorderless]="true"
-        [nzOpen]="true"
-        [(ngModel)]="projectFilterList"
-        (ngModelChange)="filterWorkflowsByProject()"
+        [nzOpen]="false"
+        [(ngModel)]="masterFilterList"
+        [nzAllowClear]="true"
+        (ngModelChange)="updateDropdownMenus($event)"
       >
         <nz-option-group nzLabel="Colored Projects">
           <div *ngFor="let project of userProjectsList">

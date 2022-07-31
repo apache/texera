@@ -2,32 +2,14 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
-  DashboardWorkflowEntry,
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL.{groupConcat}
+import org.jooq.Condition
+import org.jooq.impl.DSL.{falseCondition, groupConcat, noCondition}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
@@ -89,7 +71,7 @@ class WorkflowResource {
 
   @GET
   @Path("/ids")
-  def retrieveIDs(@Auth sessionUser: SessionUser): List[Int] = {
+  def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
       .select(WORKFLOW_USER_ACCESS.WID)
@@ -98,7 +80,7 @@ class WorkflowResource {
       .fetch()
 
     workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue())
+      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue().toString())
       .toList
   }
 
@@ -125,14 +107,25 @@ class WorkflowResource {
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
       @Auth sessionUser: SessionUser
-  ): List[Int] = {
+  ): List[String] = {
     // Example GET url: localhost:8080/workflow/searchOperators?operator=csv
     val user = sessionUser.getUser
     val quotes = "\""
     val operatorArray =
       operator.replaceAllLiterally(" ", "").stripPrefix("[").stripSuffix("]").split(',')
-    val operatorSet = Set(-1)
-    for (operator_name <- operatorArray) {
+    var orCondition: Condition = noCondition()
+    for (i <- operatorArray.indices) {
+      val operatorName = operatorArray(i)
+      orCondition = orCondition.or(WORKFLOW.CONTENT
+        .likeIgnoreCase(
+          "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
+          //gives error when I try to combine escape character with formatted string
+          //may be due to old scala version bug
+        ))
+
+    }
+
+    val workflowEntries =
       context
         .select(
           WORKFLOW.WID
@@ -141,25 +134,15 @@ class WorkflowResource {
         .join(WORKFLOW_USER_ACCESS)
         .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
         .where(
-          WORKFLOW.CONTENT
-            .likeIgnoreCase(
-              "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operator_name" + quotes + "%"
-            )
-            .or(
-              WORKFLOW.CONTENT.likeIgnoreCase(
-                "%" + quotes + "userFriendlyName" + quotes + ":" + quotes + s"$operator_name" + quotes + "%"
-              )
-            )
-            //gives error when I try to combine escape character with formatted string
-            //may be due to old scala version bug
+            orCondition
             .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
         )
         .fetch()
-        .forEach(workflowRecord =>
-          operatorSet.add(workflowRecord.into(WORKFLOW).getWid().intValue())
-        )
-    }
-    operatorSet.toList
+
+    workflowEntries.map(workflowRecord => {
+      workflowRecord.into(WORKFLOW).getWid().intValue().toString()
+    })
+    .toList
   }
 
   /**

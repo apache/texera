@@ -2,7 +2,7 @@ import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/cor
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { cloneDeep, concat, forEach, over } from "lodash-es";
-import { from, Observable } from "rxjs";
+import { from, Observable, Operator } from "rxjs";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalDeleteWorkflowComponent } from "./ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
@@ -39,14 +39,16 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   * variables for dropdown menus and searching
   */
   public owners: { userName: string; checked: boolean }[] = [];
-  public wids: { id: number; checked: boolean }[] = [];
+  public wids: { id: string; checked: boolean }[] = [];
   public operatorGroups: string[] = [];
-  public operators: Map<string, { operatorName: string; userFriendlyName: string; checked: boolean }[]> = new Map();
+  public operators: Map<string, {userFriendlyName: string, operatorType: string, operatorGroup: string, checked: boolean}[]> = new Map();
   public selectedDate: null | Date = null;
 
   private selectedOwners: string[] = [];
-  private selectedIDs: number[] = [];
-  private selectedOperators: string[] = [];
+  private selectedIDs: string[] = [];
+  private selectedOperators: {userFriendlyName: string, operatorType: string, operatorGroup: string}[] = [];
+  
+  public masterFilterList: string[] = [];
 
   /* variables for workflow editing / search */
   // virtual scroll requires replacing the entire array reference in order to update view
@@ -189,8 +191,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
             .map(operator => {
               return {
-                operatorName: operator.operatorType,
                 userFriendlyName: operator.additionalMetadata.userFriendlyName,
+                operatorType: operator.operatorType,
+                operatorGroup: operator.additionalMetadata.operatorGroupName,
                 checked: false,
               };
             })
@@ -271,44 +274,110 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * updates selectedOperators array to match operators checked in dropdown menu 
    */
   public updateSelectedOperators(): void {
-    const filteredOperators: string[] = [];
+    const filteredOperators: {userFriendlyName: string, operatorType: string, operatorGroup: string}[] = [];
     Array.from(this.operators.values()).forEach(
-      (operator_list: { operatorName: string; userFriendlyName: string; checked: boolean }[]) => {
+      (operator_list: {userFriendlyName: string, operatorType: string, operatorGroup: string, checked: boolean }[]) => {
         operator_list.forEach(operator => {
           if (operator.checked) {
-            filteredOperators.push(operator.operatorName);
+            filteredOperators.push({userFriendlyName: operator.userFriendlyName, operatorType: operator.operatorType, operatorGroup: operator.operatorGroup});
+          }
+        });
+      }
+      );
+      this.selectedOperators = filteredOperators;
+      this.searchWorkflow();
+    }
+
+    /**
+     * callback function when calendar is altered
+     */
+    public calendarValueChange(value: Date): void {
+      this.searchWorkflow();
+    }
+    
+  /**
+   * builds the tags to be displayd in the nz-select search bar
+   * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
+   */
+  private buildMasterFilterList(): void {
+    let newFilterList: string[] = this.masterFilterList.filter(tag => !tag.includes(":"))
+    newFilterList = newFilterList.concat(this.selectedOwners.map(owner => "owner: " + owner));
+    newFilterList = newFilterList.concat(this.selectedIDs.map(id => "id: " + id));
+    newFilterList = newFilterList.concat(this.selectedOperators.map(operator => "operator: "+operator.userFriendlyName));
+    if(this.selectedDate !== null) {
+      newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedDate));
+    }
+    this.masterFilterList = newFilterList;
+  }
+  /**
+   * sets all dropdown menu options to unchecked
+   */
+  private setSelectedDropdownsToUnchecked() {
+    this.owners.forEach(owner => {
+      owner.checked = false;
+    })
+    this.wids.forEach(wid => {
+      wid.checked = false;
+    })
+    for (let operatorList of this.operators.values()) {
+      operatorList.forEach(operator => operator.checked = false)
+    }
+  }
+
+  /**
+   * updates dropdown menus when nz-select bar is changed
+   */
+  public updateDropdownMenus(tagListString: string) {
+    const tagList = Array.from(tagListString);
+    let hasDate: boolean = false;
+    this.setSelectedDropdownsToUnchecked();
+    tagList.forEach( tag => {
+      if(tag.includes(":")) {
+        const searchArray = tag.split(":");
+        const searchField = searchArray[0];
+        const searchValue = searchArray[1].trim();
+        switch (searchField) {
+          case "owner":
+            this.owners[this.owners.findIndex(owner => owner.userName === searchValue)].checked = true;
+            break;
+          case "id":
+            this.wids[this.wids.findIndex(wid => wid.id === searchValue)].checked = true;
+            break;
+          case "operator":
+            const operator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
+            const operatorSublist = this.operators.get(operator ? operator.operatorGroup : "");
+            if(operatorSublist) {
+              operatorSublist.forEach(operator => {if(operator.userFriendlyName === searchValue) {operator.checked = true}} );
+            }
+            break;
+          case "ctime":
+            hasDate = true;
+            break;
+        }
+      }
+    })
+    if(!hasDate) {
+      this.selectedDate = null;
+    }
+
+    //updates selected parameter lists
+    this.selectedOwners = this.owners.filter(owner => owner.checked).map(owner => owner.userName);
+    this.selectedIDs = this.wids.filter(wid => wid.checked === true).map(wid => wid.id);
+    const filteredOperators: {userFriendlyName: string, operatorType: string, operatorGroup: string}[] = [];
+    Array.from(this.operators.values()).forEach(
+      (operator_list: {userFriendlyName: string, operatorType: string, operatorGroup: string, checked: boolean }[]) => {
+        operator_list.forEach(operator => {
+          if (operator.checked) {
+            filteredOperators.push({userFriendlyName: operator.userFriendlyName, operatorType: operator.operatorType, operatorGroup: operator.operatorGroup});
           }
         });
       }
     );
     this.selectedOperators = filteredOperators;
+
     this.searchWorkflow();
   }
 
-  /**
-   * callback function when calendar is altered
-   */
-  public calendarValueChange(value: Date): void {
-    this.searchWorkflow();
-  }
-
-   /**
-   * callback function for remove date button that removes date from search query
-   */
-  public removeDate(): void {
-    this.selectedDate = null;
-    this.notificationService.success("Date removed from search query")
-  }
-
-  /**
-   * extracts workflow name from search value
-   *  -successful if search value format is followed
-   */
-  private getWorkflowName(): string {
-    let workflowName: string = this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g)[0]; //WORKFLOWNAME
-    if (workflowName.includes(":"))return "";
-    return workflowName;
-  }
 
   /**
    * returns a formatted string representing a Date object
@@ -316,58 +385,20 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private getFormattedDateString(date: Date): string {
     let dateMonth: number = date.getMonth() + 1;
     let dateDay: number = date.getDate();
-    return `${date.getFullYear()}-${((dateMonth < 10) ? "0" : "")+dateMonth}-${((dateDay < 10) ? "0" : "")+dateDay}`
-  }
-
-  /**
-   * formats workflowSearchValue based on values selected from dropdown menus
-   * output string follows format restrictions
-   */
-  private changeSearchValueString(): string {
-    let newSearchQuery = "";
-    newSearchQuery += this.getWorkflowName();
-
-    if (this.selectedOwners.length === 1) {
-      if (this.selectedOwners[0].includes(" ")) {
-        newSearchQuery += ` owner:"${this.selectedOwners[0]}"`;
-      } else {
-        newSearchQuery += ` owner:${this.selectedOwners[0]}`;
-      }
-    } else if (this.selectedOwners.length > 1) {
-      newSearchQuery += ` owner:[${this.selectedOwners.toString()}]`;
-    }
-
-    if (this.selectedIDs.length === 1) {
-      newSearchQuery += ` id:${this.selectedIDs[0]}`;
-    } else if (this.selectedIDs.length > 1) {
-      newSearchQuery += ` id:[${this.selectedIDs.toString()}]`;
-    }
-
-    if (this.selectedOperators.length === 1) {
-      if (this.selectedOperators[0].includes(" ")) {
-        newSearchQuery += ` operator:"${this.selectedOperators[0]}"`;
-      } else {
-        newSearchQuery += ` operator:${this.selectedOperators[0]}`;
-      }
-    } else if (this.selectedOperators.length > 1) {
-      newSearchQuery += ` operator:[${this.selectedOperators.toString()}]`;
-    }
-
-    if(this.selectedDate != null) {
-      newSearchQuery += ` ctime:${this.getFormattedDateString(this.selectedDate)}`
-    }
-
-    return newSearchQuery;
+    return `${date.getFullYear()}-${((dateMonth < 10) ? "0" : "")+dateMonth}-${((dateDay < 10) ? "0" : "")+dateDay}`;
   }
 
   /**
    * constructs OrPathQuery object for search values with in the same category (owner, id, operator, etc.)
    *  -returned object is inserted into AndPathQuery
+   * 
+   * @param searchType - specified fuse search parameter for path mapping
+   * @param searchList - list of search parameters of the same type (owner, id, etc.)
    */
-  private buildOrPathQuery(searchType: string, searchList: string[]) {
+  private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
     let orPathQuery: Object[] = [];
     searchList
-      .map(searchParameter => this.buildAndPathQuery(searchType, searchParameter.toString())) // exact match extended searching (see https://fusejs.io/)
+      .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter)) 
       .forEach(pathQuery => orPathQuery.push(pathQuery));
     return orPathQuery;
   }
@@ -387,52 +418,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * converts workflowSearchValue into either a string without quotation marks or an array
-   *  - workflowSearchField:workflowSearchValue (operator:csvfilescan)
-   */
-  private getPureWorkflowSearchValue(workflowSearchValue: string): any {
-    let newWorkflowSearchValue: any = workflowSearchValue;
-    if (workflowSearchValue.startsWith("[") && workflowSearchValue.endsWith("]")) {
-      newWorkflowSearchValue = workflowSearchValue.substring(1, workflowSearchValue.length - 1).split(","); //array if brackets
-    } else if (workflowSearchValue.startsWith("\"") && workflowSearchValue.endsWith("\""))
-      newWorkflowSearchValue = workflowSearchValue.substring(1, workflowSearchValue.length - 1); //removes ""
-    return newWorkflowSearchValue;
-  }
-  
-  /**
-   * error checking for search value format
-   */
-  private checkSearchValueFormatting(): boolean {
-    const conditionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g))
-    for (const searchCondition of conditionsSet) {
-      const conditionArray = searchCondition.split(":");
-      const searchField = conditionArray[0] //either workflow name or (owner:, id:, etc.)
-      if (conditionArray.length == 1) {
-        if(searchField.includes(" ") && !searchField.startsWith("\"") && !searchField.endsWith("\"")) {
-          this.notificationService.error("Workflow name is not correctly formatted")
-          return false;
-        }
-      } else if (conditionArray.length === 2) {
-        const searchValue = conditionArray[1];
-        if (searchField === "ctime") {
-            const date_regex = /^([<>]?)(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
-            const search_date: RegExpMatchArray | null = searchValue.match(date_regex);
-            if (!search_date) {
-              this.notificationService.error("Date format is incorrect");
-              return false;
-            }
-        } else if (!this.searchCriteria.includes(searchField)) {
-            this.notificationService.error("Cannot search by " + searchField);
-            return false;
-        }
-      } else if (conditionArray.length > 2) {
-        this.notificationService.error("Please check the format of the search query");
-        return false;
-      }
-    }
-    return true;
-  }
-  /**
    * Search workflows by owner name, workflow name, or workflow id
    * Use fuse.js https://fusejs.io/ as the tool for searching
    * 
@@ -440,114 +425,51 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *  - WORKFLOWNAME owner:OWNERNAME(S) id:ID(S) operator:OPERATOR(S)
    */
   public searchWorkflow(): void {
-    let andPathQuery: Object[] = [];
-    if(!this.checkSearchValueFormatting()) {
+    this.buildMasterFilterList();
+    if(this.masterFilterList.length === 0) {
+      //if there are no tags, return all workflow entries
+      this.dashboardWorkflowEntries = this.allDashboardWorkflowEntries;
       return;
     }
-    this.workflowSearchValue = this.changeSearchValueString().trim();
-
-    // empty search value, return all workflow entries
-    if (this.workflowSearchValue.trim() === "") {
-      this.dashboardWorkflowEntries = [...this.allDashboardWorkflowEntries];
-      return;
-    } else if (!this.workflowSearchValue.includes(":")) {
-      // search only by workflow name
-      andPathQuery.push(this.buildAndPathQuery("workflowName", this.workflowSearchValue));
-      this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-      return;
-    }
-    const searchConditionsSet = new Set(
-      this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"\[\]]*["\[\]]){2})*[^"\]]*$)/g)
-    );
-    let date = "";
-    let operatorSearchValue;
-    searchConditionsSet.forEach(condition => {
-      // field search
-      if (condition.includes(":")) {
-        const conditionArray = condition.split(":");
-        const workflowSearchField = conditionArray[0];
-        let workflowSearchValue = conditionArray[1];
-        switch (workflowSearchField) {
-          case "ctime":
-            date = workflowSearchValue;
-            break;
-          case "operator":
-            operatorSearchValue = workflowSearchValue;
-            break;
-          default:
-            //id, owner
-            workflowSearchValue = this.getPureWorkflowSearchValue(workflowSearchValue);
-            andPathQuery.push(
-              typeof workflowSearchValue === "object"
-                ? { $or: this.buildOrPathQuery(workflowSearchField, workflowSearchValue) }
-                : this.buildAndPathQuery(workflowSearchField, workflowSearchValue)
-            );
-            break;
-        }
-      } else {
-        //search by workflow name
-        andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
-      }
-    });
-    if (operatorSearchValue) {
-      this.asyncSearch(andPathQuery, date, operatorSearchValue);
+    if(this.selectedOperators.length > 0) {
+      this.asyncSearch();
     } else {
-      this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
-    }
-  }
-
-  /**
-   * checks if operatorType or its userFriendly name exists
-   */
-  private checkOperatorExistence(operator: string) {
-    if (!this.operatorMetadataService.operatorTypeExists(operator, true, true)) {
-      this.notificationService.error("Operator Name Invalid");
-      return;
+      this.dashboardWorkflowEntries = this.synchronousSearch([]);
     }
   }
 
   /**
    * backend search that is called if operators are included in search value
    */
-  private asyncSearch(andPathQuery: Object[], date: string, operatorSearchValue: string) {
-    const operatorPureSearchValue = this.getPureWorkflowSearchValue(operatorSearchValue);
-    if (typeof operatorPureSearchValue === "string") {
-      this.checkOperatorExistence(operatorPureSearchValue);
-    } else {
-      operatorPureSearchValue.forEach((operator: string) => {
-        this.checkOperatorExistence(operator);
-      });
-    }
-    let operatorQueryParam =
-      operatorSearchValue.startsWith("\"") && operatorSearchValue.endsWith("\"")
-        ? operatorSearchValue.substring(1, operatorSearchValue.length - 1)
-        : operatorSearchValue;
+  private asyncSearch() {
+    let andPathQuery: Object[] = [];
     this.workflowPersistService
-      .retrieveWorkflowByOperator(operatorQueryParam)
+      .retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString())
       .pipe(untilDestroyed(this))
       .subscribe(list_of_wids => {
-        if (list_of_wids.length !== 0) {
-          let orPathQuery: Object[] = [];
-          list_of_wids
-            .map((wid: number) => this.buildAndPathQuery("id", "=" + wid.toString())) // exact match extended searching (see https://fusejs.io/)
-            .forEach(pathQuery => orPathQuery.push(pathQuery));
-          if (orPathQuery.length != 0) {
-            andPathQuery.push({ $or: orPathQuery });
-          }
-          this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery, date);
-        }
+        andPathQuery.push({ $or: this.buildOrPathQuery("id", list_of_wids, true)})
+        this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery);
       });
   }
 
   /**
-   * Searches workflows with given Frontend data
+   * Searches workflows with given frontend data
    * no backend calls so runs synchronously
    */
-  private synchronousSearch(andPathQuery: Object[], date: string): ReadonlyArray<DashboardWorkflowEntry> {
-    let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries;
-    if (andPathQuery.length !== 0) searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-    if (date) {
-      searchOutput = this.searchCreationTime(date, searchOutput);
+  private synchronousSearch(andPathQuery: Object[]): ReadonlyArray<DashboardWorkflowEntry> {
+    let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
+    const workflowNames = this.masterFilterList.filter(tag => !tag.includes(":"));
+    if(workflowNames.length !== 0) {
+      andPathQuery.push({$or: this.buildOrPathQuery("workflowName", workflowNames)})
+    }
+    if(this.selectedOwners.length !== 0)
+      andPathQuery.push({$or: this.buildOrPathQuery("owner", this.selectedOwners)})
+    if(this.selectedIDs.length !== 0)
+      andPathQuery.push({$or: this.buildOrPathQuery("id", this.selectedIDs)})
+    if (andPathQuery.length !== 0) 
+      searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    if (this.selectedDate !== null) {
+      searchOutput = this.searchCreationTime(this.getFormattedDateString(this.selectedDate), searchOutput);
     }
     return searchOutput;
   }

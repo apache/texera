@@ -101,8 +101,8 @@ export class WorkflowPersistService {
   /**
    * retrieves the workflow ids of workflows with the operator(s) specified
    */
-  public retrieveWorkflowByOperator(operator: string): Observable<number[]> {
-    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
+  public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
   }
 
   public retrieveOwners(): Observable<{ userName: string; checked: boolean }[]> {
@@ -121,10 +121,10 @@ export class WorkflowPersistService {
   /**
    * retrieves all workflow IDs
    */
-  public retrieveIDs(): Observable<{ id: number; checked: boolean }[]> {
-    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
-      map((wids: number[]) => {
-        return wids.map((wid: number) => {
+  public retrieveIDs(): Observable<{ id: string; checked: boolean }[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
+      map((wids: string[]) => {
+        return wids.map((wid) => {
           return {
             id: wid,
             checked: false,
