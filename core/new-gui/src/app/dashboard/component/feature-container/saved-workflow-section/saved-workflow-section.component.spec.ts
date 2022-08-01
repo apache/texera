@@ -190,103 +190,105 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
   });
 
-  it("searchNoInput", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
-  });
+  //OLD TEST CASES for searching based on input bar string
 
-  it("searchWorkflow", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "1";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1"]);
-  });
+  // it("searchNoInput", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
+  // });
 
-  it("searchCreationTime", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "ctime:1970-01-02";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 2", "workflow 3"]);
-  });
+  // it("searchWorkflow", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "1";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 1"]);
+  // });
 
-  it("searchCreationTime (<)", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "ctime:<1970-01-02";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
-  });
+  // it("searchCreationTime", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "ctime:1970-01-02";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 2", "workflow 3"]);
+  // });
 
-  it("searchCreationTime (>)", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "ctime:>1970-01-02";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
-  });
+  // it("searchCreationTime (<)", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "ctime:<1970-01-02";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
+  // });
 
-  it("searchCreationTimeWrongFormat", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.dashboardWorkflowEntries = component.allDashboardWorkflowEntries; //for if workflows are already displayed, they will remain displayed
-    component.workflowSearchValue = "ctime:191090";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
-  });
+  // it("searchCreationTime (>)", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "ctime:>1970-01-02";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
+  // });
 
-  it("searchOwner", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "owner:Angular";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 4"]);
-  });
+  // it("searchCreationTimeWrongFormat", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.dashboardWorkflowEntries = component.allDashboardWorkflowEntries; //for if workflows are already displayed, they will remain displayed
+  //   component.workflowSearchValue = "ctime:191090";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
+  // });
 
-  it("searchID", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "id:1";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1"]);
-  });
+  // it("searchOwner", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "owner:Angular";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 4"]);
+  // });
 
-  it("searchCombo", () => {
-    component.dashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = [];
-    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.workflowSearchValue = "workflow ctime:1970-01-03 owner:Texera id:5";
-    component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 5"]);
-  });
+  // it("searchID", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "id:1";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 1"]);
+  // });
+
+  // it("searchCombo", () => {
+  //   component.dashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = [];
+  //   component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+  //   component.workflowSearchValue = "workflow ctime:1970-01-03 owner:Texera id:5";
+  //   component.fuse.setCollection(component.allDashboardWorkflowEntries);
+  //   component.searchWorkflow();
+  //   const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+  //   expect(SortedCase).toEqual(["workflow 5"]);
+  // });
 });
