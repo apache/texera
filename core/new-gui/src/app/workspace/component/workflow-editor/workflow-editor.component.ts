@@ -27,6 +27,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { Clipboard } from '@angular/cdk/clipboard';
 
 // This type represents the copied operator and its information:
 // - operator: the copied operator itself, and its properties, etc.
@@ -117,7 +118,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowCollabService: WorkflowCollabService,
+    private clipboard: Clipboard
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -1163,6 +1165,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * keyboard or selects copy option from the browser menu).
    */
   private handleElementCopy(): void {
+    console.log('got to the handle element copy');
     fromEvent<ClipboardEvent>(document, "copy")
       .pipe(filter(event => document.activeElement === document.body))
       .pipe(untilDestroyed(this))
@@ -1173,7 +1176,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
           this.clearCopiedElements();
-          this.saveHighlighedElements();
+          this.saveHighlightedElements();
         }
       });
   }
@@ -1197,7 +1200,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
           this.clearCopiedElements();
-          this.saveHighlighedElements();
+          this.saveHighlightedElements();
           this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
         }
       });
@@ -1214,11 +1217,44 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   /**
    * saves highlighted elements to copiedOperators and copiedGroups
    */
-  private saveHighlighedElements(): void {
+  private saveHighlightedElements(): void {
+    console.log('got to the save highlighted');
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
 
-    highlightedOperatorIDs.forEach(operatorID => this.saveOperatorInfo(operatorID, false));
+    highlightedOperatorIDs.forEach(operatorID => {
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+      if (operator) {
+        const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(operatorID);
+        const layer = this.workflowActionService.getJointGraphWrapper().getCellLayer(operatorID);
+        const includeOperator = false;
+        const pastedOperators = includeOperator ? [operatorID] : [];
+        const copiedOp = {
+          operator: operator,
+          position: position,
+          layer: layer,
+          pastedOperatorIDs: pastedOperators,
+        };
+        /**
+         * store the stringified copied operators into the clipboard, which is the preferred way to copy
+         * over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the 
+         * WorkflowEditorComponent class)
+         */ 
+        this.clipboard.copy(JSON.stringify(copiedOp));
+        /**
+         * the copied operators are also stored in the memory in frontend, which pasting can take advantage
+         * of for checking if there's anything already copied in the clipboard
+         * however, 
+         */
+        // this.copiedOperators.set(operatorID, {
+        //   operator,
+        //   position,
+        //   layer,
+        //   pastedOperatorIDs: pastedOperators,
+        // });
+      }
+    });
+
     highlightedGroupIDs.forEach(groupID => {
       this.saveGroupInfo(groupID);
 
