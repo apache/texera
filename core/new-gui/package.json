@@ -55,6 +55,7 @@
     "deck.gl": "~8.7.0",
     "deep-map": "~2.0.0",
     "es6-weak-map": "~2.0.3",
+    "file-saver": "^2.0.5",
     "font-awesome": "~4.7.0",
     "fuse.js": "~6.5.3",
     "jointjs": "~3.5.4",
