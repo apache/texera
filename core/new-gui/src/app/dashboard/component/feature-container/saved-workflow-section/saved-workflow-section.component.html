@@ -122,7 +122,7 @@
       <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let project of userProjectsList">
           <li nz-menu-item>
-            <label nz-checkbox>{{project.name}}</label>
+            <label nz-checkbox (ngModelChange)="updateSelectedProjects()">{{project.name}}</label>
           </li>
         </ul>
       </nz-dropdown-menu>
