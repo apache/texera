@@ -46,7 +46,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     { userFriendlyName: string; operatorType: string; operatorGroup: string; checked: boolean }[]
   > = new Map();
   public selectedDate: null | Date = null;
-
   private selectedOwners: string[] = [];
   private selectedIDs: string[] = [];
   private selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
@@ -76,7 +75,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
-  public searchCriteria: string[] = ["owner", "id", "ctime", "operator"];
+  public searchCriteria: string[] = ["owner", "id", "ctime", "operator", "project"];
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
@@ -320,6 +319,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
     this.masterFilterList = newFilterList;
   }
+
   /**
    * sets all dropdown menu options to unchecked
    */
@@ -478,18 +478,30 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   private synchronousSearch(andPathQuery: Object[]): ReadonlyArray<DashboardWorkflowEntry> {
     let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
-    const workflowNames = this.masterFilterList.filter(tag => !tag.includes(":"));
-    if (workflowNames.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
-    }
+    //builds andPathQuery from arrays containing selected values
+    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+    if (workflowNames.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
     if (this.selectedOwners.length !== 0)
       andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
     if (this.selectedIDs.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
+
+    //executes search using AndPathQuery and then filters result if searching by ctime
     if (andPathQuery.length !== 0) searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
     if (this.selectedDate !== null) {
       searchOutput = this.searchCreationTime(this.getFormattedDateString(this.selectedDate), searchOutput);
     }
     return searchOutput;
+  }
+
+  /**
+   * checks if a tag string is a workflow name or dropdown menu search parameter
+   */
+  private checkIfWorkflowName(tag: string) {
+    const stringChecked: string[] = tag.split(":");
+    if (stringChecked.length == 2 && this.searchCriteria.includes(stringChecked[0])) {
+      return false;
+    }
+    return true;
   }
 
   /**

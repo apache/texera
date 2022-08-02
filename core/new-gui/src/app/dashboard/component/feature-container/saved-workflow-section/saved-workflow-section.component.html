@@ -113,7 +113,7 @@
           </li>
         </ul>
       </nz-dropdown-menu>
-      
+
       <a [nzDropdownMenu]="projectSearchOptions" nz-dropdown nzTrigger="click" class="searchProjects">
         <button id="sortProject" ngbDropdownToggle nz-button>
           <i nz-icon nzType="file" nzTheme="outline" nz-tooltip="Projects"></i>
@@ -122,8 +122,7 @@
       <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let project of userProjectsList">
           <li nz-menu-item>
-            <label nz-checkbox
-              >{{project.name}}</label>
+            <label nz-checkbox>{{project.name}}</label>
           </li>
         </ul>
       </nz-dropdown-menu>
