@@ -27,7 +27,10 @@ import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
   TwitterFullArchiveSearchSourceOpDesc,
   TwitterSearchSourceOpDesc
 }
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
+  CSVOldScanSourceOpDesc,
+  CSVScanSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
@@ -109,7 +112,8 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
     new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin"),
     new Type(value = classOf[UnnestStringOpDesc], name = "UnnestString"),
     new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher"),
-    new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions")
+    new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions"),
+    new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
