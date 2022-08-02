@@ -2,7 +2,10 @@ import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/cor
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { from, Observable } from "rxjs";
-import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
@@ -133,7 +136,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             creationTime: undefined,
             lastModifiedTime: undefined,
           };
-          const workflowJson = JSON.stringify(workflowCopy);
+          const workflowJson = JSON.stringify(workflowCopy.content);
           const fileName = workflowCopy.name + ".json";
           saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
         });
@@ -290,7 +293,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * create a new workflow based on uploaded json file
+   * Verify Uploaded file name, then call executeUpload to import workflow to the backend
    */
   public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
     var reader = new FileReader();
@@ -301,17 +304,18 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         if (typeof result !== "string") {
           throw new Error("Incorrect format: file is not a string");
         }
-        const workflowContent = JSON.parse(result).content as WorkflowContent;
-        const workflowName = JSON.parse(result).name as string;
-        this.workflowPersistService
-          .createWorkflow(workflowContent, workflowName)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: uploadedWorkflow => {
-              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
-            },
-            error: (err: unknown) => alert(err),
-          });
+        const workflowContent = JSON.parse(result) as WorkflowContent;
+        const fileExtensionIndex = file.name.lastIndexOf(".");
+        var workflowName: string;
+        if (fileExtensionIndex === -1) {
+          workflowName = file.name;
+        } else {
+          workflowName = file.name.substring(0, fileExtensionIndex);
+        }
+        if (workflowName.trim() === "") {
+          workflowName = DEFAULT_WORKFLOW_NAME;
+        }
+        this.executeUpload(workflowContent, workflowName);
       } catch (error) {
         this.notificationService.error(
           "An error occurred when importing the workflow. Please import a workflow json file."
@@ -321,6 +325,21 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     };
     return false;
   };
+
+  /**
+   * import workflow to the backend
+   */
+  private executeUpload(workflowContent: WorkflowContent, workflowName: string) {
+    this.workflowPersistService
+      .createWorkflow(workflowContent, workflowName)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: uploadedWorkflow => {
+          this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
+        },
+        error: (err: unknown) => alert(err),
+      });
+  }
 
   /**
    * duplicate the current workflow. A new record will appear in frontend
