@@ -185,22 +185,6 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
         return (String) get(9);
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.name</code>.
-     */
-    @Override
-    public void setName(String value) {
-        set(8, value);
-    }
-
-    /**
-     * Getter for <code>texera_db.workflow_executions.name</code>.
-     */
-    @Override
-    public String getName() {
-        return (String) get(8);
-    }
-
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
