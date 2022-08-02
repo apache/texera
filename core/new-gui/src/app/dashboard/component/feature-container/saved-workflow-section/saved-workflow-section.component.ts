@@ -294,7 +294,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Verify Uploaded file name, then call executeUpload to import workflow to the backend
+   * Verify Uploaded file name and upload the file
    */
   public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
     var reader = new FileReader();
@@ -316,7 +316,15 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         if (workflowName.trim() === "") {
           workflowName = DEFAULT_WORKFLOW_NAME;
         }
-        this.executeUpload(workflowContent, workflowName);
+        this.workflowPersistService
+          .createWorkflow(workflowContent, workflowName)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: uploadedWorkflow => {
+              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
+            },
+            error: (err: unknown) => alert(err),
+          });
       } catch (error) {
         this.notificationService.error(
           "An error occurred when importing the workflow. Please import a workflow json file."
@@ -326,21 +334,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     };
     return false;
   };
-
-  /**
-   * import workflow to the backend
-   */
-  private executeUpload(workflowContent: WorkflowContent, workflowName: string) {
-    this.workflowPersistService
-      .createWorkflow(workflowContent, workflowName)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: uploadedWorkflow => {
-          this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
-        },
-        error: (err: unknown) => alert(err),
-      });
-  }
 
   /**
    * duplicate the current workflow. A new record will appear in frontend

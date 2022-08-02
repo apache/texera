@@ -5,7 +5,6 @@ import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { SavedWorkflowSectionComponent } from "./saved-workflow-section.component";
 import {
   WORKFLOW_BASE_URL,
-  WORKFLOW_CREATE_URL,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { MatDividerModule } from "@angular/material/divider";
@@ -195,11 +194,5 @@ describe("SavedWorkflowSectionComponent", () => {
     component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
     httpTestingController.match(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${testWorkflowEntries[0]}`);
     httpTestingController.expectOne("api/workflow/1");
-  });
-
-  it("Sends http request to backend to import json", () => {
-    (component as any).executeUpload(testWorkflow1.content, "workflow 6");
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`);
-    httpTestingController.verify();
   });
 });
