@@ -28,14 +28,13 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
 }
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
-import org.jooq.impl.DSL.{falseCondition, groupConcat, noCondition}
+import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.collection.mutable._
 
 /**
   * This file handles various request related to saved-workflows.
