@@ -296,6 +296,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.searchWorkflow();
   }
 
+  public updateSelectedProjects(): void {
+
+  }
+
   /**
    * callback function when calendar is altered
    */
@@ -308,7 +312,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
    */
   private buildMasterFilterList(): void {
-    let newFilterList: string[] = this.masterFilterList.filter(tag => !tag.includes(":"));
+    let newFilterList: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
     newFilterList = newFilterList.concat(this.selectedOwners.map(owner => "owner: " + owner));
     newFilterList = newFilterList.concat(this.selectedIDs.map(id => "id: " + id));
     newFilterList = newFilterList.concat(
@@ -341,6 +345,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public updateDropdownMenus(tagListString: string) {
     const tagList = Array.from(tagListString);
     let hasDate = false;
+    this.selectedOperators = [];
+    this.selectedIDs = [];
+    this.selectedOwners = [];
+    let newSelectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
+    //should never have undefined operator objects
     this.setSelectedDropdownsToUnchecked();
     tagList.forEach(tag => {
       if (tag.includes(":")) {
@@ -350,13 +359,17 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         switch (searchField) {
           case "owner":
             this.owners[this.owners.findIndex(owner => owner.userName === searchValue)].checked = true;
+            this.selectedOwners.push(searchValue);
             break;
           case "id":
             this.wids[this.wids.findIndex(wid => wid.id === searchValue)].checked = true;
+            this.selectedIDs.push(searchValue);
             break;
           case "operator":
-            const operator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
-            const operatorSublist = this.operators.get(operator ? operator.operatorGroup : "");
+            const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
+            newSelectedOperators.push(selectedOperator ? selectedOperator : {userFriendlyName: "", operatorType: "", operatorGroup: ""});
+            //selectedOperator should never be undefined/false
+            const operatorSublist = this.operators.get(selectedOperator ? selectedOperator.operatorGroup : ""); 
             if (operatorSublist) {
               operatorSublist.forEach(operator => {
                 if (operator.userFriendlyName === searchValue) {
@@ -374,28 +387,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     if (!hasDate) {
       this.selectedDate = null;
     }
-
-    //updates selected parameter lists
-    this.selectedOwners = this.owners.filter(owner => owner.checked).map(owner => owner.userName);
-    this.selectedIDs = this.wids.filter(wid => wid.checked === true).map(wid => wid.id);
-    const filteredOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
-    Array.from(this.operators.values()).forEach(
-      (
-        operator_list: { userFriendlyName: string; operatorType: string; operatorGroup: string; checked: boolean }[]
-      ) => {
-        operator_list.forEach(operator => {
-          if (operator.checked) {
-            filteredOperators.push({
-              userFriendlyName: operator.userFriendlyName,
-              operatorType: operator.operatorType,
-              operatorGroup: operator.operatorGroup,
-            });
-          }
-        });
-      }
-    );
-    this.selectedOperators = filteredOperators;
-
+    this.selectedOperators = newSelectedOperators;
     this.searchWorkflow();
   }
 
@@ -480,10 +472,15 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
     //builds andPathQuery from arrays containing selected values
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    if (workflowNames.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
-    if (this.selectedOwners.length !== 0)
+    if (workflowNames.length !== 0) {
+      andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
+    }
+    if (this.selectedOwners.length !== 0) {
       andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
-    if (this.selectedIDs.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
+    }
+    if (this.selectedIDs.length !== 0) {
+      andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
+    }
 
     //executes search using AndPathQuery and then filters result if searching by ctime
     if (andPathQuery.length !== 0) searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
