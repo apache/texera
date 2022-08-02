@@ -26,7 +26,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public workflowExecutionsIsEditingName: number[] = [];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
-    "",
+    "Select All",
     "",
     "Username",
     "Name",
@@ -79,6 +79,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["completed", 3],
     ["aborted", 4],
   ]);
+  public showORhide: boolean[] = [false, false, false, false];
+  public checkBoxes: boolean[] = [];
+  public allCheck: boolean  = false;
+  public avatarColors: {[key: string]: string} = {};
+
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -109,6 +114,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
         this.fuse.setCollection(this.paginatedExecutionEntries);
       });
+      this.checkBoxes = new Array(this.paginatedExecutionEntries.length);
   }
 
   /**
@@ -149,6 +155,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
+
   /* delete a single execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
@@ -174,6 +181,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         }
       });
   }
+
 
   /* rename a single execution */
 
@@ -266,6 +274,56 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     }
   }
 
+  shortenName(name: string): string {
+    if (name.length <= 25) {
+      return name
+    } else {
+      let words = name.slice(0, 25).split(" ")
+      return words.slice(0, -1).join(" ") + "..."
+    }
+  }
+
+  onHit(column: string, index: number): void {
+    if (this.showORhide[index]) {
+      this.ascSort(column);
+    } else {
+      this.dscSort(column);
+    }
+    this.showORhide[index] = !this.showORhide[index];
+  }
+
+
+  isSelectAll(): void {
+    this.allCheck=!this.allCheck
+  }
+
+  setCheckBox(index: number): void {
+    this.checkBoxes[index]=!this.checkBoxes[index]
+  }
+
+  isAllChecked(element: boolean, index: number, array: boolean[]): boolean {
+    return element;
+  }
+
+  setAvatarColor(userName: string): string {
+    if (userName in this.avatarColors) {
+      return this.avatarColors[userName];
+    } else {
+      this.avatarColors[userName] = this.getRandomColor()
+      return this.avatarColors[userName];
+    }
+  }
+
+  getRandomColor(): string {
+    let letters = "0123456789ABCDEF".split('');
+    let color = "#";
+    for (let i=0;i<6;i++) {
+      color += letters[Math.floor(Math.random()*16)];
+    }
+    return color;
+  }
+
+  
   public searchInputOnChange(value: string): void {
     const searchConditionsSet = [...new Set(value.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g))];
     searchConditionsSet.forEach((condition, index) => {
