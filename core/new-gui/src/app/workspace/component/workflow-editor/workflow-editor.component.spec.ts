@@ -874,7 +874,7 @@ describe("WorkflowEditorComponent", () => {
     });
 
     //undo
-    it("should undo action when press command + Z or control + Z", () => {
+    it("should undo action when user presses command + Z or control + Z", () => {
       spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
       spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
       spyOn(undoRedoService, "canUndo").and.returnValue(true);
@@ -884,17 +884,17 @@ describe("WorkflowEditorComponent", () => {
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(commandZEvent);
       fixture.detectChanges();
-      expect(undoSpy).toHaveBeenCalled();
+      expect(undoSpy).toHaveBeenCalledTimes(1);
 
       const controlZEvent = new KeyboardEvent("keydown", { key: "Z", ctrlKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(controlZEvent);
       fixture.detectChanges();
-      expect(undoSpy).toHaveBeenCalled();
+      expect(undoSpy).toHaveBeenCalledTimes(2);
     });
 
     //redo
-    it("should redo action when press command + Z or control + Z", () => {
+    it("should redo action when user presses command/control + Y or command/control + shift + Z", () => {
       spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
       spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
       spyOn(undoRedoService, "canRedo").and.returnValue(true);
@@ -904,25 +904,25 @@ describe("WorkflowEditorComponent", () => {
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(commandYEvent);
       fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalled();
+      expect(redoSpy).toHaveBeenCalledTimes(1);
 
       const controlYEvent = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(controlYEvent);
       fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalled();
+      expect(redoSpy).toHaveBeenCalledTimes(2);
 
       const commandShitZEvent = new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true });
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(commandShitZEvent);
       fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalled();
+      expect(redoSpy).toHaveBeenCalledTimes(3);
 
       const controlShitZEvent = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true });
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(controlShitZEvent);
       fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalled();
+      expect(redoSpy).toHaveBeenCalledTimes(4);
     });
   });
 });
