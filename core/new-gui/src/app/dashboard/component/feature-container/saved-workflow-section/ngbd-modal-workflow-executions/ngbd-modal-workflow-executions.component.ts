@@ -80,6 +80,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["aborted", 4],
   ]);
   public showORhide: boolean[] = [false, false, false, false];
+  public avatarColors: { [key: string]: string } = {};
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -268,23 +269,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   shortenName(name: string): string {
-    if (name.length > 20) {
-      let spaceIndex = 0;
-      for (let i = 0; i < name.length; i++) {
-        if (i <= 20) {
-          if (name[i] == " ") {
-            spaceIndex = i;
-          }
-        } else {
-          if (i < 25 && name[i] == " ") {
-            spaceIndex = i;
-            break;
-          }
-        }
-      }
-      return name.slice(0, spaceIndex != 0 ? spaceIndex : 20) + "...";
-    } else {
+    if (name.length <= 25) {
       return name;
+    } else {
+      let words = name.slice(0, 25).split(" ");
+      return words.slice(0, -1).join(" ") + "...";
     }
   }
 
@@ -295,6 +284,24 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       this.dscSort(column);
     }
     this.showORhide[index] = !this.showORhide[index];
+  }
+
+  setAvatarColor(userName: string): string {
+    if (userName in this.avatarColors) {
+      return this.avatarColors[userName];
+    } else {
+      this.avatarColors[userName] = this.getRandomColor();
+      return this.avatarColors[userName];
+    }
+  }
+
+  getRandomColor(): string {
+    let letters = "0123456789ABCDEF".split("");
+    let color = "#";
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
   }
 
   public searchInputOnChange(value: string): void {

@@ -3,7 +3,7 @@
     <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
       <span aria-hidden="true"> × </span>
     </button>
-    <h4 class="modal-title">Execution results of Workflow {{workflowName}}</h4>
+    <h4 class="modal-title">Execution results of Workflow: {{workflowName}}</h4>
     <nz-input-group
       [nzPrefix]="prefixPopoverButton"
       [nzSuffix]="suffixIconSearch"
@@ -70,49 +70,50 @@
       [nzFrontPagination]="false"
       (nzPageSizeChange)="onPageSizeChange($event)"
       (nzPageIndexChange)="onPageIndexChange($event)"
+      [nzScroll]="{ x: '1000px' }"
     >
       <thead>
         <tr>
-          <th
-            *ngFor="let column of executionsTableHeaders; let i=index"
-            nz-tooltip
-            [nzTooltipTitle]="executionTooltip[column]"
-            nzTooltipPlacement="top"
-          >
-            {{column}}
-            <span *ngIf="column !== '' && column == 'Name'">
-              <button *ngIf="this.showORhide[0]" nz-button (click)="onHit(column, 0)">
-                <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-              </button>
-              <button *ngIf="!this.showORhide[0]" nz-button (click)="onHit(column, 0)">
-                <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-              </button>
-            </span>
-            <span *ngIf="column !== '' && column == 'Username'">
-              <button *ngIf="this.showORhide[1]" nz-button (click)="onHit(column, 1)">
-                <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-              </button>
-              <button *ngIf="!this.showORhide[1]" nz-button (click)="onHit(column, 1)">
-                <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-              </button>
-            </span>
-            <span *ngIf="column !== '' && column == 'Starting Time'">
-              <button *ngIf="this.showORhide[2]" nz-button (click)="onHit(column, 2)">
-                <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-              </button>
-              <button *ngIf="!this.showORhide[2]" nz-button (click)="onHit(column, 2)">
-                <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-              </button>
-            </span>
-            <span *ngIf="column !== '' && column == 'Last Status Updated Time'">
-              <button *ngIf="this.showORhide[3]" nz-button (click)="onHit(column, 3)">
-                <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-              </button>
-              <button *ngIf="!this.showORhide[3]" nz-button (click)="onHit(column, 3)">
-                <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-              </button>
-            </span>
+          <th nzWidth="80px"></th>
+          <th nzWidth="80px"></th>
+          <th nzWidth="130px" nz-tooltip [nzTooltipTitle]="executionTooltip['Username']">
+            Account
+            <button *ngIf="this.showORhide[0]" nz-button (click)="onHit('Username', 0)">
+              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+            </button>
+            <button *ngIf="!this.showORhide[0]" nz-button (click)="onHit('Username', 0)">
+              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
+            </button>
           </th>
+          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">
+            Execution Title
+            <button *ngIf="this.showORhide[1]" nz-button (click)="onHit('Name', 1)">
+              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+            </button>
+            <button *ngIf="!this.showORhide[1]" nz-button (click)="onHit('Name', 1)">
+              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
+            </button>
+          </th>
+          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Starting Time']">
+            Satring Time
+            <button *ngIf="this.showORhide[2]" nz-button (click)="onHit('Starting Time', 2)">
+              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+            </button>
+            <button *ngIf="!this.showORhide[2]" nz-button (click)="onHit('Starting Time', 2)">
+              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
+            </button>
+          </th>
+          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Last Status Updated Time']">
+            Last Status Updated Time
+            <button *ngIf="this.showORhide[3]" nz-button (click)="onHit('Last Status Updated Time', 3)">
+              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+            </button>
+            <button *ngIf="!this.showORhide[3]" nz-button (click)="onHit('Last Status Updated Time', 3)">
+              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
+            </button>
+          </th>
+          <th nzWidth="80px" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">Status</th>
+          <th nzWidth="80px"></th>
         </tr>
       </thead>
       <tbody>
@@ -131,15 +132,16 @@
           </td>
           <td nzEllipsis>
             <nz-avatar
-              [ngStyle]="{ 'background-color': 'grey' }"
+              [ngStyle]="{ 'background-color': setAvatarColor(row.userName) }"
               [nzGap]="4"
               [nzText]="'' + row.userName || 'anonymous'"
               nzSize="default"
-              style="vertical-align: middle"
             ></nz-avatar>
+            <!-- 4 on the nzGap here represents letter type unit distance between left and right sides -->
           </td>
           <td nzEllipsis>
             <label
+              class="execution-description"
               *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow "
               class="workflow-name"
               >{{ shortenName(row.name) }}</label
