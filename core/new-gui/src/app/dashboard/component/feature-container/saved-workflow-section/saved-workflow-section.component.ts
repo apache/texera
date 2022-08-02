@@ -49,7 +49,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private selectedOwners: string[] = [];
   private selectedIDs: string[] = [];
   private selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
-  private selectedProjects: {name: string, pid: number}[] = []
+  private selectedProjects: { name: string; pid: number }[] = [];
 
   public masterFilterList: string[] = [];
 
@@ -87,7 +87,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   /* variables for filtering workflows by projects */
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
-  public userProjectsDropdown: {pid: number, name: string, checked: boolean}[] = [];
+  public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
 
@@ -300,7 +300,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   public updateSelectedProjects(): void {
-    this.selectedProjects = this.userProjectsDropdown.filter(proj => proj.checked === true).map(proj => {return {name: proj.name, pid: proj.pid}})
+    this.selectedProjects = this.userProjectsDropdown
+      .filter(proj => proj.checked === true)
+      .map(proj => {
+        return { name: proj.name, pid: proj.pid };
+      });
     this.searchWorkflow();
   }
 
@@ -322,7 +326,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     newFilterList = newFilterList.concat(
       this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
     );
-    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name))
+    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
     if (this.selectedDate !== null) {
       newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedDate));
     }
@@ -344,7 +348,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
     this.userProjectsDropdown.forEach(proj => {
       proj.checked = false;
-    })
+    });
   }
 
   /**
@@ -352,7 +356,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public updateDropdownMenus(tagListString: string): void {
     const tagList = Array.from(tagListString);
-    console.log(tagList)
+    console.log(tagList);
     let hasDate = false;
     //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
     //operators map is too expensive/difficult to search for operator object properties
@@ -368,9 +372,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         const searchValue = searchArray[1].trim();
         switch (searchField) {
           case "owner":
-            const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue)
-            if(selectedOwnerIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag)
+            const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
+            if (selectedOwnerIndex === -1) {
+              remove(this.masterFilterList, filterTag => filterTag === tag);
               break;
             }
             this.owners[selectedOwnerIndex].checked = true;
@@ -378,8 +382,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             break;
           case "id":
             const selectedIDIndex = this.wids.findIndex(wid => wid.id === searchValue);
-            if(selectedIDIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag)
+            if (selectedIDIndex === -1) {
+              remove(this.masterFilterList, filterTag => filterTag === tag);
               break;
             }
             this.wids[selectedIDIndex].checked = true;
@@ -387,14 +391,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             break;
           case "operator": // fix
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
-            if(!selectedOperator) {
-              remove(this.masterFilterList, filterTag => filterTag === tag)
+            if (!selectedOperator) {
+              remove(this.masterFilterList, filterTag => filterTag === tag);
               break;
             }
             newSelectedOperators.push(selectedOperator);
-            const operatorSublist = this.operators.get(selectedOperator.operatorGroup); 
+            const operatorSublist = this.operators.get(selectedOperator.operatorGroup);
             if (operatorSublist) {
-              for(let operator of operatorSublist) {
+              for (let operator of operatorSublist) {
                 if (operator.userFriendlyName === searchValue) {
                   operator.checked = true;
                   break;
@@ -410,7 +414,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             }
             this.userProjectsDropdown[selectedProjectIndex].checked = true;
             const selectedProject = this.userProjectsDropdown[selectedProjectIndex];
-            this.selectedProjects.push({name: selectedProject.name, pid: selectedProject.pid});
+            this.selectedProjects.push({ name: selectedProject.name, pid: selectedProject.pid });
             break;
           case "ctime":
             hasDate = true;
@@ -508,12 +512,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
 
     if (workflowNames.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
-    if (this.selectedOwners.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
+    if (this.selectedOwners.length !== 0)
+      andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
     if (this.selectedIDs.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
 
     //executes search using AndPathQuery and then filters result if searching by ctime
     if (andPathQuery.length !== 0) searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-    if (this.selectedDate !== null) searchOutput = this.searchCreationTime(this.getFormattedDateString(this.selectedDate), searchOutput);
+    if (this.selectedDate !== null)
+      searchOutput = this.searchCreationTime(this.getFormattedDateString(this.selectedDate), searchOutput);
     if (this.selectedProjects.length !== 0) {
       searchOutput = searchOutput.filter(workflowEntry => {
         for (const proj of this.selectedProjects) {
@@ -716,7 +722,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
           // store the projects containing these workflows
           this.userProjectsList = userProjectList;
-          this.userProjectsDropdown = this.userProjectsList.map(proj => {return {pid: proj.pid, name: proj.name, checked: false}})
+          this.userProjectsDropdown = this.userProjectsList.map(proj => {
+            return { pid: proj.pid, name: proj.name, checked: false };
+          });
           this.userProjectsLoaded = true;
         }
       });
