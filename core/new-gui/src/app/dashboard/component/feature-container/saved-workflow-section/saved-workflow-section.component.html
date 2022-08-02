@@ -54,7 +54,7 @@
       </button>
       <a [nzDropdownMenu]="calendar" nz-dropdown nzTrigger="click" class="searchCreationTime">
         <button id="ctimeSort" ngbDropdownToggle nz-button>
-          <i nz-icon nzType="calendar" nzTheme="outline"></i>
+          <i nz-icon nzType="calendar" nzTheme="outline" nz-tooltip="Creation Time"></i>
         </button>
       </a>
       <nz-dropdown-menu #calendar="nzDropdownMenu">
@@ -69,7 +69,7 @@
 
       <a [nzDropdownMenu]="ownerSearchOptions" nz-dropdown nzTrigger="click" class="searchOwners">
         <button id="sortOwner" ngbDropdownToggle nz-button>
-          <i nz-icon nzTheme="outline" nzType="user"></i>
+          <i nz-icon nzTheme="outline" nzType="user" nz-tooltip="Owner"></i>
         </button>
       </a>
       <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
@@ -84,7 +84,7 @@
 
       <a [nzDropdownMenu]="IDSearchOptions" nz-dropdown nzTrigger="click" class="searchID">
         <button id="sortID" ngbDropdownToggle nz-button>
-          <i nz-icon nzTheme="outline" nzType="ordered-list"></i>
+          <i nz-icon nzTheme="outline" nzType="ordered-list" nz-tooltip="Workflow ID"></i>
         </button>
       </a>
       <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
@@ -97,7 +97,7 @@
 
       <a [nzDropdownMenu]="operatorSearchOptions" nz-dropdown nzTrigger="click" class="searchOperators">
         <button id="sortOperator" ngbDropdownToggle nz-button>
-          <i nz-icon nzType="appstore" nzTheme="outline"></i>
+          <i nz-icon nzType="appstore" nzTheme="outline" nz-tooltip="Operators"></i>
         </button>
       </a>
       <nz-dropdown-menu #operatorSearchOptions="nzDropdownMenu">
@@ -110,6 +110,20 @@
                 >
               </li>
             </ul>
+          </li>
+        </ul>
+      </nz-dropdown-menu>
+      
+      <a [nzDropdownMenu]="projectSearchOptions" nz-dropdown nzTrigger="click" class="searchProjects">
+        <button id="sortProject" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="file" nzTheme="outline" nz-tooltip="Projects"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
+        <ul nz-menu *ngFor="let project of userProjectsList">
+          <li nz-menu-item>
+            <label nz-checkbox
+              >{{project.name}}</label>
           </li>
         </ul>
       </nz-dropdown-menu>
