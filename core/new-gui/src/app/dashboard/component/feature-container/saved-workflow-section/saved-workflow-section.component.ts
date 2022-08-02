@@ -1,7 +1,7 @@
 import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { cloneDeep } from "lodash-es";
+import { cloneDeep, remove } from "lodash-es";
 import { from, Observable } from "rxjs";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalDeleteWorkflowComponent } from "./ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
@@ -49,6 +49,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private selectedOwners: string[] = [];
   private selectedIDs: string[] = [];
   private selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
+  private selectedProjects: {name: string, pid: number}[] = []
 
   public masterFilterList: string[] = [];
 
@@ -86,6 +87,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   /* variables for filtering workflows by projects */
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
+  public userProjectsDropdown: {pid: number, name: string, checked: boolean}[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
 
@@ -297,7 +299,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   public updateSelectedProjects(): void {
-
+    this.selectedProjects = this.userProjectsDropdown.filter(proj => proj.checked === true).map(proj => {return {name: proj.name, pid: proj.pid}})
+    this.searchWorkflow();
   }
 
   /**
@@ -318,6 +321,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     newFilterList = newFilterList.concat(
       this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
     );
+    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name))
     if (this.selectedDate !== null) {
       newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedDate));
     }
@@ -327,7 +331,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * sets all dropdown menu options to unchecked
    */
-  private setSelectedDropdownsToUnchecked() {
+  private setDropdownSelectionsToUnchecked(): void {
     this.owners.forEach(owner => {
       owner.checked = false;
     });
@@ -337,20 +341,25 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     for (let operatorList of this.operators.values()) {
       operatorList.forEach(operator => (operator.checked = false));
     }
+    this.userProjectsDropdown.forEach(proj => {
+      proj.checked = false;
+    })
   }
 
   /**
    * updates dropdown menus when nz-select bar is changed
    */
-  public updateDropdownMenus(tagListString: string) {
+  public updateDropdownMenus(tagListString: string): void {
     const tagList = Array.from(tagListString);
+    console.log(tagList)
     let hasDate = false;
-    this.selectedOperators = [];
+    //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
+    //operators map is too expensive/difficult to search for operator object properties
     this.selectedIDs = [];
     this.selectedOwners = [];
+    this.selectedProjects = [];
     let newSelectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
-    //should never have undefined operator objects
-    this.setSelectedDropdownsToUnchecked();
+    this.setDropdownSelectionsToUnchecked();
     tagList.forEach(tag => {
       if (tag.includes(":")) {
         const searchArray = tag.split(":");
@@ -358,25 +367,49 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         const searchValue = searchArray[1].trim();
         switch (searchField) {
           case "owner":
-            this.owners[this.owners.findIndex(owner => owner.userName === searchValue)].checked = true;
+            const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue)
+            if(selectedOwnerIndex === -1) {
+              remove(this.masterFilterList, filterTag => filterTag === tag)
+              break;
+            }
+            this.owners[selectedOwnerIndex].checked = true;
             this.selectedOwners.push(searchValue);
             break;
           case "id":
-            this.wids[this.wids.findIndex(wid => wid.id === searchValue)].checked = true;
+            const selectedIDIndex = this.wids.findIndex(wid => wid.id === searchValue);
+            if(selectedIDIndex === -1) {
+              remove(this.masterFilterList, filterTag => filterTag === tag)
+              break;
+            }
+            this.wids[selectedIDIndex].checked = true;
             this.selectedIDs.push(searchValue);
             break;
-          case "operator":
+          case "operator": // fix
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
-            newSelectedOperators.push(selectedOperator ? selectedOperator : {userFriendlyName: "", operatorType: "", operatorGroup: ""});
-            //selectedOperator should never be undefined/false
-            const operatorSublist = this.operators.get(selectedOperator ? selectedOperator.operatorGroup : ""); 
+            if(!selectedOperator) {
+              remove(this.masterFilterList, filterTag => filterTag === tag)
+              break;
+            }
+            newSelectedOperators.push(selectedOperator);
+            const operatorSublist = this.operators.get(selectedOperator.operatorGroup); 
             if (operatorSublist) {
-              operatorSublist.forEach(operator => {
+              for(let operator of operatorSublist) {
                 if (operator.userFriendlyName === searchValue) {
                   operator.checked = true;
+                  break;
                 }
-              });
+              }
             }
+            break;
+          case "project":
+            const selectedProjectIndex = this.userProjectsDropdown.findIndex(proj => proj.name === searchValue);
+            if (selectedProjectIndex === -1) {
+              remove(this.masterFilterList, filterTag => filterTag === tag);
+              break;
+            }
+            this.userProjectsDropdown[selectedProjectIndex].checked = true;
+            const selectedProject = this.userProjectsDropdown[selectedProjectIndex];
+            this.selectedProjects.push({name: selectedProject.name, pid: selectedProject.pid});
             break;
           case "ctime":
             hasDate = true;
@@ -472,20 +505,22 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
     //builds andPathQuery from arrays containing selected values
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    if (workflowNames.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
-    }
-    if (this.selectedOwners.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
-    }
-    if (this.selectedIDs.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
-    }
+
+    if (workflowNames.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
+    if (this.selectedOwners.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
+    if (this.selectedIDs.length !== 0) andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
 
     //executes search using AndPathQuery and then filters result if searching by ctime
     if (andPathQuery.length !== 0) searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-    if (this.selectedDate !== null) {
-      searchOutput = this.searchCreationTime(this.getFormattedDateString(this.selectedDate), searchOutput);
+    if (this.selectedDate !== null) searchOutput = this.searchCreationTime(this.getFormattedDateString(this.selectedDate), searchOutput);
+    if (this.selectedProjects.length !== 0) {
+      searchOutput = searchOutput.filter(workflowEntry => {
+        for (const proj of this.selectedProjects) {
+          if (workflowEntry.projectIDs.includes(proj.pid)) {
+            return true;
+          }
+        }
+      });
     }
     return searchOutput;
   }
@@ -679,6 +714,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
           // store the projects containing these workflows
           this.userProjectsList = userProjectList;
+          this.userProjectsDropdown = this.userProjectsList.map(proj => {return {pid: proj.pid, name: proj.name, checked: false}})
           this.userProjectsLoaded = true;
         }
       });
