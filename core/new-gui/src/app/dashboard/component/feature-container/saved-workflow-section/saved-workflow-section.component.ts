@@ -227,17 +227,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     date: Date,
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
   ): ReadonlyArray<DashboardWorkflowEntry> {
-    // const date_regex = /^([<>]?)(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
-    // const search_date: RegExpMatchArray | null = date.match(date_regex);
-    // if (!search_date) {
-    //   this.notificationService.error("Date format is incorrect");
-    //   return this.dashboardWorkflowEntries;
-    //   //maintains the displayed saved workflows
-    // }
-    // const search_year: number = parseInt(search_date[2]);
-    // const search_month: number = parseInt(search_date[3]); //month: 1-12
-    // const search_day: number = parseInt(search_date[4]);
-    // const search_date_obj: Date = new Date(search_year, search_month - 1, search_day); // month: 0-11
     date.setHours(0), date.setMinutes(0), date.setSeconds(0), date.setMilliseconds(0)
     //sets date time at beginning of day
     //date obj from nz-calendar adds extraneous time
@@ -349,13 +338,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public updateDropdownMenus(tagListString: string): void {
     const tagList = Array.from(tagListString);
-    let hasDate = false;
     //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
     //operators map is too expensive/difficult to search for operator object properties
     this.selectedIDs = [];
     this.selectedOwners = [];
     this.selectedProjects = [];
     let newSelectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
+    this.selectedDate = null;
     this.setDropdownSelectionsToUnchecked();
     tagList.forEach(tag => {
       if (tag.includes(":")) {
@@ -408,15 +397,23 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedProject = this.userProjectsDropdown[selectedProjectIndex];
             this.selectedProjects.push({ name: selectedProject.name, pid: selectedProject.pid });
             break;
-          case "ctime":
-            hasDate = true;
+          case "ctime": //should only run at most once
+            if(this.selectedDate) {
+              // if there is already an selected date, ignore the subsequent ctime tags
+              this.notificationService.error("Multiple search dates is not allowed")
+              break;
+            }
+            const date_regex = /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
+            const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
+            if (!searchDate) {
+              this.notificationService.error("Date format is incorrect");
+              break;
+            }
+            this.selectedDate = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]))
             break;
         }
       }
     });
-    if (!hasDate) {
-      this.selectedDate = null;
-    }
     this.selectedOperators = newSelectedOperators;
     this.searchWorkflow();
   }
