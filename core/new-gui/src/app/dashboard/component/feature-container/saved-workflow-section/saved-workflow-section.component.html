@@ -32,6 +32,11 @@
       >
         <i nz-icon nzTheme="outline" nzType="file-add"></i>
       </button>
+      <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
+        <button nz-button nz-tooltip="Upload JSON file as workflow" nzTooltipPlacement="bottom" type="button">
+          <i nz-icon nzType="cloud-upload" nzTheme="outline"></i>
+        </button>
+      </nz-upload>
       <button
         *ngIf="pid !== 0"
         (click)="onClickOpenAddWorkflow()"
@@ -176,7 +181,7 @@
         #auto
       ></nz-autocomplete>
     </nz-input-group>
-    <!-- itemSize: the height (px) of each list item, 
+    <!-- itemSize: the height (px) of each list item,
       this MUST be approximately the same as list item size set in CSS,
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
@@ -304,6 +309,19 @@
                 type="button"
               >
                 <i nz-icon nzTheme="outline" nzType="copy"></i>
+              </button>
+            </nz-list-item-action>
+            <nz-list-item-action>
+              <button
+                (click)="onClickDownloadWorkfllow(dashboardWorkflowEntry)"
+                nz-button
+                nz-tooltip="Download the workflow {{
+								dashboardWorkflowEntry.workflow.name
+							}}"
+                nzTooltipPlacement="bottom"
+                type="button"
+              >
+                <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>

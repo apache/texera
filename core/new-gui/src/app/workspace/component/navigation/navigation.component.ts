@@ -376,7 +376,7 @@ export class NavigationComponent implements OnInit {
         this.workflowActionService.syncLock();
       } catch (error) {
         this.notificationService.error(
-          "An error occured when importing the workflow. Please import a workflow json file."
+          "An error occurred when importing the workflow. Please import a workflow json file."
         );
         console.error(error);
       }
