@@ -356,7 +356,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public updateDropdownMenus(tagListString: string): void {
     const tagList = Array.from(tagListString);
-    console.log(tagList);
     let hasDate = false;
     //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
     //operators map is too expensive/difficult to search for operator object properties
@@ -389,7 +388,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             this.wids[selectedIDIndex].checked = true;
             this.selectedIDs.push(searchValue);
             break;
-          case "operator": // fix
+          case "operator":
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
             if (!selectedOperator) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
