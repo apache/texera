@@ -18,7 +18,14 @@ import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
-import Fuse from "fuse.js";
+import { NzCardModule } from "ng-zorro-antd/card";
+import { NzListModule } from "ng-zorro-antd/list";
+import { NzCalendarModule } from "ng-zorro-antd/calendar";
+import { NzSelectModule } from "ng-zorro-antd/select";
+import { NzPopoverModule } from "ng-zorro-antd/popover";
+import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
+import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
@@ -116,6 +123,7 @@ describe("SavedWorkflowSectionComponent", () => {
           NgbActiveModal,
           WorkflowAccessService,
           { provide: UserService, useClass: StubUserService },
+          { provide: NZ_I18N, useValue: en_US },
         ],
         imports: [
           MatDividerModule,
@@ -128,6 +136,13 @@ describe("SavedWorkflowSectionComponent", () => {
           HttpClientTestingModule,
           ReactiveFormsModule,
           NzDropDownModule,
+          NzCardModule,
+          NzListModule,
+          NzCalendarModule,
+          NzDatePickerModule,
+          NzSelectModule,
+          NzPopoverModule,
+          NoopAnimationsModule,
         ],
       }).compileComponents();
     })
