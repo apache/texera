@@ -30,6 +30,8 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
+import { UserService } from "src/app/common/service/user/user.service";
+import { StubUserService } from "src/app/common/service/user/stub-user.service";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -160,6 +162,7 @@ describe("WorkflowEditorComponent", () => {
             },
             WorkflowStatusService,
             ExecuteWorkflowService,
+            { provide: UserService, useClass: StubUserService },
           ],
         }).compileComponents();
       })
