@@ -154,36 +154,13 @@
         style="width: 100%"
         nzMode="tags"
         nzPlaceHolder="Search all workflows"
-        [nzMaxTagCount]="6"
-        [nzMaxTagPlaceholder]="tagPlaceHolder"
         [nzBorderless]="true"
         [nzOpen]="false"
         [(ngModel)]="masterFilterList"
         [nzAllowClear]="true"
         (ngModelChange)="updateDropdownMenus($event)"
       >
-        <nz-option-group nzLabel="Colored Projects">
-          <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color != null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
-              <nz-tag
-                [nzColor]="'#' + project.color"
-                [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}"
-                >{{project.pid}}</nz-tag
-              >
-              {{project.name}}
-            </nz-option>
-          </div>
-        </nz-option-group>
-        <nz-option-group nzLabel="Colorless Projects">
-          <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color == null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
-              <nz-tag [nzColor]="'#595959'">{{project.pid}}</nz-tag>
-              {{project.name}}
-            </nz-option>
-          </div>
-        </nz-option-group>
       </nz-select>
-      <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
       <ng-template #filterPopContent>
         To search for a workflow by project(s) it belongs to, click on the search bar to view and select the appropriate
         projects.
