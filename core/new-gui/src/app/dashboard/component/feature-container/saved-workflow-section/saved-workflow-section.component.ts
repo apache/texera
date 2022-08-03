@@ -226,22 +226,21 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     date: Date,
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
   ): ReadonlyArray<DashboardWorkflowEntry> {
-    date.setHours(0), date.setMinutes(0), date.setSeconds(0), date.setMilliseconds(0)
+    date.setHours(0), date.setMinutes(0), date.setSeconds(0), date.setMilliseconds(0);
     //sets date time at beginning of day
     //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
       //filters for workflows that were created on the specified date
       if (workflow_entry.workflow.creationTime) {
-        console.log(date.getTime())
-          return (
-            workflow_entry.workflow.creationTime >= date.getTime() &&
-            workflow_entry.workflow.creationTime < date.getTime() + 86400000
-          );
-          //checks if creation time is within the range of the whole day
-        }
+        console.log(date.getTime());
+        return (
+          workflow_entry.workflow.creationTime >= date.getTime() &&
+          workflow_entry.workflow.creationTime < date.getTime() + 86400000
+        );
+        //checks if creation time is within the range of the whole day
+      }
       return false;
-    }
-    );
+    });
   }
 
   /**
@@ -299,7 +298,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * updates dropdown menus when nz-select bar is changed
    */
-   public updateDropdownMenus(tagListString: string): void {
+  public updateDropdownMenus(tagListString: string): void {
     const tagList = Array.from(tagListString);
     //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
     //operators map is too expensive/difficult to search for operator object properties
@@ -361,9 +360,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             this.selectedProjects.push({ name: selectedProject.name, pid: selectedProject.pid });
             break;
           case "ctime": //should only run at most once
-            if(this.selectedDate) {
+            if (this.selectedDate) {
               // if there is already an selected date, ignore the subsequent ctime tags
-              this.notificationService.error("Multiple search dates is not allowed")
+              this.notificationService.error("Multiple search dates is not allowed");
               break;
             }
             const date_regex = /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
@@ -372,7 +371,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
               this.notificationService.error("Date format is incorrect");
               break;
             }
-            this.selectedDate = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]))
+            this.selectedDate = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
             break;
         }
       }
@@ -409,25 +408,25 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
     let orPathQuery: Object[] = [];
     searchList
-    .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter))
-    .forEach(pathQuery => orPathQuery.push(pathQuery));
+      .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter))
+      .forEach(pathQuery => orPathQuery.push(pathQuery));
     return orPathQuery;
   }
-  
+
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
   private buildAndPathQuery(
     workflowSearchField: string,
     workflowSearchValue: string
-    ): {
-      $path: ReadonlyArray<string>;
-      $val: string;
-    } {
-      return {
-        $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
-        $val: workflowSearchValue,
-      };
-    }
-    
+  ): {
+    $path: ReadonlyArray<string>;
+    $val: string;
+  } {
+    return {
+      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
+      $val: workflowSearchValue,
+    };
+  }
+
   /**
    * builds the tags to be displayd in the nz-select search bar
    * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
@@ -445,7 +444,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
     this.masterFilterList = newFilterList;
   }
-    
+
   /**
    * returns a formatted string representing a Date object
    */
@@ -526,7 +525,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             return true;
           }
         }
-      })
+      });
     }
     return searchOutput;
   }
@@ -810,8 +809,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.fuse.setCollection(this.allDashboardWorkflowEntries);
     // update searching / filtering
 
-      this.searchInputOnChange(this.workflowSearchValue);
-      this.searchWorkflow();
+    this.searchInputOnChange(this.workflowSearchValue);
+    this.searchWorkflow();
   }
 
   private clearDashboardWorkflowEntries(): void {
