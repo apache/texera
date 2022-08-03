@@ -132,7 +132,7 @@
   </nz-card>
 
   <nz-card class="workflow-list-container subsection-grid-container">
-    <div *ngIf="isSearchByProject" class="texera-dashboard-saved-workflow-project-box-select">
+    <div class="texera-dashboard-saved-workflow-project-box-select">
       <i
         style="margin-right: 10px; align-self: center"
         nz-icon
@@ -145,10 +145,8 @@
       <button
         style="align-self: center; margin-right: 0%"
         nz-button
-        nz-tooltip="Switch to workflow search"
-        nzTooltipPlacement="bottom"
         type="button"
-        (click)="toggleWorkflowSearchMode()"
+        (click)="searchWorkflow()"
       >
         <i nz-icon nzType="search" nzTheme="outline"></i>
       </button>
@@ -192,68 +190,6 @@
       </ng-template>
     </div>
 
-    <nz-input-group
-      *ngIf="!isSearchByProject"
-      [nzPrefix]="prefixPopoverButton"
-      [nzSuffix]="suffixIconSearch"
-      class="texera-dashboard-saved-workflow-search-box-input"
-    >
-      <input
-        [(ngModel)]="workflowSearchValue"
-        autocomplete="on"
-        nz-input
-        placeholder="Search all workflows"
-        (ngModelChange)="searchInputOnChange($event)"
-        type="text"
-        [nzAutocomplete]="auto"
-        (keyup.enter)="searchWorkflow()"
-      />
-      <ng-template #suffixIconSearch>
-        <i nz-icon nzType="search"></i>
-      </ng-template>
-      <ng-template #popContent>
-        We support the following search criteria:
-        <ul>
-          <li>Search by Workflow Name: <strong>workflowName</strong></li>
-          <li>Search by Workflow Id: <strong>id:workflowId</strong></li>
-          <li>Search by Workflow Owner: <strong>owner:John</strong></li>
-          <li>Search by Workflow Creation Time: <strong>ctime:YYYY-MM-DD</strong></li>
-          <li>Search By Workflow Operators: <strong>operator:OperatorName</strong></li>
-        </ul>
-        <strong>
-          For any search value, if the name contains space, using double quotes to enclose the name is required.
-        </strong>
-        <br />
-        Example: "Untitled Workflow" id:1 owner:John<br />
-        Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
-      </ng-template>
-      <ng-template #prefixPopoverButton>
-        <i
-          style="vertical-align: baseline; margin-right: 10px"
-          nz-icon
-          nz-popover
-          nzPopoverTitle="Search Instructions"
-          [nzPopoverContent]="popContent"
-          nzType="question-circle"
-          nzTheme="outline"
-        ></i>
-        <button
-          (click)="toggleWorkflowSearchMode()"
-          nz-button
-          nz-tooltip="Filter workflows by project"
-          nzTooltipPlacement="bottom"
-          type="button"
-        >
-          <i nz-icon nzType="filter" nzTheme="outline"></i>
-        </button>
-      </ng-template>
-      <nz-autocomplete
-        [nzDefaultActiveFirstOption]="false"
-        [nzDataSource]="!workflowSearchValue.includes(':') ? filteredDashboardWorkflowNames : []"
-        nzBackfill
-        #auto
-      ></nz-autocomplete>
-    </nz-input-group>
     <!-- itemSize: the height (px) of each list item, 
       this MUST be approximately the same as list item size set in CSS,
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
