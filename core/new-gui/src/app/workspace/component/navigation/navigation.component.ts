@@ -2,8 +2,11 @@ import { DatePipe, Location } from "@angular/common";
 import { ChangeDetectorRef, Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import { Workflow } from "../../../common/type/workflow";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "../../../common/service/workflow-persist/workflow-persist.service";
+import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
@@ -21,6 +24,9 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
 import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
+import { NzUploadFile } from "ng-zorro-antd/upload";
+import { saveAs } from "file-saver";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -94,6 +100,7 @@ export class NavigationComponent implements OnInit {
     public workflowCollabService: WorkflowCollabService,
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
+    private notificationService: NotificationService,
     public changeDetectionRef: ChangeDetectorRef
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
@@ -323,6 +330,65 @@ export class NavigationComponent implements OnInit {
       .getAllOperators()
       .map(op => op.operatorID);
     this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
+  }
+
+  public onClickImportWorkflow = (file: NzUploadFile): boolean => {
+    const reader = new FileReader();
+    reader.readAsText(file as any);
+    reader.onload = () => {
+      try {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          throw new Error("incorrect format: file is not a string");
+        }
+
+        const workflowContent = JSON.parse(result) as WorkflowContent;
+
+        // set the workflow name using the file name without the extension
+        const fileExtensionIndex = file.name.lastIndexOf(".");
+        var workflowName: string;
+        if (fileExtensionIndex === -1) {
+          workflowName = file.name;
+        } else {
+          workflowName = file.name.substring(0, fileExtensionIndex);
+        }
+        if (workflowName.trim() === "") {
+          workflowName = DEFAULT_WORKFLOW_NAME;
+        }
+
+        const workflow: Workflow = {
+          content: workflowContent,
+          name: workflowName,
+          wid: undefined,
+          creationTime: undefined,
+          lastModifiedTime: undefined,
+        };
+
+        // enable workspace for modification
+        this.workflowActionService.toggleLockListen(false);
+        this.workflowActionService.enableWorkflowModification();
+        // load the fetched workflow
+        this.workflowActionService.reloadWorkflow(workflow, true);
+        // clear stack
+        this.undoRedoService.clearUndoStack();
+        this.undoRedoService.clearRedoStack();
+        this.workflowActionService.toggleLockListen(true);
+        this.workflowActionService.syncLock();
+      } catch (error) {
+        this.notificationService.error(
+          "An error occurred when importing the workflow. Please import a workflow json file."
+        );
+        console.error(error);
+      }
+    };
+    return false;
+  };
+
+  public onClickExportWorkflow(): void {
+    const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
+    const workflowContentJson = JSON.stringify(workflowContent);
+    const fileName = this.currentWorkflowName + ".json";
+    saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }
 
   /**
