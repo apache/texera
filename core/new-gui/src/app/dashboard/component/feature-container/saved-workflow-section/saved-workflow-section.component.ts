@@ -279,6 +279,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.searchWorkflow();
   }
 
+  /**
+   * updates selectedProjects array to match projects checked in dropdown menu
+   */
   public updateSelectedProjects(): void {
     this.selectedProjects = this.userProjectsDropdown
       .filter(proj => proj.checked === true)
