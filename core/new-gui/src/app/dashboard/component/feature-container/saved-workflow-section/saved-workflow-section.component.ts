@@ -224,39 +224,36 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *  - ctime:>YYYY-MM-DD (workflows on or after this date)
    */
   private searchCreationTime(
-    date: string,
+    date: Date,
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
   ): ReadonlyArray<DashboardWorkflowEntry> {
-    const date_regex = /^([<>]?)(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
-    const search_date: RegExpMatchArray | null = date.match(date_regex);
-    if (!search_date) {
-      this.notificationService.error("Date format is incorrect");
-      return this.dashboardWorkflowEntries;
-      //maintains the displayed saved workflows
-    }
-    const search_year: number = parseInt(search_date[2]);
-    const search_month: number = parseInt(search_date[3]); //month: 1-12
-    const search_day: number = parseInt(search_date[4]);
-    const search_date_obj: Date = new Date(search_year, search_month - 1, search_day); // month: 0-11
+    // const date_regex = /^([<>]?)(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
+    // const search_date: RegExpMatchArray | null = date.match(date_regex);
+    // if (!search_date) {
+    //   this.notificationService.error("Date format is incorrect");
+    //   return this.dashboardWorkflowEntries;
+    //   //maintains the displayed saved workflows
+    // }
+    // const search_year: number = parseInt(search_date[2]);
+    // const search_month: number = parseInt(search_date[3]); //month: 1-12
+    // const search_day: number = parseInt(search_date[4]);
+    // const search_date_obj: Date = new Date(search_year, search_month - 1, search_day); // month: 0-11
+    date.setHours(0), date.setMinutes(0), date.setSeconds(0), date.setMilliseconds(0)
+    //sets date time at beginning of day
+    //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
       //filters for workflows that were created on the specified date
       if (workflow_entry.workflow.creationTime) {
-        if (search_date[1] === "<") {
-          return workflow_entry.workflow.creationTime < search_date_obj.getTime() + 86400000;
-          //checks if creation time is before or on the specified date
-        } else if (search_date[1] === ">") {
-          return workflow_entry.workflow.creationTime >= search_date_obj.getTime();
-          //checks if creation time is after or on the specfied date
-        } else {
+        console.log(date.getTime())
           return (
-            workflow_entry.workflow.creationTime >= search_date_obj.getTime() &&
-            workflow_entry.workflow.creationTime < search_date_obj.getTime() + 86400000
+            workflow_entry.workflow.creationTime >= date.getTime() &&
+            workflow_entry.workflow.creationTime < date.getTime() + 86400000
           );
           //checks if creation time is within the range of the whole day
         }
-      }
       return false;
-    });
+    }
+    );
   }
 
   /**
@@ -523,7 +520,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
 
     if (this.selectedDate !== null) {
-      searchOutput = this.searchCreationTime(this.getFormattedDateString(this.selectedDate), searchOutput);
+      searchOutput = this.searchCreationTime(this.selectedDate, searchOutput);
     }
 
     if (this.selectedProjects.length !== 0) {
@@ -743,19 +740,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       pid => (newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.projectIDs.includes(pid)))
     );
     this.dashboardWorkflowEntries = newWorkflowEntries;
-  }
-
-  /**
-   * This is a helper function that toggles between the default
-   * workflow search bar and the filter by project search mode.
-   */
-  public toggleWorkflowSearchMode() {
-    this.isSearchByProject = !this.isSearchByProject;
-    if (this.isSearchByProject) {
-      this.filterWorkflowsByProject();
-    } else {
-      this.searchWorkflow();
-    }
   }
 
   /**
