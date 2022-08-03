@@ -327,6 +327,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
             if (selectedOwnerIndex === -1) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.notificationService.error(`Invalid owner name`)
               break;
             }
             this.owners[selectedOwnerIndex].checked = true;
@@ -336,6 +337,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedIDIndex = this.wids.findIndex(wid => wid.id === searchValue);
             if (selectedIDIndex === -1) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.notificationService.error(`Invalid workflow id`)
               break;
             }
             this.wids[selectedIDIndex].checked = true;
@@ -345,6 +347,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
             if (!selectedOperator) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.notificationService.error(`Invalid operator name`)
               break;
             }
             newSelectedOperators.push(selectedOperator);
@@ -362,6 +365,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedProjectIndex = this.userProjectsDropdown.findIndex(proj => proj.name === searchValue);
             if (selectedProjectIndex === -1) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.notificationService.error(`Invalid project name`);
               break;
             }
             this.userProjectsDropdown[selectedProjectIndex].checked = true;
