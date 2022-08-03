@@ -89,7 +89,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
-  public isSearchByProject: boolean = false; // track searching mode user currently selects
 
   constructor(
     private userService: UserService,
@@ -298,45 +297,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * builds the tags to be displayd in the nz-select search bar
-   * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
-   */
-  private buildMasterFilterList(): void {
-    let newFilterList: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    newFilterList = newFilterList.concat(this.selectedOwners.map(owner => "owner: " + owner));
-    newFilterList = newFilterList.concat(this.selectedIDs.map(id => "id: " + id));
-    newFilterList = newFilterList.concat(
-      this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
-    );
-    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
-    if (this.selectedDate !== null) {
-      newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedDate));
-    }
-    this.masterFilterList = newFilterList;
-  }
-
-  /**
-   * sets all dropdown menu options to unchecked
-   */
-  private setDropdownSelectionsToUnchecked(): void {
-    this.owners.forEach(owner => {
-      owner.checked = false;
-    });
-    this.wids.forEach(wid => {
-      wid.checked = false;
-    });
-    for (let operatorList of this.operators.values()) {
-      operatorList.forEach(operator => (operator.checked = false));
-    }
-    this.userProjectsDropdown.forEach(proj => {
-      proj.checked = false;
-    });
-  }
-
-  /**
    * updates dropdown menus when nz-select bar is changed
    */
-  public updateDropdownMenus(tagListString: string): void {
+   public updateDropdownMenus(tagListString: string): void {
     const tagList = Array.from(tagListString);
     //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
     //operators map is too expensive/difficult to search for operator object properties
@@ -419,12 +382,21 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * returns a formatted string representing a Date object
+   * sets all dropdown menu options to unchecked
    */
-  private getFormattedDateString(date: Date): string {
-    let dateMonth: number = date.getMonth() + 1;
-    let dateDay: number = date.getDate();
-    return `${date.getFullYear()}-${(dateMonth < 10 ? "0" : "") + dateMonth}-${(dateDay < 10 ? "0" : "") + dateDay}`;
+  private setDropdownSelectionsToUnchecked(): void {
+    this.owners.forEach(owner => {
+      owner.checked = false;
+    });
+    this.wids.forEach(wid => {
+      wid.checked = false;
+    });
+    for (let operatorList of this.operators.values()) {
+      operatorList.forEach(operator => (operator.checked = false));
+    }
+    this.userProjectsDropdown.forEach(proj => {
+      proj.checked = false;
+    });
   }
 
   /**
@@ -437,23 +409,50 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
     let orPathQuery: Object[] = [];
     searchList
-      .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter))
-      .forEach(pathQuery => orPathQuery.push(pathQuery));
+    .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter))
+    .forEach(pathQuery => orPathQuery.push(pathQuery));
     return orPathQuery;
   }
-
+  
   // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
   private buildAndPathQuery(
     workflowSearchField: string,
     workflowSearchValue: string
-  ): {
-    $path: ReadonlyArray<string>;
-    $val: string;
-  } {
-    return {
-      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
-      $val: workflowSearchValue,
-    };
+    ): {
+      $path: ReadonlyArray<string>;
+      $val: string;
+    } {
+      return {
+        $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
+        $val: workflowSearchValue,
+      };
+    }
+    
+  /**
+   * builds the tags to be displayd in the nz-select search bar
+   * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
+   */
+  private buildMasterFilterList(): void {
+    let newFilterList: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+    newFilterList = newFilterList.concat(this.selectedOwners.map(owner => "owner: " + owner));
+    newFilterList = newFilterList.concat(this.selectedIDs.map(id => "id: " + id));
+    newFilterList = newFilterList.concat(
+      this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
+    );
+    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
+    if (this.selectedDate !== null) {
+      newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedDate));
+    }
+    this.masterFilterList = newFilterList;
+  }
+    
+  /**
+   * returns a formatted string representing a Date object
+   */
+  private getFormattedDateString(date: Date): string {
+    let dateMonth: number = date.getMonth() + 1;
+    let dateDay: number = date.getDate();
+    return `${date.getFullYear()}-${(dateMonth < 10 ? "0" : "") + dateMonth}-${(dateDay < 10 ? "0" : "") + dateDay}`;
   }
 
   /**
@@ -522,8 +521,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
     if (this.selectedProjects.length !== 0) {
       searchOutput = searchOutput.filter(workflowEntry => {
-        this.selectedProjects.some(project => workflowEntry.projectIDs.includes(project.pid));
-      });
+        for (const proj of this.selectedProjects) {
+          if (workflowEntry.projectIDs.includes(proj.pid)) {
+            return true;
+          }
+        }
+      })
     }
     return searchOutput;
   }
@@ -771,12 +774,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;
-
-        // update filtering results by project, if applicable
-        if (this.isSearchByProject) {
-          // refilter workflows by projects (to include / exclude changed workflows)
-          this.filterWorkflowsByProject();
-        }
       });
   }
 
@@ -812,14 +809,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
     this.fuse.setCollection(this.allDashboardWorkflowEntries);
     // update searching / filtering
-    if (this.isSearchByProject) {
-      // refilter workflows by projects (to include / exclude changed w)
-      this.filterWorkflowsByProject();
-    } else {
-      // (regular search mode) : update search results / autcomplete for current search value
+
       this.searchInputOnChange(this.workflowSearchValue);
       this.searchWorkflow();
-    }
   }
 
   private clearDashboardWorkflowEntries(): void {
