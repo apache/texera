@@ -2,7 +2,7 @@ import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/cor
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { remove } from "lodash-es";
-import { from, Observable } from "rxjs";
+import { from, Observable, map } from "rxjs";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
@@ -19,10 +19,18 @@ import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
+import { HttpClient } from "@angular/common/http";
+import { AppSettings } from "src/app/common/app-setting";
+
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
+
+export const WORKFLOW_BASE_URL = "workflow";
+export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
+export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
+export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
 @UntilDestroy()
 @Component({
@@ -91,6 +99,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
 
   constructor(
+    private http: HttpClient,
     private userService: UserService,
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
@@ -205,12 +214,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       });
       this.operatorGroups = opdata.groups.map(group => group.groupName);
     });
-    this.workflowPersistService
-      .retrieveOwners()
+    this.retrieveOwners()
       .pipe(untilDestroyed(this))
       .subscribe(list_of_owners => (this.owners = list_of_owners));
-    this.workflowPersistService
-      .retrieveIDs()
+    this.retrieveIDs()
       .pipe(untilDestroyed(this))
       .subscribe(list_of_ids => (this.wids = list_of_ids));
   }
@@ -232,7 +239,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
       //filters for workflows that were created on the specified date
       if (workflow_entry.workflow.creationTime) {
-        console.log(date.getTime());
         return (
           workflow_entry.workflow.creationTime >= date.getTime() &&
           workflow_entry.workflow.creationTime < date.getTime() + 86400000
@@ -483,8 +489,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   private asyncSearch() {
     let andPathQuery: Object[] = [];
-    this.workflowPersistService
-      .retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString())
+    this.retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString())
       .pipe(untilDestroyed(this))
       .subscribe(list_of_wids => {
         andPathQuery.push({ $or: this.buildOrPathQuery("id", list_of_wids, true) });
@@ -532,6 +537,42 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
     return searchOutput;
   }
+
+  /**
+   * retrieves the workflow ids of workflows with the operator(s) specified
+   */
+     public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
+      return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
+    }
+  
+    public retrieveOwners(): Observable<{ userName: string; checked: boolean }[]> {
+      return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`).pipe(
+        map((owners: string[]) => {
+          return owners.map((user: string) => {
+            return {
+              userName: user,
+              checked: false,
+            };
+          });
+        })
+      );
+    }
+  
+    /**
+     * retrieves all workflow IDs
+     */
+    public retrieveIDs(): Observable<{ id: string; checked: boolean }[]> {
+      return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
+        map((wids: string[]) => {
+          return wids.map(wid => {
+            return {
+              id: wid,
+              checked: false,
+            };
+          });
+        })
+      );
+    }
 
   /**
    * checks if a tag string is a workflow name or dropdown menu search parameter

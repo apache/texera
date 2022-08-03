@@ -14,9 +14,6 @@ export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
-export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/searchOperators";
-export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
-export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
@@ -97,42 +94,6 @@ export class WorkflowPersistService {
           };
         })
       )
-    );
-  }
-
-  /**
-   * retrieves the workflow ids of workflows with the operator(s) specified
-   */
-  public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
-  }
-
-  public retrieveOwners(): Observable<{ userName: string; checked: boolean }[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`).pipe(
-      map((owners: string[]) => {
-        return owners.map((user: string) => {
-          return {
-            userName: user,
-            checked: false,
-          };
-        });
-      })
-    );
-  }
-
-  /**
-   * retrieves all workflow IDs
-   */
-  public retrieveIDs(): Observable<{ id: string; checked: boolean }[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
-      map((wids: string[]) => {
-        return wids.map(wid => {
-          return {
-            id: wid,
-            checked: false,
-          };
-        });
-      })
     );
   }
 

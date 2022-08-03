@@ -87,8 +87,13 @@ object WorkflowResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
 
+  /**
+    * This method returns all workflow IDs that the user has access to
+    *
+    * @return WorkflowID[]
+    */
   @GET
-  @Path("/ids")
+  @Path("/workflow-ids")
   def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
@@ -102,6 +107,11 @@ class WorkflowResource {
       .toList
   }
 
+  /**
+    * This method returns all owner user names of the workflows that the user has access to
+    *
+    * @return OwnerName[]
+    */
   @GET
   @Path("/owners")
   def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
@@ -122,8 +132,13 @@ class WorkflowResource {
       .toList
   }
 
+  /**
+    * This method returns workflow IDs, that contain the selected operators, as strings
+    *
+    * @return WorkflowID[]
+    */
   @GET
-  @Path("/searchOperators")
+  @Path("/search-by-operators")
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
       @Auth sessionUser: SessionUser
