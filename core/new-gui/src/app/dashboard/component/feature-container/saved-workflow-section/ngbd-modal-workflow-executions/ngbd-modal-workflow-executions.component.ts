@@ -9,8 +9,10 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { filter } from "lodash";
+import { filter, iteratee } from "lodash";
 import { defaultEnvironment } from "../../../../../../environments/environment.default";
+
+let MAX_TEXT_SIZE = 25;
 
 @UntilDestroy()
 @Component({
@@ -101,6 +103,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     if (this.workflow === undefined || this.workflow.wid === undefined) {
       return;
     }
+
     this.workflowExecutionsService
       .retrieveWorkflowExecutions(this.workflow.wid)
       .pipe(untilDestroyed(this))
@@ -269,10 +272,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   shortenName(name: string): string {
-    if (name.length <= 25) {
+    if (name.length <= MAX_TEXT_SIZE) {
       return name;
     } else {
-      let words = name.slice(0, 25).split(" ");
+      let words = name.slice(0, MAX_TEXT_SIZE).split(" ");
       return words.slice(0, -1).join(" ") + "...";
     }
   }
