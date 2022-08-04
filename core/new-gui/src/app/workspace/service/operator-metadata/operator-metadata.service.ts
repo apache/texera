@@ -85,7 +85,9 @@ export class OperatorMetadataService {
    * For example, if the first HTTP request to the backend hasn't returned yet,
    *  the current operator metadata is empty, and no operator type exists.
    *
-   * @param operatorType
+   * @param operatorType - Operator name string that we are checking for existence *in the current operator metadata*
+   * @param userFriendlyNameFilter - If true, checks if operatorType matches an operator's user friendly or type name
+   * @param caseInsensitive - If true, operatorType checking becomes case insensitive
    */
   public operatorTypeExists(
     operatorType: string,

@@ -31,6 +31,33 @@ export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
 export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
+/**
+ * Saved-workflow-section.component contains information and functionality 
+ * of the saved workflows section and is re-used in the user projects section when a project is clicked
+ * 
+ * This component:
+ *  - displays the workflows the user has access to
+ *  - allows easy searching for workflows by name or other parameters using Fuse.js
+ *  - sorting options
+ *  - creation of a new workflow 
+ * 
+ * Steps to add new search parameter:
+ *  1. Add a newly formatted dropdown menu in the html and css files, and a backend call to retrieve any necessary data
+ *  2. Create an array of objects to hold data for the search parameter and a boolean "checked" variable
+ *  3. Write a callback function that triggers when new dropdown menu changes and updates a "filtered" array of the selected options
+ *  4. Add call to searchWorkflows() in this function
+ *  5. Add parameter to buildMasterFilterList()
+ *  6. Update synchronousSearch() to search based on the new parameter (either through filter iteration or fuse)
+ *    - If it uses Fuse.js, create OrPathQuery object for multiple of the same new parameter and push it to the AndPathQuery array
+ *    - Do this in asyncSearch(if it requires a backend call)
+ *  7. Add parameter as key to searchCriteria
+ *  8. If it uses Fuse.js, update fuse keys and searchCriteriaPathMapping
+ *  9. Add parameter to updateDropdownMenus() and setDropdownSelectionsToUnchecked()
+ *
+ *
+ * @author Tyler Yu
+ *
+ */
 @UntilDestroy()
 @Component({
   selector: "texera-saved-workflow-section",
@@ -175,20 +202,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         this.updateDashboardWorkflowEntryCache(result);
       }
     });
-  }
-
-  public searchInputOnChange(value: string): void {
-    // enable autocomplete only when searching for workflow name
-    if (!value.includes(":")) {
-      const filteredDashboardWorkflowNames: string[] = [];
-      this.allDashboardWorkflowEntries.forEach(dashboardEntry => {
-        const workflowName = dashboardEntry.workflow.name;
-        if (workflowName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
-          filteredDashboardWorkflowNames.push(workflowName);
-        }
-      });
-      this.filteredDashboardWorkflowNames = filteredDashboardWorkflowNames;
-    }
   }
 
   /**
@@ -858,8 +871,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
     this.fuse.setCollection(this.allDashboardWorkflowEntries);
     // update searching / filtering
-
-    this.searchInputOnChange(this.workflowSearchValue);
     this.searchWorkflow();
   }
 
