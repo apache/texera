@@ -125,7 +125,14 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
 
     val pipelinedRegionsDAG =
-      new WorkflowPipelinedRegionsBuilder(workflowId, amberOperators, outLinksImmutable)
+      new WorkflowPipelinedRegionsBuilder(
+        workflowInfo.toDAG.operators,
+        inputSchemaMap,
+        workflowId,
+        amberOperators,
+        outLinksImmutable,
+        opResultStorage
+      )
         .buildPipelinedRegions()
 
     new Workflow(
