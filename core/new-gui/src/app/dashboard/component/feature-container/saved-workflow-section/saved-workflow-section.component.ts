@@ -55,7 +55,6 @@ export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
  *  9. Add parameter to updateDropdownMenus() and setDropdownSelectionsToUnchecked()
  *
  *
- * @author Tyler Yu
  *
  */
 @UntilDestroy()
