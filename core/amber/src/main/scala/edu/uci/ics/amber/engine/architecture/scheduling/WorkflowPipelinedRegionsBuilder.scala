@@ -4,12 +4,15 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  LinkIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.WorkflowDAG
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
@@ -19,13 +22,13 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowPipelinedRegionsBuilder(
-                                       operatorIdToDesc: Map[String, OperatorDescriptor],
-                                       inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]],
-                                       workflowId: WorkflowIdentity,
-                                       operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
-                                       outLinks: Map[OperatorIdentity, Set[OperatorIdentity]],
-                                       opResultStorage: OpResultStorage
-                                     ) {
+    operatorIdToDesc: Map[String, OperatorDescriptor],
+    inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]],
+    workflowId: WorkflowIdentity,
+    operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
+    outLinks: Map[OperatorIdentity, Set[OperatorIdentity]],
+    opResultStorage: OpResultStorage
+) {
   var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = null
 
   private val inLinks: Map[OperatorIdentity, Set[OperatorIdentity]] =
@@ -118,11 +121,16 @@ class WorkflowPipelinedRegionsBuilder(
           val fromOpId = toOperatorIdentity(linkId.from)
           val toOpId = toOperatorIdentity(linkId.to)
           val materializationWriter = new ProgressiveSinkOpDesc()
-          val matWriterInputSchemas = inputSchemaMap(operatorIdToDesc(fromOpId.operator)).map(s => s.get).toArray
+          val matWriterInputSchemas =
+            inputSchemaMap(operatorIdToDesc(fromOpId.operator)).map(s => s.get).toArray
           val matWriterOutputSchemas = materializationWriter.getOutputSchemas(matWriterInputSchemas)
-          materializationWriter.setStorage(opResultStorage.create(materializationWriter.operatorID, matWriterOutputSchemas(0)))
+          materializationWriter.setStorage(
+            opResultStorage.create(materializationWriter.operatorID, matWriterOutputSchemas(0))
+          )
           val matWriterOpExecConfig =
-            materializationWriter.operatorExecutor(OperatorSchemaInfo(matWriterInputSchemas, matWriterOutputSchemas))
+            materializationWriter.operatorExecutor(
+              OperatorSchemaInfo(matWriterInputSchemas, matWriterOutputSchemas)
+            )
           operatorToOpExecConfig.put(matWriterOpExecConfig.id, matWriterOpExecConfig)
 
           val materializationReader = new CacheSourceOpDesc(
@@ -132,10 +140,13 @@ class WorkflowPipelinedRegionsBuilder(
           materializationReader.schema = materializationWriter.getStorage.getSchema
           val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
           val matReaderOpExecConfig: OpExecConfig =
-            materializationReader.operatorExecutor(OperatorSchemaInfo(Array(), matReaderOutputSchema))
+            materializationReader.operatorExecutor(
+              OperatorSchemaInfo(Array(), matReaderOutputSchema)
+            )
           operatorToOpExecConfig.put(matReaderOpExecConfig.id, matReaderOpExecConfig)
 
-
+          var downstreamOps = outLinks(fromOpId)
+          downstreamOps.
         })
       }
 
