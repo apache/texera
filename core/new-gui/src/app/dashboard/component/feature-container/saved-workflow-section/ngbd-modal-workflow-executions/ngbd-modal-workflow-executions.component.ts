@@ -80,9 +80,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["aborted", 4],
   ]);
   public showORhide: boolean[] = [false, false, false, false];
-  public checkBoxes: boolean[] = [];
-  public allCheck: boolean  = false;
   public avatarColors: {[key: string]: string} = {};
+  public checked: boolean = false;
+  public setOfCheckedIndex = new Set<number>();
+  public setOfExecution = new Set<WorkflowExecutionsEntry>();
 
 
   constructor(
@@ -114,7 +115,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
         this.fuse.setCollection(this.paginatedExecutionEntries);
       });
-      this.checkBoxes = new Array(this.paginatedExecutionEntries.length);
   }
 
   /**
@@ -181,6 +181,35 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         }
       });
   }
+
+  onGroupDelete(rows: Set<WorkflowExecutionsEntry>) {
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "execution";
+    // TODO: need to show all of the name
+    modalRef.componentInstance.deletionName = "this is for test";
+
+    from(modalRef.result)
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && this.workflow.wid !== undefined) {
+          for (let row of rows.values()) {
+            this.workflowExecutionsService
+              .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                complete: () => {
+                  this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
+                  this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
+                  this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
+                  this.fuse.setCollection(this.paginatedExecutionEntries);
+                },
+              });
+          }
+        }
+      });
+    // this.setOfExecution.clear();
+  }
+
 
 
   /* rename a single execution */
@@ -292,19 +321,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     this.showORhide[index] = !this.showORhide[index];
   }
 
-
-  isSelectAll(): void {
-    this.allCheck=!this.allCheck
-  }
-
-  setCheckBox(index: number): void {
-    this.checkBoxes[index]=!this.checkBoxes[index]
-  }
-
-  isAllChecked(element: boolean, index: number, array: boolean[]): boolean {
-    return element;
-  }
-
   setAvatarColor(userName: string): string {
     if (userName in this.avatarColors) {
       return this.avatarColors[userName];
@@ -321,6 +337,44 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       color += letters[Math.floor(Math.random()*16)];
     }
     return color;
+  }
+
+  updateCheckedSet(index: number, checked: boolean): void {
+    if (checked) {
+      this.setOfCheckedIndex.add(index);
+    } else {
+      this.setOfCheckedIndex.delete(index);
+    }
+  }
+
+  updateExecutionSet(row: WorkflowExecutionsEntry, checked: boolean): void {
+    if (checked) {
+      this.setOfExecution.add(row);
+    } else {
+      this.setOfExecution.delete(row);
+    }
+  }
+
+  onItemChecked(row: WorkflowExecutionsEntry,index: number, checked: boolean): void {
+    this.updateCheckedSet(index, checked);
+    this.updateExecutionSet(row, checked);
+    this.refreshCheckedStatus();
+  }
+
+  onAllChecked(value: boolean): void {
+    if (this.workflowExecutionsDisplayedList !== undefined) {
+      for (let i=0;i<this.workflowExecutionsDisplayedList.length; i++) {
+        this.updateCheckedSet(i, value);
+        this.updateExecutionSet(this.workflowExecutionsDisplayedList[i], value);
+      }
+      this.refreshCheckedStatus();
+    }
+  }
+
+  refreshCheckedStatus(): void {
+    if (this.workflowExecutionsDisplayedList !== undefined) {
+      this.checked = this.workflowExecutionsDisplayedList.length === this.setOfCheckedIndex.size
+    }
   }
 
   

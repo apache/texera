@@ -58,10 +58,15 @@
     </nz-input-group>
   </nz-card>
   <ng-template #actionEdit>
-    <i nz-icon nzType="edit"></i>
+    <i *ngIf="checked" nz-icon nzType="edit"></i>
   </ng-template>
   <ng-template #actionDelete>
-    <i nz-icon nzType="delete"> Delete the Item </i>
+    <i 
+      *ngIf="setOfExecution.size !== 0" 
+      nz-icon 
+      nzType="delete"
+      (click)="onGroupDelete(setOfExecution)"
+    > Delete the Item </i>
   </ng-template>
 
   <div class="modal-body table-responsive">
@@ -81,9 +86,11 @@
     >
       <thead>
         <tr>
-          <th nzWidth="80px">
-            <input type="checkbox" id="selectAll" (click)="isSelectAll()" [checked]="checkBoxes.every(isAllChecked)"/>
-          </th>
+          <th 
+            nzWidth="80px"
+            [(nzChecked)]="checked"
+            (nzCheckedChange)="onAllChecked($event)"
+          ></th>
           <th nzWidth="80px"></th>
           <th nzWidth="130px" nz-tooltip [nzTooltipTitle]="executionTooltip['Username']"> Account
             <button *ngIf="this.showORhide[0]" nz-button (click)="onHit('Username', 0)">
@@ -123,9 +130,11 @@
       </thead>
       <tbody>
         <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
-          <td nzEllipsis>
-            <input type="checkbox" [checked]="allCheck" (click)="setCheckBox(i)"/>
-          </td>
+          <td 
+            nzEllipsis
+            [nzChecked]="setOfCheckedIndex.has(i)"
+            (nzCheckedChange)="onItemChecked(row, i, $event)"
+          ></td>
           <td nzEllipsis>
             <i
               nz-icon
