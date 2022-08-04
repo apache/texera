@@ -22,7 +22,6 @@ import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.compone
 import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "src/app/common/app-setting";
 
-
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
@@ -327,7 +326,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
             if (selectedOwnerIndex === -1) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
-              this.notificationService.error(`Invalid owner name`)
+              this.notificationService.error("Invalid owner name");
               break;
             }
             this.owners[selectedOwnerIndex].checked = true;
@@ -337,7 +336,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedIDIndex = this.wids.findIndex(wid => wid.id === searchValue);
             if (selectedIDIndex === -1) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
-              this.notificationService.error(`Invalid workflow id`)
+              this.notificationService.error("Invalid workflow id");
               break;
             }
             this.wids[selectedIDIndex].checked = true;
@@ -347,7 +346,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
             if (!selectedOperator) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
-              this.notificationService.error(`Invalid operator name`)
+              this.notificationService.error("Invalid operator name");
               break;
             }
             newSelectedOperators.push(selectedOperator);
@@ -365,7 +364,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             const selectedProjectIndex = this.userProjectsDropdown.findIndex(proj => proj.name === searchValue);
             if (selectedProjectIndex === -1) {
               remove(this.masterFilterList, filterTag => filterTag === tag);
-              this.notificationService.error(`Invalid project name`);
+              this.notificationService.error("Invalid project name");
               break;
             }
             this.userProjectsDropdown[selectedProjectIndex].checked = true;
@@ -545,38 +544,41 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * retrieves the workflow ids of workflows with the operator(s) specified
    */
-     public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
-      return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
-    }
-  
-    public retrieveOwners(): Observable<{ userName: string; checked: boolean }[]> {
-      return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`).pipe(
-        map((owners: string[]) => {
-          return owners.map((user: string) => {
-            return {
-              userName: user,
-              checked: false,
-            };
-          });
-        })
-      );
-    }
-  
-    /**
-     * retrieves all workflow IDs
-     */
-    public retrieveIDs(): Observable<{ id: string; checked: boolean }[]> {
-      return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
-        map((wids: string[]) => {
-          return wids.map(wid => {
-            return {
-              id: wid,
-              checked: false,
-            };
-          });
-        })
-      );
-    }
+  public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
+  }
+
+  /**
+   * retrieves all workflow owners
+   */
+  public retrieveOwners(): Observable<{ userName: string; checked: boolean }[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`).pipe(
+      map((owners: string[]) => {
+        return owners.map((user: string) => {
+          return {
+            userName: user,
+            checked: false,
+          };
+        });
+      })
+    );
+  }
+
+  /**
+   * retrieves all workflow IDs
+   */
+  public retrieveIDs(): Observable<{ id: string; checked: boolean }[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
+      map((wids: string[]) => {
+        return wids.map(wid => {
+          return {
+            id: wid,
+            checked: false,
+          };
+        });
+      })
+    );
+  }
 
   /**
    * checks if a tag string is a workflow name or dropdown menu search parameter
