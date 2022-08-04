@@ -162,19 +162,19 @@ describe("SavedWorkflowSectionComponent", () => {
       {userName: "Texera", checked: false}, 
       {userName: "Angular", checked: false}, 
       {userName: "UCI", checked: false}
-    ]
+    ];
     component.wids = [
       {id: "1", checked: false},
       {id: "2", checked: false},
       {id: "3", checked: false},
       {id: "4", checked: false},
       {id: "5", checked: false}
-    ]
+    ];
     component.userProjectsDropdown = [
       {pid: 1, name: "Project1", checked: false},
       {pid: 2, name: "Project2", checked: false},
       {pid: 3, name: "Project3", checked: false}
-    ]
+    ];
   });
 
   it("should create", () => {
@@ -233,6 +233,18 @@ describe("SavedWorkflowSectionComponent", () => {
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]); 
     expect(component.masterFilterList).toEqual([])
+  })
+
+  it("searchByWorkflowName", () => {
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = ["5"];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
+    component.searchWorkflow();
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    expect(SortedCase).toEqual(["workflow 5"]); 
+    expect(component.masterFilterList).toEqual(["5"])
   })
 
   it("searchByOwners", () => {
@@ -304,6 +316,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.wids[0].checked = true, component.wids[1].checked = true, component.wids[2].checked = true //id 1,2,3
     component.userProjectsDropdown[0].checked = true; //Project 1
     component.selectedDate = new Date(1970,0,1);
+    component.masterFilterList.push("1")
     //add/select new search parameter here
 
     component.updateSelectedProjects(), component.updateSelectedIDs(), component.updateSelectedOwners();
@@ -312,7 +325,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]); 
-    expect(component.masterFilterList).toEqual(["owner: Texera", "owner: Angular","id: 1", "id: 2", "id: 3", "project: Project1", "ctime: 1970-01-01"])
+    expect(component.masterFilterList).toEqual(["1", "owner: Texera", "owner: Angular","id: 1", "id: 2", "id: 3", "project: Project1", "ctime: 1970-01-01"])
   })
 
 });
