@@ -32,15 +32,15 @@ export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
 /**
- * Saved-workflow-section.component contains information and functionality 
+ * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
- * 
+ *
  * This component:
  *  - displays the workflows the user has access to
  *  - allows easy searching for workflows by name or other parameters using Fuse.js
  *  - sorting options
- *  - creation of a new workflow 
- * 
+ *  - creation of a new workflow
+ *
  * Steps to add new search parameter:
  *  1. Add a newly formatted dropdown menu in the html and css files, and a backend call to retrieve any necessary data
  *  2. Create an array of objects to hold data for the search parameter and a boolean "checked" variable
