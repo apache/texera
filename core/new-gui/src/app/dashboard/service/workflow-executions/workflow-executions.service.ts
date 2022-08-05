@@ -34,13 +34,6 @@ export class WorkflowExecutionsService {
     });
   }
 
-  deleteWorkflowExecutionss(wid: number, eIds: number[]): Observable<Object> {
-    return this.http.put(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/delete_executions`, {
-      wid,
-      eIds,
-    });
-  }
-
   updateWorkflowExecutionsName(wid: number | undefined, eId: number, executionName: string): Observable<Response> {
     return this.http.post<Response>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/update_execution_name`, {
       wid,
