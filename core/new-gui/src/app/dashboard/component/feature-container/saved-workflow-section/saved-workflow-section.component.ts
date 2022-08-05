@@ -318,8 +318,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * updates dropdown menus when nz-select bar is changed
    */
-  public updateDropdownMenus(tagListString: string): void {
-    const tagList = Array.from(tagListString);
+  public updateDropdownMenus(tagListString: string[]): void {
     //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
     //operators map is too expensive/difficult to search for operator object properties
     this.selectedIDs = [];
@@ -328,7 +327,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     let newSelectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
     this.selectedDate = null;
     this.setDropdownSelectionsToUnchecked();
-    tagList.forEach(tag => {
+    tagListString.forEach(tag => {
       if (tag.includes(":")) {
         const searchArray = tag.split(":");
         const searchField = searchArray[0];
