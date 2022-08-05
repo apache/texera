@@ -40,7 +40,6 @@ object WorkflowExecutionsResource {
 
 case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: Boolean)
 case class ExecutionDeleteRequest(wid: UInteger, eId: UInteger)
-case class ExecutionGroupDeletRequest(wid: UInteger, eids: Array[UInteger])
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @PermitAll
@@ -130,25 +129,6 @@ class WorkflowExecutionsResource {
       .delete(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
       .execute();
-  }
-
-    /** Delete a group of executions */
-  @PUT
-  @Path("/delete_executions")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  def deleteExecutionSOfWorkflow(
-      request: ExecutionGroupDeletRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    /* delete the execution in sql */
-    for (eid <- request.eids) {
-      context
-        .delete(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
-        .and(WORKFLOW_EXECUTIONS.WID.eq(request.wid))
-        .execute();
-    }
   }
 
   /** Name a single execution * */
