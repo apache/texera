@@ -52,7 +52,13 @@
       >
         <i nz-icon nzTheme="outline" nzType="minus-square"></i>
       </button>
-      <a [nzDropdownMenu]="calendar" nz-dropdown nzTrigger="click" [nzOverlayStyle]="{'border-style': 'double'}" class="search-creation-time-button">
+      <a
+        [nzDropdownMenu]="calendar"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="search-creation-time-button"
+      >
         <button id="ctimeSort" ngbDropdownToggle nz-button>
           <i nz-icon nzType="calendar" nzTheme="outline" nz-tooltip="Creation Time"></i>
         </button>
@@ -67,7 +73,13 @@
         </div>
       </nz-dropdown-menu>
 
-      <a [nzDropdownMenu]="ownerSearchOptions" nz-dropdown nzTrigger="click" [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}" class="search-owners-button">
+      <a
+        [nzDropdownMenu]="ownerSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-owners-button"
+      >
         <button id="sortOwner" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="user" nz-tooltip="Owner"></i>
         </button>
@@ -82,7 +94,13 @@
         </ul>
       </nz-dropdown-menu>
 
-      <a [nzDropdownMenu]="IDSearchOptions" nz-dropdown nzTrigger="click" [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}" class="search-wids-button">
+      <a
+        [nzDropdownMenu]="IDSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-wids-button"
+      >
         <button id="sortID" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="ordered-list" nz-tooltip="Workflow ID"></i>
         </button>
@@ -95,7 +113,13 @@
         </ul>
       </nz-dropdown-menu>
 
-      <a [nzDropdownMenu]="operatorSearchOptions" nz-dropdown nzTrigger="click" [nzOverlayStyle]="{'border-style': 'double'}" class="search-operators-button">
+      <a
+        [nzDropdownMenu]="operatorSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="search-operators-button"
+      >
         <button id="sortOperator" ngbDropdownToggle nz-button>
           <i nz-icon nzType="appstore" nzTheme="outline" nz-tooltip="Operators"></i>
         </button>
@@ -114,7 +138,13 @@
         </ul>
       </nz-dropdown-menu>
 
-      <a [nzDropdownMenu]="projectSearchOptions" nz-dropdown nzTrigger="click" [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}" class="search-projects-button">
+      <a
+        [nzDropdownMenu]="projectSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-projects-button"
+      >
         <button id="sortProject" ngbDropdownToggle nz-button>
           <i nz-icon nzType="file" nzTheme="outline" nz-tooltip="Projects"></i>
         </button>
