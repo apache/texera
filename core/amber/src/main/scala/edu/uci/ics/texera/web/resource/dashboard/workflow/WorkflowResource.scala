@@ -143,7 +143,7 @@ class WorkflowResource {
       @QueryParam("operator") operator: String,
       @Auth sessionUser: SessionUser
   ): List[String] = {
-    // Example GET url: localhost:8080/workflow/searchOperators?operator=csv
+    // Example GET url: localhost:8080/workflow/searchOperators?operator=Regex,CSVFileScan
     val user = sessionUser.getUser
     val quotes = "\""
     val operatorArray =
