@@ -58,20 +58,10 @@
     </nz-input-group>
   </nz-card>
   <ng-template #actionstar>
-    <i 
-      *ngIf="setOfExecution.size !== 0" 
-      nz-icon 
-      nzType="star"
-      (click)="setBookmarked(setOfExecution)"
-    ></i>
+    <i *ngIf="setOfExecution.size !== 0" nz-icon nzType="star" (click)="setBookmarked(setOfExecution)"></i>
   </ng-template>
   <ng-template #actionDelete>
-    <i 
-      *ngIf="setOfExecution.size !== 0" 
-      nz-icon 
-      nzType="delete"
-      (click)="onGroupDelete(setOfExecution)"
-    ></i>
+    <i *ngIf="setOfExecution.size !== 0" nz-icon nzType="delete" (click)="onGroupDelete(setOfExecution)"></i>
   </ng-template>
 
   <div class="modal-body table-responsive">
@@ -88,16 +78,12 @@
       (nzPageSizeChange)="onPageSizeChange($event)"
       (nzPageIndexChange)="onPageIndexChange($event)"
       [nzScroll]="{ x: '1000px' }"
-    ><tr>
+    >
       <thead>
         <tr>
-          <th 
-            class="checkboxes"
-            [(nzChecked)]="checked"
-            (nzCheckedChange)="onAllChecked($event)"
-          ></th>
-          <th class="stars"></th>
-          <th class="account" nz-tooltip [nzTooltipTitle]="executionTooltip['Username']">
+          <th nzWidth="80px" [(nzChecked)]="checked" (nzCheckedChange)="onAllChecked($event)"></th>
+          <th nzWidth="80px"></th>
+          <th nzWidth="130px" nz-tooltip [nzTooltipTitle]="executionTooltip['Username']">
             Account
             <button *ngIf="this.showORhide[0]" nz-button (click)="onHit('Username', 0)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
@@ -106,7 +92,7 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th class="execution-time" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">
+          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">
             Execution Title
             <button *ngIf="this.showORhide[1]" nz-button (click)="onHit('Name', 1)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
@@ -115,8 +101,8 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th class="starting-time" nz-tooltip [nzTooltipTitle]="executionTooltip['Starting Time']">
-            Satrting Time
+          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Starting Time']">
+            Satring Time
             <button *ngIf="this.showORhide[2]" nz-button (click)="onHit('Starting Time', 2)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
             </button>
@@ -124,11 +110,7 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th
-            class="last-status-updated-time"
-            nz-tooltip
-            [nzTooltipTitle]="executionTooltip['Last Status Updated Time']"
-          >
+          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Last Status Updated Time']">
             Last Status Updated Time
             <button *ngIf="this.showORhide[3]" nz-button (click)="onHit('Last Status Updated Time', 3)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
@@ -137,17 +119,13 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th class="status" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">Status</th>
-          <th class="delete"></th>
+          <th nzWidth="80px" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">Status</th>
+          <th nzWidth="80px"></th>
         </tr>
-      </thead>    
+      </thead>
       <tbody>
         <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
-          <td 
-            nzEllipsis
-            [nzChecked]="setOfCheckedIndex.has(i)"
-            (nzCheckedChange)="onItemChecked(row, i, $event)"
-          ></td>
+          <td nzEllipsis [nzChecked]="setOfCheckedIndex.has(i)" (nzCheckedChange)="onItemChecked(row, i, $event)"></td>
           <td nzEllipsis>
             <i
               nz-icon
@@ -160,11 +138,10 @@
           <td nzEllipsis>
             <nz-avatar
               [ngStyle]="{ 'background-color': setAvatarColor(row.userName) }"
-              [nzGap]="4"  
+              [nzGap]="4"
               [nzText]="'' + row.userName || 'anonymous'"
               nzSize="default"
             ></nz-avatar>
-            <!-- 4 on the nzGap here represents letter type unit distance between left and right sides -->
           </td>
           <td nzEllipsis>
             <label
@@ -229,4 +206,3 @@
     </nz-table>
   </div>
 </div>
-

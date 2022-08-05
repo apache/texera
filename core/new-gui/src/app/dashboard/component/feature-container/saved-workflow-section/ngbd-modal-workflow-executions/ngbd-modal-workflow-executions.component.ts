@@ -80,11 +80,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["aborted", 4],
   ]);
   public showORhide: boolean[] = [false, false, false, false];
-  public avatarColors: {[key: string]: string} = {};
+  public avatarColors: { [key: string]: string } = {};
   public checked: boolean = false;
   public setOfCheckedIndex = new Set<number>();
   public setOfExecution = new Set<WorkflowExecutionsEntry>();
-
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -161,10 +160,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         if (!row.bookmarked) {
           return false;
         }
-      } return true;
-    } return false;
+      }
+      return true;
+    }
+    return false;
   }
-
 
   setBookmarked(rows: Set<WorkflowExecutionsEntry>): void {
     if (this.workflow.wid === undefined) return;
@@ -174,11 +174,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         if (!wasPreviouslyBookmarked) {
           row.bookmarked = !wasPreviouslyBookmarked;
           this.workflowExecutionsService
-          .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
-          });
+            .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
+            });
         }
       }
     } else {
@@ -186,15 +186,14 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         const wasPreviouslyBookmarked = row.bookmarked;
         row.bookmarked = !wasPreviouslyBookmarked;
         this.workflowExecutionsService
-        .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
-        });
+          .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
+          });
       }
     }
   }
-
 
   /* delete a single execution */
 
@@ -214,7 +213,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
               complete: () => {
                 this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
                 this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                // this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
                 this.fuse.setCollection(this.paginatedExecutionEntries);
               },
             });
@@ -222,39 +220,37 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-
   onGroupDelete(rows: Set<WorkflowExecutionsEntry>) {
     const modalRef = this.modalService.open(DeletePromptComponent);
     modalRef.componentInstance.deletionType = "execution";
     // // TODO: need to show all of the name
     let deletionNames = "";
     for (let row of rows) {
-      deletionNames = deletionNames.concat(row.name)
-      deletionNames = deletionNames.concat("; ")
+      deletionNames = deletionNames.concat(row.name);
+      deletionNames = deletionNames.concat("; ");
     }
     modalRef.componentInstance.deletionName = deletionNames.slice(0, -2);
 
     from(modalRef.result)
-    .pipe(untilDestroyed(this))
-    .subscribe((confirmToDelete: boolean) => {
-      if (confirmToDelete && this.workflow.wid !== undefined) {
-        for (let row of rows.values()) {
-          this.workflowExecutionsService
-            .deleteWorkflowExecutions(this.workflow.wid, row.eId)
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              complete: () => {
-                this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-                this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                // this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
-                this.fuse.setCollection(this.paginatedExecutionEntries);
-                this.setOfCheckedIndex.clear();
-                this.setOfExecution.clear();
-              },
-            });
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && this.workflow.wid !== undefined) {
+          for (let row of rows.values()) {
+            this.workflowExecutionsService
+              .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                complete: () => {
+                  this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
+                  this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
+                  this.fuse.setCollection(this.paginatedExecutionEntries);
+                  this.setOfCheckedIndex.clear();
+                  this.setOfExecution.clear();
+                },
+              });
+          }
         }
-      }
-    });
+      });
   }
 
   /* rename a single execution */
@@ -350,10 +346,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   shortenName(name: string): string {
     if (name.length <= 25) {
-      return name
+      return name;
     } else {
-      let words = name.slice(0, 25).split(" ")
-      return words.slice(0, -1).join(" ") + "..."
+      let words = name.slice(0, 25).split(" ");
+      return words.slice(0, -1).join(" ") + "...";
     }
   }
 
@@ -370,7 +366,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     if (userName in this.avatarColors) {
       return this.avatarColors[userName];
     } else {
-      this.avatarColors[userName] = this.getRandomColor()
+      this.avatarColors[userName] = this.getRandomColor();
       return this.avatarColors[userName];
     }
   }
@@ -398,7 +394,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     }
   }
 
-  onItemChecked(row: WorkflowExecutionsEntry,index: number, checked: boolean): void {
+  onItemChecked(row: WorkflowExecutionsEntry, index: number, checked: boolean): void {
     this.updateCheckedSet(index, checked);
     this.updateExecutionSet(row, checked);
     this.refreshCheckedStatus();
@@ -406,7 +402,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   onAllChecked(value: boolean): void {
     if (this.workflowExecutionsDisplayedList !== undefined) {
-      for (let i=0;i<this.workflowExecutionsDisplayedList.length; i++) {
+      for (let i = 0; i < this.workflowExecutionsDisplayedList.length; i++) {
         this.updateCheckedSet(i, value);
         this.updateExecutionSet(this.workflowExecutionsDisplayedList[i], value);
       }
@@ -416,11 +412,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   refreshCheckedStatus(): void {
     if (this.workflowExecutionsDisplayedList !== undefined) {
-      this.checked = this.workflowExecutionsDisplayedList.length === this.setOfCheckedIndex.size
+      this.checked = this.workflowExecutionsDisplayedList.length === this.setOfCheckedIndex.size;
     }
   }
 
-  
   public searchInputOnChange(value: string): void {
     const searchConditionsSet = [...new Set(value.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g))];
     searchConditionsSet.forEach((condition, index) => {
@@ -557,4 +552,3 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     );
   }
 }
-
