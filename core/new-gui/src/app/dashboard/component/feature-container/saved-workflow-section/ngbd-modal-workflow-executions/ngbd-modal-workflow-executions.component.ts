@@ -155,6 +155,46 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
+  allBookmarkCheck(rows: Set<WorkflowExecutionsEntry>): boolean {
+    if (rows !== undefined) {
+      for (let row of rows) {
+        if (!row.bookmarked) {
+          return false;
+        }
+      } return true;
+    } return false;
+  }
+
+
+  setBookmarked(rows: Set<WorkflowExecutionsEntry>): void {
+    if (this.workflow.wid === undefined) return;
+    if (rows !== undefined && !this.allBookmarkCheck(rows)) {
+      for (let row of rows) {
+        const wasPreviouslyBookmarked = row.bookmarked;
+        if (!wasPreviouslyBookmarked) {
+          row.bookmarked = !wasPreviouslyBookmarked;
+          this.workflowExecutionsService
+          .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
+          });
+        }
+      }
+    } else {
+      for (let row of rows) {
+        const wasPreviouslyBookmarked = row.bookmarked;
+        row.bookmarked = !wasPreviouslyBookmarked;
+        this.workflowExecutionsService
+        .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
+        });
+      }
+    }
+  }
+
 
   /* delete a single execution */
 
@@ -174,7 +214,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
               complete: () => {
                 this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
                 this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
+                // this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
                 this.fuse.setCollection(this.paginatedExecutionEntries);
               },
             });
@@ -182,35 +222,40 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
+
   onGroupDelete(rows: Set<WorkflowExecutionsEntry>) {
     const modalRef = this.modalService.open(DeletePromptComponent);
     modalRef.componentInstance.deletionType = "execution";
-    // TODO: need to show all of the name
-    modalRef.componentInstance.deletionName = "this is for test";
+    // // TODO: need to show all of the name
+    let deletionNames = "";
+    for (let row of rows) {
+      deletionNames = deletionNames.concat(row.name)
+      deletionNames = deletionNames.concat("; ")
+    }
+    modalRef.componentInstance.deletionName = deletionNames.slice(0, -2);
 
     from(modalRef.result)
-      .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && this.workflow.wid !== undefined) {
-          for (let row of rows.values()) {
-            this.workflowExecutionsService
-              .deleteWorkflowExecutions(this.workflow.wid, row.eId)
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                complete: () => {
-                  this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-                  this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                  this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
-                  this.fuse.setCollection(this.paginatedExecutionEntries);
-                },
-              });
-          }
+    .pipe(untilDestroyed(this))
+    .subscribe((confirmToDelete: boolean) => {
+      if (confirmToDelete && this.workflow.wid !== undefined) {
+        for (let row of rows.values()) {
+          this.workflowExecutionsService
+            .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              complete: () => {
+                this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
+                this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
+                // this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
+                this.fuse.setCollection(this.paginatedExecutionEntries);
+                this.setOfCheckedIndex.clear();
+                this.setOfExecution.clear();
+              },
+            });
         }
-      });
-    // this.setOfExecution.clear();
+      }
+    });
   }
-
-
 
   /* rename a single execution */
 
@@ -514,3 +559,4 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     );
   }
 }
+

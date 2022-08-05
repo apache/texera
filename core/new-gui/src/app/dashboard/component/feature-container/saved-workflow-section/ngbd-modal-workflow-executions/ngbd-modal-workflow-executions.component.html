@@ -1,5 +1,5 @@
 <div class="saved-execution-container subsection-grid-container">
-  <nz-card class="workflow-section-title subsection-grid-container" [nzActions]="[actionEdit, actionDelete]">
+  <nz-card class="workflow-section-title subsection-grid-container" [nzActions]="[actionstar, actionDelete]">
     <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
       <span aria-hidden="true"> × </span>
     </button>
@@ -57,8 +57,13 @@
       ></nz-autocomplete>
     </nz-input-group>
   </nz-card>
-  <ng-template #actionEdit>
-    <i *ngIf="checked" nz-icon nzType="edit"></i>
+  <ng-template #actionstar>
+    <i 
+      *ngIf="setOfExecution.size !== 0" 
+      nz-icon 
+      nzType="star"
+      (click)="setBookmarked(setOfExecution)"
+    ></i>
   </ng-template>
   <ng-template #actionDelete>
     <i 
@@ -66,7 +71,7 @@
       nz-icon 
       nzType="delete"
       (click)="onGroupDelete(setOfExecution)"
-    > Delete the Item </i>
+    ></i>
   </ng-template>
 
   <div class="modal-body table-responsive">
@@ -216,3 +221,4 @@
     </nz-table>
   </div>
 </div>
+
