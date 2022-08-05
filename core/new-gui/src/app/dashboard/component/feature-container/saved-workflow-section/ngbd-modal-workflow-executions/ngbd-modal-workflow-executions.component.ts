@@ -376,12 +376,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   getRandomColor(): string {
-    let letters = "0123456789ABCDEF".split('');
-    let color = "#";
-    for (let i=0;i<6;i++) {
-      color += letters[Math.floor(Math.random()*16)];
-    }
-    return color;
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    return "rgba(" + r + "," + g + "," + b + ",0.8)";
   }
 
   updateCheckedSet(index: number, checked: boolean): void {

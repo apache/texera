@@ -88,16 +88,17 @@
       (nzPageSizeChange)="onPageSizeChange($event)"
       (nzPageIndexChange)="onPageIndexChange($event)"
       [nzScroll]="{ x: '1000px' }"
-    >
+    ><tr>
       <thead>
         <tr>
           <th 
-            nzWidth="80px"
+            class="checkboxes"
             [(nzChecked)]="checked"
             (nzCheckedChange)="onAllChecked($event)"
           ></th>
-          <th nzWidth="80px"></th>
-          <th nzWidth="130px" nz-tooltip [nzTooltipTitle]="executionTooltip['Username']"> Account
+          <th class="stars"></th>
+          <th class="account" nz-tooltip [nzTooltipTitle]="executionTooltip['Username']">
+            Account
             <button *ngIf="this.showORhide[0]" nz-button (click)="onHit('Username', 0)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
             </button>
@@ -105,7 +106,8 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']"> Execution Title
+          <th class="execution-time" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">
+            Execution Title
             <button *ngIf="this.showORhide[1]" nz-button (click)="onHit('Name', 1)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
             </button>
@@ -113,7 +115,8 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Starting Time']"> Satring Time
+          <th class="starting-time" nz-tooltip [nzTooltipTitle]="executionTooltip['Starting Time']">
+            Satrting Time
             <button *ngIf="this.showORhide[2]" nz-button (click)="onHit('Starting Time', 2)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
             </button>
@@ -121,7 +124,12 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th nzWidth="250px" nz-tooltip [nzTooltipTitle]="executionTooltip['Last Status Updated Time']"> Last Status Updated Time
+          <th
+            class="last-status-updated-time"
+            nz-tooltip
+            [nzTooltipTitle]="executionTooltip['Last Status Updated Time']"
+          >
+            Last Status Updated Time
             <button *ngIf="this.showORhide[3]" nz-button (click)="onHit('Last Status Updated Time', 3)">
               <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
             </button>
@@ -129,10 +137,10 @@
               <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
             </button>
           </th>
-          <th nzWidth="80px" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']"> Status </th>
-          <th nzWidth="80px"></th>
+          <th class="status" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">Status</th>
+          <th class="delete"></th>
         </tr>
-      </thead>
+      </thead>    
       <tbody>
         <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
           <td 
