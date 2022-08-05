@@ -3,7 +3,10 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { SavedWorkflowSectionComponent } from "./saved-workflow-section.component";
-import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import {
+  WORKFLOW_BASE_URL,
+  WorkflowPersistService,
+} from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
@@ -425,5 +428,11 @@ describe("SavedWorkflowSectionComponent", () => {
       "project: Project1",
       "ctime: 1970-01-01",
     ]);
+  });
+
+  it("Sends http request to backend to retrieve export json", () => {
+    component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${testWorkflowEntries[0]}`);
+    httpTestingController.expectOne("api/workflow/1");
   });
 });
