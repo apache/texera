@@ -25,14 +25,14 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowPipelinedRegionsBuilder(
-                                       workflowContext: WorkflowContext,
-                                       operatorIdToDesc: Map[String, OperatorDescriptor],
-                                       inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]],
-                                       workflowId: WorkflowIdentity,
-                                       operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
-                                       outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]],
-                                       opResultStorage: OpResultStorage
-                                     ) {
+    workflowContext: WorkflowContext,
+    operatorIdToDesc: Map[String, OperatorDescriptor],
+    inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]],
+    workflowId: WorkflowIdentity,
+    operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
+    outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]],
+    opResultStorage: OpResultStorage
+) {
   var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = null
 
   private def inLinks(): Map[OperatorIdentity, Set[OperatorIdentity]] =
@@ -70,9 +70,9 @@ class WorkflowPipelinedRegionsBuilder(
   }
 
   private def getComponentFromOperatorId(
-                                          operatorId: OperatorIdentity,
-                                          components: java.util.Set[Graph[OperatorIdentity, DefaultEdge]]
-                                        ): Graph[OperatorIdentity, DefaultEdge] = {
+      operatorId: OperatorIdentity,
+      components: java.util.Set[Graph[OperatorIdentity, DefaultEdge]]
+  ): Graph[OperatorIdentity, DefaultEdge] = {
     components.foreach(component => {
       if (component.containsVertex(operatorId)) {
         return component
@@ -86,11 +86,11 @@ class WorkflowPipelinedRegionsBuilder(
     * port maps in the OpExecConfig of the operators have to be updated.
     */
   private def updatePortLinking(
-                                 originalSrcOpId: OperatorIdentity,
-                                 originalDestOpId: OperatorIdentity,
-                                 matWriterOpId: OperatorIdentity,
-                                 matReaderOpId: OperatorIdentity
-                               ): Unit = {
+      originalSrcOpId: OperatorIdentity,
+      originalDestOpId: OperatorIdentity,
+      matWriterOpId: OperatorIdentity,
+      matReaderOpId: OperatorIdentity
+  ): Unit = {
     val originalLink = LinkIdentity(
       operatorToOpExecConfig(originalSrcOpId).topology.layers.last.id,
       operatorToOpExecConfig(originalDestOpId).topology.layers.head.id
@@ -145,8 +145,8 @@ class WorkflowPipelinedRegionsBuilder(
     * are added to force dependent ipnut links of an operator to come from different regions.
     */
   private def addMaterializationOperatorIfNeeded(
-                                                  initialDAG: DirectedAcyclicGraph[OperatorIdentity, DefaultEdge]
-                                                ): DirectedAcyclicGraph[OperatorIdentity, DefaultEdge] = {
+      initialDAG: DirectedAcyclicGraph[OperatorIdentity, DefaultEdge]
+  ): DirectedAcyclicGraph[OperatorIdentity, DefaultEdge] = {
     val biconnectivityInspector =
       new BiconnectivityInspector[OperatorIdentity, DefaultEdge](initialDAG)
     val connectedComponents = biconnectivityInspector.getConnectedComponents()
