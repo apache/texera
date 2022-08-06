@@ -1222,7 +1222,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private saveHighlightedElements(): void {
     console.log('got to the save highlighted');
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    // const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+    const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
     
     // copiedOps contains all the highlighted operators that are being copied
     const copiedOps: copiedOperatorIndexedByID = {}
@@ -1253,6 +1253,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       // although if the current tab is active, permission shouldn't be needed
       alert("Copy failed. You don't have the permission to write to the clipboard.");
     });
+    // previous way of copying
     // this.copiedOperators.set(operatorID, {
     //   operator,
     //   position,
@@ -1260,14 +1261,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     //   pastedOperatorIDs: pastedOperators,
     // });
 
-    // highlightedGroupIDs.forEach(groupID => {
-    //   this.saveGroupInfo(groupID);
+    highlightedGroupIDs.forEach(groupID => {
+      this.saveGroupInfo(groupID);
 
-    //   const copiedGroup = this.workflowActionService.getOperatorGroup().getGroup(groupID);
-    //   assertType<Group>(copiedGroup);
-    //   // do no copy operators that would be copied along with their groups (to avoid double counting)
-    //   copiedGroup.operators.forEach((operatorInfo, operatorID) => this.deleteOperatorInfo(operatorID));
-    // });
+      const copiedGroup = this.workflowActionService.getOperatorGroup().getGroup(groupID);
+      assertType<Group>(copiedGroup);
+      // do no copy operators that would be copied along with their groups (to avoid double counting)
+      copiedGroup.operators.forEach((operatorInfo, operatorID) => this.deleteOperatorInfo(operatorID));
+    });
   }
 
   /**
@@ -1367,50 +1368,53 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
             // actually add all operators, links, groups to the workflow
             this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
+
+
+            // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
+            this.copiedGroups.forEach((copiedGroup, groupID) => {
+              const newGroup = this.copyGroup(copiedGroup.group);
+
+              const oldPosition = copiedGroup.position;
+              const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
+              positions.push(newPosition);
+
+              // delta between old position and new to apply to the copied group's operators
+              const delta = {
+                x: newPosition.x - oldPosition.x,
+                y: newPosition.y - oldPosition.y,
+              };
+
+              newGroup.operators.forEach((operatorInfo, operatorID) => {
+                operatorInfo.position.x += delta.x;
+                operatorInfo.position.y += delta.x;
+
+                operatorsAndPositions.push({
+                  op: operatorInfo.operator,
+                  pos: operatorInfo.position,
+                });
+              });
+
+              // add links from group to list of all links to be added
+              newGroup.links.forEach((linkInfo, operatorID) => {
+                links.push(linkInfo.link);
+              });
+
+              // add group to list of all groups to be added
+              groups.push(newGroup);
+            });
+
+            
           } catch (e) {
             // if the text in the clipboard is not a JSON object, then it means the user 
             // hasn't copied an operator
             alert("You haven't copied any operator yet");
           }
+          // 
         }) 
       })
         
 
-        //   // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
-        //   this.copiedGroups.forEach((copiedGroup, groupID) => {
-        //     const newGroup = this.copyGroup(copiedGroup.group);
-
-        //     const oldPosition = copiedGroup.position;
-        //     const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
-        //     positions.push(newPosition);
-
-        //     // delta between old position and new to apply to the copied group's operators
-        //     const delta = {
-        //       x: newPosition.x - oldPosition.x,
-        //       y: newPosition.y - oldPosition.y,
-        //     };
-
-        //     newGroup.operators.forEach((operatorInfo, operatorID) => {
-        //       operatorInfo.position.x += delta.x;
-        //       operatorInfo.position.y += delta.x;
-
-        //       operatorsAndPositions.push({
-        //         op: operatorInfo.operator,
-        //         pos: operatorInfo.position,
-        //       });
-        //     });
-
-        //     // add links from group to list of all links to be added
-        //     newGroup.links.forEach((linkInfo, operatorID) => {
-        //       links.push(linkInfo.link);
-        //     });
-
-        //     // add group to list of all groups to be added
-        //     groups.push(newGroup);
-        //   });
-
-          
-        // }
+        
     }
 
   /**
