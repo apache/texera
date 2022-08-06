@@ -137,6 +137,11 @@ export type WorkflowStateInfo = Readonly<{
   state: ExecutionState;
 }>;
 
+export type WorkflowExecuteRequest = Readonly<{
+  logicalPlan: LogicalPlan;
+  engineVersion: string;
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   RegisterWIdRequest: RegisterWIdRequest;
   AddBreakpointRequest: BreakpointInfo;
@@ -147,7 +152,7 @@ export type TexeraWebsocketRequestTypeMap = {
   ResultPaginationRequest: PaginationRequest;
   RetryRequest: {};
   SkipTupleRequest: SkipTuple;
-  WorkflowExecuteRequest: LogicalPlan;
+  WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
   WorkflowResumeRequest: {};

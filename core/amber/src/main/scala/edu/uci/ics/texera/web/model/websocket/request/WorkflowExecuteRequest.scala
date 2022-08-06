@@ -6,8 +6,13 @@ import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, OperatorLink
 import scala.collection.mutable
 
 case class WorkflowExecuteRequest(
+    logicalPlan: LogicalPlan,
+    engineVersion: String
+) extends TexeraWebSocketRequest
+
+case class LogicalPlan(
     operators: mutable.MutableList[OperatorDescriptor],
     links: mutable.MutableList[OperatorLink],
     breakpoints: mutable.MutableList[BreakpointInfo],
     cachedOperatorIds: mutable.MutableList[String]
-) extends TexeraWebSocketRequest
+)

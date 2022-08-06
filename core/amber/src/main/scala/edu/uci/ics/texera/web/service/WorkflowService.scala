@@ -143,17 +143,18 @@ class WorkflowService(
 
   private[this] def createWorkflowContext(request: WorkflowExecuteRequest): WorkflowContext = {
     val jobID: String = String.valueOf(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
+    var executionID: Long = -1
     if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
         CacheStatusUpdateRequest(
-          request.operators,
-          request.links,
-          request.breakpoints,
-          request.cachedOperatorIds
+          request.logicalPlan.operators,
+          request.logicalPlan.links,
+          request.logicalPlan.breakpoints,
+          request.logicalPlan.cachedOperatorIds
         )
       )
     }
-    new WorkflowContext(jobID, uidOpt, wId)
+    new WorkflowContext(jobID, uidOpt, wId, executionID, request.engineVersion)
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {

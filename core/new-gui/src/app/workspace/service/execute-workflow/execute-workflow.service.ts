@@ -1,4 +1,4 @@
-import { Injectable } from "@angular/core";
+import { Injectable, Version } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -13,11 +13,16 @@ import {
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from "../../types/workflow-common.interface";
-import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
+import {
+  OperatorCurrentTuples,
+  TexeraWebsocketEvent,
+  WorkflowExecuteRequest,
+} from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { WorkflowCollabService } from "../workflow-collab/workflow-collab.service";
+import { Version as version } from "src/environments/version";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -61,6 +66,7 @@ export class ExecuteWorkflowService {
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
+  private version = version;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -173,9 +179,11 @@ export class ExecuteWorkflowService {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
+    var engineVersion = this.version.hash;
+    const workflowExecutionRequest: WorkflowExecuteRequest = { logicalPlan, engineVersion };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
-      this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
+      this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecutionRequest);
     }, FORM_DEBOUNCE_TIME_MS);
     this.setExecutionTimeout(
       "submit workflow timeout",
