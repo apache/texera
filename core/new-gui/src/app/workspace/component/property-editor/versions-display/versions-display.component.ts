@@ -12,7 +12,6 @@ import { HttpClient } from "@angular/common/http";
 import { Workflow } from "src/app/common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
-import { defaultEnvironment } from "src/environments/environment.default";
 
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
@@ -25,14 +24,13 @@ export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 export class VersionsListDisplayComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
-  public versionTableHeaders: string[] = ["Version#", "Timestamp"];
+  public versionTableHeaders: string[] = ["", "Version#", "Timestamp"];
 
   // Pagination attributes
-  public isPagination: boolean = false;
-  public currentPageIndex: number = defaultEnvironment.defaultPageIndex;
-  public pageSize: number = defaultEnvironment.defaultPageSize;
-  public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
-  public numOfVersion: number = defaultEnvironment.defaultNumOfItems;
+  public currentPageIndex: number = 1;
+  public pageSize: number = 10;
+  public pageSizeOptions: number[] = [5, 10, 20, 30, 40];
+  public numOfVersion: number = 0;
   public currentVersionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
   constructor(
@@ -48,12 +46,10 @@ export class VersionsListDisplayComponent implements OnInit {
     if (!$event) {
       while (++index < this.versionsList.length && !this.versionsList[index].importance) {
         this.versionsList[index].expand = false;
-        this.isPagination = false;
       }
     } else {
       while (++index < this.versionsList.length && !this.versionsList[index].importance) {
         this.versionsList[index].expand = true;
-        this.isPagination = true;
       }
     }
   }
