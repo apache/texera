@@ -9,8 +9,6 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { filter } from "lodash";
-import { defaultEnvironment } from "../../../../../../environments/environment.default";
 
 @UntilDestroy()
 @Component({
@@ -61,10 +59,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   // Pagination attributes
   public isAscSort: boolean = true;
-  public currentPageIndex: number = defaultEnvironment.defaultPageIndex;
-  public pageSize: number = defaultEnvironment.defaultPageSize;
-  public pageSizeOptions: number[] = defaultEnvironment.defaultPageSizeOptions;
-  public numOfExecutions: number = defaultEnvironment.defaultNumOfItems;
+  public currentPageIndex: number = 1;
+  public pageSize: number = 10;
+  public pageSizeOptions: number[] = [5, 10, 20, 30, 40];
+  public numOfExecutions: number = 0;
   public paginatedExecutionEntries: WorkflowExecutionsEntry[] = [];
 
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
