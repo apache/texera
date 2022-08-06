@@ -116,6 +116,16 @@ public interface IWorkflowExecutions extends Serializable {
      */
     public String getName();
 
+    /**
+     * Setter for <code>texera_db.workflow_executions.engine_version</code>.
+     */
+    public void setEngineVersion(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.engine_version</code>.
+     */
+    public String getEngineVersion();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

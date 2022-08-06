@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row10;
+import org.jooq.Row11;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = -1623419866;
+    private static final long serialVersionUID = -2100482937;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -99,6 +99,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.name</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false).defaultValue(org.jooq.impl.DSL.inline("Untitled Execution", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.engine_version</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, String> ENGINE_VERSION = createField(DSL.name("engine_version"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -202,11 +207,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row10 type methods
+    // Row11 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row10<UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String> fieldsRow() {
-        return (Row10) super.fieldsRow();
+    public Row11<UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String> fieldsRow() {
+        return (Row11) super.fieldsRow();
     }
 }

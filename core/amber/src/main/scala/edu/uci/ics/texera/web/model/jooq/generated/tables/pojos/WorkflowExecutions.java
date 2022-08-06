@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -1729270637;
+    private static final long serialVersionUID = 309705447;
 
     private UInteger  eid;
     private UInteger  wid;
@@ -29,6 +29,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private Timestamp completionTime;
     private Byte      bookmarked;
     private String    name;
+    private String    engineVersion;
 
     public WorkflowExecutions() {}
 
@@ -43,6 +44,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.completionTime = value.getCompletionTime();
         this.bookmarked = value.getBookmarked();
         this.name = value.getName();
+        this.engineVersion = value.getEngineVersion();
     }
 
     public WorkflowExecutions(
@@ -55,7 +57,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Timestamp startingTime,
         Timestamp completionTime,
         Byte      bookmarked,
-        String    name
+        String    name,
+        String    engineVersion
     ) {
         this.eid = eid;
         this.wid = wid;
@@ -67,6 +70,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.completionTime = completionTime;
         this.bookmarked = bookmarked;
         this.name = name;
+        this.engineVersion = engineVersion;
     }
 
     @Override
@@ -170,6 +174,16 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
+    public String getEngineVersion() {
+        return this.engineVersion;
+    }
+
+    @Override
+    public void setEngineVersion(String engineVersion) {
+        this.engineVersion = engineVersion;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowExecutions (");
 
@@ -183,6 +197,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(completionTime);
         sb.append(", ").append(bookmarked);
         sb.append(", ").append(name);
+        sb.append(", ").append(engineVersion);
 
         sb.append(")");
         return sb.toString();
@@ -204,6 +219,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setCompletionTime(from.getCompletionTime());
         setBookmarked(from.getBookmarked());
         setName(from.getName());
+        setEngineVersion(from.getEngineVersion());
     }
 
     @Override
