@@ -3,7 +3,10 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { SavedWorkflowSectionComponent } from "./saved-workflow-section.component";
-import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import {
+  WORKFLOW_BASE_URL,
+  WorkflowPersistService,
+} from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
@@ -18,6 +21,7 @@ import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { AppSettings } from "../../../../common/app-setting";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
@@ -184,5 +188,11 @@ describe("SavedWorkflowSectionComponent", () => {
     component.lastSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.lastModifiedTime);
     expect(SortedCase).toEqual([2, 3, 4, 6, 8]);
+  });
+
+  it("Sends http request to backend to retrieve export json", () => {
+    component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${testWorkflowEntries[0]}`);
+    httpTestingController.expectOne("api/workflow/1");
   });
 });
