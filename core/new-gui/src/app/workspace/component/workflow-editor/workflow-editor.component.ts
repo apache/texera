@@ -1313,8 +1313,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * keyboard or selects paste option from the browser menu).
    */
   private handleOperatorPaste(): void {
-    console.log("got in subscribe");
-
     fromEvent<ClipboardEvent>(document, "paste")
       .pipe(
         filter(event => document.activeElement === document.body),
@@ -1326,7 +1324,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         // by reading from the clipboard, permission needs to be granted
         // a permission prompt automatically shows up by calling readText()
         navigator.clipboard.readText().then((text) => {
-          console.log("got in clipboard");
           try {
             var operatorsInClipboard: Map<string, CopiedOperator> = new Map(Object.entries(JSON.parse(text)));
             const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
@@ -1363,11 +1360,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
                 op: newOperator,
                 pos: newOperatorPosition,
               });
-              console.log("the operator's ID is: ", operatorsAndPositions[0].op.operatorID);
+              // console.log("the operator's ID is: ", operatorsAndPositions[0].op.operatorID);
               positions.push(newOperatorPosition);
             });
-
-            console.log('got here after the copiedOps');
 
             // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
             this.copiedGroups.forEach((copiedGroup, groupID) => {
