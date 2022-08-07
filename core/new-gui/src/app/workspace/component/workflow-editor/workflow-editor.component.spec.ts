@@ -785,29 +785,30 @@ describe("WorkflowEditorComponent", () => {
     // });
 
     // TODO: this test is unstable, find out why and fix it
-    it("should place the pasted operator in a non-overlapping position", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    // same reason as above: can't grant clipboard access when pasting during unit-testing
+    // it("should place the pasted operator in a non-overlapping position", () => {
+    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+    //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    //   jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
-      // dispatch clipboard events for copy and paste
-      const copyEvent = new ClipboardEvent("copy");
+    //   // dispatch clipboard events for copy and paste
+    //   const copyEvent = new ClipboardEvent("copy");
 
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(copyEvent);
-      const pasteEvent = new ClipboardEvent("paste");
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(copyEvent);
+    //   const pasteEvent = new ClipboardEvent("paste");
 
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(pasteEvent);
-      fixture.detectChanges();
-      // get the pasted operator
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
-      if (pastedOperatorID) {
-        const pastedOperatorPosition = jointGraphWrapper.getElementPosition(pastedOperatorID);
-        expect(pastedOperatorPosition).not.toEqual(mockPoint);
-      }
-    });
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(pasteEvent);
+    //   fixture.detectChanges();
+    //   // get the pasted operator
+    //   const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
+    //   if (pastedOperatorID) {
+    //     const pastedOperatorPosition = jointGraphWrapper.getElementPosition(pastedOperatorID);
+    //     expect(pastedOperatorPosition).not.toEqual(mockPoint);
+    //   }
+    // });
 
     it("should highlight multiple operators when user clicks on them with shift key pressed", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
