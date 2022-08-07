@@ -1,4 +1,11 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, ɵresetCompiledComponents } from "@angular/core";
+import {
+  AfterViewInit,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  OnDestroy,
+  ɵresetCompiledComponents,
+} from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
@@ -41,7 +48,7 @@ type CopiedOperator = {
 };
 
 type copiedOperatorIndexedByID = {
-  [key: string]: CopiedOperator,
+  [key: string]: CopiedOperator;
 };
 
 type CopiedGroup = {
@@ -121,7 +128,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
-    private workflowCollabService: WorkflowCollabService,
+    private workflowCollabService: WorkflowCollabService
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -1221,9 +1228,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private saveHighlightedElements(): void {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-    
+
     // copiedOps contains all the highlighted operators that are being copied
-    const copiedOps: copiedOperatorIndexedByID = {}
+    const copiedOps: copiedOperatorIndexedByID = {};
     highlightedOperatorIDs.forEach(operatorID => {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
       if (operator) {
@@ -1250,9 +1257,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     });
     /**
      * store the stringified copied operators into the clipboard, which is the preferred way to copy
-     * over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the 
+     * over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the
      * WorkflowEditorComponent class)
-     */ 
+     */
     navigator.clipboard.writeText(JSON.stringify(copiedOps)).catch(() => {
       // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
       // although if the current tab is active, permission shouldn't be needed
@@ -1320,10 +1327,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       )
       .pipe(untilDestroyed(this))
       .subscribe(async () => {
-        
         // by reading from the clipboard, permission needs to be granted
         // a permission prompt automatically shows up by calling readText()
-        navigator.clipboard.readText().then((text) => {
+        navigator.clipboard.readText().then(text => {
           try {
             var operatorsInClipboard: Map<string, CopiedOperator> = new Map(Object.entries(JSON.parse(text)));
             const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
@@ -1334,28 +1340,33 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             var copiedOps = new Map<string, CopiedOperator>(
               Array.from(operatorsInClipboard).sort((first, second) => first[1].layer - second[1].layer)
             );
-              // make copies of each operator, and calculate their positions when pasted
-              // this.copiedOperators.forEach((copiedOperator, operatorID) => {
-              //   const newOperator = this.copyOperator(copiedOperator.operator);
-              //   const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
-              //   operatorsAndPositions.push({
-              //     op: newOperator,
-              //     pos: newOperatorPosition,
-              //   });
-              //   positions.push(newOperatorPosition);
-              // });
-              // copiedOps.forEach((copiedOperator, operatorID) => {
-              //   const newOperator = this.copyOperator(copiedOperator.operator);
-              //   const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
-              //   operatorsAndPositions.push({
-              //     op: newOperator,
-              //     pos: newOperatorPosition,
-              //   });
-              //   positions.push(newOperatorPosition);
-              // });
+            // make copies of each operator, and calculate their positions when pasted
+            // this.copiedOperators.forEach((copiedOperator, operatorID) => {
+            //   const newOperator = this.copyOperator(copiedOperator.operator);
+            //   const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
+            //   operatorsAndPositions.push({
+            //     op: newOperator,
+            //     pos: newOperatorPosition,
+            //   });
+            //   positions.push(newOperatorPosition);
+            // });
+            // copiedOps.forEach((copiedOperator, operatorID) => {
+            //   const newOperator = this.copyOperator(copiedOperator.operator);
+            //   const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
+            //   operatorsAndPositions.push({
+            //     op: newOperator,
+            //     pos: newOperatorPosition,
+            //   });
+            //   positions.push(newOperatorPosition);
+            // });
             copiedOps.forEach((copiedOperator, copiedOperatorID) => {
               const newOperator = this.copyOperator(copiedOperator.operator);
-              const newOperatorPosition = this.newCalcOperatorPosition(newOperator.operatorID, copiedOperatorID, copiedOperator, positions);
+              const newOperatorPosition = this.newCalcOperatorPosition(
+                newOperator.operatorID,
+                copiedOperatorID,
+                copiedOperator,
+                positions
+              );
               operatorsAndPositions.push({
                 op: newOperator,
                 pos: newOperatorPosition,
@@ -1400,17 +1411,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             // actually add all operators, links, groups to the workflow
             this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
           } catch (e) {
-            // if the text in the clipboard is not a JSON object, then it means the user 
+            // if the text in the clipboard is not a JSON object, then it means the user
             // hasn't copied an operator
             alert("You haven't copied any operator yet");
           }
-          // 
-        }) 
-      })
-        
-
-        
-    }
+          //
+        });
+      });
+  }
 
   /**
    * Utility function to create a new operator that contains same
@@ -1525,7 +1533,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   // private calcOperatorPosition(newOperatorID: string, copiedOperatorID: string, positions: Point[]): Point {
-  private newCalcOperatorPosition(newOperatorID: string, copiedOperatorID: string, copiedOperator: CopiedOperator, positions: Point[]): Point {
+  private newCalcOperatorPosition(
+    newOperatorID: string,
+    copiedOperatorID: string,
+    copiedOperator: CopiedOperator,
+    positions: Point[]
+  ): Point {
     let i, position;
     // const copiedOperator = this.copiedOperators.get(copiedOperatorID);
     // if (!copiedOperator) {

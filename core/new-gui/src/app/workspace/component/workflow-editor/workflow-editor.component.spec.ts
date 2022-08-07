@@ -695,7 +695,7 @@ describe("WorkflowEditorComponent", () => {
     });
 
     // the new method of copying and pasting would not pass this unit test, since the permisssion
-    // to write access to system clipboard is needed, and in the unit test, there is no way of turning 
+    // to write access to system clipboard is needed, and in the unit test, there is no way of turning
     // on the permission as far as I am concerned
     // it(`should create and highlight a new operator with the same metadata when user
     //     copies and pastes the highlighted operator`, () => {
