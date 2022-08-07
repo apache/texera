@@ -1167,7 +1167,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * keyboard or selects copy option from the browser menu).
    */
   private handleElementCopy(): void {
-    console.log('got to the handle element copy');
     fromEvent<ClipboardEvent>(document, "copy")
       .pipe(filter(event => document.activeElement === document.body))
       .pipe(untilDestroyed(this))
@@ -1220,7 +1219,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * saves highlighted elements to copiedOperators and copiedGroups
    */
   private saveHighlightedElements(): void {
-    console.log('got to the save highlighted');
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
     
@@ -1234,13 +1232,20 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const includeOperator = false;
         const pastedOperators = includeOperator ? [operatorID] : [];
         const copiedOp = {
-          operator: operator,
-          position: position,
-          layer: layer,
+          operator,
+          position,
+          layer,
           pastedOperatorIDs: pastedOperators,
         };
         copiedOps[operatorID] = copiedOp;
-        // copiedOps.push(copiedOp);
+
+        // // previous way of copying
+        // this.copiedOperators.set(operatorID, {
+        //   operator,
+        //   position,
+        //   layer,
+        //   pastedOperatorIDs: pastedOperators,
+        // });
       }
     });
     /**
@@ -1253,13 +1258,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       // although if the current tab is active, permission shouldn't be needed
       alert("Copy failed. You don't have the permission to write to the clipboard.");
     });
-    // previous way of copying
-    // this.copiedOperators.set(operatorID, {
-    //   operator,
-    //   position,
-    //   layer,
-    //   pastedOperatorIDs: pastedOperators,
-    // });
 
     highlightedGroupIDs.forEach(groupID => {
       this.saveGroupInfo(groupID);
@@ -1315,6 +1313,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * keyboard or selects paste option from the browser menu).
    */
   private handleOperatorPaste(): void {
+    console.log("got in subscribe");
+
     fromEvent<ClipboardEvent>(document, "paste")
       .pipe(
         filter(event => document.activeElement === document.body),
@@ -1322,10 +1322,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       )
       .pipe(untilDestroyed(this))
       .subscribe(async () => {
+        
         // by reading from the clipboard, permission needs to be granted
         // a permission prompt automatically shows up by calling readText()
-        console.log("text from the clipboard:", navigator.clipboard.readText());
         navigator.clipboard.readText().then((text) => {
+          console.log("got in clipboard");
           try {
             var operatorsInClipboard: Map<string, CopiedOperator> = new Map(Object.entries(JSON.parse(text)));
             const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
@@ -1362,13 +1363,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
                 op: newOperator,
                 pos: newOperatorPosition,
               });
+              console.log("the operator's ID is: ", operatorsAndPositions[0].op.operatorID);
               positions.push(newOperatorPosition);
             });
-            
 
-            // actually add all operators, links, groups to the workflow
-            this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
-
+            console.log('got here after the copiedOps');
 
             // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
             this.copiedGroups.forEach((copiedGroup, groupID) => {
@@ -1403,7 +1402,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               groups.push(newGroup);
             });
 
-            
+            // actually add all operators, links, groups to the workflow
+            this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
           } catch (e) {
             // if the text in the clipboard is not a JSON object, then it means the user 
             // hasn't copied an operator
@@ -1533,9 +1533,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private newCalcOperatorPosition(newOperatorID: string, copiedOperatorID: string, copiedOperator: CopiedOperator, positions: Point[]): Point {
     let i, position;
     // const copiedOperator = this.copiedOperators.get(copiedOperatorID);
-    if (!copiedOperator) {
-      throw Error(`Internal error: cannot find ${copiedOperatorID} in copied operators`);
-    }
+    // if (!copiedOperator) {
+    //   throw Error(`Internal error: cannot find ${copiedOperatorID} in copied operators`);
+    // }
     const pastedOperators = copiedOperator.pastedOperatorIDs;
     for (i = 0; i < pastedOperators.length; ++i) {
       position = {
