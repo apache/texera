@@ -31,6 +31,7 @@ import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { mockOperatorMetaData } from "src/app/workspace/service/operator-metadata/mock-operator-metadata.data";
+import { AppSettings } from "src/app/common/app-setting";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
