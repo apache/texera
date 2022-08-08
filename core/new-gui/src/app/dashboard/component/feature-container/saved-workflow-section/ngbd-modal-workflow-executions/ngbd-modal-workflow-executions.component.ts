@@ -9,10 +9,11 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { filter, iteratee } from "lodash";
+import { filter } from "lodash";
 import { defaultEnvironment } from "../../../../../../environments/environment.default";
 
 let MAX_TEXT_SIZE = 25;
+let MAX_COLOR_VAR = 255;
 
 @UntilDestroy()
 @Component({
@@ -275,8 +276,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     if (name.length <= MAX_TEXT_SIZE) {
       return name;
     } else {
-      let words = name.slice(0, MAX_TEXT_SIZE).split(" ");
-      return words.slice(0, -1).join(" ") + "...";
+      return name.split(0, MAX_TEXT_SIZE) + "...";
     }
   }
 
@@ -299,9 +299,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   getRandomColor(): string {
-    const r = Math.floor(Math.random() * 255);
-    const g = Math.floor(Math.random() * 255);
-    const b = Math.floor(Math.random() * 255);
+    const r = Math.floor(Math.random() * MAX_COLOR_VAR);
+    const g = Math.floor(Math.random() * MAX_COLOR_VAR);
+    const b = Math.floor(Math.random() * MAX_COLOR_VAR);
     return "rgba(" + r + "," + g + "," + b + ",0.8)";
   }
 
