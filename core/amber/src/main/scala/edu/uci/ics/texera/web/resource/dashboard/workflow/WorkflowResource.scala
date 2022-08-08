@@ -27,7 +27,8 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   workflowOfUserExists
 }
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL.groupConcat
+import org.jooq.Condition
+import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
@@ -85,6 +86,102 @@ object WorkflowResource {
 @Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
+
+  /**
+    * This method returns all workflow IDs that the user has access to
+    *
+    * @return WorkflowID[]
+    */
+  @GET
+  @Path("/workflow-ids")
+  def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
+    val user = sessionUser.getUser
+    val workflowEntries = context
+      .select(WORKFLOW_USER_ACCESS.WID)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue().toString())
+      .toList
+  }
+
+  /**
+    * This method returns all owner user names of the workflows that the user has access to
+    *
+    * @return OwnerName[]
+    */
+  @GET
+  @Path("/owners")
+  def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
+    val user = sessionUser.getUser
+    val workflowEntries = context
+      .select(USER.NAME)
+      .from(WORKFLOW_USER_ACCESS)
+      .join(WORKFLOW_OF_USER)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .join(USER)
+      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(USER.UID)
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord => workflowRecord.into(USER).getName())
+      .toList
+  }
+
+  /**
+    * This method returns workflow IDs, that contain the selected operators, as strings
+    *
+    * @return WorkflowID[]
+    */
+  @GET
+  @Path("/search-by-operators")
+  def searchWorkflowByOperator(
+      @QueryParam("operator") operator: String,
+      @Auth sessionUser: SessionUser
+  ): List[String] = {
+    // Example GET url: localhost:8080/workflow/searchOperators?operator=Regex,CSVFileScan
+    val user = sessionUser.getUser
+    val quotes = "\""
+    val operatorArray =
+      operator.replaceAllLiterally(" ", "").stripPrefix("[").stripSuffix("]").split(',')
+    var orCondition: Condition = noCondition()
+    for (i <- operatorArray.indices) {
+      val operatorName = operatorArray(i)
+      orCondition = orCondition.or(
+        WORKFLOW.CONTENT
+          .likeIgnoreCase(
+            "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
+            //gives error when I try to combine escape character with formatted string
+            //may be due to old scala version bug
+          )
+      )
+
+    }
+
+    val workflowEntries =
+      context
+        .select(
+          WORKFLOW.WID
+        )
+        .from(WORKFLOW)
+        .join(WORKFLOW_USER_ACCESS)
+        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+        .where(
+          orCondition
+            .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+        )
+        .fetch()
+
+    workflowEntries
+      .map(workflowRecord => {
+        workflowRecord.into(WORKFLOW).getWid().intValue().toString()
+      })
+      .toList
+  }
 
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to

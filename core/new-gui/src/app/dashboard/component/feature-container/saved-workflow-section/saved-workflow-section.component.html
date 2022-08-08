@@ -57,11 +57,117 @@
       >
         <i nz-icon nzTheme="outline" nzType="minus-square"></i>
       </button>
+      <a
+        [nzDropdownMenu]="calendar"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="search-creation-time-button"
+      >
+        <button id="ctimeSort" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="calendar" nzTheme="outline" nz-tooltip="Creation Time"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #calendar="nzDropdownMenu">
+        <div [ngStyle]="{ width: '300px', border: '1px solid #d9d9d9', borderRadius: '4px' }">
+          <nz-calendar
+            [nzFullscreen]="false"
+            (nzSelectChange)="calendarValueChange($event)"
+            [(ngModel)]="selectedDate"
+          ></nz-calendar>
+        </div>
+      </nz-dropdown-menu>
+
+      <a
+        [nzDropdownMenu]="ownerSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-owners-button"
+      >
+        <button id="sortOwner" ngbDropdownToggle nz-button>
+          <i nz-icon nzTheme="outline" nzType="user" nz-tooltip="Owner"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
+        <ul nz-menu *ngFor="let owner of owners">
+          <li nz-menu-item>
+            <label nz-checkbox [(ngModel)]="owner.checked" (ngModelChange)="updateSelectedOwners()"
+              >{{owner.userName}}</label
+            >
+          </li>
+        </ul>
+      </nz-dropdown-menu>
+
+      <a
+        [nzDropdownMenu]="IDSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-wids-button"
+      >
+        <button id="sortID" ngbDropdownToggle nz-button>
+          <i nz-icon nzTheme="outline" nzType="ordered-list" nz-tooltip="Workflow ID"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
+        <ul nz-menu *ngFor="let wid of wids">
+          <li nz-menu-item>
+            <label nz-checkbox [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()">{{wid.id}}</label>
+          </li>
+        </ul>
+      </nz-dropdown-menu>
+
+      <a
+        [nzDropdownMenu]="operatorSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="search-operators-button"
+      >
+        <button id="sortOperator" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="appstore" nzTheme="outline" nz-tooltip="Operators"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #operatorSearchOptions="nzDropdownMenu">
+        <ul nz-menu *ngFor="let group of operatorGroups">
+          <li nz-submenu nzTitle="{{group}}">
+            <ul *ngFor="let operator of operators.get(group)">
+              <li nz-menu-item>
+                <label nz-checkbox [(ngModel)]="operator.checked" (ngModelChange)="updateSelectedOperators()"
+                  >{{operator.userFriendlyName}}</label
+                >
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nz-dropdown-menu>
+
+      <a
+        [nzDropdownMenu]="projectSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-projects-button"
+      >
+        <button id="sortProject" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="file" nzTheme="outline" nz-tooltip="Projects"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
+        <ul nz-menu *ngFor="let project of userProjectsDropdown">
+          <li nz-menu-item>
+            <label nz-checkbox [(ngModel)]="project.checked" (ngModelChange)="updateSelectedProjects()"
+              >{{project.name}}</label
+            >
+          </li>
+        </ul>
+      </nz-dropdown-menu>
     </div>
   </nz-card>
 
   <nz-card class="workflow-list-container subsection-grid-container">
-    <div *ngIf="isSearchByProject" class="texera-dashboard-saved-workflow-project-box-select">
+    <div class="texera-dashboard-saved-workflow-project-box-select">
       <i
         style="margin-right: 10px; align-self: center"
         nz-icon
@@ -71,117 +177,43 @@
         nzTheme="outline"
         [nzPopoverContent]="filterPopContent"
       ></i>
-      <button
-        style="align-self: center; margin-right: 0%"
-        nz-button
-        nz-tooltip="Switch to workflow search"
-        nzTooltipPlacement="bottom"
-        type="button"
-        (click)="toggleWorkflowSearchMode()"
-      >
+      <button style="align-self: center; margin-right: 0%" nz-button type="button" (click)="searchWorkflow()">
         <i nz-icon nzType="search" nzTheme="outline"></i>
       </button>
       <nz-select
         style="width: 100%"
         nzMode="tags"
-        nzPlaceHolder="Filter by project(s)"
-        [nzMaxTagCount]="3"
-        [nzMaxTagPlaceholder]="tagPlaceHolder"
+        nzPlaceHolder="Search all workflows"
         [nzBorderless]="true"
-        [nzOpen]="true"
-        [(ngModel)]="projectFilterList"
-        (ngModelChange)="filterWorkflowsByProject()"
+        [nzOpen]="false"
+        [(ngModel)]="masterFilterList"
+        [nzAllowClear]="true"
+        (ngModelChange)="updateDropdownMenus($event)"
       >
-        <nz-option-group nzLabel="Colored Projects">
-          <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color != null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
-              <nz-tag
-                [nzColor]="'#' + project.color"
-                [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}"
-                >{{project.pid}}</nz-tag
-              >
-              {{project.name}}
-            </nz-option>
-          </div>
-        </nz-option-group>
-        <nz-option-group nzLabel="Colorless Projects">
-          <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color == null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
-              <nz-tag [nzColor]="'#595959'">{{project.pid}}</nz-tag>
-              {{project.name}}
-            </nz-option>
-          </div>
-        </nz-option-group>
       </nz-select>
-      <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
       <ng-template #filterPopContent>
-        To search for a workflow by project(s) it belongs to, click on the search bar to view and select the appropriate
-        projects.
-      </ng-template>
-    </div>
-
-    <nz-input-group
-      *ngIf="!isSearchByProject"
-      [nzPrefix]="prefixPopoverButton"
-      [nzSuffix]="suffixIconSearch"
-      class="texera-dashboard-saved-workflow-search-box-input"
-    >
-      <input
-        [(ngModel)]="workflowSearchValue"
-        autocomplete="on"
-        nz-input
-        placeholder="Search all workflows"
-        (ngModelChange)="searchInputOnChange($event)"
-        type="text"
-        [nzAutocomplete]="auto"
-        (keyup.enter)="searchWorkflow()"
-      />
-      <ng-template #suffixIconSearch>
-        <i nz-icon nzType="search"></i>
-      </ng-template>
-      <ng-template #popContent>
         We support the following search criteria:
         <ul>
           <li>Search by Workflow Name: <strong>workflowName</strong></li>
-          <li>Search by Workflow Id: <strong>id:workflowId</strong></li>
-          <li>Search by Workflow Owner: <strong>owner:John</strong></li>
+          <li>Search by Workflow Creation Time: <strong>ctime: yyyy-MM-dd</strong></li>
+          <li>Search by Workflow Owner: <strong>owner: John</strong></li>
+          <li>Search by Workflow Id: <strong>id: workflowId</strong></li>
+          <li>Search by Workflows' Operators: <strong>operator: operatorName</strong></li>
+          <li>Search by User Projects: <strong>project: projectName</strong></li>
         </ul>
-        <strong>
-          For any workflow name and owner name, if the name contains space, using double quotes to enclose the name is
-          required.
-        </strong>
+        You can change search parameters by:
+        <ul>
+          <li>selecting/unselecting dropdown menu options</li>
+          <li>manually typing parameters into search bar</li>
+          <li>clicking the <strong>X</strong> on a tag or the search bar, to clear one or all tags</li>
+        </ul>
         <br />
         Example: "Untitled Workflow" id:1 owner:John<br />
         Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
       </ng-template>
-      <ng-template #prefixPopoverButton>
-        <i
-          style="vertical-align: baseline; margin-right: 10px"
-          nz-icon
-          nz-popover
-          nzPopoverTitle="Search Instructions"
-          [nzPopoverContent]="popContent"
-          nzType="question-circle"
-          nzTheme="outline"
-        ></i>
-        <button
-          (click)="toggleWorkflowSearchMode()"
-          nz-button
-          nz-tooltip="Filter workflows by project"
-          nzTooltipPlacement="bottom"
-          type="button"
-        >
-          <i nz-icon nzType="filter" nzTheme="outline"></i>
-        </button>
-      </ng-template>
-      <nz-autocomplete
-        [nzDefaultActiveFirstOption]="false"
-        [nzDataSource]="!workflowSearchValue.includes(':') ? filteredDashboardWorkflowNames : []"
-        nzBackfill
-        #auto
-      ></nz-autocomplete>
-    </nz-input-group>
-    <!-- itemSize: the height (px) of each list item,
+    </div>
+
+    <!-- itemSize: the height (px) of each list item, 
       this MUST be approximately the same as list item size set in CSS,
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
@@ -276,9 +308,7 @@
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"
-              >
-                x
-              </div>
+              ></div>
             </div>
           </div>
 

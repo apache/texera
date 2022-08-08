@@ -92,6 +92,31 @@ $header-height: 120px;
   text-align: left;
 }
 
+.search-creation-time-button {
+  position: absolute;
+  left: 65%;
+}
+
+.search-owners-button {
+  position: absolute;
+  left: 70%;
+}
+
+.search-wids-button {
+  position: absolute;
+  left: 75%;
+}
+
+.search-operators-button {
+  position: absolute;
+  left: 80%;
+}
+
+.search-projects-button {
+  position: absolute;
+  left: 85%;
+}
+
 .gap-filler {
   flex: 1 1 auto;
 }
