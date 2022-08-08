@@ -23,11 +23,13 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzInputModule } from "ng-zorro-antd/input";
 import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzListModule } from "ng-zorro-antd/list";
+import { NzCalendarModule } from "ng-zorro-antd/calendar";
 import { NzMenuModule } from "ng-zorro-antd/menu";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { NzTableModule } from "ng-zorro-antd/table";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
@@ -205,10 +207,12 @@ registerLocaleData(en);
     NzListModule,
     NzInputModule,
     NzPopoverModule,
+    NzCalendarModule,
     NzMenuModule,
     NzMessageModule,
     NzCollapseModule,
     NzToolTipModule,
+    NzCheckboxModule,
     NzTableModule,
     NzModalModule,
     NzSelectModule,
