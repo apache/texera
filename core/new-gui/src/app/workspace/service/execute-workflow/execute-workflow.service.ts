@@ -66,7 +66,6 @@ export class ExecuteWorkflowService {
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
-  private version = version;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -179,8 +178,7 @@ export class ExecuteWorkflowService {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
-    var engineVersion = this.version.hash;
-    const workflowExecutionRequest: WorkflowExecuteRequest = { logicalPlan, engineVersion };
+    const workflowExecutionRequest: WorkflowExecuteRequest = { logicalPlan, engineVersion: version.hash };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecutionRequest);

@@ -154,7 +154,7 @@ class WorkflowService(
         )
       )
     }
-    new WorkflowContext(jobID, uidOpt, wId, executionID, request.engineVersion)
+    new WorkflowContext(jobID, uidOpt, wId)
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
@@ -168,7 +168,8 @@ class WorkflowService(
       operatorCache,
       resultService,
       req,
-      errorHandler
+      errorHandler,
+      req.engineVersion
     )
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
     jobService.onNext(job)
