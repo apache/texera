@@ -168,30 +168,20 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   setBookmarked(rows: Set<WorkflowExecutionsEntry>): void {
     if (this.workflow.wid === undefined) return;
-    if (rows !== undefined && !this.allBookmarkCheck(rows)) {
-      for (let row of rows) {
-        const wasPreviouslyBookmarked = row.bookmarked;
-        if (!wasPreviouslyBookmarked) {
-          row.bookmarked = !wasPreviouslyBookmarked;
-          this.workflowExecutionsService
-            .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
-            });
-        }
+    if (rows !== undefined) {
+      let eIds: number[] = [];
+      // update the bookmark locally
+      let isBookmarked = this.allBookmarkCheck(rows);
+      for (let row of rows.values()) {
+        eIds.push(row.eId);
+        row.bookmarked = !isBookmarked;
       }
-    } else {
-      for (let row of rows) {
-        const wasPreviouslyBookmarked = row.bookmarked;
-        row.bookmarked = !wasPreviouslyBookmarked;
-        this.workflowExecutionsService
-          .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
-          });
-      }
+      this.workflowExecutionsService
+        .groupSetIsBookmarked(this.workflow.wid, eIds, isBookmarked)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          // error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
+        });
     }
   }
 
@@ -223,32 +213,35 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   onGroupDelete(rows: Set<WorkflowExecutionsEntry>) {
     const modalRef = this.modalService.open(DeletePromptComponent);
     modalRef.componentInstance.deletionType = "execution";
-    // // TODO: need to show all of the name
     let deletionNames = "";
     for (let row of rows) {
       deletionNames = deletionNames.concat(row.name);
       deletionNames = deletionNames.concat("; ");
     }
     modalRef.componentInstance.deletionName = deletionNames.slice(0, -2);
+    let eIds: number[] = [];
+    for (let row of rows.values()) {
+      eIds.push(row.eId);
+    }
 
     from(modalRef.result)
       .pipe(untilDestroyed(this))
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && this.workflow.wid !== undefined) {
-          for (let row of rows.values()) {
-            this.workflowExecutionsService
-              .deleteWorkflowExecutions(this.workflow.wid, row.eId)
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                complete: () => {
+          this.workflowExecutionsService
+            .groupDeleteWorkflowExecutions(this.workflow.wid, eIds)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              complete: () => {
+                for (let row of rows.values()) {
                   this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
                   this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                  this.fuse.setCollection(this.paginatedExecutionEntries);
-                  this.setOfCheckedIndex.clear();
-                  this.setOfExecution.clear();
-                },
-              });
-          }
+                }
+                this.fuse.setCollection(this.paginatedExecutionEntries);
+                this.setOfCheckedIndex.clear();
+                this.setOfExecution.clear();
+              },
+            });
         }
       });
   }

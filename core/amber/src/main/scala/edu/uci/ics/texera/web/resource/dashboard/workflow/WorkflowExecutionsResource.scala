@@ -39,7 +39,9 @@ object WorkflowExecutionsResource {
 }
 
 case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: Boolean)
+case class ExecutionGroupBookmarkRequest(wid: UInteger, eIds: Array[UInteger], isBookmarked: Boolean)
 case class ExecutionDeleteRequest(wid: UInteger, eId: UInteger)
+case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @PermitAll
@@ -106,6 +108,30 @@ class WorkflowExecutionsResource {
     executionsDao.update(execution)
   }
 
+    /** Sets a group of executions' bookmarks to the payload passed in the body. */
+  @PUT
+  @Path("/set_execution_bookmarks")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def setExecutionAreBookmarked(
+      request: ExecutionGroupBookmarkRequest,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    if (request.isBookmarked) {
+      for (i <- 0 to (request.eIds.length - 1)) {
+        val execution: WorkflowExecutions = getExecutionById(request.eIds(i))
+        execution.setBookmarked(0.toByte)
+        executionsDao.update(execution)
+      }
+    } else {
+      for (i <- 0 to (request.eIds.length - 1)) {
+        val execution: WorkflowExecutions = getExecutionById(request.eIds(i))
+        execution.setBookmarked(1.toByte)
+        executionsDao.update(execution)
+      }
+    }
+  }
+
   /** Determine if user is authorized to access the workflow, if not raise 401 */
   def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
     if (
@@ -129,6 +155,24 @@ class WorkflowExecutionsResource {
       .delete(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
       .execute();
+  }
+
+  /** Delete a group of executions */
+  @PUT
+  @Path("/delete_executions")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def groupDeleteExecutionsOfWorkflow(
+      request: ExecutionGroupDeleteRequest,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    /* delete the execution in sql */
+    for (eId <- request.eIds) {
+      context
+        .delete(WORKFLOW_EXECUTIONS)
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eId))
+        .execute();
+    }
   }
 
   /** Name a single execution * */
