@@ -58,10 +58,24 @@
     </nz-input-group>
   </nz-card>
   <ng-template #actionstar>
-    <i *ngIf="setOfExecution.size !== 0" nz-icon nzType="star" (click)="setBookmarked(setOfExecution)"></i>
+    <i
+      nz-tooltip
+      [nzTooltipTitle]="executionTooltip['Group Bookmarking']"
+      *ngIf="setOfExecution.size !== 0"
+      nz-icon
+      nzType="star"
+      (click)="setBookmarked(setOfExecution)"
+    ></i>
   </ng-template>
   <ng-template #actionDelete>
-    <i *ngIf="setOfExecution.size !== 0" nz-icon nzType="delete" (click)="onGroupDelete(setOfExecution)"></i>
+    <i
+      nz-tooltip
+      [nzTooltipTitle]="executionTooltip['Group Deletion']"
+      *ngIf="setOfExecution.size !== 0"
+      nz-icon
+      nzType="delete"
+      (click)="onGroupDelete(setOfExecution)"
+    ></i>
   </ng-template>
 
   <div class="modal-body table-responsive">

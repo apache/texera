@@ -42,6 +42,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
+    "Group Bookmarking": "Mark or Unmark the Selected Entries",
+    "Group Deletion": "Delete the Selected Entries",
   };
 
   /** variables related to executions filtering
