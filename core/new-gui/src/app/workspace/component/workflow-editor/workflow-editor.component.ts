@@ -105,7 +105,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
 
-  private coeditorHighlightedMap = new Map<string, string[]>();
+  private coeditorCurrentlyEditingMap = new Map<string, string | undefined>();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -171,7 +171,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
     this.handleLinkCursorHover();
     this.handleGridsToggle();
-    this.handleCoeditorOperatorHighlightEvent();
+    // this.handleCoeditorOperatorHighlightEvent();
+    // this.handleCoeditorCurrentlyEditingEvent();
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
     }
@@ -777,6 +778,42 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             if (strokeId && highlightedIds.indexOf(strokeId) < 0) {
               joint.highlighters.mask.remove(operatorElement, strokeId);
             }
+          }
+        }
+      });
+  }
+
+  private handleCoeditorCurrentlyEditingEvent(): void {
+    this.workflowActionService.getTexeraGraph().getCoeditorCurrentlyEditingStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((currentlyEditingStates)=> {
+
+        let currentStates: string[] = [];
+        for (const {coeditor, clientId, operatorId} of currentlyEditingStates) {
+          const userClientId = `${coeditor.name}_${clientId}_`;
+          if (!(this.coeditorCurrentlyEditingMap.get(userClientId) && this.coeditorCurrentlyEditingMap.get(userClientId) === operatorId)) {
+            this.coeditorCurrentlyEditingMap.set(userClientId, operatorId);
+            if (operatorId) {
+              currentStates.push(userClientId);
+              // TODO: add info
+                this.jointUIService.changeOperatorEditingStatus(this.getJointPaper(), operatorId, [coeditor]);
+            } else {
+              // TODO: remove info if exists.
+              if (this.coeditorCurrentlyEditingMap.get(userClientId)) {
+                const exisitingOperatorId = this.coeditorCurrentlyEditingMap.get(userClientId) as string;
+                this.jointUIService.changeOperatorEditingStatus(this.getJointPaper(), exisitingOperatorId, undefined);
+              }
+            }
+          }
+        }
+        for (const [key, value] of this.coeditorCurrentlyEditingMap) {
+          if (!currentStates.includes(key)) {
+            // TODO: remove info
+            console.log(key);
+            if (value) {
+              this.jointUIService.changeOperatorEditingStatus(this.getJointPaper(), value, undefined);
+            }
+            this.coeditorCurrentlyEditingMap.set(key, undefined);
           }
         }
       });

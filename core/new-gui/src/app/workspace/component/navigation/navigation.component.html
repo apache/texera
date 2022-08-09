@@ -75,7 +75,7 @@
          class="texera-navigation-coeditor-icons"
     >
       <ng-container
-        *ngFor="let user of syncJointModelService.otherUsers"
+        *ngFor="let user of coeditorPresenceService.coeditors"
       >
         <texera-coeditor-user-icon
           [coeditor]="user"

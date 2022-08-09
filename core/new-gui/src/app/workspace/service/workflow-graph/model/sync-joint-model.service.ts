@@ -17,6 +17,8 @@ import * as joint from "jointjs";
 import {environment} from "../../../../../environments/environment";
 import {User, UserState} from "../../../../common/type/user";
 import _remove from "lodash/remove";
+import {YMapEvent} from "yjs";
+import {CoeditorPresenceService} from "./coeditor-presence.service";
 
 @Injectable({
   providedIn: "root"
@@ -25,11 +27,11 @@ export class SyncJointModelService {
   private texeraGraph: WorkflowGraph;
   private jointGraph: joint.dia.Graph;
   private jointGraphWrapper: JointGraphWrapper;
-  public otherUsers: User[] = [];
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private jointUIService: JointUIService
+    private jointUIService: JointUIService,
+    private coeditorPresenceService: CoeditorPresenceService
   ) {
     this.texeraGraph = workflowActionService.texeraGraph;
     this.jointGraph = workflowActionService.jointGraph;
@@ -291,49 +293,39 @@ export class SyncJointModelService {
   /**
    * Handles changes of other users' cursors.
    */
-  private observeUserState (): void {
-    this.texeraGraph.sharedModel.awareness.on("change", () => {
-      const newStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
-        .filter((userState) => userState.clientID && userState.clientID !== this.texeraGraph.sharedModel.awareness.clientID);
+  private observeUserState(): void {
+    // first time logic
+    const currentStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
+      .filter((userState) => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId);
+    for (const state of currentStates) {
+      this.coeditorPresenceService.addCoeditor(state);
+    }
 
-      let highlightStates: {coeditor: User, clientId: number, operatorIds: string[]}[] = [];
+    this.texeraGraph.sharedModel.awareness.on("change", (change: { added: number[], updated: number[], removed: number[] }) => {
+      // console.log(change, this.texeraGraph.sharedModel.awareness.getStates());
+      const currentStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
+        .filter((userState) => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId);
+      for (const clientId of change.added) {
+        const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
+        if (coeditorState.user.clientId !== this.texeraGraph.sharedModel.clientId)
+          this.coeditorPresenceService.addCoeditor(coeditorState);
+      }
 
-      newStates.forEach((userState) => {
-        const user = userState.user;
-        if (!this.otherUsers.find(u => u.name === user.name && u.color === user.color)) {
-          this.otherUsers.push(user);
-        }
-        const userNameAndClientID = userState.user.name + userState.clientID.toString();
-        const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(userNameAndClientID);
-        const userColor = userState.user.color;
-        if (existingPointer) {
-          if (userState.isActive) {
-            if (userState.userCursor !== existingPointer.position()) {
-              existingPointer.remove();
-              if (userColor) {
-                const newPoint = JointUIService.getJointUserPointerCell(userNameAndClientID, userState.userCursor, userColor);
-                this.jointGraph.addCell(newPoint);
-              }
-            }
-          } else
-            existingPointer.remove();
-        } else {
-          if (userState.isActive && userColor) {
-            // create new user point (directly updating the point would cause unknown errors)
-            const newPoint = JointUIService.getJointUserPointerCell(userNameAndClientID, userState.userCursor, userColor);
-            this.jointGraph.addCell(newPoint);
+      for (const clientId of change.removed) {
+        if (!this.texeraGraph.sharedModel.awareness.getStates().has(clientId))
+          this.coeditorPresenceService.removeCoeditor(clientId.toString());
+      }
+
+      for (const clientId of change.updated) {
+        const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
+        if (clientId.toString() !== this.texeraGraph.sharedModel.clientId) {
+          if (!this.coeditorPresenceService.hasCoeditor(clientId.toString())) {
+            this.coeditorPresenceService.addCoeditor(coeditorState);
+          } else {
+            this.coeditorPresenceService.updateCoeditorState(clientId.toString(), coeditorState);
           }
         }
-
-        // highlighted operators
-        if (userState.highlighted) {
-          highlightStates.push({coeditor: userState.user, clientId: userState.clientID, operatorIds: userState.highlighted});
-        }
-      });
-      const newUsers = newStates.map(userState => userState.user);
-      _remove(this.otherUsers, user => !newUsers.find(u => u.name === user.name && u.color === user.color));
-
-      this.texeraGraph.coeditorOperatorHighlightSubject.next(highlightStates);
+      }
     });
   }
 }

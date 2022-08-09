@@ -11,13 +11,15 @@ export interface User
     uid: number;
     googleId?: string;
     color?: string;
+    clientId?: string;
   }> {}
 
 export interface UserState {
   user: User;
-  clientID: number;
   isActive: boolean;
   userCursor: Point;
   highlighted?: string[];
   unhighlighted?: string[];
+  currentlyEditing?: string;
+  changed?: string;
 }

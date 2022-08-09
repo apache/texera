@@ -28,6 +28,7 @@ import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model.service";
+import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -103,7 +104,7 @@ export class NavigationComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public changeDetectionRef: ChangeDetectorRef,
-    public syncJointModelService: SyncJointModelService
+    public coeditorPresenceService: CoeditorPresenceService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either

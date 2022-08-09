@@ -99,6 +99,7 @@ export class WorkflowGraph {
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly coeditorOperatorHighlightSubject = new Subject<{coeditor: User, clientId: number, operatorIds: string[]}[]>();
+  public readonly coeditorCurrentlyEditingSubject = new Subject<{coeditor: User, clientId: number, operatorId?: string}[]>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -135,10 +136,7 @@ export class WorkflowGraph {
   }
 
   public destroyYModel(): void {
-    this.sharedModel.awareness.destroy();
-    if (this.sharedModel.wsProvider.wsconnected)
-      this.sharedModel.wsProvider?.disconnect();
-    this.sharedModel.yDoc?.destroy();
+    this.sharedModel.destroy();
   }
 
   /**
@@ -626,6 +624,10 @@ export class WorkflowGraph {
 
   public getCoeditorOperatorHighlightStream(): Observable<{coeditor: User, clientId: number, operatorIds: string[]}[]> {
     return this.coeditorOperatorHighlightSubject.asObservable();
+  }
+
+  public getCoeditorCurrentlyEditingStream(): Observable<{coeditor: User, clientId: number, operatorId?: string}[]> {
+    return this.coeditorCurrentlyEditingSubject.asObservable();
   }
 
   /**

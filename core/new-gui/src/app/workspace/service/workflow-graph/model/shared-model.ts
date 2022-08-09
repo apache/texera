@@ -22,6 +22,7 @@ export class SharedModel {
   public elementPositionMap: Y.Map<Point>;
   public linkBreakpointMap: Y.Map<Breakpoint>;
   public undoManager: Y.UndoManager;
+  public clientId: string;
 
   constructor(public wid?: number,
               public user?: User) {
@@ -42,10 +43,10 @@ export class SharedModel {
     this.wsProvider =  new WebsocketProvider(websocketUrl, `${wid}`, this.yDoc);
     if (!wid) this.wsProvider.disconnect();
     this.awareness = this.wsProvider.awareness;
+    this.clientId = this.awareness.clientID.toString();
     if (this.user) {
       const userState: UserState = {
-        user: this.user,
-        clientID: this.awareness.clientID,
+        user: {...this.user, clientId: this.clientId},
         isActive: true,
         userCursor: {x: 0, y: 0}
       };
@@ -62,10 +63,17 @@ export class SharedModel {
       if (this.wsProvider.shouldConnect) {
         this.yDoc.transact(()=>callback());
       } else {
-         callback();
+        callback();
       }
     } catch (e) {
       console.log(e, callback);
     }
+  }
+
+  public destroy(): void {
+    this.awareness.destroy();
+    if (this.wsProvider.wsconnected)
+      this.wsProvider.disconnect();
+    this.yDoc.destroy();
   }
 }

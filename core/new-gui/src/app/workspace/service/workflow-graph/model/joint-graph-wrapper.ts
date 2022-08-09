@@ -5,6 +5,7 @@ import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
+import {User} from "../../../../common/type/user";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -1041,5 +1042,50 @@ export class JointGraphWrapper {
    */
   public toggleGrids() {
     this.jointPaperGridsToggleStream.next();
+  }
+
+  deleteCoeditorOperatorHighlight(coeditor: User, operatorId: string) {
+    const operatorElement = this.getMainJointPaper()?.findViewByModel(operatorId);
+    if (operatorElement) {
+      const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
+      const highlightIdToDelete = `coeditorHighlight_${coeditor.clientId}_${operatorId}`;
+      if (currentStrokeIds.includes(highlightIdToDelete)) {
+        const deletedIndex = currentStrokeIds.indexOf(highlightIdToDelete);
+        joint.highlighters.mask.remove(operatorElement, highlightIdToDelete);
+        currentStrokeIds.splice(deletedIndex, 1);
+        const currentStrokes = joint.highlighters.mask.get(operatorElement);
+
+        // Update other highlights on this operator to make the diameters consistent.
+        for (let i = deletedIndex; i < currentStrokeIds.length; i++) {
+          const previousStroke = currentStrokes[i];
+          const highlightId = currentStrokeIds[i];
+          if (highlightId) {
+            joint.highlighters.mask.remove(operatorElement, highlightId);
+            joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {...previousStroke.options,
+              padding: 5 + 5 * i
+            });
+          }
+        }
+      }
+    }
+  }
+
+  addCoeditorOperatorHighlight(coeditor: User, operatorId: string) {
+    const operatorElement = this.getMainJointPaper()?.findViewByModel(operatorId);
+    if (operatorElement) {
+      const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
+      const highlightId = `coeditorHighlight_${coeditor.clientId}_${operatorId}`;
+      if (!currentStrokeIds.includes(highlightId)) {
+        joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {
+          padding: 5 + 5 * currentStrokeIds.length,
+          rx: 5,
+          ry: 5,
+          attrs: {
+            "stroke-width": 2,
+            "stroke": coeditor.color
+          }
+        });
+      }
+    }
   }
 }

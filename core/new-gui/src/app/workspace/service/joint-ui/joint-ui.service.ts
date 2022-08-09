@@ -10,6 +10,7 @@ import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.
 import * as joint from "jointjs";
 import { jitOnlyGuardedExpression } from "@angular/compiler/src/render3/util";
 import { fromEvent, fromEventPattern, Observable } from "rxjs";
+import {User} from "../../../common/type/user";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -88,6 +89,7 @@ export const operatorOutputCountBGClass = "texera-operator-output-count-backgrou
 export const operatorOutputCountClass = "texera-operator-output-count";
 export const operatorAbbreviatedCountBGClass = "texera-operator-abbreviated-count-background";
 export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
+export const operatorAwarenessTextClass = "texera-operator-awareness";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
@@ -115,6 +117,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorStateBGClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorCacheTextClass}"></text>
+      <text class="${operatorAwarenessTextClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
@@ -277,6 +280,30 @@ export class JointUIService {
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
       [`.${operatorAbbreviatedCountBGClass}`]: { text: abbreviatedText },
     });
+  }
+
+  public changeOperatorEditingStatus(
+    jointPaper: joint.dia.Paper,
+    operatorID: string,
+    users?: User[]
+  ): void {
+    console.log(operatorID);
+    if (users) {
+      const statusText = users[0].name + " is editing properties...";
+      const color = users[0].color;
+      jointPaper.getModelById(operatorID).attr({
+        [`.${operatorAwarenessTextClass}`]: {
+          text: statusText,
+          fillColor: color
+        }
+      });
+    } else {
+      jointPaper.getModelById(operatorID).attr({
+        [`.${operatorAwarenessTextClass}`]: {
+          text: ""
+        }
+      });
+    }
   }
 
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
@@ -673,6 +700,17 @@ export class JointUIService {
     operatorType: string
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
+      ".texera-operator-awareness": {
+        text: "",
+        "font-size": "14px",
+        "stroke-width": "1em",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 100,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
       ".texera-operator-state-background": {
         text: "",
         "font-size": "14px",
@@ -977,13 +1015,17 @@ export class JointUIService {
 
   public static getJointUserPointerCell(userNameAndClientID: string, position: Point, color: string): joint.dia.Element {
     const userCursor = new joint.shapes.standard.Circle({
-      id: userNameAndClientID
+      id: this.getJointUserPointerName(userNameAndClientID)
     });
     userCursor.resize(15, 15);
     userCursor.position(position.x, position.y);
     userCursor.attr("body/fill", color);
     userCursor.attr("body/stroke", color);
     return userCursor;
+  }
+
+  public static getJointUserPointerName(userNameAndClientID: string) {
+    return "pointer_" + userNameAndClientID;
   }
 }
 
