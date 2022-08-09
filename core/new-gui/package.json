@@ -54,6 +54,7 @@
     "dagre": "~0.8.5",
     "deck.gl": "~8.7.0",
     "deep-map": "~2.0.0",
+    "edit-distance": "~1.0.4",
     "es6-weak-map": "~2.0.3",
     "file-saver": "^2.0.5",
     "font-awesome": "~4.7.0",
