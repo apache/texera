@@ -24,6 +24,8 @@ import org.jooq.types.UInteger
 
 import java.io.{FileInputStream, IOException, InputStream, OutputStream}
 import java.nio.file.Paths
+import java.sql.Timestamp
+import java.time.Instant
 import java.util
 import javax.annotation.security.PermitAll
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
@@ -57,7 +59,8 @@ object UserFileResource {
         size,
         fileNameStored,
         UserFileUtils.getFilePath(uid, fileNameStored).toString,
-        description
+        description,
+        Timestamp.from(Instant.now())
       )
     )
 

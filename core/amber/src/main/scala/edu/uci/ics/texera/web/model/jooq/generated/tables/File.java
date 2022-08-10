@@ -9,6 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
 
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -18,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row6;
+import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File extends TableImpl<FileRecord> {
 
-    private static final long serialVersionUID = 1809064116;
+    private static final long serialVersionUID = 806590554;
 
     /**
      * The reference instance of <code>texera_db.file</code>
@@ -78,6 +79,11 @@ public class File extends TableImpl<FileRecord> {
      * The column <code>texera_db.file.description</code>.
      */
     public final TableField<FileRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.file.upload_time</code>.
+     */
+    public final TableField<FileRecord, Timestamp> UPLOAD_TIME = createField(DSL.name("upload_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * Create a <code>texera_db.file</code> table reference
@@ -173,11 +179,11 @@ public class File extends TableImpl<FileRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row6 type methods
+    // Row7 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, UInteger, UInteger, String, String, String> fieldsRow() {
-        return (Row6) super.fieldsRow();
+    public Row7<UInteger, UInteger, UInteger, String, String, String, Timestamp> fieldsRow() {
+        return (Row7) super.fieldsRow();
     }
 }

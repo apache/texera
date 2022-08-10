@@ -11,6 +11,8 @@
         <ul nz-menu nzSelectable>
           <li (click)="ascSort()" nz-menu-item>A -> Z</li>
           <li (click)="dscSort()" nz-menu-item>Z -> A</li>
+          <li (click)="timeSortDesc()" nz-menu-item>Newest</li>
+          <li (click)="timeSortAsc()" nz-menu-item>Oldest</li>
           <li (click)="sizeSort()" nz-menu-item>By Size (Descending)</li>
         </ul>
       </nz-dropdown-menu>
@@ -176,8 +178,9 @@
                 ></i>
               </div>
             </nz-list-item-meta-title>
-            <nz-list-item-meta-description>
-              {{ addFileSizeUnit(dashboardUserFileEntry.file.size) }}
+            <nz-list-item-meta-description class="file-metadata-container">
+              <span>Size: {{ addFileSizeUnit(dashboardUserFileEntry.file.size) }}</span>
+              <span>Upload Time: {{ parseTimestampString(dashboardUserFileEntry.file.uploadTime) }}</span>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
 

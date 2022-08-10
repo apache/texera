@@ -19,12 +19,14 @@ describe("NgbdModalFileShareAccessComponent", () => {
   const path = "test/path";
   const description = "this is a test file";
   const size = 1024;
+  const uploadTime = "1658145732";
   const fileContent: UserFile = {
     fid: id,
     name: name,
     path: path,
     size: size,
     description: description,
+    uploadTime: uploadTime,
   };
   const file: DashboardUserFileEntry = {
     ownerName: "Texera",

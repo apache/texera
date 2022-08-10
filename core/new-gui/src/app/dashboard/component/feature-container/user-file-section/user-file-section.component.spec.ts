@@ -24,6 +24,7 @@ describe("UserFileSectionComponent", () => {
   const path = "test/path";
   const description = "this is a test file";
   const size = 1024;
+  const uploadTime = "0";
 
   const fileContent: UserFile = {
     fid: id,
@@ -31,6 +32,7 @@ describe("UserFileSectionComponent", () => {
     path: path,
     size: size,
     description: description,
+    uploadTime: uploadTime,
   };
   const testFile: DashboardUserFileEntry = {
     ownerName: "Texera",
@@ -49,6 +51,7 @@ describe("UserFileSectionComponent", () => {
       path: "test/path",
       description: "This is the test file 1",
       size: 128,
+      uploadTime: "1000",
     },
     accessLevel: "Write",
     isOwner: true,
@@ -63,6 +66,7 @@ describe("UserFileSectionComponent", () => {
       path: "test/path",
       description: "This is the test file 2",
       size: 0,
+      uploadTime: "9999",
     },
     accessLevel: "Write",
     isOwner: true,
@@ -77,6 +81,7 @@ describe("UserFileSectionComponent", () => {
       path: "test/path",
       description: "This is the test file 3",
       size: 64,
+      uploadTime: "5000",
     },
     accessLevel: "Write",
     isOwner: true,
@@ -91,6 +96,7 @@ describe("UserFileSectionComponent", () => {
       path: "test/path",
       description: "Alice's file 2",
       size: 512,
+      uploadTime: "500",
     },
     accessLevel: "Write",
     isOwner: true,
@@ -105,6 +111,7 @@ describe("UserFileSectionComponent", () => {
       path: "test/path",
       description: "Alex's file 3",
       size: 8,
+      uploadTime: "1658145215",
     },
     accessLevel: "Write",
     isOwner: true,
@@ -176,5 +183,23 @@ describe("UserFileSectionComponent", () => {
     const SortedCase = component.dashboardUserFileEntries.map(item => item.file.fid);
     // Order: Texera/testFile, Alice/File 2, Texera/File 1, Texera/A File 3,  Alex/File 3, Texera/File 2
     expect(SortedCase).toEqual([1, 5, 2, 4, 6, 3]);
+  });
+
+  it("uploadTimeSortTest decreasingOrder", () => {
+    component.dashboardUserFileEntries = [];
+    component.dashboardUserFileEntries = component.dashboardUserFileEntries.concat(testFileEntries);
+    component.timeSortDesc();
+    const SortedCase = component.dashboardUserFileEntries.map(item => item.file.fid);
+    // Order: Alex/File 3, Texera/File 2, Texera/A File 3, Texera/File 1, Alice/File 2, Texera/testFile
+    expect(SortedCase).toEqual([6, 3, 4, 2, 5, 1]);
+  });
+
+  it("uploadTimeSortTest increasingOrder", () => {
+    component.dashboardUserFileEntries = [];
+    component.dashboardUserFileEntries = component.dashboardUserFileEntries.concat(testFileEntries);
+    component.timeSortAsc();
+    const SortedCase = component.dashboardUserFileEntries.map(item => item.file.fid);
+    // Order: Alex/File 3, Texera/File 2, Texera/A File 3, Texera/File 1, Alice/File 2, Texera/testFile
+    expect(SortedCase).toEqual([1, 5, 2, 4, 3, 6]);
   });
 });
