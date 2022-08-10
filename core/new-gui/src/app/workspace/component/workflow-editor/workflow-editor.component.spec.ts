@@ -166,9 +166,12 @@ describe("WorkflowEditorComponent", () => {
               provide: OperatorMetadataService,
               useClass: StubOperatorMetadataService,
             },
+            {
+              provide: UserService,
+              useClass: StubUserService,
+            },
             WorkflowStatusService,
             ExecuteWorkflowService,
-            { provide: UserService, useClass: StubUserService },
             UndoRedoService,
             WorkflowVersionService,
             WorkflowCollabService,

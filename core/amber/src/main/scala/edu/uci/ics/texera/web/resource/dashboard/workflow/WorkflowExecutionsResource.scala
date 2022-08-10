@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_EXECUTIONS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
@@ -84,8 +84,6 @@ class WorkflowExecutionsResource {
           WORKFLOW_EXECUTIONS.NAME
         )
         .from(WORKFLOW_EXECUTIONS)
-        .leftJoin(WORKFLOW)
-        .on(WORKFLOW_EXECUTIONS.WID.eq(WORKFLOW.WID))
         .where(WORKFLOW_EXECUTIONS.WID.eq(wid))
         .fetchInto(classOf[WorkflowExecutionEntry])
         .toList
