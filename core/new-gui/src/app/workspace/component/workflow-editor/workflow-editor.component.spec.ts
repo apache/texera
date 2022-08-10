@@ -34,6 +34,8 @@ import { WorkflowVersionService } from "src/app/dashboard/service/workflow-versi
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { expressionType } from "@angular/compiler/src/output/output_ast";
 import { of } from "rxjs";
+import { UserService } from "src/app/common/service/user/user.service";
+import { StubUserService } from "src/app/common/service/user/stub-user.service";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -164,6 +166,10 @@ describe("WorkflowEditorComponent", () => {
             {
               provide: OperatorMetadataService,
               useClass: StubOperatorMetadataService,
+            },
+            {
+              provide: UserService,
+              useClass: StubUserService,
             },
             WorkflowStatusService,
             ExecuteWorkflowService,
