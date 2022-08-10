@@ -6450,6 +6450,11 @@ ecc-jsbn@~0.1.1:
     jsbn "~0.1.0"
     safer-buffer "^2.1.0"
 
+edit-distance@~1.0.4:
+  version "1.0.5"
+  resolved "https://registry.npmjs.org/edit-distance/-/edit-distance-1.0.5.tgz#3eaad0417a9058736e48e090b268600080f7b4f4"
+  integrity sha512-kgJKxFAxa6PlpfVAiCfj8uCUyhs6PZWZDxW2EaX7ra1+WmLkoVjG9Z1BHfPDfhrJvWaOSm9qf/CmxqH44EVlcQ==
+
 ee-first@1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/ee-first/-/ee-first-1.1.1.tgz#590c61156b0ae2f4f0255732a158b266bc56b21d"
