@@ -1184,6 +1184,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
           this.clearCopiedElements();
+          // actually copy the operators in the system clipboard
           this.saveHighlightedElements();
         }
       });
@@ -1223,16 +1224,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * saves highlighted elements to copiedOperators and copiedGroups
+   * saves highlighted elements to the system clipboard
    */
   private saveHighlightedElements(): void {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+    // const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
 
     // copiedOps contains all the highlighted operators that are being copied
     const copiedOps: copiedOperatorIndexedByID = {};
     highlightedOperatorIDs.forEach(operatorID => {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+
       if (operator) {
         const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(operatorID);
         const layer = this.workflowActionService.getJointGraphWrapper().getCellLayer(operatorID);
@@ -1266,14 +1268,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       alert("Copy failed. You don't have the permission to write to the clipboard.");
     });
 
-    highlightedGroupIDs.forEach(groupID => {
-      this.saveGroupInfo(groupID);
+    // highlightedGroupIDs.forEach(groupID => {
+    //   this.saveGroupInfo(groupID);
 
-      const copiedGroup = this.workflowActionService.getOperatorGroup().getGroup(groupID);
-      assertType<Group>(copiedGroup);
-      // do no copy operators that would be copied along with their groups (to avoid double counting)
-      copiedGroup.operators.forEach((operatorInfo, operatorID) => this.deleteOperatorInfo(operatorID));
-    });
+    //   const copiedGroup = this.workflowActionService.getOperatorGroup().getGroup(groupID);
+    //   assertType<Group>(copiedGroup);
+    //   // do no copy operators that would be copied along with their groups (to avoid double counting)
+    //   copiedGroup.operators.forEach((operatorInfo, operatorID) => this.deleteOperatorInfo(operatorID));
+    // });
   }
 
   /**
@@ -1360,10 +1362,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             //   positions.push(newOperatorPosition);
             // });
             copiedOps.forEach((copiedOperator, copiedOperatorID) => {
+              // copyOperator assigns a new operatorID to the new operator
               const newOperator = this.copyOperator(copiedOperator.operator);
-              const newOperatorPosition = this.newCalcOperatorPosition(
+              const newOperatorPosition = this.calcOperatorPosition(
                 newOperator.operatorID,
-                copiedOperatorID,
                 copiedOperator,
                 positions
               );
@@ -1376,37 +1378,37 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             });
 
             // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
-            this.copiedGroups.forEach((copiedGroup, groupID) => {
-              const newGroup = this.copyGroup(copiedGroup.group);
+            // this.copiedGroups.forEach((copiedGroup, groupID) => {
+            //   const newGroup = this.copyGroup(copiedGroup.group);
 
-              const oldPosition = copiedGroup.position;
-              const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
-              positions.push(newPosition);
+            //   const oldPosition = copiedGroup.position;
+            //   const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
+            //   positions.push(newPosition);
 
-              // delta between old position and new to apply to the copied group's operators
-              const delta = {
-                x: newPosition.x - oldPosition.x,
-                y: newPosition.y - oldPosition.y,
-              };
+            //   // delta between old position and new to apply to the copied group's operators
+            //   const delta = {
+            //     x: newPosition.x - oldPosition.x,
+            //     y: newPosition.y - oldPosition.y,
+            //   };
 
-              newGroup.operators.forEach((operatorInfo, operatorID) => {
-                operatorInfo.position.x += delta.x;
-                operatorInfo.position.y += delta.x;
+            //   newGroup.operators.forEach((operatorInfo, operatorID) => {
+            //     operatorInfo.position.x += delta.x;
+            //     operatorInfo.position.y += delta.x;
 
-                operatorsAndPositions.push({
-                  op: operatorInfo.operator,
-                  pos: operatorInfo.position,
-                });
-              });
+            //     operatorsAndPositions.push({
+            //       op: operatorInfo.operator,
+            //       pos: operatorInfo.position,
+            //     });
+            //   });
 
-              // add links from group to list of all links to be added
-              newGroup.links.forEach((linkInfo, operatorID) => {
-                links.push(linkInfo.link);
-              });
+            //   // add links from group to list of all links to be added
+            //   newGroup.links.forEach((linkInfo, operatorID) => {
+            //     links.push(linkInfo.link);
+            //   });
 
-              // add group to list of all groups to be added
-              groups.push(newGroup);
-            });
+            //   // add group to list of all groups to be added
+            //   groups.push(newGroup);
+            // });
 
             // actually add all operators, links, groups to the workflow
             this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
@@ -1500,45 +1502,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * @param copiedOperatorID
    * @param positions
    */
+  // previous function signature is:
   // private calcOperatorPosition(newOperatorID: string, copiedOperatorID: string, positions: Point[]): Point {
-  private calcOperatorPosition(newOperatorID: string, copiedOperatorID: string, positions: Point[]): Point {
-    let i, position;
-    const copiedOperator = this.copiedOperators.get(copiedOperatorID);
-    if (!copiedOperator) {
-      throw Error(`Internal error: cannot find ${copiedOperatorID} in copied operators`);
-    }
-    const pastedOperators = copiedOperator.pastedOperatorIDs;
-    for (i = 0; i < pastedOperators.length; ++i) {
-      position = {
-        x: copiedOperator.position.x + i * this.COPY_OFFSET,
-        y: copiedOperator.position.y + i * this.COPY_OFFSET,
-      };
-      if (
-        !positions.includes(position) &&
-        (!this.workflowActionService.getTexeraGraph().hasOperator(pastedOperators[i]) ||
-          this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(pastedOperators[i]).x !==
-            position.x ||
-          this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(pastedOperators[i]).y !== position.y)
-      ) {
-        pastedOperators[i] = newOperatorID;
-        return this.getNonOverlappingPosition(position, positions);
-      }
-    }
-    pastedOperators.push(newOperatorID);
-    position = {
-      x: copiedOperator.position.x + i * this.COPY_OFFSET,
-      y: copiedOperator.position.y + i * this.COPY_OFFSET,
-    };
-    return this.getNonOverlappingPosition(position, positions);
-  }
-
-  // private calcOperatorPosition(newOperatorID: string, copiedOperatorID: string, positions: Point[]): Point {
-  private newCalcOperatorPosition(
-    newOperatorID: string,
-    copiedOperatorID: string,
-    copiedOperator: CopiedOperator,
-    positions: Point[]
-  ): Point {
+  // but now since we're not storing the operators in this.copiedOperators, we can't use copiedOperatorID to find the copiedOperator;
+  // instead, we just pass in the old CopiedOperator directly
+  private calcOperatorPosition(newOperatorID: string, copiedOperator: CopiedOperator, positions: Point[]): Point {
     let i, position;
     // const copiedOperator = this.copiedOperators.get(copiedOperatorID);
     // if (!copiedOperator) {
