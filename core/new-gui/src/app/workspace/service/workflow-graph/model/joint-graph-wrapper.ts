@@ -6,6 +6,7 @@ import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import {User} from "../../../../common/type/user";
+import {operatorAwarenessTextClass} from "../../joint-ui/joint-ui.service";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -1087,5 +1088,29 @@ export class JointGraphWrapper {
         });
       }
     }
+  }
+
+  setCurrentEditing(coeditor: User, currentEditing: string) {
+    // Calculate location
+    console.log(coeditor,currentEditing);
+    const statusText = coeditor.name + " is editing properties...";
+    const color = coeditor.color;
+    this.getMainJointPaper()?.getModelById(currentEditing).attr({
+      [`.${operatorAwarenessTextClass}`]: {
+        text: statusText,
+        fill: color,
+        visibility:  "visible"
+      }
+    });
+  }
+
+  removeCurrentEditing(coeditor: User, previousEditing: string) {
+    console.log("remove", previousEditing);
+    this.getMainJointPaper()?.getModelById(previousEditing).attr({
+      [`.${operatorAwarenessTextClass}`]: {
+        text: "",
+        visibility: "hidden"
+      }
+    });
   }
 }

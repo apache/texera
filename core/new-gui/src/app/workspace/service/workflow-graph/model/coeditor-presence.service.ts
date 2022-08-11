@@ -22,7 +22,7 @@ export class CoeditorPresenceService {
   private jointGraph: joint.dia.Graph;
   private texeraGraph: WorkflowGraph;
   private jointGraphWrapper: JointGraphWrapper;
-  private coeditorJointStates = new Map<string, User>();
+  private coeditorCurrentlyEditing = new Map<string, string | undefined>();
   private coeditorOperatorHighlights = new Map<string, string[]>();
   private coeditorStates = new Map<string, UserState>();
   public coeditors: User[] = [];
@@ -53,6 +53,13 @@ export class CoeditorPresenceService {
     for (let i = 0; i < this.coeditors.length; i++) {
       const coeditor = this.coeditors[i];
       if (coeditor.clientId === clientId) {
+        this.updateCoeditorState(clientId, {
+          user: coeditor,
+          userCursor: {x: 0, y: 0},
+          currentlyEditing: undefined,
+          isActive: false,
+          highlighted: undefined
+        });
         this.coeditors.splice(i);
       }
     }
@@ -61,14 +68,14 @@ export class CoeditorPresenceService {
 
   public updateCoeditorState(clientId: string, coeditorState: UserState) {
     // Update pointers
-    const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(JointUIService.getJointUserPointerName(clientId));
+    const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(JointUIService.getJointUserPointerName(coeditorState.user));
     const userColor = coeditorState.user.color;
     if (existingPointer) {
       if (coeditorState.isActive) {
         if (coeditorState.userCursor !== existingPointer.position()) {
           existingPointer.remove();
           if (userColor) {
-            const newPoint = JointUIService.getJointUserPointerCell(clientId, coeditorState.userCursor, userColor);
+            const newPoint = JointUIService.getJointUserPointerCell(coeditorState.user, coeditorState.userCursor, userColor);
             this.jointGraph.addCell(newPoint);
           }
         }
@@ -77,7 +84,7 @@ export class CoeditorPresenceService {
     } else {
       if (coeditorState.isActive && userColor) {
         // create new user point (directly updating the point would cause unknown errors)
-        const newPoint = JointUIService.getJointUserPointerCell(clientId, coeditorState.userCursor, userColor);
+        const newPoint = JointUIService.getJointUserPointerCell(coeditorState.user, coeditorState.userCursor, userColor);
         this.jointGraph.addCell(newPoint);
       }
     }
@@ -103,6 +110,20 @@ export class CoeditorPresenceService {
         this.coeditorOperatorHighlights.set(clientId, currentHighlighted);
       } else {
         this.coeditorOperatorHighlights.delete(clientId);
+      }
+    }
+
+    // Update currently editing status
+    const previousEditing = this.coeditorCurrentlyEditing.get(clientId);
+    const currentEditing = coeditorState.currentlyEditing;
+    if (previousEditing != currentEditing) {
+      if (previousEditing) {
+        this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing);
+        this.coeditorCurrentlyEditing.delete(clientId);
+      }
+      if (currentEditing) {
+        this.jointGraphWrapper.setCurrentEditing(coeditorState.user, currentEditing);
+        this.coeditorCurrentlyEditing.set(clientId, currentEditing);
       }
     }
   }

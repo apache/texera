@@ -1013,19 +1013,25 @@ export class JointUIService {
     return commentStyleAttrs;
   }
 
-  public static getJointUserPointerCell(userNameAndClientID: string, position: Point, color: string): joint.dia.Element {
+  public static getJointUserPointerCell(coeditor: User, position: Point, color: string): joint.dia.Element {
     const userCursor = new joint.shapes.standard.Circle({
-      id: this.getJointUserPointerName(userNameAndClientID)
+      id: this.getJointUserPointerName(coeditor),
     });
     userCursor.resize(15, 15);
     userCursor.position(position.x, position.y);
     userCursor.attr("body/fill", color);
     userCursor.attr("body/stroke", color);
+    userCursor.attr("text", {
+      text: coeditor.name,
+      "ref-x": 15,
+      "ref-y": 20,
+      stroke: coeditor.color
+    });
     return userCursor;
   }
 
-  public static getJointUserPointerName(userNameAndClientID: string) {
-    return "pointer_" + userNameAndClientID;
+  public static getJointUserPointerName(coeditor: User) {
+    return "pointer_" + coeditor.clientId;
   }
 }
 
