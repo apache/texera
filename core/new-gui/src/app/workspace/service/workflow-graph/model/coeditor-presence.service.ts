@@ -24,6 +24,7 @@ export class CoeditorPresenceService {
   private jointGraphWrapper: JointGraphWrapper;
   private coeditorCurrentlyEditing = new Map<string, string | undefined>();
   private coeditorOperatorHighlights = new Map<string, string[]>();
+  private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorStates = new Map<string, UserState>();
   public coeditors: User[] = [];
 
@@ -58,7 +59,8 @@ export class CoeditorPresenceService {
           userCursor: {x: 0, y: 0},
           currentlyEditing: undefined,
           isActive: false,
-          highlighted: undefined
+          highlighted: undefined,
+          changed: undefined
         });
         this.coeditors.splice(i);
       }
@@ -116,7 +118,7 @@ export class CoeditorPresenceService {
     // Update currently editing status
     const previousEditing = this.coeditorCurrentlyEditing.get(clientId);
     const currentEditing = coeditorState.currentlyEditing;
-    if (previousEditing != currentEditing) {
+    if (previousEditing !== currentEditing) {
       if (previousEditing) {
         this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing);
         this.coeditorCurrentlyEditing.delete(clientId);
@@ -124,6 +126,21 @@ export class CoeditorPresenceService {
       if (currentEditing) {
         this.jointGraphWrapper.setCurrentEditing(coeditorState.user, currentEditing);
         this.coeditorCurrentlyEditing.set(clientId, currentEditing);
+      }
+    }
+
+    // Update property changed status
+    const previousChanged = this.coeditorOperatorPropertyChanged.get(clientId);
+    const currentChanged = coeditorState.changed;
+    if (previousChanged !== currentChanged) {
+      if (currentChanged) {
+        this.coeditorOperatorPropertyChanged.set(clientId, currentChanged);
+        // Set for 3 seconds
+        this.jointGraphWrapper.setPropertyChanged(coeditorState.user, currentChanged);
+        setTimeout(()=>{
+          this.coeditorOperatorPropertyChanged.delete(clientId);
+          this.jointGraphWrapper.removePropertyChanged(coeditorState.user, currentChanged);
+        }, 2000);
       }
     }
   }

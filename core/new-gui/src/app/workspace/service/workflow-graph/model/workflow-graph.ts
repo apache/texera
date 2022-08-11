@@ -14,6 +14,7 @@ import {
 import { isEqual } from "lodash-es";
 import {SharedModel} from "./shared-model";
 import {User} from "../../../../common/type/user";
+import * as _ from "lodash";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -484,6 +485,14 @@ export class WorkflowGraph {
    * @param newProperty new property to set
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
+    const previousProperty = this.sharedModel.operatorIDMap.get(operatorID)?.get("operatorProperties").toJSON();
+    if (!_.isEqual(previousProperty, newProperty)) {
+      const localState = this.sharedModel.awareness.getLocalState();
+      if (localState && localState["currentlyEditing"] === operatorID) {
+        this.sharedModel.updateAwareness("changed", operatorID);
+        this.sharedModel.updateAwareness("changed", undefined);
+      }
+    }
     // set the new copy back to the operator ID map
     this.sharedModel.operatorIDMap.get(operatorID)?.set("operatorProperties", createYTypeFromObject(newProperty));
   }

@@ -89,7 +89,10 @@ export const operatorOutputCountBGClass = "texera-operator-output-count-backgrou
 export const operatorOutputCountClass = "texera-operator-output-count";
 export const operatorAbbreviatedCountBGClass = "texera-operator-abbreviated-count-background";
 export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
-export const operatorAwarenessTextClass = "texera-operator-awareness";
+export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
+export const operatorCoeditorEditingBGClass = "texera-operator-coeditor-editing-background";
+export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
+export const operatorCoeditorChangedPropertyBGClass = "texera-operator-coeditor-changed-property-background";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
@@ -117,7 +120,10 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorStateBGClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorCacheTextClass}"></text>
-      <text class="${operatorAwarenessTextClass}"></text>
+      <text class="${operatorCoeditorEditingBGClass}"></text>
+      <text class="${operatorCoeditorEditingClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyBGClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
@@ -292,14 +298,14 @@ export class JointUIService {
       const statusText = users[0].name + " is editing properties...";
       const color = users[0].color;
       jointPaper.getModelById(operatorID).attr({
-        [`.${operatorAwarenessTextClass}`]: {
+        [`.${operatorCoeditorEditingClass}`]: {
           text: statusText,
           fillColor: color
         }
       });
     } else {
       jointPaper.getModelById(operatorID).attr({
-        [`.${operatorAwarenessTextClass}`]: {
+        [`.${operatorCoeditorEditingClass}`]: {
           text: ""
         }
       });
@@ -700,13 +706,48 @@ export class JointUIService {
     operatorType: string
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      ".texera-operator-awareness": {
+      ".texera-operator-coeditor-editing-background": {
         text: "",
         "font-size": "14px",
+        stroke: "#f5f5f5",
         "stroke-width": "1em",
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": 100,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-coeditor-editing": {
+        text: "",
+        "font-size": "14px",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 100,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-coeditor-changed-property-background": {
+        text: "",
+        "font-size": "14px",
+        "font-weight": "bold",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 120,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-coeditor-changed-property": {
+        text: "",
+        "font-weight": "bold",
+        "font-size": "14px",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 120,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",

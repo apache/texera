@@ -6,7 +6,12 @@ import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import {User} from "../../../../common/type/user";
-import {operatorAwarenessTextClass} from "../../joint-ui/joint-ui.service";
+import {
+  operatorCoeditorChangedPropertyBGClass,
+  operatorCoeditorChangedPropertyClass,
+  operatorCoeditorEditingBGClass,
+  operatorCoeditorEditingClass
+} from "../../joint-ui/joint-ui.service";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -1092,22 +1097,58 @@ export class JointGraphWrapper {
 
   setCurrentEditing(coeditor: User, currentEditing: string) {
     // Calculate location
-    console.log(coeditor,currentEditing);
     const statusText = coeditor.name + " is editing properties...";
     const color = coeditor.color;
     this.getMainJointPaper()?.getModelById(currentEditing).attr({
-      [`.${operatorAwarenessTextClass}`]: {
+      [`.${operatorCoeditorEditingClass}`]: {
         text: statusText,
         fill: color,
+        visibility:  "visible"
+      },
+      [`.${operatorCoeditorEditingBGClass}`]: {
+        text: statusText,
         visibility:  "visible"
       }
     });
   }
 
   removeCurrentEditing(coeditor: User, previousEditing: string) {
-    console.log("remove", previousEditing);
     this.getMainJointPaper()?.getModelById(previousEditing).attr({
-      [`.${operatorAwarenessTextClass}`]: {
+      [`.${operatorCoeditorEditingClass}`]: {
+        text: "",
+        visibility: "hidden"
+      },
+      [`.${operatorCoeditorEditingBGClass}`]: {
+        text: "",
+        visibility: "hidden"
+      }
+    });
+  }
+
+  setPropertyChanged(coeditor: User, currentChanged: string) {
+    // Calculate location
+    const statusText = coeditor.name + " changed property!";
+    const color = coeditor.color;
+    this.getMainJointPaper()?.getModelById(currentChanged).attr({
+      [`.${operatorCoeditorChangedPropertyClass}`]: {
+        text: statusText,
+        fill: color,
+        visibility:  "visible"
+      },
+      [`.${operatorCoeditorChangedPropertyBGClass}`]: {
+        text: statusText,
+        visibility: "visible"
+      }
+    });
+  }
+
+  removePropertyChanged(coeditor: User, currentChanged: string) {
+    this.getMainJointPaper()?.getModelById(currentChanged).attr({
+      [`.${operatorCoeditorChangedPropertyClass}`]: {
+        text: "",
+        visibility: "hidden"
+      },
+      [`.${operatorCoeditorChangedPropertyBGClass}`]: {
         text: "",
         visibility: "hidden"
       }
