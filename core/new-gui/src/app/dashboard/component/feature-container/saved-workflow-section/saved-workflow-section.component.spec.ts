@@ -65,7 +65,7 @@ describe("SavedWorkflowSectionComponent", () => {
     name: "workflow 3",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400000,
-    lastModifiedTime: 28800000 + (86400000 + 3),
+    lastModifiedTime: 28800000 + (86400000 + 4),
   };
   const testWorkflow4: Workflow = {
     wid: 4,
@@ -238,7 +238,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dateSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 3", "workflow 2", "workflow 5", "workflow 4"]);
+    expect(SortedCase).toEqual(["workflow 4", "workflow 5", "workflow 2", "workflow 3", "workflow 1"]);
   });
 
   it("lastEditSortTest", () => {
@@ -246,7 +246,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.lastSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
+    expect(SortedCase).toEqual(["workflow 5", "workflow 4", "workflow 3", "workflow 2", "workflow 1"]);
   });
 
   it("searchNoInput", () => {
