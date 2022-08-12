@@ -277,104 +277,109 @@ class WorkflowScheduler(
     }
   }
 
-  private def prepareRegion(region: PipelinedRegion): Future[Unit] = {
+  private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
-
-    Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
-      .flatMap(_ => {
-        val uninitializedPythonOperators = workflow.getPythonOperators(
-          allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
-        )
-        Future
-          .collect(
-            // initialize python operator code
-            workflow
-              .getPythonWorkerToOperatorExec(
-                uninitializedPythonOperators
+    val uninitializedPythonOperators = workflow.getPythonOperators(
+      allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
+    )
+    Future
+      .collect(
+        // initialize python operator code
+        workflow
+          .getPythonWorkerToOperatorExec(
+            uninitializedPythonOperators
+          )
+          .map {
+            case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+              asyncRPCClient.send(
+                InitializeOperatorLogic(
+                  pythonOperatorExec.getCode,
+                  workflow
+                    .getInlinksIdsToWorkerLayer(workflow.workerToLayer(workerID).id)
+                    .toArray,
+                  pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
+                  pythonOperatorExec.getOutputSchema
+                ),
+                workerID
               )
-              .map {
-                case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-                  asyncRPCClient.send(
-                    InitializeOperatorLogic(
-                      pythonOperatorExec.getCode,
-                      workflow
-                        .getInlinksIdsToWorkerLayer(workflow.workerToLayer(workerID).id)
-                        .toArray,
-                      pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
-                      pythonOperatorExec.getOutputSchema
-                    ),
-                    workerID
-                  )
-              }
-              .toSeq
-          )
-          .onSuccess(_ =>
-            uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
-          )
-          .onFailure((err: Throwable) => {
-            logger.error("Failure when sending Python UDF code", err)
-            // report error to frontend
-            asyncRPCClient.sendToClient(FatalError(err))
-          })
-      })
-      .flatMap(_ => {
-        Future.collect(
-          // activate all links
-          workflow.getAllLinks
-            .filter(link => {
-              !activatedLink.contains(link.id) &&
-                allOperatorsInRegion.contains(
-                  OperatorIdentity(link.from.id.workflow, link.from.id.operator)
-                ) &&
-                allOperatorsInRegion.contains(
-                  OperatorIdentity(link.to.id.workflow, link.to.id.operator)
-                )
-            })
-            .map { link: LinkStrategy =>
-              asyncRPCClient
-                .send(LinkWorkers(link), CONTROLLER)
-                .onSuccess(_ => activatedLink.add(link.id))
-            }
-            .toSeq
-        )
-      })
-      .flatMap(
-        // open all operators
-        _ => {
-          val allNotOpenedOperators =
-            allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
-          Future
-            .collect(
-              workflow
-                .getAllWorkersForOperators(allNotOpenedOperators)
-                .map { workerID =>
-                  asyncRPCClient.send(OpenOperator(), workerID)
-                }
-                .toSeq
-            )
-            .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
-        }
+          }
+          .toSeq
       )
-      .flatMap(_ =>
-        Future {
-          allOperatorsInRegion
-            .filter(opId =>
-              workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED
-            )
-            .foreach(opId => workflow.getOperator(opId).setAllWorkerState(READY))
-          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        }
+      .onSuccess(_ =>
+        uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
       )
-      .flatMap(_ => {
-        constructingRegions.remove(region)
-        constructedRegions.add(region)
-        if (completedRegions.isEmpty) {
-          asyncRPCClient.send(StartPipelinedRegion(region, true), CONTROLLER)
-        } else {
-          asyncRPCClient.send(StartPipelinedRegion(region, false), CONTROLLER)
-        }
+      .onFailure((err: Throwable) => {
+        logger.error("Failure when sending Python UDF code", err)
+        // report error to frontend
+        asyncRPCClient.sendToClient(FatalError(err))
       })
+  }
+
+  private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {
+    val allOperatorsInRegion =
+      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+    Future.collect(
+      // activate all links
+      workflow.getAllLinks
+        .filter(link => {
+          !activatedLink.contains(link.id) &&
+            allOperatorsInRegion.contains(
+              OperatorIdentity(link.from.id.workflow, link.from.id.operator)
+            ) &&
+            allOperatorsInRegion.contains(
+              OperatorIdentity(link.to.id.workflow, link.to.id.operator)
+            )
+        })
+        .map { link: LinkStrategy =>
+          asyncRPCClient
+            .send(LinkWorkers(link), CONTROLLER)
+            .onSuccess(_ => activatedLink.add(link.id))
+        }
+        .toSeq
+    )
+  }
+
+  private def openAllOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
+    val allOperatorsInRegion =
+      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+    val allNotOpenedOperators =
+      allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
+    Future
+      .collect(
+        workflow
+          .getAllWorkersForOperators(allNotOpenedOperators)
+          .map { workerID =>
+            asyncRPCClient.send(OpenOperator(), workerID)
+          }
+          .toSeq
+      )
+      .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
+  }
+
+  private def startRegion(region: PipelinedRegion): Future[Unit] = {
+    val allOperatorsInRegion =
+      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+    allOperatorsInRegion
+      .filter(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED)
+      .foreach(opId => workflow.getOperator(opId).setAllWorkerState(READY))
+    asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+    constructingRegions.remove(region)
+    constructedRegions.add(region)
+    if (completedRegions.isEmpty) {
+      asyncRPCClient.send(StartPipelinedRegion(region, true), CONTROLLER)
+    } else {
+      asyncRPCClient.send(StartPipelinedRegion(region, false), CONTROLLER)
+    }
+  }
+
+  private def prepareRegion(region: PipelinedRegion): Future[Unit] = {
+    asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+    Future()
+      .flatMap(_ => initializePythonOperators(region))
+      .flatMap(_ => activateAllLinks(region))
+      .flatMap(_ => openAllOperators(region))
+      .flatMap(_ => startRegion(region))
   }
 
   def constructAndPrepare(region: PipelinedRegion): Future[Unit] = {

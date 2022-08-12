@@ -150,31 +150,6 @@ class Controller(
 
   override def receive: Receive = running
 
-  def initializing: Receive = {
-    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
-      //process reply messages
-      controlInputPort.handleMessage(
-        this.sender(),
-        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
-        id,
-        from,
-        seqNum,
-        payload
-      )
-    case NetworkMessage(id, WorkflowControlMessage(CONTROLLER, seqNum, payload)) =>
-      //process control messages from self
-      controlInputPort.handleMessage(
-        this.sender(),
-        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
-        id,
-        CONTROLLER,
-        seqNum,
-        payload
-      )
-    case _ =>
-      stash() //prevent other messages to be executed until initialized
-  }
-
   override def postStop(): Unit = {
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
