@@ -6,6 +6,8 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile;
 
+import java.sql.Timestamp;
+
 import org.jooq.types.UInteger;
 
 
@@ -15,14 +17,15 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File implements IFile {
 
-    private static final long serialVersionUID = 963831931;
+    private static final long serialVersionUID = 822479773;
 
-    private UInteger uid;
-    private UInteger fid;
-    private UInteger size;
-    private String   name;
-    private String   path;
-    private String   description;
+    private UInteger  uid;
+    private UInteger  fid;
+    private UInteger  size;
+    private String    name;
+    private String    path;
+    private String    description;
+    private Timestamp uploadTime;
 
     public File() {}
 
@@ -33,15 +36,17 @@ public class File implements IFile {
         this.name = value.getName();
         this.path = value.getPath();
         this.description = value.getDescription();
+        this.uploadTime = value.getUploadTime();
     }
 
     public File(
-        UInteger uid,
-        UInteger fid,
-        UInteger size,
-        String   name,
-        String   path,
-        String   description
+        UInteger  uid,
+        UInteger  fid,
+        UInteger  size,
+        String    name,
+        String    path,
+        String    description,
+        Timestamp uploadTime
     ) {
         this.uid = uid;
         this.fid = fid;
@@ -49,6 +54,7 @@ public class File implements IFile {
         this.name = name;
         this.path = path;
         this.description = description;
+        this.uploadTime = uploadTime;
     }
 
     @Override
@@ -112,6 +118,16 @@ public class File implements IFile {
     }
 
     @Override
+    public Timestamp getUploadTime() {
+        return this.uploadTime;
+    }
+
+    @Override
+    public void setUploadTime(Timestamp uploadTime) {
+        this.uploadTime = uploadTime;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("File (");
 
@@ -121,6 +137,7 @@ public class File implements IFile {
         sb.append(", ").append(name);
         sb.append(", ").append(path);
         sb.append(", ").append(description);
+        sb.append(", ").append(uploadTime);
 
         sb.append(")");
         return sb.toString();
@@ -138,6 +155,7 @@ public class File implements IFile {
         setName(from.getName());
         setPath(from.getPath());
         setDescription(from.getDescription());
+        setUploadTime(from.getUploadTime());
     }
 
     @Override

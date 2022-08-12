@@ -138,7 +138,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
 
     val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
       outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
-
+    
     new Workflow(
       workflowId,
       amberOperators,
