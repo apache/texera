@@ -242,3 +242,6 @@ libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 // https://mvnrepository.com/artifact/org.jasypt/jasypt
 libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
+
+// https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
+libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "6.0.0.202111291000-r"

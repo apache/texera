@@ -43,6 +43,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import scala.annotation.tailrec
+import edu.uci.ics.texera.web.OPversion
 
 object TexeraWebApplication {
 
@@ -100,6 +101,8 @@ object TexeraWebApplication {
         .resolve("web-config.yml")
         .toString
     )
+
+    OPversion.refreshVersion()
   }
 }
 
