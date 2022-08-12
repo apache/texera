@@ -10,8 +10,9 @@ import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.comp
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 
-let MAX_TEXT_SIZE = 25;
-let MAX_COLOR_VAR = 255;
+const MAX_TEXT_SIZE = 20;
+const MAX_RGB = 255;
+const MAX_USERNAME_SIZE = 5;
 
 @UntilDestroy()
 @Component({
@@ -38,11 +39,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   ];
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
-    Name: "Workflow Name",
-    Username: "The User Who Runs This Execution",
+    Name: "Execution Name",
+    Username: "The User Who Ran This Execution",
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
+  };
+
+  /*custom column width*/
+  public customColumnWidth: Record<string, string> = {
+    "": "70px",
+    Name: "230px",
+    Username: "150px",
+    "Starting Time": "250px",
+    "Last Status Updated Time": "250px",
+    Status: "80px",
   };
 
   /** variables related to executions filtering
@@ -102,7 +113,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     if (this.workflow === undefined || this.workflow.wid === undefined) {
       return;
     }
-
     this.workflowExecutionsService
       .retrieveWorkflowExecutions(this.workflow.wid)
       .pipe(untilDestroyed(this))
@@ -270,11 +280,17 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     }
   }
 
-  shortenName(name: string): string {
-    if (name.length <= MAX_TEXT_SIZE) {
+  /**
+   *
+   * @param name
+   * @param nameFlag true for execution name and false for username
+   */
+  abbreviate(name: string, nameFlag: boolean): string {
+    let maxLength = nameFlag ? MAX_TEXT_SIZE : MAX_USERNAME_SIZE;
+    if (name.length <= maxLength) {
       return name;
     } else {
-      return name.split(0, MAX_TEXT_SIZE) + "...";
+      return name.slice(0, maxLength);
     }
   }
 
@@ -297,9 +313,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   getRandomColor(): string {
-    const r = Math.floor(Math.random() * MAX_COLOR_VAR);
-    const g = Math.floor(Math.random() * MAX_COLOR_VAR);
-    const b = Math.floor(Math.random() * MAX_COLOR_VAR);
+    const r = Math.floor(Math.random() * MAX_RGB);
+    const g = Math.floor(Math.random() * MAX_RGB);
+    const b = Math.floor(Math.random() * MAX_RGB);
     return "rgba(" + r + "," + g + "," + b + ",0.8)";
   }
 

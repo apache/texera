@@ -57,7 +57,6 @@
       ></nz-autocomplete>
     </nz-input-group>
   </nz-card>
-
   <div class="modal-body table-responsive">
     <nz-table
       *ngIf="workflowExecutionsDisplayedList"
@@ -75,52 +74,26 @@
     >
       <thead>
         <tr>
-          <th class="checkboxes"></th>
-          <th class="stars"></th>
-          <th class="account" nz-tooltip [nzTooltipTitle]="executionTooltip['Username']">
-            Account
-            <button *ngIf="this.showORhide[0]" nz-button (click)="onHit('Username', 0)">
-              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-            </button>
-            <button *ngIf="!this.showORhide[0]" nz-button (click)="onHit('Username', 0)">
-              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-            </button>
-          </th>
-          <th class="execution-time" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">
-            Execution Title
-            <button *ngIf="this.showORhide[1]" nz-button (click)="onHit('Name', 1)">
-              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-            </button>
-            <button *ngIf="!this.showORhide[1]" nz-button (click)="onHit('Name', 1)">
-              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-            </button>
-          </th>
-          <th class="starting-time" nz-tooltip [nzTooltipTitle]="executionTooltip['Starting Time']">
-            Satrting Time
-            <button *ngIf="this.showORhide[2]" nz-button (click)="onHit('Starting Time', 2)">
-              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-            </button>
-            <button *ngIf="!this.showORhide[2]" nz-button (click)="onHit('Starting Time', 2)">
-              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-            </button>
-          </th>
           <th
-            class="last-status-updated-time"
+            [ngStyle]="{'width': customColumnWidth[column]}"
+            *ngFor="let column of executionsTableHeaders; let i=index"
             nz-tooltip
-            [nzTooltipTitle]="executionTooltip['Last Status Updated Time']"
+            [nzTooltipTitle]="executionTooltip[column]"
+            nzTooltipPlacement="top"
           >
-            Last Status Updated Time
-            <button *ngIf="this.showORhide[3]" nz-button (click)="onHit('Last Status Updated Time', 3)">
-              <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
-            </button>
-            <button *ngIf="!this.showORhide[3]" nz-button (click)="onHit('Last Status Updated Time', 3)">
-              <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
-            </button>
+            {{column}}
+            <span *ngIf="column !== '' && column !== 'Status'">
+              <button *ngIf="this.showORhide[i]" nz-button (click)="onHit(column, i)">
+                <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+              </button>
+              <button *ngIf="!this.showORhide[i]" nz-button (click)="onHit(column, i)">
+                <i nz-icon nzTheme="outline" nzType="sort-descending"></i>
+              </button>
+            </span>
           </th>
-          <th class="status" nz-tooltip [nzTooltipTitle]="executionTooltip['Name']">Status</th>
-          <th class="delete"></th>
         </tr>
       </thead>
+
       <tbody>
         <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
           <td nzEllipsis>
@@ -138,8 +111,8 @@
           <td nzEllipsis>
             <nz-avatar
               [ngStyle]="{ 'background-color': setAvatarColor(row.userName) }"
-              [nzGap]="4"
-              [nzText]="'' + row.userName || 'anonymous'"
+              [nzGap]="1"
+              [nzText]="abbreviate(row.userName || 'anonymous', false)"
               nzSize="default"
             ></nz-avatar>
           </td>
@@ -148,7 +121,7 @@
               class="execution-description"
               *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow "
               class="workflow-name"
-              >{{ shortenName(row.name) }}</label
+              >{{ abbreviate(row.name, true) }}</label
             >
             <ng-template #customeWorkflow>
               <input
