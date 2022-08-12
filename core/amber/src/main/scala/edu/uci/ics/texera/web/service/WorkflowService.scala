@@ -30,6 +30,11 @@ import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.{BehaviorSubject, Subject}
 import org.jooq.types.UInteger
+import play.api.libs.json.Json
+
+import java.util.Properties
+import java.nio.file.{Files, Paths}
+import scala.collection.JavaConverters._
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
@@ -162,6 +167,7 @@ class WorkflowService(
       //unsubscribe all
       jobService.getValue.unsubscribeAll()
     }
+
     val job = new WorkflowJobService(
       createWorkflowContext(req),
       wsInput,
@@ -169,11 +175,28 @@ class WorkflowService(
       resultService,
       req,
       errorHandler,
-      req.engineVersion
+      getEngineVersion(req.engineVersion)
     )
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
     jobService.onNext(job)
     job.startWorkflow()
+  }
+
+  def getEngineVersion(frontendVersion: String): String = {
+    val operatorVersionPath = Paths.get("operator_version.properties").toAbsolutePath()
+    val props = new Properties
+    val fileStream = Files.newInputStream(operatorVersionPath)
+    props.load(fileStream)
+    fileStream.close()
+    val operatorVersionMap = props.asScala.toMap
+    val operatorVersion = operatorVersionMap("OperatorVersion")
+
+    val environmentVersionMap = Map(
+      "engine_version" -> Json.toJson(frontendVersion),
+      "operator_version" -> Json.toJson(operatorVersion)
+    )
+    val envrionmentVersion = Json.stringify(Json.toJson(environmentVersionMap))
+    envrionmentVersion
   }
 
   override def unsubscribeAll(): Unit = {
