@@ -26,6 +26,8 @@ export class CoeditorPresenceService {
   private coeditorOperatorHighlights = new Map<string, string[]>();
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorStates = new Map<string, UserState>();
+  public shadowingModeEnabled = false;
+  public shadowingCoeditor?: User;
   public coeditors: User[] = [];
 
   constructor(
@@ -122,10 +124,16 @@ export class CoeditorPresenceService {
       if (previousEditing) {
         this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing);
         this.coeditorCurrentlyEditing.delete(clientId);
+        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
+          this.workflowActionService.unhighlightOperators(previousEditing);
+        }
       }
       if (currentEditing) {
         this.jointGraphWrapper.setCurrentEditing(coeditorState.user, currentEditing);
         this.coeditorCurrentlyEditing.set(clientId, currentEditing);
+        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
+          this.workflowActionService.highlightOperators(false, currentEditing);
+        }
       }
     }
 
@@ -143,5 +151,19 @@ export class CoeditorPresenceService {
         }, 2000);
       }
     }
+  }
+
+  shadowCoeditor(coeditor: User) {
+    this.shadowingModeEnabled = true;
+    this.shadowingCoeditor = coeditor;
+    if (coeditor.clientId) {
+      const currentlyEditing = this.coeditorCurrentlyEditing.get(coeditor.clientId);
+      if (currentlyEditing)
+        this.workflowActionService.highlightOperators(false, currentlyEditing);
+    }
+  }
+
+  stopShadowing() {
+    this.shadowingModeEnabled = false;
   }
 }
