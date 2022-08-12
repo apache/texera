@@ -23,7 +23,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecutionsRecord> implements Record11<UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String>, IWorkflowExecutions {
 
-    private static final long serialVersionUID = 1772596198;
+    private static final long serialVersionUID = 1965638262;
 
     /**
      * Setter for <code>texera_db.workflow_executions.eid</code>.
@@ -186,18 +186,18 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
     }
 
     /**
-     * Setter for <code>texera_db.workflow_executions.engine_version</code>.
+     * Setter for <code>texera_db.workflow_executions.environment_version</code>.
      */
     @Override
-    public void setEngineVersion(String value) {
+    public void setEnvironmentVersion(String value) {
         set(10, value);
     }
 
     /**
-     * Getter for <code>texera_db.workflow_executions.engine_version</code>.
+     * Getter for <code>texera_db.workflow_executions.environment_version</code>.
      */
     @Override
-    public String getEngineVersion() {
+    public String getEnvironmentVersion() {
         return (String) get(10);
     }
 
@@ -276,7 +276,7 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public Field<String> field11() {
-        return WorkflowExecutions.WORKFLOW_EXECUTIONS.ENGINE_VERSION;
+        return WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION;
     }
 
     @Override
@@ -331,7 +331,7 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public String component11() {
-        return getEngineVersion();
+        return getEnvironmentVersion();
     }
 
     @Override
@@ -386,7 +386,7 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public String value11() {
-        return getEngineVersion();
+        return getEnvironmentVersion();
     }
 
     @Override
@@ -451,7 +451,7 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public WorkflowExecutionsRecord value11(String value) {
-        setEngineVersion(value);
+        setEnvironmentVersion(value);
         return this;
     }
 
@@ -487,7 +487,7 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
         setCompletionTime(from.getCompletionTime());
         setBookmarked(from.getBookmarked());
         setName(from.getName());
-        setEngineVersion(from.getEngineVersion());
+        setEnvironmentVersion(from.getEnvironmentVersion());
     }
 
     @Override
@@ -510,7 +510,7 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
     /**
      * Create a detached, initialised WorkflowExecutionsRecord
      */
-    public WorkflowExecutionsRecord(UInteger eid, UInteger wid, UInteger vid, UInteger uid, Byte status, String result, Timestamp startingTime, Timestamp completionTime, Byte bookmarked, String name, String engineVersion) {
+    public WorkflowExecutionsRecord(UInteger eid, UInteger wid, UInteger vid, UInteger uid, Byte status, String result, Timestamp startingTime, Timestamp completionTime, Byte bookmarked, String name, String environmentVersion) {
         super(WorkflowExecutions.WORKFLOW_EXECUTIONS);
 
         set(0, eid);
@@ -523,6 +523,6 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
         set(7, completionTime);
         set(8, bookmarked);
         set(9, name);
-        set(10, engineVersion);
+        set(10, environmentVersion);
     }
 }

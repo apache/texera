@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = 309705447;
+    private static final long serialVersionUID = -1387626528;
 
     private UInteger  eid;
     private UInteger  wid;
@@ -29,7 +29,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private Timestamp completionTime;
     private Byte      bookmarked;
     private String    name;
-    private String    engineVersion;
+    private String    environmentVersion;
 
     public WorkflowExecutions() {}
 
@@ -44,7 +44,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.completionTime = value.getCompletionTime();
         this.bookmarked = value.getBookmarked();
         this.name = value.getName();
-        this.engineVersion = value.getEngineVersion();
+        this.environmentVersion = value.getEnvironmentVersion();
     }
 
     public WorkflowExecutions(
@@ -58,7 +58,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Timestamp completionTime,
         Byte      bookmarked,
         String    name,
-        String    engineVersion
+        String    environmentVersion
     ) {
         this.eid = eid;
         this.wid = wid;
@@ -70,7 +70,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.completionTime = completionTime;
         this.bookmarked = bookmarked;
         this.name = name;
-        this.engineVersion = engineVersion;
+        this.environmentVersion = environmentVersion;
     }
 
     @Override
@@ -174,13 +174,13 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
-    public String getEngineVersion() {
-        return this.engineVersion;
+    public String getEnvironmentVersion() {
+        return this.environmentVersion;
     }
 
     @Override
-    public void setEngineVersion(String engineVersion) {
-        this.engineVersion = engineVersion;
+    public void setEnvironmentVersion(String environmentVersion) {
+        this.environmentVersion = environmentVersion;
     }
 
     @Override
@@ -197,7 +197,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(completionTime);
         sb.append(", ").append(bookmarked);
         sb.append(", ").append(name);
-        sb.append(", ").append(engineVersion);
+        sb.append(", ").append(environmentVersion);
 
         sb.append(")");
         return sb.toString();
@@ -219,7 +219,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setCompletionTime(from.getCompletionTime());
         setBookmarked(from.getBookmarked());
         setName(from.getName());
-        setEngineVersion(from.getEngineVersion());
+        setEnvironmentVersion(from.getEnvironmentVersion());
     }
 
     @Override

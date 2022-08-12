@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = -2100482937;
+    private static final long serialVersionUID = 943959066;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -101,9 +101,9 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false).defaultValue(org.jooq.impl.DSL.inline("Untitled Execution", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
 
     /**
-     * The column <code>texera_db.workflow_executions.engine_version</code>.
+     * The column <code>texera_db.workflow_executions.environment_version</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, String> ENGINE_VERSION = createField(DSL.name("engine_version"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<WorkflowExecutionsRecord, String> ENVIRONMENT_VERSION = createField(DSL.name("environment_version"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
