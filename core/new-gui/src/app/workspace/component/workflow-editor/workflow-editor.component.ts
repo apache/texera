@@ -1393,19 +1393,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               const newOperator = this.copyOperator(copiedOperator.operator);
               
               for (let link of linksToBeCopied) {
-                if (!(link.linkID in linksCopy)) {
-                  if (linksCopy[link.linkID] == undefined) {
-                    // first check if the link ID already exists in linksCopy, if not, assign a dummy object
-                    // to it to avoid type error: cannot set properties of undefined
-                    linksCopy[link.linkID] = {
-                      linkID: "",
-                      source: { operatorID: "", portID: "", },
-                      target: { operatorID: "", portID: "", },
-                    }
-                  } else {
-                    // if current link is never added to the linksCopy, generate a random link ID for that link
-                    linksCopy[link.linkID].linkID = this.workflowUtilService.getLinkRandomUUID();
+                if (linksCopy[link.linkID] == undefined) {
+                  // first check if the link ID already exists in linksCopy, if not, assign a dummy object
+                  // to it to avoid type error: cannot set properties of undefined
+                  linksCopy[link.linkID] = {
+                    linkID: "",
+                    source: { operatorID: "", portID: "", },
+                    target: { operatorID: "", portID: "", },
                   }
+                } else {
+                  // if current link is never added to the linksCopy, generate a random link ID for that link
+                  linksCopy[link.linkID].linkID = this.workflowUtilService.getLinkRandomUUID();
                 }
 
                 if (link.source.operatorID == copiedOperator.operator.operatorID) {
