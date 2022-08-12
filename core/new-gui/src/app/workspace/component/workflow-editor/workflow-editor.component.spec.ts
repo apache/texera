@@ -30,9 +30,10 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
+import { UserService } from "src/app/common/service/user/user.service";
+import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
-import { expressionType } from "@angular/compiler/src/output/output_ast";
 import { of } from "rxjs";
 
 describe("WorkflowEditorComponent", () => {
@@ -164,6 +165,10 @@ describe("WorkflowEditorComponent", () => {
             {
               provide: OperatorMetadataService,
               useClass: StubOperatorMetadataService,
+            },
+            {
+              provide: UserService,
+              useClass: StubUserService,
             },
             WorkflowStatusService,
             ExecuteWorkflowService,
