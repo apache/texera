@@ -5,6 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -74,6 +75,16 @@ public interface IFile extends Serializable {
      * Getter for <code>texera_db.file.description</code>.
      */
     public String getDescription();
+
+    /**
+     * Setter for <code>texera_db.file.upload_time</code>.
+     */
+    public void setUploadTime(Timestamp value);
+
+    /**
+     * Getter for <code>texera_db.file.upload_time</code>.
+     */
+    public Timestamp getUploadTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
