@@ -17,6 +17,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.scheduling.{
+  WorkflowPipelinedRegionsBuilder,
+  WorkflowScheduler
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
@@ -73,8 +77,6 @@ class Controller(
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
-  val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
-    wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _
 
   def availableNodes: Array[Address] =
@@ -82,68 +84,22 @@ class Controller(
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
       .asInstanceOf[Array[Address]]
 
+  val workflowScheduler =
+    new WorkflowScheduler(
+      availableNodes,
+      networkCommunicationActor,
+      context,
+      asyncRPCClient,
+      logger,
+      workflow
+    )
+
+  val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
+    wire[ControllerAsyncRPCHandlerInitializer]
+
   // register controller itself and client
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
   networkCommunicationActor ! RegisterActorRef(CLIENT, context.parent)
-
-  // build whole workflow
-  workflow.build(availableNodes, networkCommunicationActor, context)
-
-  // bring all workers into a ready state
-  prepareWorkers()
-
-  def prepareWorkers(): Future[Unit] = {
-    Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
-      .flatMap(_ =>
-        Future
-          .collect(
-            // initialize python operator code
-            workflow.getPythonWorkerToOperatorExec.map {
-              case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-                asyncRPCClient.send(
-                  InitializeOperatorLogic(
-                    pythonOperatorExec.getCode,
-                    pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
-                    pythonOperatorExec.getOutputSchema
-                  ),
-                  workerID
-                )
-            }.toSeq
-          )
-          .onFailure((err: Throwable) => {
-            logger.error("Failure when sending Python UDF code", err)
-            // report error to frontend
-            asyncRPCClient.sendToClient(FatalError(err))
-          })
-      )
-      .flatMap(_ =>
-        Future.collect(
-          // activate all links
-          workflow.getAllLinks.map { link: LinkStrategy =>
-            asyncRPCClient.send(LinkWorkers(link), CONTROLLER)
-          }.toSeq
-        )
-      )
-      .flatMap(_ =>
-        Future {
-          context.become(running)
-          unstashAll()
-        }
-      )
-      .flatMap(
-        // open all operators
-        _ =>
-          Future.collect(workflow.getAllWorkers.map { workerID =>
-            asyncRPCClient.send(OpenOperator(), workerID)
-          }.toSeq)
-      )
-      .flatMap(_ =>
-        Future {
-          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        }
-      )
-  }
 
   def running: Receive = {
     acceptDirectInvocations orElse {
@@ -192,32 +148,7 @@ class Controller(
     }
   }
 
-  override def receive: Receive = initializing
-
-  def initializing: Receive = {
-    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
-      //process reply messages
-      controlInputPort.handleMessage(
-        this.sender(),
-        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
-        id,
-        from,
-        seqNum,
-        payload
-      )
-    case NetworkMessage(id, WorkflowControlMessage(CONTROLLER, seqNum, payload)) =>
-      //process control messages from self
-      controlInputPort.handleMessage(
-        this.sender(),
-        Constants.unprocessedBatchesCreditLimitPerSender, // Controller is assumed to have enough credits
-        id,
-        CONTROLLER,
-        seqNum,
-        payload
-      )
-    case _ =>
-      stash() //prevent other messages to be executed until initialized
-  }
+  override def receive: Receive = running
 
   override def postStop(): Unit = {
     if (statusUpdateAskHandle != null) {

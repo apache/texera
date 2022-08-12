@@ -25,6 +25,7 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
   private val fakeID = ActorVirtualIdentity("testReceiver")
 
   "tuple producer" should "break batch into tuples and output" in {
+    val allUpstreamLinkIds = Set(linkID1)
     val batchToTupleConverter = wire[BatchToTupleConverter]
     val inputBatch = DataFrame(Array.fill(4)(ITuple(1, 2, 3, 5, "9.8", 7.6)))
     val senderID = ActorVirtualIdentity("testSender")
@@ -42,6 +43,7 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
   }
 
   "tuple producer" should "be aware of upstream change" in {
+    val allUpstreamLinkIds = Set(linkID1, linkID2)
     val batchToTupleConverter = wire[BatchToTupleConverter]
     val inputBatchFromUpstream1 = DataFrame(Array.fill(4)(ITuple(1, 2, 3, 5, "9.8", 7.6)))
     val inputBatchFromUpstream2 = DataFrame(Array.fill(4)(ITuple(2, 3, 4, 5, "6.7", 8.9)))

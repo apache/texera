@@ -13,4 +13,7 @@ class InitializeOperatorLogicHandler(Handler):
         context.dp._operator = operator()
         context.dp._operator.is_source = command.is_source
         context.dp._operator.output_schema = command.output_schema
+        context.batch_to_tuple_converter.update_all_upstream_link_ids(
+            set(command.upstream_link_ids)
+        )
         return None

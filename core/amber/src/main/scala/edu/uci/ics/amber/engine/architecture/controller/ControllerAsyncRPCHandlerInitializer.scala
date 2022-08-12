@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Monitori
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.ControllerInitiateSkewDetection
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowScheduler
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -26,6 +27,7 @@ class ControllerAsyncRPCHandlerInitializer(
     val controlOutputPort: NetworkOutputPort[ControlPayload],
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
+    val scheduler: WorkflowScheduler,
     source: AsyncRPCClient,
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
@@ -47,7 +49,8 @@ class ControllerAsyncRPCHandlerInitializer(
     with ModifyLogicHandler
     with EvaluatePythonExpressionHandler
     with MonitoringHandler
-    with SkewDetectionHandler {
+    with SkewDetectionHandler
+    with StartPipelinedRegionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
 

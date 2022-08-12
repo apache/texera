@@ -89,10 +89,6 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputTupleCount).sum
 
-  def checkStartDependencies(workflow: Workflow): Unit = {
-    //do nothing by default
-  }
-
   def requiresShuffle: Boolean = shuffleType != ShuffleType.NONE
 
   def getRangeShuffleMinAndMax: (Long, Long) = (Long.MinValue, Long.MaxValue)

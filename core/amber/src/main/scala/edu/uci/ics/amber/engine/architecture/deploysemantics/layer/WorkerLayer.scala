@@ -30,7 +30,8 @@ class WorkerLayer(
 ) extends Serializable {
 
   private val startDependencies = mutable.HashSet[LinkIdentity]()
-  var workers: ListMap[ActorVirtualIdentity, WorkerInfo] = _
+  var workers: ListMap[ActorVirtualIdentity, WorkerInfo] =
+    ListMap[ActorVirtualIdentity, WorkerInfo]()
 
   def startAfter(link: LinkIdentity): Unit = {
     startDependencies.add(link)
@@ -44,7 +45,7 @@ class WorkerLayer(
 
   def canStart: Boolean = startDependencies.isEmpty
 
-  def isBuilt: Boolean = workers != null
+  def isBuilt: Boolean = workers.nonEmpty
 
   def identifiers: Array[ActorVirtualIdentity] = workers.values.map(_.id).toArray
 
@@ -57,6 +58,7 @@ class WorkerLayer(
       all: Array[Address],
       parentNetworkCommunicationActorRef: ActorRef,
       context: ActorContext,
+      allUpstreamLinkIds: Set[LinkIdentity],
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
       workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
   ): Unit = {
@@ -70,11 +72,21 @@ class WorkerLayer(
       val ref: ActorRef = context.actorOf(
         if (operatorExecutor.isInstanceOf[PythonUDFOpExecV2]) {
           PythonWorkflowWorker
-            .props(workerId, operatorExecutor, parentNetworkCommunicationActorRef)
+            .props(
+              workerId,
+              operatorExecutor,
+              parentNetworkCommunicationActorRef,
+              allUpstreamLinkIds
+            )
             .withDeploy(Deploy(scope = RemoteScope(address)))
         } else {
           WorkflowWorker
-            .props(workerId, operatorExecutor, parentNetworkCommunicationActorRef)
+            .props(
+              workerId,
+              operatorExecutor,
+              parentNetworkCommunicationActorRef,
+              allUpstreamLinkIds
+            )
             .withDeploy(Deploy(scope = RemoteScope(address)))
         }
       )

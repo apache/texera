@@ -17,13 +17,6 @@ class WorkerState(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
-class WorkerStatistics(betterproto.Message):
-    worker_state: "WorkerState" = betterproto.enum_field(1)
-    input_tuple_count: int = betterproto.int64_field(2)
-    output_tuple_count: int = betterproto.int64_field(3)
-
-
-@dataclass(eq=False, repr=False)
 class Loads(betterproto.Message):
     worker: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
     load: List[int] = betterproto.int64_field(2)
@@ -49,42 +42,10 @@ class SelfWorkloadReturn(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CurrentInputTupleInfo(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class ControlException(betterproto.Message):
-    msg: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class TypedValue(betterproto.Message):
-    expression: str = betterproto.string_field(1)
-    value_ref: str = betterproto.string_field(2)
-    value_str: str = betterproto.string_field(3)
-    value_type: str = betterproto.string_field(4)
-    expandable: bool = betterproto.bool_field(5)
-
-
-@dataclass(eq=False, repr=False)
-class EvaluatedValue(betterproto.Message):
-    value: "TypedValue" = betterproto.message_field(1)
-    attributes: List["TypedValue"] = betterproto.message_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class ControlReturnV2(betterproto.Message):
-    control_exception: "ControlException" = betterproto.message_field(1, group="value")
-    worker_statistics: "WorkerStatistics" = betterproto.message_field(2, group="value")
-    worker_state: "WorkerState" = betterproto.enum_field(3, group="value")
-    current_input_tuple_info: "CurrentInputTupleInfo" = betterproto.message_field(
-        4, group="value"
-    )
-    evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")
-    self_workload_return: "SelfWorkloadReturn" = betterproto.message_field(
-        6, group="value"
-    )
+class WorkerStatistics(betterproto.Message):
+    worker_state: "WorkerState" = betterproto.enum_field(1)
+    input_tuple_count: int = betterproto.int64_field(2)
+    output_tuple_count: int = betterproto.int64_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -142,9 +103,10 @@ class LocalOperatorExceptionV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
-    is_source: bool = betterproto.bool_field(2)
+    upstream_link_ids: List["__common__.LinkIdentity"] = betterproto.message_field(2)
+    is_source: bool = betterproto.bool_field(3)
     output_schema: Dict[str, str] = betterproto.map_field(
-        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        4, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 
@@ -221,6 +183,45 @@ class ControlCommandV2(betterproto.Message):
     )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
+    )
+
+
+@dataclass(eq=False, repr=False)
+class CurrentInputTupleInfo(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class ControlException(betterproto.Message):
+    msg: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class TypedValue(betterproto.Message):
+    expression: str = betterproto.string_field(1)
+    value_ref: str = betterproto.string_field(2)
+    value_str: str = betterproto.string_field(3)
+    value_type: str = betterproto.string_field(4)
+    expandable: bool = betterproto.bool_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class EvaluatedValue(betterproto.Message):
+    value: "TypedValue" = betterproto.message_field(1)
+    attributes: List["TypedValue"] = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class ControlReturnV2(betterproto.Message):
+    control_exception: "ControlException" = betterproto.message_field(1, group="value")
+    worker_statistics: "WorkerStatistics" = betterproto.message_field(2, group="value")
+    worker_state: "WorkerState" = betterproto.enum_field(3, group="value")
+    current_input_tuple_info: "CurrentInputTupleInfo" = betterproto.message_field(
+        4, group="value"
+    )
+    evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")
+    self_workload_return: "SelfWorkloadReturn" = betterproto.message_field(
+        6, group="value"
     )
 
 

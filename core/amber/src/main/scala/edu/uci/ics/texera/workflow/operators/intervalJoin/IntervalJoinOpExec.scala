@@ -23,7 +23,8 @@ import scala.collection.mutable.ListBuffer
   */
 class IntervalJoinOpExec(
     val operatorSchemaInfo: OperatorSchemaInfo,
-    val desc: IntervalJoinOpDesc
+    val desc: IntervalJoinOpDesc,
+    val leftInputLink: LinkIdentity
 ) extends OperatorExecutor {
 
   val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
@@ -39,7 +40,7 @@ class IntervalJoinOpExec(
   ): Iterator[Tuple] = {
     tuple match {
       case Left(currentTuple) =>
-        if (input == desc.leftInputLink) {
+        if (input == leftInputLink) {
           leftTable += currentTuple
           if (rightTable.nonEmpty) {
             removeTooSmallTupleInRightCache(leftTable.head)

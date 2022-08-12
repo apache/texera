@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity,
@@ -123,7 +124,16 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
       outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
 
-    new Workflow(workflowId, amberOperators, outLinksImmutable)
+    val pipelinedRegionsDAG =
+      new WorkflowPipelinedRegionsBuilder(workflowId, amberOperators, outLinksImmutable)
+        .buildPipelinedRegions()
+
+    new Workflow(
+      workflowId,
+      amberOperators,
+      outLinksImmutable,
+      pipelinedRegionsDAG
+    )
   }
 
   def propagateWorkflowSchema(): Map[OperatorDescriptor, List[Option[Schema]]] = {

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
@@ -16,7 +16,7 @@ trait UpdateInputLinkingHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: UpdateInputLinking, sender) =>
-    stateManager.assertState(READY)
+    stateManager.assertState(READY, RUNNING, PAUSED)
     batchToTupleConverter.registerInput(msg.identifier, msg.inputLink)
   }
 

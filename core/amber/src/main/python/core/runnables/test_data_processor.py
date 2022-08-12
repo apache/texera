@@ -145,10 +145,13 @@ class TestDataProcessor:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
-    def data_processor(self, input_queue, output_queue, mock_udf):
+    def data_processor(self, input_queue, output_queue, mock_udf, mock_link):
         data_processor = DataProcessor(input_queue, output_queue)
         # mock the operator binding
         data_processor._operator = mock_udf
+        data_processor.context.batch_to_tuple_converter.update_all_upstream_link_ids(
+            {mock_link}
+        )
         data_processor._operator.output_schema = {
             "test-1": "string",
             "test-2": "integer",

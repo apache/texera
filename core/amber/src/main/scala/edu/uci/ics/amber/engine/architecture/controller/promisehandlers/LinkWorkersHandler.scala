@@ -30,6 +30,7 @@ trait LinkWorkersHandler {
             send(UpdateInputLinking(from, msg.link.id), _)
           )
       }
+
       Future.collect(futures.toSeq).map { _ =>
         // returns when all has completed
 

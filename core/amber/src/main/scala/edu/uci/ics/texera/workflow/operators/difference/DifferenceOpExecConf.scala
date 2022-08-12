@@ -6,21 +6,26 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.Us
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 class DifferenceOpExecConf[K](
     id: OperatorIdentity
 ) extends OpExecConfig(id) {
+  def getRightLink(): LinkIdentity =
+    inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == 1 }).get._1
 
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new WorkerLayer(
           makeLayer(id, "main"),
-          null,
+          _ => new DifferenceOpExec(getRightLink()),
           Constants.currentWorkerNum,
           UseAll(),
           RoundRobinDeployment()
@@ -28,11 +33,6 @@ class DifferenceOpExecConf[K](
       ),
       Array()
     )
-  }
-
-  override def checkStartDependencies(workflow: Workflow): Unit = {
-    val rightLink = inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == 1 }).get._1
-    topology.layers.head.initIOperatorExecutor = _ => new DifferenceOpExec(rightLink)
   }
 
   override def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {

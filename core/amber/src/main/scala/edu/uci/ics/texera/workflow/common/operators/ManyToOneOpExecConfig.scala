@@ -5,13 +5,19 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{makeLayer, toOperatorIdentity}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class ManyToOneOpExecConfig(
     override val id: OperatorIdentity,
@@ -34,23 +40,29 @@ class ManyToOneOpExecConfig(
     )
   }
 
-  override def checkStartDependencies(workflow: Workflow): Unit = {
-    // Map[depender -> dependee]
-    // example: 1 -> 0 means port 1 depends on port 0, so that it needs to wait until port 0 finishes.
-    for ((dependerOrdinal, dependeeOrdinal) <- dependency) {
-      val dependeeLink =
-        inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == dependeeOrdinal }).get._1
-      val dependerLink =
-        inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == dependerOrdinal }).get._1
-      workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { dependerSource =>
-        val opId = workflow.getOperator(dependeeLink.from.operator).id
-        workflow.getSources(opId).foreach { dependeeSource =>
-          if (dependerSource != dependeeSource) {
-            workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
-          }
-        }
+  override def isInputBlocking(input: LinkIdentity): Boolean = {
+    dependency.values.toList.contains(inputToOrdinalMapping(input)._1)
+  }
+
+  override def getInputProcessingOrder(): Array[LinkIdentity] = {
+    val dependencyDag = new DirectedAcyclicGraph[LinkIdentity, DefaultEdge](classOf[DefaultEdge])
+    dependency.foreach(dep => {
+      val prevInOrder = inputToOrdinalMapping.find(pair => pair._2._1 == dep._2).get._1
+      val nextInOrder = inputToOrdinalMapping.find(pair => pair._2._1 == dep._1).get._1
+      if (!dependencyDag.containsVertex(prevInOrder)) {
+        dependencyDag.addVertex(prevInOrder)
       }
+      if (!dependencyDag.containsVertex(nextInOrder)) {
+        dependencyDag.addVertex(nextInOrder)
+      }
+      dependencyDag.addEdge(prevInOrder, nextInOrder)
+    })
+    val topologicalIterator = new TopologicalOrderIterator[LinkIdentity, DefaultEdge](dependencyDag)
+    val processingOrder = new ArrayBuffer[LinkIdentity]()
+    while (topologicalIterator.hasNext) {
+      processingOrder.append(topologicalIterator.next())
     }
+    processingOrder.toArray
   }
 
   override def assignBreakpoint(

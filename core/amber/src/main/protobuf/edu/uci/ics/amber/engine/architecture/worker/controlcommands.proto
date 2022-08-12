@@ -45,8 +45,9 @@ message LocalOperatorExceptionV2 {
 
 message InitializeOperatorLogicV2 {
     string code = 1;
-    bool is_source = 2;
-    map<string, string> output_schema = 3;
+    repeated common.LinkIdentity upstreamLinkIds = 2;
+    bool is_source = 3;
+    map<string, string> output_schema = 4;
 }
 
 message ModifyOperatorLogicV2 {
@@ -86,7 +87,7 @@ message ControlCommandV2 {
 
         LocalOperatorExceptionV2 local_operator_exception = 8;
 
-        OpenOperatorV2 open_operator= 9;
+        OpenOperatorV2 open_operator = 9;
         LinkCompletedV2 link_completed = 10;
 
         InitializeOperatorLogicV2 initialize_operator_logic = 21;
@@ -101,5 +102,4 @@ message ControlCommandV2 {
     }
 
 }
-
 

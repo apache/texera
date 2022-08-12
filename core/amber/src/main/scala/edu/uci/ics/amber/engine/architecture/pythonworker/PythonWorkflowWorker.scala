@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, ISourceOpe
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.Utils
 
@@ -23,16 +23,23 @@ object PythonWorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       op: IOperatorExecutor,
-      parentNetworkCommunicationActorRef: ActorRef
+      parentNetworkCommunicationActorRef: ActorRef,
+      allUpstreamLinkIds: Set[LinkIdentity]
   ): Props =
-    Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef))
+    Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
 }
 
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
-    parentNetworkCommunicationActorRef: ActorRef
-) extends WorkflowWorker(actorId, operator, parentNetworkCommunicationActorRef) {
+    parentNetworkCommunicationActorRef: ActorRef,
+    allUpstreamLinkIds: Set[LinkIdentity]
+) extends WorkflowWorker(
+      actorId,
+      operator,
+      parentNetworkCommunicationActorRef,
+      allUpstreamLinkIds
+    ) {
 
   // Input/Output port used in between Python and Java processes.
   private lazy val inputPortNum: Int = getFreeLocalPort
