@@ -107,6 +107,7 @@ import { NzModalCommentBoxComponent } from "./workspace/component/workflow-edito
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
+import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 
 registerLocaleData(en);
 
@@ -229,6 +230,7 @@ registerLocaleData(en);
     NzPaginationModule,
     NzCommentModule,
     ColorPickerModule,
+    NzCheckboxModule,
   ],
   providers: [
     DatePipe,

@@ -32,8 +32,17 @@
       >
         <i nz-icon nzTheme="outline" nzType="file-add"></i>
       </button>
+      <button
+        (click)="onClickOpenDownloadZip()"
+        nz-button
+        nz-tooltip="Download added workflow as a ZIP file"
+        nzTooltipPlacement="bottom"
+        type="button"
+      >
+        <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
+      </button>
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
-        <button nz-button nz-tooltip="Upload JSON file as workflow" nzTooltipPlacement="bottom" type="button">
+        <button nz-button nz-tooltip="Upload workflow from a ZIP file" nzTooltipPlacement="bottom" type="button">
           <i nz-icon nzType="cloud-upload" nzTheme="outline"></i>
         </button>
       </nz-upload>
@@ -313,15 +322,15 @@
             </nz-list-item-action>
             <nz-list-item-action>
               <button
-                (click)="onClickDownloadWorkfllow(dashboardWorkflowEntry)"
+                (click)="onClickAddToDownload(dashboardWorkflowEntry)"
                 nz-button
-                nz-tooltip="Download the workflow {{
+                nz-tooltip="Add {{
 								dashboardWorkflowEntry.workflow.name
-							}}"
+							  }} for pending download"
                 nzTooltipPlacement="bottom"
                 type="button"
               >
-                <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
+                <i nz-icon nzType="export" nzTheme="outline"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>

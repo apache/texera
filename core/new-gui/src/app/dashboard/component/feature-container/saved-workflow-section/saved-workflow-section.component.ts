@@ -23,6 +23,7 @@ import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.compone
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
+import * as JSZip from "jszip";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -74,6 +75,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
+  public downloadListWorkflow: number[] = [];
+  public zip = new JSZip();
 
   constructor(
     private userService: UserService,
@@ -122,27 +125,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     modalRef.componentInstance.workflowName = workflow.name;
   }
 
-  /**
-   * Download the workflow as a json file
-   */
-  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    if (wid) {
-      this.workflowPersistService
-        .retrieveWorkflow(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(data => {
-          const workflowCopy: Workflow = {
-            ...data,
-            wid: undefined,
-            creationTime: undefined,
-            lastModifiedTime: undefined,
-          };
-          const workflowJson = JSON.stringify(workflowCopy.content);
-          const fileName = workflowCopy.name + ".json";
-          saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
-        });
-    }
-  }
 
   /**
    * open the Modal to add workflow(s) to project
@@ -172,6 +154,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         this.updateDashboardWorkflowEntryCache(result);
       }
     });
+  }
+
+  public onClickOpenDownloadZip() {
+    this.zip.generateAsync({ type: "blob" }).then(function (content) {
+      saveAs(content, "myWorkflow.zip");
+    });
+    this.zip = new JSZip();
   }
 
   public searchInputOnChange(value: string): void {
@@ -297,43 +286,60 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Verify Uploaded file name and upload the file
    */
   public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
-    var reader = new FileReader();
-    reader.readAsText(file as unknown as Blob);
-    reader.onload = () => {
-      try {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          throw new Error("Incorrect format: file is not a string");
-        }
-        const workflowContent = JSON.parse(result) as WorkflowContent;
-        const fileExtensionIndex = file.name.lastIndexOf(".");
-        var workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = file.name;
-        } else {
-          workflowName = file.name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
-        }
-        this.workflowPersistService
-          .createWorkflow(workflowContent, workflowName)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: uploadedWorkflow => {
-              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
-            },
-            error: (err: unknown) => alert(err),
-          });
-      } catch (error) {
-        this.notificationService.error(
-          "An error occurred when importing the workflow. Please import a workflow json file."
-        );
-        console.error(error);
-      }
-    };
+    const fileExtensionIndex = file.name.lastIndexOf(".");
+    if (file.name.substring(fileExtensionIndex) == ".zip") {
+      this.handleZipUploads(file);
+    } else {
+      this.notificationService.error("Only zip file are accepted.");
+    }
     return false;
   };
+
+  private handleZipUploads(file: NzUploadFile) {
+    let zip = new JSZip();
+    // console.log(zip.files);
+    zip.loadAsync(file as unknown as Blob).then(zip => {
+      zip.forEach((relativePath, file) => {
+        file.async("blob").then(content => {
+          var reader = new FileReader();
+          reader.readAsText(content as unknown as Blob);
+          reader.onload = () => {
+            try {
+              const result = reader.result;
+              if (typeof result !== "string") {
+                throw new Error("Incorrect format: file is not a string");
+              }
+              const workflowContent = JSON.parse(result) as WorkflowContent;
+              const fileExtensionIndex = file.name.lastIndexOf(".");
+              var workflowName: string;
+              if (fileExtensionIndex === -1) {
+                workflowName = file.name;
+              } else {
+                workflowName = file.name.substring(0, fileExtensionIndex);
+              }
+              if (workflowName.trim() === "") {
+                workflowName = DEFAULT_WORKFLOW_NAME;
+              }
+              this.workflowPersistService
+                .createWorkflow(workflowContent, workflowName)
+                .pipe(untilDestroyed(this))
+                .subscribe({
+                  next: uploadedWorkflow => {
+                    this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
+                  },
+                  error: (err: unknown) => alert(err),
+                });
+            } catch (error) {
+              this.notificationService.error(
+                "An error occurred when importing the workflow. Please import a workflow json file."
+              );
+              console.error(error);
+            }
+          };
+        });
+      });
+    });
+  }
 
   /**
    * duplicate the current workflow. A new record will appear in frontend
@@ -378,6 +384,32 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     }
   }
 
+  public onClickAddToDownload({ workflow }: DashboardWorkflowEntry) {
+    if (workflow.wid) {
+      if (!this.downloadListWorkflow.includes(workflow.wid)) {
+        this.downloadListWorkflow.push(workflow.wid);
+        this.notificationService.success("Successfully add workflow " + workflow.wid + " to download list.");
+      } else {
+        this.notificationService.info("Workflow " + workflow.wid + " is in download list.");
+      }
+      this.workflowPersistService
+        .retrieveWorkflow(workflow.wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(data => {
+          const workflowCopy: Workflow = {
+            ...data,
+            wid: undefined,
+            creationTime: undefined,
+            lastModifiedTime: undefined,
+          };
+          const workflowJson = JSON.stringify(workflowCopy.content);
+          const fileName = workflowCopy.name + ".json" + workflow.wid;
+          this.zip.file(fileName, workflowJson);
+        });
+    }
+    console.log(this.zip);
+  }
+
   /**
    * openNgbdModalDeleteWorkflowComponent trigger the delete workflow
    * component. If user confirms the deletion, the method sends
@@ -388,7 +420,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     const modalRef = this.modalService.open(DeletePromptComponent);
     modalRef.componentInstance.deletionType = "workflow";
     modalRef.componentInstance.deletionName = workflow.name;
-
     from(modalRef.result)
       .pipe(untilDestroyed(this))
       .subscribe((confirmToDelete: boolean) => {
