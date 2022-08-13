@@ -389,8 +389,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       if (!this.downloadListWorkflow.includes(workflow.wid)) {
         this.downloadListWorkflow.push(workflow.wid);
         this.notificationService.success("Successfully add workflow " + workflow.wid + " to download list.");
-      } else {
-        this.notificationService.info("Workflow " + workflow.wid + " is in download list.");
       }
       this.workflowPersistService
         .retrieveWorkflow(workflow.wid)
