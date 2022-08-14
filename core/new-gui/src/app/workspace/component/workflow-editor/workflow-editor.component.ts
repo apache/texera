@@ -46,14 +46,36 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
 // - pastedOperators: a list of operators that are created out of the original operator,
 //   including the operator itself.
 type CopiedOperator = {
+  operatorID: string,
   operator: OperatorPredicate;
   position: Point;
   layer: number;
   pastedOperatorIDs: string[];
 };
 
-type copiedOperatorIndexedByID = {
-  [key: string]: CopiedOperator;
+type OperatorsAndPositions = {
+  [key: string]: Point;
+}
+
+type Link = {
+  linkID: string;
+  source: { operatorID: string; portID: string };
+  target: { operatorID: string; portID: string };
+};
+
+// this type associates the old link ID with the new link
+type LinkWithID = {
+  [key: string]: Link;
+};
+
+// This type represents what the serialized string in the clipboard should look like
+type SerializedString = {
+  operators: CopiedOperator[];
+  operatorsAndPositions: OperatorsAndPositions[];
+  links: Link[];
+  groups: [];
+  breakpoints: [];
+  commentBoxes: [];
 };
 
 type CopiedGroup = {
@@ -62,15 +84,7 @@ type CopiedGroup = {
   pastedGroupIDs: string[];
 };
 
-type Link = {
-  linkID: string;
-  source: { operatorID: string; portID: string };
-  target: { operatorID: string; portID: string };
-};
 
-type LinkWithID = {
-  [key: string]: Link;
-};
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -1244,13 +1258,19 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private saveHighlightedElements(): void {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     // const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
-    // copiedOps contains all the highlighted operators that are being copied
-    const copiedOps: copiedOperatorIndexedByID = {};
+    // initialize the serialized string
+    const serializedString: SerializedString = {
+      operators: [],
+      operatorsAndPositions: [],
+      links: [],
+      groups: [],
+      breakpoints: [],
+      commentBoxes: [],
+    };
+    // copiedOps contains all the highlighted operators' info that are being copied
+    const copiedOps: CopiedOperator[] = [];
     highlightedOperatorIDs.forEach(operatorID => {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-      const inputPorts = operator.inputPorts;
-      const outputPorts = operator.outputPorts;
 
       if (operator) {
         const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(operatorID);
@@ -1258,12 +1278,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const includeOperator = false;
         const pastedOperators = includeOperator ? [operatorID] : [];
         const copiedOp = {
+          operatorID,
           operator,
           position,
           layer,
           pastedOperatorIDs: pastedOperators,
         };
-        copiedOps[operatorID] = copiedOp;
+        // add the newly copied operator to the json array
+        copiedOps.push(copiedOp);
 
         // // previous way of copying
         // this.copiedOperators.set(operatorID, {
@@ -1274,12 +1296,34 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         // });
       }
     });
+    // set "operators" properties to copiedOps, which is an array containing all the operators' info,
+    // in the serialized string that will end up being in the clipboard
+    serializedString.operators = copiedOps;
+
+    // to get only the links that are being copied, first get all the links and filter them based on their
+    // source and target operators
+    const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
+    // links to be copied are all the links between every two operators that are copied
+    const linksToBeCopied: OperatorLink[] = allLinks.filter(link => {
+      for (let sourceOperator of Object.values(copiedOps)) {
+        if (sourceOperator.operator.operatorID == link.source.operatorID) {
+          // iterate through all the operators except for the current source operator
+          for (let targetOperator of Object.values(copiedOps).filter(each => each != sourceOperator)) {
+            if (targetOperator.operator.operatorID == link.target.operatorID) {
+              return true;
+            }
+          }
+        }
+      }
+    });
+    serializedString.links = linksToBeCopied;
+
     /**
      * store the stringified copied operators into the clipboard, which is the preferred way to copy
      * over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the
      * WorkflowEditorComponent class)
      */
-    navigator.clipboard.writeText(JSON.stringify(copiedOps)).catch(() => {
+    navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
       // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
       // although if the current tab is active, permission shouldn't be needed
       alert("Copy failed. You don't have the permission to write to the clipboard.");
@@ -1300,20 +1344,20 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * @param operatorID
    * @param includeOperator
    */
-  private saveOperatorInfo(operatorID: string, includeOperator: boolean): void {
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    if (operator) {
-      const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(operatorID);
-      const layer = this.workflowActionService.getJointGraphWrapper().getCellLayer(operatorID);
-      const pastedOperators = includeOperator ? [operatorID] : [];
-      this.copiedOperators.set(operatorID, {
-        operator,
-        position,
-        layer,
-        pastedOperatorIDs: pastedOperators,
-      });
-    }
-  }
+  // private saveOperatorInfo(operatorID: string, includeOperator: boolean): void {
+  //   const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+  //   if (operator) {
+  //     const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(operatorID);
+  //     const layer = this.workflowActionService.getJointGraphWrapper().getCellLayer(operatorID);
+  //     const pastedOperators = includeOperator ? [operatorID] : [];
+  //     this.copiedOperators.set(operatorID, {
+  //       operator,
+  //       position,
+  //       layer,
+  //       pastedOperatorIDs: pastedOperators,
+  //     });
+  //   }
+  // }
 
   /**
    * removes operator from copiedOperators
@@ -1351,144 +1395,147 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         navigator.clipboard.readText().then(text => {
           try {
             // convert the JSON string in the system clipboard to a JS Map
-            var operatorsInClipboard: Map<string, CopiedOperator> = new Map(Object.entries(JSON.parse(text)));
-            // define the arguments required for actually adding operators and links
-            const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-            let links: OperatorLink[];
-            const groups: Group[] = [];
-            const positions: Point[] = [];
-
-            // get all links to check which ones are connected to the operators that are copied
-            const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
-            const linksToBeCopied: OperatorLink[] = allLinks.filter(link => {
-              for (let sourceOperator of operatorsInClipboard.values()) {
-                if (sourceOperator.operator.operatorID == link.source.operatorID) {
-                  for (let targetOperator of Array.from(operatorsInClipboard.values()).filter(
-                    each => each != sourceOperator
-                  )) {
-                    if (targetOperator.operator.operatorID == link.target.operatorID) {
-                      return true;
-                    }
-                  }
-                }
-              }
-            });
-
-            console.log("links to be copied:", linksToBeCopied);
-
-            // sort all the copied operators by layer
-            // lower operator will be placed at the front
-            var copiedOps = new Map<string, CopiedOperator>(
-              Array.from(operatorsInClipboard).sort((first, second) => first[1].layer - second[1].layer)
-            );
-            // make copies of each operator, and calculate their positions when pasted
-            // this.copiedOperators.forEach((copiedOperator, operatorID) => {
-            //   const newOperator = this.copyOperator(copiedOperator.operator);
-            //   const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
-            //   operatorsAndPositions.push({
-            //     op: newOperator,
-            //     pos: newOperatorPosition,
-            //   });
-            //   positions.push(newOperatorPosition);
-            // });
-
-            let linksCopy: LinkWithID = {};
-            // forEach syntax: Map.forEach((value) => { ... })
-            copiedOps.forEach(copiedOperator => {
-              // copyOperator assigns a new randomly generated operator ID to the new operator
-              const newOperator = this.copyOperator(copiedOperator.operator);
-
-              for (let link of linksToBeCopied) {
-                if (linksCopy[link.linkID] == undefined) {
-                  // first check if the link ID already exists in linksCopy, if not, assign a dummy object
-                  // to it to avoid type error: cannot set properties of undefined
-                  linksCopy[link.linkID] = {
-                    linkID: "",
-                    source: { operatorID: "", portID: "" },
-                    target: { operatorID: "", portID: "" },
-                  };
-                } else {
-                  // if current link is never added to the linksCopy, generate a random link ID for that link
-                  linksCopy[link.linkID].linkID = this.workflowUtilService.getLinkRandomUUID();
-                }
-
-                if (link.source.operatorID == copiedOperator.operator.operatorID) {
-                  // if current copied operator is the source operator of current link, we assign the
-                  // new operator ID to be the source operator for the current link, and the port ID should
-                  // remain unchanged
-                  const source = {
-                    operatorID: newOperator.operatorID,
-                    portID: link.source.portID,
-                  };
-                  linksCopy[link.linkID].source = source;
-                  console.log("in source: linksCopy:", linksCopy);
-                } else if (link.target.operatorID == copiedOperator.operator.operatorID) {
-                  // if current copied operator is the target operator of current link, we assign the
-                  // new operator ID to be the target operator for the current link, and the port ID should
-                  // remain unchanged
-                  const target = {
-                    operatorID: newOperator.operatorID,
-                    portID: link.target.portID,
-                  };
-                  linksCopy[link.linkID].target = target;
-                  console.log("in target: linksCopy:", linksCopy);
-                }
-              }
-
-              // calculate the new positions for the pasted operators
-              const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, copiedOperator, positions);
-              operatorsAndPositions.push({
-                op: newOperator,
-                pos: newOperatorPosition,
-              });
-              // console.log("the operator's ID is: ", operatorsAndPositions[0].op.operatorID);
-              positions.push(newOperatorPosition);
-            });
-
-            links = Object.values(linksCopy);
-            console.log("links: ", links);
-
-            // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
-            // this.copiedGroups.forEach((copiedGroup, groupID) => {
-            //   const newGroup = this.copyGroup(copiedGroup.group);
-
-            //   const oldPosition = copiedGroup.position;
-            //   const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
-            //   positions.push(newPosition);
-
-            //   // delta between old position and new to apply to the copied group's operators
-            //   const delta = {
-            //     x: newPosition.x - oldPosition.x,
-            //     y: newPosition.y - oldPosition.y,
-            //   };
-
-            //   newGroup.operators.forEach((operatorInfo, operatorID) => {
-            //     operatorInfo.position.x += delta.x;
-            //     operatorInfo.position.y += delta.x;
-
-            //     operatorsAndPositions.push({
-            //       op: operatorInfo.operator,
-            //       pos: operatorInfo.position,
-            //     });
-            //   });
-
-            //   // add links from group to list of all links to be added
-            //   newGroup.links.forEach((linkInfo, operatorID) => {
-            //     links.push(linkInfo.link);
-            //   });
-
-            //   // add group to list of all groups to be added
-            //   groups.push(newGroup);
-            // });
-
-            // actually add all operators, links, groups to the workflow
-            this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
+            var operatorsInClipboard: Map<string, []> = new Map(Object.entries(JSON.parse(text)));
+            // check if the fields in a normal serialized string exist after converting the JSON string
+            // if not, throw an error, which is propagated and produces an alert for the user 
+            if (!operatorsInClipboard.has("operators") && !operatorsInClipboard.has("operatorsAndPositions") && !operatorsInClipboard.has("links") && !operatorsInClipboard.has("groups") && !operatorsInClipboard.has("breakpoints") && !operatorsInClipboard.has("commentBoxes")) {
+              throw new Error("You haven't copied any operators yet!");
+            }
           } catch (e) {
             // if the text in the clipboard is not a JSON object, then it means the user
             // hasn't copied an operator
             alert("You haven't copied any operator yet");
+            return;
           }
-          //
+
+          // define the arguments required for actually adding operators and links
+          const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+          let links: Link[] = [];
+          const groups: Group[] = [];
+          const positions: Point[] = [];
+          // calling get() will give either the value or undefined
+          // at this point, after checking the existence of fields in the operators in the clipboard, 
+          // "links" should exist
+          const linksInClipboard: OperatorLink[] = operatorsInClipboard.get("links") as OperatorLink[];
+          console.log("links in clipboard:", linksInClipboard);
+
+          // get all links to check which ones are connected to the operators that are copied
+          // const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
+          // const linksToBeCopied: OperatorLink[] = allLinks.filter(link => {
+          //   for (let sourceOperator of operatorsInClipboard.values()) {
+          //     if (sourceOperator.operator.operatorID == link.source.operatorID) {
+          //       for (let targetOperator of Array.from(operatorsInClipboard.values()).filter(
+          //         each => each != sourceOperator
+          //       )) {
+          //         if (targetOperator.operator.operatorID == link.target.operatorID) {
+          //           return true;
+          //         }
+          //       }
+          //     }
+          //   }
+          // });
+
+          // console.log("links to be copied:", linksToBeCopied);
+
+          // sort all the copied operators by layer
+          // lower operator will be placed at the front
+          // var copiedOps = new Map<string, []>(
+          //   Array.from(operatorsInClipboard).sort((first, second) => first[1].layer - second[1].layer)
+          // );
+          let copiedOps: CopiedOperator[] = operatorsInClipboard.get("operators") as CopiedOperator[];
+          copiedOps.sort((first, second) => first.layer - second.layer);
+          
+          // forEach syntax: Map.forEach((value) => { ... })
+          let linksCopy: LinkWithID = {};
+          copiedOps.forEach(copiedOperator => {
+            // copyOperator assigns a new randomly generated operator ID to the new operator
+            const newOperator = this.copyOperator(copiedOperator.operator);
+
+            for (let link of linksInClipboard) {
+              if (linksCopy[link.linkID] == undefined) {
+                // first check if the link ID already exists in linksCopy, if not, assign a dummy object
+                // to it to avoid type error: cannot set properties of undefined
+                linksCopy[link.linkID] = {
+                  linkID: "",
+                  source: { operatorID: "", portID: "" },
+                  target: { operatorID: "", portID: "" },
+                };
+              } else {
+                // if current link is never added to the linksCopy, generate a random link ID for that link
+                linksCopy[link.linkID].linkID = this.workflowUtilService.getLinkRandomUUID();
+              }
+
+              if (link.source.operatorID == copiedOperator.operator.operatorID) {
+                // if current copied operator is the source operator of current link, we assign the
+                // new operator ID to be the source operator for the current link, and the port ID should
+                // remain unchanged
+                const source = {
+                  operatorID: newOperator.operatorID,
+                  portID: link.source.portID,
+                };
+                linksCopy[link.linkID].source = source;
+              } else if (link.target.operatorID == copiedOperator.operator.operatorID) {
+                // if current copied operator is the target operator of current link, we assign the
+                // new operator ID to be the target operator for the current link, and the port ID should
+                // remain unchanged
+                const target = {
+                  operatorID: newOperator.operatorID,
+                  portID: link.target.portID,
+                };
+                linksCopy[link.linkID].target = target;
+              }
+            }
+
+            // calculate the new positions for the pasted operators
+            const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, copiedOperator, positions);
+            operatorsAndPositions.push({
+              op: newOperator,
+              pos: newOperatorPosition,
+            });
+            // console.log("the operator's ID is: ", operatorsAndPositions[0].op.operatorID);
+            positions.push(newOperatorPosition);
+          });
+
+          links = Object.values(linksCopy);
+
+
+          // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
+          // this.copiedGroups.forEach((copiedGroup, groupID) => {
+          //   const newGroup = this.copyGroup(copiedGroup.group);
+
+          //   const oldPosition = copiedGroup.position;
+          //   const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
+          //   positions.push(newPosition);
+
+          //   // delta between old position and new to apply to the copied group's operators
+          //   const delta = {
+          //     x: newPosition.x - oldPosition.x,
+          //     y: newPosition.y - oldPosition.y,
+          //   };
+
+          //   newGroup.operators.forEach((operatorInfo, operatorID) => {
+          //     operatorInfo.position.x += delta.x;
+          //     operatorInfo.position.y += delta.x;
+
+          //     operatorsAndPositions.push({
+          //       op: operatorInfo.operator,
+          //       pos: operatorInfo.position,
+          //     });
+          //   });
+
+          //   // add links from group to list of all links to be added
+          //   newGroup.links.forEach((linkInfo, operatorID) => {
+          //     links.push(linkInfo.link);
+          //   });
+
+          //   // add group to list of all groups to be added
+          //   groups.push(newGroup);
+          // });
+
+          // actually add all operators, links, groups to the workflow
+          console.log("operators and positions:", operatorsAndPositions);
+          console.log("links: ", links);
+          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
         });
       });
   }
