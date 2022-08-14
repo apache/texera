@@ -23,30 +23,6 @@ trait StartPipelinedRegionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: StartPipelinedRegion, sender) =>
-    {
-      if (!scheduler.runningRegions.contains(msg.region)) {
-        Future
-          .collect(
-            workflow
-              .getAllWorkersForOperators(scheduler.getSourcesOfRegion(msg.region))
-              .map(worker =>
-                send(StartWorker(), worker).map(ret =>
-                  // update worker state
-                  workflow.getWorkerInfo(worker).state = ret
-                )
-              )
-          )
-          .map(_ => {
-            scheduler.runningRegions.add(msg.region)
-            if (msg.firstRegion) {
-              enableStatusUpdate()
-              enableMonitoring()
-              enableSkewHandling()
-            }
-          })
-      } else {
-        Future.Unit
-      }
-    }
+    {}
   }
 }
