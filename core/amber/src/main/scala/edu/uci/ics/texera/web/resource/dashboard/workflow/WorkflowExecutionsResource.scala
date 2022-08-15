@@ -24,10 +24,6 @@ object WorkflowExecutionsResource {
     executionsDao.fetchOneByEid(eId)
   }
 
-  def getExecutionByIds(eIds: Array[UInteger]): Array[WorkflowExecutions] = {
-    executionsDao.fetchByEid(eIds)
-  }
-
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
@@ -119,7 +115,6 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    val executions: Array[WorkflowExecutions] = getExecutionByIds(request.eIds)
     if (request.isBookmarked) {
       for (i <- 0 to (request.eIds.length - 1)) {
         val execution: WorkflowExecutions = getExecutionById(request.eIds(i))
