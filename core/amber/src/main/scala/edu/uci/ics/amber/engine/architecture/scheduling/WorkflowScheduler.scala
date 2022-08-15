@@ -276,7 +276,6 @@ class WorkflowScheduler(
             )
         )
         .map(_ => {
-          schedulingPolicy.startedRegions.add(region)
           schedulingPolicy.runningRegions.add(region)
           Future()
         })
@@ -298,7 +297,6 @@ class WorkflowScheduler(
 
   private def constructPrepareAndStart(region: PipelinedRegion): Future[Unit] = {
     println(s"\t\tRegion ${region.getId().pipelineId} started")
-    schedulingPolicy.sentToBeScheduledRegions.add(region)
     constructRegion(region)
     prepareAndStartRegion(region)
   }

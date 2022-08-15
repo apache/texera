@@ -13,6 +13,8 @@ class SingleReadyRegion(workflow: Workflow) extends SchedulingPolicy(workflow) {
     ) {
       val nextRegion = regionsScheduleOrder.head
       regionsScheduleOrder.remove(0)
+      assert(!sentToBeScheduledRegions.contains(nextRegion))
+      sentToBeScheduledRegions.add(nextRegion)
       return Set(nextRegion)
     }
     Set()
