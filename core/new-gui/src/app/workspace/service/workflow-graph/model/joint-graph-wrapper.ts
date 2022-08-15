@@ -12,6 +12,8 @@ import {
   operatorCoeditorEditingBGClass,
   operatorCoeditorEditingClass
 } from "../../joint-ui/joint-ui.service";
+import {dia} from "jointjs/types/joint";
+import Selectors = dia.Cell.Selectors;
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -1095,9 +1097,9 @@ export class JointGraphWrapper {
     }
   }
 
-  setCurrentEditing(coeditor: User, currentEditing: string) {
+  setCurrentEditing(coeditor: User, currentEditing: string): number {
     // Calculate location
-    const statusText = coeditor.name + " is editing properties...";
+    const statusText = coeditor.name + " is viewing/editing...";
     const color = coeditor.color;
     this.getMainJointPaper()?.getModelById(currentEditing).attr({
       [`.${operatorCoeditorEditingClass}`]: {
@@ -1110,9 +1112,36 @@ export class JointGraphWrapper {
         visibility:  "visible"
       }
     });
+    // "Animation"
+    const getCurrentlyEditingText = (): string => {
+      return (this.getMainJointPaper()?.getModelById(currentEditing).attributes.attrs as Selectors)
+        [`.${operatorCoeditorEditingClass}`]?.text as string;
+    };
+    return setInterval(()=> {
+      const currentText = getCurrentlyEditingText();
+      if (currentText.includes(coeditor.name)) {
+        let nextText = "";
+        if (currentText.length === statusText.length) {
+          nextText = coeditor.name + " is viewing/editing.";
+        } else if (currentText.length === statusText.length - 1) {
+          nextText = coeditor.name + " is viewing/editing...";
+        } else if (currentText.length === statusText.length - 2) {
+          nextText = coeditor.name + " is viewing/editing..";
+        }
+        this.getMainJointPaper()?.getModelById(currentEditing).attr({
+          [`.${operatorCoeditorEditingClass}`]: {
+            text: nextText,
+          },
+          [`.${operatorCoeditorEditingBGClass}`]: {
+            text: nextText,
+          }
+        });
+      }
+    }, 300);
   }
 
-  removeCurrentEditing(coeditor: User, previousEditing: string) {
+  removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: number) {
+    clearInterval(intervalId);
     this.getMainJointPaper()?.getModelById(previousEditing).attr({
       [`.${operatorCoeditorEditingClass}`]: {
         text: "",

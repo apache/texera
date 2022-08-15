@@ -26,6 +26,7 @@ export class CoeditorPresenceService {
   private coeditorOperatorHighlights = new Map<string, string[]>();
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorStates = new Map<string, UserState>();
+  private currentlyEditingTimers = new Map<string, number>();
   public shadowingModeEnabled = false;
   public shadowingCoeditor?: User;
   public coeditors: User[] = [];
@@ -119,18 +120,21 @@ export class CoeditorPresenceService {
 
     // Update currently editing status
     const previousEditing = this.coeditorCurrentlyEditing.get(clientId);
+    const previousIntervalId = this.currentlyEditingTimers.get(clientId);
     const currentEditing = coeditorState.currentlyEditing;
     if (previousEditing !== currentEditing) {
-      if (previousEditing) {
-        this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing);
+      if (previousEditing && previousIntervalId && this.workflowActionService.getTexeraGraph().hasOperator(previousEditing)) {
+        this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing, previousIntervalId);
         this.coeditorCurrentlyEditing.delete(clientId);
+        this.currentlyEditingTimers.delete(clientId);
         if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
           this.workflowActionService.unhighlightOperators(previousEditing);
         }
       }
-      if (currentEditing) {
-        this.jointGraphWrapper.setCurrentEditing(coeditorState.user, currentEditing);
+      if (currentEditing && this.workflowActionService.getTexeraGraph().hasOperator(currentEditing)) {
+        const intervalId = this.jointGraphWrapper.setCurrentEditing(coeditorState.user, currentEditing);
         this.coeditorCurrentlyEditing.set(clientId, currentEditing);
+        this.currentlyEditingTimers.set(clientId, intervalId);
         if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
           this.workflowActionService.highlightOperators(false, currentEditing);
         }
