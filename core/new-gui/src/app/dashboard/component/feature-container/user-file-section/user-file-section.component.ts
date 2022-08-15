@@ -3,7 +3,7 @@ import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { DashboardUserFileEntry, UserFile } from "../../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile, SortMethod } from "../../../type/dashboard-user-file-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -11,6 +11,8 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UserProject } from "../../../type/user-project";
 import Fuse from "fuse.js";
+import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
+import { from } from "rxjs";
 
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
@@ -33,7 +35,7 @@ export class UserFileSectionComponent {
   ngOnInit() {
     this.registerDashboardFileEntriesRefresh();
   }
-  // variables for file editing / search
+  // variables for file editing / search / sort
   public dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   public isEditingName: number[] = [];
   public userFileSearchValue: string = "";
@@ -47,6 +49,7 @@ export class UserFileSectionComponent {
     minMatchCharLength: 1,
     keys: ["file.name"],
   });
+  public sortMethod: SortMethod = SortMethod.UploadTimeDesc;
 
   // variables for project color tags
   public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
@@ -83,6 +86,7 @@ export class UserFileSectionComponent {
   }
 
   public getFileArray(): ReadonlyArray<DashboardUserFileEntry> {
+    this.sortFileEntries(); // default sorting
     const fileArray = this.dashboardUserFileEntries;
     if (!fileArray) {
       return [];
@@ -102,13 +106,23 @@ export class UserFileSectionComponent {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe(
-      () => this.refreshDashboardFileEntries(),
-      (err: unknown) => {
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => alert("Can't delete the file entry: " + err.error);
-      }
-    );
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    modalRef.componentInstance.deletionType = "file";
+    modalRef.componentInstance.deletionName = userFileEntry.file.name;
+
+    from(modalRef.result)
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && userFileEntry.file.fid !== undefined) {
+          this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe(
+            () => this.refreshDashboardFileEntries(),
+            (err: unknown) => {
+              // @ts-ignore // TODO: fix this with notification component
+              (err: unknown) => alert("Can't delete the file entry: " + err.error);
+            }
+          );
+        }
+      });
   }
 
   public disableAddButton(): boolean {
@@ -117,6 +131,10 @@ export class UserFileSectionComponent {
 
   public addFileSizeUnit(fileSize: number): string {
     return this.userFileService.addFileSizeUnit(fileSize);
+  }
+
+  public parseTimestampString(timestamp: string): string {
+    return new Date(parseInt(timestamp)).toLocaleString();
   }
 
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
@@ -246,9 +264,33 @@ export class UserFileSectionComponent {
   }
 
   /**
+   * Sort the files according to sortMethod variable
+   */
+  public sortFileEntries(): void {
+    switch (this.sortMethod) {
+      case SortMethod.NameAsc:
+        this.ascSort();
+        break;
+      case SortMethod.NameDesc:
+        this.dscSort();
+        break;
+      case SortMethod.SizeDesc:
+        this.sizeSort();
+        break;
+      case SortMethod.UploadTimeAsc:
+        this.timeSortAsc();
+        break;
+      case SortMethod.UploadTimeDesc:
+        this.timeSortDesc();
+        break;
+    }
+  }
+
+  /**
    * sort the workflow by owner name + file name in ascending order
    */
   public ascSort(): void {
+    this.sortMethod = SortMethod.NameAsc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((t1, t2) =>
@@ -260,6 +302,7 @@ export class UserFileSectionComponent {
    * sort the project by owner name + file name in descending order
    */
   public dscSort(): void {
+    this.sortMethod = SortMethod.NameDesc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((t1, t2) =>
@@ -271,10 +314,39 @@ export class UserFileSectionComponent {
    * sort the project by size in descending order
    */
   public sizeSort(): void {
+    this.sortMethod = SortMethod.SizeDesc;
     this.dashboardUserFileEntries = this.dashboardUserFileEntries
       .slice()
       .sort((left, right) =>
         left.file.size !== undefined && right.file.size !== undefined ? right.file.size - left.file.size : 0
+      );
+  }
+
+  /**
+   * sort the project by upload time in descending order
+   */
+  public timeSortDesc(): void {
+    this.sortMethod = SortMethod.UploadTimeDesc;
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((left, right) =>
+        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
+          ? parseInt(right.file.uploadTime) - parseInt(left.file.uploadTime)
+          : 0
+      );
+  }
+
+  /**
+   * sort the project by upload time in ascending order
+   */
+  public timeSortAsc(): void {
+    this.sortMethod = SortMethod.UploadTimeAsc;
+    this.dashboardUserFileEntries = this.dashboardUserFileEntries
+      .slice()
+      .sort((left, right) =>
+        left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
+          ? parseInt(left.file.uploadTime) - parseInt(right.file.uploadTime)
+          : 0
       );
   }
 }

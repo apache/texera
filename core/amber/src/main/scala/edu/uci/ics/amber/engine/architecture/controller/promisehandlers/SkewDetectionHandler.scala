@@ -246,7 +246,7 @@ object SkewDetectionHandler {
           layer.id != workflow
             .getOperator(opId)
             .asInstanceOf[HashJoinOpExecConfig[Any]]
-            .buildTable
+            .getBuildTableLinkId()
             .from
         )
         .get

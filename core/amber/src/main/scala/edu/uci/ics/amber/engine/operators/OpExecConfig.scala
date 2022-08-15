@@ -89,10 +89,6 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputTupleCount).sum
 
-  def checkStartDependencies(workflow: Workflow): Unit = {
-    //do nothing by default
-  }
-
   def requiresShuffle: Boolean = shuffleType != ShuffleType.NONE
 
   def getRangeShuffleMinAndMax: (Long, Long) = (Long.MinValue, Long.MaxValue)
@@ -104,6 +100,18 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def setOutputToOrdinalMapping(output: LinkIdentity, ordinal: Integer, name: String): Unit = {
     this.outputToOrdinalMapping.update(output, (ordinal, name))
   }
+
+  /**
+    * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
+    * outputs all its tuples
+    */
+  def isInputBlocking(input: LinkIdentity): Boolean = false
+
+  /**
+    * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
+    * processes the build input, then the probe input.
+    */
+  def getInputProcessingOrder(): Array[LinkIdentity] = null
 
   def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 

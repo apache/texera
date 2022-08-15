@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS file
     `name`        VARCHAR(128)                NOT NULL,
     `path`        VARCHAR(512)                NOT NULL,
     `description` VARCHAR(512)                NOT NULL,
+    `upload_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (`uid`, `name`),
     PRIMARY KEY (`fid`),
     FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
@@ -154,6 +155,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `eid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `wid`             INT UNSIGNED NOT NULL,
     `vid`             INT UNSIGNED NOT NULL,
+    `uid`             INT UNSIGNED NOT NULL,
     `status`          TINYINT NOT NULL DEFAULT 1,
     `result`          TEXT, #pointer to volume
     `starting_time`   TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -162,5 +164,6 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `name`				VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
-    FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE
+    FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
     ) ENGINE = INNODB;
