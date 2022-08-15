@@ -39,7 +39,11 @@ object WorkflowExecutionsResource {
 }
 
 case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: Boolean)
-case class ExecutionGroupBookmarkRequest(wid: UInteger, eIds: Array[UInteger], isBookmarked: Boolean)
+case class ExecutionGroupBookmarkRequest(
+    wid: UInteger,
+    eIds: Array[UInteger],
+    isBookmarked: Boolean
+)
 case class ExecutionDeleteRequest(wid: UInteger, eId: UInteger)
 case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
@@ -106,7 +110,7 @@ class WorkflowExecutionsResource {
     executionsDao.update(execution)
   }
 
-    /** Sets a group of executions' bookmarks to the payload passed in the body. */
+  /** Sets a group of executions' bookmarks to the payload passed in the body. */
   @PUT
   @Path("/set_execution_bookmarks")
   @Consumes(Array(MediaType.APPLICATION_JSON))
