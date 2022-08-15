@@ -13,17 +13,45 @@ import org.jgrapht.graph.DefaultEdge
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
+object SchedulingPolicy {
+  def createPolicy(policyName: String, workflow: Workflow): SchedulingPolicy = {
+    if (policyName.equals("single-ready-region")) {
+      new SingleReadyRegion(workflow)
+    } else if (policyName.equals("all-ready-regions")) {
+      new AllReadyRegions(workflow)
+    } else {
+      throw new WorkflowRuntimeException(s"Unknown scheduling policy name")
+    }
+  }
+}
 
 abstract class SchedulingPolicy(workflow: Workflow) {
 
-  protected val regionsScheduleOrderIterator =
-    new TopologicalOrderIterator[PipelinedRegion, DefaultEdge](workflow.getPipelinedRegionsDAG())
+  protected val regionsScheduleOrder = saveTopologicalOrderOfRegions()
+
+  var sentToBeScheduledRegions =
+    new mutable.HashSet[
+      PipelinedRegion
+    ]() // regions sent by the policy to be scheduled at least once
+  var startedRegions = new mutable.HashSet[PipelinedRegion]() // regions started at least once
   var completedRegions = new mutable.HashSet[PipelinedRegion]()
-  var runningRegions = new mutable.HashSet[PipelinedRegion]()
+  var runningRegions = new mutable.HashSet[PipelinedRegion]() // regions currently running
   var completedLinksOfRegion =
     new mutable.HashMap[PipelinedRegion, mutable.HashSet[LinkIdentity]]()
 
-  private def isRegionCompleted(region: PipelinedRegion): Boolean = {
+  private def saveTopologicalOrderOfRegions(): ArrayBuffer[PipelinedRegion] = {
+    val scheduleOrder = new ArrayBuffer[PipelinedRegion]
+    val regionsScheduleOrderIterator =
+      new TopologicalOrderIterator[PipelinedRegion, DefaultEdge](workflow.getPipelinedRegionsDAG())
+    while (regionsScheduleOrderIterator.hasNext()) {
+      scheduleOrder.append(regionsScheduleOrderIterator.next())
+    }
+    scheduleOrder
+  }
+
+  protected def isRegionCompleted(region: PipelinedRegion): Boolean = {
     workflow
       .getBlockingOutlinksOfRegion(region)
       .forall(
@@ -33,7 +61,7 @@ abstract class SchedulingPolicy(workflow: Workflow) {
       .forall(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.COMPLETED)
   }
 
-  private def getRegion(workerId: ActorVirtualIdentity): Option[PipelinedRegion] = {
+  protected def getRegion(workerId: ActorVirtualIdentity): Option[PipelinedRegion] = {
     val opId = workflow.getOperator(workerId).id
     var region: Option[PipelinedRegion] = None
     runningRegions.foreach(r =>
@@ -46,10 +74,11 @@ abstract class SchedulingPolicy(workflow: Workflow) {
 
   /**
     * A link's region is the region of the source operator of the link.
+    *
     * @param linkId
     * @return
     */
-  private def getRegion(linkId: LinkIdentity): Option[PipelinedRegion] = {
+  protected def getRegion(linkId: LinkIdentity): Option[PipelinedRegion] = {
     val upstreamOpId = OperatorIdentity(linkId.from.workflow, linkId.from.operator)
     var region: Option[PipelinedRegion] = None
     runningRegions.foreach(r =>
@@ -60,7 +89,9 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     region
   }
 
-  def recordWorkerCompletion(workerId: ActorVirtualIdentity): Boolean = {
+  protected def getNextRegionsToSchedule(): Set[PipelinedRegion]
+
+  def recordWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
     val region = getRegion(workerId)
     if (region.isEmpty) {
       throw new WorkflowRuntimeException(
@@ -70,13 +101,14 @@ abstract class SchedulingPolicy(workflow: Workflow) {
       if (isRegionCompleted(region.get)) {
         runningRegions.remove(region.get)
         completedRegions.add(region.get)
-        return true
+        println(s"\t\tRegion ${region.get.getId().pipelineId} completed")
+        return getNextRegionsToSchedule()
       }
     }
-    false
+    Set()
   }
 
-  def recordLinkCompletion(linkId: LinkIdentity): Boolean = {
+  def recordLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
     val region = getRegion(linkId)
     if (region == null) {
       throw new WorkflowRuntimeException(
@@ -90,11 +122,20 @@ abstract class SchedulingPolicy(workflow: Workflow) {
       if (isRegionCompleted(region.get)) {
         runningRegions.remove(region.get)
         completedRegions.add(region.get)
-        return true
+        println(s"\t\tRegion ${region.get.getId().pipelineId} completed")
+        return getNextRegionsToSchedule()
       }
     }
-    false
+    Set()
   }
 
-  def getNextRegionsToSchedule(): Set[PipelinedRegion]
+  def startWorkflow(): Set[PipelinedRegion] = {
+    val regions = getNextRegionsToSchedule()
+    if (regions.isEmpty) {
+      throw new WorkflowRuntimeException(
+        s"No first region is being scheduled"
+      )
+    }
+    regions
+  }
 }

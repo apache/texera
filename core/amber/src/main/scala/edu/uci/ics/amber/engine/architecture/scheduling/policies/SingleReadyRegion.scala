@@ -5,17 +5,16 @@ import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 
 class SingleReadyRegion(workflow: Workflow) extends SchedulingPolicy(workflow) {
 
-  private var nextRegion: PipelinedRegion = null
-
   override def getNextRegionsToSchedule(): Set[PipelinedRegion] = {
     if (
-      (nextRegion == null || completedRegions.contains(
-        nextRegion
-      )) && regionsScheduleOrderIterator.hasNext
+      (sentToBeScheduledRegions.isEmpty || sentToBeScheduledRegions.forall(
+        completedRegions.contains
+      )) && regionsScheduleOrder.nonEmpty
     ) {
-      nextRegion = regionsScheduleOrderIterator.next()
+      val nextRegion = regionsScheduleOrder.head
+      regionsScheduleOrder.remove(0)
       return Set(nextRegion)
     }
-    return Set()
+    Set()
   }
 }
