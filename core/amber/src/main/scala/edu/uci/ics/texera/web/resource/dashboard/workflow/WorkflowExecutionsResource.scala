@@ -24,6 +24,10 @@ object WorkflowExecutionsResource {
     executionsDao.fetchOneByEid(eId)
   }
 
+  def getExecutionByIds(eIds: Array[UInteger]): Array[WorkflowExecutions] = {
+    executionsDao.fetchByEid(eIds)
+  }
+
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
@@ -115,6 +119,7 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    val executions: Array[WorkflowExecutions] = getExecutionByIds(request.eIds)
     if (request.isBookmarked) {
       for (i <- 0 to (request.eIds.length - 1)) {
         val execution: WorkflowExecutions = getExecutionById(request.eIds(i))
@@ -165,12 +170,10 @@ class WorkflowExecutionsResource {
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     /* delete the execution in sql */
-    for (eId <- request.eIds) {
-      context
-        .delete(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eId))
-        .execute();
-    }
+    context
+      .delete(WORKFLOW_EXECUTIONS)
+      .where(request.eIds contains WORKFLOW_EXECUTIONS.EID)
+      .execute();
   }
 
   /** Name a single execution * */
