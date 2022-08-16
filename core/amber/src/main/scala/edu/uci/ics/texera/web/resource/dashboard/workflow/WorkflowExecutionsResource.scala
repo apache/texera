@@ -38,13 +38,11 @@ object WorkflowExecutionsResource {
 
 }
 
-case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: Boolean)
 case class ExecutionGroupBookmarkRequest(
     wid: UInteger,
     eIds: Array[UInteger],
     isBookmarked: Boolean
 )
-case class ExecutionDeleteRequest(wid: UInteger, eId: UInteger)
 case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
@@ -96,19 +94,6 @@ class WorkflowExecutionsResource {
     }
   }
 
-  /** Sets a single execution's bookmark to the payload passed in the body. */
-  @PUT
-  @Path("/set_execution_bookmark")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  def setExecutionIsBookmarked(
-      request: ExecutionBookmarkRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    val execution: WorkflowExecutions = getExecutionById(request.eId)
-    execution.setBookmarked((if (request.isBookmarked) 1 else 0).toByte)
-    executionsDao.update(execution)
-  }
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */
   @PUT
@@ -141,22 +126,6 @@ class WorkflowExecutionsResource {
       WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
     )
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-  }
-
-  /** Delete a single execution */
-  @PUT
-  @Path("/delete_execution")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  def deleteExecutionsOfWorkflow(
-      request: ExecutionDeleteRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    /* delete the execution in sql */
-    context
-      .delete(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
-      .execute();
   }
 
   /** Delete a group of executions */

@@ -161,7 +161,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
     // Update on the server.
     this.workflowExecutionsService
-      .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
+      .groupSetIsBookmarked(this.workflow.wid, [row.eId], !wasPreviouslyBookmarked)
       .pipe(untilDestroyed(this))
       .subscribe({
         error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
@@ -211,7 +211,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && this.workflow.wid !== undefined) {
           this.workflowExecutionsService
-            .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+            .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
             .pipe(untilDestroyed(this))
             .subscribe({
               complete: () => {
