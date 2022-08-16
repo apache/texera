@@ -433,6 +433,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       }
     }
     console.log(this.zip);
+    console.log(this.downloadListWorkflow);
   }
 
   /**
@@ -510,6 +511,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         if (this.userService.isLogin()) {
           this.refreshDashboardWorkflowEntries();
           this.refreshUserProjects();
+          this.zip = new JSZip();
+          this.downloadListWorkflow = [];
         } else {
           this.clearDashboardWorkflowEntries();
         }
