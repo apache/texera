@@ -1440,6 +1440,7 @@ object LinkCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
 @SerialVersionUID(0L)
 final case class InitializeOperatorLogicV2(
     code: _root_.scala.Predef.String,
+    upstreamLinkIds: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity],
     isSource: _root_.scala.Boolean,
     outputSchema: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, _root_.scala.Predef.String]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[InitializeOperatorLogicV2] {
@@ -1454,11 +1455,15 @@ final case class InitializeOperatorLogicV2(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
         }
       };
+      upstreamLinkIds.foreach { __item =>
+        val __value = __item
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      }
       
       {
         val __value = isSource
         if (__value != false) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(2, __value)
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(3, __value)
         }
       };
       outputSchema.foreach { __item =>
@@ -1482,20 +1487,30 @@ final case class InitializeOperatorLogicV2(
           _output__.writeString(1, __v)
         }
       };
+      upstreamLinkIds.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(2, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
       {
         val __v = isSource
         if (__v != false) {
-          _output__.writeBool(2, __v)
+          _output__.writeBool(3, __v)
         }
       };
       outputSchema.foreach { __v =>
         val __m = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toBase(__v)
-        _output__.writeTag(3, 2)
+        _output__.writeTag(4, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
     }
     def withCode(__v: _root_.scala.Predef.String): InitializeOperatorLogicV2 = copy(code = __v)
+    def clearUpstreamLinkIds = copy(upstreamLinkIds = _root_.scala.Seq.empty)
+    def addUpstreamLinkIds(__vs: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity*): InitializeOperatorLogicV2 = addAllUpstreamLinkIds(__vs)
+    def addAllUpstreamLinkIds(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]): InitializeOperatorLogicV2 = copy(upstreamLinkIds = upstreamLinkIds ++ __vs)
+    def withUpstreamLinkIds(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]): InitializeOperatorLogicV2 = copy(upstreamLinkIds = __v)
     def withIsSource(__v: _root_.scala.Boolean): InitializeOperatorLogicV2 = copy(isSource = __v)
     def clearOutputSchema = copy(outputSchema = _root_.scala.collection.immutable.Map.empty)
     def addOutputSchema(__vs: (_root_.scala.Predef.String, _root_.scala.Predef.String)*): InitializeOperatorLogicV2 = addAllOutputSchema(__vs)
@@ -1507,19 +1522,21 @@ final case class InitializeOperatorLogicV2(
           val __t = code
           if (__t != "") __t else null
         }
-        case 2 => {
+        case 2 => upstreamLinkIds
+        case 3 => {
           val __t = isSource
           if (__t != false) __t else null
         }
-        case 3 => outputSchema.iterator.map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toBase(_)).toSeq
+        case 4 => outputSchema.iterator.map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toBase(_)).toSeq
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PString(code)
-        case 2 => _root_.scalapb.descriptors.PBoolean(isSource)
-        case 3 => _root_.scalapb.descriptors.PRepeated(outputSchema.iterator.map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toBase(_).toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(upstreamLinkIds.iterator.map(_.toPMessage).toVector)
+        case 3 => _root_.scalapb.descriptors.PBoolean(isSource)
+        case 4 => _root_.scalapb.descriptors.PRepeated(outputSchema.iterator.map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toBase(_).toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1531,6 +1548,7 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = {
     var __code: _root_.scala.Predef.String = ""
+    val __upstreamLinkIds: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
     var __isSource: _root_.scala.Boolean = false
     val __outputSchema: _root_.scala.collection.mutable.Builder[(_root_.scala.Predef.String, _root_.scala.Predef.String), _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, _root_.scala.Predef.String]] = _root_.scala.collection.immutable.Map.newBuilder[_root_.scala.Predef.String, _root_.scala.Predef.String]
     var _done__ = false
@@ -1540,15 +1558,18 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
         case 0 => _done__ = true
         case 10 =>
           __code = _input__.readStringRequireUtf8()
-        case 16 =>
+        case 18 =>
+          __upstreamLinkIds += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__)
+        case 24 =>
           __isSource = _input__.readBool()
-        case 26 =>
+        case 34 =>
           __outputSchema += edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.OutputSchemaEntry](_input__))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
         code = __code,
+        upstreamLinkIds = __upstreamLinkIds.result(),
         isSource = __isSource,
         outputSchema = __outputSchema.result()
     )
@@ -1558,8 +1579,9 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
         code = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false),
-        outputSchema = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.OutputSchemaEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toCustom(_)).toMap
+        upstreamLinkIds = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]]).getOrElse(_root_.scala.Seq.empty),
+        isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Boolean]).getOrElse(false),
+        outputSchema = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.OutputSchemaEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2._typemapper_outputSchema.toCustom(_)).toMap
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1568,7 +1590,8 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 3 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.OutputSchemaEntry
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+      case 4 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.OutputSchemaEntry
     }
     __out
   }
@@ -1579,6 +1602,7 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
     code = "",
+    upstreamLinkIds = _root_.scala.Seq.empty,
     isSource = false,
     outputSchema = _root_.scala.collection.immutable.Map.empty
   )
@@ -1716,20 +1740,24 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   
   implicit class InitializeOperatorLogicV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2](_l) {
     def code: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.code)((c_, f_) => c_.copy(code = f_))
+    def upstreamLinkIds: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]] = field(_.upstreamLinkIds)((c_, f_) => c_.copy(upstreamLinkIds = f_))
     def isSource: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isSource)((c_, f_) => c_.copy(isSource = f_))
     def outputSchema: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, _root_.scala.Predef.String]] = field(_.outputSchema)((c_, f_) => c_.copy(outputSchema = f_))
   }
   final val CODE_FIELD_NUMBER = 1
-  final val IS_SOURCE_FIELD_NUMBER = 2
-  final val OUTPUT_SCHEMA_FIELD_NUMBER = 3
+  final val UPSTREAMLINKIDS_FIELD_NUMBER = 2
+  final val IS_SOURCE_FIELD_NUMBER = 3
+  final val OUTPUT_SCHEMA_FIELD_NUMBER = 4
   @transient
   private[controlcommands] val _typemapper_outputSchema: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.OutputSchemaEntry, (_root_.scala.Predef.String, _root_.scala.Predef.String)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.OutputSchemaEntry, (_root_.scala.Predef.String, _root_.scala.Predef.String)]]
   def of(
     code: _root_.scala.Predef.String,
+    upstreamLinkIds: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity],
     isSource: _root_.scala.Boolean,
     outputSchema: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, _root_.scala.Predef.String]
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
     code,
+    upstreamLinkIds,
     isSource,
     outputSchema
   )
