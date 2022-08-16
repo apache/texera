@@ -94,7 +94,6 @@ class WorkflowExecutionsResource {
     }
   }
 
-
   /** Sets a group of executions' bookmarks to the payload passed in the body. */
   @PUT
   @Path("/set_execution_bookmarks")
