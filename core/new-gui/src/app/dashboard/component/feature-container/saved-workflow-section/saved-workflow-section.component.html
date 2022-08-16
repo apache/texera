@@ -202,16 +202,12 @@
         >
           <nz-list-item-meta>
             <nz-list-item-meta-avatar>
-              <form>
-                <div>
-                  <input
-                    type="checkbox"
-                    name="WorkflowCheckbox"
-                    id="{{dashboardWorkflowEntry.workflow.wid}}"
-                    (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
-                  />
-                </div>
-              </form>
+              <input
+                type="checkbox"
+                name="WorkflowCheckbox"
+                id="{{dashboardWorkflowEntry.workflow.wid}}"
+                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
+              />
               <nz-avatar
                 [ngStyle]="{ 'background-color': 'grey' }"
                 [nzGap]="4"

@@ -518,6 +518,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           this.zip = new JSZip();
           this.downloadListWorkflow = [];
         } else {
+          for (let wid of this.downloadListWorkflow) {
+            console.log(wid);
+            const checkbox = document.getElementById(wid.toString()
+            ) as HTMLInputElement | null;
+            if (checkbox != null) {
+              checkbox.checked = false;
+            }
+          }
           this.clearDashboardWorkflowEntries();
           this.zip = new JSZip();
           this.downloadListWorkflow = [];
