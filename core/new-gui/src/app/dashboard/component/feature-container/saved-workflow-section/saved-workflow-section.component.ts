@@ -430,6 +430,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       if (dashboardWorkflowEntry.workflow.wid) {
         const fileName = dashboardWorkflowEntry.workflow.name + "-" + dashboardWorkflowEntry.workflow.wid + ".json";
         this.zip.file(fileName, "remove").remove(fileName);
+        const index = this.downloadListWorkflow.indexOf(dashboardWorkflowEntry.workflow.wid);
+        if (index > -1) { // only splice array when item is found
+          this.downloadListWorkflow.splice(index, 1); // 2nd parameter means remove one item only
+        }
       }
     }
     console.log(this.zip);
