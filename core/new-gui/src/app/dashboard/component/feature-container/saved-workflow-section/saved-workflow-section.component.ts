@@ -515,6 +515,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           this.downloadListWorkflow = [];
         } else {
           this.clearDashboardWorkflowEntries();
+          this.zip = new JSZip();
+          this.downloadListWorkflow = [];
         }
       });
   }
