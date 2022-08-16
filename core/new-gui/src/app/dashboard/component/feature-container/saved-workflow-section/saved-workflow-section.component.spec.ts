@@ -191,7 +191,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("Sends http request to backend to retrieve export json", () => {
-    component.onClickAddToDownload(testWorkflowEntries[0]);
+    component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
     httpTestingController.match(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${testWorkflowEntries[0]}`);
     httpTestingController.expectOne("api/workflow/1");
   });

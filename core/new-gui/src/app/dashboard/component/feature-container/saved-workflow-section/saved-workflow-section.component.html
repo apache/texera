@@ -42,7 +42,7 @@
         <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
       </button>
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
-        <button nz-button nz-tooltip="Upload workflow from a ZIP file" nzTooltipPlacement="bottom" type="button">
+        <button nz-button nz-tooltip="Upload workflow from a JSON/ZIP file" nzTooltipPlacement="bottom" type="button">
           <i nz-icon nzType="cloud-upload" nzTheme="outline"></i>
         </button>
       </nz-upload>
@@ -202,12 +202,20 @@
         >
           <nz-list-item-meta>
             <nz-list-item-meta-avatar>
+              <form>
+                <div>
+                  <input
+                    type="checkbox"
+                    name="WorkflowCheckbox"
+                    (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
+                  />
+                </div>
+              </form>
               <nz-avatar
                 [ngStyle]="{ 'background-color': 'grey' }"
                 [nzGap]="4"
                 [nzText]="'' + dashboardWorkflowEntry.workflow.wid"
                 nzSize="default"
-                style="vertical-align: middle"
               ></nz-avatar>
             </nz-list-item-meta-avatar>
             <nz-list-item-meta-title>
@@ -322,15 +330,15 @@
             </nz-list-item-action>
             <nz-list-item-action>
               <button
-                (click)="onClickAddToDownload(dashboardWorkflowEntry)"
+                (click)="onClickDownloadWorkfllow(dashboardWorkflowEntry)"
                 nz-button
-                nz-tooltip="Add {{
+                nz-tooltip="Download the workflow {{
 								dashboardWorkflowEntry.workflow.name
-							  }} for pending download"
+							}}"
                 nzTooltipPlacement="bottom"
                 type="button"
               >
-                <i nz-icon nzType="export" nzTheme="outline"></i>
+                <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>
