@@ -437,7 +437,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       }
     }
     console.log(this.zip);
-    console.log(this.downloadListWorkflow);
+    // console.log(this.downloadListWorkflow);
   }
 
   /**
