@@ -193,7 +193,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public onClickOpenAddWorkflow() {
     const modalRef = this.modalService.open(NgbdModalAddProjectWorkflowComponent);
     modalRef.componentInstance.projectId = this.pid;
-
     // retrieve updated values from modal via promise
     modalRef.result.then(result => {
       if (result) {
@@ -864,7 +863,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       }
     }
     console.log(this.zip);
-    console.log(this.downloadListWorkflow);
+    // console.log(this.downloadListWorkflow);
   }
 
   /**
