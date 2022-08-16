@@ -28,7 +28,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public workflowExecutionsIsEditingName: number[] = [];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
-    "Select All",
+    "",
     "",
     "Username",
     "Name",
@@ -389,6 +389,44 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     const g = Math.floor(Math.random() * MAX_RGB);
     const b = Math.floor(Math.random() * MAX_RGB);
     return "rgba(" + r + "," + g + "," + b + ",0.8)";
+  }
+
+  updateCheckedSet(index: number, checked: boolean): void {
+    if (checked) {
+      this.setOfCheckedIndex.add(index);
+    } else {
+      this.setOfCheckedIndex.delete(index);
+    }
+  }
+
+  updateExecutionSet(row: WorkflowExecutionsEntry, checked: boolean): void {
+    if (checked) {
+      this.setOfExecution.add(row);
+    } else {
+      this.setOfExecution.delete(row);
+    }
+  }
+
+  onAllChecked(value: boolean): void {
+    if (this.workflowExecutionsDisplayedList !== undefined) {
+      for (let i=0;i<this.workflowExecutionsDisplayedList.length;i++) {
+        this.updateCheckedSet(i, true);
+        this.updateExecutionSet(this.workflowExecutionsDisplayedList[i], true);
+      }
+    }
+    this.refreshCheckedStatus();
+  }
+
+  onItemChecked(row: WorkflowExecutionsEntry, index: number, checked: boolean) {
+    this.updateCheckedSet(index, checked);
+    this.updateExecutionSet(row, checked);
+    this.refreshCheckedStatus();
+  }
+
+  refreshCheckedStatus(): void {
+    if (this.workflowExecutionsDisplayedList !== undefined) {
+      this.checked = this.workflowExecutionsDisplayedList.length === this.setOfCheckedIndex.size;
+    }
   }
 
   public searchInputOnChange(value: string): void {
