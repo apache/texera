@@ -61,9 +61,6 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   @JsonIgnore
   var opExecConfig: IntervalJoinExecConfig = _
 
-  @JsonIgnore
-  var leftInputLink: LinkIdentity = _
-
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
 
     opExecConfig = new IntervalJoinExecConfig(
@@ -87,7 +84,6 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
     )
 
   def this(
-      isLeftTableInput: LinkIdentity,
       leftTableAttributeName: String,
       rightTableAttributeName: String,
       schemas: Array[Schema],
@@ -110,7 +106,6 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
       OperatorSchemaInfo(schemas, Array(getOutputSchema(schemas))),
       this
     )
-    this.leftInputLink = isLeftTableInput
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

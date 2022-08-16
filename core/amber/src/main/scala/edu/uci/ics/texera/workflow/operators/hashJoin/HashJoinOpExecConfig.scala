@@ -31,7 +31,14 @@ class HashJoinOpExecConfig[K](
       Array(
         new WorkerLayer(
           makeLayer(id, "main"),
-          null,
+          _ =>
+            new HashJoinOpExec[K](
+              getBuildTableLinkId(),
+              buildAttributeName,
+              probeAttributeName,
+              joinType,
+              operatorSchemaInfo
+            ),
           Constants.currentWorkerNum,
           UseAll(),
           RoundRobinDeployment()
@@ -43,29 +50,6 @@ class HashJoinOpExecConfig[K](
 
   def getBuildTableLinkId(): LinkIdentity = {
     inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
-  }
-
-  override def checkStartDependencies(workflow: Workflow): Unit = {
-    val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
-    val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
-    val dependerLink = probeLink
-    val dependeeLink = buildLink
-    workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { dependerSource =>
-      val opId = workflow.getOperator(dependeeLink.from.operator).id
-      workflow.getSources(opId).foreach { dependeeSource =>
-        if (dependerSource != dependeeSource) {
-          workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
-        }
-      }
-    }
-    topology.layers.head.initIOperatorExecutor = _ =>
-      new HashJoinOpExec[K](
-        getBuildTableLinkId(),
-        buildAttributeName,
-        probeAttributeName,
-        joinType,
-        operatorSchemaInfo
-      )
   }
 
   override def isInputBlocking(input: LinkIdentity): Boolean = {

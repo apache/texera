@@ -77,10 +77,12 @@ class WorkerSpec
 
     val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
-      override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
-      override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] = mockControlOutputPort
-    })
+    val worker =
+      TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref, Set(mockTag)) {
+        override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
+        override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
+          mockControlOutputPort
+      })
     (mockTupleToBatchConverter.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
     (mockHandler.apply _).expects(*, *, *, *).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
@@ -110,7 +112,7 @@ class WorkerSpec
       ): Iterator[(ITuple, Option[LinkIdentity])] = { return Iterator() }
     }
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, probe.ref))
+    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, probe.ref, Set()))
 
     idMap(identifier1) = worker
     idMap(CONTROLLER) = probe.ref
