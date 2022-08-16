@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseRegionHandler.PauseRegion
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartPipelinedRegionHandler.StartPipelinedRegion
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
@@ -25,11 +26,14 @@ import edu.uci.ics.amber.engine.architecture.scheduling.policies.{
   SingleReadyRegion
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LinkIdentity,
@@ -44,6 +48,7 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 class WorkflowScheduler(
     availableNodes: Array[Address],
@@ -62,26 +67,58 @@ class WorkflowScheduler(
   private val openedOperators = new mutable.HashSet[OperatorIdentity]()
   private val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
   private val activatedLink = new mutable.HashSet[LinkIdentity]()
+  private val constructedRegions = new mutable.HashSet[PipelinedRegionIdentity]()
 
   def startWorkflow(): Future[Seq[Unit]] = {
-    val firstRegions = schedulingPolicy.startWorkflow().toArray
-    Future.collect(firstRegions.map(r => constructPrepareAndStart(r)))
+    doSchedulingWork(schedulingPolicy.startWorkflow())
   }
 
   def recordWorkerCompletion(workerId: ActorVirtualIdentity): Future[Seq[Unit]] = {
-    val regions = schedulingPolicy.recordWorkerCompletion(workerId).toArray
-    if (regions.nonEmpty) {
-      return Future.collect(regions.map(r => constructPrepareAndStart(r)))
-    }
-    Future(Seq())
+    doSchedulingWork(schedulingPolicy.recordWorkerCompletion(workerId))
   }
 
   def recordLinkCompletion(linkId: LinkIdentity): Future[Seq[Unit]] = {
-    val regions = schedulingPolicy.recordLinkCompletion(linkId).toArray
-    if (regions.nonEmpty) {
-      return Future.collect(regions.map(r => constructPrepareAndStart(r)))
+    doSchedulingWork(schedulingPolicy.recordLinkCompletion(linkId))
+  }
+
+  def recordTimeFinished(regions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
+    var futures = new ArrayBuffer[Future[Unit]]()
+    regions.foreach(r => {
+      workflow
+        .getAllWorkersOfRegion(r)
+        .foreach(wid => {
+          futures.append(
+            asyncRPCClient
+              .send(PauseWorker(), wid)
+              .map(ret => workflow.getWorkerInfo(wid).state = ret)
+          )
+        })
+    })
+    Future
+      .collect(futures)
+      .map { _ =>
+        // update frontend status
+        Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
+        doSchedulingWork(schedulingPolicy.recordTimeFinished(regions))
+      }
+  }
+
+  private def doSchedulingWork(work: SchedulingWork): Future[Seq[Unit]] = {
+    if (work.regions.nonEmpty) {
+      if (work.schedulingDurationInMs == 0) {
+        // regions are scheduled once and execute till they finish
+        Future.collect(work.regions.toArray.map(r => constructPrepareAndStart(r)))
+      } else {
+        ctx.system.scheduler.scheduleOnce(
+          FiniteDuration.apply(5000, MILLISECONDS),
+          ctx.self,
+          ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, PauseRegion(work.regions))
+        )(ctx.dispatcher)
+        Future.collect(work.regions.toArray.map(r => constructPrepareAndStart(r)))
+      }
+    } else {
+      Future(Seq())
     }
-    Future(Seq())
   }
 
   private def constructRegion(region: PipelinedRegion): Unit = {
@@ -293,12 +330,37 @@ class WorkflowScheduler(
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
       .flatMap(_ => startRegion(region))
+      .map(_ => constructedRegions.add(region.getId()))
+  }
+
+  private def resumeRegion(region: PipelinedRegion): Future[Unit] = {
+    Future
+      .collect(
+        workflow
+          .getAllWorkersOfRegion(region)
+          .map(worker =>
+            asyncRPCClient
+              .send(ResumeWorker(), worker)
+              .map(ret => workflow.getWorkerInfo(worker).state = ret)
+          )
+          .toSeq
+      )
+      .map { _ =>
+        // update frontend status
+        Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
+      }
   }
 
   private def constructPrepareAndStart(region: PipelinedRegion): Future[Unit] = {
     println(s"\t\tRegion ${region.getId().pipelineId} started")
-    constructRegion(region)
-    prepareAndStartRegion(region)
+    if (!constructedRegions.contains(region.getId())) {
+      constructRegion(region)
+      prepareAndStartRegion(region)
+    } else {
+      // region has already been constructed. Just needs to resume
+      resumeRegion(region)
+    }
+
   }
 
 }

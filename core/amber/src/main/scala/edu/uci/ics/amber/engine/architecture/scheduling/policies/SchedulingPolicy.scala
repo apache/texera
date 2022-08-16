@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
+import edu.uci.ics.amber.engine.architecture.scheduling.{PipelinedRegion, SchedulingWork}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -93,9 +93,9 @@ abstract class SchedulingPolicy(workflow: Workflow) {
   }
 
   // gets the ready regions that haven't been sent for scheduling yet (not in `sentToBeScheduledRegions`)
-  protected def getNextRegionsToSchedule(): Set[PipelinedRegion]
+  protected def getNextSchedulingWork(): SchedulingWork
 
-  def recordWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
+  def recordWorkerCompletion(workerId: ActorVirtualIdentity): SchedulingWork = {
     val region = getRegion(workerId)
     if (region.isEmpty) {
       throw new WorkflowRuntimeException(
@@ -104,10 +104,10 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     } else {
       checkRegionCompleted(region.get)
     }
-    getNextRegionsToSchedule()
+    getNextSchedulingWork()
   }
 
-  def recordLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
+  def recordLinkCompletion(linkId: LinkIdentity): SchedulingWork = {
     val region = getRegion(linkId)
     if (region == null) {
       throw new WorkflowRuntimeException(
@@ -120,16 +120,20 @@ abstract class SchedulingPolicy(workflow: Workflow) {
       completedLinksOfRegion(region.get) = completedLinks
       checkRegionCompleted(region.get)
     }
-    getNextRegionsToSchedule()
+    getNextSchedulingWork()
   }
 
-  def startWorkflow(): Set[PipelinedRegion] = {
-    val regions = getNextRegionsToSchedule()
-    if (regions.isEmpty) {
+  def startWorkflow(): SchedulingWork = {
+    val work = getNextSchedulingWork()
+    if (work.regions.isEmpty) {
       throw new WorkflowRuntimeException(
         s"No first region is being scheduled"
       )
     }
-    regions
+    work
+  }
+
+  def recordTimeFinished(regions: Set[PipelinedRegion]) = {
+    
   }
 }

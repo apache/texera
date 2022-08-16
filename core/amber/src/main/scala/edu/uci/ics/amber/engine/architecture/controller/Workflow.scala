@@ -6,7 +6,13 @@ import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
@@ -17,11 +23,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class Workflow(
-                workflowId: WorkflowIdentity,
-                operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
-                outLinks: Map[OperatorIdentity, Set[OperatorIdentity]],
-                pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]
-              ) {
+    workflowId: WorkflowIdentity,
+    operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
+    outLinks: Map[OperatorIdentity, Set[OperatorIdentity]],
+    pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]
+) {
   // The following data structures are created when workflow object is created.
   private val inLinks: Map[OperatorIdentity, Set[OperatorIdentity]] =
     AmberUtils.reverseMultimap(outLinks)
@@ -62,9 +68,9 @@ class Workflow(
   }
 
   private def linkOperators(
-                             from: (OpExecConfig, WorkerLayer),
-                             to: (OpExecConfig, WorkerLayer)
-                           ): LinkStrategy = {
+      from: (OpExecConfig, WorkerLayer),
+      to: (OpExecConfig, WorkerLayer)
+  ): LinkStrategy = {
     val sender = from._2
     val receiver = to._2
     val receiverOpExecConfig = to._1
@@ -140,6 +146,12 @@ class Workflow(
     sources.toArray
   }
 
+  def getAllWorkersOfRegion(region: PipelinedRegion): Array[ActorVirtualIdentity] = {
+    val allOperatorsInRegion =
+      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+
+    allOperatorsInRegion.map(opId => operatorToOpExecConfig(opId).getAllWorkers.toList).flatten
+  }
 
   def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
 
@@ -194,8 +206,8 @@ class Workflow(
     * worker layer.
     */
   def getUpStreamConnectedWorkerLayers(
-                                        opID: OperatorIdentity
-                                      ): mutable.HashMap[OperatorIdentity, WorkerLayer] = {
+      opID: OperatorIdentity
+  ): mutable.HashMap[OperatorIdentity, WorkerLayer] = {
     val upstreamOperatorToLayers = new mutable.HashMap[OperatorIdentity, WorkerLayer]()
     getDirectUpstreamOperators(opID).map(uOpID =>
       upstreamOperatorToLayers(uOpID) = getOperator(uOpID).topology.layers.last
@@ -251,8 +263,8 @@ class Workflow(
       }) map { case (workerId: ActorVirtualIdentity, _: IOperatorExecutor) => workerId }
 
   def getAllWorkersForOperators(
-                                 operators: Array[OperatorIdentity]
-                               ): Array[ActorVirtualIdentity] = {
+      operators: Array[OperatorIdentity]
+  ): Array[ActorVirtualIdentity] = {
     operators.map(opId => operatorToOpExecConfig(opId).getAllWorkers).flatten
   }
 
@@ -265,8 +277,8 @@ class Workflow(
   }
 
   def getPythonWorkerToOperatorExec(
-                                     pythonOperators: Array[OperatorIdentity]
-                                   ): Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] = {
+      pythonOperators: Array[OperatorIdentity]
+  ): Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] = {
     val allWorkers = pythonOperators
       .map(opId => operatorToOpExecConfig(opId).getAllWorkers)
       .flatten
