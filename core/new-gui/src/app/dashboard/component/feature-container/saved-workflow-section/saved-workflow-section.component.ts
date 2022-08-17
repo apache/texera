@@ -27,6 +27,7 @@ import { AppSettings } from "src/app/common/app-setting";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
+import * as JSZip from "jszip";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -131,6 +132,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
+  public downloadListWorkflow = new Map<number, string>();
+  public zip = new JSZip();
 
   constructor(
     private http: HttpClient,
@@ -709,48 +712,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Verify Uploaded file name and upload the file
-   */
-  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
-    var reader = new FileReader();
-    reader.readAsText(file as unknown as Blob);
-    reader.onload = () => {
-      try {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          throw new Error("Incorrect format: file is not a string");
-        }
-        const workflowContent = JSON.parse(result) as WorkflowContent;
-        const fileExtensionIndex = file.name.lastIndexOf(".");
-        var workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = file.name;
-        } else {
-          workflowName = file.name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
-        }
-        this.workflowPersistService
-          .createWorkflow(workflowContent, workflowName)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: uploadedWorkflow => {
-              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
-            },
-            error: (err: unknown) => alert(err),
-          });
-      } catch (error) {
-        this.notificationService.error(
-          "An error occurred when importing the workflow. Please import a workflow json file."
-        );
-        console.error(error);
-      }
-    };
-    return false;
-  };
-
-  /**
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
    *
@@ -850,6 +811,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         } else {
           this.clearDashboardWorkflowEntries();
         }
+        this.zip = new JSZip();
+        this.downloadListWorkflow = new Map<number, string>();
       });
   }
 
@@ -971,6 +934,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   private clearDashboardWorkflowEntries(): void {
+    for (let wid of this.downloadListWorkflow.keys()) {
+      const checkbox = document.getElementById(wid.toString()) as HTMLInputElement | null;
+      if (checkbox != null) {
+        checkbox.checked = false;
+      }
+    }
     this.dashboardWorkflowEntries = [];
   }
 
@@ -996,5 +965,138 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           entryIsEditingIndex => entryIsEditingIndex != index
         );
       });
+  }
+
+  /**
+   * Verify Uploaded file name and upload the file
+   */
+  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
+    const fileExtensionIndex = file.name.lastIndexOf(".");
+    if (file.name.substring(fileExtensionIndex) == ".zip") {
+      this.handleZipUploads(file as unknown as Blob);
+    } else {
+      this.handleFileUploads(file as unknown as Blob, file.name);
+    }
+    return false;
+  };
+
+  /**
+   * process .zip file uploads
+   */
+  private handleZipUploads(zipFile: Blob) {
+    let zip = new JSZip();
+    zip.loadAsync(zipFile).then(zip => {
+      zip.forEach((relativePath, file) => {
+        file.async("blob").then(content => {
+          this.handleFileUploads(content, relativePath);
+        });
+      });
+    });
+  }
+
+  /**
+   * Process .json file uploads
+   */
+  private handleFileUploads(file: Blob, name: string) {
+    let reader = new FileReader();
+    reader.readAsText(file);
+    reader.onload = () => {
+      try {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          throw new Error("Incorrect format: file is not a string");
+        }
+        const workflowContent = JSON.parse(result) as WorkflowContent;
+        const fileExtensionIndex = name.lastIndexOf(".");
+        let workflowName: string;
+        if (fileExtensionIndex === -1) {
+          workflowName = name;
+        } else {
+          workflowName = name.substring(0, fileExtensionIndex);
+        }
+        if (workflowName.trim() === "") {
+          workflowName = DEFAULT_WORKFLOW_NAME;
+        }
+        this.workflowPersistService
+          .createWorkflow(workflowContent, workflowName)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: uploadedWorkflow => {
+              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
+            },
+            error: (err: unknown) => alert(err),
+          });
+      } catch (error) {
+        this.notificationService.error(
+          "An error occurred when importing the workflow. Please import a workflow json file."
+        );
+      }
+    };
+  }
+
+  /**
+   * Download selected workflow as zip file
+   */
+  public onClickOpenDownloadZip() {
+    let dateTime = new Date();
+    let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
+    this.zip.generateAsync({ type: "blob" }).then(function (content) {
+      saveAs(content, filename);
+    });
+  }
+
+  /**
+   * Adding the workflow as pending download zip file
+   */
+  public onClickAddToDownload(dashboardWorkflowEntry: DashboardWorkflowEntry, event: Event) {
+    if ((<HTMLInputElement>event.target).checked) {
+      const fileName = this.nameWorkflow(dashboardWorkflowEntry.workflow.name) + ".json";
+      if (dashboardWorkflowEntry.workflow.wid) {
+        if (!this.downloadListWorkflow.has(dashboardWorkflowEntry.workflow.wid)) {
+          this.downloadListWorkflow.set(dashboardWorkflowEntry.workflow.wid, fileName);
+          this.notificationService.success(
+            "Successfully added workflow " + dashboardWorkflowEntry.workflow.wid + " to download list."
+          );
+        }
+        this.workflowPersistService
+          .retrieveWorkflow(dashboardWorkflowEntry.workflow.wid)
+          .pipe(untilDestroyed(this))
+          .subscribe(data => {
+            const workflowCopy: Workflow = {
+              ...data,
+              wid: undefined,
+              creationTime: undefined,
+              lastModifiedTime: undefined,
+            };
+            const workflowJson = JSON.stringify(workflowCopy.content);
+            this.zip.file(fileName, workflowJson);
+          });
+      }
+    } else {
+      if (dashboardWorkflowEntry.workflow.wid) {
+        const existFileName = this.downloadListWorkflow.get(dashboardWorkflowEntry.workflow.wid) as string;
+        this.zip.file(existFileName, "remove").remove(existFileName);
+        this.downloadListWorkflow.delete(dashboardWorkflowEntry.workflow.wid);
+        this.notificationService.info(
+          "Workflow " + dashboardWorkflowEntry.workflow.wid + " removed from download list."
+        );
+      }
+    }
+  }
+
+  /**
+   * Resolve name conflict
+   */
+  private nameWorkflow(name: string) {
+    let count = 0;
+    const values = [...this.downloadListWorkflow.values()];
+    let copyName = name;
+    while (true) {
+      if (!values.includes(copyName + ".json")) {
+        return copyName;
+      } else {
+        copyName = name + "-" + ++count;
+      }
+    }
   }
 }

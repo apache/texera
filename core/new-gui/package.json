@@ -62,6 +62,7 @@
     "jquery": "~3.6.0",
     "jquery-ui-dist": "~1.13.1",
     "js-abbreviation-number": "~1.4.0",
+    "jszip": "^3.10.1",
     "jwt-decode": "~3.1.2",
     "lodash-es": "~4.17.21",
     "mapbox-gl": "~2.7.0",
