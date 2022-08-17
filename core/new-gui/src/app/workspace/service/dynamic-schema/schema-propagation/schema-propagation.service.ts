@@ -246,7 +246,7 @@ export class SchemaPropagationService {
 
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
-      (k, v) => v.autofill === "attributeNameList",
+      (k, v) => v.autofill === "attributeNameList" || v.autofill === "attributeNameReorderList",
       old => ({
         ...old,
         type: "array",
