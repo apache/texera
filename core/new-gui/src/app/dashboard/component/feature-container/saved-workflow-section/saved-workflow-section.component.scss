@@ -10,10 +10,11 @@
 }
 
 .ant-btn-icon-only {
-  margin-right: 15px;
+  margin-left: 5px;
+  margin-right: 5px;
 
   &.ant-btn-sm {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
   }
 }
 
@@ -44,6 +45,14 @@ $header-height: 120px;
   border-radius: 4px;
 }
 
+.workflow-utility-button-group {
+  float: left
+}
+
+.workflow-filter-button-group {
+  float: right
+}
+
 /**
 * the grid of the first row which contains the add and sort button.
 * The position of the first row is fix. no adaptation
@@ -62,22 +71,27 @@ $header-height: 120px;
   grid-row-end: 3;
   overflow: auto;
   min-height: 0%;
+}
 
-  .texera-dashboard-saved-workflow-search-box-input {
-    margin-bottom: 30px;
+.texera-dashboard-saved-workflow-project-search-bar {
+  margin-bottom: 30px;
+  display: flex;
+  padding: 4px 11px;
+  border: 1px solid #d9d9d9;
+
+  .search-info-box {
+    margin-right: 10px; 
+    align-self: center
   }
 
-  .texera-dashboard-saved-workflow-project-box-select {
-    margin-bottom: 30px;
-    display: flex;
-    padding: 4px 11px;
-    border: 1px solid #d9d9d9;
+  .search-input-box {
+    width: 100%;
   }
 }
 
 .workflow-list-item {
-  margin-bottom: 1.5%;
-  height: 70px;
+  margin-bottom: 10px;
+  min-height: 70px;
   padding: 5px 0 5px 0;
 }
 
@@ -85,46 +99,12 @@ $header-height: 120px;
   margin-left: 3%;
 }
 
-/**
-* the location of sort button
-**/
-.sorting_func {
-  text-align: left;
-}
-
-.search-creation-time-button {
-  position: absolute;
-  left: 65%;
-}
-
-.search-owners-button {
-  position: absolute;
-  left: 70%;
-}
-
-.search-wids-button {
-  position: absolute;
-  left: 75%;
-}
-
-.search-operators-button {
-  position: absolute;
-  left: 80%;
-}
-
-.search-projects-button {
-  position: absolute;
-  left: 85%;
-}
-
-.gap-filler {
-  flex: 1 1 auto;
-}
 
 .workflow-name {
   font-size: 20px;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   text-align: center;
+  text-overflow: ellipsis;
 }
 
 .workflow-dashboard-entry {
@@ -146,6 +126,7 @@ $header-height: 120px;
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   color: gray;
+  margin: 0px;
 }
 
 .page-title {
@@ -153,7 +134,8 @@ $header-height: 120px;
 }
 
 .workflow-project-label-container {
-  width: 40%;
+  min-width: 20px;
+  // max-width: 350px;
   display: flex;
   flex-direction: row-reverse;
   overflow-x: auto;
@@ -167,13 +149,13 @@ $header-height: 120px;
       cursor: pointer;
     }
 
-    #left-div {
+    .left-div {
       padding: 1.5px 7px;
       border-top-left-radius: 2px;
       border-bottom-left-radius: 2px;
     }
 
-    #right-div {
+    .right-div {
       padding: 1.5px 7px;
       border-top-right-radius: 2px;
       border-bottom-right-radius: 2px;

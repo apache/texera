@@ -133,6 +133,7 @@
     "karma-jasmine": "~4.0.1",
     "karma-jasmine-html-reporter": "~1.7.0",
     "multi-target": "file:multi-target",
+    "ngx-pipes": "3.0.0",
     "nz-tslint-rules": "~0.901.2",
     "prettier": "~2.5.1",
     "prettier-eslint-cli": "~5.0.1",

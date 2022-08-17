@@ -9982,6 +9982,13 @@ ngx-monaco-editor@~9.0.0:
   resolved "https://registry.npmjs.org/ngx-monaco-editor/-/ngx-monaco-editor-9.0.0.tgz"
   integrity sha512-fPXT3M8W920Vs0KPMX6iA7GJYjBRnl9naug9A7D2inPPzxQGtgPZrSEatIPf37a6ir9Ts+8fwt1bTkFzfTgIpQ==
 
+ngx-pipes@3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/ngx-pipes/-/ngx-pipes-3.0.0.tgz#cf8c8b06a565d0a23abfedf2cb2c445b4bae7c74"
+  integrity sha512-JK1E/QqVceCkEBoRQoZriR5GZEDd5aTC/+Zv9UlUbIRAzeSfA18n8XYJKLM3rpy8Y4uGBU1pAp0pvvdJiK/XDA==
+  dependencies:
+    tslib "^2.3.0"
+
 ngx-popper@~7.0.0:
   version "7.0.0"
   resolved "https://registry.npmjs.org/ngx-popper/-/ngx-popper-7.0.0.tgz"

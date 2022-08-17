@@ -1,7 +1,7 @@
 <div class="saved-workflow-container subsection-grid-container">
   <nz-card class="workflow-section-title subsection-grid-container">
     <h2 class="page-title">Workflows</h2>
-    <div class="d-inline-block" ngbDropdown>
+    <nz-button-group class ="workflow-utility-button-group" ngbDropdown>
       <a [nzDropdownMenu]="sortOptions" nz-dropdown>
         <button id="sortDropdown" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
@@ -57,6 +57,10 @@
       >
         <i nz-icon nzTheme="outline" nzType="minus-square"></i>
       </button>
+    </nz-button-group>
+
+
+    <nz-button-group class ="workflow-filter-button-group" ngbDropdown>
       <a
         [nzDropdownMenu]="calendar"
         nz-dropdown
@@ -163,13 +167,13 @@
           </li>
         </ul>
       </nz-dropdown-menu>
-    </div>
+    </nz-button-group>
   </nz-card>
 
   <nz-card class="workflow-list-container subsection-grid-container">
-    <div class="texera-dashboard-saved-workflow-project-box-select">
+    <div class="texera-dashboard-saved-workflow-project-search-bar">
       <i
-        style="margin-right: 10px; align-self: center"
+        class="search-info-box"
         nz-icon
         nz-popover
         nzPopoverTitle="Filter Instructions"
@@ -177,11 +181,8 @@
         nzTheme="outline"
         [nzPopoverContent]="filterPopContent"
       ></i>
-      <button style="align-self: center; margin-right: 0%" nz-button type="button" (click)="searchWorkflow()">
-        <i nz-icon nzType="search" nzTheme="outline"></i>
-      </button>
       <nz-select
-        style="width: 100%"
+        class="search-input-box"
         nzMode="tags"
         nzPlaceHolder="Search all workflows"
         [nzBorderless]="true"
@@ -250,7 +251,7 @@
                     value="{{ dashboardWorkflowEntry.workflow.name }}"
                   />
                 </ng-template>
-                <button
+                  <button
                   (click)="dashboardWorkflowEntriesIsEditingName.push(indexOfElement)"
                   nz-button
                   nz-tooltip="Customize Workflow Name"
@@ -262,7 +263,7 @@
                 </button>
                 <i
                   *ngIf="dashboardWorkflowEntry.isOwner"
-                  ngbTooltip="You are the OWNER"
+                  ngbTooltip="You are the owner"
                   nz-icon
                   nzTheme="outline"
                   nzType="user"
@@ -279,11 +280,10 @@
               </span>
             </nz-list-item-meta-title>
             <nz-list-item-meta-description>
-              <p class="workflow-time">
-                Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}
-                <span class="time-space"></span>
-                Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}
-              </p>
+              <nz-space [nzSize]="10">
+                <p *nzSpaceItem class="workflow-time">Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</p>
+                <p *nzSpaceItem class="workflow-time">Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</p>
+              </nz-space>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
 
@@ -291,24 +291,24 @@
             <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="workflow-project-label">
               <div
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
-                nz-tooltip="Go to project page"
+                nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
                 nzTooltipPlacement="bottom"
-                id="left-div"
+                class="left-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="jumpToProject(userProjectsMap.get(projectID)!)"
               >
-                {{userProjectsMap.get(projectID)!.name}}
+                {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
               </div>
               <div
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
-                id="right-div"
+                class="right-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"
-              ></div>
+              > x </div>
             </div>
           </div>
 
