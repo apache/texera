@@ -132,7 +132,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
-  public downloadListWorkflow: number[] = [];
+  public downloadListWorkflow = new Map<number, string>();
   public zip = new JSZip();
 
   constructor(
@@ -808,20 +808,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         if (this.userService.isLogin()) {
           this.refreshDashboardWorkflowEntries();
           this.refreshUserProjects();
-          this.zip = new JSZip();
-          this.downloadListWorkflow = [];
         } else {
-          for (let wid of this.downloadListWorkflow) {
-            console.log(wid);
-            const checkbox = document.getElementById(wid.toString()) as HTMLInputElement | null;
-            if (checkbox != null) {
-              checkbox.checked = false;
-            }
-          }
           this.clearDashboardWorkflowEntries();
-          this.zip = new JSZip();
-          this.downloadListWorkflow = [];
         }
+        this.zip = new JSZip();
+        this.downloadListWorkflow = new Map<number, string>();
       });
   }
 
@@ -943,6 +934,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   private clearDashboardWorkflowEntries(): void {
+    for (let wid of this.downloadListWorkflow.keys()) {
+      const checkbox = document.getElementById(wid.toString()) as HTMLInputElement | null;
+      if (checkbox != null) {
+        checkbox.checked = false;
+      }
+    }
     this.dashboardWorkflowEntries = [];
   }
 
@@ -988,7 +985,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   private handleZipUploads(zipFile: Blob) {
     let zip = new JSZip();
-    // console.log(zip.files);
     zip.loadAsync(zipFile).then(zip => {
       zip.forEach((relativePath, file) => {
         file.async("blob").then(content => {
@@ -1034,7 +1030,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         this.notificationService.error(
           "An error occurred when importing the workflow. Please import a workflow json file."
         );
-        console.error(error);
       }
     };
   }
@@ -1044,7 +1039,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public onClickOpenDownloadZip() {
     let dateTime = new Date();
-    let filename = "workflowExports" + dateTime.toISOString() + ".zip";
+    let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
     this.zip.generateAsync({ type: "blob" }).then(function (content) {
       saveAs(content, filename);
     });
@@ -1054,14 +1049,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Adding the workflow as pending download zip file
    */
   public onClickAddToDownload(dashboardWorkflowEntry: DashboardWorkflowEntry, event: Event) {
-    console.log(dashboardWorkflowEntry.workflow.wid);
-    console.log((<HTMLInputElement>event.target).checked);
     if ((<HTMLInputElement>event.target).checked) {
+      const fileName = this.nameWorkflow(dashboardWorkflowEntry.workflow.name) + ".json";
       if (dashboardWorkflowEntry.workflow.wid) {
-        if (!this.downloadListWorkflow.includes(dashboardWorkflowEntry.workflow.wid)) {
-          this.downloadListWorkflow.push(dashboardWorkflowEntry.workflow.wid);
+        if (!this.downloadListWorkflow.has(dashboardWorkflowEntry.workflow.wid)) {
+          this.downloadListWorkflow.set(dashboardWorkflowEntry.workflow.wid, fileName);
           this.notificationService.success(
-            "Successfully add workflow " + dashboardWorkflowEntry.workflow.wid + " to download list."
+            "Successfully added workflow " + dashboardWorkflowEntry.workflow.wid + " to download list."
           );
         }
         this.workflowPersistService
@@ -1075,22 +1069,34 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
               lastModifiedTime: undefined,
             };
             const workflowJson = JSON.stringify(workflowCopy.content);
-            const fileName = dashboardWorkflowEntry.workflow.name + "-" + dashboardWorkflowEntry.workflow.wid + ".json";
             this.zip.file(fileName, workflowJson);
           });
       }
     } else {
       if (dashboardWorkflowEntry.workflow.wid) {
-        const fileName = dashboardWorkflowEntry.workflow.name + "-" + dashboardWorkflowEntry.workflow.wid + ".json";
-        this.zip.file(fileName, "remove").remove(fileName);
-        const index = this.downloadListWorkflow.indexOf(dashboardWorkflowEntry.workflow.wid);
-        if (index > -1) {
-          // only splice array when item is found
-          this.downloadListWorkflow.splice(index, 1); // 2nd parameter means remove one item only
-        }
+        const existFileName = this.downloadListWorkflow.get(dashboardWorkflowEntry.workflow.wid) as string;
+        this.zip.file(existFileName, "remove").remove(existFileName);
+        this.downloadListWorkflow.delete(dashboardWorkflowEntry.workflow.wid);
+        this.notificationService.info(
+          "Workflow " + dashboardWorkflowEntry.workflow.wid + " removed from download list."
+        );
       }
     }
-    console.log(this.zip);
-    console.log(this.downloadListWorkflow);
+  }
+
+  /**
+   * Resolve name conflict
+   */
+  private nameWorkflow(name: string) {
+    let count = 0;
+    const values = [...this.downloadListWorkflow.values()];
+    let copyName = name;
+    while (true) {
+      if (!values.includes(copyName + ".json")) {
+        return copyName;
+      } else {
+        copyName = name + "-" + ++count;
+      }
+    }
   }
 }

@@ -33,6 +33,7 @@
         <i nz-icon nzTheme="outline" nzType="file-add"></i>
       </button>
       <button
+        [disabled]="downloadListWorkflow.size===0"
         (click)="onClickOpenDownloadZip()"
         nz-button
         nz-tooltip="Download added workflow as a ZIP file"
