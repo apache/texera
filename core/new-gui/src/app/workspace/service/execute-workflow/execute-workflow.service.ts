@@ -191,30 +191,31 @@ export class ExecuteWorkflowService {
         // upload snapshot into sql
         this.workflowSnapshotService.uploadWorkflowSnapshot(snapshotBlob, this.workflowActionService.getWorkflow().wid)
           .pipe(untilDestroyed(this))
-          .subscribe(()=>{}); 
+          .subscribe(()=>{
+            // wait for the form debounce to complete, then send
+            window.setTimeout(() => {
+              this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
+            }, FORM_DEBOUNCE_TIME_MS);
+            this.setExecutionTimeout(
+              "submit workflow timeout",
+              ExecutionState.Initializing,
+              ExecutionState.Running,
+              ExecutionState.Aborted
+            );
+        
+            // add flag for new execution of workflow
+            // so when next time the result panel is displayed, it will use new data
+            // instead of those stored in the session storage
+            const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
+            if (resultPaginationInfo) {
+              sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
+                ...resultPaginationInfo,
+                newWorkflowExecuted: true,
+              });
+            }
+          }); 
       });
     });
-    // wait for the form debounce to complete, then send
-    window.setTimeout(() => {
-      this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
-    }, FORM_DEBOUNCE_TIME_MS);
-    this.setExecutionTimeout(
-      "submit workflow timeout",
-      ExecutionState.Initializing,
-      ExecutionState.Running,
-      ExecutionState.Aborted
-    );
-
-    // add flag for new execution of workflow
-    // so when next time the result panel is displayed, it will use new data
-    // instead of those stored in the session storage
-    const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
-    if (resultPaginationInfo) {
-      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
-        ...resultPaginationInfo,
-        newWorkflowExecuted: true,
-      });
-    }
   }
 
   public pauseWorkflow(): void {
