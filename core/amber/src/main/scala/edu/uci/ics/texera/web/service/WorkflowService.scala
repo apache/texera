@@ -170,6 +170,8 @@ object WorkflowService {
             })
             return retrievedWorkflowService
           }
+        case None =>
+          return new WorkflowService(uidOpt, wId, cleanupTimeout)
       }
     }
     new WorkflowService(uidOpt, wId, cleanupTimeout)
@@ -235,7 +237,7 @@ class WorkflowService(
     }
   }
   val wsInput = new WebsocketInput(errorHandler)
-  var status: WorkflowAggregatedState = _
+  var status: WorkflowAggregatedState = WorkflowAggregatedState.UNINITIALIZED
   val stateStore = new WorkflowStateStore()
   val resultService: JobResultService =
     new JobResultService(opResultStorage, stateStore)
