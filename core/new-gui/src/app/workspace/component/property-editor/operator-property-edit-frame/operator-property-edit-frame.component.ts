@@ -309,6 +309,57 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .pipe(filter(({ operatorID }) => operatorID === this.currentOperatorId))
       .pipe(untilDestroyed(this))
       .subscribe(_ => this.rerenderEditorForm());
+
+    this.dynamicSchemaService
+      .getOperatorDynamicSchemaChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(vals => this.updateOperatorPropertiesOnSchemaChange(vals.operatorID, vals.oldSchema, vals.newSchema));
+  }
+
+  updateOperatorPropertiesOnSchemaChange(
+    operatorID: string,
+    oldSchema: OperatorSchema,
+    newSchema: OperatorSchema
+  ): void {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+    console.log("updateOperatorPropertiesOnSchemaChange: op", operator, "oldSchema", oldSchema, "newSchema", newSchema);
+    // only handle projection operator now
+    if (operator.operatorType === "ProjectionV2") {
+      // TODO: Simplify the checking
+      if (
+        !(
+          oldSchema.jsonSchema.properties &&
+          newSchema.jsonSchema.properties &&
+          ((oldSchema.jsonSchema.properties?.attributes as CustomJSONSchema7).items as CustomJSONSchema7).enum &&
+          ((newSchema.jsonSchema.properties?.attributes as CustomJSONSchema7).items as CustomJSONSchema7).enum
+        )
+      )
+        return;
+      const oldEnumList = ((oldSchema.jsonSchema.properties.attributes as CustomJSONSchema7).items as CustomJSONSchema7)
+        .enum as string[];
+      const newEnumList = ((newSchema.jsonSchema.properties.attributes as CustomJSONSchema7).items as CustomJSONSchema7)
+        .enum as string[];
+      const attributeMapping = levenshtein(
+        oldEnumList,
+        newEnumList,
+        (_: any) => 1,
+        (_: any) => 1,
+        (a: string, b: string) => (a !== b ? 1 : 0)
+      );
+      const oldAttributes = operator.operatorProperties.attributes;
+      if (!oldAttributes) return;
+      let newAttributes: string[] = [];
+      // console.log(attributes, attributeMapping.pairs());
+      const pairs = attributeMapping.pairs();
+      // pair = [old attribute name, new attribute name]
+      for (var i = 0; i < pairs.length; ++i) {
+        const pair = pairs[i];
+        if (!pair[0] || (oldAttributes.includes(pair[0]) && pair[1])) {
+          newAttributes.push(pair[1]);
+        }
+      }
+      this.workflowActionService.setOperatorProperty(operatorID, { attributes: newAttributes });
+    }
   }
 
   /**
@@ -437,6 +488,25 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
           this.currentOperatorId
         );
+      }
+      // if we need to reorder the array, a custom template `dragablearray` is used
+      if (mapSource?.autofill === "attributeNameReorderList") {
+        if (mappedField.type) {
+          mappedField.type = "draggablearray";
+        }
+        // sort according to the reordered list
+        if (this.formData && this.formData.attributes && mappedField.templateOptions?.options) {
+          const options = mappedField.templateOptions?.options as any[]; // safe to do so?
+          for (var i = 0; i < this.formData.attributes.length; ++i) {
+            for (var j = 0; j < options.length; ++j) {
+              if (options[j].label === this.formData.attributes[i]) {
+                const temp = options[j];
+                options[j] = options[i];
+                options[i] = temp;
+              }
+            }
+          }
+        }
       }
       return mappedField;
     };
