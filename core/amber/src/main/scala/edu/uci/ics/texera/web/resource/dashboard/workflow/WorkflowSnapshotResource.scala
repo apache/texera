@@ -51,20 +51,11 @@ class WorkflowSnapshotResource {
     
     @GET 
     @Path("/{sid}")
-    // @Produces(Array(MediaType.APPLICATION_JSON))
     def retrieveWorkflowSnapshot(
         @PathParam("sid") sid: UInteger,
         @Auth sessionUser: SessionUser
     ): WorkflowSnapshot = {
-        // val user = sessionUser.getUser
-        // if (
-        //     WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-        //     WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
-        // ) {
-        //     throw new ForbiddenException("No sufficient access privilege.")
-        // } else {
         getSnapshotbyId(sid)
-        // }
     }
 
     @PUT
