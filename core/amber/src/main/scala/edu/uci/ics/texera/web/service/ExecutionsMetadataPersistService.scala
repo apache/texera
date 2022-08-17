@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowSnapshotResource
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jooq.types.UInteger
 
@@ -58,10 +59,12 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
     val vid = WorkflowVersionResource.getLatestVersion(uint)
+    val sid = WorkflowSnapshotResource.getLatestSnapshot()
     val newExecution = new WorkflowExecutions()
     newExecution.setWid(uint)
     newExecution.setVid(vid)
     newExecution.setUid(uid.getOrElse(null))
+    newExecution.setSid(sid)
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     workflowExecutionsDao.insert(newExecution)
     newExecution.getEid.longValue()

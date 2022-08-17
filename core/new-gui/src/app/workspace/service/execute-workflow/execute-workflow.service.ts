@@ -18,6 +18,11 @@ import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { WorkflowCollabService } from "../workflow-collab/workflow-collab.service";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { WorkflowSnapshotService } from "src/app/dashboard/service/workflow-snapshot/workflow-snapshot.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -50,6 +55,7 @@ export const EXECUTION_TIMEOUT = 3000;
 @Injectable({
   providedIn: "root",
 })
+@UntilDestroy()
 export class ExecuteWorkflowService {
   private currentState: ExecutionStateInfo = {
     state: ExecutionState.Uninitialized,
@@ -65,7 +71,10 @@ export class ExecuteWorkflowService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowCollabService: WorkflowCollabService,
+    private workflowSnapshotService: WorkflowSnapshotService,
+    private notificationService: NotificationService,
+    private workflowPersistService: WorkflowPersistService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -173,6 +182,18 @@ export class ExecuteWorkflowService {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
+    this.workflowSnapshotService.createSnapShotCanvas().then(canvas => {
+      canvas.toBlob(snapshotBlob => {
+        if (snapshotBlob === null) {
+          this.notificationService.error("Canavas Error");
+          return;
+        }
+        // upload snapshot into sql
+        this.workflowSnapshotService.uploadWorkflowSnapshot(snapshotBlob, this.workflowActionService.getWorkflow().wid)
+          .pipe(untilDestroyed(this))
+          .subscribe(()=>{}); 
+      });
+    });
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
