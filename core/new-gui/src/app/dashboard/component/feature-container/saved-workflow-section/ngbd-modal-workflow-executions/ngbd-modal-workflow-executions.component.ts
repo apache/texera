@@ -29,7 +29,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
     "",
-    "",
     "Username",
     "Name",
     "Starting Time",
@@ -410,8 +409,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   onAllChecked(value: boolean): void {
     if (this.workflowExecutionsDisplayedList !== undefined) {
       for (let i=0;i<this.workflowExecutionsDisplayedList.length;i++) {
-        this.updateCheckedSet(i, true);
-        this.updateExecutionSet(this.workflowExecutionsDisplayedList[i], true);
+        this.updateCheckedSet(i, value);
+        this.updateExecutionSet(this.workflowExecutionsDisplayedList[i], value);
       }
     }
     this.refreshCheckedStatus();
