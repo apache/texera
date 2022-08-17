@@ -210,7 +210,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && this.workflow.wid !== undefined) {
           this.workflowExecutionsService
-          .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
+            .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
             .pipe(untilDestroyed(this))
             .subscribe({
               complete: () => {
@@ -407,7 +407,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   onAllChecked(value: boolean): void {
     if (this.paginatedExecutionEntries !== undefined) {
-      for (let i=0;i<this.paginatedExecutionEntries.length;i++) {
+      for (let i = 0; i < this.paginatedExecutionEntries.length; i++) {
         this.updateCheckedSet(i, value);
         this.updateExecutionSet(this.paginatedExecutionEntries[i], value);
       }
