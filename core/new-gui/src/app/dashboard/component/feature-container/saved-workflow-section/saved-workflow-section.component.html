@@ -1,7 +1,7 @@
 <div class="saved-workflow-container subsection-grid-container">
   <nz-card class="workflow-section-title subsection-grid-container">
     <h2 class="page-title">Workflows</h2>
-    <nz-button-group class ="workflow-utility-button-group" ngbDropdown>
+    <nz-button-group class="workflow-utility-button-group" ngbDropdown>
       <a [nzDropdownMenu]="sortOptions" nz-dropdown>
         <button id="sortDropdown" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
@@ -59,8 +59,7 @@
       </button>
     </nz-button-group>
 
-
-    <nz-button-group class ="workflow-filter-button-group" ngbDropdown>
+    <nz-button-group class="workflow-filter-button-group" ngbDropdown>
       <a
         [nzDropdownMenu]="calendar"
         nz-dropdown
@@ -251,7 +250,7 @@
                     value="{{ dashboardWorkflowEntry.workflow.name }}"
                   />
                 </ng-template>
-                  <button
+                <button
                   (click)="dashboardWorkflowEntriesIsEditingName.push(indexOfElement)"
                   nz-button
                   nz-tooltip="Customize Workflow Name"
@@ -281,8 +280,12 @@
             </nz-list-item-meta-title>
             <nz-list-item-meta-description>
               <nz-space [nzSize]="10">
-                <p *nzSpaceItem class="workflow-time">Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</p>
-                <p *nzSpaceItem class="workflow-time">Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</p>
+                <p *nzSpaceItem class="workflow-time">
+                  Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}
+                </p>
+                <p *nzSpaceItem class="workflow-time">
+                  Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}
+                </p>
               </nz-space>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
@@ -308,7 +311,9 @@
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"
-              > x </div>
+              >
+                x
+              </div>
             </div>
           </div>
 
