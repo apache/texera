@@ -160,7 +160,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
     // Update on the server.
     this.workflowExecutionsService
-      .groupSetIsBookmarked(this.workflow.wid, [row.eId], !wasPreviouslyBookmarked)
+      .groupSetIsBookmarked(this.workflow.wid, [row.eId], wasPreviouslyBookmarked)
       .pipe(untilDestroyed(this))
       .subscribe({
         error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
@@ -210,13 +210,12 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && this.workflow.wid !== undefined) {
           this.workflowExecutionsService
-            .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
+          .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
             .pipe(untilDestroyed(this))
             .subscribe({
               complete: () => {
                 this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
                 this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
                 this.fuse.setCollection(this.paginatedExecutionEntries);
               },
             });
@@ -407,10 +406,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   onAllChecked(value: boolean): void {
-    if (this.workflowExecutionsDisplayedList !== undefined) {
-      for (let i=0;i<this.workflowExecutionsDisplayedList.length;i++) {
+    if (this.paginatedExecutionEntries !== undefined) {
+      for (let i=0;i<this.paginatedExecutionEntries.length;i++) {
         this.updateCheckedSet(i, value);
-        this.updateExecutionSet(this.workflowExecutionsDisplayedList[i], value);
+        this.updateExecutionSet(this.paginatedExecutionEntries[i], value);
       }
     }
     this.refreshCheckedStatus();
@@ -423,8 +422,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   refreshCheckedStatus(): void {
-    if (this.workflowExecutionsDisplayedList !== undefined) {
-      this.checked = this.workflowExecutionsDisplayedList.length === this.setOfCheckedIndex.size;
+    if (this.paginatedExecutionEntries !== undefined) {
+      this.checked = this.paginatedExecutionEntries.length === this.setOfCheckedIndex.size;
     }
   }
 

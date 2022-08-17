@@ -137,10 +137,12 @@ class WorkflowExecutionsResource {
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     /* delete the execution in sql */
-    context
+    for (eId <- request.eIds) {
+      context
       .delete(WORKFLOW_EXECUTIONS)
-      .where(request.eIds contains WORKFLOW_EXECUTIONS.EID)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eId))
       .execute();
+    }
   }
 
   /** Name a single execution * */
