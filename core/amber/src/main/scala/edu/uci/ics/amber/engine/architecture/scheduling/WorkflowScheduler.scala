@@ -94,13 +94,14 @@ class WorkflowScheduler(
           )
         })
     })
+
     Future
       .collect(futures)
-      .map { _ =>
+      .flatMap(seq => {
         // update frontend status
         Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
         doSchedulingWork(schedulingPolicy.recordTimeFinished(regions))
-      }
+      })
   }
 
   private def doSchedulingWork(work: SchedulingWork): Future[Seq[Unit]] = {
@@ -109,12 +110,16 @@ class WorkflowScheduler(
         // regions are scheduled once and execute till they finish
         Future.collect(work.regions.toArray.map(r => constructPrepareAndStart(r)))
       } else {
-        ctx.system.scheduler.scheduleOnce(
-          FiniteDuration.apply(5000, MILLISECONDS),
-          ctx.self,
-          ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, PauseRegion(work.regions))
-        )(ctx.dispatcher)
-        Future.collect(work.regions.toArray.map(r => constructPrepareAndStart(r)))
+        Future
+          .collect(work.regions.toArray.map(r => constructPrepareAndStart(r)))
+          .map(_ => {
+            ctx.system.scheduler.scheduleOnce(
+              FiniteDuration.apply(5000, MILLISECONDS),
+              ctx.self,
+              ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, PauseRegion(work.regions))
+            )(ctx.dispatcher)
+            Seq()
+          })
       }
     } else {
       Future(Seq())

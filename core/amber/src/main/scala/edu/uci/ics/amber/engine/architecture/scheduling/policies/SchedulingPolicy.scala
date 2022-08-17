@@ -21,6 +21,8 @@ object SchedulingPolicy {
       new SingleReadyRegion(workflow)
     } else if (policyName.equals("all-ready-regions")) {
       new AllReadyRegions(workflow)
+    } else if (policyName.equals("all-ready-time-interleaved-regions")) {
+      new AllReadyTimeInterleavedRegions(workflow)
     } else {
       throw new WorkflowRuntimeException(s"Unknown scheduling policy name")
     }
@@ -50,7 +52,7 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     scheduleOrder
   }
 
-  private def checkRegionCompleted(region: PipelinedRegion): Unit = {
+  protected def checkRegionCompleted(region: PipelinedRegion): Unit = {
     val isRegionCompleted: Boolean = workflow
       .getBlockingOutlinksOfRegion(region)
       .forall(
@@ -133,7 +135,7 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     work
   }
 
-  def recordTimeFinished(regions: Set[PipelinedRegion]) = {
-    
+  def recordTimeFinished(regions: Set[PipelinedRegion]): SchedulingWork = {
+    getNextSchedulingWork()
   }
 }
