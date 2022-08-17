@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row10;
+import org.jooq.Row11;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = -1623419866;
+    private static final long serialVersionUID = 445028859;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -69,6 +69,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.uid</code>.
      */
     public final TableField<WorkflowExecutionsRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.sid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, UInteger> SID = createField(DSL.name("sid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.status</code>.
@@ -140,7 +145,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID, Indexes.WORKFLOW_EXECUTIONS_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_SID, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID, Indexes.WORKFLOW_EXECUTIONS_WID);
     }
 
     @Override
@@ -160,7 +165,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
+        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2, Keys.WORKFLOW_EXECUTIONS_IBFK_3, Keys.WORKFLOW_EXECUTIONS_IBFK_4);
     }
 
     public Workflow workflow() {
@@ -173,6 +178,10 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     public User user() {
         return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
+    }
+
+    public WorkflowSnapshot workflowSnapshot() {
+        return new WorkflowSnapshot(this, Keys.WORKFLOW_EXECUTIONS_IBFK_4);
     }
 
     @Override
@@ -202,11 +211,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row10 type methods
+    // Row11 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row10<UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String> fieldsRow() {
-        return (Row10) super.fieldsRow();
+    public Row11<UInteger, UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String> fieldsRow() {
+        return (Row11) super.fieldsRow();
     }
 }

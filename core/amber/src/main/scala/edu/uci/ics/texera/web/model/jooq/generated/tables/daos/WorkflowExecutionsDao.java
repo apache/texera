@@ -104,6 +104,20 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
+     * Fetch records that have <code>sid BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfSid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.SID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>sid IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchBySid(UInteger... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.SID, values);
+    }
+
+    /**
      * Fetch records that have <code>status BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStatus(Byte lowerInclusive, Byte upperInclusive) {
