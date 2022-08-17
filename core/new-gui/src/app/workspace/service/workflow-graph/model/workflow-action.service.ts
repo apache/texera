@@ -932,15 +932,15 @@ export class WorkflowActionService {
         this.setOperatorPropertyInternal(operatorID, newProperty);
 
         // unhighlight everything but the operator being modified
-        const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
-        if ((!group || !group.collapsed) && !currentHighlightedOperators.includes(operatorID)) {
-          this.jointGraphWrapper.setMultiSelectMode(false);
-          this.jointGraphWrapper.highlightOperators(operatorID);
-        } else if (!group || !group.collapsed) {
-          currentHighlightedOperators.splice(currentHighlightedOperators.indexOf(operatorID), 1);
-          this.jointGraphWrapper.unhighlightOperators(...currentHighlightedOperators);
-          this.jointGraphWrapper.unhighlightGroups(...this.jointGraphWrapper.getCurrentHighlightedGroupIDs());
-        }
+        // const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
+        // if ((!group || !group.collapsed) && !currentHighlightedOperators.includes(operatorID)) {
+        //   this.jointGraphWrapper.setMultiSelectMode(false);
+        //   this.jointGraphWrapper.highlightOperators(operatorID);
+        // } else if (!group || !group.collapsed) {
+        //   currentHighlightedOperators.splice(currentHighlightedOperators.indexOf(operatorID), 1);
+        //   this.jointGraphWrapper.unhighlightOperators(...currentHighlightedOperators);
+        //   this.jointGraphWrapper.unhighlightGroups(...this.jointGraphWrapper.getCurrentHighlightedGroupIDs());
+        // }
       },
       undo: () => {
         this.setOperatorPropertyInternal(operatorID, prevProperty);
