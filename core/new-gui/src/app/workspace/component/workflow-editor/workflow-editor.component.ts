@@ -1265,38 +1265,23 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       breakpoints: [],
       commentBoxes: [],
     };
-    // copiedOps contains all the highlighted operators' info that are being copied
-    const copiedOps: CopiedOperator[] = [];
-    highlightedOperatorIDs.forEach(operatorID => {
-      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-
-      if (operator) {
-        const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(operatorID);
-        const layer = this.workflowActionService.getJointGraphWrapper().getCellLayer(operatorID);
-        const pastedOperators = includeOperator ? [operatorID] : [];
-        const copiedOp = {
-          operatorID,
-          operator,
-          position,
-          layer,
-          pastedOperatorIDs: pastedOperators,
-        };
-        // add the newly copied operator to the json array
-        copiedOps.push(copiedOp);
-      }
-    });
-
-    // sort all the copied operators by their layers (descending order)
-    copiedOps.sort((first, second) => first.layer - second.layer);
-    // define operatorCopy that should just contain the operators
+    
+    // define the copies that will be put in the serialized json string when copyinig
     const operatorsCopy: OperatorPredicate[] = [];
     const operatorPositionsCopy: OperatorPosition = {};
     const linksCopy: Link[] = [];
-
-    copiedOps.forEach(op => {
-      operatorsCopy.push(op.operator);
-      operatorPositionsCopy[op.operatorID] = op.position;
+  
+    // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
+    highlightedOperatorIDs.forEach(operatorID => {
+      operatorsCopy.push(this.workflowActionService.getTexeraGraph().getOperator(operatorID));
     });
+
+    // sort all the highlighted operators by their layer number
+    operatorsCopy.sort((first, second) => this.workflowActionService.getJointGraphWrapper().getCellLayer(first.operatorID) - this.workflowActionService.getJointGraphWrapper().getCellLayer(second.operatorID));
+
+    operatorsCopy.forEach((op) => {
+      operatorPositionsCopy[op.operatorID] = this.workflowActionService.getJointGraphWrapper().getElementPosition(op.operatorID);
+    })
 
     serializedString.operators = operatorsCopy;
     serializedString.operatorPositions = operatorPositionsCopy;
@@ -1308,11 +1293,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     linksCopy.sort((first, second) => this.workflowActionService.getJointGraphWrapper().getCellLayer(first.linkID) - this.workflowActionService.getJointGraphWrapper().getCellLayer(second.linkID));
     serializedString.links = linksCopy;
 
-    /**
-     * store the stringified copied operators into the clipboard, which is the preferred way to copy
-     * over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the
-     * WorkflowEditorComponent class)
-     */
+    
+    //store the stringified copied operators into the clipboard, which is the preferred way to copy over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the WorkflowEditorComponent class)
     navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
       // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
       // although if the current tab is active, permission shouldn't be needed
