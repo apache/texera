@@ -19,26 +19,12 @@ export class WorkflowExecutionsService {
     return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`);
   }
 
-  setIsBookmarked(wid: number, eId: number, isBookmarked: boolean): Observable<Object> {
-    return this.http.put(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/set_execution_bookmark`, {
-      wid,
-      eId,
-      isBookmarked,
-    });
-  }
 
   groupSetIsBookmarked(wid: number, eIds: number[], isBookmarked: boolean): Observable<Object> {
     return this.http.put(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/set_execution_bookmarks`, {
       wid,
       eIds,
       isBookmarked,
-    });
-  }
-
-  deleteWorkflowExecutions(wid: number, eId: number): Observable<Object> {
-    return this.http.put(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/delete_execution`, {
-      wid,
-      eId,
     });
   }
 
