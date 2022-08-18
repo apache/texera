@@ -533,6 +533,9 @@ export class WorkflowActionService {
           if (breakpoints !== undefined) {
             breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
           }
+          for (let link of links) {
+            this.jointGraphWrapper.highlightLinks(link.linkID);
+          }
         }
 
         if (groups) {
