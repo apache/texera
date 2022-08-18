@@ -680,6 +680,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+
+        // all the links on the graph
+        const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
+    
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
@@ -687,14 +691,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           } else if (highlightedGroupIDs.includes(elementID)) {
             this.workflowActionService.getJointGraphWrapper().unhighlightGroups(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, allLinks, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
         } else {
           // else only highlight a single operator or group
           if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, allLinks, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
@@ -1184,7 +1188,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService
           .getJointGraphWrapper()
           .setMultiSelectMode(allOperators.length + allGroups.length > 1);
-        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
+        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, [], ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
       });
   }

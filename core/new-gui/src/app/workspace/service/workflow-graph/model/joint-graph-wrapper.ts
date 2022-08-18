@@ -1,10 +1,11 @@
 import { fromEvent, Observable, ReplaySubject, Subject, merge } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { Point } from "../../../types/workflow-common.interface";
+import { OperatorLink, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
+import { WorkflowActionService } from "./workflow-action.service";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -159,8 +160,11 @@ export class JointGraphWrapper {
    *  involving the 'remove' operation
    */
   private jointCellDeleteStream = fromEvent<JointModelEvent>(this.jointGraph, "remove").pipe(map(value => value[0]));
-
-  constructor(public jointGraph: joint.dia.Graph) {
+  
+  constructor(
+    public jointGraph: joint.dia.Graph,
+    private workflowActionService: WorkflowActionService,
+  ) {
     // handle if the currently highlighted operator/group/link is deleted, it should be unhighlighted
     this.handleElementDeleteUnhighlight();
 
@@ -176,6 +180,7 @@ export class JointGraphWrapper {
       .pipe(filter(cell => cell.isElement()))
       .subscribe(element => this.elementPositions.delete(element.id.toString()));
   }
+
 
   /**
    * Let the JointGraph model be attached to the joint paper (paperOptions will be passed to Joint Paper constructor).
@@ -360,11 +365,38 @@ export class JointGraphWrapper {
    */
   public highlightOperators(...operatorIDs: string[]): void {
     const highlightedOperatorIDs: string[] = [];
-    operatorIDs.forEach(operatorID =>
+    const highlightedLinkIDs: string[] = [];
+    operatorIDs.forEach(operatorID => {
       this.highlightElement(operatorID, this.currentHighlightedOperators, highlightedOperatorIDs)
-    );
+      
+      // get all the links whose both ends are connected to the currently highlighted operators
+      const allLinks = this.workflowActionService.getTexeraGraph().getAllLinks(); 
+      const linksToBeHighlighted: OperatorLink[] = allLinks.filter(link => {
+        for (let sourceOperatorID of this.currentHighlightedOperators) {
+          // first make sure the link is not already highlighted
+          if (!(link.linkID in this.currentHighlightedLinks)) {
+            if (sourceOperatorID == link.source.operatorID) {
+              // iterate through all the other highlighghted operators
+              for (let targetOperatorID of this.currentHighlightedOperators.filter(each => each != sourceOperatorID)) {
+                if (targetOperatorID == link.target.operatorID) {
+                  return true;
+                }
+              }
+            }
+          }
+        }
+      })
+      console.log("teh length of the linkstobehighlighted is", linksToBeHighlighted.length);
+      for (let link of linksToBeHighlighted) {
+        this.highlightElement(link.linkID, this.currentHighlightedLinks, highlightedLinkIDs);
+      }
+    });
+
     if (highlightedOperatorIDs.length > 0) {
       this.jointOperatorHighlightStream.next(highlightedOperatorIDs);
+    }
+    if (highlightedLinkIDs.length > 0) {
+      this.jointLinkHighlightStream.next(highlightedLinkIDs);
     }
   }
 
@@ -878,7 +910,7 @@ export class JointGraphWrapper {
   private highlightElement(
     elementID: string,
     currentHighlightedElements: string[],
-    highlightedElements: string[]
+    highlightedElements: string[],
   ): void {
     // try to get the element using element ID
     if (!this.jointGraph.getCell(elementID)) {
@@ -894,6 +926,10 @@ export class JointGraphWrapper {
       this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
       this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
+    }
+    const cell = this.jointGraph.getCell(elementID);
+    if (cell.attributes.type == 'devs.Model') {
+      
     }
     // highlight the element and add it to the list of highlighted elements
     currentHighlightedElements.push(elementID);

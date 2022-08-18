@@ -90,7 +90,10 @@ export class WorkflowActionService {
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
-    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+    this.jointGraphWrapper = new JointGraphWrapper(
+      this.jointGraph,
+      this
+    );
     this.operatorGroup = new OperatorGroup(
       this.texeraGraph,
       this.jointGraph,
@@ -410,7 +413,7 @@ export class WorkflowActionService {
         // add operator
         this.addOperatorsInternal([{ operator, point }]);
         // highlight the newly added operator
-        this.jointGraphWrapper.highlightOperators(operator.operatorID);
+        this.jointGraphWrapper.highlightOperators( operator.operatorID);
       },
       undo: () => {
         // remove the operator from JointJS
@@ -1265,7 +1268,7 @@ export class WorkflowActionService {
     this.workflowCollabService.propagateChange(commandMessage);
   }
 
-  public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
+  public highlightOperators(multiSelect: boolean, links: OperatorLink[], ...ops: string[]): void {
     const command: Command = {
       modifiesWorkflow: false,
       execute: () => {
@@ -1275,7 +1278,7 @@ export class WorkflowActionService {
     };
     const commandMessage: CommandMessage = {
       action: "highlightOperators",
-      parameters: [multiSelect, ...ops],
+      parameters: [multiSelect, links, ...ops],
       type: "execute",
     };
     this.executeStoreAndPropagateCommand(command, commandMessage);
