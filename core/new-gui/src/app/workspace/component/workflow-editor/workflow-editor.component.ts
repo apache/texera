@@ -1252,7 +1252,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * saves highlighted elements to the system clipboard
    */
   private saveHighlightedElements(includeOperator: boolean): void {
+    // get all the currently selected operators and links
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const highlighghtedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
     // const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
     // initialize the serialized string
     const serializedString: SerializedString = {
@@ -1287,33 +1289,24 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     // sort all the copied operators by their layers (descending order)
     copiedOps.sort((first, second) => first.layer - second.layer);
     // define operatorCopy that should just contain the operators
-    const operatorCopy: OperatorPredicate[] = [];
+    const operatorsCopy: OperatorPredicate[] = [];
     const operatorPositionsCopy: OperatorPosition = {};
+    const linksCopy: Link[] = [];
+
     copiedOps.forEach(op => {
-      operatorCopy.push(op.operator);
+      operatorsCopy.push(op.operator);
       operatorPositionsCopy[op.operatorID] = op.position;
     });
 
-    serializedString.operators = operatorCopy;
+    serializedString.operators = operatorsCopy;
     serializedString.operatorPositions = operatorPositionsCopy;
 
-    // to get only the links that are being copied, first get all the links and filter them based on their
-    // source and target operators
-    const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
-    // links to be copied are all the links between every two operators that are copied
-    const linksToBeCopied: OperatorLink[] = allLinks.filter(link => {
-      for (let sourceOperator of Object.values(copiedOps)) {
-        if (sourceOperator.operator.operatorID == link.source.operatorID) {
-          // iterate through all the operators except for the current source operator
-          for (let targetOperator of Object.values(copiedOps).filter(each => each != sourceOperator)) {
-            if (targetOperator.operator.operatorID == link.target.operatorID) {
-              return true;
-            }
-          }
-        }
-      }
-    });
-    serializedString.links = linksToBeCopied;
+    // get all the highlighted links, and sort them by their layers
+    highlighghtedLinkIDs.forEach((linkID) => {
+      linksCopy.push(this.workflowActionService.getTexeraGraph().getLinkWithID(linkID));
+    })
+    linksCopy.sort((first, second) => this.workflowActionService.getJointGraphWrapper().getCellLayer(first.linkID) - this.workflowActionService.getJointGraphWrapper().getCellLayer(second.linkID));
+    serializedString.links = linksCopy;
 
     /**
      * store the stringified copied operators into the clipboard, which is the preferred way to copy
