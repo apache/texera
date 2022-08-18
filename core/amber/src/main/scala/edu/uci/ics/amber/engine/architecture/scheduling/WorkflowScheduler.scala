@@ -67,6 +67,7 @@ class WorkflowScheduler(
   private val openedOperators = new mutable.HashSet[OperatorIdentity]()
   private val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
   private val activatedLink = new mutable.HashSet[LinkIdentity]()
+
   private val constructedRegions = new mutable.HashSet[PipelinedRegionIdentity]()
 
   def startWorkflow(): Future[Seq[Unit]] = {
@@ -81,8 +82,8 @@ class WorkflowScheduler(
     doSchedulingWork(schedulingPolicy.recordLinkCompletion(linkId))
   }
 
-  def recordTimeFinished(regions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
-    var futures = new ArrayBuffer[Future[Unit]]()
+  def recordTimeSlotExpired(regions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
+    val futures = new ArrayBuffer[Future[Unit]]()
     regions.foreach(r => {
       workflow
         .getAllWorkersOfRegion(r)
@@ -108,13 +109,14 @@ class WorkflowScheduler(
     if (work.regions.nonEmpty) {
       if (work.schedulingDurationInMs == 0) {
         // regions are scheduled once and execute till they finish
-        Future.collect(work.regions.toArray.map(r => constructPrepareAndStart(r)))
+        Future.collect(work.regions.toArray.map(r => scheduleRegion(r)))
       } else {
+        // regions are scheduled for a time slot
         Future
-          .collect(work.regions.toArray.map(r => constructPrepareAndStart(r)))
+          .collect(work.regions.toArray.map(r => scheduleRegion(r)))
           .map(_ => {
             ctx.system.scheduler.scheduleOnce(
-              FiniteDuration.apply(5000, MILLISECONDS),
+              FiniteDuration.apply(work.schedulingDurationInMs, MILLISECONDS),
               ctx.self,
               ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, PauseRegion(work.regions))
             )(ctx.dispatcher)
@@ -356,7 +358,7 @@ class WorkflowScheduler(
       }
   }
 
-  private def constructPrepareAndStart(region: PipelinedRegion): Future[Unit] = {
+  private def scheduleRegion(region: PipelinedRegion): Future[Unit] = {
     println(s"\t\tRegion ${region.getId().pipelineId} started")
     if (!constructedRegions.contains(region.getId())) {
       constructRegion(region)

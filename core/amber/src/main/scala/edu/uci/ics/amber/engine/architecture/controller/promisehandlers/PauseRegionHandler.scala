@@ -18,7 +18,7 @@ trait PauseRegionHandler {
 
   registerHandler { (msg: PauseRegion, sender) =>
     {
-      scheduler.recordTimeFinished(msg.regions).map(_ => println())
+      scheduler.recordTimeSlotExpired(msg.regions).map(_ => println())
     }
   }
 }
