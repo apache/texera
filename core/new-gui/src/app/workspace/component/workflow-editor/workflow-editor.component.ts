@@ -76,7 +76,7 @@ export const WORKFLOW_EDITOR_JOINTJS_ID = "texera-workflow-editor-jointjs-body-i
  *
  */
 
-declare var $: any;
+// declare var $: any;
 
 @UntilDestroy()
 @Component({
@@ -621,7 +621,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     };
 
     jQuery(() => {
-      $.contextMenu({
+      jQuery.contextMenu({
         selector: ".texera-workspace-workflow-editor-body",
 
         callback: (key: any, options: any) => {

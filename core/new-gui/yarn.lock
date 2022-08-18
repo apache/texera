@@ -3339,6 +3339,13 @@
   dependencies:
     "@types/jasmine" "*"
 
+"@types/jquery.contextmenu@1.7.35":
+  version "1.7.35"
+  resolved "https://registry.yarnpkg.com/@types/jquery.contextmenu/-/jquery.contextmenu-1.7.35.tgz#f7fc43f0c5529c48bd687ef5aaf858a3090cca2f"
+  integrity sha512-0KmOOYgU6ySqOcglRYxFz8KyoFyOeN5YJ0ykg8IL1SJmmLTkeplVixqspcSmFtpLRORPl46a893An5YbuLr6rw==
+  dependencies:
+    "@types/jquery" "*"
+
 "@types/jquery@*", "@types/jquery@~3.5.14":
   version "3.5.14"
   resolved "https://registry.npmjs.org/@types/jquery/-/jquery-3.5.14.tgz"

@@ -110,6 +110,7 @@
     "@types/jasminewd2": "~2.0.10",
     "@types/jquery": "~3.5.14",
     "@types/jqueryui": "1.12.10",
+    "@types/jquery.contextmenu": "1.7.35",
     "@types/json-schema": "~7.0.9",
     "@types/lodash": "~4.14.179",
     "@types/uuid": "~8.3.4",
