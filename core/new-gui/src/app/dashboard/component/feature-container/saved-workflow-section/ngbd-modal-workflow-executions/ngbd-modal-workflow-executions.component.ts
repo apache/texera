@@ -181,7 +181,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
               complete: () => {
                 this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
                 this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                this.workflowExecutionsDisplayedList?.splice(this.workflowExecutionsDisplayedList.indexOf(row), 1);
                 this.fuse.setCollection(this.paginatedExecutionEntries);
               },
             });

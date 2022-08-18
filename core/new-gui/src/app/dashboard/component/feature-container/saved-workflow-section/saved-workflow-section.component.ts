@@ -178,8 +178,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
-      size: "lg",
-      windowClass: "modal-xl",
+      size: "xl",
+      modalDialogClass: "modal-dialog-centered",
     });
     modalRef.componentInstance.workflow = workflow;
     modalRef.componentInstance.workflowName = workflow.name;
