@@ -76,8 +76,6 @@ export const WORKFLOW_EDITOR_JOINTJS_ID = "texera-workflow-editor-jointjs-body-i
  *
  */
 
-// declare var $: any;
-
 @UntilDestroy()
 @Component({
   selector: "texera-workflow-editor",
