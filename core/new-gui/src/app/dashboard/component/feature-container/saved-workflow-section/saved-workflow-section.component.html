@@ -32,11 +32,22 @@
       >
         <i nz-icon nzTheme="outline" nzType="file-add"></i>
       </button>
+      <button
+        [disabled]="downloadListWorkflow.size === 0"
+        (click)="onClickOpenDownloadZip()"
+        nz-button
+        nz-tooltip="Download added workflow as a ZIP file"
+        nzTooltipPlacement="bottom"
+        type="button"
+      >
+        <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
+      </button>
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
-        <button nz-button nz-tooltip="Upload JSON file as workflow" nzTooltipPlacement="bottom" type="button">
+        <button nz-button nz-tooltip="Upload ZIP/JSON file as workflow" nzTooltipPlacement="bottom" type="button">
           <i nz-icon nzType="cloud-upload" nzTheme="outline"></i>
         </button>
       </nz-upload>
+
       <button
         *ngIf="pid !== 0"
         (click)="onClickOpenAddWorkflow()"
@@ -225,6 +236,18 @@
         >
           <nz-list-item-meta>
             <nz-list-item-meta-avatar>
+              <label
+                nz-checkbox
+                class="workflow-item-checkbox"
+                id="{{dashboardWorkflowEntry.workflow.wid}}"
+                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
+              ></label>
+              <!-- <input
+                class="workflow-item-checkbox"
+                type="checkbox"
+                id="{{dashboardWorkflowEntry.workflow.wid}}"
+                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
+              /> -->
               <nz-avatar
                 [ngStyle]="{ 'background-color': 'grey' }"
                 [nzGap]="4"
