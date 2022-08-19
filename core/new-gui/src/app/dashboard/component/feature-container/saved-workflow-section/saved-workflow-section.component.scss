@@ -10,42 +10,41 @@
 .ant-btn-icon-only {
   margin-left: 5px;
   margin-right: 5px;
-
-  &.ant-btn-sm {
-    transform: translateY(-4px);
-  }
 }
 
 /**
-* this css is used for creating a 2*1 grid area for the 2 main
-* sub parts. The first row contains add and sort button. The second
-* row contains the saved project list. The percentages define the size
-* of each column and row.
-*              ******************
-*              *                *
-*              ******************
-*              *                *
-*              *                *
-*              *                *
-*              *                *
-*              ******************
-**/
-$workflow-header-height: 120px;
-$workflow-search-bar-height: 60px;
+  * Create a 3*1 grid area
+  * The first row contains add and sort button. 
+  * The second row contains the search bar.
+  * The third row contains the saved workflow/files list.
+  * 
+  * This layout is shared between workflows and files section.
+  *
+  *              ******************
+  *              *                *
+  *              ******************
+  *              *                *
+  *              ******************
+  *              *                *
+  *              *                *
+  *              *                *
+  *              ******************
+  **/
+$section-header-height: 120px;
+$section-search-bar-height: 60px;
 
-.saved-workflow-container {
+.section-container {
   display: grid;
   grid-template-rows:
-    $workflow-header-height
-    $workflow-search-bar-height
-    calc((100% - #{$workflow-header-height} - #{$workflow-search-bar-height}));
+    $section-header-height
+    $section-search-bar-height
+    calc((100% - #{$section-header-height} - #{$section-search-bar-height}));
 }
 
 /**
-  * the grid of the first row which contains the add and sort button.
-  * The position of the first row is fix. no adaptation
+  * grid of the first row which contains title and utility buttons
   **/
-.workflow-title {
+.section-title {
   grid-row-start: 1;
   grid-row-end: 2;
 
@@ -53,22 +52,24 @@ $workflow-search-bar-height: 60px;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  .workflow-utility-button-group {
+  .utility-button-group {
     float: left;
   }
 
-  .workflow-filter-button-group {
+  .filter-button-group {
     float: right;
   }
 }
 
-.workflow-search-bar {
+/**
+  * grid of the second row which contains the search bar
+  **/
+.section-search-bar {
   grid-row-start: 2;
   grid-row-end: 3;
 
   display: flex;
   padding: 4px 24px;
-  // border: 1px solid #d9d9d9;
 
   .search-info-box {
     margin-right: 10px;
@@ -82,27 +83,46 @@ $workflow-search-bar-height: 60px;
 }
 
 /**
-  * the grid of the list of saved workflow. Each workflow contains the name, created time and last
-  * edited time. This section is flexible to expand downward and upwards (e.g. workflows add / removed from project)
+  * the third grid of the workflow/files list.
+  * including css shared by workflow/file item
   **/
-.workflow-list-container {
+.section-list-container {
   grid-row-start: 3;
   grid-row-end: 4;
   overflow: auto;
   min-height: 100%;
 
-  .virtual-scroll-infinite-container {
-    height: calc(100vh - $dashboard-navigation-height - $workflow-header-height - $workflow-search-bar-height - 50px);
+  // always show the scroll bar for the virtual scroll container
+  ::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.5);
+    -webkit-box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
+  }
 
+  .virtual-scroll-container {
+    height: calc(100vh - $dashboard-navigation-height - $section-header-height - $section-search-bar-height - 50px);
     border: 1px solid #e8e8e8;
     border-radius: 4px;
   }
 
-  .workflow-list-item {
-    margin-bottom: 10px;
-    min-height: 70px;
-    padding: 5px 0 5px 0;
+  .metadata-container {
+    span {
+      margin: 0 1rem 0 0; // add space to the right
+    }
   }
+}
+
+/**
+  * css specifically for each workflow item in the list (not shared by file items)
+  **/
+.workflow-list-item {
+  margin-bottom: 10px;
+  min-height: 70px;
+  padding: 5px 0 5px 0;
 
   .workflow-item-checkbox {
     margin: 8px;
@@ -112,71 +132,65 @@ $workflow-search-bar-height: 60px;
     display: flex;
     align-items: center;
 
-    i {
-      position: relative;
-      font-size: 17px;
-      margin-bottom: 6px;
-    }
-
     .workflow-name {
       font-size: 20px;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       text-align: center;
-      text-overflow: ellipsis;
     }
 
     .workflow-name:hover {
       cursor: pointer;
     }
 
-    .workflow-time {
-      font-size: 12px;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      color: gray;
-      margin: 0px;
+    i {
+      position: relative;
+      font-size: 17px;
+      margin-bottom: 6px;
     }
   }
+}
 
-  .workflow-project-label-container {
-    min-width: 20px;
-    // max-width: 350px;
-    display: flex;
-    flex-direction: row-reverse;
-    overflow-x: auto;
+/**
+  * css for project label, shared by workflow section and file section
+  **/
+.project-label-container {
+  min-width: 20px;
+  display: flex;
+  flex-direction: row-reverse;
+  overflow-x: auto;
 
-    .workflow-project-label {
-      display: inline;
-      white-space: nowrap;
+  .project-label {
+    display: inline;
+    white-space: nowrap;
 
-      .color-tag {
-        display: inline-block;
-        cursor: pointer;
-      }
+    .color-tag {
+      display: inline-block;
+      cursor: pointer;
+    }
 
-      .left-div {
-        padding: 1.5px 7px;
-        border-top-left-radius: 2px;
-        border-bottom-left-radius: 2px;
-      }
+    .left-div {
+      padding: 1.5px 7px;
+      border-top-left-radius: 2px;
+      border-bottom-left-radius: 2px;
+    }
 
-      .right-div {
-        padding: 1.5px 7px;
-        border-top-right-radius: 2px;
-        border-bottom-right-radius: 2px;
-        margin-right: 10px;
-      }
+    .right-div {
+      padding: 1.5px 7px;
+      border-top-right-radius: 2px;
+      border-bottom-right-radius: 2px;
+      margin-right: 10px;
+    }
 
-      .light-color {
-        border: 1px solid gainsboro;
-      }
+    .light-color {
+      border: 1px solid gainsboro;
+    }
 
-      .light-color:hover {
-        background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
-      }
+    .light-color:hover {
+      background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
+    }
 
-      .dark-color:hover {
-        background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
-      }
+    .dark-color:hover {
+      background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
     }
   }
 }
