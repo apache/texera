@@ -40,7 +40,7 @@ object WorkflowExecutionsResource {
   // /**
   //   * This function retrieves the latest execution of a workflow
   //   * @param wid
-  //   * @return ExecutionContent
+  //   * @return WorkflowExecutionEntry
   //   */
   def getLatestExecution(wid: UInteger): Option[WorkflowExecutionEntry] = {
     val executions = context
@@ -69,7 +69,9 @@ object WorkflowExecutionsResource {
       None
     } else {
       Some(
-        executions.max((x: WorkflowExecutionEntry, y: WorkflowExecutionEntry) => x.eId compareTo y.eId)
+        executions.max((x: WorkflowExecutionEntry, y: WorkflowExecutionEntry) =>
+          x.eId compareTo y.eId
+        )
       )
     }
   }
@@ -182,5 +184,4 @@ class WorkflowExecutionsResource {
     executionsDao.update(execution)
   }
 
-  
 }

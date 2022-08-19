@@ -17,74 +17,97 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowSnapshot
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowSnapshotResource._
 
 object WorkflowSnapshotResource {
-    final private lazy val context = SqlServer.createDSLContext()
-    private val snapshotDao = new WorkflowSnapshotDao(context.configuration)
+  final private lazy val context = SqlServer.createDSLContext()
+  private val snapshotDao = new WorkflowSnapshotDao(context.configuration)
 
-    def getSnapshotbyId(sid: UInteger): WorkflowSnapshot = {
-        snapshotDao.fetchOneBySid(sid)
-    }
+  /**
+    *  This function get snapshot by the sid
+    */
+  def getSnapshotbyId(sid: UInteger): WorkflowSnapshot = {
+    snapshotDao.fetchOneBySid(sid)
+  }
 
-    /**
+  /**
     * This function retrieves the latest snapshot of a workflow
     * @return sid
     */
-    def getLatestSnapshot(): UInteger = {
-        val snapshots = context
-            .select(WORKFLOW_SNAPSHOT.SID)
-            .from(WORKFLOW_SNAPSHOT)
-            .fetchInto(classOf[UInteger])
-            .toList
-        snapshots.max
-    }
+  def getLatestSnapshot(): UInteger = {
+    val snapshots = context
+      .select(WORKFLOW_SNAPSHOT.SID)
+      .from(WORKFLOW_SNAPSHOT)
+      .fetchInto(classOf[UInteger])
+      .toList
+    snapshots.max
+  }
 
-    private def insertSnapshot(snapshotBlob: Array[Byte]): Unit = {
-        val newSnapshot = new WorkflowSnapshot()
-        newSnapshot.setSnapshot(snapshotBlob: _*)
-        snapshotDao.insert(newSnapshot)
-    }
+  /**
+    * This function insert new snapshot into sql
+    * @param snapshotBlob
+    */
+  private def insertSnapshot(snapshotBlob: Array[Byte]): Unit = {
+    val newSnapshot = new WorkflowSnapshot()
+    newSnapshot.setSnapshot(snapshotBlob: _*)
+    snapshotDao.insert(newSnapshot)
+  }
 
-    def deleteSnapshot(sid: UInteger): Unit = {
-        context
-            .delete(WORKFLOW_SNAPSHOT)
-            .where(WORKFLOW_SNAPSHOT.SID.eq(sid))
-            .execute();
-    }
+  /**
+    * This function delete the snapshot entry of sid in sql
+    * @param sid
+    */
+  def deleteSnapshot(sid: UInteger): Unit = {
+    context
+      .delete(WORKFLOW_SNAPSHOT)
+      .where(WORKFLOW_SNAPSHOT.SID.eq(sid))
+      .execute();
+  }
 }
 
 @PermitAll
 @Path("/snapshot")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowSnapshotResource {
-    
-    @GET 
-    @Path("/{sid}")
-    def retrieveWorkflowSnapshot(
-        @PathParam("sid") sid: UInteger,
-        @Auth sessionUser: SessionUser
-    ): WorkflowSnapshot = {
-        getSnapshotbyId(sid)
-    }
 
-    @PUT
-    @Path("/upload")
-    @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
-    def uploadWorkflowSnapshot(
-        @FormDataParam("wid") wid: UInteger,
-        @FormDataParam("SnapshotBlob") snapshotBlob: Array[Byte],
-        @Auth sessionUser: SessionUser
-    ): Unit = {
-        val user = sessionUser.getUser
-        if (snapshotBlob == null) {
-            throw new BadRequestException("Snapshot Blob cannot be null.")
-        } else if (wid == null) {
-            throw new BadRequestException("Cannot upload workflow snapshot without a provided id.")
-        } else if (
-            WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-            WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
-        ) {
-            throw new ForbiddenException("No sufficient access privilege.")
-        } else {
-            insertSnapshot(snapshotBlob)
-        }
+  /**
+    * This function retrieve the snapshot from sql by sid
+    * @param sid
+    * @param sessionUser
+    * @return
+    */
+  @GET
+  @Path("/{sid}")
+  def retrieveWorkflowSnapshot(
+      @PathParam("sid") sid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): WorkflowSnapshot = {
+    getSnapshotbyId(sid)
+  }
+
+  /**
+    * This function insert new snapshot into sql
+    * @param wid
+    * @param snapshotBlob
+    * @param sessionUser
+    */
+  @PUT
+  @Path("/upload")
+  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
+  def uploadWorkflowSnapshot(
+      @FormDataParam("wid") wid: UInteger,
+      @FormDataParam("SnapshotBlob") snapshotBlob: Array[Byte],
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    val user = sessionUser.getUser
+    if (snapshotBlob == null) {
+      throw new BadRequestException("Snapshot Blob cannot be null.")
+    } else if (wid == null) {
+      throw new BadRequestException("Cannot upload workflow snapshot without a provided id.")
+    } else if (
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+    ) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    } else {
+      insertSnapshot(snapshotBlob)
     }
+  }
 }

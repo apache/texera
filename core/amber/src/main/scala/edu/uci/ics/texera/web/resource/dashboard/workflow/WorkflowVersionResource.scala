@@ -249,7 +249,7 @@ object WorkflowVersionResource {
       // if the change(which is marked by the key `path` using the Json patch library
       // doesn't contain any of the specified keywords then it shall be deemed important
       if (
-        ! SNAPSHOT_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("op").asText().contains)
+        !SNAPSHOT_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("op").asText().contains)
       ) {
         return true
       }

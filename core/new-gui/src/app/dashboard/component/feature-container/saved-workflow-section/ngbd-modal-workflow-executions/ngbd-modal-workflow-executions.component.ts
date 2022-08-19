@@ -460,9 +460,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     );
   }
 
+  /**
+   * Retrieve snapshot for each execution
+   */
   getWorkflowSnapshot(): void {
     this.workflowExecutionsDisplayedList?.forEach(execution => {
-      this.workflowSnapshotService.retrieveWorkflowSnapshot(execution.sId)
+      this.workflowSnapshotService
+        .retrieveWorkflowSnapshot(execution.sId)
         .pipe(untilDestroyed(this))
         .subscribe(workflowSnapshot => {
           this.workflowSnapshot.set(execution.sId, workflowSnapshot.snapshot);

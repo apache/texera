@@ -4,9 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowSnapshotResource
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource._
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowSnapshotResource._
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jooq.types.UInteger
 
@@ -59,27 +59,36 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   ): Long = {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
-    val vid = WorkflowVersionResource.getLatestVersion(uint)
-    val sid = WorkflowSnapshotResource.getLatestSnapshot()
-    val latestExecution = WorkflowExecutionsResource.getLatestExecution(uint)
+    val vid = getLatestVersion(uint)
+    val sid = getLatestSnapshot()
+    // get latest execution
+    val latestExecution = getLatestExecution(uint)
     val newExecution = new WorkflowExecutions()
     newExecution.setWid(uint)
     newExecution.setVid(vid)
+    // check if it's the first execution or different snapshot from previous
     if (latestExecution.isEmpty || differentSnapshot(vid, latestExecution, uint)) {
       newExecution.setSid(sid)
     } else {
-      WorkflowSnapshotResource.deleteSnapshot(sid)
-      newExecution.setSid(WorkflowSnapshotResource.getLatestSnapshot())
+      // delete new create snapshot
+      deleteSnapshot(sid)
+      // set current execution's snapshot to previous
+      newExecution.setSid(getLatestSnapshot())
     }
-    
+
     newExecution.setUid(uid.getOrElse(null))
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     workflowExecutionsDao.insert(newExecution)
     newExecution.getEid.longValue()
   }
 
-  def differentSnapshot(vid: UInteger, latestExecution: Option[WorkflowExecutionsResource.WorkflowExecutionEntry], wid: UInteger): Boolean = {
-    !WorkflowVersionResource.isSnapshotInRangeUnimportant(latestExecution.get.vId, vid, wid)
+  // This function checks whether the snapshot is different from previous one
+  def differentSnapshot(
+      vid: UInteger,
+      latestExecution: Option[WorkflowExecutionEntry],
+      wid: UInteger
+  ): Boolean = {
+    !isSnapshotInRangeUnimportant(latestExecution.get.vId, vid, wid)
   }
 
   def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {

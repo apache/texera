@@ -23,7 +23,6 @@ import { WorkflowSnapshotService } from "src/app/dashboard/service/workflow-snap
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 
-
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
 
@@ -189,9 +188,10 @@ export class ExecuteWorkflowService {
           return;
         }
         // upload snapshot into sql
-        this.workflowSnapshotService.uploadWorkflowSnapshot(snapshotBlob, this.workflowActionService.getWorkflow().wid)
+        this.workflowSnapshotService
+          .uploadWorkflowSnapshot(snapshotBlob, this.workflowActionService.getWorkflow().wid)
           .pipe(untilDestroyed(this))
-          .subscribe(()=>{
+          .subscribe(() => {
             // wait for the form debounce to complete, then send
             window.setTimeout(() => {
               this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
@@ -202,7 +202,7 @@ export class ExecuteWorkflowService {
               ExecutionState.Running,
               ExecutionState.Aborted
             );
-        
+
             // add flag for new execution of workflow
             // so when next time the result panel is displayed, it will use new data
             // instead of those stored in the session storage
@@ -213,7 +213,7 @@ export class ExecuteWorkflowService {
                 newWorkflowExecuted: true,
               });
             }
-          }); 
+          });
       });
     });
   }
