@@ -82,6 +82,12 @@ $section-search-bar-height: 60px;
   }
 }
 
+.workflow-search-bar {
+  margin-left: 10px;
+  // TODO: combine this inside section-search-bar
+  //        after unifying the search bar of workflows and files
+}
+
 /**
   * the third grid of the workflow/files list.
   * including css shared by workflow/file item

@@ -1,5 +1,5 @@
 <div class="section-container subsection-grid-container">
-  <nz-card class="section-title subsection-grid-container">
+  <nz-card class="section-title">
     <h2 class="page-title">Files</h2>
     <div class="d-inline-block">
       <a nz-dropdown [nzDropdownMenu]="menu">
@@ -28,7 +28,7 @@
     </div>
   </nz-card>
 
-  <div class="section-search-bar subsection-grid-container">
+  <div class="section-search-bar">
     <div *ngIf="isSearchByProject" class="texera-dashboard-user-file-project-box-select">
       <i
         style="margin-right: 10px; align-self: center"
@@ -127,7 +127,7 @@
     </nz-input-group>
   </div>
 
-  <nz-card class="section-list-container subsection-grid-container">
+  <nz-card class="section-list-container">
     <!-- itemSize: the height (px) of each list item, 
       this MUST be approximately the same as list item size set in CSS,
       .file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
