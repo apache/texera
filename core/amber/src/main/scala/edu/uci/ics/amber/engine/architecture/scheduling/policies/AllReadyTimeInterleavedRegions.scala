@@ -1,16 +1,25 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
+import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.{PipelinedRegion, SchedulingWork}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseRegionHandler.PauseRegion
+import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.jdk.CollectionConverters.asScalaSet
 import scala.util.control.Breaks.{break, breakable}
 
-class AllReadyTimeInterleavedRegions(workflow: Workflow) extends SchedulingPolicy(workflow) {
+class AllReadyTimeInterleavedRegions(
+    workflow: Workflow,
+    ctx: ActorContext,
+    asyncRPCClient: AsyncRPCClient
+) extends SchedulingPolicy(workflow, ctx, asyncRPCClient) {
 
   var currentlyExecutingRegions = new mutable.LinkedHashSet[PipelinedRegion]()
 
@@ -29,7 +38,7 @@ class AllReadyTimeInterleavedRegions(workflow: Workflow) extends SchedulingPolic
     }
   }
 
-  override def getNextSchedulingWork(): SchedulingWork = {
+  override def getNextSchedulingWork(): Set[PipelinedRegion] = {
     breakable {
       while (regionsScheduleOrder.nonEmpty) {
         val nextRegion = regionsScheduleOrder.head
@@ -47,6 +56,11 @@ class AllReadyTimeInterleavedRegions(workflow: Workflow) extends SchedulingPolic
     val nextToSchedule = currentlyExecutingRegions.head
     currentlyExecutingRegions.remove(nextToSchedule)
     currentlyExecutingRegions.add(nextToSchedule)
-    SchedulingWork(Set(nextToSchedule), 5000)
+    ctx.system.scheduler.scheduleOnce(
+      FiniteDuration.apply(5000, MILLISECONDS),
+      ctx.self,
+      ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, PauseRegion(Set(nextToSchedule)))
+    )(ctx.dispatcher)
+    Set(nextToSchedule)
   }
 }

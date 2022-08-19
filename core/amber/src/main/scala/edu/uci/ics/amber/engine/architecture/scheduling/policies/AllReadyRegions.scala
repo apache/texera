@@ -1,15 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
+import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.{PipelinedRegion, SchedulingWork}
+import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaSet
 import scala.util.control.Breaks.{break, breakable}
 
-class AllReadyRegions(workflow: Workflow) extends SchedulingPolicy(workflow) {
+class AllReadyRegions(workflow: Workflow, ctx: ActorContext, asyncRPCClient: AsyncRPCClient)
+    extends SchedulingPolicy(workflow, ctx, asyncRPCClient) {
 
-  override def getNextSchedulingWork(): SchedulingWork = {
+  override def getNextSchedulingWork(): Set[PipelinedRegion] = {
     val nextToSchedule: mutable.HashSet[PipelinedRegion] = new mutable.HashSet[PipelinedRegion]()
     breakable {
       while (regionsScheduleOrder.nonEmpty) {
@@ -26,6 +29,6 @@ class AllReadyRegions(workflow: Workflow) extends SchedulingPolicy(workflow) {
       }
     }
 
-    SchedulingWork(nextToSchedule.toSet)
+    nextToSchedule.toSet
   }
 }

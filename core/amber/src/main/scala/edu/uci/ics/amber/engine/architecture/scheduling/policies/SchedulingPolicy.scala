@@ -1,8 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
+import akka.actor.ActorContext
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.{PipelinedRegion, SchedulingWork}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseRegionHandler.PauseRegion
+import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LinkIdentity,
@@ -14,22 +21,32 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object SchedulingPolicy {
-  def createPolicy(policyName: String, workflow: Workflow): SchedulingPolicy = {
+  def createPolicy(
+      policyName: String,
+      workflow: Workflow,
+      ctx: ActorContext,
+      asyncRPCClient: AsyncRPCClient
+  ): SchedulingPolicy = {
     if (policyName.equals("single-ready-region")) {
-      new SingleReadyRegion(workflow)
+      new SingleReadyRegion(workflow, ctx, asyncRPCClient)
     } else if (policyName.equals("all-ready-regions")) {
-      new AllReadyRegions(workflow)
+      new AllReadyRegions(workflow, ctx, asyncRPCClient)
     } else if (policyName.equals("all-ready-time-interleaved-regions")) {
-      new AllReadyTimeInterleavedRegions(workflow)
+      new AllReadyTimeInterleavedRegions(workflow, ctx, asyncRPCClient)
     } else {
       throw new WorkflowRuntimeException(s"Unknown scheduling policy name")
     }
   }
 }
 
-abstract class SchedulingPolicy(workflow: Workflow) {
+abstract class SchedulingPolicy(
+    workflow: Workflow,
+    ctx: ActorContext,
+    asyncRPCClient: AsyncRPCClient
+) {
 
   protected val regionsScheduleOrder = saveTopologicalOrderOfRegions()
 
@@ -95,9 +112,9 @@ abstract class SchedulingPolicy(workflow: Workflow) {
   }
 
   // gets the ready regions that haven't been sent for scheduling yet (not in `sentToBeScheduledRegions`)
-  protected def getNextSchedulingWork(): SchedulingWork
+  protected def getNextSchedulingWork(): Set[PipelinedRegion]
 
-  def recordWorkerCompletion(workerId: ActorVirtualIdentity): SchedulingWork = {
+  def recordWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
     val region = getRegion(workerId)
     if (region.isEmpty) {
       throw new WorkflowRuntimeException(
@@ -109,7 +126,7 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     getNextSchedulingWork()
   }
 
-  def recordLinkCompletion(linkId: LinkIdentity): SchedulingWork = {
+  def recordLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
     val region = getRegion(linkId)
     if (region == null) {
       throw new WorkflowRuntimeException(
@@ -125,17 +142,17 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     getNextSchedulingWork()
   }
 
-  def startWorkflow(): SchedulingWork = {
-    val work = getNextSchedulingWork()
-    if (work.regions.isEmpty) {
+  def startWorkflow(): Set[PipelinedRegion] = {
+    val regions = getNextSchedulingWork()
+    if (regions.isEmpty) {
       throw new WorkflowRuntimeException(
         s"No first region is being scheduled"
       )
     }
-    work
+    regions
   }
 
-  def recordTimeFinished(regions: Set[PipelinedRegion]): SchedulingWork = {
+  def recordTimeSlotExpired(regions: Set[PipelinedRegion]): Set[PipelinedRegion] = {
     getNextSchedulingWork()
   }
 }

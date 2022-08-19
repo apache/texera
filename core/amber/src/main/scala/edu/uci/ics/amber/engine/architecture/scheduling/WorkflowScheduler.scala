@@ -59,7 +59,7 @@ class WorkflowScheduler(
     workflow: Workflow
 ) {
   private val schedulingPolicy =
-    SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow)
+    SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx, asyncRPCClient)
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built
@@ -101,28 +101,13 @@ class WorkflowScheduler(
       .flatMap(seq => {
         // update frontend status
         Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
-        doSchedulingWork(schedulingPolicy.recordTimeFinished(regions))
+        doSchedulingWork(schedulingPolicy.recordTimeSlotExpired(regions))
       })
   }
 
-  private def doSchedulingWork(work: SchedulingWork): Future[Seq[Unit]] = {
-    if (work.regions.nonEmpty) {
-      if (work.schedulingDurationInMs == 0) {
-        // regions are scheduled once and execute till they finish
-        Future.collect(work.regions.toArray.map(r => scheduleRegion(r)))
-      } else {
-        // regions are scheduled for a time slot
-        Future
-          .collect(work.regions.toArray.map(r => scheduleRegion(r)))
-          .map(_ => {
-            ctx.system.scheduler.scheduleOnce(
-              FiniteDuration.apply(work.schedulingDurationInMs, MILLISECONDS),
-              ctx.self,
-              ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, PauseRegion(work.regions))
-            )(ctx.dispatcher)
-            Seq()
-          })
-      }
+  private def doSchedulingWork(regions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
+    if (regions.nonEmpty) {
+      Future.collect(regions.toArray.map(r => scheduleRegion(r)))
     } else {
       Future(Seq())
     }
