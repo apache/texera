@@ -42,6 +42,13 @@ object WorkflowSnapshotResource {
         newSnapshot.setSnapshot(snapshotBlob: _*)
         snapshotDao.insert(newSnapshot)
     }
+
+    def deleteSnapshot(sid: UInteger): Unit = {
+        context
+            .delete(WORKFLOW_SNAPSHOT)
+            .where(WORKFLOW_SNAPSHOT.SID.eq(sid))
+            .execute();
+    }
 }
 
 @PermitAll

@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowSnapshotResource
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jooq.types.UInteger
@@ -60,14 +61,25 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     val uint = UInteger.valueOf(wid)
     val vid = WorkflowVersionResource.getLatestVersion(uint)
     val sid = WorkflowSnapshotResource.getLatestSnapshot()
+    val latestExecution = WorkflowExecutionsResource.getLatestExecution(uint)
     val newExecution = new WorkflowExecutions()
     newExecution.setWid(uint)
     newExecution.setVid(vid)
+    if (latestExecution.isEmpty || differentSnapshot(vid, latestExecution, uint)) {
+      newExecution.setSid(sid)
+    } else {
+      WorkflowSnapshotResource.deleteSnapshot(sid)
+      newExecution.setSid(WorkflowSnapshotResource.getLatestSnapshot())
+    }
+    
     newExecution.setUid(uid.getOrElse(null))
-    newExecution.setSid(sid)
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     workflowExecutionsDao.insert(newExecution)
     newExecution.getEid.longValue()
+  }
+
+  def differentSnapshot(vid: UInteger, latestExecution: Option[WorkflowExecutionsResource.WorkflowExecutionEntry], wid: UInteger): Boolean = {
+    !WorkflowVersionResource.isSnapshotInRangeUnimportant(latestExecution.get.vId, vid, wid)
   }
 
   def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {
