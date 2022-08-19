@@ -1,5 +1,5 @@
 <div class="saved-workflow-container subsection-grid-container">
-  <nz-card class="workflow-section-title subsection-grid-container">
+  <nz-card class="workflow-title subsection-grid-container">
     <h2 class="page-title">Workflows</h2>
     <nz-button-group class="workflow-utility-button-group" ngbDropdown>
       <a [nzDropdownMenu]="sortOptions" nz-dropdown>
@@ -169,50 +169,50 @@
     </nz-button-group>
   </nz-card>
 
-  <nz-card class="workflow-list-container subsection-grid-container">
-    <div class="texera-dashboard-saved-workflow-project-search-bar">
-      <i
-        class="search-info-box"
-        nz-icon
-        nz-popover
-        nzPopoverTitle="Filter Instructions"
-        nzType="question-circle"
-        nzTheme="outline"
-        [nzPopoverContent]="filterPopContent"
-      ></i>
-      <nz-select
-        class="search-input-box"
-        nzMode="tags"
-        nzPlaceHolder="Search all workflows"
-        [nzBorderless]="true"
-        [nzOpen]="false"
-        [(ngModel)]="masterFilterList"
-        [nzAllowClear]="true"
-        (ngModelChange)="updateDropdownMenus($event)"
-      >
-      </nz-select>
-      <ng-template #filterPopContent>
-        We support the following search criteria:
-        <ul>
-          <li>Search by Workflow Name: <strong>workflowName</strong></li>
-          <li>Search by Workflow Creation Time: <strong>ctime: yyyy-MM-dd</strong></li>
-          <li>Search by Workflow Owner: <strong>owner: John</strong></li>
-          <li>Search by Workflow Id: <strong>id: workflowId</strong></li>
-          <li>Search by Workflows' Operators: <strong>operator: operatorName</strong></li>
-          <li>Search by User Projects: <strong>project: projectName</strong></li>
-        </ul>
-        You can change search parameters by:
-        <ul>
-          <li>selecting/unselecting dropdown menu options</li>
-          <li>manually typing parameters into search bar</li>
-          <li>clicking the <strong>X</strong> on a tag or the search bar, to clear one or all tags</li>
-        </ul>
-        <br />
-        Example: "Untitled Workflow" id:1 owner:John<br />
-        Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
-      </ng-template>
-    </div>
+  <div class="workflow-search-bar subsection-grid-container">
+    <i
+      class="search-info-box"
+      nz-icon
+      nz-popover
+      nzPopoverTitle="Filter Instructions"
+      nzType="question-circle"
+      nzTheme="outline"
+      [nzPopoverContent]="filterPopContent"
+    ></i>
+    <nz-select
+      class="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search all workflows"
+      [nzBorderless]="true"
+      [nzOpen]="false"
+      [(ngModel)]="masterFilterList"
+      [nzAllowClear]="true"
+      (ngModelChange)="updateDropdownMenus($event)"
+    >
+    </nz-select>
+    <ng-template #filterPopContent>
+      We support the following search criteria:
+      <ul>
+        <li>Search by Workflow Name: <strong>workflowName</strong></li>
+        <li>Search by Workflow Creation Time: <strong>ctime: yyyy-MM-dd</strong></li>
+        <li>Search by Workflow Owner: <strong>owner: John</strong></li>
+        <li>Search by Workflow Id: <strong>id: workflowId</strong></li>
+        <li>Search by Workflows' Operators: <strong>operator: operatorName</strong></li>
+        <li>Search by User Projects: <strong>project: projectName</strong></li>
+      </ul>
+      You can change search parameters by:
+      <ul>
+        <li>selecting/unselecting dropdown menu options</li>
+        <li>manually typing parameters into search bar</li>
+        <li>clicking the <strong>X</strong> on a tag or the search bar, to clear one or all tags</li>
+      </ul>
+      <br />
+      Example: "Untitled Workflow" id:1 owner:John<br />
+      Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
+    </ng-template>
+  </div>
 
+  <nz-card class="workflow-list-container subsection-grid-container">
     <!-- itemSize: the height (px) of each list item, 
       this MUST be approximately the same as list item size set in CSS,
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
@@ -234,7 +234,7 @@
               ></nz-avatar>
             </nz-list-item-meta-avatar>
             <nz-list-item-meta-title>
-              <span class="workflow-dashboard-entry">
+              <span class="workflow-item-meta-title">
                 <label
                   *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customeWorkflow "
                   (click)="jumpToWorkflow(dashboardWorkflowEntry)"

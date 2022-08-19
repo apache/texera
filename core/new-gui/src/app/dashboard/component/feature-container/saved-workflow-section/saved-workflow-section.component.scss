@@ -1,12 +1,10 @@
+@import "../../dashboard.component.scss";
+
 .subsection-grid-container {
   min-width: 100%;
   width: 100%;
   min-height: 100%;
   height: 100%;
-}
-
-.add-button {
-  margin-left: 5px;
 }
 
 .ant-btn-icon-only {
@@ -32,52 +30,45 @@
 *              *                *
 *              ******************
 **/
-$header-height: 120px;
+$workflow-header-height: 120px;
+$workflow-search-bar-height: 60px;
 
 .saved-workflow-container {
   display: grid;
-  grid-template-rows: $header-height calc((100% - #{$header-height}));
-}
-
-.virtual-scroll-infinite-container {
-  height: 600px;
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
-}
-
-.workflow-utility-button-group {
-  float: left;
-}
-
-.workflow-filter-button-group {
-  float: right;
+  grid-template-rows:
+    $workflow-header-height
+    $workflow-search-bar-height
+    calc((100% - #{$workflow-header-height} - #{$workflow-search-bar-height}));
 }
 
 /**
-* the grid of the first row which contains the add and sort button.
-* The position of the first row is fix. no adaptation
-**/
-.workflow-section-title {
+  * the grid of the first row which contains the add and sort button.
+  * The position of the first row is fix. no adaptation
+  **/
+.workflow-title {
   grid-row-start: 1;
   grid-row-end: 2;
+
+  .page-title {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .workflow-utility-button-group {
+    float: left;
+  }
+
+  .workflow-filter-button-group {
+    float: right;
+  }
 }
 
-/**
-* the grid of the list of saved workflow. Each workflow contains the name, created time and last
-* edited time. This section is flexible to expand downward and upwards (e.g. workflows add / removed from project)
-**/
-.workflow-list-container {
+.workflow-search-bar {
   grid-row-start: 2;
   grid-row-end: 3;
-  overflow: auto;
-  min-height: 0%;
-}
 
-.texera-dashboard-saved-workflow-project-search-bar {
-  margin-bottom: 30px;
   display: flex;
-  padding: 4px 11px;
-  border: 1px solid #d9d9d9;
+  padding: 4px 24px;
+  // border: 1px solid #d9d9d9;
 
   .search-info-box {
     margin-right: 10px;
@@ -86,91 +77,102 @@ $header-height: 120px;
 
   .search-input-box {
     width: 100%;
+    align-self: center;
   }
 }
 
-.workflow-list-item {
-  margin-bottom: 10px;
-  min-height: 70px;
-  padding: 5px 0 5px 0;
-}
+/**
+  * the grid of the list of saved workflow. Each workflow contains the name, created time and last
+  * edited time. This section is flexible to expand downward and upwards (e.g. workflows add / removed from project)
+  **/
+.workflow-list-container {
+  grid-row-start: 3;
+  grid-row-end: 4;
+  overflow: auto;
+  min-height: 100%;
 
-.time-space {
-  margin-left: 3%;
-}
+  .virtual-scroll-infinite-container {
+    height: calc(100vh - $dashboard-navigation-height - $workflow-header-height - $workflow-search-bar-height - 50px);
 
-.workflow-name {
-  font-size: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  text-align: center;
-  text-overflow: ellipsis;
-}
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+  }
 
-.workflow-dashboard-entry {
-  display: flex;
-  align-items: center;
-}
+  .workflow-list-item {
+    margin-bottom: 10px;
+    min-height: 70px;
+    padding: 5px 0 5px 0;
+  }
 
-.workflow-dashboard-entry > i {
-  position: relative;
-  font-size: 17px;
-  margin-bottom: 6px;
-}
+  .workflow-item-meta-title {
+    display: flex;
+    align-items: center;
 
-.workflow-name:hover {
-  cursor: pointer;
-}
+    i {
+      position: relative;
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
 
-.workflow-time {
-  font-size: 12px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  color: gray;
-  margin: 0px;
-}
+    .workflow-name {
+      font-size: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+      text-overflow: ellipsis;
+    }
 
-.page-title {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.workflow-project-label-container {
-  min-width: 20px;
-  // max-width: 350px;
-  display: flex;
-  flex-direction: row-reverse;
-  overflow-x: auto;
-
-  .workflow-project-label {
-    display: inline;
-    white-space: nowrap;
-
-    .color-tag {
-      display: inline-block;
+    .workflow-name:hover {
       cursor: pointer;
     }
 
-    .left-div {
-      padding: 1.5px 7px;
-      border-top-left-radius: 2px;
-      border-bottom-left-radius: 2px;
+    .workflow-time {
+      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      color: gray;
+      margin: 0px;
     }
+  }
 
-    .right-div {
-      padding: 1.5px 7px;
-      border-top-right-radius: 2px;
-      border-bottom-right-radius: 2px;
-      margin-right: 10px;
-    }
+  .workflow-project-label-container {
+    min-width: 20px;
+    // max-width: 350px;
+    display: flex;
+    flex-direction: row-reverse;
+    overflow-x: auto;
 
-    .light-color {
-      border: 1px solid gainsboro;
-    }
+    .workflow-project-label {
+      display: inline;
+      white-space: nowrap;
 
-    .light-color:hover {
-      background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
-    }
+      .color-tag {
+        display: inline-block;
+        cursor: pointer;
+      }
 
-    .dark-color:hover {
-      background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
+      .left-div {
+        padding: 1.5px 7px;
+        border-top-left-radius: 2px;
+        border-bottom-left-radius: 2px;
+      }
+
+      .right-div {
+        padding: 1.5px 7px;
+        border-top-right-radius: 2px;
+        border-bottom-right-radius: 2px;
+        margin-right: 10px;
+      }
+
+      .light-color {
+        border: 1px solid gainsboro;
+      }
+
+      .light-color:hover {
+        background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
+      }
+
+      .dark-color:hover {
+        background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
+      }
     }
   }
 }

@@ -50,12 +50,14 @@ button {
 *              *   *            *
 *              ******************
 **/
-$header-height: 56px;
+$dashboard-navigation-height: 56px;
 
 .dashboard-grid-container {
   display: grid;
   grid-template-columns: 14% 86%;
-  grid-template-rows: $header-height calc((100% - #{$header-height}));
+  grid-template-rows:
+    $dashboard-navigation-height
+    calc((100% - #{$dashboard-navigation-height}));
 }
 
 /**
