@@ -62,6 +62,7 @@ describe("ExecuteWorkflowService", () => {
   it("should msg backend when executing workflow", fakeAsync(() => {
     if (environment.amberEngineEnabled) {
       const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
+      service.snapshot_success = true;
 
       service.executeWorkflow();
       tick(FORM_DEBOUNCE_TIME_MS + 1);
