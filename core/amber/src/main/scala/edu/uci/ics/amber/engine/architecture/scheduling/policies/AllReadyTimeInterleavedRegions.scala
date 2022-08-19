@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
 import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseRegionHandler.PauseRegion
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RegionsTimeSlotExpiredHandler.RegionsTimeSlotExpired
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -59,7 +59,10 @@ class AllReadyTimeInterleavedRegions(
     ctx.system.scheduler.scheduleOnce(
       FiniteDuration.apply(5000, MILLISECONDS),
       ctx.self,
-      ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, PauseRegion(Set(nextToSchedule)))
+      ControlInvocation(
+        AsyncRPCClient.IgnoreReplyAndDoNotLog,
+        RegionsTimeSlotExpired(Set(nextToSchedule))
+      )
     )(ctx.dispatcher)
     Set(nextToSchedule)
   }
