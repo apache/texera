@@ -791,7 +791,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public jumpToWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     window.open(`${ROUTER_WORKFLOW_BASE_URL}/${wid}`);
-    // this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
   }
 
   /**
@@ -831,7 +830,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           // map project ID to project object
           this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
 
-          console.log(this.userProjectsMap);
           // calculate whether project colors are light or dark
           const projectColorBrightnessMap: Map<number, boolean> = new Map();
           userProjectList.forEach(userProject => {
