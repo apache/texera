@@ -52,7 +52,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public customColumnWidth: Record<string, string> = {
     "": "70px",
     Name: "230px",
-    Snapshot: "370px",
+    Snapshot: "190px",
     Username: "150px",
     "Starting Time": "250px",
     "Last Status Updated Time": "250px",
