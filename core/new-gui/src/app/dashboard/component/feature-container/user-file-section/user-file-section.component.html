@@ -1,5 +1,5 @@
-<div class="user-file-container subsection-grid-container">
-  <nz-card class="button-area subsection-grid-container">
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
     <h2 class="page-title">Files</h2>
     <div class="d-inline-block">
       <a nz-dropdown [nzDropdownMenu]="menu">
@@ -28,7 +28,7 @@
     </div>
   </nz-card>
 
-  <nz-card class="user-file-list subsection-grid-container">
+  <div class="section-search-bar">
     <div *ngIf="isSearchByProject" class="texera-dashboard-user-file-project-box-select">
       <i
         style="margin-right: 10px; align-self: center"
@@ -125,20 +125,23 @@
         #auto
       ></nz-autocomplete>
     </nz-input-group>
+  </div>
+
+  <nz-card class="section-list-container">
     <!-- itemSize: the height (px) of each list item, 
       this MUST be approximately the same as list item size set in CSS,
-      .user-file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
+      .file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
-    <cdk-virtual-scroll-viewport itemSize="80" class="virtual-scroll-infinite-container">
+    <cdk-virtual-scroll-viewport itemSize="80" class="virtual-scroll-container">
       <nz-list>
         <nz-list-item
           *cdkVirtualFor="let dashboardUserFileEntry of getFileArray();let indexOfElement=index"
-          class="user-file-list-item"
+          class="file-list-item"
         >
-          <nz-list-item-meta>
+          <nz-list-item-meta class="file-item-meta">
             <nz-list-item-meta-title>
-              <div class="file-name">
-                <h4 *ngIf="isEditingName.indexOf(indexOfElement) === -1; else customeFileName " class="file-title">
+              <div class="file-item-meta-title">
+                <h4 *ngIf="isEditingName.indexOf(indexOfElement) === -1; else customeFileName" class="file-name">
                   {{ dashboardUserFileEntry.ownerName + "/" + dashboardUserFileEntry.file.name }}
                 </h4>
                 <ng-template #customeFileName>
@@ -178,19 +181,19 @@
                 ></i>
               </div>
             </nz-list-item-meta-title>
-            <nz-list-item-meta-description class="file-metadata-container">
+            <nz-list-item-meta-description class="metadata-container">
               <span>Size: {{ addFileSizeUnit(dashboardUserFileEntry.file.size) }}</span>
-              <span>Upload Time: {{ parseTimestampString(dashboardUserFileEntry.file.uploadTime) }}</span>
+              <span>Upload Time: {{ dashboardUserFileEntry.file.uploadTime | date: "yyyy-MM-dd HH:mm" }}</span>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
 
-          <div *ngIf="userProjectsLoaded" class="file-project-label-container">
-            <div *ngFor="let pid of dashboardUserFileEntry.projectIDs" class="file-project-label">
+          <div *ngIf="userProjectsLoaded" class="project-label-container">
+            <div *ngFor="let pid of dashboardUserFileEntry.projectIDs" class="project-label">
               <div
                 *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
-                nz-tooltip="Go to project page"
+                nz-tooltip="{{userProjectsMap.get(pid)!.name}}"
                 nzTooltipPlacement="bottom"
-                id="left-div"
+                class="left-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
                 (click)="jumpToProject(userProjectsMap.get(pid)!)"
@@ -201,7 +204,7 @@
                 *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
-                id="right-div"
+                class="right-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
                 (click)="removeFileFromProject(pid, dashboardUserFileEntry.file.fid)"

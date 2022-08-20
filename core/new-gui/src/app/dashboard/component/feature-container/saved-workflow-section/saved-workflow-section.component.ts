@@ -790,7 +790,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * jump to the target workflow canvas
    */
   public jumpToWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
+    window.open(`${ROUTER_WORKFLOW_BASE_URL}/${wid}`);
   }
 
   /**

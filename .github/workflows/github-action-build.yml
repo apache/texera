@@ -44,7 +44,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-cache-v4-
       - name: Install dependency
-        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
+        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false --network-timeout=100000
       - name: Lint with Prettier & ESLint
         run: yarn --cwd core/new-gui format:ci
       - name: Run frontend unit tests

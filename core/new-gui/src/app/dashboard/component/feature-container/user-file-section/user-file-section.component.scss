@@ -1,143 +1,33 @@
-.subsection-grid-container {
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
-}
-
-.page-title {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-}
+// reuse the same layout and styling with saved workflow component
+@import "../saved-workflow-section/saved-workflow-section.component.scss";
 
 /**
-* this css is used for creating a 2*1 grid area for the 3 main
-* sub-components. The percentages define the size of each
-* column and row, and the first column is empty
-*              ******************
-*              *                *
-*              ******************
-*              *                *
-*              *                *
-*              *                *
-*              *                *
-*              ******************
-**/
-$header-height: 120px;
+  * css specifically for each file item in the list (not shared by workflow items)
+  **/
+.file-list-item {
+  margin-bottom: 10px;
+  min-height: 70px;
+  padding: 5px 0 5px 0;
 
-.user-file-container {
-  display: grid;
-  grid-template-rows: $header-height calc((100% - #{$header-height}));
-}
-
-.virtual-scroll-infinite-container {
-  height: 600px;
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
-}
-
-.button-area {
-  grid-row-start: 1;
-  grid-row-end: 2;
-}
-
-/**
-* the grid of the file list which contains all the user dictionary.
-* each list item contains a dict name, first three dict item and a view
-* button to check the items in dictionary
-**/
-.user-file-list {
-  grid-row-start: 2;
-  grid-row-end: 3;
-  overflow: auto;
-
-  .texera-dashboard-user-file-search-box-input {
-    margin-bottom: 30px;
+  .file-item-meta {
+    margin: 0px 20px;
   }
 
-  .texera-dashboard-user-file-project-box-select {
-    margin-bottom: 30px;
+  .file-item-meta-title {
     display: flex;
-    padding: 4px 11px;
-    border: 1px solid #d9d9d9;
-  }
-}
+    align-items: center;
 
-.user-file-list-item {
-  height: 70px;
-  margin-bottom: 1.5%;
-  padding-top: 5px;
-}
-
-.file-name {
-  color: rgb(62, 202, 253);
-  font-size: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  display: flex;
-  align-items: center;
-}
-
-.file-title {
-  color: rgb(62, 202, 253);
-}
-
-.file-name > i {
-  position: relative;
-  font-size: 20px;
-  margin-bottom: 6px;
-}
-
-button {
-  border-radius: 5px;
-  border: none;
-}
-
-.ant-btn-icon-only {
-  margin-right: 10px;
-}
-
-.file-project-label-container {
-  width: 40%;
-  display: flex;
-  flex-direction: row-reverse;
-  overflow-x: auto;
-
-  .file-project-label {
-    display: inline;
-    white-space: nowrap;
-
-    .color-tag {
-      display: inline-block;
-      cursor: pointer;
+    .file-name {
+      color: rgb(62, 202, 253);
+      font-size: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
     }
 
-    #left-div {
-      padding: 1.5px 7px;
-      border-top-left-radius: 2px;
-      border-bottom-left-radius: 2px;
-    }
-
-    #right-div {
-      padding: 1.5px 7px;
-      border-top-right-radius: 2px;
-      border-bottom-right-radius: 2px;
-      margin-right: 10px;
-    }
-
-    .light-color {
-      border: 1px solid gainsboro;
-    }
-
-    .light-color:hover {
-      background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
-    }
-
-    .dark-color:hover {
-      background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
+    i {
+      position: relative;
+      font-size: 17px;
+      margin-bottom: 6px;
     }
   }
-}
-
-.file-metadata-container span {
-  margin: 0 1rem 0 0;
-  // add space to the right
 }

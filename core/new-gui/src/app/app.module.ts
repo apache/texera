@@ -12,6 +12,7 @@ import { NgbModule, NgbPopoverModule } from "@ng-bootstrap/ng-bootstrap";
 import { FormlyModule } from "@ngx-formly/core";
 import { FormlyMaterialModule } from "@ngx-formly/material";
 import { FormlyMatDatepickerModule } from "@ngx-formly/material/datepicker";
+import { NgPipesModule } from "ngx-pipes";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
@@ -233,6 +234,7 @@ registerLocaleData(en);
     NzPaginationModule,
     NzCommentModule,
     ColorPickerModule,
+    NgPipesModule,
   ],
   providers: [
     DatePipe,
