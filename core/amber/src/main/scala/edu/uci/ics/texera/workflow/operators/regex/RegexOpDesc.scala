@@ -41,4 +41,6 @@ class RegexOpDesc extends FilterOpDesc {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
+  override def getOperatorVersion(): String = super.getOperatorVersion()//read the file for op.
 }

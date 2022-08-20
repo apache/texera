@@ -124,6 +124,7 @@ abstract class OperatorDescriptor extends Serializable {
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   var operatorID: String = UUID.randomUUID.toString
 
+  var operatorVersion: String = getOperatorVersion()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
   def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
@@ -132,6 +133,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   def getOutputSchema(schemas: Array[Schema]): Schema
 
+  def getOperatorVersion(): String
   // override if the operator has multiple output ports, schema must be specified for each port
   def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {
     Array.fill(1)(getOutputSchema(schemas))
