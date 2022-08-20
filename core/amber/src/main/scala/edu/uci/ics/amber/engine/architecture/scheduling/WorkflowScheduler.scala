@@ -7,48 +7,30 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RegionsTimeSlotExpiredHandler.RegionsTimeSlotExpired
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartPipelinedRegionHandler.StartPipelinedRegion
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.linksemantics.{
-  AllToOne,
-  FullRoundRobin,
-  HashBasedShuffle,
-  LinkStrategy,
-  OneToOne,
-  RangeBasedShuffle
-}
+import edu.uci.ics.amber.engine.architecture.linksemantics.{LinkStrategy}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.scheduling.policies.{
-  SchedulingPolicy,
-  SingleReadyRegion
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.policies.{SchedulingPolicy}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.{AmberLogging, Constants, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LinkIdentity,
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
-import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 class WorkflowScheduler(
     availableNodes: Array[Address],
@@ -58,7 +40,7 @@ class WorkflowScheduler(
     logger: Logger,
     workflow: Workflow
 ) {
-  private val schedulingPolicy =
+  val schedulingPolicy =
     SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx, asyncRPCClient)
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
@@ -68,7 +50,8 @@ class WorkflowScheduler(
   private val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
   private val activatedLink = new mutable.HashSet[LinkIdentity]()
 
-  private val constructedRegions = new mutable.HashSet[PipelinedRegionIdentity]()
+  private val constructingRegions = new mutable.HashSet[PipelinedRegionIdentity]()
+  private val startedRegions = new mutable.HashSet[PipelinedRegionIdentity]()
 
   def startWorkflow(): Future[Seq[Unit]] = {
     doSchedulingWork(schedulingPolicy.startWorkflow())
@@ -82,26 +65,33 @@ class WorkflowScheduler(
     doSchedulingWork(schedulingPolicy.recordLinkCompletion(linkId))
   }
 
-  def recordTimeSlotExpired(regions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
-    val futures = new ArrayBuffer[Future[Unit]]()
-    regions.foreach(r => {
-      workflow
-        .getAllWorkersOfRegion(r)
-        .foreach(wid => {
-          futures.append(
-            asyncRPCClient
-              .send(PauseWorker(), wid)
-              .map(ret => workflow.getWorkerInfo(wid).state = ret)
-          )
-        })
-    })
+  def recordTimeSlotExpired(timeExpiredRegions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
+    val nextRegions = schedulingPolicy.recordTimeSlotExpired()
+    var regionsToPause: Set[PipelinedRegion] = Set()
+    if (nextRegions.nonEmpty) {
+      regionsToPause = timeExpiredRegions
+    }
 
-    Future
-      .collect(futures)
-      .flatMap(seq => {
-        // update frontend status
+    doSchedulingWork(nextRegions)
+      .flatMap(_ => {
+        val pauseFutures = new ArrayBuffer[Future[Unit]]()
+        regionsToPause.foreach(stoppingRegion => {
+          schedulingPolicy.removeFromRunningRegion(Set(stoppingRegion))
+          workflow
+            .getAllWorkersOfRegion(stoppingRegion)
+            .foreach(wid => {
+              pauseFutures.append(
+                asyncRPCClient
+                  .send(PauseWorker(), wid)
+                  .map(ret => workflow.getWorkerInfo(wid).state = ret)
+              )
+            })
+        })
+        Future.collect(pauseFutures)
+      })
+      .map(_ => {
         Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
-        doSchedulingWork(schedulingPolicy.recordTimeSlotExpired(regions))
+        Seq()
       })
   }
 
@@ -282,7 +272,7 @@ class WorkflowScheduler(
       .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
   }
 
-  private def startRegion(region: PipelinedRegion): Future[Unit] = {
+  private def startRegion(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
     allOperatorsInRegion
@@ -290,7 +280,7 @@ class WorkflowScheduler(
       .foreach(opId => workflow.getOperator(opId).setAllWorkerState(READY))
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
 
-    if (!schedulingPolicy.runningRegions.contains(region)) {
+    if (!schedulingPolicy.getRunningRegions().contains(region)) {
       Future
         .collect(
           workflow
@@ -304,10 +294,6 @@ class WorkflowScheduler(
                 )
             )
         )
-        .map(_ => {
-          schedulingPolicy.runningRegions.add(region)
-          Future()
-        })
     } else {
       throw new WorkflowRuntimeException(
         s"Start region called on an already running region: ${region.getOperators().mkString(",")}"
@@ -322,30 +308,46 @@ class WorkflowScheduler(
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
       .flatMap(_ => startRegion(region))
-      .map(_ => constructedRegions.add(region.getId()))
+      .map(_ => {
+        constructingRegions.remove(region.getId())
+        schedulingPolicy.addToRunningRegions(Set(region))
+        startedRegions.add(region.getId())
+      })
   }
 
   private def resumeRegion(region: PipelinedRegion): Future[Unit] = {
-    Future
-      .collect(
-        workflow
-          .getAllWorkersOfRegion(region)
-          .map(worker =>
-            asyncRPCClient
-              .send(ResumeWorker(), worker)
-              .map(ret => workflow.getWorkerInfo(worker).state = ret)
-          )
-          .toSeq
+    if (!schedulingPolicy.getRunningRegions().contains(region)) {
+      Future
+        .collect(
+          workflow
+            .getAllWorkersOfRegion(region)
+            .map(worker =>
+              asyncRPCClient
+                .send(ResumeWorker(), worker)
+                .map(ret => workflow.getWorkerInfo(worker).state = ret)
+            )
+            .toSeq
+        )
+        .map { _ =>
+          // update frontend status
+          Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
+          schedulingPolicy.addToRunningRegions(Set(region))
+        }
+    } else {
+      throw new WorkflowRuntimeException(
+        s"Resume region called on an already running region: ${region.getOperators().mkString(",")}"
       )
-      .map { _ =>
-        // update frontend status
-        Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
-      }
+    }
+
   }
 
   private def scheduleRegion(region: PipelinedRegion): Future[Unit] = {
+    if (constructingRegions.contains(region.getId())) {
+      return Future()
+    }
     println(s"\t\tRegion ${region.getId().pipelineId} started")
-    if (!constructedRegions.contains(region.getId())) {
+    if (!startedRegions.contains(region.getId())) {
+      constructingRegions.add(region.getId())
       constructRegion(region)
       prepareAndStartRegion(region)
     } else {

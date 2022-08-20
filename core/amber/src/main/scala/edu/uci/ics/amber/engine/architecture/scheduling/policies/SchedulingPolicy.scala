@@ -50,13 +50,13 @@ abstract class SchedulingPolicy(
 
   protected val regionsScheduleOrder = saveTopologicalOrderOfRegions()
 
-  var sentToBeScheduledRegions =
+  protected val sentToBeScheduledRegions =
     new mutable.HashSet[
       PipelinedRegion
     ]() // regions sent by the policy to be scheduled at least once
-  var completedRegions = new mutable.HashSet[PipelinedRegion]()
-  var runningRegions = new mutable.HashSet[PipelinedRegion]() // regions currently running
-  var completedLinksOfRegion =
+  protected val completedRegions = new mutable.HashSet[PipelinedRegion]()
+  protected val runningRegions = new mutable.HashSet[PipelinedRegion]() // regions currently running
+  protected val completedLinksOfRegion =
     new mutable.HashMap[PipelinedRegion, mutable.HashSet[LinkIdentity]]()
 
   private def saveTopologicalOrderOfRegions(): ArrayBuffer[PipelinedRegion] = {
@@ -69,21 +69,24 @@ abstract class SchedulingPolicy(
     scheduleOrder
   }
 
-  protected def checkRegionCompleted(region: PipelinedRegion): Unit = {
-    val isRegionCompleted: Boolean = workflow
+  protected def isRegionCompleted(region: PipelinedRegion): Boolean = {
+    workflow
       .getBlockingOutlinksOfRegion(region)
       .forall(
         completedLinksOfRegion.getOrElse(region, new mutable.HashSet[LinkIdentity]()).contains
       ) && region
       .getOperators()
       .forall(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.COMPLETED)
-    if (isRegionCompleted) {
+  }
+
+  protected def checkRegionCompleted(region: PipelinedRegion): Unit = {
+    if (isRegionCompleted(region)) {
       runningRegions.remove(region)
       completedRegions.add(region)
     }
   }
 
-  private def getRegion(workerId: ActorVirtualIdentity): Option[PipelinedRegion] = {
+  protected def getRegion(workerId: ActorVirtualIdentity): Option[PipelinedRegion] = {
     val opId = workflow.getOperator(workerId).id
     var region: Option[PipelinedRegion] = None
     runningRegions.foreach(r =>
@@ -100,7 +103,7 @@ abstract class SchedulingPolicy(
     * @param linkId
     * @return
     */
-  private def getRegion(linkId: LinkIdentity): Option[PipelinedRegion] = {
+  protected def getRegion(linkId: LinkIdentity): Option[PipelinedRegion] = {
     val upstreamOpId = OperatorIdentity(linkId.from.workflow, linkId.from.operator)
     var region: Option[PipelinedRegion] = None
     runningRegions.foreach(r =>
@@ -111,7 +114,7 @@ abstract class SchedulingPolicy(
     region
   }
 
-  // gets the ready regions that haven't been sent for scheduling yet (not in `sentToBeScheduledRegions`)
+  // gets the ready regions that is not currently running
   protected def getNextSchedulingWork(): Set[PipelinedRegion]
 
   def recordWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
@@ -152,7 +155,20 @@ abstract class SchedulingPolicy(
     regions
   }
 
-  def recordTimeSlotExpired(regions: Set[PipelinedRegion]): Set[PipelinedRegion] = {
+  def recordTimeSlotExpired(): Set[PipelinedRegion] = {
     getNextSchedulingWork()
   }
+
+  def addToRunningRegions(regions: Set[PipelinedRegion]): Unit = {
+    regions.foreach(r => runningRegions.add(r))
+  }
+
+  def removeFromRunningRegion(regions: Set[PipelinedRegion]): Unit = {
+    regions.foreach(r => runningRegions.remove(r))
+  }
+
+  def getRunningRegions(): Set[PipelinedRegion] = runningRegions.toSet
+
+  def getCompletedRegions(): Set[PipelinedRegion] = completedRegions.toSet
+
 }
