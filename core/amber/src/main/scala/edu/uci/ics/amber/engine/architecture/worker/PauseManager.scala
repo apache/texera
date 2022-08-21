@@ -3,9 +3,6 @@ package edu.uci.ics.amber.engine.architecture.worker
 import scala.collection.mutable
 
 object PauseManager {
-  //  final val NoPause = 0
-  //  final val Paused = 1
-
   final case class ExecutionPaused()
 }
 
