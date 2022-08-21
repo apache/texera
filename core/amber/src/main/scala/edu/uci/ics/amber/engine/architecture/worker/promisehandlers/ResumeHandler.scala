@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{PauseType, WorkerAsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, RUNNING}
@@ -15,12 +15,8 @@ trait ResumeHandler {
 
   registerHandler { (msg: ResumeWorker, sender) =>
     if (stateManager.getCurrentState == PAUSED) {
-      if (pauseManager.isPaused) {
-        pauseManager.resume()
-      }
-      if (!dataProcessor.backpressured && !pauseManager.pausedByOperatorLogic) {
-        // if the processor is backpressured or paused by operator logic,
-        // it should not enable the data queue.
+      pauseManager.recordRequest(PauseType.UserPause, false)
+      if (!pauseManager.isPaused()) {
         dataProcessor.enableDataQueue()
       }
       stateManager.transitTo(RUNNING)
