@@ -40,7 +40,7 @@ object WorkflowService {
   def mkWorkflowStateId(wId: Int, uidOpt: Option[UInteger]): String = {
     uidOpt match {
       case Some(user) =>
-        user + "-" + wId
+        wId.toString
       case None =>
         // use a fixed wid for reconnection
         "dummy wid"

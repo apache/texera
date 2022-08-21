@@ -133,10 +133,6 @@ export class UserFileSectionComponent {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
 
-  public parseTimestampString(timestamp: string): string {
-    return new Date(parseInt(timestamp)).toLocaleString();
-  }
-
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
     this.userFileService
       .downloadUserFile(userFileEntry.file)
