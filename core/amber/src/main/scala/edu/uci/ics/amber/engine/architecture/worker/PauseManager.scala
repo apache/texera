@@ -18,15 +18,7 @@ class PauseManager {
     pauseInvocations.getOrElse(pauseType, false)
 
   def isPaused(): Boolean = {
-    var isPaused = false
-    pauseInvocations.foreach(entry => {
-      if (entry._2) { isPaused = true }
-    })
-    isPaused
-  }
-
-  def canEnableDataQueue(): Boolean = {
-    pauseInvocations.forall(entry => entry._2 == false)
+    pauseInvocations.values.exists(isPaused => isPaused)
   }
 
 }

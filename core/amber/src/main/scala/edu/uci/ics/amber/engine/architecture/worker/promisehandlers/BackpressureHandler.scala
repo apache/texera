@@ -22,7 +22,7 @@ trait BackpressureHandler {
       dataProcessor.disableDataQueue()
     } else {
       pauseManager.recordRequest(PauseType.BackpressurePause, false)
-      if (pauseManager.canEnableDataQueue()) {
+      if (!pauseManager.isPaused()) {
         dataProcessor.enableDataQueue()
       }
     }
