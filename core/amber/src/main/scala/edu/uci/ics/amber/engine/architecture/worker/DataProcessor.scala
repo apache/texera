@@ -136,7 +136,7 @@ class DataProcessor( // dependencies:
 
     val (outputTuple, outputPortOpt) = out
     if (breakpointManager.evaluateTuple(outputTuple)) {
-      pauseManager.recordRequest(PauseType.BreakpointPause, true)
+      pauseManager.recordRequest(PauseType.UserPause, true)
       disableDataQueue()
       stateManager.transitTo(PAUSED)
     } else {
