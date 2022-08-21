@@ -1080,9 +1080,11 @@ export class WorkflowActionService {
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
-      // operators shouldn't be highlighted during page reload
+      // operators and links shouldn't be highlighted during page reload
       const jointGraphWrapper = this.getJointGraphWrapper();
       jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+      jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
+
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
@@ -1271,7 +1273,7 @@ export class WorkflowActionService {
     this.workflowCollabService.propagateChange(commandMessage);
   }
 
-  public highlightOperators(multiSelect: boolean, links: OperatorLink[], ...ops: string[]): void {
+  public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
     const command: Command = {
       modifiesWorkflow: false,
       execute: () => {
@@ -1281,7 +1283,7 @@ export class WorkflowActionService {
     };
     const commandMessage: CommandMessage = {
       action: "highlightOperators",
-      parameters: [multiSelect, links, ...ops],
+      parameters: [multiSelect, ...ops],
       type: "execute",
     };
     this.executeStoreAndPropagateCommand(command, commandMessage);

@@ -672,6 +672,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
+        console.log("event in the handle highlight mouse input:", event);
         // multiselect mode on if holding shift
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
 
@@ -680,9 +681,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
-        // all the links on the graph
-        const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
     
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
@@ -691,14 +689,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           } else if (highlightedGroupIDs.includes(elementID)) {
             this.workflowActionService.getJointGraphWrapper().unhighlightGroups(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, allLinks, elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
         } else {
           // else only highlight a single operator or group
           if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, allLinks, elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
@@ -1188,7 +1186,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService
           .getJointGraphWrapper()
           .setMultiSelectMode(allOperators.length + allGroups.length > 1);
-        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, [], ...allOperators);
+        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
       });
   }
@@ -1725,7 +1723,26 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.getJointPaper(), "tool:breakpoint")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, event[0].model.id.toString());
+        // set the multi-select mode
+        this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
+
+        const clickedLinkID = event[0].model.id.toString();
+        const currentlyHighlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+
+        if (event[1].shiftKey) {
+          if (currentlyHighlightedLinkIDs.includes(clickedLinkID)) {
+            // if the link being clicked is already highlighted, unhighlight it
+            this.workflowActionService.unhighlightLinks(clickedLinkID);
+          } else if (this.workflowActionService.getTexeraGraph().hasLinkWithID(clickedLinkID)){
+            // highlight the link if the link has not already been highlighted
+            this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, clickedLinkID);
+          }
+        } else {
+          // if user doesn't click on the shift key, highlight only a single link
+          if (this.workflowActionService.getTexeraGraph().hasLinkWithID(clickedLinkID)) {
+            this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, clickedLinkID);
+          }
+        }
       });
   }
 

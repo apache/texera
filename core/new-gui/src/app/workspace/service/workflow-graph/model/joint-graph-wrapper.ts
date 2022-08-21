@@ -386,7 +386,6 @@ export class JointGraphWrapper {
           }
         }
       })
-      console.log("teh length of the linkstobehighlighted is", linksToBeHighlighted.length);
       for (let link of linksToBeHighlighted) {
         this.highlightElement(link.linkID, this.currentHighlightedLinks, highlightedLinkIDs);
       }
