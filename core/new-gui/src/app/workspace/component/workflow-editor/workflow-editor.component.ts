@@ -26,7 +26,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -51,6 +51,10 @@ type OperatorPosition = {
   [key: string]: Point;
 };
 
+type BreakpointWithLinkID = {
+  [key: string]: Breakpoint;
+}
+
 type Link = {
   linkID: string;
   source: { operatorID: string; portID: string };
@@ -68,7 +72,7 @@ type SerializedString = {
   operatorPositions: OperatorPosition;
   links: Link[];
   groups: [];
-  breakpoints: [];
+  breakpoints: BreakpointWithLinkID;
   commentBoxes: [];
 };
 
@@ -672,7 +676,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        console.log("event in the handle highlight mouse input:", event);
         // multiselect mode on if holding shift
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
 
@@ -1252,7 +1255,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private saveHighlightedElements(includeOperator: boolean): void {
     // get all the currently selected operators and links
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlighghtedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+    
     // const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
     // initialize the serialized string
     const serializedString: SerializedString = {
@@ -1260,7 +1263,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       operatorPositions: {},
       links: [],
       groups: [],
-      breakpoints: [],
+      breakpoints: {},
       commentBoxes: [],
     };
     
@@ -1268,6 +1271,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     const operatorsCopy: OperatorPredicate[] = [];
     const operatorPositionsCopy: OperatorPosition = {};
     const linksCopy: Link[] = [];
+    const breakpointsCopy: BreakpointWithLinkID = {};
   
     // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
     highlightedOperatorIDs.forEach(operatorID => {
@@ -1285,11 +1289,18 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     serializedString.operatorPositions = operatorPositionsCopy;
 
     // get all the highlighted links, and sort them by their layers
+    const highlighghtedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
     highlighghtedLinkIDs.forEach((linkID) => {
       linksCopy.push(this.workflowActionService.getTexeraGraph().getLinkWithID(linkID));
+      const breakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID);
+      if (breakpoint != undefined) {
+        breakpointsCopy[linkID] = breakpoint;
+      }
     })
     linksCopy.sort((first, second) => this.workflowActionService.getJointGraphWrapper().getCellLayer(first.linkID) - this.workflowActionService.getJointGraphWrapper().getCellLayer(second.linkID));
+
     serializedString.links = linksCopy;
+    serializedString.breakpoints = breakpointsCopy;
 
     
     //store the stringified copied operators into the clipboard, which is the preferred way to copy over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the WorkflowEditorComponent class)
@@ -1380,6 +1391,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           // get all the operators from the clipboard, which are already sorted by their layers
           let copiedOps: OperatorPredicate[] = operatorsInClipboard.get("operators") as OperatorPredicate[];
 
+          // get all the breakpoints for later when adding the breakpoints for the pasted new links
+          let breakpointsInClipboard: BreakpointWithLinkID = operatorsInClipboard.get("breakpoints") as BreakpointWithLinkID;
+
           let linksCopy: LinkWithID = {};
           copiedOps.forEach(copiedOperator => {
             // copyOperator assigns a new randomly generated operator ID to the new operator
@@ -1394,9 +1408,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
                   source: { operatorID: "", portID: "" },
                   target: { operatorID: "", portID: "" },
                 };
-              } else {
+              } else if (linksCopy[link.linkID].linkID == "") {
                 // if current link is never added to the linksCopy, generate a random link ID for that link
-                linksCopy[link.linkID].linkID = this.workflowUtilService.getLinkRandomUUID();
+                const newLinkID = this.workflowUtilService.getLinkRandomUUID();
+                linksCopy[link.linkID].linkID = newLinkID;
               }
 
               if (link.source.operatorID == copiedOperator.operatorID) {
@@ -1427,7 +1442,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               op: newOperator,
               pos: newOperatorPosition,
             });
-            // console.log("the operator's ID is: ", operatorsAndPositions[0].op.operatorID);
             positions.push(newOperatorPosition);
           });
 
@@ -1435,6 +1449,18 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
           // actually add all operators, links, groups to the workflow
           this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
+
+          for (let oldLinkID in linksCopy) {
+            let newLink = linksCopy[oldLinkID];
+            this.workflowActionService.setLinkBreakpoint(newLink.linkID, breakpointsInClipboard[oldLinkID]);
+
+            if (
+              this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+              this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered
+            ) {
+              this.executeWorkflowService.addBreakpointRuntime(newLink.linkID, breakpointsInClipboard[oldLinkID]);
+            }
+          }
         });
       });
   }
