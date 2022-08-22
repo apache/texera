@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
+import com.esotericsoftware.kryo.io.Output
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -28,17 +29,13 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
 
   override def getWriter: DeterminantLogWriter = {
     new DeterminantLogWriter {
-      val outputStream = hdfs.append(recoveryLogPath)
-      override def writeLogRecord(payload: Array[Byte]): Unit = outputStream.write(payload)
+      val output = new Output(hdfs.append(recoveryLogPath))
+      override def writeLogRecord(obj:AnyRef): Unit = ser.writeObject(output, obj)
 
-      override def flush(): Unit = outputStream.flush()
+      override def flush(): Unit = output.flush()
 
-      override def close(): Unit = outputStream.close()
+      override def close(): Unit = output.close()
     }
-  }
-
-  override def getReader: InputStream = {
-    hdfs.open(recoveryLogPath)
   }
 
   override def deleteLog(): Unit = {

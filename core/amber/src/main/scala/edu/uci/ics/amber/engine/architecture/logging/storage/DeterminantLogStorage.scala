@@ -1,12 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
+import com.esotericsoftware.kryo.Kryo
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 
 import java.io.InputStream
 
 object DeterminantLogStorage {
   abstract class DeterminantLogWriter {
-    def writeLogRecord(payload: Array[Byte]): Unit
+    val ser = new Kryo()
+    def writeLogRecord(obj: AnyRef): Unit
     def flush(): Unit
     def close(): Unit
   }
@@ -15,8 +17,6 @@ object DeterminantLogStorage {
 abstract class DeterminantLogStorage {
 
   def getWriter: DeterminantLogWriter
-
-  def getReader: InputStream
 
   def deleteLog(): Unit
 

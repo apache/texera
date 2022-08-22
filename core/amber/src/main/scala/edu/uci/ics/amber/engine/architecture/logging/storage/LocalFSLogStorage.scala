@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
+import com.esotericsoftware.kryo.io.Output
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 
 import java.io.InputStream
@@ -18,20 +19,16 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
   override def getWriter: DeterminantLogWriter = {
     new DeterminantLogWriter {
-      private val out = Files.newOutputStream(filePath)
+      private val output = new Output(Files.newOutputStream(filePath))
 
-      override def writeLogRecord(payload: Array[Byte]): Unit = {
-        out.write(payload)
+      override def writeLogRecord(obj: AnyRef): Unit = {
+        ser.writeObject(output, obj)
       }
 
-      override def flush(): Unit = out.flush()
+      override def flush(): Unit = output.flush()
 
-      override def close(): Unit = out.close()
+      override def close(): Unit = output.close()
     }
-  }
-
-  override def getReader: InputStream = {
-    Files.newInputStream(filePath)
   }
 
   override def deleteLog(): Unit = {
