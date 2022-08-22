@@ -26,7 +26,7 @@ export class CoeditorPresenceService {
   private coeditorOperatorHighlights = new Map<string, string[]>();
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorStates = new Map<string, UserState>();
-  private currentlyEditingTimers = new Map<string, number>();
+  private currentlyEditingTimers = new Map<string, NodeJS.Timer>();
   public shadowingModeEnabled = false;
   public shadowingCoeditor?: User;
   public coeditors: User[] = [];

@@ -9419,6 +9419,13 @@ lib0@^0.2.31, lib0@^0.2.35, lib0@^0.2.42, lib0@^0.2.49:
   dependencies:
     isomorphic.js "^0.2.4"
 
+lib0@^0.2.43:
+  version "0.2.52"
+  resolved "https://registry.yarnpkg.com/lib0/-/lib0-0.2.52.tgz#f07c975673ab3273e676712860d941f996e5fe79"
+  integrity sha512-CjxlM7UgICfN6b2OPALBXchIBiNk6jE+1g7JP8ha+dh1xKRDSYpH0WQl1+rMqCju49xUnwPG34v4CR5/rPOZhg==
+  dependencies:
+    isomorphic.js "^0.2.4"
+
 license-webpack-plugin@4.0.2:
   version "4.0.2"
   resolved "https://registry.npmjs.org/license-webpack-plugin/-/license-webpack-plugin-4.0.2.tgz"
@@ -10022,10 +10029,10 @@ moment-timezone@^0.5.33:
   resolved "https://registry.npmjs.org/moment/-/moment-2.29.1.tgz"
   integrity sha512-kHmoybcPV8Sqy59DwNDY3Jefr64lK/by/da0ViFcuA4DH0vQg5Q6Ze5VimxkfQNSC+Mls/Kx53s7TjP1RhFEDQ==
 
-monaco-editor@~0.32.1:
-  version "0.32.1"
-  resolved "https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.32.1.tgz"
-  integrity sha512-LUt2wsUvQmEi2tfTOK+tjAPvt7eQ+K5C4rZPr6SeuyzjAuAHrIvlUloTcOiGjZW3fn3a/jFQCONrEJbNOaCqbA==
+monaco-editor@^0.34.0:
+  version "0.34.0"
+  resolved "https://registry.yarnpkg.com/monaco-editor/-/monaco-editor-0.34.0.tgz#b1749870a1f795dbfc4dc03d8e9b646ddcbeefa7"
+  integrity sha512-VF+S5zG8wxfinLKLrWcl4WUizMx+LeJrG4PM/M78OhcwocpV0jiyhX/pG6Q9jIOhrb/ckYi6nHnaR5OojlOZCQ==
 
 mrmime@^1.0.0:
   version "1.0.0"
@@ -13461,6 +13468,13 @@ y-leveldb@^0.1.0:
   dependencies:
     level "^6.0.1"
     lib0 "^0.2.31"
+
+y-monaco@^0.1.4:
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/y-monaco/-/y-monaco-0.1.4.tgz#1dd9ff4d11f638d7d92b8055bbded4403ea6d2b8"
+  integrity sha512-RzAvjKJ2yt3VjlKK55U8STJyd1gz5/Qm6pjt7SAVb+k+g+KaSeTuSBGt+lURN+dzzSNs73ZkIAerW3JM0mzBSw==
+  dependencies:
+    lib0 "^0.2.43"
 
 y-protocols@^1.0.5:
   version "1.0.5"
