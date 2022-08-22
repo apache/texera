@@ -223,15 +223,13 @@ export class SyncJointModelService {
           if (event.path[event.path.length-1] === "customDisplayName") {
             const newName = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
             this.texeraGraph.operatorDisplayNameChangedSubject.next({operatorID: operatorID, newDisplayName: newName.toJSON()});
+          } else if (event.path.includes("operatorProperties")) {
+            const operator = this.texeraGraph.getOperator(operatorID);
+            this.texeraGraph.operatorPropertyChangeSubject.next({operator: operator});
           } else if (event.path.length === 1) {
             for (const entry of event.changes.keys.entries()) {
               const contentKey = entry[0];
-              const contentValue = entry[1];
-              if (contentKey === "operatorProperties") {
-                const oldProperty = contentValue?.oldValue as Readonly<{ [key: string]: any }>;
-                const operator = this.texeraGraph.getOperator(operatorID);
-                this.texeraGraph.operatorPropertyChangeSubject.next({oldProperty: oldProperty, operator: operator});
-              } else if (contentKey === "isCached") {
+               if (contentKey === "isCached") {
                 const newCachedStatus = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("isCached") as boolean;
                 if (newCachedStatus) {
                   this.texeraGraph.cachedOperatorChangedSubject.next({

@@ -87,7 +87,6 @@ export class WorkflowGraph {
     deletedLink: OperatorLink;
   }>();
   public readonly operatorPropertyChangeSubject = new Subject<{
-    oldProperty: object;
     operator: OperatorPredicate;
   }>();
   public readonly breakpointChangeStream = new Subject<{
@@ -615,7 +614,6 @@ export class WorkflowGraph {
    * The observable value includes the old property that is replaced, and the operator with new property.
    */
   public getOperatorPropertyChangeStream(): Observable<{
-    oldProperty: object;
     operator: OperatorPredicate;
   }> {
     return this.operatorPropertyChangeSubject.asObservable();

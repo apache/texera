@@ -1,3 +1,9 @@
+<ng-container
+  *ngFor="let user of coeditorPresenceService.coeditors"
+>
+  <div [innerHTML]=this.getCoeditorCursorStyles(user)></div>
+</ng-container>
+
 <button mat-icon-button class="close-button" [mat-dialog-close]="true">
   <mat-icon class="close-icon" color="white">close</mat-icon>
 </button>
