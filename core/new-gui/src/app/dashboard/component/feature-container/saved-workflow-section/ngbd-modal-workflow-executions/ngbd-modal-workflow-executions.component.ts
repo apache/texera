@@ -10,6 +10,10 @@ import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.comp
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 
+const MAX_TEXT_SIZE = 20;
+const MAX_RGB = 255;
+const MAX_USERNAME_SIZE = 5;
+
 @UntilDestroy()
 @Component({
   selector: "texera-ngbd-modal-workflow-executions",
@@ -35,11 +39,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   ];
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
-    Name: "Workflow Name",
-    Username: "The User Who Runs This Execution",
+    Name: "Execution Name",
+    Username: "The User Who Ran This Execution",
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
+  };
+
+  /*custom column width*/
+  public customColumnWidth: Record<string, string> = {
+    "": "70px",
+    Name: "230px",
+    Username: "150px",
+    "Starting Time": "250px",
+    "Last Status Updated Time": "250px",
+    Status: "80px",
   };
 
   /** variables related to executions filtering
@@ -77,6 +91,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["completed", 3],
     ["aborted", 4],
   ]);
+  public showORhide: boolean[] = [false, false, false, false];
+  public avatarColors: { [key: string]: string } = {};
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -262,6 +278,45 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
         );
     }
+  }
+
+  /**
+   *
+   * @param name
+   * @param nameFlag true for execution name and false for username
+   */
+  abbreviate(name: string, nameFlag: boolean): string {
+    let maxLength = nameFlag ? MAX_TEXT_SIZE : MAX_USERNAME_SIZE;
+    if (name.length <= maxLength) {
+      return name;
+    } else {
+      return name.slice(0, maxLength);
+    }
+  }
+
+  onHit(column: string, index: number): void {
+    if (this.showORhide[index]) {
+      this.ascSort(column);
+    } else {
+      this.dscSort(column);
+    }
+    this.showORhide[index] = !this.showORhide[index];
+  }
+
+  setAvatarColor(userName: string): string {
+    if (userName in this.avatarColors) {
+      return this.avatarColors[userName];
+    } else {
+      this.avatarColors[userName] = this.getRandomColor();
+      return this.avatarColors[userName];
+    }
+  }
+
+  getRandomColor(): string {
+    const r = Math.floor(Math.random() * MAX_RGB);
+    const g = Math.floor(Math.random() * MAX_RGB);
+    const b = Math.floor(Math.random() * MAX_RGB);
+    return "rgba(" + r + "," + g + "," + b + ",0.8)";
   }
 
   public searchInputOnChange(value: string): void {
