@@ -90,10 +90,7 @@ export class WorkflowActionService {
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
-    this.jointGraphWrapper = new JointGraphWrapper(
-      this.jointGraph,
-      this
-    );
+    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph, this);
     this.operatorGroup = new OperatorGroup(
       this.texeraGraph,
       this.jointGraph,
@@ -413,7 +410,7 @@ export class WorkflowActionService {
         // add operator
         this.addOperatorsInternal([{ operator, point }]);
         // highlight the newly added operator
-        this.jointGraphWrapper.highlightOperators( operator.operatorID);
+        this.jointGraphWrapper.highlightOperators(operator.operatorID);
       },
       undo: () => {
         // remove the operator from JointJS

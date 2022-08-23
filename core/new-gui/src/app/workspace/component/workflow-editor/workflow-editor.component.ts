@@ -37,23 +37,20 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
 // - operatorID: ID for the operator
 // - operator: the copied operator itself, and its properties, etc.
 // - position: the position of the copied operator on the workflow graph
-// - pastedOperators: a list of operators that are created out of the original operator,
-//   including the operator itself.
 type CopiedOperator = {
   operatorID: string;
   operator: OperatorPredicate;
   position: Point;
   layer: number;
-  pastedOperatorIDs: string[];
 };
 
-type OperatorPosition = {
+type OperatorPositions = {
   [key: string]: Point;
 };
 
 type BreakpointWithLinkID = {
   [key: string]: Breakpoint;
-}
+};
 
 type Link = {
   linkID: string;
@@ -69,7 +66,7 @@ type LinkWithID = {
 // This type represents what the serialized string in the clipboard should look like
 type SerializedString = {
   operators: OperatorPredicate[];
-  operatorPositions: OperatorPosition;
+  operatorPositions: OperatorPositions;
   links: Link[];
   groups: [];
   breakpoints: BreakpointWithLinkID;
@@ -684,7 +681,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-    
+
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
@@ -1211,7 +1208,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
           this.clearCopiedElements();
           // actually copy the operators in the system clipboard
-          this.saveHighlightedElements(false);
+          this.saveHighlightedElements();
         }
       });
   }
@@ -1235,7 +1232,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
           this.clearCopiedElements();
-          this.saveHighlightedElements(false);
+          this.saveHighlightedElements();
           this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
         }
       });
@@ -1252,11 +1249,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   /**
    * saves highlighted elements to the system clipboard
    */
-  private saveHighlightedElements(includeOperator: boolean): void {
+  private saveHighlightedElements(): void {
     // get all the currently selected operators and links
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    
-    // const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+
     // initialize the serialized string
     const serializedString: SerializedString = {
       operators: [],
@@ -1266,58 +1262,58 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       breakpoints: {},
       commentBoxes: [],
     };
-    
+
     // define the copies that will be put in the serialized json string when copyinig
     const operatorsCopy: OperatorPredicate[] = [];
-    const operatorPositionsCopy: OperatorPosition = {};
+    const operatorPositionsCopy: OperatorPositions = {};
     const linksCopy: Link[] = [];
     const breakpointsCopy: BreakpointWithLinkID = {};
-  
+
     // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
     highlightedOperatorIDs.forEach(operatorID => {
       operatorsCopy.push(this.workflowActionService.getTexeraGraph().getOperator(operatorID));
     });
 
     // sort all the highlighted operators by their layer number
-    operatorsCopy.sort((first, second) => this.workflowActionService.getJointGraphWrapper().getCellLayer(first.operatorID) - this.workflowActionService.getJointGraphWrapper().getCellLayer(second.operatorID));
+    operatorsCopy.sort(
+      (first, second) =>
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(first.operatorID) -
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(second.operatorID)
+    );
 
-    operatorsCopy.forEach((op) => {
-      operatorPositionsCopy[op.operatorID] = this.workflowActionService.getJointGraphWrapper().getElementPosition(op.operatorID);
-    })
+    operatorsCopy.forEach(op => {
+      operatorPositionsCopy[op.operatorID] = this.workflowActionService
+        .getJointGraphWrapper()
+        .getElementPosition(op.operatorID);
+    });
 
     serializedString.operators = operatorsCopy;
     serializedString.operatorPositions = operatorPositionsCopy;
 
     // get all the highlighted links, and sort them by their layers
     const highlighghtedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-    highlighghtedLinkIDs.forEach((linkID) => {
+    highlighghtedLinkIDs.forEach(linkID => {
       linksCopy.push(this.workflowActionService.getTexeraGraph().getLinkWithID(linkID));
       const breakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID);
       if (breakpoint != undefined) {
         breakpointsCopy[linkID] = breakpoint;
       }
-    })
-    linksCopy.sort((first, second) => this.workflowActionService.getJointGraphWrapper().getCellLayer(first.linkID) - this.workflowActionService.getJointGraphWrapper().getCellLayer(second.linkID));
+    });
+    linksCopy.sort(
+      (first, second) =>
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(first.linkID) -
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(second.linkID)
+    );
 
     serializedString.links = linksCopy;
     serializedString.breakpoints = breakpointsCopy;
 
-    
-    //store the stringified copied operators into the clipboard, which is the preferred way to copy over storing them in the frontend memory (i.e., CopiedOperators and CopiedGroups in the WorkflowEditorComponent class)
+    //store the stringified copied operators into the clipboard
     navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
       // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
       // although if the current tab is active, permission shouldn't be needed
       alert("Copy failed. You don't have the permission to write to the clipboard.");
     });
-
-    // highlightedGroupIDs.forEach(groupID => {
-    //   this.saveGroupInfo(groupID);
-
-    //   const copiedGroup = this.workflowActionService.getOperatorGroup().getGroup(groupID);
-    //   assertType<Group>(copiedGroup);
-    //   // do no copy operators that would be copied along with their groups (to avoid double counting)
-    //   copiedGroup.operators.forEach((operatorInfo, operatorID) => this.deleteOperatorInfo(operatorID));
-    // });
   }
 
   /**
@@ -1350,7 +1346,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         filter(event => this.interactive)
       )
       .pipe(untilDestroyed(this))
-      .subscribe(async () => {
+      .subscribe(() => {
         // by reading from the clipboard, permission needs to be granted
         // a permission prompt automatically shows up by calling readText()
         navigator.clipboard.readText().then(text => {
@@ -1367,32 +1363,32 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               !operatorsInClipboard.has("breakpoints") &&
               !operatorsInClipboard.has("commentBoxes")
             ) {
-              throw new Error("You haven't copied any operators yet!");
+              throw new Error("You haven't copied any element yet!");
             }
           } catch (e) {
-            // if the text in the clipboard is not a JSON object, then it means the user
-            // hasn't copied an operator
-            alert("You haven't copied any operator yet");
+            // if the text in the clipboard is not a JSON object, then it means the user hasn't copied an element
+            alert("You haven't copied any element yet");
             return;
           }
 
           // define the arguments required for actually adding operators and links
           const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-          let links: Link[] = [];
           const groups: Group[] = [];
           const positions: Point[] = [];
           // calling get() will give either the value or undefined
           // at this point, after checking the existence of fields in the operators in the clipboard,
           // the fields "links" and "operatorPositions" should exist
           const linksInClipboard: OperatorLink[] = operatorsInClipboard.get("links") as OperatorLink[];
-          const operatorPositionsInClipboard: OperatorPosition = operatorsInClipboard.get(
+          const operatorPositionsInClipboard: OperatorPositions = operatorsInClipboard.get(
             "operatorPositions"
-          ) as OperatorPosition;
+          ) as OperatorPositions;
           // get all the operators from the clipboard, which are already sorted by their layers
           let copiedOps: OperatorPredicate[] = operatorsInClipboard.get("operators") as OperatorPredicate[];
 
           // get all the breakpoints for later when adding the breakpoints for the pasted new links
-          let breakpointsInClipboard: BreakpointWithLinkID = operatorsInClipboard.get("breakpoints") as BreakpointWithLinkID;
+          let breakpointsInClipboard: BreakpointWithLinkID = operatorsInClipboard.get(
+            "breakpoints"
+          ) as BreakpointWithLinkID;
 
           let linksCopy: LinkWithID = {};
           copiedOps.forEach(copiedOperator => {
@@ -1401,8 +1397,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
             for (let link of linksInClipboard) {
               if (linksCopy[link.linkID] == undefined) {
-                // first check if the link ID already exists in linksCopy, if not, assign a dummy object
-                // to it to avoid type error: cannot set properties of undefined
+                // first check if the link ID already exists in linksCopy, if not, assign a dummy object to it to avoid type error: cannot set properties of undefined
                 linksCopy[link.linkID] = {
                   linkID: "",
                   source: { operatorID: "", portID: "" },
@@ -1415,18 +1410,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               }
 
               if (link.source.operatorID == copiedOperator.operatorID) {
-                // if current copied operator is the source operator of current link, we assign the
-                // new operator ID to be the source operator for the current link, and the port ID should
-                // remain unchanged
+                // if current copied operator is the source operator of current link, we assign the new operator ID to be the source operator for the current link, and the port ID should remain unchanged
                 const source = {
                   operatorID: newOperator.operatorID,
                   portID: link.source.portID,
                 };
                 linksCopy[link.linkID].source = source;
               } else if (link.target.operatorID == copiedOperator.operatorID) {
-                // if current copied operator is the target operator of current link, we assign the
-                // new operator ID to be the target operator for the current link, and the port ID should
-                // remain unchanged
+                // if current copied operator is the target operator of current link, we assign the new operator ID to be the target operator for the current link, and the port ID should remain unchanged
                 const target = {
                   operatorID: newOperator.operatorID,
                   portID: link.target.portID,
@@ -1445,13 +1436,16 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             positions.push(newOperatorPosition);
           });
 
-          links = Object.values(linksCopy);
+          const links = Object.values(linksCopy);
 
           // actually add all operators, links, groups to the workflow
           this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
 
           for (let oldLinkID in linksCopy) {
-            this.workflowActionService.setLinkBreakpoint(linksCopy[oldLinkID].linkID, breakpointsInClipboard[oldLinkID]);
+            this.workflowActionService.setLinkBreakpoint(
+              linksCopy[oldLinkID].linkID,
+              breakpointsInClipboard[oldLinkID]
+            );
           }
         });
       });
@@ -1533,39 +1527,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * If a previously pasted operator is moved or deleted, the operator will be
    * pasted to the emptied position. Otherwise, it will be pasted to a position
    * that's non-overlapping and calculated according to the copy operator offset.
-   * @param newOperatorID
-   * @param copiedOperatorID
+   * @param pos
+   * @param copiedOperator
    * @param positions
    */
-  // previous function signature is:
-  // private calcOperatorPosition(newOperatorID: string, copiedOperatorID: string, positions: Point[]): Point {
-  // but now since we're not storing the operators in this.copiedOperators, we can't use copiedOperatorID to find the copiedOperator;
-  // instead, we just pass in the old CopiedOperator directly
   private calcOperatorPosition(pos: Point, copiedOperator: OperatorPredicate, positions: Point[]): Point {
-    let position;
-    // const copiedOperator = this.copiedOperators.get(copiedOperatorID);
-    // if (!copiedOperator) {
-    //   throw Error(`Internal error: cannot find ${copiedOperatorID} in copied operators`);
-    // }
-    // const pastedOperators = copiedOperator.pastedOperatorIDs;
-    // for (i = 0; i < pastedOperators.length; ++i) {
-    //   position = {
-    //     x: copiedOperator.position.x + i * this.COPY_OFFSET,
-    //     y: copiedOperator.position.y + i * this.COPY_OFFSET,
-    //   };
-    //   if (
-    //     !positions.includes(position) &&
-    //     (!this.workflowActionService.getTexeraGraph().hasOperator(pastedOperators[i]) ||
-    //       this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(pastedOperators[i]).x !==
-    //         position.x ||
-    //       this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(pastedOperators[i]).y !== position.y)
-    //   ) {
-    //     pastedOperators[i] = newOperatorID;
-    //     return this.getNonOverlappingPosition(position, positions);
-    //   }
-    // }
-    // pastedOperators.push(newOperatorID);
-    position = {
+    const position = {
       x: pos.x + this.COPY_OFFSET,
       y: pos.y + this.COPY_OFFSET,
     };
@@ -1745,13 +1712,15 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
 
         const clickedLinkID = event[0].model.id.toString();
-        const currentlyHighlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+        const currentlyHighlightedLinkIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedLinkIDs();
 
         if (event[1].shiftKey) {
           if (currentlyHighlightedLinkIDs.includes(clickedLinkID)) {
             // if the link being clicked is already highlighted, unhighlight it
             this.workflowActionService.unhighlightLinks(clickedLinkID);
-          } else if (this.workflowActionService.getTexeraGraph().hasLinkWithID(clickedLinkID)){
+          } else if (this.workflowActionService.getTexeraGraph().hasLinkWithID(clickedLinkID)) {
             // highlight the link if the link has not already been highlighted
             this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, clickedLinkID);
           }
