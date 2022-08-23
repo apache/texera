@@ -5,6 +5,7 @@ import {JointGraphWrapper} from "./joint-graph-wrapper";
 import {User, UserState} from "../../../../common/type/user";
 import {WorkflowActionService} from "./workflow-action.service";
 import {JointUIService} from "../../joint-ui/joint-ui.service";
+import {Subject} from "rxjs";
 
 function isEqual(array1: any[] | undefined, array2: any[] | undefined): boolean {
   if (!array1 && !array2) return true;
@@ -25,8 +26,11 @@ export class CoeditorPresenceService {
   private coeditorCurrentlyEditing = new Map<string, string | undefined>();
   private coeditorOperatorHighlights = new Map<string, string[]>();
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
+  private coeditorEditingCode = new Map<string, boolean>();
   private coeditorStates = new Map<string, UserState>();
   private currentlyEditingTimers = new Map<string, NodeJS.Timer>();
+  public coeditorOpenedCodeEditorStream = new Subject<{operatorId: string}>();
+  public coeditorClosedCodeEditorStream = new Subject<{operatorId: string}>();
   public shadowingModeEnabled = false;
   public shadowingCoeditor?: User;
   public coeditors: User[] = [];
@@ -153,6 +157,24 @@ export class CoeditorPresenceService {
           this.coeditorOperatorPropertyChanged.delete(clientId);
           this.jointGraphWrapper.removePropertyChanged(coeditorState.user, currentChanged);
         }, 2000);
+      }
+    }
+
+    const previousEditingCode = this.coeditorEditingCode.get(clientId);
+    const currentEditingCode = coeditorState.editingCode;
+    if (previousEditingCode !== currentEditingCode) {
+      if (currentEditingCode) {
+        this.coeditorEditingCode.set(clientId, currentEditingCode);
+        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === clientId.toString() && coeditorState.currentlyEditing) {
+          this.coeditorOpenedCodeEditorStream.next({operatorId: coeditorState.currentlyEditing});
+        }
+      } else {
+        if (previousEditing) {
+          this.coeditorEditingCode.delete(clientId);
+          if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === clientId.toString() && coeditorState.currentlyEditing) {
+            this.coeditorClosedCodeEditorStream.next({operatorId: coeditorState.currentlyEditing});
+          }
+        }
       }
     }
   }

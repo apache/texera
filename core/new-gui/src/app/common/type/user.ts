@@ -22,4 +22,5 @@ export interface UserState {
   unhighlighted?: string[];
   currentlyEditing?: string;
   changed?: string;
+  editingCode?: boolean;
 }

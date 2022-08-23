@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, ElementRef, Inject, OnInit, ViewChild} from "@angular/core";
+import {AfterViewInit, Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild} from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
@@ -27,7 +27,7 @@ declare const monaco: any;
   templateUrl: "./code-editor-dialog.component.html",
   styleUrls: ["./code-editor-dialog.component.scss"],
 })
-export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle{
+export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy{
   editorOptions = {
     theme: "vs-dark",
     language: "python",
@@ -54,6 +54,10 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle{
     this.code = code;
     this.handleLockChange();
   }
+
+  ngOnDestroy(): void {
+      this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("editingCode", false);
+    }
 
   private finishLoading() {
     this.loaded = true;
@@ -94,6 +98,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle{
     const currentOperatorId: string = this.workflowActionService
     .getJointGraphWrapper()
     .getCurrentHighlightedOperatorIDs()[0];
+
+    this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("editingCode", true);
+
     this.ytext = ((this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(currentOperatorId) as YType<OperatorPredicate>).get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>).get("code") as YText;
 
     this.load();

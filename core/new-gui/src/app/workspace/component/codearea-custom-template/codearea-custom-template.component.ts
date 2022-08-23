@@ -5,6 +5,8 @@ import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dia
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
+import {takeUntil} from "rxjs/operators";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -28,16 +30,29 @@ export class CodeareaCustomTemplateComponent extends FieldType {
   constructor(
     public dialog: MatDialog,
     public workflowCollabService: WorkflowCollabService,
-    public workflowActionService: WorkflowActionService
+    public workflowActionService: WorkflowActionService,
+    private coeditorPresenceService : CoeditorPresenceService
   ) {
     super();
     this.handleLockChange();
     this.handleCodeChange();
+    this.handleShadowingMode();
   }
 
   onClickEditor(): void {
     this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
       data: this.formControl?.value || "",
+    });
+  }
+
+  private handleShadowingMode(): void {
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    this.coeditorPresenceService.coeditorOpenedCodeEditorStream.subscribe(({operatorId: string})=>{
+      this.onClickEditor();
+    });
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    this.coeditorPresenceService.coeditorClosedCodeEditorStream.subscribe(({operatorId: string})=> {
+      this.dialogRef?.close();
     });
   }
 
