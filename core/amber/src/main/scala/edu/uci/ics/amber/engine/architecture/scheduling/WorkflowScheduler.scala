@@ -8,13 +8,14 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.linksemantics.{LinkStrategy}
+import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.scheduling.policies.{SchedulingPolicy}
+import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
@@ -82,15 +83,13 @@ class WorkflowScheduler(
             .foreach(wid => {
               pauseFutures.append(
                 asyncRPCClient
-                  .send(PauseWorker(), wid)
-                  .map(ret => workflow.getWorkerInfo(wid).state = ret)
+                  .send(SchedulerTimeSlotEvent(true), wid)
               )
             })
         })
         Future.collect(pauseFutures)
       })
       .map(_ => {
-        Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
         Seq()
       })
   }
@@ -323,14 +322,11 @@ class WorkflowScheduler(
             .getAllWorkersOfRegion(region)
             .map(worker =>
               asyncRPCClient
-                .send(ResumeWorker(), worker)
-                .map(ret => workflow.getWorkerInfo(worker).state = ret)
+                .send(SchedulerTimeSlotEvent(false), worker)
             )
             .toSeq
         )
         .map { _ =>
-          // update frontend status
-          Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
           schedulingPolicy.addToRunningRegions(Set(region))
         }
     } else {
