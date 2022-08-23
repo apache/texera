@@ -229,7 +229,12 @@ export class SyncJointModelService {
           } else if (event.path.length === 1) {
             for (const entry of event.changes.keys.entries()) {
               const contentKey = entry[0];
-               if (contentKey === "isCached") {
+              const contentValue = entry[1];
+              if (contentKey === "operatorProperties") {
+                const oldProperty = contentValue?.oldValue as Readonly<{ [key: string]: any }>;
+                const operator = this.texeraGraph.getOperator(operatorID);
+                this.texeraGraph.operatorPropertyChangeSubject.next({operator: operator});
+              } else if (contentKey === "isCached") {
                 const newCachedStatus = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("isCached") as boolean;
                 if (newCachedStatus) {
                   this.texeraGraph.cachedOperatorChangedSubject.next({
