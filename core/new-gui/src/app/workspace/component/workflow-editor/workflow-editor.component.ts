@@ -1451,15 +1451,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
 
           for (let oldLinkID in linksCopy) {
-            let newLink = linksCopy[oldLinkID];
-            this.workflowActionService.setLinkBreakpoint(newLink.linkID, breakpointsInClipboard[oldLinkID]);
-
-            if (
-              this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
-              this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered
-            ) {
-              this.executeWorkflowService.addBreakpointRuntime(newLink.linkID, breakpointsInClipboard[oldLinkID]);
-            }
+            this.workflowActionService.setLinkBreakpoint(linksCopy[oldLinkID].linkID, breakpointsInClipboard[oldLinkID]);
           }
         });
       });
