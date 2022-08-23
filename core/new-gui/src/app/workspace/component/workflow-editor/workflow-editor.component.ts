@@ -1204,11 +1204,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-        if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
+        if (highlightedOperatorIDs.length > 0) {
           this.clearCopiedElements();
           // actually copy the operators in the system clipboard
           this.saveHighlightedElements();
+        } else {
+          alert("Copying not successful. It is likely that only links are selected, which can't exist without operators.");
         }
       });
   }
@@ -1298,7 +1299,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     serializedString.links = linksCopy;
     serializedString.breakpoints = breakpointsCopy;
 
-    //store the stringified copied operators into the clipboard
+    // store the stringified copied operators into the clipboard
     navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
       // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
       // although if the current tab is active, permission shouldn't be needed
@@ -1353,11 +1354,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               !operatorsInClipboard.has("breakpoints") &&
               !operatorsInClipboard.has("commentBoxes")
             ) {
-              throw new Error("You haven't copied any element yet!");
+              throw new Error("You haven't copied any element yet.");
             }
           } catch (e) {
             // if the text in the clipboard is not a JSON object, then it means the user hasn't copied an element
-            alert("You haven't copied any element yet");
+            alert("You haven't copied any element yet.");
             return;
           }
 
