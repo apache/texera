@@ -8,6 +8,7 @@ from overrides import overrides
 from pampy import match
 
 from core.architecture.managers.context import Context
+from core.architecture.managers.pause_manager import PauseType
 from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
@@ -91,7 +92,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
 
         while (
-            not self._input_queue.main_empty() or self.context.pause_manager.is_paused()
+                not self._input_queue.main_empty() or self.context.pause_manager.is_paused()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -120,7 +121,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         )
 
     def process_control_payload(
-        self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
+            self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
     ) -> None:
         """
         Process the given ControlPayload with the tag.
@@ -151,7 +152,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         try:
             for output_tuple in self.process_tuple_with_udf(
-                self._current_input_tuple, self._current_input_link
+                    self._current_input_tuple, self._current_input_link
             ):
                 self.check_and_process_control()
                 if output_tuple is not None:
@@ -159,8 +160,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                     self.cast_tuple_to_match_schema(output_tuple, schema)
                     self.context.statistics_manager.increase_output_tuple_count()
                     for (
-                        to,
-                        batch,
+                            to,
+                            batch,
                     ) in self.context.tuple_to_batch_converter.tuple_to_batch(
                         output_tuple
                     ):
@@ -172,7 +173,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self._pause()
 
     def process_tuple_with_udf(
-        self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity
+            self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity
     ) -> Iterator[Optional[Tuple]]:
         """
         Process the Tuple/InputExhausted with the current link.
@@ -235,7 +236,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             )
 
     def _process_sender_change_marker(
-        self, sender_change_marker: SenderChangeMarker
+            self, sender_change_marker: SenderChangeMarker
     ) -> None:
         """
         Upon receipt of a SenderChangeMarker, change the current input link to the
@@ -311,12 +312,13 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         The time slot for scheduling this worker has expired.
         """
-        if time_slot_expired and (not self.context.pause_manager.is_paused()):
-            self.context.pause_manager.pause()
+        if time_slot_expired:
+            self.context.pause_manager.record_request(PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, True)
             self._input_queue.disable_sub()
-        elif (not time_slot_expired) and (self.context.pause_manager.is_paused()):
-            self.context.pause_manager.resume()
-            self.context.input_queue.enable_sub()
+        else:
+            self.context.pause_manager.record_request(PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, False)
+            if not self.context.pause_manager.is_paused():
+                self.context.input_queue.enable_sub()
 
     def _pause(self) -> None:
         """
@@ -324,9 +326,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         self._print_log_handler.flush()
         if self.context.state_manager.confirm_state(
-            WorkerState.RUNNING, WorkerState.READY
+                WorkerState.RUNNING, WorkerState.READY
         ):
-            self.context.pause_manager.pause()
+            self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
             self._input_queue.disable_sub()
 
@@ -335,8 +337,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         Resume the data processing.
         """
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
-            if self.context.pause_manager.is_paused():
-                self.context.pause_manager.resume()
+            self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
+            if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_sub()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
