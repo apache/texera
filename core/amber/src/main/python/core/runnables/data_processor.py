@@ -307,6 +307,17 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             except Exception as err:
                 logger.exception(err)
 
+    def _scheduler_time_slot_event(self, time_slot_expired: bool) -> None:
+        """
+        The time slot for scheduling this worker has expired.
+        """
+        if time_slot_expired and (not self.context.pause_manager.is_paused()):
+            self.context.pause_manager.pause()
+            self._input_queue.disable_sub()
+        elif (not time_slot_expired) and (self.context.pause_manager.is_paused()):
+            self.context.pause_manager.resume()
+            self.context.input_queue.enable_sub()
+
     def _pause(self) -> None:
         """
         Pause the data processing.
