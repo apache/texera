@@ -2,13 +2,13 @@ import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { from } from "rxjs";
-import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
+import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -21,8 +21,7 @@ const MAX_USERNAME_SIZE = 5;
   styleUrls: ["./ngbd-modal-workflow-executions.component.scss"],
 })
 export class NgbdModalWorkflowExecutionsComponent implements OnInit {
-  @Input() workflow!: Workflow;
-  @Input() workflowName!: string;
+  @Input() workflow?: WorkflowMetadata;
 
   public workflowExecutionsDisplayedList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
@@ -148,7 +147,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   onBookmarkToggle(row: WorkflowExecutionsEntry) {
-    if (this.workflow.wid === undefined) return;
+    if (this.workflow === undefined || this.workflow.wid === undefined) {
+      return;
+    }
     const wasPreviouslyBookmarked = row.bookmarked;
 
     // Update bookmark state locally.
@@ -173,7 +174,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     from(modalRef.result)
       .pipe(untilDestroyed(this))
       .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && this.workflow.wid !== undefined) {
+        if (this.workflow === undefined || this.workflow.wid === undefined) {
+          return;
+        }
+        if (confirmToDelete) {
           this.workflowExecutionsService
             .deleteWorkflowExecutions(this.workflow.wid, row.eId)
             .pipe(untilDestroyed(this))
@@ -191,7 +195,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   /* rename a single execution */
 
   confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
-    if (this.workflow.wid === undefined) {
+    if (this.workflow === undefined || this.workflow.wid === undefined) {
       return;
     }
     // if name doesn't change, no need to call API

@@ -1,11 +1,14 @@
 import { Workflow } from "../../common/type/workflow";
+import { WorkflowMetadata } from "./workflow-metadata.interface";
+
+export type WorkflowAccessLevel = 'none' | 'read' | 'write' | 'execute';
 
 export interface DashboardWorkflowEntry
   extends Readonly<{
+    workflow: WorkflowMetadata;
     isOwner: boolean;
-    accessLevel: string;
+    accessLevel: WorkflowAccessLevel;
     ownerName: string | undefined;
-    workflow: Workflow;
     projectIDs: number[];
   }> {}
 

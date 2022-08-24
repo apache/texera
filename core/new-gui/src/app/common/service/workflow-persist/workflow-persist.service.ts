@@ -3,10 +3,11 @@ import { Injectable } from "@angular/core";
 import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
-import { Workflow, WorkflowContent } from "../../type/workflow";
+import { Workflow, WorkflowContent, WorkflowRecord } from "../../type/workflow";
 import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
+import { isNonNull, nonNull } from "../../../common/util/assert"
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -32,13 +33,13 @@ export class WorkflowPersistService {
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
     return this.http
-      .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
+      .post<WorkflowRecord>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
         wid: workflow.wid,
         name: workflow.name,
         content: JSON.stringify(workflow.content),
       })
       .pipe(
-        filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
+        filter(workflow => true),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
   }
@@ -74,27 +75,16 @@ export class WorkflowPersistService {
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
    * @param wid, the workflow id.
    */
-  public retrieveWorkflow(wid: number): Observable<Workflow> {
-    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(
-      filter((workflow: Workflow) => workflow != null),
-      map(WorkflowUtilService.parseWorkflowInfo)
-    );
+  public retrieveWorkflow(wid: number) {
+    const a = this.http.get<WorkflowRecord | null>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(
+      filter(isNonNull), map(WorkflowUtilService.parseWorkflowInfo));
   }
 
   /**
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */
   public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`).pipe(
-      map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
-        dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
-          return {
-            ...workflowEntry,
-            dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow),
-          };
-        })
-      )
-    );
+    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
   }
 
   /**

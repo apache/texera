@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row5;
+import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = -18598487;
+    private static final long serialVersionUID = 953374968;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -74,6 +74,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
      * The column <code>texera_db.workflow.last_modified_time</code>.
      */
     public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow.owner_uid</code>.
+     */
+    public final TableField<WorkflowRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED, this, "");
 
     /**
      * Create a <code>texera_db.workflow</code> table reference
@@ -115,7 +120,7 @@ public class Workflow extends TableImpl<WorkflowRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_PRIMARY);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_FK_OWNER_UID, Indexes.WORKFLOW_PRIMARY);
     }
 
     @Override
@@ -131,6 +136,15 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     @Override
     public List<UniqueKey<WorkflowRecord>> getKeys() {
         return Arrays.<UniqueKey<WorkflowRecord>>asList(Keys.KEY_WORKFLOW_PRIMARY);
+    }
+
+    @Override
+    public List<ForeignKey<WorkflowRecord, ?>> getReferences() {
+        return Arrays.<ForeignKey<WorkflowRecord, ?>>asList(Keys.FK_OWNER_UID);
+    }
+
+    public User user() {
+        return new User(this, Keys.FK_OWNER_UID);
     }
 
     @Override
@@ -160,11 +174,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row5 type methods
+    // Row6 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
-        return (Row5) super.fieldsRow();
+    public Row6<String, UInteger, String, Timestamp, Timestamp, UInteger> fieldsRow() {
+        return (Row6) super.fieldsRow();
     }
 }

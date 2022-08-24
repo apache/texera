@@ -31,3 +31,6 @@ export interface WorkflowContent
   }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;
+
+// a workflow record stored in the database, where WorkflowContent is stored as JSON string
+export type WorkflowRecord = { content: string } & WorkflowMetadata;

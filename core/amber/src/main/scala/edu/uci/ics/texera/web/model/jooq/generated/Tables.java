@@ -7,6 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Role;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -39,6 +40,11 @@ public class Tables {
      * The table <code>texera_db.keyword_dictionary</code>.
      */
     public static final KeywordDictionary KEYWORD_DICTIONARY = KeywordDictionary.KEYWORD_DICTIONARY;
+
+    /**
+     * The table <code>texera_db.role</code>.
+     */
+    public static final Role ROLE = Role.ROLE;
 
     /**
      * The table <code>texera_db.user</code>.

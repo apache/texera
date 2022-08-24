@@ -14,7 +14,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
 })
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
-  @Input() projectId!: number;
+  @Input() projectId?: number;
 
   public unaddedWorkflows: DashboardWorkflowEntry[] = []; // tracks which workflows to display, the ones that have not yet been added to the project
   public checkedWorkflows: boolean[] = []; // used to implement check boxes
@@ -32,6 +32,9 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   }
 
   public submitForm() {
+    if (! this.projectId) {
+      return;
+    }
     // data structure to track group of updates to make to backend
     let observables: Observable<Response>[] = [];
 
@@ -67,6 +70,9 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   }
 
   private refreshProjectWorkflowEntries(): void {
+    if (! this.projectId) {
+      return;
+    }
     this.userProjectService
       .retrieveWorkflowsOfProject(this.projectId)
       .pipe(

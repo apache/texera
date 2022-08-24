@@ -27,18 +27,18 @@
       </nz-form-item>
       <button nz-button class="login-form-button login-form-margin" [nzType]="'primary'">Sign in</button>
       <p *ngIf="loginErrorMessage" style="color: red">{{ loginErrorMessage }}</p>
-      <!--      <div (click)="googleLogin()" class="g-sign-in-button">-->
-      <!--        <div class="content-wrapper">-->
-      <!--          <div class="logo-wrapper">-->
-      <!--            <img alt="g-sign-in-button" src="https://developers.google.com/identity/images/g-logo.png" />-->
-      <!--          </div>-->
-      <!--          <span class="text-container"><span>Sign in with Google</span></span>-->
-      <!--        </div>-->
-      <!--      </div>-->
+      <div (click)="googleLogin()" class="g-sign-in-button">
+        <div class="content-wrapper">
+          <div class="logo-wrapper">
+            <img alt="g-sign-in-button" src="https://developers.google.com/identity/images/g-logo.png" />
+          </div>
+          <span class="text-container"><span>Sign in with Google</span></span>
+        </div>
+      </div>
     </form>
   </nz-tab>
 
-  <nz-tab nzTitle="Sign Up">
+  <!-- <nz-tab nzTitle="Sign Up">
     <form nz-form [formGroup]="allForms" class="login-form" (ngSubmit)="register()">
       <nz-form-item>
         <nz-form-control nzErrorTip="Please input your username">
@@ -75,5 +75,5 @@
       <button nz-button class="login-form-button login-form-margin" [nzType]="'primary'">Sign up</button>
       <p *ngIf="registerErrorMessage" style="color: red">{{ registerErrorMessage }}</p>
     </form>
-  </nz-tab>
+  </nz-tab> -->
 </nz-tabset>

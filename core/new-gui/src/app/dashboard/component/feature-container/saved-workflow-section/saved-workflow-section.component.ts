@@ -188,23 +188,25 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * Download the workflow as a json file
    */
-  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    if (wid) {
-      this.workflowPersistService
-        .retrieveWorkflow(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(data => {
-          const workflowCopy: Workflow = {
-            ...data,
-            wid: undefined,
-            creationTime: undefined,
-            lastModifiedTime: undefined,
-          };
-          const workflowJson = JSON.stringify(workflowCopy.content);
-          const fileName = workflowCopy.name + ".json";
-          saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
-        });
+  public onClickDownloadWorkfllow(entry: DashboardWorkflowEntry): void {
+    const wid = entry.workflow.wid
+    if (! wid) {
+      return
     }
+    this.workflowPersistService
+      .retrieveWorkflow(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(data => {
+        const workflowCopy: Workflow = {
+          ...data,
+          wid: undefined,
+          creationTime: undefined,
+          lastModifiedTime: undefined,
+        };
+        const workflowJson = JSON.stringify(workflowCopy.content);
+        const fileName = workflowCopy.name + ".json";
+        saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
+      });
   }
 
   /**

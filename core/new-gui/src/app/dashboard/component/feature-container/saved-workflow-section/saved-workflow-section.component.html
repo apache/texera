@@ -231,7 +231,7 @@
     <cdk-virtual-scroll-viewport itemSize="80" class="virtual-scroll-container">
       <nz-list>
         <nz-list-item
-          *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
+          *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
           class="workflow-list-item"
         >
           <nz-list-item-meta>

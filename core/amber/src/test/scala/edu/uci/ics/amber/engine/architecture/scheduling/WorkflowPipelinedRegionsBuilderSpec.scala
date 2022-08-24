@@ -90,7 +90,8 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       .vertexSet()
       .forEach(p =>
         if (
-          p.getOperators()
+          p
+            .getOperators()
             .contains(
               OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID)
             )
@@ -104,7 +105,8 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       .vertexSet()
       .forEach(p =>
         if (
-          p.getOperators()
+          p
+            .getOperators()
             .contains(
               OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID)
             )

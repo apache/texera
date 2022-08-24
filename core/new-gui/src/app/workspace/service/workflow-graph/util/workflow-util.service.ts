@@ -6,7 +6,7 @@ import { v4 as uuid } from "uuid";
 import Ajv from "ajv";
 
 import { Observable, Subject } from "rxjs";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { Workflow, WorkflowContent, WorkflowRecord } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
 
 /**
@@ -138,10 +138,10 @@ export class WorkflowUtilService {
    * as a JSON string.
    * @param workflow
    */
-  public static parseWorkflowInfo(workflow: Workflow): Workflow {
-    if (workflow != null && typeof workflow.content === "string") {
-      workflow.content = jsonCast<WorkflowContent>(workflow.content);
-    }
-    return workflow;
+  public static parseWorkflowInfo(workflow: WorkflowRecord): Workflow {
+    return {
+      ...workflow,
+      content: jsonCast<WorkflowContent>(workflow.content)
+    };
   }
 }

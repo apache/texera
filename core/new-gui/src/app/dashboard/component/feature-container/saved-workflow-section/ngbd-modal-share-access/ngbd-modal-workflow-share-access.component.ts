@@ -5,6 +5,17 @@ import { WorkflowAccessService } from "../../../../service/workflow-access/workf
 import { Workflow } from "../../../../../common/type/workflow";
 import { AccessEntry } from "../../../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowAccessLevel } from "src/app/dashboard/type/dashboard-workflow-entry";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
+import { HttpClient } from "@angular/common/http";
+import { AppSettings } from "src/app/common/app-setting";
+
+
+export const WORKFLOW_ACCESS_URL = `${AppSettings.getApiEndpoint()}/workflow/access`;
+export const WORKFLOW_ACCESS_GRANT_URL = WORKFLOW_ACCESS_URL + "/grant";
+export const WORKFLOW_ACCESS_LIST_URL = WORKFLOW_ACCESS_URL + "/list";
+export const WORKFLOW_OWNER_URL = WORKFLOW_ACCESS_URL + "/owner";
 
 @UntilDestroy()
 @Component({
@@ -13,30 +24,30 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./ngbd-modal-workflow-share-access.component.scss"],
 })
 export class NgbdModalWorkflowShareAccessComponent implements OnInit {
-  @Input() workflow!: Workflow;
+  @Input() workflow: WorkflowMetadata | undefined;
 
   public shareForm = this.formBuilder.group({
     username: ["", [Validators.required]],
     accessLevel: ["", [Validators.required]],
   });
 
-  public accessLevels: string[] = ["read", "write"];
+  public accessLevels: string[] = ["read", "write", "execute"];
 
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
 
-  public workflowOwner: string = "";
+  public workflowOwnerName?: string;
 
   constructor(
     public activeModal: NgbActiveModal,
     private workflowGrantAccessService: WorkflowAccessService,
-    private formBuilder: FormBuilder
+    private formBuilder: FormBuilder,
   ) {}
 
   ngOnInit(): void {
     this.refreshGrantedList(this.workflow);
   }
 
-  public onClickGetAllSharedAccess(workflow: Workflow): void {
+  public onClickGetAllSharedAccess(workflow: WorkflowMetadata): void {
     this.refreshGrantedList(workflow);
   }
 
@@ -44,7 +55,10 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * get all shared access of the current workflow
    * @param workflow target/current workflow
    */
-  public refreshGrantedList(workflow: Workflow): void {
+  public refreshGrantedList(workflow?: WorkflowMetadata): void {
+    if (! workflow) {
+      return;
+    }
     this.workflowGrantAccessService
       .retrieveGrantedWorkflowAccessList(workflow)
       .pipe(untilDestroyed(this))
@@ -56,8 +70,8 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     this.workflowGrantAccessService
       .getWorkflowOwner(workflow)
       .pipe(untilDestroyed(this))
-      .subscribe(({ ownerName }) => {
-        this.workflowOwner = ownerName;
+      .subscribe(ownerName => {
+        this.workflowOwnerName = ownerName;
       });
   }
 
@@ -67,22 +81,18 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param userToShareWith the target user
    * @param accessLevel the type of access to be given
    */
-  public grantWorkflowAccess(workflow: Workflow, userToShareWith: string, accessLevel: string): void {
+  public grantWorkflowAccess(workflow: WorkflowMetadata, userToShareWith: string, accessLevel: WorkflowAccessLevel): void {
     this.workflowGrantAccessService
       .grantUserWorkflowAccess(workflow, userToShareWith, accessLevel)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.refreshGrantedList(workflow),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => alert(err.error)
-      );
+      .subscribe(() => this.refreshGrantedList(workflow));
   }
 
   /**
    * triggered by clicking the SUBMIT button, offers access based on the input information
    * @param workflow target/current workflow
    */
-  public onClickShareWorkflow(workflow: Workflow): void {
+  public onClickShareWorkflow(workflow: WorkflowMetadata): void {
     if (this.shareForm.get("username")?.invalid) {
       alert("Please Fill in Username");
       return;
@@ -101,15 +111,14 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param workflow the given/target workflow
    * @param userToRemove the target user
    */
-  public onClickRemoveAccess(workflow: Workflow, userToRemove: string): void {
+  public onClickRemoveAccess(workflow: WorkflowMetadata, userToRemove: string): void {
+    if (! workflow) {
+      return;
+    }
     this.workflowGrantAccessService
-      .revokeWorkflowAccess(workflow, userToRemove)
+      .grantUserWorkflowAccess(workflow, userToRemove, 'none')
       .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.refreshGrantedList(workflow),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => alert(err.error)
-      );
+      .subscribe(() => this.refreshGrantedList(workflow));
   }
 
   /**

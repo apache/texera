@@ -110,6 +110,7 @@ import { NzModalCommentBoxComponent } from "./workspace/component/workflow-edito
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
+import { GeneralErrorHttpInterceptor } from "./common/service/general-error-http-interceptor.servic";
 
 registerLocaleData(en);
 
@@ -245,6 +246,11 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    { // fires general error interceptor in the end
+      provide: HTTP_INTERCEPTORS,
+      useClass: GeneralErrorHttpInterceptor,
       multi: true,
     },
   ],

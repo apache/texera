@@ -18,7 +18,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row4;
+import org.jooq.Row5;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -170690487;
+    private static final long serialVersionUID = 226495089;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -68,6 +68,11 @@ public class User extends TableImpl<UserRecord> {
      * The column <code>texera_db.user.google_id</code>.
      */
     public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
+
+    /**
+     * The column <code>texera_db.user.role_name</code>.
+     */
+    public final TableField<UserRecord, String> ROLE_NAME = createField(DSL.name("role_name"), org.jooq.impl.SQLDataType.VARCHAR(128), this, "");
 
     /**
      * Create a <code>texera_db.user</code> table reference
@@ -109,7 +114,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY);
+        return Arrays.<Index>asList(Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY, Indexes.USER_ROLE_NAME);
     }
 
     @Override
@@ -125,6 +130,15 @@ public class User extends TableImpl<UserRecord> {
     @Override
     public List<UniqueKey<UserRecord>> getKeys() {
         return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_GOOGLE_ID);
+    }
+
+    @Override
+    public List<ForeignKey<UserRecord, ?>> getReferences() {
+        return Arrays.<ForeignKey<UserRecord, ?>>asList(Keys.USER_IBFK_1);
+    }
+
+    public Role role() {
+        return new Role(this, Keys.USER_IBFK_1);
     }
 
     @Override
@@ -154,11 +168,11 @@ public class User extends TableImpl<UserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row4 type methods
+    // Row5 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<String, UInteger, String, String> fieldsRow() {
-        return (Row4) super.fieldsRow();
+    public Row5<String, UInteger, String, String, String> fieldsRow() {
+        return (Row5) super.fieldsRow();
     }
 }

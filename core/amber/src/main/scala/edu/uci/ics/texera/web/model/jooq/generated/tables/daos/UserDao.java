@@ -108,4 +108,18 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByGoogleId(String value) {
         return fetchOne(User.USER.GOOGLE_ID, value);
     }
+
+    /**
+     * Fetch records that have <code>role_name BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfRoleName(String lowerInclusive, String upperInclusive) {
+        return fetchRange(User.USER.ROLE_NAME, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>role_name IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByRoleName(String... values) {
+        return fetch(User.USER.ROLE_NAME, values);
+    }
 }

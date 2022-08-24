@@ -7,8 +7,8 @@ import { catchError } from "rxjs/operators";
 export class BlobErrorHttpInterceptor implements HttpInterceptor {
   public intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     return next.handle(req).pipe(
-      catchError((err: unknown) => {
-        if (err instanceof HttpErrorResponse && err.error instanceof Blob && err.error.type === "application/json") {
+      catchError((err: HttpErrorResponse) => {
+        if (err.error instanceof Blob && err.error.type === "application/json") {
           // https://github.com/angular/angular/issues/19888
           // When request of type Blob, the error is also in Blob instead of object of the json data
           return new Promise<any>((resolve, reject) => {

@@ -7,6 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Role;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -33,7 +34,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -1519167076;
+    private static final long serialVersionUID = -910511083;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -54,6 +55,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.keyword_dictionary</code>.
      */
     public final KeywordDictionary KEYWORD_DICTIONARY = edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary.KEYWORD_DICTIONARY;
+
+    /**
+     * The table <code>texera_db.role</code>.
+     */
+    public final Role ROLE = edu.uci.ics.texera.web.model.jooq.generated.tables.Role.ROLE;
 
     /**
      * The table <code>texera_db.user</code>.
@@ -130,6 +136,7 @@ public class TexeraDb extends SchemaImpl {
             File.FILE,
             FileOfProject.FILE_OF_PROJECT,
             KeywordDictionary.KEYWORD_DICTIONARY,
+            Role.ROLE,
             User.USER,
             UserConfig.USER_CONFIG,
             UserFileAccess.USER_FILE_ACCESS,

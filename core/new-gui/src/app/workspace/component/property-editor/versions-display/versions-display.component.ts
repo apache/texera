@@ -9,7 +9,7 @@ import { WorkflowVersionService } from "../../../../dashboard/service/workflow-v
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
-import { Workflow } from "src/app/common/type/workflow";
+import { Workflow, WorkflowRecord } from "src/app/common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
 
@@ -103,11 +103,8 @@ export class VersionsListDisplayComponent implements OnInit {
    */
   retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
     return this.http
-      .get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}/${vid}`)
-      .pipe(
-        filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
-        map(WorkflowUtilService.parseWorkflowInfo)
-      );
+      .get<WorkflowRecord>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}/${vid}`)
+      .pipe(map(WorkflowUtilService.parseWorkflowInfo));
   }
 
   /* Pagination handler */
