@@ -37,6 +37,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
 // - operatorID: ID for the operator
 // - operator: the copied operator itself, and its properties, etc.
 // - position: the position of the copied operator on the workflow graph
+// - layer: layer number of the operator
 type CopiedOperator = {
   operatorID: string;
   operator: OperatorPredicate;
