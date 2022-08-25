@@ -12,6 +12,7 @@ import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
+  OperatorInputSchema,
   SchemaAttribute,
   SchemaPropagationService,
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
@@ -308,7 +309,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .getOperatorDynamicSchemaChangedStream()
       .pipe(untilDestroyed(this))
       .subscribe(vals => {
-        this.updateOperatorPropertiesOnSchemaChange(vals.operatorID, vals.oldSchema, vals.newSchema);
+        this.updateOperatorPropertiesOnSchemaChange(vals.operatorID, vals.oldSchema, vals.newSchema, vals.oldInputSchema, vals.newInputSchema);
         if (vals.operatorID === this.currentOperatorId)
           this.rerenderEditorForm();
       });
@@ -323,7 +324,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   updateOperatorPropertiesOnSchemaChange(
     operatorID: string,
     oldSchema: OperatorSchema,
-    newSchema: OperatorSchema
+    newSchema: OperatorSchema,
+    oldInputSchema: OperatorInputSchema,
+    newInputSchema: OperatorInputSchema,
   ): void {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     console.log("updateOperatorPropertiesOnSchemaChange: op", operator, "oldSchema", oldSchema, "newSchema", newSchema);
@@ -338,14 +341,24 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             oldSchema.jsonSchema.properties &&
             newSchema.jsonSchema.properties &&
             ((oldSchema.jsonSchema.properties[property] as CustomJSONSchema7).items as CustomJSONSchema7).enum &&
-            ((newSchema.jsonSchema.properties[property] as CustomJSONSchema7).items as CustomJSONSchema7).enum
+            ((newSchema.jsonSchema.properties[property] as CustomJSONSchema7).items as CustomJSONSchema7).enum &&
+            oldSchema.jsonSchema.autofillAttributeOnPort &&
+            newSchema.jsonSchema.autofillAttributeOnPort
           )
         ){
           // this.workflowActionService.setOperatorProperty(operatorID, { attributes: [] });
           return;
         }
-        const oldEnumList = ((oldSchema.jsonSchema.properties[property] as CustomJSONSchema7).items as CustomJSONSchema7)
-          .enum as string[];
+        let newAttributes: string[] = [];
+
+        let oldEnumList = {};
+        if (!oldInputSchema[oldSchema.jsonSchema.autofillAttributeOnPort]) return;
+        for (const attribute in (oldInputSchema[oldSchema.jsonSchema.autofillAttributeOnPort] as ReadonlyArray<SchemaAttribute>)) {
+          oldEnumList = {
+            ...oldEnumList,
+            [attribute.attributeType]: null
+          }
+        }
         const newEnumList = ((newSchema.jsonSchema.properties[property] as CustomJSONSchema7).items as CustomJSONSchema7)
           .enum as string[];
         const attributeMapping = levenshtein(
@@ -357,7 +370,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
         const oldAttributes = operator.operatorProperties[property];
         if (!oldAttributes) return;
-        let newAttributes: string[] = [];
+        
         // console.log(attributes, attributeMapping.pairs());
         const pairs = attributeMapping.pairs();
         // pair = [old attribute name, new attribute name]
