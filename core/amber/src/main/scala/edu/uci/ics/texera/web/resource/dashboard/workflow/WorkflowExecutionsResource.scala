@@ -37,11 +37,11 @@ object WorkflowExecutionsResource {
       name: String
   )
 
-  // /**
-  //   * This function retrieves the latest execution of a workflow
-  //   * @param wid
-  //   * @return WorkflowExecutionEntry
-  //   */
+  /**
+    * This function retrieves the latest execution of a workflow
+    * @param wid
+    * @return WorkflowExecutionEntry
+    */
   def getLatestExecution(wid: UInteger): Option[WorkflowExecutionEntry] = {
     val executions = context
       .select(
