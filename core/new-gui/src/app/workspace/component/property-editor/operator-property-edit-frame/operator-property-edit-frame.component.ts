@@ -102,6 +102,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
   public lockGranted: boolean = true;
+  public operatorVersion: string = "";
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -167,6 +168,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.sourceFormChangeEventStream.next(event);
   }
 
+  abbreviate(version: string): string {
+    var displayVersion = version? version.slice(0, 5) + "......" + version.slice(version.length-5, version.length): "null";
+    return displayVersion;
+  }
+
   /**
    * Changes the property editor to use the new operator data.
    * Sets all the data needed by the json schema form and displays the form.
@@ -178,6 +184,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
+    this.operatorVersion = currentOperatorSchema.operatorVersion;
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
 
@@ -399,6 +406,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
+    console.log(schema);
     // convert the json schema to formly config, pass a copy because formly mutates the schema object
     const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
       map: jsonSchemaMapIntercept,

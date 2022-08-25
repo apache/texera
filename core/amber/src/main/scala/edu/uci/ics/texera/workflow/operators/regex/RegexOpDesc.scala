@@ -2,16 +2,16 @@ package edu.uci.ics.texera.workflow.operators.regex
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.web.OPversion
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+
+import java.nio.file.{Files, Paths}
+import java.util.Properties
+import scala.collection.JavaConverters._
 
 class RegexOpDesc extends FilterOpDesc {
 
@@ -42,5 +42,13 @@ class RegexOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort())
     )
 
-  override def getOperatorVersion(): String = super.getOperatorVersion()//read the file for op.
+  override def getOperatorVersion(): String = {
+    val operatorVersionPath = Paths.get("operator_version.properties").toAbsolutePath()
+    val props = new Properties
+    val fileStream = Files.newInputStream(operatorVersionPath)
+    props.load(fileStream)
+    fileStream.close()
+    val operatorVersionMap = props.asScala.toMap
+    operatorVersionMap("Regex")
+  }
 }

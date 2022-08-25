@@ -43,7 +43,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import scala.annotation.tailrec
-import edu.uci.ics.texera.web.OPversion
+
 
 object TexeraWebApplication {
 
@@ -102,7 +102,19 @@ object TexeraWebApplication {
         .toString
     )
 
-    OPversion.refreshVersion()
+    val operatorPath = Map(
+      "Regex" -> "core/amber/src/main/scala/edu/uci/ics/texera/workflow/operators/regex",
+      "Projection" -> "core/amber/src/main/scala/edu/uci/ics/texera/workflow/operators/projection"
+    )
+
+    // update each operator version and store it in operator_version.properties
+    updateOperatorVersion(operatorPath)
+  }
+
+  def updateOperatorVersion(operatorPath: Map[String, String]): Unit = {
+    for ((operator, path) <- operatorPath) {
+      OPversion.refreshVersion(operator, path)
+    }
   }
 }
 

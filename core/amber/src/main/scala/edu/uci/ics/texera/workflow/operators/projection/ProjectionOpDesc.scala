@@ -5,7 +5,13 @@ import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+
 import scala.jdk.CollectionConverters.asJavaIterableConverter
+import edu.uci.ics.texera.web.OPversion
+
+import java.nio.file.{Files, Paths}
+import java.util.Properties
+import scala.collection.JavaConverters._
 
 class ProjectionOpDesc extends MapOpDesc {
 
@@ -44,5 +50,15 @@ class ProjectionOpDesc extends MapOpDesc {
           .asJava
       )
       .build()
+  }
+
+  override def getOperatorVersion(): String = {
+    val operatorVersionPath = Paths.get("operator_version.properties").toAbsolutePath()
+    val props = new Properties
+    val fileStream = Files.newInputStream(operatorVersionPath)
+    props.load(fileStream)
+    fileStream.close()
+    val operatorVersionMap = props.asScala.toMap
+    operatorVersionMap("Projection")
   }
 }
