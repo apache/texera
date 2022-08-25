@@ -44,7 +44,6 @@ import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import scala.annotation.tailrec
 
-
 object TexeraWebApplication {
 
   def createAmberRuntime(

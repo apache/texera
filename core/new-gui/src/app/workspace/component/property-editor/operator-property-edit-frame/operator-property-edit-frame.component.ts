@@ -169,7 +169,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   abbreviate(version: string): string {
-    var displayVersion = version? version.slice(0, 5) + "......" + version.slice(version.length-5, version.length): "null";
+    var displayVersion = version
+      ? version.slice(0, 5) + "......" + version.slice(version.length - 5, version.length)
+      : "null";
     return displayVersion;
   }
 

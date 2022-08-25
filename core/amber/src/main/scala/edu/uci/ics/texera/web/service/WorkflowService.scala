@@ -185,7 +185,6 @@ class WorkflowService(
     Json.stringify(Json.toJson(environmentVersionMap))
   }
 
-
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
     Option(jobService.getValue).foreach(_.unsubscribeAll())
