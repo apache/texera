@@ -1,7 +1,7 @@
 import { Workflow } from "../../common/type/workflow";
 import { WorkflowMetadata } from "./workflow-metadata.interface";
 
-export type WorkflowAccessLevel = 'none' | 'read' | 'write' | 'execute';
+export type WorkflowAccessLevel = 'none' | 'read' | 'write';
 
 export interface DashboardWorkflowEntry
   extends Readonly<{

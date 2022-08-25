@@ -239,6 +239,7 @@ registerLocaleData(en);
   ],
   providers: [
     DatePipe,
+    AuthService,
     UserService,
     UserFileService,
     UserFileUploadService,

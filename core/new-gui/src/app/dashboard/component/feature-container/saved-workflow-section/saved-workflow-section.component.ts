@@ -16,7 +16,7 @@ import { UserProjectService } from "../../../service/user-project/user-project.s
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { concatMap, catchError } from "rxjs/operators";
+import { concatMap, catchError, filter } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
@@ -28,6 +28,7 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import * as JSZip from "jszip";
+import { isNonNull } from "src/app/common/util/assert";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -1021,7 +1022,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         }
         this.workflowPersistService
           .createWorkflow(workflowContent, workflowName)
-          .pipe(untilDestroyed(this))
+          .pipe(filter(isNonNull), untilDestroyed(this))
           .subscribe({
             next: uploadedWorkflow => {
               this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];

@@ -18,9 +18,7 @@ export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
  *
  * @author Adam
  */
-@Injectable({
-  providedIn: "root",
-})
+@Injectable()
 export class AuthService {
   public static readonly LOGIN_ENDPOINT = "auth/login";
   public static readonly REFRESH_TOKEN = "auth/refresh";

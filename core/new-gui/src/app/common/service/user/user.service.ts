@@ -9,9 +9,7 @@ import { map, mergeMap } from "rxjs/operators";
  * User Service manages User information. It relies on different
  * auth services to authenticate a valid User.
  */
-@Injectable({
-  providedIn: "root",
-})
+@Injectable()
 export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);

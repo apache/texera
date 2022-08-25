@@ -5,6 +5,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
+import org.jooq.conf.Settings;
 import org.jooq.impl.DSL;
 
 import java.nio.file.Path;
@@ -29,6 +30,6 @@ public final class SqlServer {
     }
 
     public static DSLContext createDSLContext() {
-        return DSL.using(dataSource, SQL_DIALECT);
+        return DSL.using(dataSource, SQL_DIALECT, new Settings().withRenderFormatted(true));
     }
 }

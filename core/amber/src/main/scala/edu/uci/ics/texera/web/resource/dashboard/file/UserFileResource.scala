@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
+import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
@@ -16,6 +17,7 @@ import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{
   context,
   saveUserFileSafe
 }
+import edu.uci.ics.texera.web.resource.dashboard.workflow.AccessLevel
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -77,7 +79,7 @@ object UserFileResource {
 
   case class DashboardFileEntry(
       ownerName: String,
-      accessLevel: String,
+      accessLevel: AccessLevel,
       isOwner: Boolean,
       file: File,
       projectIDs: List[UInteger]
@@ -134,7 +136,6 @@ class UserFileResource {
   def listUserFiles(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
     val user = sessionUser.getUser
     getUserFileRecord(user)
-
   }
 
   private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
@@ -164,13 +165,13 @@ class UserFileResource {
       val ownerUser = fileRecord.into(USER)
       val access = fileRecord.into(USER_FILE_ACCESS)
 
-      var accessLevel = "None"
+      var accessLevel = AccessLevel.NONE
       if (access.getWriteAccess) {
-        accessLevel = "Write"
+        accessLevel = AccessLevel.WRITE
       } else if (access.getReadAccess) {
-        accessLevel = "Read"
+        accessLevel = AccessLevel.READ
       } else {
-        accessLevel = "None"
+        accessLevel = AccessLevel.NONE
       }
       val ownerName = ownerUser.getName
       val projectIDs = fileOfProjectMap.getOrElse(file.getFid, List())

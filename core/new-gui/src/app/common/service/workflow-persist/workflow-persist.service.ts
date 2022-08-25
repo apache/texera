@@ -33,13 +33,13 @@ export class WorkflowPersistService {
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
     return this.http
-      .post<WorkflowRecord>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
+      .post<WorkflowRecord | null>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
         wid: workflow.wid,
         name: workflow.name,
         content: JSON.stringify(workflow.content),
       })
       .pipe(
-        filter(workflow => true),
+        filter(isNonNull),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
   }
@@ -57,8 +57,7 @@ export class WorkflowPersistService {
       .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
         name: newWorkflowName,
         content: JSON.stringify(newWorkflowContent),
-      })
-      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
+      });
   }
 
   /**
@@ -67,16 +66,15 @@ export class WorkflowPersistService {
    */
   public duplicateWorkflow(targetWid: number): Observable<DashboardWorkflowEntry> {
     return this.http
-      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, { wid: targetWid })
-      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
+      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, { wid: targetWid });
   }
 
   /**
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
    * @param wid, the workflow id.
    */
-  public retrieveWorkflow(wid: number) {
-    const a = this.http.get<WorkflowRecord | null>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(
+  public retrieveWorkflow(wid: number): Observable<Workflow> {
+    return this.http.get<WorkflowRecord | null>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(
       filter(isNonNull), map(WorkflowUtilService.parseWorkflowInfo));
   }
 

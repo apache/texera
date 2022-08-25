@@ -88,7 +88,7 @@ object TexeraWebApplication {
     val clusterMode = argMap.get('cluster).asInstanceOf[Option[Boolean]].getOrElse(false)
 
     // start actor system master node
-    actorSystem = AmberUtils.startActorMaster(clusterMode)
+//    actorSystem = AmberUtils.startActorMaster(clusterMode)
 
     // start web server
     new TexeraWebApplication().run(

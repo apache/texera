@@ -3,17 +3,20 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao,
-  WorkflowOfUserDao,
+  WorkflowDao,
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.workflow.AccessLevel.{NONE, READ, WRITE}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
   context,
+  getAccessRecord,
   getGrantedWorkflowAccessList,
+  getWorkflowOwnerUid,
+  toAccessLevel,
   toWorkflowUserAccessRecord,
   userDao
 }
@@ -42,31 +45,28 @@ object WorkflowAccessResource {
 
   private var context: DSLContext = SqlServer.createDSLContext
   private lazy val userDao = new UserDao(context.configuration())
-  private lazy val workflowOwnerDao = new WorkflowOfUserDao(context.configuration())
-
-  val GUEST_USER = "guest"
-  val GENERAL_USER = "general"
 
   def getWorkflowOwnerUid(wid: UInteger): UInteger = {
-    workflowOwnerDao.fetchByWid(wid).get(0).getUid
-  }
-
-  def getUserRole(uid: UInteger): String = {
-    userDao.fetchOneByUid(uid).getRoleName
+    context
+      .select(WORKFLOW.OWNER_UID)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+      .value1()
   }
 
   /**
     * Identifies whether the given user has read-only access over the given workflow
     */
   def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getWorkflowOwnerUid(wid) == uid || getAccessRecord(wid, uid).getReadPrivilege
+    getAccessRecord(wid, uid).getReadPrivilege
   }
 
   /**
     * Identifies whether the given user has write access over the given workflow
     */
   def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getWorkflowOwnerUid(wid) == uid || getAccessRecord(wid, uid).getWritePrivilege
+    getAccessRecord(wid, uid).getWritePrivilege
   }
 
   /**
@@ -77,11 +77,6 @@ object WorkflowAccessResource {
     */
   def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
     toAccessLevel(getAccessRecord(wid, uid)) == AccessLevel.NONE
-  }
-
-  def canCreateNewWorkflow(uid: UInteger): Boolean = {
-    val role = getUserRole(uid)
-    role != null && role != GUEST_USER
   }
 
   /**
@@ -103,7 +98,7 @@ object WorkflowAccessResource {
   /**
     * Converts a record in the workflow_user_access table into the AccessLevel abstraction
     */
-  def toAccessLevel(workflowUserAccess: WorkflowUserAccess): AccessLevel.Value = {
+  def toAccessLevel(workflowUserAccess: WorkflowUserAccess): AccessLevel = {
     if (workflowUserAccess == null) {
       return AccessLevel.NONE
     }
@@ -122,12 +117,12 @@ object WorkflowAccessResource {
   def toWorkflowUserAccessRecord(
       wid: UInteger,
       uid: UInteger,
-      accessLevel: AccessLevel.Value
+      accessLevel: AccessLevel
   ): WorkflowUserAccess = {
     accessLevel match {
-      case WRITE   => new WorkflowUserAccess(wid, uid, true, true)
-      case READ    => new WorkflowUserAccess(wid, uid, true, false)
-      case NONE    => new WorkflowUserAccess(wid, uid, false, false)
+      case WRITE => new WorkflowUserAccess(wid, uid, true, true)
+      case READ  => new WorkflowUserAccess(wid, uid, true, false)
+      case NONE  => new WorkflowUserAccess(wid, uid, false, false)
     }
   }
 
@@ -167,13 +162,6 @@ object WorkflowAccessResource {
 
 }
 
-object AccessLevel extends Enumeration {
-  type Access = Value
-  val READ: AccessLevel.Value = Value("read")
-  val WRITE: AccessLevel.Value = Value("write")
-  val NONE: AccessLevel.Value = Value("none")
-}
-
 /**
   * Provides endpoints for operations related to Workflow Access.
   */
@@ -182,12 +170,8 @@ object AccessLevel extends Enumeration {
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowAccessResource() {
 
-  private val workflowOfUserDao = new WorkflowOfUserDao(
-    context.configuration
-  )
-  private val workflowUserAccessDao = new WorkflowUserAccessDao(
-    context.configuration
-  )
+  private val workflowDao = new WorkflowDao(context.configuration)
+  private val workflowUserAccessDao = new WorkflowUserAccessDao(context.configuration)
 
   def this(dslContext: DSLContext) {
     this()
@@ -202,29 +186,26 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/owner/{wid}")
-  def getWorkflowOwner(@PathParam("wid") wid: UInteger): String = {
-    val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
+  def getWorkflowOwnerName(@PathParam("wid") wid: UInteger): String = {
+    val uid = workflowDao.fetchByWid(wid).get(0).getOwnerUid
     val ownerName = userDao.fetchOneByUid(uid).getName
     ownerName
   }
-//
-//  /**
-//    * This method identifies the user access level of the given workflow
-//    *
-//    * @param wid     the given workflow
-//    * @return json object indicating uid, wid and access level, ex: {"level": "Write", "uid": 1, "wid": 15}
-//    */
-//  @GET
-//  @Path("/workflow/{wid}/level")
-//  def retrieveUserAccessLevel(
-//      @PathParam("wid") wid: UInteger,
-//      @Auth sessionUser: SessionUser
-//  ): AccessResponse = {
-//    val user = sessionUser.getUser
-//    val uid = user.getUid
-//    val workflowAccessLevel = getAccessLevel(wid, uid).toString
-//    AccessResponse(uid, wid, workflowAccessLevel)
-//  }
+
+  /**
+    * Returns the the access level of the given workflow of the session user
+    *
+    * @param wid     the given workflow
+    * @return access level
+    */
+  @GET
+  @Path("/workflow/{wid}/level")
+  def retrieveUserAccessLevel(
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): AccessLevel = {
+    toAccessLevel(getAccessRecord(wid, sessionUser.getUser.getUid))
+  }
 
   /**
     * Returns all current shared accesses of the given workflow
@@ -238,50 +219,25 @@ class WorkflowAccessResource() {
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[AccessEntry] = {
-    val user = sessionUser.getUser
-    val workflowOfUserId = context
-      .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-      .values(user.getUid, wid)
-    if (workflowOfUserDao.existsById(workflowOfUserId)) {
-      getGrantedWorkflowAccessList(wid, user.getUid)
-    } else {
-      throw new ForbiddenException("You are not the owner of the workflow.")
+    // workflow must exist
+    if (!workflowDao.existsById(wid)) {
+      throw new BadRequestException(s"workflow ${wid} does not exist.")
     }
+    getGrantedWorkflowAccessList(wid, sessionUser.getUser.getUid)
   }
 
-//  /**
-//    * This method identifies the user access level of the given workflow
-//    *
-//    * @param wid     the given workflow
-//    * @param username the username of the use whose access is about to be removed
-//    * @return message indicating a success message
-//    */
-//  @DELETE
-//  @Path("/revoke/{wid}/{username}")
-//  def revokeWorkflowAccess(
-//      @PathParam("wid") wid: UInteger,
-//      @PathParam("username") username: String,
-//      @Auth sessionUser: SessionUser
-//  ): Unit = {
-//    val user = sessionUser.getUser
-//    val uid: UInteger =
-//      try {
-//        userDao.fetchByName(username).get(0).getUid
-//      } catch {
-//        case _: NullPointerException =>
-//          throw new BadRequestException("Target user does not exist.")
-//      }
-//    val workflowOfUserId = context
-//      .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-//      .values(user.getUid, wid)
-//    if (!workflowOfUserDao.existsById(workflowOfUserId)) {
-//      throw new ForbiddenException("No sufficient access privilege.")
-//    }
-//    context
-//      .delete(WORKFLOW_USER_ACCESS)
-//      .where(WORKFLOW_USER_ACCESS.UID.eq(uid).and(WORKFLOW_USER_ACCESS.WID.eq(wid)))
-//      .execute()
-//  }
+  /**
+    * Revokes the user access level of the given workflow
+    */
+  @DELETE
+  @Path("/revoke/{wid}/{username}")
+  def revokeWorkflowAccess(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("username") username: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    setWorkflowAccessLevel(wid, username, AccessLevel.NONE, sessionUser)
+  }
 
   /**
     * This method shares a workflow to a user with a specific access type
@@ -296,24 +252,40 @@ class WorkflowAccessResource() {
   def setWorkflowAccessLevel(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,
-      @PathParam("accessLevel") accessLevel: AccessLevel.Value,
+      @PathParam("accessLevel") accessLevel: AccessLevel,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    val user = sessionUser.getUser
-    val uid: UInteger =
+    // target user must exist
+    val targetUid: UInteger =
       try {
         userDao.fetchByName(username).get(0).getUid
       } catch {
-        case _: IndexOutOfBoundsException =>
-          throw new BadRequestException("Target user does not exist.")
+        case _: NullPointerException =>
+          throw new BadRequestException(s"Target user ${username} does not exist.")
       }
-
-    val workflowOfUserId = context
-      .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-      .values(user.getUid, wid)
-    if (!workflowOfUserDao.existsById(workflowOfUserId)) {
-      throw new ForbiddenException("No sufficient access privilege.")
+    // workflow must exist
+    if (!workflowDao.existsById(wid)) {
+      throw new BadRequestException(s"workflow ${wid} does not exist.")
     }
-    workflowUserAccessDao.update(toWorkflowUserAccessRecord(wid, uid, accessLevel))
+    // only owner can change access level
+    // session user must be the owner of the workflow
+    val ownerUid = getWorkflowOwnerUid(wid)
+    if (ownerUid != sessionUser.getUser.getUid) {
+      throw new BadRequestException(s"only workflow owner can change access level.")
+    }
+    // cannot change the access level of the owner: always full access
+    if (targetUid == ownerUid) {
+      throw new BadRequestException(s"cannot change access level of the workflow owner.")
+    }
+
+    if (accessLevel == AccessLevel.NONE) {
+      // NONE access level: directly delete the record
+      context
+        .delete(WORKFLOW_USER_ACCESS)
+        .where(WORKFLOW_USER_ACCESS.UID.eq(targetUid).and(WORKFLOW_USER_ACCESS.WID.eq(wid)))
+        .execute()
+    } else {
+      workflowUserAccessDao.update(toWorkflowUserAccessRecord(wid, targetUid, accessLevel))
+    }
   }
 }

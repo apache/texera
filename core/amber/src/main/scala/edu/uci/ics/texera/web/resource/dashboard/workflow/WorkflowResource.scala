@@ -1,14 +1,18 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
+import com.codahale.metrics.annotation.Timed
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, WorkflowMetadata, context, fetchWorkflowMetadata, insertWorkflow, workflowDao}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{getAccessRecord, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, WorkflowMetadata, context, fetchDashboardWorkflows, fetchOneDashboardWorkflow, insertWorkflow, workflowDao}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
+import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
@@ -26,66 +30,113 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
+  final private val userDao = new UserDao(context.configuration)
   final private val workflowDao = new WorkflowDao(context.configuration)
-  final private val workflowOfUserDao = new WorkflowOfUserDao(
-    context.configuration
-  )
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
 
+  def main(args: Array[String]): Unit = {
+    val accessLevel = AccessLevel.WRITE
+
+    val entry = DashboardFileEntry("owner", accessLevel, true, null, List())
+    val a = Utils.objectMapper.writeValueAsString(accessLevel)
+    val b = Utils.objectMapper.writeValueAsString(entry)
+    println(a)
+    println(b)
+  }
+
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
     require(workflow.getWid == null, "a new workflow must not have an id")
+
+    workflow.setOwnerUid(user.getUid)
     // insert workflow
     workflowDao.insert(workflow)
-    // insert workflow owner
-    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
     // insert workflow access
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(
-        user.getUid,
-        workflow.getWid,
-        true, // readPrivilege
-        true, // writePrivilege
+    val access = new WorkflowUserAccess(user.getUid, workflow.getWid, true, true)
+    workflowUserAccessDao.insert(access)
+  }
+
+//  def fetchWorkflowMetadata(wid: UInteger): WorkflowMetadata = {
+//    context
+//      .select(WORKFLOW.WID, WORKFLOW.NAME, WORKFLOW.CREATION_TIME, WORKFLOW.LAST_MODIFIED_TIME)
+//      .from(WORKFLOW)
+//      .where(WORKFLOW.WID.eq(wid))
+//      .fetchOneInto(classOf[WorkflowMetadata])
+//  }
+
+  def fetchOneDashboardWorkflow(wid: UInteger, uid: UInteger): Option[DashboardWorkflowEntry] = {
+    fetchDashboardWorkflows(uid, Some(wid)).headOption
+  }
+
+  def fetchDashboardWorkflows(uid: UInteger, wid: Option[UInteger] = None, pid: Option[UInteger] = None): List[DashboardWorkflowEntry] = {
+    val buildStart = System.currentTimeMillis()
+
+    val sql = context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.OWNER_UID,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        USER.NAME,
+        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
-    )
-  }
-
-  def fetchWorkflowMetadata(wid: UInteger): WorkflowMetadata = {
-    context
-      .select(WORKFLOW.WID, WORKFLOW.NAME, WORKFLOW.CREATION_TIME, WORKFLOW.LAST_MODIFIED_TIME)
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[WorkflowMetadata])
-  }
-
-  def fetchDashboardWorkflowEntry(wid: UInteger): DashboardWorkflowEntry = {
-    val workflowEntry = context
-      .select(WORKFLOW.WID, WORKFLOW.NAME,
-        WORKFLOW.CREATION_TIME, WORKFLOW.LAST_MODIFIED_TIME, USER.NAME)
       .from(WORKFLOW)
       .join(USER)
       .on(WORKFLOW.OWNER_UID.eq(USER.UID))
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOne()
-//      .fetchOne(record => {
-////        val workflowMetadata = record.into
-//      })
-    null
+      .join(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftOuterJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(uid)
+        .and(if(wid.nonEmpty) WORKFLOW.WID.eq(wid.get) else DSL.noCondition())
+        .and(if(pid.nonEmpty) WORKFLOW_OF_PROJECT.PID.eq(pid.get) else DSL.noCondition())
+      )
+      .groupBy(WORKFLOW.WID)
+
+    println(sql.getSQL)
+
+    val execStart = System.currentTimeMillis()
+    val workflowEntries = sql.fetch().toList
+
+    val mapStart = System.currentTimeMillis()
+    val ret = workflowEntries
+      .map(record =>
+        DashboardWorkflowEntry(
+          WorkflowMetadata(record.value1(), record.value2(), record.value4(), record.value4()),
+//          workflowRecord.into(classOf[WorkflowMetadata]),
+          record.get(WORKFLOW.OWNER_UID) == uid,
+          toAccessLevel(
+            record.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+          ),
+          record.into(USER).getName,
+          if (record.value9() == null) List[UInteger]()
+          else record.value9().split(',').map(number => UInteger.valueOf(number)).toList
+        )
+      )
+      .toList
+
+    println(s"dashboard list: building sql ${execStart - buildStart} ms")
+    println(s"dashboard list: exec sql ${mapStart - execStart} ms")
+    println(s"dashboard list: map results ${System.currentTimeMillis() - mapStart} ms")
+
+    ret
   }
 
   case class WorkflowMetadata(
       wid: UInteger,
       name: String,
-      ownerUid: UInteger,
       creationTime: Timestamp,
       lastModifiedTime: Timestamp
   )
 
   case class DashboardWorkflowEntry(
-      workflowMetadata: WorkflowMetadata,
+      workflow: WorkflowMetadata,
       isOwner: Boolean,
-      accessLevel: AccessLevel.Value,
+      accessLevel: AccessLevel,
       ownerName: String,
       projectIDs: List[UInteger]
   )
@@ -104,15 +155,12 @@ class WorkflowResource {
   @GET
   @Path("/workflow-ids")
   def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
+    context
       .select(WORKFLOW_USER_ACCESS.WID)
       .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(sessionUser.getUser.getUid))
       .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue().toString())
+      .map(record => record.value1().toString)
       .toList
   }
 
@@ -124,25 +172,21 @@ class WorkflowResource {
   @GET
   @Path("/owners")
   def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(USER.NAME)
+    context
+      .selectDistinct(USER.NAME)
       .from(WORKFLOW_USER_ACCESS)
-      .join(WORKFLOW_OF_USER)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .join(WORKFLOW)
+      .on(WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
       .join(USER)
-      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(USER.UID)
+      .on(WORKFLOW.OWNER_UID.eq(USER.UID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(sessionUser.getUser.getUid))
       .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(USER).getName())
+      .map(record => record.value1())
       .toList
   }
 
   /**
-    * This method returns workflow IDs, that contain the selected operators, as strings
+    * Returns workflow IDs that contain the selected operators, as strings
     *
     * @return WorkflowID[]
     */
@@ -154,36 +198,26 @@ class WorkflowResource {
   ): List[String] = {
     // Example GET url: localhost:8080/workflow/searchOperators?operator=Regex,CSVFileScan
     val user = sessionUser.getUser
-    val quotes = "\""
+    val quote = "\""
     val operatorArray =
       operator.replaceAllLiterally(" ", "").stripPrefix("[").stripSuffix("]").split(',')
     var orCondition: Condition = noCondition()
     for (i <- operatorArray.indices) {
       val operatorName = operatorArray(i)
       orCondition = orCondition.or(
-        WORKFLOW.CONTENT
-          .likeIgnoreCase(
-            "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
-            //gives error when I try to combine escape character with formatted string
-            //may be due to old scala version bug
-          )
+        WORKFLOW.CONTENT.likeIgnoreCase(
+          s"%${quote}operatorType${quote}:${quote}${operatorName}${quote}%"
+        )
       )
-
     }
 
-    val workflowEntries =
-      context
-        .select(
-          WORKFLOW.WID
-        )
-        .from(WORKFLOW)
-        .join(WORKFLOW_USER_ACCESS)
-        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-        .where(
-          orCondition
-            .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-        )
-        .fetch()
+    val workflowEntries = context
+      .select(WORKFLOW.WID)
+      .from(WORKFLOW)
+      .join(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .where(orCondition.and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid)))
+      .fetch()
 
     workflowEntries
       .map(workflowRecord => {
@@ -193,52 +227,23 @@ class WorkflowResource {
   }
 
   /**
-    * This method returns the current in-session user's workflow list based on all workflows he/she has access to
+    * Returns the current in-session user's workflow list that he/she has access to
     *
-    * @return Workflow[]
+    * @return DashboardWorkflowEntry[]
     */
   @GET
   @Path("/list")
+//  @Timed(name="/workflow/list")
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-        WORKFLOW.OWNER_UID,
-        USER.NAME,
-        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
-      )
-      .from(WORKFLOW)
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(USER.UID.eq(WORKFLOW.OWNER_UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
-      .fetch()
-    workflowEntries
-      .map(workflowRecord => {
-        DashboardWorkflowEntry(
-          workflowRecord.into(classOf[WorkflowMetadata]),
-          workflowRecord.into(USER).getName,
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ),
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[UInteger]()
-          else workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
-        )
-      }
-      )
-      .toList
-
+    val start = System.currentTimeMillis()
+    try {
+      fetchDashboardWorkflows(user.getUid)
+    } finally {
+      println("/list took " + (System.currentTimeMillis() - start) + "ms")
+    }
   }
 
   /**
@@ -255,7 +260,7 @@ class WorkflowResource {
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): Workflow = {
-    if (! WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUser.getUid)) {
+    if (!WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUser.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     }
     workflowDao.fetchOneByWid(wid)
@@ -280,14 +285,11 @@ class WorkflowResource {
     if (workflow.getWid == null) {
       throw new BadRequestException("workflow id is not present")
     }
-    // if workflow does not exist, reject the persist request
-    if (! workflowDao.existsById(workflow.getWid)) {
-      throw new BadRequestException(s"workflow ${workflow.getWid} does not exist")
-    }
     // the user must have write access to this workflow
-    if (! WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+    if (!WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
       throw new BadRequestException(
-        s"no write access to workflow ${workflow.getWid}: ${workflow.getName}")
+        s"no write access to workflow ${workflow.getWid}: ${workflow.getName}"
+      )
     }
 
     workflowDao.update(workflow)
@@ -306,16 +308,17 @@ class WorkflowResource {
   def duplicateWorkflow(
       wid: UInteger,
       @Auth sessionUser: SessionUser
-  ): WorkflowMetadata = {
+  ): DashboardWorkflowEntry = {
     val uid = sessionUser.getUser.getUid
 
     // the user must have the privilege to read the workflow to be duplicated
-    if (! WorkflowAccessResource.hasReadAccess(wid, uid)) {
+    if (!WorkflowAccessResource.hasReadAccess(wid, uid)) {
       throw new BadRequestException(s"no read access to workflow ${wid}")
     }
 
     val workflow = workflowDao.fetchOneByWid(wid)
-    val newWorkflow = new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null)
+    val newWorkflow =
+      new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null, null)
     createWorkflow(newWorkflow, sessionUser)
   }
 
@@ -329,20 +332,19 @@ class WorkflowResource {
   @Path("/create")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): WorkflowMetadata = {
+  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflowEntry = {
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
       throw new BadRequestException("Cannot create a new workflow with a provided workflow id.")
     }
-
-    // the user must have the privilege to create a new
-    if (! WorkflowAccessResource.canCreateNewWorkflow(user.getUid)) {
-      throw new BadRequestException(s"no privilege to create a new workflow")
+    if (workflow.getName == null || workflow.getName.isEmpty) {
+      throw new BadRequestException("Workflow should have a name")
     }
-
     insertWorkflow(workflow, user)
     WorkflowVersionResource.insertVersion(workflow, true)
-    fetchWorkflowMetadata(workflow.getWid)
+    fetchOneDashboardWorkflow(workflow.getWid, user.getUid)
+      .getOrElse(throw new WebApplicationException(
+        s"workflow ${workflow.getWid} ${workflow.getName} not created"))
   }
 
   /**
@@ -354,11 +356,13 @@ class WorkflowResource {
   @Path("/{wid}")
   def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
-    if (workflowOfUserExists(wid, user.getUid)) {
-      workflowDao.deleteById(wid)
-    } else {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+    if (!workflowDao.existsById(wid)) {
       throw new BadRequestException("The workflow does not exist.")
     }
+    workflowDao.deleteById(wid)
   }
 
   /**

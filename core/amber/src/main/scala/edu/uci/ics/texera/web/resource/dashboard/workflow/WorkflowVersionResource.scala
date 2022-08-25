@@ -271,8 +271,8 @@ class WorkflowVersionResource {
   ): List[VersionEntry] = {
     val user = sessionUser.getUser
     if (
-      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid)
+//        || WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
     ) {
       List()
     } else {
@@ -306,8 +306,8 @@ class WorkflowVersionResource {
   ): Workflow = {
     val user = sessionUser.getUser
     if (
-      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid)
+//        || WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
     ) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {

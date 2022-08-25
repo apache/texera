@@ -8,10 +8,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   USER_FILE_ACCESS,
   USER_PROJECT,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
+  WORKFLOW_OF_PROJECT
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileOfProjectDao,
@@ -23,9 +20,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   FileOfProject,
   UserFileAccess,
   UserProject,
-  Workflow,
-  WorkflowOfProject,
-  WorkflowUserAccess
+  WorkflowOfProject
 }
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
@@ -35,7 +30,7 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   workflowOfProjectExists
 }
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
+import edu.uci.ics.texera.web.resource.dashboard.workflow.{AccessLevel, WorkflowResource}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
@@ -161,45 +156,10 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
-    val uid = sessionUser.getUser.getUid
-    val workflowEntries = context
-      .select(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
-        USER.NAME
-      )
-      .from(WORKFLOW_OF_PROJECT)
-      .leftJoin(WORKFLOW)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .where(WORKFLOW_OF_PROJECT.PID.eq(pid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetch()
-    workflowEntries
-      .map(workflowRecord =>
-        DashboardWorkflowEntry(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid),
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ).toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          workflowOfProjectDao
-            .fetchByWid(workflowRecord.into(WORKFLOW).getWid)
-            .map(workflowOfProject => workflowOfProject.getPid)
-            .toList
-        )
-      )
-      .toList
+    WorkflowResource.fetchDashboardWorkflows(
+      sessionUser.getUser.getUid,
+      None, Some(pid)
+    )
   }
 
   /**
@@ -260,13 +220,13 @@ class ProjectResource {
     * @param userFileAccess the UserFileAccess object
     * @return
     */
-  def toFileAccessLevel(userFileAccess: UserFileAccess): String = {
+  def toFileAccessLevel(userFileAccess: UserFileAccess): AccessLevel = {
     if (userFileAccess.getWriteAccess) {
-      "Write"
+      AccessLevel.WRITE
     } else if (userFileAccess.getReadAccess) {
-      "Read"
+      AccessLevel.READ
     } else {
-      "None"
+      AccessLevel.NONE
     }
   }
 

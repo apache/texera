@@ -2,20 +2,11 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
 import { WorkflowAccessService } from "../../../../service/workflow-access/workflow-access.service";
-import { Workflow } from "../../../../../common/type/workflow";
 import { AccessEntry } from "../../../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowAccessLevel } from "src/app/dashboard/type/dashboard-workflow-entry";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
-import { HttpClient } from "@angular/common/http";
-import { AppSettings } from "src/app/common/app-setting";
-
-
-export const WORKFLOW_ACCESS_URL = `${AppSettings.getApiEndpoint()}/workflow/access`;
-export const WORKFLOW_ACCESS_GRANT_URL = WORKFLOW_ACCESS_URL + "/grant";
-export const WORKFLOW_ACCESS_LIST_URL = WORKFLOW_ACCESS_URL + "/list";
-export const WORKFLOW_OWNER_URL = WORKFLOW_ACCESS_URL + "/owner";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -31,7 +22,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     accessLevel: ["", [Validators.required]],
   });
 
-  public accessLevels: string[] = ["read", "write", "execute"];
+  public accessLevels: string[] = ["read", "write"];
 
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
 
@@ -41,6 +32,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     public activeModal: NgbActiveModal,
     private workflowGrantAccessService: WorkflowAccessService,
     private formBuilder: FormBuilder,
+    private notificationService: NotificationService,
   ) {}
 
   ngOnInit(): void {
@@ -62,17 +54,11 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     this.workflowGrantAccessService
       .retrieveGrantedWorkflowAccessList(workflow)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => console.log(err.error)
-      );
+      .subscribe(userWorkflowAccess => this.allUserWorkflowAccess = userWorkflowAccess);
     this.workflowGrantAccessService
       .getWorkflowOwner(workflow)
       .pipe(untilDestroyed(this))
-      .subscribe(ownerName => {
-        this.workflowOwnerName = ownerName;
-      });
+      .subscribe(ownerName => this.workflowOwnerName = ownerName);
   }
 
   /**
@@ -93,17 +79,17 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param workflow target/current workflow
    */
   public onClickShareWorkflow(workflow: WorkflowMetadata): void {
-    if (this.shareForm.get("username")?.invalid) {
-      alert("Please Fill in Username");
+    const userName = this.shareForm.get("username");
+    const accessLevel = this.shareForm.get("accessLevel");
+    if (!userName || userName.invalid) {
+      this.notificationService.error("Please fill in username");
       return;
     }
-    if (this.shareForm.get("accessLevel")?.invalid) {
-      alert("Please Select Access Level");
+    if (!accessLevel || accessLevel.invalid) {
+      this.notificationService.error("Please select access level");
       return;
     }
-    const userToShareWith = this.shareForm.get("username")?.value;
-    const accessLevel = this.shareForm.get("accessLevel")?.value;
-    this.grantWorkflowAccess(workflow, userToShareWith, accessLevel);
+    this.grantWorkflowAccess(workflow, userName.value, accessLevel.value);
   }
 
   /**

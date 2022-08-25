@@ -55,16 +55,6 @@ public interface IUser extends Serializable {
      */
     public String getGoogleId();
 
-    /**
-     * Setter for <code>texera_db.user.role_name</code>.
-     */
-    public void setRoleName(String value);
-
-    /**
-     * Getter for <code>texera_db.user.role_name</code>.
-     */
-    public String getRoleName();
-
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
