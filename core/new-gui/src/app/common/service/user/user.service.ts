@@ -61,9 +61,9 @@ export class UserService {
    */
   private changeUser(user: User | undefined): void {
     if (user) {
-      const r = Math.floor(Math.random() * 255);
-      const g = Math.floor(Math.random() * 255);
-      const b = Math.floor(Math.random() * 255);
+      const r = Math.floor(Math.random() * 155);
+      const g = Math.floor(Math.random() * 155);
+      const b = Math.floor(Math.random() * 155);
       this.currentUser = {...user, color:"rgba(" + r + "," + g + "," + b + ",0.8)"};
       this.userChangeSubject.next(this.currentUser);
     } else {
