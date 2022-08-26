@@ -133,7 +133,10 @@ class WorkflowService(
     )
   }
 
-  private[this] def createWorkflowContext(request: WorkflowExecuteRequest, uidOpt: Option[UInteger]): WorkflowContext = {
+  private[this] def createWorkflowContext(
+      request: WorkflowExecuteRequest,
+      uidOpt: Option[UInteger]
+  ): WorkflowContext = {
     val jobID: String = String.valueOf(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
     if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
