@@ -341,7 +341,6 @@ class WorkflowScheduler(
     if (constructingRegions.contains(region.getId())) {
       return Future()
     }
-    println(s"\t\tRegion ${region.getId().pipelineId} started")
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())
       constructRegion(region)
