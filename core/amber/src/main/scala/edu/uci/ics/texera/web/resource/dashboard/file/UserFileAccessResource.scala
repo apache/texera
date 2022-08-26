@@ -4,7 +4,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.http.request.auth.GrantAccessRequest
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{
   context,
@@ -27,6 +27,7 @@ object UserFileAccessResource {
     context.configuration
   )
   private lazy val userDao = new UserDao(context.configuration)
+  private lazy val fileDao = new FileDao(context.configuration)
   private lazy val context: DSLContext = SqlServer.createDSLContext
 
   def getFileId(ownerName: String, fileName: String): UInteger = {
@@ -61,12 +62,12 @@ object UserFileAccessResource {
   }
 
   def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
-    context
-      .fetchExists(
-        context
-          .selectFrom(USER_FILE_ACCESS)
-          .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
-      )
+    val userFileAccess = new UserFileAccess()
+    userFileAccess.setUid(uid)
+    userFileAccess.setFid(fid)
+
+    // the user is the file owner, or the user has shared access to the file
+    fileDao.fetchOneByFid(fid).getUid == uid || userFileAccessDao.exists(userFileAccess)
   }
 }
 @PermitAll
