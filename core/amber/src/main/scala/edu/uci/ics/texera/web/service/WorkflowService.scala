@@ -58,7 +58,6 @@ object WorkflowService {
 }
 
 class WorkflowService(
-//    uidOpt: Option[UInteger],
     wId: Int,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
