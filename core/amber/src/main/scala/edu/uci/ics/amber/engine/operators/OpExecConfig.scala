@@ -65,6 +65,9 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getState: WorkflowAggregatedState = {
     val workerStates = getAllWorkerStates
+    if (workerStates.isEmpty) {
+      return WorkflowAggregatedState.UNINITIALIZED
+    }
     if (workerStates.forall(_ == COMPLETED)) {
       return WorkflowAggregatedState.COMPLETED
     }

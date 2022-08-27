@@ -1,3 +1,5 @@
+@import "../../dashboard.component.scss";
+
 .subsection-grid-container {
   min-width: 100%;
   width: 100%;
@@ -5,160 +7,165 @@
   height: 100%;
 }
 
-.add-button {
-  margin-left: 5px;
-}
-
 .ant-btn-icon-only {
-  margin-right: 15px;
-
-  &.ant-btn-sm {
-    transform: translateY(-5px);
-  }
+  margin-left: 5px;
+  margin-right: 5px;
 }
 
 /**
-* this css is used for creating a 2*1 grid area for the 2 main
-* sub parts. The first row contains add and sort button. The second
-* row contains the saved project list. The percentages define the size
-* of each column and row.
-*              ******************
-*              *                *
-*              ******************
-*              *                *
-*              *                *
-*              *                *
-*              *                *
-*              ******************
-**/
-$header-height: 120px;
+  * Create a 3*1 grid area
+  * The first row contains add and sort button. 
+  * The second row contains the search bar.
+  * The third row contains the saved workflow/files list.
+  * 
+  * This layout is shared between workflows and files section.
+  *
+  *              ******************
+  *              *                *
+  *              ******************
+  *              *                *
+  *              ******************
+  *              *                *
+  *              *                *
+  *              *                *
+  *              ******************
+  **/
+$section-header-height: 120px;
+$section-search-bar-height: 60px;
 
-.saved-workflow-container {
+.section-container {
   display: grid;
-  grid-template-rows: $header-height calc((100% - #{$header-height}));
-}
-
-.virtual-scroll-infinite-container {
-  height: 600px;
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
+  grid-template-rows:
+    $section-header-height
+    $section-search-bar-height
+    calc((100% - #{$section-header-height} - #{$section-search-bar-height}));
 }
 
 /**
-* the grid of the first row which contains the add and sort button.
-* The position of the first row is fix. no adaptation
-**/
-.workflow-section-title {
+  * grid of the first row which contains title and utility buttons
+  **/
+.section-title {
   grid-row-start: 1;
   grid-row-end: 2;
+
+  .page-title {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .utility-button-group {
+    float: left;
+  }
+
+  .filter-button-group {
+    float: right;
+  }
 }
 
 /**
-* the grid of the list of saved workflow. Each workflow contains the name, created time and last
-* edited time. This section is flexible to expand downward and upwards (e.g. workflows add / removed from project)
-**/
-.workflow-list-container {
+  * grid of the second row which contains the search bar
+  **/
+.section-search-bar {
   grid-row-start: 2;
   grid-row-end: 3;
-  overflow: auto;
-  min-height: 0%;
 
-  .texera-dashboard-saved-workflow-search-box-input {
-    margin-bottom: 30px;
+  display: flex;
+  padding: 4px 24px;
+
+  .search-info-box {
+    margin-right: 10px;
+    align-self: center;
   }
 
-  .texera-dashboard-saved-workflow-project-box-select {
-    margin-bottom: 30px;
-    display: flex;
-    padding: 4px 11px;
-    border: 1px solid #d9d9d9;
+  .search-input-box {
+    width: 100%;
+    align-self: center;
   }
 }
 
-.workflow-list-item {
-  margin-bottom: 1.5%;
-  height: 70px;
-  padding: 5px 0 5px 0;
-}
-
-.time-space {
-  margin-left: 3%;
+.workflow-search-bar {
+  margin-left: 10px;
+  // TODO: combine this inside section-search-bar
+  //        after unifying the search bar of workflows and files
 }
 
 /**
-* the location of sort button
-**/
-.sorting_func {
-  text-align: left;
+  * the third grid of the workflow/files list.
+  * including css shared by workflow/file item
+  **/
+.section-list-container {
+  grid-row-start: 3;
+  grid-row-end: 4;
+  overflow: auto;
+  min-height: 100%;
+
+  // always show the scroll bar for the virtual scroll container
+  ::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.5);
+    -webkit-box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
+  }
+
+  .virtual-scroll-container {
+    height: calc(100vh - $dashboard-navigation-height - $section-header-height - $section-search-bar-height - 50px);
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+  }
+
+  .metadata-container {
+    span {
+      margin: 0 1rem 0 0; // add space to the right
+    }
+  }
 }
 
-.search-creation-time-button {
-  position: absolute;
-  left: 65%;
+/**
+  * css specifically for each workflow item in the list (not shared by file items)
+  **/
+.workflow-list-item {
+  margin-bottom: 10px;
+  min-height: 70px;
+  padding: 5px 0 5px 0;
+
+  .workflow-item-checkbox {
+    margin: 8px;
+  }
+
+  .workflow-item-meta-title {
+    display: flex;
+    align-items: center;
+
+    .workflow-name {
+      font-size: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+    }
+
+    .workflow-name:hover {
+      cursor: pointer;
+    }
+
+    i {
+      position: relative;
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+  }
 }
 
-.search-owners-button {
-  position: absolute;
-  left: 70%;
-}
-
-.search-wids-button {
-  position: absolute;
-  left: 75%;
-}
-
-.search-operators-button {
-  position: absolute;
-  left: 80%;
-}
-
-.search-projects-button {
-  position: absolute;
-  left: 85%;
-}
-
-.gap-filler {
-  flex: 1 1 auto;
-}
-
-.workflow-name {
-  font-size: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  text-align: center;
-}
-
-.workflow-dashboard-entry {
-  display: flex;
-  align-items: center;
-}
-
-.workflow-dashboard-entry > i {
-  position: relative;
-  font-size: 17px;
-  margin-bottom: 6px;
-}
-
-.workflow-name:hover {
-  cursor: pointer;
-}
-
-.workflow-time {
-  font-size: 12px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  color: gray;
-}
-
-.page-title {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.workflow-project-label-container {
-  width: 40%;
+/**
+  * css for project label, shared by workflow section and file section
+  **/
+.project-label-container {
+  min-width: 20px;
   display: flex;
   flex-direction: row-reverse;
   overflow-x: auto;
 
-  .workflow-project-label {
+  .project-label {
     display: inline;
     white-space: nowrap;
 
@@ -167,13 +174,13 @@ $header-height: 120px;
       cursor: pointer;
     }
 
-    #left-div {
+    .left-div {
       padding: 1.5px 7px;
       border-top-left-radius: 2px;
       border-bottom-left-radius: 2px;
     }
 
-    #right-div {
+    .right-div {
       padding: 1.5px 7px;
       border-top-right-radius: 2px;
       border-bottom-right-radius: 2px;
