@@ -681,7 +681,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
@@ -689,7 +688,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           }
-
           // if in the multiselect mode, also highlight the links in between two highlighted operators
           const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
           const linksToBeHighlighted: string[] = allLinks.filter(link => {
@@ -726,10 +724,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         this.workflowActionService.unhighlightOperators(...highlightedOperatorIDs);
-        this.workflowActionService.getJointGraphWrapper().unhighlightGroups(...highlightedGroupIDs);
         this.workflowActionService.unhighlightLinks(...highlightedLinkIDs);
       });
   }
@@ -1282,7 +1278,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       commentBoxes: [],
     };
 
-    // define the copies that will be put in the serialized json string when copyinig
+    // define the copies that will be put in the serialized json string when copying
     const operatorsCopy: OperatorPredicate[] = [];
     const operatorPositionsCopy: OperatorPositions = {};
     const linksCopy: OperatorLink[] = [];
@@ -1371,16 +1367,16 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         navigator.clipboard.readText().then(text => {
           try {
             // convert the JSON string in the system clipboard to a JS Map
-            var operatorsInClipboard: Map<string, any> = new Map(Object.entries(JSON.parse(text)));
+            var elementsInClipboard: Map<string, any> = new Map(Object.entries(JSON.parse(text)));
             // check if the fields in a normal serialized string exist after converting the JSON string
             // if not, throw an error, which is propagated and produces an alert for the user
             if (
-              !operatorsInClipboard.has("operators") &&
-              !operatorsInClipboard.has("operatorPositions") &&
-              !operatorsInClipboard.has("links") &&
-              !operatorsInClipboard.has("groups") &&
-              !operatorsInClipboard.has("breakpoints") &&
-              !operatorsInClipboard.has("commentBoxes")
+              !elementsInClipboard.has("operators") &&
+              !elementsInClipboard.has("operatorPositions") &&
+              !elementsInClipboard.has("links") &&
+              !elementsInClipboard.has("groups") &&
+              !elementsInClipboard.has("breakpoints") &&
+              !elementsInClipboard.has("commentBoxes")
             ) {
               throw new Error("You haven't copied any element yet.");
             }
@@ -1397,15 +1393,15 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           // calling get() will give either the value or undefined
           // at this point, after checking the existence of fields in the operators in the clipboard,
           // the fields "links" and "operatorPositions" should exist
-          const linksInClipboard: OperatorLink[] = operatorsInClipboard.get("links") as OperatorLink[];
-          const operatorPositionsInClipboard: OperatorPositions = operatorsInClipboard.get(
+          const linksInClipboard: OperatorLink[] = elementsInClipboard.get("links") as OperatorLink[];
+          const operatorPositionsInClipboard: OperatorPositions = elementsInClipboard.get(
             "operatorPositions"
           ) as OperatorPositions;
           // get all the operators from the clipboard, which are already sorted by their layers
-          let copiedOps: OperatorPredicate[] = operatorsInClipboard.get("operators") as OperatorPredicate[];
+          let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
 
           // get all the breakpoints for later when adding the breakpoints for the pasted new links
-          let breakpointsInClipboard: BreakpointWithLinkID = operatorsInClipboard.get(
+          let breakpointsInClipboard: BreakpointWithLinkID = elementsInClipboard.get(
             "breakpoints"
           ) as BreakpointWithLinkID;
 

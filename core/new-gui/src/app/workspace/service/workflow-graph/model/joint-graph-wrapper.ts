@@ -379,25 +379,12 @@ export class JointGraphWrapper {
    */
   public unhighlightOperators(...operatorIDs: string[]): void {
     const unhighlightedOperatorIDs: string[] = [];
-    const unhighlightedLinkIDs: string[] = [];
     operatorIDs.forEach(operatorID =>
       this.unhighlightElement(operatorID, this.currentHighlightedOperators, unhighlightedOperatorIDs)
     );
-    const currentlyHighlightedLinkIDs = this.getCurrentHighlightedLinkIDs();
-    // for (let operatorID of operatorIDs) {
-    //   for (let highlightedLinkID of currentlyHighlightedLinkIDs) {
-    //     const highlightedLink = this.workflowActionService.getTexeraGraph().getLinkWithID(highlightedLinkID);
-    //     if (highlightedLink.source.operatorID == operatorID || highlightedLink.target.operatorID == operatorID) {
-    //       this.unhighlightElement(highlightedLinkID, this.currentHighlightedLinks, unhighlightedLinkIDs);
-    //     }
-    //   }
-    // }
-
+    
     if (unhighlightedOperatorIDs.length > 0) {
       this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);
-    }
-    if (unhighlightedLinkIDs.length > 0) {
-      this.jointLinkUnhighlightStream.next(unhighlightedLinkIDs);
     }
   }
 
@@ -909,9 +896,6 @@ export class JointGraphWrapper {
       this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
       this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
-    }
-    const cell = this.jointGraph.getCell(elementID);
-    if (cell.attributes.type == "devs.Model") {
     }
     // highlight the element and add it to the list of highlighted elements
     currentHighlightedElements.push(elementID);
