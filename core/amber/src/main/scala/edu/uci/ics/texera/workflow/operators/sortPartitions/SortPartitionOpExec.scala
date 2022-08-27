@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
+import edu.uci.ics.amber.engine.architecture.worker.{PauseManager, PauseType}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AcceptMutableStateHandler.AcceptMutableState
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
@@ -152,7 +152,7 @@ class SortPartitionOpExec(
             } else {
               // It will pause its execution here. The execution will be resumed once the state is received
               // from the helper worker
-              pauseManager.pausedByOperatorLogic = true
+              pauseManager.recordRequest(PauseType.OperatorLogicPause, true)
               Iterator()
             }
           } else if (skewedWorkerIdentity != null) {

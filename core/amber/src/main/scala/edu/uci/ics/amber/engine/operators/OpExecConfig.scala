@@ -65,6 +65,9 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getState: WorkflowAggregatedState = {
     val workerStates = getAllWorkerStates
+    if (workerStates.isEmpty) {
+      return WorkflowAggregatedState.UNINITIALIZED
+    }
     if (workerStates.forall(_ == COMPLETED)) {
       return WorkflowAggregatedState.COMPLETED
     }
@@ -88,10 +91,6 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def getInputRowCount: Long = topology.layers.head.statistics.map(_.inputTupleCount).sum
 
   def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputTupleCount).sum
-
-  def checkStartDependencies(workflow: Workflow): Unit = {
-    //do nothing by default
-  }
 
   def requiresShuffle: Boolean = shuffleType != ShuffleType.NONE
 
