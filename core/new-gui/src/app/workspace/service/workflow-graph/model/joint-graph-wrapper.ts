@@ -5,7 +5,6 @@ import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
-import { WorkflowActionService } from "./workflow-action.service";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -161,7 +160,7 @@ export class JointGraphWrapper {
    */
   private jointCellDeleteStream = fromEvent<JointModelEvent>(this.jointGraph, "remove").pipe(map(value => value[0]));
 
-  constructor(public jointGraph: joint.dia.Graph, private workflowActionService: WorkflowActionService) {
+  constructor(public jointGraph: joint.dia.Graph) {
     // handle if the currently highlighted operator/group/link is deleted, it should be unhighlighted
     this.handleElementDeleteUnhighlight();
 
@@ -361,37 +360,12 @@ export class JointGraphWrapper {
    */
   public highlightOperators(...operatorIDs: string[]): void {
     const highlightedOperatorIDs: string[] = [];
-    const highlightedLinkIDs: string[] = [];
     operatorIDs.forEach(operatorID => {
       this.highlightElement(operatorID, this.currentHighlightedOperators, highlightedOperatorIDs);
-
-      // get all the links whose both ends are connected to the currently highlighted operators
-      const allLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
-      const linksToBeHighlighted: OperatorLink[] = allLinks.filter(link => {
-        for (let sourceOperatorID of this.currentHighlightedOperators) {
-          // first make sure the link is not already highlighted
-          if (!(link.linkID in this.currentHighlightedLinks)) {
-            if (sourceOperatorID == link.source.operatorID) {
-              // iterate through all the other highlighghted operators
-              for (let targetOperatorID of this.currentHighlightedOperators.filter(each => each != sourceOperatorID)) {
-                if (targetOperatorID == link.target.operatorID) {
-                  return true;
-                }
-              }
-            }
-          }
-        }
-      });
-      for (let link of linksToBeHighlighted) {
-        this.highlightElement(link.linkID, this.currentHighlightedLinks, highlightedLinkIDs);
-      }
     });
 
     if (highlightedOperatorIDs.length > 0) {
       this.jointOperatorHighlightStream.next(highlightedOperatorIDs);
-    }
-    if (highlightedLinkIDs.length > 0) {
-      this.jointLinkHighlightStream.next(highlightedLinkIDs);
     }
   }
 
@@ -410,14 +384,14 @@ export class JointGraphWrapper {
       this.unhighlightElement(operatorID, this.currentHighlightedOperators, unhighlightedOperatorIDs)
     );
     const currentlyHighlightedLinkIDs = this.getCurrentHighlightedLinkIDs();
-    for (let operatorID of operatorIDs) {
-      for (let highlightedLinkID of currentlyHighlightedLinkIDs) {
-        const highlightedLink = this.workflowActionService.getTexeraGraph().getLinkWithID(highlightedLinkID);
-        if (highlightedLink.source.operatorID == operatorID || highlightedLink.target.operatorID == operatorID) {
-          this.unhighlightElement(highlightedLinkID, this.currentHighlightedLinks, unhighlightedLinkIDs);
-        }
-      }
-    }
+    // for (let operatorID of operatorIDs) {
+    //   for (let highlightedLinkID of currentlyHighlightedLinkIDs) {
+    //     const highlightedLink = this.workflowActionService.getTexeraGraph().getLinkWithID(highlightedLinkID);
+    //     if (highlightedLink.source.operatorID == operatorID || highlightedLink.target.operatorID == operatorID) {
+    //       this.unhighlightElement(highlightedLinkID, this.currentHighlightedLinks, unhighlightedLinkIDs);
+    //     }
+    //   }
+    // }
 
     if (unhighlightedOperatorIDs.length > 0) {
       this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);

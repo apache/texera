@@ -90,7 +90,7 @@ export class WorkflowActionService {
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
-    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph, this);
+    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
     this.operatorGroup = new OperatorGroup(
       this.texeraGraph,
       this.jointGraph,

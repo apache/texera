@@ -39,7 +39,7 @@ describe("JointGraphWrapperService", () => {
       ],
     });
     jointGraph = new joint.dia.Graph();
-    jointGraphWrapper = new JointGraphWrapper(jointGraph, TestBed.inject(WorkflowActionService));
+    jointGraphWrapper = new JointGraphWrapper(jointGraph);
     jointUIService = TestBed.inject(JointUIService);
   });
 

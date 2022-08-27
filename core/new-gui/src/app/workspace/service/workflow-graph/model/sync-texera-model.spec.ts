@@ -110,7 +110,7 @@ describe("SyncTexeraModel", () => {
 
     texeraGraph = new WorkflowGraph();
     jointGraph = new joint.dia.Graph();
-    jointGraphWrapper = new JointGraphWrapper(jointGraph, TestBed.inject(WorkflowActionService));
+    jointGraphWrapper = new JointGraphWrapper(jointGraph);
   });
 
   /**

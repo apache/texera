@@ -68,7 +68,7 @@ type LinkWithID = {
 type SerializedString = {
   operators: OperatorPredicate[];
   operatorPositions: OperatorPositions;
-  links: Link[];
+  links: OperatorLink[];
   groups: [];
   breakpoints: BreakpointWithLinkID;
   commentBoxes: [];
@@ -681,19 +681,34 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
 
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
             this.workflowActionService.unhighlightOperators(elementID);
-          } else if (highlightedGroupIDs.includes(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightGroups(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
-          } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
+
+          // if in the multiselect mode, also highlight the links in between two highlighted operators
+          const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
+          const linksToBeHighlighted: string[] = allLinks.filter(link => {
+            const currentHighlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+            for (let sourceOperatorID of currentHighlightedOperatorIDs) {
+              // first make sure the link is not already highlighted
+              if (!(link.linkID in this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs)) {
+                if (sourceOperatorID == link.source.operatorID) {
+                  // iterate through all the other highlighted operators
+                  for (let targetOperatorID of currentHighlightedOperatorIDs.filter(each => each != sourceOperatorID)) {
+                    if (targetOperatorID == link.target.operatorID) {
+                      return true;
+                    }
+                  }
+                }
+              }
+            }
+          }).map(link => link.linkID);
+          this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, ...linksToBeHighlighted);
         } else {
           // else only highlight a single operator or group
           if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
@@ -1270,7 +1285,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     // define the copies that will be put in the serialized json string when copyinig
     const operatorsCopy: OperatorPredicate[] = [];
     const operatorPositionsCopy: OperatorPositions = {};
-    const linksCopy: Link[] = [];
+    const linksCopy: OperatorLink[] = [];
     const breakpointsCopy: BreakpointWithLinkID = {};
 
     // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
