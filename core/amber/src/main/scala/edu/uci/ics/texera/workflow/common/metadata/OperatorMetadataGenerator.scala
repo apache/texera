@@ -126,8 +126,12 @@ object OperatorMetadataGenerator {
 
     // generate texera operator info
     val texeraOperatorInfo = opDescClass.getConstructor().newInstance().operatorInfo
-    val operatorVersion = opDescClass.getConstructor().newInstance().getOperatorVersion()
-    OperatorMetadata(operatorType, jsonSchema, texeraOperatorInfo, operatorVersion)
+    OperatorMetadata(
+      operatorType,
+      jsonSchema,
+      texeraOperatorInfo,
+      opDescClass.getConstructor().newInstance().operatorVersion
+    )
   }
 
 }

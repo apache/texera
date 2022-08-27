@@ -22,13 +22,6 @@
   value="{{formTitle}}"
 />
 
-<label>
-  Operator Version:
-  <label nz-tooltip nzTooltipTitle="{{operatorVersion}}" nzTooltipPlacement="top">
-    {{abbreviate(operatorVersion)}}
-  </label>
-</label>
-
 <form
   *ngIf="formlyFields && formlyFormGroup"
   [formGroup]="formlyFormGroup"
@@ -82,3 +75,7 @@
 >
   Confirm Change
 </button>
+
+<div class="operator-version">
+  <span>Operator Version: {{ operatorVersion }}</span>
+</div>

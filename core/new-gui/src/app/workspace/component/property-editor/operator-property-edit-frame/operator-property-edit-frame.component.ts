@@ -408,7 +408,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    console.log(schema);
     // convert the json schema to formly config, pass a copy because formly mutates the schema object
     const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
       map: jsonSchemaMapIntercept,

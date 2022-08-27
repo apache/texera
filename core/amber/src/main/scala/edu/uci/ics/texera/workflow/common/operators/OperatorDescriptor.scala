@@ -53,10 +53,13 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.Scatterpl
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
-import java.util.UUID
+import java.util.{Properties, UUID}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
+
+import java.nio.file.{Files, Paths}
+import scala.collection.JavaConverters._
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -124,7 +127,8 @@ abstract class OperatorDescriptor extends Serializable {
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   var operatorID: String = UUID.randomUUID.toString
 
-  var operatorVersion: String = getOperatorVersion()
+  @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
+  var operatorVersion: String = getOperatorVersion() //initia
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
   def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
@@ -133,7 +137,19 @@ abstract class OperatorDescriptor extends Serializable {
 
   def getOutputSchema(schemas: Array[Schema]): Schema
 
-  def getOperatorVersion(): String = { "" }
+  def getOperatorVersion(): String = {
+    val operatorVersionPath = Paths.get("operator_version.properties").toAbsolutePath()
+    val props = new Properties
+    val fileStream = Files.newInputStream(operatorVersionPath)
+    props.load(fileStream)
+    fileStream.close()
+    val operatorVersionMap = props.asScala.toMap
+//    1. make sure versiion is tracked check in mysql properties
+//    2. reuse function getOperatorMetadata key.getpackage and use value
+//    3. to check if we implement it in opdesc will the classname truly reflect the instance
+    //    4. resize label to small
+    operatorVersionMap(this.getClass.getSimpleName)
+  }
 
   // override if the operator has multiple output ports, schema must be specified for each port
   def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {

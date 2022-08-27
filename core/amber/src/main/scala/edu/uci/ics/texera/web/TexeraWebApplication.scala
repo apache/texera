@@ -41,6 +41,7 @@ import java.time.Duration
 
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
+import edu.uci.ics.texera.workflow.common.metadata.OperatorMetadataGenerator
 
 import scala.annotation.tailrec
 
@@ -101,18 +102,13 @@ object TexeraWebApplication {
         .toString
     )
 
-    val operatorPath = Map(
-      "Regex" -> "core/amber/src/main/scala/edu/uci/ics/texera/workflow/operators/regex",
-      "Projection" -> "core/amber/src/main/scala/edu/uci/ics/texera/workflow/operators/projection"
-    )
-
-    // update each operator version and store it in operator_version.properties
-    updateOperatorVersion(operatorPath)
-  }
-
-  def updateOperatorVersion(operatorPath: Map[String, String]): Unit = {
-    for ((operator, path) <- operatorPath) {
-      OPversion.refreshVersion(operator, path)
+    val path = "core/amber/src/main/scala/"
+    val operatorTypeMapKeys = OperatorMetadataGenerator.operatorTypeMap.keys;
+    for (operatorInfo <- operatorTypeMapKeys) {
+      val operatorPath = path + operatorInfo.getPackageName.replace(".", "/")
+      val index = operatorInfo.getName.lastIndexOf(".")
+      val operatorName = operatorInfo.getName.slice(index + 1, operatorInfo.getName.length)
+      OPversion.refreshVersion(operatorName, operatorPath)
     }
   }
 }

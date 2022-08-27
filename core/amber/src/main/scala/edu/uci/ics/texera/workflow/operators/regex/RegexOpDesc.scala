@@ -47,13 +47,4 @@ class RegexOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort())
     )
 
-  override def getOperatorVersion(): String = {
-    val operatorVersionPath = Paths.get("operator_version.properties").toAbsolutePath()
-    val props = new Properties
-    val fileStream = Files.newInputStream(operatorVersionPath)
-    props.load(fileStream)
-    fileStream.close()
-    val operatorVersionMap = props.asScala.toMap
-    operatorVersionMap("Regex")
-  }
 }
