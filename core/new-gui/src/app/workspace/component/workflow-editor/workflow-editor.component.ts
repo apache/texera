@@ -690,22 +690,28 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
           // if in the multiselect mode, also highlight the links in between two highlighted operators
           const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
-          const linksToBeHighlighted: string[] = allLinks.filter(link => {
-            const currentHighlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-            for (let sourceOperatorID of currentHighlightedOperatorIDs) {
-              // first make sure the link is not already highlighted
-              if (!(link.linkID in this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs)) {
-                if (sourceOperatorID === link.source.operatorID) {
-                  // iterate through all the other highlighted operators
-                  for (let targetOperatorID of currentHighlightedOperatorIDs.filter(each => each != sourceOperatorID)) {
-                    if (targetOperatorID === link.target.operatorID) {
-                      return true;
+          const linksToBeHighlighted: string[] = allLinks
+            .filter(link => {
+              const currentHighlightedOperatorIDs = this.workflowActionService
+                .getJointGraphWrapper()
+                .getCurrentHighlightedOperatorIDs();
+              for (let sourceOperatorID of currentHighlightedOperatorIDs) {
+                // first make sure the link is not already highlighted
+                if (!(link.linkID in this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs)) {
+                  if (sourceOperatorID === link.source.operatorID) {
+                    // iterate through all the other highlighted operators
+                    for (let targetOperatorID of currentHighlightedOperatorIDs.filter(
+                      each => each != sourceOperatorID
+                    )) {
+                      if (targetOperatorID === link.target.operatorID) {
+                        return true;
+                      }
                     }
                   }
                 }
               }
-            }
-          }).map(link => link.linkID);
+            })
+            .map(link => link.linkID);
           this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, ...linksToBeHighlighted);
         } else {
           // else only highlight a single operator or group

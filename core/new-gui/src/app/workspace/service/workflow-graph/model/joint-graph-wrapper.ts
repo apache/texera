@@ -382,7 +382,7 @@ export class JointGraphWrapper {
     operatorIDs.forEach(operatorID =>
       this.unhighlightElement(operatorID, this.currentHighlightedOperators, unhighlightedOperatorIDs)
     );
-    
+
     if (unhighlightedOperatorIDs.length > 0) {
       this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);
     }
