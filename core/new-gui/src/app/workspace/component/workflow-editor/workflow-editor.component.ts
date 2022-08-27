@@ -197,7 +197,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleElementDelete();
     this.handleElementSelectAll();
     this.handleElementCopy();
-    this.handleOperatorCut();
+    this.handleElementCut();
     this.handleOperatorPaste();
 
     this.handleLinkCursorHover();
@@ -695,10 +695,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             for (let sourceOperatorID of currentHighlightedOperatorIDs) {
               // first make sure the link is not already highlighted
               if (!(link.linkID in this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs)) {
-                if (sourceOperatorID == link.source.operatorID) {
+                if (sourceOperatorID === link.source.operatorID) {
                   // iterate through all the other highlighted operators
                   for (let targetOperatorID of currentHighlightedOperatorIDs.filter(each => each != sourceOperatorID)) {
-                    if (targetOperatorID == link.target.operatorID) {
+                    if (targetOperatorID === link.target.operatorID) {
                       return true;
                     }
                   }
@@ -1233,7 +1233,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * when user triggers the cut event (i.e. presses command/ctrl + x
    * on keyboard or selects cut option from the browser menu).
    */
-  private handleOperatorCut(): void {
+  private handleElementCut(): void {
     fromEvent<ClipboardEvent>(document, "cut")
       .pipe(
         filter(event => document.activeElement === document.body),
@@ -1411,27 +1411,27 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             const newOperator = this.copyOperator(copiedOperator);
 
             for (let link of linksInClipboard) {
-              if (linksCopy[link.linkID] == undefined) {
+              if (linksCopy[link.linkID] === undefined) {
                 // first check if the link ID already exists in linksCopy, if not, assign a dummy object to it to avoid type error: cannot set properties of undefined
                 linksCopy[link.linkID] = {
                   linkID: "",
                   source: { operatorID: "", portID: "" },
                   target: { operatorID: "", portID: "" },
                 };
-              } else if (linksCopy[link.linkID].linkID == "") {
+              } else if (linksCopy[link.linkID].linkID === "") {
                 // if current link is never added to the linksCopy, generate a random link ID for that link
                 const newLinkID = this.workflowUtilService.getLinkRandomUUID();
                 linksCopy[link.linkID].linkID = newLinkID;
               }
 
-              if (link.source.operatorID == copiedOperator.operatorID) {
+              if (link.source.operatorID === copiedOperator.operatorID) {
                 // if current copied operator is the source operator of current link, we assign the new operator ID to be the source operator for the current link, and the port ID should remain unchanged
                 const source = {
                   operatorID: newOperator.operatorID,
                   portID: link.source.portID,
                 };
                 linksCopy[link.linkID].source = source;
-              } else if (link.target.operatorID == copiedOperator.operatorID) {
+              } else if (link.target.operatorID === copiedOperator.operatorID) {
                 // if current copied operator is the target operator of current link, we assign the new operator ID to be the target operator for the current link, and the port ID should remain unchanged
                 const target = {
                   operatorID: newOperator.operatorID,
