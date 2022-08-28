@@ -1428,7 +1428,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
                 };
                 const originalLinkProperties = linksCopy[link.linkID];
                 linksCopy[link.linkID] = {
-                  ...originalLinkProperties, 
+                  ...originalLinkProperties,
                   source: source,
                 };
               } else if (link.target.operatorID === copiedOperator.operatorID) {
@@ -1439,7 +1439,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
                 };
                 const originalLinkProperties = linksCopy[link.linkID];
                 linksCopy[link.linkID] = {
-                  ...originalLinkProperties, 
+                  ...originalLinkProperties,
                   target: target,
                 };
               }
@@ -1461,9 +1461,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           try {
             this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
           } catch (e) {
-            alert("Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators.");
+            alert(
+              "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
+            );
           }
-          
 
           // add breakpoints for the newly pasted links
           for (let oldLinkID in linksCopy) {
