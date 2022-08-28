@@ -19,7 +19,6 @@ import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { WorkflowActionService } from "./workflow-action.service";
 
 describe("SyncTexeraModel", () => {
   let texeraGraph: WorkflowGraph;
