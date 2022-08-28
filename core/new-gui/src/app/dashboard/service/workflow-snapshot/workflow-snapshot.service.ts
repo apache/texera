@@ -17,17 +17,22 @@ export class WorkflowSnapshotService {
   /**
    * create canvas for snapshot
    */
-  public createSnapShotCanvas(): Promise<HTMLCanvasElement> {
+  public createSnapShotCanvas(
+    heightRatio: number,
+    yRatio: number,
+    widthRatio: number,
+    xRatio: number
+  ): Promise<HTMLCanvasElement> {
     let doc = document.getElementById("texera-workflow-editor") || document.body;
     const { height, width } = doc.getBoundingClientRect();
     return html2canvas(doc, {
       allowTaint: true,
       useCORS: true,
       backgroundColor: "transparent",
-      height: height * 0.6,
-      y: height * 0.2,
-      width: width * 0.7,
-      x: width * 0.15,
+      height: height * heightRatio,
+      y: height * yRatio,
+      width: width * widthRatio,
+      x: width * xRatio,
     });
   }
 

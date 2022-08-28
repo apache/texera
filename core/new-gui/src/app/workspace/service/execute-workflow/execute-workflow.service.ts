@@ -181,7 +181,7 @@ export class ExecuteWorkflowService {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
-    this.workflowSnapshotService.createSnapShotCanvas().then(canvas => {
+    this.workflowSnapshotService.createSnapShotCanvas(0.6, 0.2, 0.7, 0.15).then(canvas => {
       canvas.toBlob(snapshotBlob => {
         if (snapshotBlob === null) {
           this.notificationService.error("Canavas Error");

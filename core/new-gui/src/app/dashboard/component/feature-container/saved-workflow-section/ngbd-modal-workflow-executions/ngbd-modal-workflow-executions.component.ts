@@ -32,7 +32,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     "",
     "",
     "Username",
-    "Snapshot",
+    "Workflow Version Sample",
     "Name",
     "Starting Time",
     "Last Status Updated Time",
@@ -52,7 +52,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public customColumnWidth: Record<string, string> = {
     "": "70px",
     Name: "230px",
-    Snapshot: "190px",
+    "Workflow Version Sample": "190px",
     Username: "150px",
     "Starting Time": "250px",
     "Last Status Updated Time": "250px",
