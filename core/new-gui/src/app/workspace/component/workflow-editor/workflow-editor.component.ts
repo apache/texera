@@ -53,15 +53,9 @@ type BreakpointWithLinkID = {
   [key: string]: Breakpoint;
 };
 
-type Link = {
-  linkID: string;
-  source: { operatorID: string; portID: string };
-  target: { operatorID: string; portID: string };
-};
-
 // this type associates the old link ID with the new link
 type LinkWithID = {
-  [key: string]: Link;
+  [key: string]: OperatorLink;
 };
 
 // This type represents what the serialized string in the clipboard should look like
@@ -198,7 +192,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleElementSelectAll();
     this.handleElementCopy();
     this.handleElementCut();
-    this.handleOperatorPaste();
+    this.handleElementPaste();
 
     this.handleLinkCursorHover();
     this.handleGridsToggle();
@@ -1360,7 +1354,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * when user triggers the paste event (i.e. presses command/ctrl + v on
    * keyboard or selects paste option from the browser menu).
    */
-  private handleOperatorPaste(): void {
+  private handleElementPaste(): void {
     fromEvent<ClipboardEvent>(document, "paste")
       .pipe(
         filter(event => document.activeElement === document.body),
@@ -1418,16 +1412,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
             for (let link of linksInClipboard) {
               if (linksCopy[link.linkID] === undefined) {
-                // first check if the link ID already exists in linksCopy, if not, assign a dummy object to it to avoid type error: cannot set properties of undefined
+                const newLinkID = this.workflowUtilService.getLinkRandomUUID();
                 linksCopy[link.linkID] = {
-                  linkID: "",
+                  linkID: newLinkID,
                   source: { operatorID: "", portID: "" },
                   target: { operatorID: "", portID: "" },
                 };
-              } else if (linksCopy[link.linkID].linkID === "") {
-                // if current link is never added to the linksCopy, generate a random link ID for that link
-                const newLinkID = this.workflowUtilService.getLinkRandomUUID();
-                linksCopy[link.linkID].linkID = newLinkID;
               }
 
               if (link.source.operatorID === copiedOperator.operatorID) {
@@ -1436,14 +1426,22 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
                   operatorID: newOperator.operatorID,
                   portID: link.source.portID,
                 };
-                linksCopy[link.linkID].source = source;
+                const originalLinkProperties = linksCopy[link.linkID];
+                linksCopy[link.linkID] = {
+                  ...originalLinkProperties, 
+                  source: source,
+                };
               } else if (link.target.operatorID === copiedOperator.operatorID) {
                 // if current copied operator is the target operator of current link, we assign the new operator ID to be the target operator for the current link, and the port ID should remain unchanged
                 const target = {
                   operatorID: newOperator.operatorID,
                   portID: link.target.portID,
                 };
-                linksCopy[link.linkID].target = target;
+                const originalLinkProperties = linksCopy[link.linkID];
+                linksCopy[link.linkID] = {
+                  ...originalLinkProperties, 
+                  target: target,
+                };
               }
             }
 
@@ -1460,8 +1458,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           const links = Object.values(linksCopy);
 
           // actually add all operators, links, groups to the workflow
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
+          try {
+            this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
+          } catch (e) {
+            alert("Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators.");
+          }
+          
 
+          // add breakpoints for the newly pasted links
           for (let oldLinkID in linksCopy) {
             this.workflowActionService.setLinkBreakpoint(
               linksCopy[oldLinkID].linkID,
