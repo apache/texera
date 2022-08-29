@@ -186,7 +186,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-    this.operatorVersion = currentOperatorSchema.operatorVersion;
+    this.operatorVersion = currentOperatorSchema.operatorVersion.slice(0, 9);
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
 
