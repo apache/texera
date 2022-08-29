@@ -15,7 +15,7 @@ import { HttpClient } from "@angular/common/http";
 import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { WorkflowSnapshotService } from "../../../dashboard/service/workflow-snapshot/workflow-snapshot.service"
+import { WorkflowSnapshotService } from "../../../dashboard/service/workflow-snapshot/workflow-snapshot.service";
 
 class StubHttpClient {
   constructor() {}
@@ -62,7 +62,7 @@ describe("ExecuteWorkflowService", () => {
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
   });
 
-  it ("should create canvas and take workflow snapshot", () => {
+  it("should create canvas and take workflow snapshot", () => {
     if (environment.amberEngineEnabled) {
       const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
       service.executeWorkflow();
