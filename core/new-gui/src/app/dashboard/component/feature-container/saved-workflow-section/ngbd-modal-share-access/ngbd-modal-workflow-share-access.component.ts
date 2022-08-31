@@ -86,12 +86,12 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
       const dashboardUserFileEntry: DashboardUserFileEntry = {
         ownerName: owner,
         file: userFile,
-        accessLevel: accessLevel,
+        accessLevel: "read",
         isOwner: true,
         projectIDs: undefined!,
       };
       this.userFileService
-        .grantUserFileAccess(dashboardUserFileEntry, userToShareWith, accessLevel)
+        .grantUserFileAccess(dashboardUserFileEntry, userToShareWith, "read")
         .pipe(untilDestroyed(this))
         .subscribe(
           // @ts-ignore // TODO: fix this with notification component

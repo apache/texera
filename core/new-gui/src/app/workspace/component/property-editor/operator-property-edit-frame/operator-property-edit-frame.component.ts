@@ -33,6 +33,10 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 import { environment } from "src/environments/environment";
 import { WorkflowCollabService } from "../../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
+import {DashboardUserFileEntry, UserFile} from "../../../../dashboard/type/dashboard-user-file-entry";
+import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
+import { AccessEntry } from "../../../../dashboard/type/access.interface";
+import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -102,7 +106,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
   public lockGranted: boolean = true;
-
+  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
+  
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -112,7 +117,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private notificationService: NotificationService,
     private workflowCollabService: WorkflowCollabService,
     private changeDetectorRef: ChangeDetectorRef,
-    private workflowVersionService: WorkflowVersionService
+    private workflowVersionService: WorkflowVersionService,
+    private userFileService: UserFileService,
+    private workflowGrantAccessService: WorkflowAccessService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -150,6 +157,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerOperatorDisplayNameChangeHandler();
 
     this.registerLockChangeHandler();
+
+    this.workflowGrantAccessService
+      .retrieveGrantedWorkflowAccessList(this.workflowActionService.getWorkflow())
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      .subscribe(
+        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => console.log(err.error)
+      );
   }
 
   async ngOnDestroy() {
@@ -164,6 +180,37 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
+    const filename: string =<string>event["fileName"];
+    if(filename) {
+      const [owner, fname] = filename.split("/", 2);
+      let userFile: UserFile;
+      userFile = {
+        fid: undefined!,
+        name: fname,
+        path: undefined!,
+        size: undefined!,
+        description: undefined!,
+        uploadTime: undefined!
+      };
+      const dashboardUserFileEntry: DashboardUserFileEntry = {
+        ownerName: owner,
+        file: userFile,
+        accessLevel: "read",
+        isOwner: true,
+        projectIDs: undefined!,
+      };
+
+      this.allUserWorkflowAccess.forEach(userWorkflowAccess => {
+        this.userFileService
+          .grantUserFileAccess(dashboardUserFileEntry, userWorkflowAccess.userName, "read")
+          .pipe(untilDestroyed(this))
+          .subscribe(
+            // @ts-ignore // TODO: fix this with notification component
+            (err: unknown) => alert(err.error)
+          );
+      });
+    }
+
     this.sourceFormChangeEventStream.next(event);
   }
 
