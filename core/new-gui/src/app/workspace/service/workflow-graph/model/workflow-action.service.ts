@@ -110,7 +110,7 @@ export class WorkflowActionService {
       this.handleJointElementDrag();
   }
 
-  public setNewYModel(workflowId: number, user?: User) {
+  public setNewYModel(workflowId?: number, user?: User) {
     this.texeraGraph.loadNewYModel(workflowId, user);
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
     this.observeFromTexeraGraph();
@@ -471,6 +471,7 @@ export class WorkflowActionService {
         .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
 
       if (workflow === undefined) {
+        this.setNewYModel();
         return;
       }
 

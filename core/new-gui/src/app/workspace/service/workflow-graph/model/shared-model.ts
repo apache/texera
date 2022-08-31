@@ -11,6 +11,7 @@ import {
 } from "../../../types/workflow-common.interface";
 import {User, UserState} from "../../../../common/type/user";
 import {getWebsocketUrl} from "../../../../common/util/url";
+import { v4 as uuid } from "uuid";
 
 export class SharedModel {
   public yDoc: Y.Doc = new Y.Doc();
@@ -40,8 +41,8 @@ export class SharedModel {
     ]);
     const websocketUrl = getWebsocketUrl("rtc");
 
-    this.wsProvider =  new WebsocketProvider(websocketUrl, `${wid}`, this.yDoc);
-    if (!wid) this.wsProvider.disconnect();
+    const suffix = wid ? `${wid}` : uuid();
+    this.wsProvider =  new WebsocketProvider(websocketUrl, suffix, this.yDoc);
     this.awareness = this.wsProvider.awareness;
     this.clientId = this.awareness.clientID.toString();
     if (this.user) {
@@ -55,7 +56,8 @@ export class SharedModel {
   }
 
   public updateAwareness(field: string, value: any): void {
-    this.awareness.setLocalStateField(field, value);
+    if (this.user)
+      this.awareness.setLocalStateField(field, value);
   }
 
   public transact(callback: Function) {

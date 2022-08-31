@@ -299,13 +299,12 @@ export class SyncJointModelService {
   private observeUserState(): void {
     // first time logic
     const currentStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
-      .filter((userState) => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId);
+      .filter((userState) => userState.user && userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId);
     for (const state of currentStates) {
       this.coeditorPresenceService.addCoeditor(state);
     }
 
     this.texeraGraph.sharedModel.awareness.on("change", (change: { added: number[], updated: number[], removed: number[] }) => {
-      // console.log(change, this.texeraGraph.sharedModel.awareness.getStates());
       const currentStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
         .filter((userState) => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId);
       for (const clientId of change.added) {
