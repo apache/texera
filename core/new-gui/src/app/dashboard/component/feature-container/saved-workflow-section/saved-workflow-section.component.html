@@ -1,7 +1,7 @@
-<div class="saved-workflow-container subsection-grid-container">
-  <nz-card class="workflow-section-title subsection-grid-container">
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
     <h2 class="page-title">Workflows</h2>
-    <div class="d-inline-block" ngbDropdown>
+    <nz-button-group class="utility-button-group" ngbDropdown>
       <a [nzDropdownMenu]="sortOptions" nz-dropdown>
         <button id="sortDropdown" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
@@ -33,7 +33,7 @@
         <i nz-icon nzTheme="outline" nzType="file-add"></i>
       </button>
       <button
-        [disabled]="downloadListWorkflow.size===0"
+        [disabled]="downloadListWorkflow.size === 0"
         (click)="onClickOpenDownloadZip()"
         nz-button
         nz-tooltip="Download added workflow as a ZIP file"
@@ -68,6 +68,9 @@
       >
         <i nz-icon nzTheme="outline" nzType="minus-square"></i>
       </button>
+    </nz-button-group>
+
+    <nz-button-group class="filter-button-group" ngbDropdown>
       <a
         [nzDropdownMenu]="calendar"
         nz-dropdown
@@ -174,61 +177,58 @@
           </li>
         </ul>
       </nz-dropdown-menu>
-    </div>
+    </nz-button-group>
   </nz-card>
 
-  <nz-card class="workflow-list-container subsection-grid-container">
-    <div class="texera-dashboard-saved-workflow-project-box-select">
-      <i
-        style="margin-right: 10px; align-self: center"
-        nz-icon
-        nz-popover
-        nzPopoverTitle="Filter Instructions"
-        nzType="question-circle"
-        nzTheme="outline"
-        [nzPopoverContent]="filterPopContent"
-      ></i>
-      <button style="align-self: center; margin-right: 0%" nz-button type="button" (click)="searchWorkflow()">
-        <i nz-icon nzType="search" nzTheme="outline"></i>
-      </button>
-      <nz-select
-        style="width: 100%"
-        nzMode="tags"
-        nzPlaceHolder="Search all workflows"
-        [nzBorderless]="true"
-        [nzOpen]="false"
-        [(ngModel)]="masterFilterList"
-        [nzAllowClear]="true"
-        (ngModelChange)="updateDropdownMenus($event)"
-      >
-      </nz-select>
-      <ng-template #filterPopContent>
-        We support the following search criteria:
-        <ul>
-          <li>Search by Workflow Name: <strong>workflowName</strong></li>
-          <li>Search by Workflow Creation Time: <strong>ctime: yyyy-MM-dd</strong></li>
-          <li>Search by Workflow Owner: <strong>owner: John</strong></li>
-          <li>Search by Workflow Id: <strong>id: workflowId</strong></li>
-          <li>Search by Workflows' Operators: <strong>operator: operatorName</strong></li>
-          <li>Search by User Projects: <strong>project: projectName</strong></li>
-        </ul>
-        You can change search parameters by:
-        <ul>
-          <li>selecting/unselecting dropdown menu options</li>
-          <li>manually typing parameters into search bar</li>
-          <li>clicking the <strong>X</strong> on a tag or the search bar, to clear one or all tags</li>
-        </ul>
-        <br />
-        Example: "Untitled Workflow" id:1 owner:John<br />
-        Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
-      </ng-template>
-    </div>
+  <div class="section-search-bar workflow-search-bar">
+    <i
+      class="search-info-box"
+      nz-icon
+      nz-popover
+      nzPopoverTitle="Filter Instructions"
+      nzType="question-circle"
+      nzTheme="outline"
+      [nzPopoverContent]="filterPopContent"
+    ></i>
+    <nz-select
+      class="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search all workflows"
+      [nzBorderless]="true"
+      [nzOpen]="false"
+      [(ngModel)]="masterFilterList"
+      [nzAllowClear]="true"
+      (ngModelChange)="updateDropdownMenus($event)"
+    >
+    </nz-select>
+    <ng-template #filterPopContent>
+      We support the following search criteria:
+      <ul>
+        <li>Search by Workflow Name: <strong>workflowName</strong></li>
+        <li>Search by Workflow Creation Time: <strong>ctime: yyyy-MM-dd</strong></li>
+        <li>Search by Workflow Owner: <strong>owner: John</strong></li>
+        <li>Search by Workflow Id: <strong>id: workflowId</strong></li>
+        <li>Search by Workflows' Operators: <strong>operator: operatorName</strong></li>
+        <li>Search by User Projects: <strong>project: projectName</strong></li>
+      </ul>
+      You can change search parameters by:
+      <ul>
+        <li>selecting/unselecting dropdown menu options</li>
+        <li>manually typing parameters into search bar</li>
+        <li>clicking the <strong>X</strong> on a tag or the search bar, to clear one or all tags</li>
+      </ul>
+      <br />
+      Example: "Untitled Workflow" id:1 owner:John<br />
+      Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
+    </ng-template>
+  </div>
 
-    <!-- itemSize: the height (px) of each list item,
+  <nz-card class="section-list-container">
+    <!-- itemSize: the height (px) of each list item, 
       this MUST be approximately the same as list item size set in CSS,
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
-    <cdk-virtual-scroll-viewport itemSize="80" class="virtual-scroll-infinite-container">
+    <cdk-virtual-scroll-viewport itemSize="80" class="virtual-scroll-container">
       <nz-list>
         <nz-list-item
           *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
@@ -236,12 +236,12 @@
         >
           <nz-list-item-meta>
             <nz-list-item-meta-avatar>
-              <input
-                type="checkbox"
-                name="WorkflowCheckbox"
+              <label
+                nz-checkbox
+                class="workflow-item-checkbox"
                 id="{{dashboardWorkflowEntry.workflow.wid}}"
                 (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
-              />
+              ></label>
               <nz-avatar
                 [ngStyle]="{ 'background-color': 'grey' }"
                 [nzGap]="4"
@@ -251,7 +251,7 @@
               ></nz-avatar>
             </nz-list-item-meta-avatar>
             <nz-list-item-meta-title>
-              <span class="workflow-dashboard-entry">
+              <div class="workflow-item-meta-title">
                 <label
                   *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customeWorkflow "
                   (click)="jumpToWorkflow(dashboardWorkflowEntry)"
@@ -279,7 +279,7 @@
                 </button>
                 <i
                   *ngIf="dashboardWorkflowEntry.isOwner"
-                  ngbTooltip="You are the OWNER"
+                  ngbTooltip="You are the owner"
                   nz-icon
                   nzTheme="outline"
                   nzType="user"
@@ -293,39 +293,40 @@
                   nzTheme="outline"
                   nzType="team"
                 ></i>
-              </span>
+              </div>
             </nz-list-item-meta-title>
-            <nz-list-item-meta-description>
-              <p class="workflow-time">
-                Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}
-                <span class="time-space"></span>
-                Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}
-              </p>
+            <nz-list-item-meta-description class="metadata-container">
+              <span
+                >Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span
+              >
+              <span>Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</span>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
 
-          <div *ngIf="userProjectsLoaded" class="workflow-project-label-container">
-            <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="workflow-project-label">
+          <div *ngIf="userProjectsLoaded" class="project-label-container">
+            <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="project-label">
               <div
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
-                nz-tooltip="Go to project page"
+                nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
                 nzTooltipPlacement="bottom"
-                id="left-div"
+                class="left-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="jumpToProject(userProjectsMap.get(projectID)!)"
               >
-                {{userProjectsMap.get(projectID)!.name}}
+                {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
               </div>
               <div
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
-                id="right-div"
+                class="right-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"
-              ></div>
+              >
+                x
+              </div>
             </div>
           </div>
 
