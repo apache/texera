@@ -192,9 +192,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       this.workflowExecutionsService
         .groupSetIsBookmarked(this.workflow.wid, eIds, isBookmarked)
         .pipe(untilDestroyed(this))
-        .subscribe({
-          // error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
-        });
+        .subscribe({});
     }
   }
 
