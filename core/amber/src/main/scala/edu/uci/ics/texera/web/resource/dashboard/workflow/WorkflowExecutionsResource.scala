@@ -7,8 +7,9 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecution
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL.field
+import org.jooq.impl.DSL._
 import org.jooq.types.UInteger
+import org.jooq._
 
 import java.sql.Timestamp
 import javax.annotation.security.PermitAll
@@ -104,17 +105,21 @@ class WorkflowExecutionsResource {
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     if (request.isBookmarked) {
-      for (i <- 0 to (request.eIds.length - 1)) {
-        val execution: WorkflowExecutions = getExecutionById(request.eIds(i))
-        execution.setBookmarked(0.toByte)
-        executionsDao.update(execution)
-      }
+      val eIdArray = request.eIds.mkString("(", ",", ")")
+      val sqlString = "update texera_db.workflow_executions " +
+        "set texera_db.workflow_executions.bookmarked = 0 " +
+        s"where texera_db.workflow_executions.eid in ${eIdArray}"
+      context
+        .query(sqlString)
+        .execute();
     } else {
-      for (i <- 0 to (request.eIds.length - 1)) {
-        val execution: WorkflowExecutions = getExecutionById(request.eIds(i))
-        execution.setBookmarked(1.toByte)
-        executionsDao.update(execution)
-      }
+      val eIdArray = request.eIds.mkString("(", ",", ")")
+      val sqlString = "UPDATE texera_db.workflow_executions " +
+        "SET texera_db.workflow_executions.bookmarked = 1 " +
+        s"WHERE texera_db.workflow_executions.eid IN ${eIdArray}"
+      context
+        .query(sqlString)
+        .execute();
     }
   }
 
@@ -137,12 +142,12 @@ class WorkflowExecutionsResource {
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     /* delete the execution in sql */
-    for (eId <- request.eIds) {
-      context
-        .delete(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eId))
-        .execute();
-    }
+    val eIdArray = request.eIds.mkString("(", ",", ")")
+    val sqlString: String = "DELETE FROM texera_db.workflow_executions " +
+      s"WHERE texera_db.workflow_executions.eid IN ${eIdArray}"
+    context
+      .query(sqlString)
+      .execute();
   }
 
   /** Name a single execution * */
