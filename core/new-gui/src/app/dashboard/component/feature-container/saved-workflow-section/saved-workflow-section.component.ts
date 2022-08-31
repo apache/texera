@@ -85,7 +85,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     string,
     { userFriendlyName: string; operatorType: string; operatorGroup: string; checked: boolean }[]
   > = new Map();
-  public selectedDate: null | Date = null;
+  public selectedCtime: null | Date = null;
+  public selectedMtime: null | Date = null;
   private selectedOwners: string[] = [];
   private selectedIDs: string[] = [];
   private selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
@@ -117,7 +118,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
 
-  public searchCriteria: string[] = ["owner", "id", "ctime", "operator", "project"];
+  public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
 
   // whether tracking metadata information about executions is enabled
@@ -270,10 +271,31 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * Search workflows based on date string
    * String Formats:
-   *  - ctime:YYYY-MM-DD (workflows on this date)
-   *  - ctime:<YYYY-MM-DD (workflows on or before this date)
-   *  - ctime:>YYYY-MM-DD (workflows on or after this date)
+   *  - mtime:YYYY-MM-DD (workflows on this date)
+   *  - mtime:<YYYY-MM-DD (workflows on or before this date)
+   *  - mtime:>YYYY-MM-DD (workflows on or after this date)
    */
+
+  private searchModifyTime(
+    date: Date,
+    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
+  ): ReadonlyArray<DashboardWorkflowEntry> {
+    date.setHours(0), date.setMinutes(0), date.setSeconds(0), date.setMilliseconds(0);
+    //sets date time at beginning of day
+    //date obj from nz-calendar adds extraneous time
+    return filteredDashboardWorkflowEntries.filter(workflow_entry => {
+      //filters for workflows that were created on the specified date
+      if (workflow_entry.workflow.lastModifiedTime) {
+        return (
+          workflow_entry.workflow.lastModifiedTime >= date.getTime() &&
+          workflow_entry.workflow.lastModifiedTime < date.getTime() + 86400000
+        );
+        //checks if creation time is within the range of the whole day
+      }
+      return false;
+    });
+  }
+
   private searchCreationTime(
     date: Date,
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
@@ -359,13 +381,16 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.selectedOwners = [];
     this.selectedProjects = [];
     let newSelectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
-    this.selectedDate = null;
+    this.selectedCtime = null;
+    this.selectedMtime = null;
     this.setDropdownSelectionsToUnchecked();
     tagListString.forEach(tag => {
       if (tag.includes(":")) {
         const searchArray = tag.split(":");
         const searchField = searchArray[0];
         const searchValue = searchArray[1].trim();
+        const date_regex = /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
+        const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
         switch (searchField) {
           case "owner":
             const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
@@ -417,18 +442,28 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             this.selectedProjects.push({ name: selectedProject.name, pid: selectedProject.pid });
             break;
           case "ctime": //should only run at most once
-            if (this.selectedDate) {
+            if (this.selectedCtime) {
               // if there is already an selected date, ignore the subsequent ctime tags
               this.notificationService.error("Multiple search dates is not allowed");
               break;
             }
-            const date_regex = /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
-            const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
             if (!searchDate) {
               this.notificationService.error("Date format is incorrect");
               break;
             }
-            this.selectedDate = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
+            this.selectedCtime = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
+            break;
+          case "mtime": //should only run at most once
+            if (this.selectedMtime) {
+              // if there is already an selected date, ignore the subsequent ctime tags
+              this.notificationService.error("Multiple search dates is not allowed");
+              break;
+            }
+            if (!searchDate) {
+              this.notificationService.error("Date format is incorrect");
+              break;
+            }
+            this.selectedMtime = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
             break;
         }
       }
@@ -496,8 +531,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
     );
     newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
-    if (this.selectedDate !== null) {
-      newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedDate));
+    if (this.selectedCtime !== null) {
+      newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedCtime));
+    }
+    if (this.selectedMtime !== null) {
+      newFilterList.push("mtime: " + this.getFormattedDateString(this.selectedMtime));
     }
     this.masterFilterList = newFilterList;
   }
@@ -570,8 +608,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
     }
 
-    if (this.selectedDate !== null) {
-      searchOutput = this.searchCreationTime(this.selectedDate, searchOutput);
+    if (this.selectedCtime !== null) {
+      searchOutput = this.searchCreationTime(this.selectedCtime, searchOutput);
+    }
+
+    if (this.selectedMtime !== null) {
+      searchOutput = this.searchModifyTime(this.selectedMtime, searchOutput);
     }
 
     if (this.selectedProjects.length !== 0) {
