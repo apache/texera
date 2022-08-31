@@ -154,6 +154,28 @@ $section-search-bar-height: 60px;
       margin-bottom: 6px;
     }
   }
+
+  .workflow-item-meta-description {
+    display: flex;
+    align-items: center;
+
+    .workflow-description {
+      color: #000000;
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+    }
+
+    .workflow-description:hover {
+      cursor: pointer;
+    }
+
+    i {
+      position: relative;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+  }
 }
 
 /**

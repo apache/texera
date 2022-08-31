@@ -98,6 +98,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   // see https://github.com/angular/components/issues/14635
   public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
+  public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
@@ -116,6 +117,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
+  private defaultWorkflowDescription: string = "A Texera workflow.";
 
   public searchCriteria: string[] = ["owner", "id", "ctime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
@@ -241,24 +243,26 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
    */
   private searchParameterBackendSetup() {
-    this.operatorMetadataService.getOperatorMetadata().subscribe(opdata => {
-      opdata.groups.forEach(group => {
-        this.operators.set(
-          group.groupName,
-          opdata.operators
-            .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
-            .map(operator => {
-              return {
-                userFriendlyName: operator.additionalMetadata.userFriendlyName,
-                operatorType: operator.operatorType,
-                operatorGroup: operator.additionalMetadata.operatorGroupName,
-                checked: false,
-              };
-            })
-        );
+    this.operatorMetadataService.getOperatorMetadata()
+      .pipe(untilDestroyed(this))
+      .subscribe(opdata => {
+        opdata.groups.forEach(group => {
+          this.operators.set(
+            group.groupName,
+            opdata.operators
+              .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
+              .map(operator => {
+                return {
+                  userFriendlyName: operator.additionalMetadata.userFriendlyName,
+                  operatorType: operator.operatorType,
+                  operatorGroup: operator.additionalMetadata.operatorGroupName,
+                  checked: false,
+                };
+              })
+          );
+        });
+        this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
-      this.operatorGroups = opdata.groups.map(group => group.groupName);
-    });
     this.retrieveOwners()
       .pipe(untilDestroyed(this))
       .subscribe(list_of_owners => (this.owners = list_of_owners));
@@ -278,7 +282,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     date: Date,
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
   ): ReadonlyArray<DashboardWorkflowEntry> {
-    date.setHours(0), date.setMinutes(0), date.setSeconds(0), date.setMilliseconds(0);
+    date.setHours(0);
+    date.setMinutes(0);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
     //sets date time at beginning of day
     //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {

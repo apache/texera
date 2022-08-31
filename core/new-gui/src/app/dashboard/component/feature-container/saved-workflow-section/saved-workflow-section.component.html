@@ -250,15 +250,17 @@
                 style="vertical-align: middle"
               ></nz-avatar>
             </nz-list-item-meta-avatar>
+
+            <!-- editable name of saved workflow -->
             <nz-list-item-meta-title>
               <div class="workflow-item-meta-title">
                 <label
-                  *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customeWorkflow "
+                  *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowTitle "
                   (click)="jumpToWorkflow(dashboardWorkflowEntry)"
                   class="workflow-name"
                   >{{ dashboardWorkflowEntry.workflow.name }}</label
                 >
-                <ng-template #customeWorkflow>
+                <ng-template #customWorkflowTitle>
                   <input
                     #customName
                     (focusout)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
@@ -295,10 +297,40 @@
                 ></i>
               </div>
             </nz-list-item-meta-title>
+
+            <!-- editable description of saved workflow -->
+            <nz-list-item-meta-description>
+              <div class="workflow-item-meta-description">
+                <label
+                  *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowDescription "
+                  class="workflow-description"
+                  >{{ dashboardWorkflowEntry.workflow.name }}</label
+                >
+                <ng-template #customWorkflowDescription>
+                  <input
+                    #customName
+                    (focusout)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
+                    (keyup.enter)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
+                    placeholder="{{ dashboardWorkflowEntry.workflow.name }}"
+                    value="{{ dashboardWorkflowEntry.workflow.name }}"
+                  />
+                </ng-template>
+                <button
+                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
+                  nz-button
+                  nz-tooltip="Customize Workflow Description"
+                  nzSize="small"
+                  nzTooltipPlacement="bottom"
+                  nzType="text"
+                >
+                  <i nz-icon nzTheme="outline" nzType="edit"></i>
+                </button>
+              </div>
+            </nz-list-item-meta-description>
+
+            <!-- last access and created date of saved workflow -->
             <nz-list-item-meta-description class="metadata-container">
-              <span
-                >Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span
-              >
+              <span>Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span>
               <span>Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</span>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
@@ -306,7 +338,7 @@
           <div *ngIf="userProjectsLoaded" class="project-label-container">
             <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="project-label">
               <div
-                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
+                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
                 nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
                 nzTooltipPlacement="bottom"
                 class="left-div"
@@ -317,7 +349,7 @@
                 {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
               </div>
               <div
-                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
+                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
                 class="right-div"
