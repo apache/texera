@@ -32,6 +32,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 // This type represents the copied operator and its information:
 // - operatorID: ID for the operator
@@ -145,7 +146,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowCollabService: WorkflowCollabService,
+    private notificationService: NotificationService,
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -1221,9 +1223,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           // actually copy the operators in the system clipboard
           this.saveHighlightedElements();
         } else {
-          alert(
-            "Copying not successful. It is likely that only links are selected, which can't exist without operators."
-          );
+          this.notificationService.error("Copying not successful. It is likely that only links are selected, which can't exist without operators.");
         }
       });
   }
@@ -1327,7 +1327,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
       // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
       // although if the current tab is active, permission shouldn't be needed
-      alert("Copy failed. You don't have the permission to write to the clipboard.");
+      this.notificationService.error(
+        "Copy failed. You don't have the permission to write to the clipboard."
+      );
     });
   }
 
@@ -1382,7 +1384,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             }
           } catch (e) {
             // if the text in the clipboard is not a JSON object, then it means the user hasn't copied an element
-            alert("You haven't copied any element yet.");
+            this.notificationService.error("You haven't copied any element yet.");
             return;
           }
 
@@ -1461,9 +1463,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           try {
             this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
           } catch (e) {
-            alert(
-              "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
-            );
+            this.notificationService.info("Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators.");
           }
 
           // add breakpoints for the newly pasted links
