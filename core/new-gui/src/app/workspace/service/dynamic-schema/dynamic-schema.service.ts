@@ -100,8 +100,8 @@ export class DynamicSchemaService {
         (_: any) => 1,
         (a: SchemaAttribute, b: SchemaAttribute) => {
           if (a.attributeName === b.attributeName && a.attributeType === b.attributeType) return 0;
-          else if (a.attributeName !== a.attributeName && a.attributeType !== b.attributeType) return 2;
-          else return 1;
+          else if (a.attributeName !== a.attributeName && a.attributeType !== b.attributeType) return 2.2;
+          else return 1.1;
         }
       );
       const mapping: SchemaAttribute[][] = attributeMapping.pairs();
@@ -125,7 +125,7 @@ export class DynamicSchemaService {
     port: number
   ) {
     // console.log("properties: ", currentProperties);
-    // console.log("mapping: ", mapping);
+    console.log("mapping: ", mapping);
     const updatePropertyRecurse = (
       properties: any,
       jsonSchema: { [key: string]: CustomJSONSchema7 | boolean } | undefined
@@ -137,6 +137,9 @@ export class DynamicSchemaService {
         const jsonSchemaProperty = jsonSchema[key] as CustomJSONSchema7;
         if (jsonSchemaProperty.autofillAttributeOnPort === port) {
           if (jsonSchemaProperty.type === "array") {
+
+            // CHECK IF THE OPERATOR IS PROJECTION
+
             let newArray = [];
             // console.log(properties);
             // TODO: low efficiency, can be improved, e.g. by using map
@@ -154,7 +157,7 @@ export class DynamicSchemaService {
           } else if ((jsonSchema[key] as CustomJSONSchema7).type === "string") {
             for (var i = 0; i < mapping.length; ++i) {
               const pair = mapping[i];
-              if (!pair[0] || properties[key] === pair[0].attributeName) {
+              if (pair[0] && properties[key] === pair[0].attributeName) {
                 if (pair[1]) properties[key] = pair[1].attributeName;
                 else return false; // the attribute was deleted
               }
