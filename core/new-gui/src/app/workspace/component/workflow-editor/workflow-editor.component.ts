@@ -3,6 +3,9 @@ import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
+// import any jquery plugins after importing jQuery,
+// make sure to import even if TypeScript doesn't show an error
+import "jquery-contextmenu";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -27,6 +30,9 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { NavigationComponent } from "../navigation/navigation.component";
+import { isSink } from "../../service/workflow-graph/model/workflow-graph";
+import { result } from "lodash";
 
 // This type represents the copied operator and its information:
 // - operator: the copied operator itself, and its properties, etc.
@@ -44,6 +50,12 @@ type CopiedGroup = {
   group: Group;
   position: Point;
   pastedGroupIDs: string[];
+};
+
+type activeOperators = {
+  activeIDs: readonly string[];
+  disableStatus: boolean;
+  cacheStatus: boolean;
 };
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -75,6 +87,7 @@ export const WORKFLOW_EDITOR_JOINTJS_ID = "texera-workflow-editor-jointjs-body-i
  * @author Henry Chen
  *
  */
+
 @UntilDestroy()
 @Component({
   selector: "texera-workflow-editor",
@@ -84,8 +97,14 @@ export const WORKFLOW_EDITOR_JOINTJS_ID = "texera-workflow-editor-jointjs-body-i
 export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
+
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID;
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = WORKFLOW_EDITOR_JOINTJS_ID;
+
+  public enableCache: boolean = environment.operatorCacheEnabled;
+  //bug: these values do not sync with the click on the navigation bar
+  public isDisabled: boolean = false;
+  public isCached: boolean = false;
 
   public readonly COPY_OFFSET = 20;
 
@@ -151,7 +170,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleGroupResize();
     this.handleViewMouseoverOperator();
     this.handleViewMouseoutOperator();
-
+    this.rightClickContextMenu();
     if (environment.executionStatusEnabled) {
       this.handleOperatorStatisticsUpdate();
     }
@@ -602,6 +621,274 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  //issue
+  private GetIndex(
+    boolOperator: boolean,
+    boolGroup: boolean,
+    result: (readonly string[])[],
+    operatorString: string,
+    groupString: string
+  ): number {
+    var index = -1;
+    var resultString: string[] = [];
+    result.forEach(element => {
+      element.forEach(stringID => {
+        resultString.push(stringID);
+      });
+    });
+
+    if (boolOperator) {
+      index = resultString.indexOf(operatorString);
+      if (index != -1) {
+        index = 0;
+      }
+    } else if (boolGroup) {
+      index = resultString.indexOf(groupString);
+      if (index != -1) {
+        index = 0;
+      }
+    }
+
+    return index;
+  }
+
+  //issue: this whole method needs to be revised
+  private GetIndexArray(
+    boolOperator: boolean,
+    boolGroup: boolean,
+    result: (readonly string[])[],
+    operator: readonly string[],
+    group: readonly string[]
+  ): number {
+    var index = -1;
+    var finalIndex = 0;
+    var resultArray: string[] = [];
+
+    result.forEach(element => {
+      element.forEach(stringID => {
+        resultArray.push(stringID);
+      });
+    });
+
+    if (boolOperator) {
+      operator.forEach(element => {
+        index = resultArray.indexOf(element);
+
+        if (index == -1) {
+          return index;
+        } else {
+          index = 0;
+        }
+      });
+    } else if (boolGroup) {
+      group.forEach(element => {
+        index = resultArray.indexOf(element);
+        if (index == -1) {
+          return index;
+        } else {
+          index = 0;
+        }
+      });
+    }
+    return index;
+  }
+
+  private rightClickContextMenu(): void {
+    var activeList: activeOperators[] = [];
+    var result: (readonly string[])[] = [];
+    var index = -1;
+    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+    var highlightedOperatorString = "";
+    var highlightedGroupString = "";
+    var showMenuOperatorID = false;
+    var showMenuOperatorGroup = false;
+    var useArray = false;
+
+    var isVisible = (key: any, opt: { $trigger: { nodeName: string } }) => {
+      if (highlightedOperatorIDs.length > 0) {
+        if (highlightedOperatorIDs.length > 1) {
+          useArray = true;
+        } else {
+          useArray = false;
+          highlightedOperatorString = highlightedOperatorIDs.toString();
+        }
+        showMenuOperatorID = true;
+        return true;
+      }
+      if (highlightedGroupIDs.length > 0) {
+        if (highlightedGroupIDs.length > 1) {
+          useArray = true;
+        } else {
+          useArray = false;
+          highlightedGroupString = highlightedGroupIDs.toString();
+        }
+        showMenuOperatorGroup = true;
+        return true;
+      }
+
+      showMenuOperatorID = false;
+      showMenuOperatorGroup = false;
+      return false;
+    };
+
+    var showDisable = (key: any, opt: { $trigger: { nodeName: string } }) => {
+      if (!showMenuOperatorID && !showMenuOperatorGroup) {
+        return false;
+      }
+      if (!useArray) {
+        index = this.GetIndex(
+          showMenuOperatorID,
+          showMenuOperatorGroup,
+          result,
+          highlightedOperatorString,
+          highlightedGroupString
+        );
+      } else {
+        index = this.GetIndexArray(
+          showMenuOperatorID,
+          showMenuOperatorGroup,
+          result,
+          highlightedOperatorIDs,
+          highlightedGroupIDs
+        );
+      }
+
+      if (index == -1) {
+        return true;
+      }
+      if (activeList[index].disableStatus == false) {
+        return true;
+      }
+      return false;
+    };
+
+    var showEnable = (key: any, opt: { $trigger: { nodeName: string } }) => {
+      if (!showMenuOperatorID && !showMenuOperatorGroup) {
+        return false;
+      }
+
+      if (index == -1) {
+        return false;
+      }
+      if (activeList[index].disableStatus == false) {
+        return false;
+      }
+      return true;
+    };
+
+    var showCache = (key: any, opt: { $trigger: { nodeName: string } }) => {
+      if (!showMenuOperatorID && !showMenuOperatorGroup) {
+        return false;
+      }
+
+      var visible = false;
+      if (this.enableCache) {
+        if (index == -1) {
+          visible = true;
+        } else if (activeList[index].cacheStatus == false) {
+          visible = true;
+        }
+      }
+
+      return visible;
+    };
+
+    var showUnCache = (key: any, opt: { $trigger: { nodeName: string } }) => {
+      if (!showMenuOperatorID && !showMenuOperatorGroup) {
+        return false;
+      }
+      var visible = true;
+      if (this.enableCache) {
+        if (index == -1) {
+          visible = false;
+        } else if (activeList[index].cacheStatus == false) {
+          visible = false;
+        }
+      }
+      return visible;
+    };
+
+    jQuery(() => {
+      jQuery.contextMenu({
+        selector: ".texera-workspace-workflow-editor-body",
+
+        callback: (key: any, options: any) => {
+          const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
+          const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
+            op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
+          );
+
+          this.handleCallback(
+            key,
+            highlightedOperatorIDs,
+            highlightedGroupIDs,
+            effectiveHighlightedOperators,
+            effectiveHighlightedOperatorsExcludeSink
+          );
+
+          if (index == -1) {
+            activeList.push({
+              activeIDs: effectiveHighlightedOperators,
+              disableStatus: this.isDisabled,
+              cacheStatus: this.isCached,
+            });
+          } else {
+            activeList[index].disableStatus = this.isDisabled;
+            activeList[index].cacheStatus = this.isCached;
+          }
+
+          result = activeList.map(x => x.activeIDs);
+
+          return true;
+        },
+        items: {
+          copy: { name: "Copy", icon: "copy", visible: isVisible },
+          paste: { name: "Paste", icon: "paste" },
+          cut: { name: "Cut", icon: "cut", visible: isVisible },
+          disable: { name: "Disable", icon: "circle", visible: showDisable },
+          enable: { name: "Enable", icon: "circle", visible: showEnable },
+          cache: { name: "Cache", icon: "circle", visible: showCache },
+          uncache: { name: "Remove Cache", icon: "circle", visible: showUnCache },
+          delete: { name: "Delete", icon: "delete", visible: isVisible },
+        },
+      });
+    });
+  }
+
+  private handleCallback(
+    key: any,
+    singleOperator: readonly string[],
+    groupOperators: readonly string[],
+    effectiveOperators: readonly string[],
+    nonSinkOperators: readonly string[]
+  ): void {
+    if (key == "copy") {
+      this.clearCopiedElements();
+      this.saveHighlighedElements();
+    } else if (key == "paste") {
+      this.performPasteOperation();
+    } else if (key == "cut") {
+      this.clearCopiedElements();
+      this.saveHighlighedElements();
+      this.workflowActionService.deleteOperatorsAndLinks(singleOperator, [], groupOperators);
+    } else if (key == "disable") {
+      this.isDisabled = true;
+      this.workflowActionService.disableOperators(effectiveOperators);
+    } else if (key == "enable") {
+      this.isDisabled = false;
+      this.workflowActionService.enableOperators(effectiveOperators);
+    } else if (key == "cache") {
+      this.isCached = true;
+      this.workflowActionService.cacheOperators(nonSinkOperators);
+    } else if (key == "uncache") {
+      this.isCached = false;
+      this.workflowActionService.unCacheOperators(nonSinkOperators);
+    } else if (key == "delete") {
+      this.workflowActionService.deleteOperatorsAndLinks(singleOperator, [], groupOperators);
+    }
+  }
+
   private handleHighlightMouseDBClickInput(): void {
     fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
@@ -854,6 +1141,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
+   *
    * Handles the event where the Delete button is clicked for a Link,
    *  and call workflowAction to delete the corresponding link.
    *
@@ -1279,67 +1567,69 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         filter(event => this.interactive)
       )
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        // if there is something to paste
-        if (this.copiedOperators.size > 0 || this.copiedGroups.size > 0) {
-          const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-          const links: OperatorLink[] = [];
-          const groups: Group[] = [];
-          const positions: Point[] = [];
+      .subscribe(() => this.performPasteOperation());
+  }
 
-          // sort operators by layer
-          this.copiedOperators = new Map<string, CopiedOperator>(
-            Array.from(this.copiedOperators).sort((first, second) => first[1].layer - second[1].layer)
-          );
+  private performPasteOperation() {
+    if (!(this.copiedOperators.size > 0 || this.copiedGroups.size > 0)) {
+      return;
+    }
+    const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+    const links: OperatorLink[] = [];
+    const groups: Group[] = [];
+    const positions: Point[] = [];
 
-          // make copies of each operator, and calculate their positions when pasted
-          this.copiedOperators.forEach((copiedOperator, operatorID) => {
-            const newOperator = this.copyOperator(copiedOperator.operator);
-            const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
-            operatorsAndPositions.push({
-              op: newOperator,
-              pos: newOperatorPosition,
-            });
-            positions.push(newOperatorPosition);
-          });
+    // sort operators by layer
+    this.copiedOperators = new Map<string, CopiedOperator>(
+      Array.from(this.copiedOperators).sort((first, second) => first[1].layer - second[1].layer)
+    );
 
-          // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
-          this.copiedGroups.forEach((copiedGroup, groupID) => {
-            const newGroup = this.copyGroup(copiedGroup.group);
-
-            const oldPosition = copiedGroup.position;
-            const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
-            positions.push(newPosition);
-
-            // delta between old position and new to apply to the copied group's operators
-            const delta = {
-              x: newPosition.x - oldPosition.x,
-              y: newPosition.y - oldPosition.y,
-            };
-
-            newGroup.operators.forEach((operatorInfo, operatorID) => {
-              operatorInfo.position.x += delta.x;
-              operatorInfo.position.y += delta.x;
-
-              operatorsAndPositions.push({
-                op: operatorInfo.operator,
-                pos: operatorInfo.position,
-              });
-            });
-
-            // add links from group to list of all links to be added
-            newGroup.links.forEach((linkInfo, operatorID) => {
-              links.push(linkInfo.link);
-            });
-
-            // add group to list of all groups to be added
-            groups.push(newGroup);
-          });
-
-          // actually add all operators, links, groups to the workflow
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
-        }
+    // make copies of each operator, and calculate their positions when pasted
+    this.copiedOperators.forEach((copiedOperator, operatorID) => {
+      const newOperator = this.copyOperator(copiedOperator.operator);
+      const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
+      operatorsAndPositions.push({
+        op: newOperator,
+        pos: newOperatorPosition,
       });
+      positions.push(newOperatorPosition);
+    });
+
+    // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
+    this.copiedGroups.forEach((copiedGroup, groupID) => {
+      const newGroup = this.copyGroup(copiedGroup.group);
+
+      const oldPosition = copiedGroup.position;
+      const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
+      positions.push(newPosition);
+
+      // delta between old position and new to apply to the copied group's operators
+      const delta = {
+        x: newPosition.x - oldPosition.x,
+        y: newPosition.y - oldPosition.y,
+      };
+
+      newGroup.operators.forEach((operatorInfo, operatorID) => {
+        operatorInfo.position.x += delta.x;
+        operatorInfo.position.y += delta.x;
+
+        operatorsAndPositions.push({
+          op: operatorInfo.operator,
+          pos: operatorInfo.position,
+        });
+      });
+
+      // add links from group to list of all links to be added
+      newGroup.links.forEach((linkInfo, operatorID) => {
+        links.push(linkInfo.link);
+      });
+
+      // add group to list of all groups to be added
+      groups.push(newGroup);
+    });
+
+    // actually add all operators, links, groups to the workflow
+    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
   }
 
   /**
@@ -1727,5 +2017,19 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.gridOn = true;
         }
       });
+  }
+
+  effectivelyHighlightedOperators(): readonly string[] {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+
+    const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
+      Array.from(this.workflowActionService.getOperatorGroup().getGroup(g).operators.keys())
+    );
+
+    const effectiveHighlightedOperators = new Set<string>();
+    highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
+    operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
+    return Array.from(effectiveHighlightedOperators);
   }
 }
