@@ -39,18 +39,12 @@ export class DynamicSchemaService {
   private initialSchemaTransformers: SchemaTransformer[] = [];
 
   // this stream is used to capture the event when the dynamic schema of an existing operator is changed
-  private operatorDynamicSchemaChangedStream = new Subject<{
-    operatorID: string;
-    oldSchema: OperatorSchema;
-    newSchema: OperatorSchema;
-    oldInputSchema: OperatorInputSchema;
-    newInputSchema: OperatorInputSchema;
-  }>();
+  private operatorDynamicSchemaChangedStream = new Subject<DynamicSchemaChange>();
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private operatorMetadataService: OperatorMetadataService,
-    private schemaPropagationService: SchemaPropagationService,
+    // private schemaPropagationService: SchemaPropagationService,
   ) {
     // when an operator is added, add it to the dynamic schema map
     this.workflowActionService
@@ -87,13 +81,7 @@ export class DynamicSchemaService {
   /**
    * Returns the observable which outputs the operatorID of which the dynamic schema has changed.
    */
-  public getOperatorDynamicSchemaChangedStream(): Observable<{
-    operatorID: string;
-    oldSchema: OperatorSchema;
-    newSchema: OperatorSchema;
-    oldInputSchema: OperatorInputSchema;
-    newInputSchema: OperatorInputSchema;
-  }> {
+  public getOperatorDynamicSchemaChangedStream(): Observable<DynamicSchemaChange> {
     return this.operatorDynamicSchemaChangedStream.asObservable();
   }
 
@@ -145,9 +133,8 @@ export class DynamicSchemaService {
    * If the changed new dynamic schema invalidates some property, then the invalid properties fields will be dropped.
    *
    */
-  public setDynamicSchema(operatorID: string, dynamicSchema: OperatorSchema): void {
+  public setDynamicSchema(operatorID: string, dynamicSchema: OperatorSchema, oldInputSchema: OperatorInputSchema = [], newInputSchema: OperatorInputSchema = []): void {
     const currentDynamicSchema = this.dynamicSchemaMap.get(operatorID);
-    const currentInputSchema = this.schemaPropagationService.getOperatorInputSchema(operatorID);
 
     // do nothing if old & new schema are the same
     if (isEqual(currentDynamicSchema, dynamicSchema)) {
@@ -157,14 +144,13 @@ export class DynamicSchemaService {
     // set the new dynamic schema
     this.dynamicSchemaMap.set(operatorID, dynamicSchema);
     // only emit event if the old dynamic schema is not present
-    const newInputSchema = this.schemaPropagationService.getOperatorInputSchema(operatorID);
-    if (currentDynamicSchema && currentInputSchema && newInputSchema) {
+    if (currentDynamicSchema) {
       console.log("dynamic schema changed!");
       this.operatorDynamicSchemaChangedStream.next({
         operatorID: operatorID,
         oldSchema: currentDynamicSchema,
         newSchema: dynamicSchema,
-        oldInputSchema: currentInputSchema,
+        oldInputSchema: oldInputSchema,
         newInputSchema: newInputSchema,
       });
     }
@@ -244,4 +230,12 @@ export class DynamicSchemaService {
 
     return jsonSchemaCopy;
   }
+}
+
+export interface DynamicSchemaChange {
+  operatorID: string;
+  oldSchema: OperatorSchema;
+  newSchema: OperatorSchema;
+  oldInputSchema: OperatorInputSchema;
+  newInputSchema: OperatorInputSchema;
 }
