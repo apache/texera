@@ -302,15 +302,15 @@
             <nz-list-item-meta-description>
               <div class="workflow-item-meta-description">
                 <label
-                  *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowDescription "
+                  *ngIf="dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1; else customWorkflowDescription"
                   class="workflow-description"
                   >{{ dashboardWorkflowEntry.workflow.name }}</label
                 >
                 <ng-template #customWorkflowDescription>
                   <input
-                    #customName
-                    (focusout)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
-                    (keyup.enter)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
+                    #customDescription
+                    (focusout)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
+                    (keyup.enter)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
                     placeholder="{{ dashboardWorkflowEntry.workflow.name }}"
                     value="{{ dashboardWorkflowEntry.workflow.name }}"
                   />

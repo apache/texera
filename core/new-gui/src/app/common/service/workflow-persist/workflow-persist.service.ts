@@ -14,8 +14,10 @@ export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
+export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
+export const DEFAULT_WORKFLOW_DESCRIPTION = "A Texera workflow.";
 
 @Injectable({
   providedIn: "root",
@@ -108,6 +110,21 @@ export class WorkflowPersistService {
    * updates the name of a given workflow, the user in the session must own the workflow.
    */
   public updateWorkflowName(wid: number | undefined, name: string): Observable<Response> {
+    return this.http
+      .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}/${wid}/${name}`, null)
+      .pipe(
+        catchError((error: unknown) => {
+          // @ts-ignore // TODO: fix this with notification component
+          this.notificationService.error(error.error.message);
+          return throwError(error);
+        })
+      );
+  }
+
+  /**
+   * updates the description of a given workflow, the user in the session must own the workflow.
+   */
+   public updateWorkflowDescription(wid: number | undefined, description: string): Observable<Response> {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}/${wid}/${name}`, null)
       .pipe(

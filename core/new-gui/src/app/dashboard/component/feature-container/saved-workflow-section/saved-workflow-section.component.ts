@@ -5,6 +5,7 @@ import { remove } from "lodash-es";
 import { from, Observable, map } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
+  DEFAULT_WORKFLOW_DESCRIPTION,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
@@ -116,8 +117,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     ["owner", ["ownerName"]],
   ]);
   public workflowSearchValue: string = "";
-  private defaultWorkflowName: string = "Untitled Workflow";
-  private defaultWorkflowDescription: string = "A Texera workflow.";
+  private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
+  private defaultWorkflowDescription: string = DEFAULT_WORKFLOW_DESCRIPTION;
 
   public searchCriteria: string[] = ["owner", "id", "ctime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
@@ -963,6 +964,31 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
         updatedDashboardWorkFlowEntry.workflow = { ...workflow };
         updatedDashboardWorkFlowEntry.workflow.name = name || this.defaultWorkflowName;
+        const newEntries = this.dashboardWorkflowEntries.slice();
+        newEntries[index] = updatedDashboardWorkFlowEntry;
+        this.dashboardWorkflowEntries = newEntries;
+      })
+      .add(() => {
+        this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
+      });
+  }
+
+  public confirmUpdateWorkflowCustomDescription(
+    dashboardWorkflowEntry: DashboardWorkflowEntry,
+    description: string,
+    index: number
+  ): void {
+    const { workflow } = dashboardWorkflowEntry;
+    this.workflowPersistService
+      .updateWorkflowName(workflow.wid, description || this.defaultWorkflowDescription)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
+        updatedDashboardWorkFlowEntry.workflow.name = description || this.defaultWorkflowName;
+        // slice function converts a readonly array to an editable one
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;
