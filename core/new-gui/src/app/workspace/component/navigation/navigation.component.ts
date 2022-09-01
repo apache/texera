@@ -360,7 +360,7 @@ export class NavigationComponent implements OnInit {
         const workflow: Workflow = {
           content: workflowContent,
           name: workflowName,
-          description: DEFAULT_WORKFLOW_DESCRIPTION,
+          description: "dummy workflow description",
           wid: undefined,
           creationTime: undefined,
           lastModifiedTime: undefined,

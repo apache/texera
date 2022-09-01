@@ -304,8 +304,9 @@
                 <label
                   *ngIf="dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1; else customWorkflowDescription"
                   class="workflow-description"
-                  >{{ dashboardWorkflowEntry.workflow.description }}</label
-                >
+                  >
+                  {{ dashboardWorkflowEntry.workflow.description }}
+                </label>
                 <ng-template #customWorkflowDescription>
                   <input
                     #customDescription
