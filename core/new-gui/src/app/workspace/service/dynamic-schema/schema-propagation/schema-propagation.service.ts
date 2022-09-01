@@ -80,7 +80,10 @@ export class SchemaPropagationService {
    *
    * @param schemaPropagationResult
    */
-  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: OperatorInputSchema }, oldOperatorInputSchemaMap: Readonly<{ [key: string]: OperatorInputSchema; }>): void {
+  private _applySchemaPropagationResult(
+    schemaPropagationResult: { [key: string]: OperatorInputSchema },
+    oldOperatorInputSchemaMap: Readonly<{ [key: string]: OperatorInputSchema }>
+  ): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
@@ -104,7 +107,12 @@ export class SchemaPropagationService {
 
       if (!isEqual(currentDynamicSchema, newDynamicSchema)) {
         // SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
-        this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema, oldOperatorInputSchemaMap[operatorID], this.getOperatorInputSchema(operatorID));
+        this.dynamicSchemaService.setDynamicSchema(
+          operatorID,
+          newDynamicSchema,
+          oldOperatorInputSchemaMap[operatorID],
+          schemaPropagationResult[operatorID]
+        );
       }
     });
   }
