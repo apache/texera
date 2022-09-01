@@ -304,15 +304,15 @@
                 <label
                   *ngIf="dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1; else customWorkflowDescription"
                   class="workflow-description"
-                  >{{ dashboardWorkflowEntry.workflow.name }}</label
+                  >{{ dashboardWorkflowEntry.workflow.description }}</label
                 >
                 <ng-template #customWorkflowDescription>
                   <input
                     #customDescription
                     (focusout)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
                     (keyup.enter)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
-                    placeholder="{{ dashboardWorkflowEntry.workflow.name }}"
-                    value="{{ dashboardWorkflowEntry.workflow.name }}"
+                    placeholder="{{ dashboardWorkflowEntry.workflow.description }}"
+                    value="{{ dashboardWorkflowEntry.workflow.description }}"
                   />
                 </ng-template>
                 <button

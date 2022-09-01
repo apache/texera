@@ -982,19 +982,18 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   ): void {
     const { workflow } = dashboardWorkflowEntry;
     this.workflowPersistService
-      .updateWorkflowName(workflow.wid, description || this.defaultWorkflowDescription)
+      .updateWorkflowDescription(workflow.wid, description || this.defaultWorkflowDescription)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
         updatedDashboardWorkFlowEntry.workflow = { ...workflow };
-        updatedDashboardWorkFlowEntry.workflow.name = description || this.defaultWorkflowName;
-        // slice function converts a readonly array to an editable one
+        updatedDashboardWorkFlowEntry.workflow.description = description || this.defaultWorkflowDescription;
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;
       })
       .add(() => {
-        this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(
+        this.dashboardWorkflowEntriesIsEditingDescription = this.dashboardWorkflowEntriesIsEditingDescription.filter(
           entryIsEditingIndex => entryIsEditingIndex != index
         );
       });
