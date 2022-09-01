@@ -40,6 +40,11 @@ type GroupInfo = {
   layer: number;
 };
 
+export type OperatorMetadataChangedEvent = {
+  old: WorkflowMetadata,
+  new: WorkflowMetadata
+}
+
 /**
  *
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of both JointJS and Texera,
@@ -79,7 +84,7 @@ export class WorkflowActionService {
   private lockListenEnabled = true;
 
   private workflowMetadata: WorkflowMetadata;
-  private workflowMetadataChangeSubject: Subject<void> = new Subject<void>();
+  private workflowMetadataChangeSubject = new Subject<OperatorMetadataChangedEvent>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -1107,7 +1112,7 @@ export class WorkflowActionService {
     );
   }
 
-  public workflowMetaDataChanged(): Observable<void> {
+  public workflowMetaDataChanged(): Observable<OperatorMetadataChangedEvent> {
     return this.workflowMetadataChangeSubject.asObservable();
   }
 
@@ -1115,9 +1120,11 @@ export class WorkflowActionService {
     if (this.workflowMetadata === workflowMetaData) {
       return;
     }
+    console.log(workflowMetaData);
 
+    const old = this.workflowMetadata;
     this.workflowMetadata = workflowMetaData === undefined ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
-    this.workflowMetadataChangeSubject.next();
+    this.workflowMetadataChangeSubject.next({old: old, new: this.workflowMetadata});
   }
 
   public getWorkflowMetadata(): WorkflowMetadata {
@@ -1238,15 +1245,20 @@ export class WorkflowActionService {
 
   public setWorkflowName(name: string): void {
     const previousName = this.workflowMetadata.name;
+    const newName = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
     const command: Command = {
       modifiesWorkflow: true,
       execute: () => {
-        this.workflowMetadata.name = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
-        this.workflowMetadataChangeSubject.next();
+        this.setWorkflowMetadata({
+          ...this.workflowMetadata,
+          name: newName
+        })
       },
       undo: () => {
-        this.workflowMetadata.name = previousName;
-        this.workflowMetadataChangeSubject.next();
+        this.setWorkflowMetadata({
+          ...this.workflowMetadata,
+          name: previousName
+        })
       },
     };
     const commandMessage: CommandMessage = { action: "setWorkflowName", parameters: [name], type: "execute" };

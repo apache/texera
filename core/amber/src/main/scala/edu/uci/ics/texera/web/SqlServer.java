@@ -14,7 +14,7 @@ import java.nio.file.Paths;
 public final class SqlServer {
 
     public static final SQLDialect SQL_DIALECT = SQLDialect.MYSQL;
-    private static final MysqlDataSource dataSource;
+    public static final MysqlDataSource dataSource;
     public static Config jdbcConfig;
 
     static {

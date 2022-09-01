@@ -911,7 +911,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       observable = this.userProjectService.retrieveWorkflowsOfProject(this.pid);
     }
 
+    const startTime = Date.now()
+    console.log("request sent: " + new Date().toISOString)
     observable.pipe(untilDestroyed(this)).subscribe(dashboardWorkflowEntries => {
+      const endTime = Date.now()
+      console.log("request received: " + new Date().toISOString)
+      console.log("took: " + (endTime - startTime) + 'ms')
+
       this.dashboardWorkflowEntries = dashboardWorkflowEntries;
       this.sortWorkflows();
       this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
@@ -957,8 +963,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
-        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
-        updatedDashboardWorkFlowEntry.workflow.name = name || this.defaultWorkflowName;
+        updatedDashboardWorkFlowEntry.workflow = { 
+          ...workflow,
+          name: name || this.defaultWorkflowName
+        };
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;

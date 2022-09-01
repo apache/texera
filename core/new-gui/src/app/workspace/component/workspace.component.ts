@@ -19,7 +19,7 @@ import { WorkflowConsoleService } from "../service/workflow-console/workflow-con
 import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
-import { of } from "rxjs";
+import { merge, of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { WorkflowCollabService } from "../service/workflow-collab/workflow-collab.service";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
@@ -137,10 +137,42 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       });
   }
 
+  registerAutoCreateWorkflow(): void {
+    merge(
+      this.workflowActionService.workflowMetaDataChanged()
+        .pipe(filter(evt => evt.old.name !== evt.new.name)),
+      this.workflowActionService.workflowChanged())
+      .pipe(filter(_ => this.workflowActionService.getWorkflowMetadata().wid === undefined))
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (
+          this.userService.isLogin() &&
+          this.workflowPersistService.isWorkflowPersistEnabled() &&
+          this.workflowCollabService.isLockGranted()
+        ) {
+          this.workflowPersistService
+            .createWorkflow(
+              this.workflowActionService.getWorkflowContent(), 
+              this.workflowActionService.getWorkflowMetadata().name)
+            .pipe(untilDestroyed(this))
+            .subscribe(workflowEntry => {
+              console.log(workflowEntry)
+              this.workflowActionService.setWorkflowMetadata(workflowEntry.workflow);
+              this.location.go(`/workflow/${workflowEntry.workflow.wid}`);
+            });
+        }
+      })
+  }
+
+
   registerAutoPersistWorkflow(): void {
-    this.workflowActionService
-      .workflowChanged()
-      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
+    merge(
+      this.workflowActionService.workflowMetaDataChanged()
+        .pipe(filter(evt => evt.old.name !== evt.new.name)),
+      this.workflowActionService.workflowChanged())
+      .pipe(
+        filter(_ => this.workflowActionService.getWorkflowMetadata().wid !== undefined), 
+        debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (
@@ -219,6 +251,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
             // no workflow to load, pending to create a new workflow
           }
           // responsible for persisting the workflow to the backend
+          this.registerAutoCreateWorkflow();
           this.registerAutoPersistWorkflow();
         } else {
           // load the cached workflow

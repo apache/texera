@@ -57,14 +57,6 @@ object WorkflowResource {
     workflowUserAccessDao.insert(access)
   }
 
-//  def fetchWorkflowMetadata(wid: UInteger): WorkflowMetadata = {
-//    context
-//      .select(WORKFLOW.WID, WORKFLOW.NAME, WORKFLOW.CREATION_TIME, WORKFLOW.LAST_MODIFIED_TIME)
-//      .from(WORKFLOW)
-//      .where(WORKFLOW.WID.eq(wid))
-//      .fetchOneInto(classOf[WorkflowMetadata])
-//  }
-
   def fetchOneDashboardWorkflow(wid: UInteger, uid: UInteger): Option[DashboardWorkflowEntry] = {
     fetchDashboardWorkflows(uid, Some(wid)).headOption
   }
@@ -97,13 +89,7 @@ object WorkflowResource {
       )
       .groupBy(WORKFLOW.WID)
 
-    println(sql.getSQL)
-
-    val execStart = System.currentTimeMillis()
-    val workflowEntries = sql.fetch().toList
-
-    val mapStart = System.currentTimeMillis()
-    val ret = workflowEntries
+    sql.fetch()
       .map(record =>
         DashboardWorkflowEntry(
           WorkflowMetadata(record.value1(), record.value2(), record.value4(), record.value4()),
@@ -116,14 +102,7 @@ object WorkflowResource {
           if (record.value9() == null) List[UInteger]()
           else record.value9().split(',').map(number => UInteger.valueOf(number)).toList
         )
-      )
-      .toList
-
-    println(s"dashboard list: building sql ${execStart - buildStart} ms")
-    println(s"dashboard list: exec sql ${mapStart - execStart} ms")
-    println(s"dashboard list: map results ${System.currentTimeMillis() - mapStart} ms")
-
-    ret
+      ).toList
   }
 
   case class WorkflowMetadata(

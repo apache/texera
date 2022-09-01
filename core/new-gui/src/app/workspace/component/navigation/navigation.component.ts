@@ -514,9 +514,9 @@ export class NavigationComponent implements OnInit {
    */
   onWorkflowNameChange() {
     this.workflowActionService.setWorkflowName(this.currentWorkflowName);
-    if (this.userService.isLogin()) {
-      this.persistWorkflow();
-    }
+    // if (this.userService.isLogin()) {
+    //   this.persistWorkflow();
+    // }
   }
 
   onClickCreateNewWorkflow() {

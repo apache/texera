@@ -218,7 +218,7 @@
             <nz-list-item-action>
               <button
                 (click)="onClickOpenShareAccess(dashboardUserFileEntry)"
-                [disabled]="dashboardUserFileEntry.accessLevel !== 'Write'"
+                [disabled]="dashboardUserFileEntry.accessLevel !== 'write'"
                 nz-button
                 nz-tooltip="Share the file {{
 								dashboardUserFileEntry.file.name
@@ -242,7 +242,7 @@
             <nz-list-item-action>
               <button
                 (click)="deleteUserFileEntry(dashboardUserFileEntry)"
-                [disabled]="dashboardUserFileEntry.accessLevel !== 'Write'"
+                [disabled]="dashboardUserFileEntry.accessLevel !== 'write'"
                 nz-button
                 nz-tooltip="Delete the file {{
 								dashboardUserFileEntry.file.name
