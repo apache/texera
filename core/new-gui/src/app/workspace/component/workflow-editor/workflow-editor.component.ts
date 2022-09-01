@@ -147,7 +147,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
     private workflowCollabService: WorkflowCollabService,
-    private notificationService: NotificationService,
+    private notificationService: NotificationService
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -1223,7 +1223,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           // actually copy the operators in the system clipboard
           this.saveHighlightedElements();
         } else {
-          this.notificationService.error("Copying not successful. It is likely that only links are selected, which can't exist without operators.");
+          this.notificationService.error(
+            "Copying not successful. It is likely that only links are selected, which can't exist without operators."
+          );
         }
       });
   }
@@ -1327,9 +1329,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
       // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
       // although if the current tab is active, permission shouldn't be needed
-      this.notificationService.error(
-        "Copy failed. You don't have the permission to write to the clipboard."
-      );
+      this.notificationService.error("Copy failed. You don't have the permission to write to the clipboard.");
     });
   }
 
@@ -1463,7 +1463,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           try {
             this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
           } catch (e) {
-            this.notificationService.info("Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators.");
+            this.notificationService.info(
+              "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
+            );
           }
 
           // add breakpoints for the newly pasted links
