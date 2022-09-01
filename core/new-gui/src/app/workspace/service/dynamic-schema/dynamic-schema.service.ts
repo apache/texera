@@ -100,8 +100,8 @@ export class DynamicSchemaService {
         (_: any) => 1,
         (a: SchemaAttribute, b: SchemaAttribute) => {
           if (a.attributeName === b.attributeName && a.attributeType === b.attributeType) return 0;
-          else if (a.attributeName !== a.attributeName && a.attributeType !== b.attributeType) return 2.2;
-          else return 1.1;
+          else if (a.attributeName !== a.attributeName && a.attributeType !== b.attributeType) return 2;
+          else return 1;
         }
       );
       const mapping: SchemaAttribute[][] = attributeMapping.pairs();
@@ -125,7 +125,7 @@ export class DynamicSchemaService {
     port: number
   ) {
     // console.log("properties: ", currentProperties);
-    console.log("mapping: ", mapping);
+    // console.log("mapping: ", mapping);
     const updatePropertyRecurse = (
       properties: any,
       jsonSchema: { [key: string]: CustomJSONSchema7 | boolean } | undefined
