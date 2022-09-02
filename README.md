@@ -1,6 +1,35 @@
+<h1 align="center">Texera - Collaborative Data Analytics Using Workflows.</h1>
+
+<p align="center">
+  <img src="core/new-gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/>
+  <br>
+  <i>Texera supports scalable computation and enables advanced AI/ML techniques.</i>
+  <br>
+  <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics. <i>
+  <br>
+  
+  <p align="center">
+    <a href="https://texera.github.io"><strong>texera.github.io</strong></a>
+    <br>
+  </p>
+  
+  <p align="center">
+  <a href="https://github.com/Texera/texera/wiki/Getting-Started">Getting Started</a>
+  ·
+  <a href="https://github.com/Texera/texera/wiki/Guide-for-Developers">Developer Guide</a>
+  ·
+  <a href="https://texera.github.io/blog/">Blog</a>
+  <br>
+  <br>
+</p>
+</p>
+
+<!---
+(Orignal intro paragraph, commented out)
 ## Texera
 
 Texera is a system to support collaborative, ML-centric data analytics as a cloud-based service using GUI-based workflows. It supports scalable computation with a parallel backend engine, and enables advanced AI/ML techniques. "Collaboration" is a key focus, and we want to enable an experience similar to existing services such as Google Docs, but for data analytics, especially for people with different backgrounds, including IT developers and domain scientists with limited programming background.
+-->
 
 ## Motivation
 
