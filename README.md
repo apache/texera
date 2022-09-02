@@ -9,7 +9,7 @@
   <br>
   
   <h3 align="center">
-    <a href="https://texera.github.io/blog/">Blog</a>
+    <a href="https://texera.github.io/blog/">Read our Blogs</a>
     <br>
   </h3>
   
