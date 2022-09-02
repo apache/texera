@@ -8,19 +8,11 @@
   <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics. <i>
   <br>
   
-  <p align="center">
-    <a href="https://texera.github.io"><strong>texera.github.io</strong></a>
+  <h3 align="center">
+    <a href="https://texera.github.io/blog/">Blog</a>
     <br>
-  </p>
+  </h3>
   
-  <p align="center">
-  <a href="https://github.com/Texera/texera/wiki/Getting-Started">Getting Started</a>
-  ·
-  <a href="https://github.com/Texera/texera/wiki/Guide-for-Developers">Developer Guide</a>
-  ·
-  <a href="https://texera.github.io/blog/">Blog</a>
-  <br>
-  <br>
 </p>
 </p>
 
