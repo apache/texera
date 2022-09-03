@@ -95,7 +95,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
   public checked: boolean = false;
-  public setOfCheckedIndex = new Set<number>();
+  public setOfEid = new Set<number>();
   public setOfExecution = new Set<WorkflowExecutionsEntry>();
 
   constructor(
@@ -179,18 +179,16 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     return false;
   }
 
-  setBookmarked(rows: Set<WorkflowExecutionsEntry>): void {
+  setBookmarked(): void {
     if (this.workflow.wid === undefined) return;
-    if (rows !== undefined) {
-      let eIds: number[] = [];
+    if (this.setOfExecution !== undefined) {
       // update the bookmark locally
-      let isBookmarked = this.allBookmarkCheck(rows);
-      for (let row of rows.values()) {
-        eIds.push(row.eId);
+      let isBookmarked = this.allBookmarkCheck(this.setOfExecution);
+      for (let row of this.setOfExecution) {
         row.bookmarked = !isBookmarked;
       }
       this.workflowExecutionsService
-        .groupSetIsBookmarked(this.workflow.wid, eIds, isBookmarked)
+        .groupSetIsBookmarked(this.workflow.wid, Array.from(this.setOfEid), isBookmarked)
         .pipe(untilDestroyed(this))
         .subscribe({});
     }
@@ -221,35 +219,38 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  onGroupDelete(rows: Set<WorkflowExecutionsEntry>) {
+  onGroupDelete() {
     const modalRef = this.modalService.open(DeletePromptComponent);
-    modalRef.componentInstance.deletionType = "execution";
-    let deletionNames = "";
-    for (let row of rows) {
-      deletionNames = deletionNames.concat(row.name);
-      deletionNames = deletionNames.concat("; ");
+    if (this.setOfEid.size > 10) {
+      let deletionName = `the ${this.setOfEid.size} executions`;
+      modalRef.componentInstance.deletionName = deletionName;
+    } else {
+      modalRef.componentInstance.deletionType = "execution";
+      let deletionNames = "";
+      for (let row of this.setOfExecution) {
+        deletionNames = deletionNames.concat(row.name);
+        deletionNames = deletionNames.concat("; ");
+      }
+      modalRef.componentInstance.deletionName = deletionNames.slice(0, -2);
     }
-    modalRef.componentInstance.deletionName = deletionNames.slice(0, -2);
-    let eIds: number[] = [];
-    for (let row of rows.values()) {
-      eIds.push(row.eId);
-    }
-
     from(modalRef.result)
       .pipe(untilDestroyed(this))
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && this.workflow.wid !== undefined) {
           this.workflowExecutionsService
-            .groupDeleteWorkflowExecutions(this.workflow.wid, eIds)
+            .groupDeleteWorkflowExecutions(this.workflow.wid, Array.from(this.setOfEid))
             .pipe(untilDestroyed(this))
             .subscribe({
               complete: () => {
-                for (let row of rows.values()) {
-                  this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-                  this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                }
+                this.allExecutionEntries = this.allExecutionEntries?.filter(
+                  execution => !Array.from(this.setOfExecution).includes(execution)
+                );
+                this.paginatedExecutionEntries = this.paginatedExecutionEntries?.filter(
+                  execution => !Array.from(this.setOfExecution).includes(execution)
+                );
+                this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
                 this.fuse.setCollection(this.paginatedExecutionEntries);
-                this.setOfCheckedIndex.clear();
+                this.setOfEid.clear();
                 this.setOfExecution.clear();
               },
             });
@@ -387,15 +388,25 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     return "rgba(" + r + "," + g + "," + b + ",0.8)";
   }
 
-  updateCheckedSet(index: number, checked: boolean): void {
+  /**
+   * Update the eId set to keep track of the status of the checkbox
+   * @param eId
+   * @param checked true if checked false if unchecked
+   */
+  updateEidSet(eId: number, checked: boolean): void {
     if (checked) {
-      this.setOfCheckedIndex.add(index);
+      this.setOfEid.add(eId);
     } else {
-      this.setOfCheckedIndex.delete(index);
+      this.setOfEid.delete(eId);
     }
   }
 
-  updateExecutionSet(row: WorkflowExecutionsEntry, checked: boolean): void {
+  /**
+   * Update the row set to keep track of the status of the checkbox
+   * @param row
+   * @param checked true if checked false if unchecked
+   */
+  updateRowSet(row: WorkflowExecutionsEntry, checked: boolean): void {
     if (checked) {
       this.setOfExecution.add(row);
     } else {
@@ -403,25 +414,37 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     }
   }
 
+  /**
+   * Mark all the checkboxes checked and check the status of the all check
+   * @param value true if we need to check all false if we need to uncheck all
+   */
   onAllChecked(value: boolean): void {
     if (this.paginatedExecutionEntries !== undefined) {
-      for (let i = 0; i < this.paginatedExecutionEntries.length; i++) {
-        this.updateCheckedSet(i, value);
-        this.updateExecutionSet(this.paginatedExecutionEntries[i], value);
+      for (let execution of this.paginatedExecutionEntries) {
+        this.updateEidSet(execution.eId, value);
+        this.updateRowSet(execution, value);
       }
     }
     this.refreshCheckedStatus();
   }
 
-  onItemChecked(row: WorkflowExecutionsEntry, index: number, checked: boolean) {
-    this.updateCheckedSet(index, checked);
-    this.updateExecutionSet(row, checked);
+  /**
+   * Update the eId and row set, and check the status of the all check
+   * @param eId
+   * @param checked true if checked false if unchecked
+   */
+  onItemChecked(row: WorkflowExecutionsEntry, checked: boolean) {
+    this.updateEidSet(row.eId, checked);
+    this.updateRowSet(row, checked);
     this.refreshCheckedStatus();
   }
 
+  /**
+   * Check the status of the all check
+   */
   refreshCheckedStatus(): void {
     if (this.paginatedExecutionEntries !== undefined) {
-      this.checked = this.paginatedExecutionEntries.length === this.setOfCheckedIndex.size;
+      this.checked = this.paginatedExecutionEntries.length === this.setOfEid.size;
     }
   }
 

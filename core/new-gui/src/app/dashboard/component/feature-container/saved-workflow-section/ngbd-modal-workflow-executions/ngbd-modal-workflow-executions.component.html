@@ -61,20 +61,20 @@
     <i
       nz-tooltip
       [nzTooltipTitle]="executionTooltip['Group Bookmarking']"
-      *ngIf="setOfExecution.size !== 0"
+      *ngIf="setOfEid.size !== 0"
       nz-icon
       nzType="star"
-      (click)="setBookmarked(setOfExecution)"
+      (click)="setBookmarked()"
     ></i>
   </ng-template>
   <ng-template #actionDelete>
     <i
       nz-tooltip
       [nzTooltipTitle]="executionTooltip['Group Deletion']"
-      *ngIf="setOfExecution.size !== 0"
+      *ngIf="setOfEid.size !== 0"
       nz-icon
       nzType="delete"
-      (click)="onGroupDelete(setOfExecution)"
+      (click)="onGroupDelete()"
     ></i>
   </ng-template>
 
@@ -95,7 +95,11 @@
     >
       <thead>
         <tr>
-          <th nzWidth="80px" [(nzChecked)]="checked" (nzCheckedChange)="onAllChecked($event)"></th>
+          <th
+            [ngStyle]="{'width': customColumnWidth['']}"
+            [(nzChecked)]="checked"
+            (nzCheckedChange)="onAllChecked($event)"
+          ></th>
           <th
             [ngStyle]="{'width': customColumnWidth[column]}"
             *ngFor="let column of executionsTableHeaders; let i=index"
@@ -117,7 +121,7 @@
       </thead>
       <tbody>
         <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
-          <td nzEllipsis [nzChecked]="setOfCheckedIndex.has(i)" (nzCheckedChange)="onItemChecked(row, i, $event)"></td>
+          <td nzEllipsis [nzChecked]="setOfEid.has(row.eId)" (nzCheckedChange)="onItemChecked(row, $event)"></td>
           <td nzEllipsis>
             <i
               nz-icon
