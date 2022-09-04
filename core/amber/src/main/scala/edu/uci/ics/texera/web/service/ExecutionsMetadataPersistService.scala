@@ -61,13 +61,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     val uint = UInteger.valueOf(wid)
     val vid = getLatestVersion(uint)
     val sid = getLatestSnapshot()
-    // get latest execution
-    val latestExecution = getLatestExecution(uint)
+    // get latest execution ID
+    val latestExecutionID = getLatestExecutionID(uint)
     val newExecution = new WorkflowExecutions()
     newExecution.setWid(uint)
     newExecution.setVid(vid)
     // check if it's the first execution or different snapshot from previous
-    if (latestExecution.isEmpty || differentSnapshot(vid, latestExecution, uint)) {
+    if (latestExecutionID.isEmpty || !isSnapshotInRangeUnimportant(getExecutionById(latestExecutionID.get).getVid, vid, uint)) {
       newExecution.setSid(sid)
     } else {
       // delete new create snapshot
@@ -80,15 +80,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     workflowExecutionsDao.insert(newExecution)
     newExecution.getEid.longValue()
-  }
-
-  // This function checks whether the snapshot is different from previous one
-  def differentSnapshot(
-      vid: UInteger,
-      latestExecution: Option[WorkflowExecutionEntry],
-      wid: UInteger
-  ): Boolean = {
-    !isSnapshotInRangeUnimportant(latestExecution.get.vId, vid, wid)
   }
 
   def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {

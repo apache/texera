@@ -38,41 +38,20 @@ object WorkflowExecutionsResource {
   )
 
   /**
-    * This function retrieves the latest execution of a workflow
+    * This function retrieves the latest execution id of a workflow
     * @param wid
-    * @return WorkflowExecutionEntry
+    * @return UInteger
     */
-  def getLatestExecution(wid: UInteger): Option[WorkflowExecutionEntry] = {
+  def getLatestExecutionID(wid: UInteger): Option[UInteger] = {
     val executions = context
-      .select(
-        WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.VID,
-        WORKFLOW_EXECUTIONS.SID,
-        field(
-          context
-            .select(USER.NAME)
-            .from(USER)
-            .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-        ),
-        WORKFLOW_EXECUTIONS.STARTING_TIME,
-        WORKFLOW_EXECUTIONS.COMPLETION_TIME,
-        WORKFLOW_EXECUTIONS.STATUS,
-        WORKFLOW_EXECUTIONS.RESULT,
-        WORKFLOW_EXECUTIONS.BOOKMARKED,
-        WORKFLOW_EXECUTIONS.NAME
-      )
+      .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.WID.eq(wid))
-      .fetchInto(classOf[WorkflowExecutionEntry])
+      .fetchInto(classOf[UInteger])
       .toList
     if (executions.isEmpty) {
       None
     } else {
-      Some(
-        executions.max((x: WorkflowExecutionEntry, y: WorkflowExecutionEntry) =>
-          x.eId compareTo y.eId
-        )
-      )
+      Some(executions.max)
     }
   }
 
