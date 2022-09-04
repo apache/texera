@@ -79,17 +79,12 @@
         class="modify-time-button"
       >
         <button id="mtimeSort" ngbDropdownToggle nz-button>
-          <i nz-icon nzType="calendar" nzTheme="outline" nz-tooltip="Modify Time"></i>
+          <i nz-icon nzType="form" nzTheme="outline" nz-tooltip="Modify Time"></i>
         </button>
       </a>
+
       <nz-dropdown-menu #mtimeSearchOptions="nzDropdownMenu">
-        <div [ngStyle]="{ width: '300px', border: '1px solid #d9d9d9', borderRadius: '4px' }">
-          <nz-calendar
-            [nzFullscreen]="false"
-            (nzSelectChange)="calendarValueChange($event)"
-            [(ngModel)]="selectedMtime"
-          ></nz-calendar>
-        </div>
+        <nz-range-picker nzInline [(ngModel)]="selectedMtime" (ngModelChange)="calendarValueChange($event)"></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
@@ -104,13 +99,7 @@
         </button>
       </a>
       <nz-dropdown-menu #ctimeSearchOptions="nzDropdownMenu">
-        <div [ngStyle]="{ width: '300px', border: '1px solid #d9d9d9', borderRadius: '4px' }">
-          <nz-calendar
-            [nzFullscreen]="false"
-            (nzSelectChange)="calendarValueChange($event)"
-            [(ngModel)]="selectedCtime"
-          ></nz-calendar>
-        </div>
+        <nz-range-picker nzInline [(ngModel)]="selectedCtime" (ngModelChange)="calendarValueChange($event)"></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
