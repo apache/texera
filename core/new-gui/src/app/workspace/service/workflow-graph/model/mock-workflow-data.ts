@@ -30,7 +30,7 @@ export const mockPoint: Point = {
 export const mockScanPredicate: OperatorPredicate = {
   operatorID: "1",
   operatorType: "ScanSource",
-  operatorVersion: "s1",
+  operatorVersion: "scan",
   operatorProperties: {},
   inputPorts: [],
   outputPorts: [{ portID: "output-0" }],
@@ -52,7 +52,7 @@ export const mockSentimentPredicate: OperatorPredicate = {
 export const mockResultPredicate: OperatorPredicate = {
   operatorID: "3",
   operatorType: VIEW_RESULT_OP_TYPE,
-  operatorVersion: "r1",
+  operatorVersion: "view1",
   operatorProperties: {},
   inputPorts: [{ portID: "input-0" }],
   outputPorts: [],
