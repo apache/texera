@@ -139,7 +139,6 @@ class WorkflowService(
       uidOpt: Option[UInteger]
   ): WorkflowContext = {
     val jobID: String = String.valueOf(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
-    var executionID: Long = -1
     if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
         CacheStatusUpdateRequest(

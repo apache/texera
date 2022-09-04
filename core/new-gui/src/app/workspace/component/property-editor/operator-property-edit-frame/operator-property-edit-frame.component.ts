@@ -168,13 +168,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.sourceFormChangeEventStream.next(event);
   }
 
-  abbreviate(version: string): string {
-    var displayVersion = version
-      ? version.slice(0, 5) + "......" + version.slice(version.length - 5, version.length)
-      : "null";
-    return displayVersion;
-  }
-
   /**
    * Changes the property editor to use the new operator data.
    * Sets all the data needed by the json schema form and displays the form.
