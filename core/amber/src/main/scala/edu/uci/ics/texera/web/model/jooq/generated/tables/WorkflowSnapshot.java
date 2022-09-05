@@ -18,7 +18,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row2;
+import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowSnapshot extends TableImpl<WorkflowSnapshotRecord> {
 
-    private static final long serialVersionUID = -479429018;
+    private static final long serialVersionUID = 28541910;
 
     /**
      * The reference instance of <code>texera_db.workflow_snapshot</code>
@@ -53,6 +53,11 @@ public class WorkflowSnapshot extends TableImpl<WorkflowSnapshotRecord> {
      * The column <code>texera_db.workflow_snapshot.sid</code>.
      */
     public final TableField<WorkflowSnapshotRecord, UInteger> SID = createField(DSL.name("sid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_snapshot.wid</code>.
+     */
+    public final TableField<WorkflowSnapshotRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_snapshot.snapshot</code>.
@@ -144,11 +149,11 @@ public class WorkflowSnapshot extends TableImpl<WorkflowSnapshotRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row2 type methods
+    // Row3 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, byte[]> fieldsRow() {
-        return (Row2) super.fieldsRow();
+    public Row3<UInteger, UInteger, byte[]> fieldsRow() {
+        return (Row3) super.fieldsRow();
     }
 }

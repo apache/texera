@@ -15,23 +15,27 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowSnapshot implements IWorkflowSnapshot {
 
-    private static final long serialVersionUID = -1139989604;
+    private static final long serialVersionUID = -1406228466;
 
     private UInteger sid;
+    private UInteger wid;
     private byte[]   snapshot;
 
     public WorkflowSnapshot() {}
 
     public WorkflowSnapshot(IWorkflowSnapshot value) {
         this.sid = value.getSid();
+        this.wid = value.getWid();
         this.snapshot = value.getSnapshot();
     }
 
     public WorkflowSnapshot(
         UInteger sid,
+        UInteger wid,
         byte[]   snapshot
     ) {
         this.sid = sid;
+        this.wid = wid;
         this.snapshot = snapshot;
     }
 
@@ -43,6 +47,16 @@ public class WorkflowSnapshot implements IWorkflowSnapshot {
     @Override
     public void setSid(UInteger sid) {
         this.sid = sid;
+    }
+
+    @Override
+    public UInteger getWid() {
+        return this.wid;
+    }
+
+    @Override
+    public void setWid(UInteger wid) {
+        this.wid = wid;
     }
 
     @Override
@@ -60,6 +74,7 @@ public class WorkflowSnapshot implements IWorkflowSnapshot {
         StringBuilder sb = new StringBuilder("WorkflowSnapshot (");
 
         sb.append(sid);
+        sb.append(", ").append(wid);
         sb.append(", ").append("[binary...]");
 
         sb.append(")");
@@ -73,6 +88,7 @@ public class WorkflowSnapshot implements IWorkflowSnapshot {
     @Override
     public void from(IWorkflowSnapshot from) {
         setSid(from.getSid());
+        setWid(from.getWid());
         setSnapshot(from.getSnapshot());
     }
 

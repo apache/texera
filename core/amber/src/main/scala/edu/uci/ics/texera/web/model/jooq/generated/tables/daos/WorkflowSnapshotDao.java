@@ -61,6 +61,20 @@ public class WorkflowSnapshotDao extends DAOImpl<WorkflowSnapshotRecord, edu.uci
     }
 
     /**
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowSnapshot> fetchRangeOfWid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(WorkflowSnapshot.WORKFLOW_SNAPSHOT.WID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>wid IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowSnapshot> fetchByWid(UInteger... values) {
+        return fetch(WorkflowSnapshot.WORKFLOW_SNAPSHOT.WID, values);
+    }
+
+    /**
      * Fetch records that have <code>snapshot BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowSnapshot> fetchRangeOfSnapshot(byte[] lowerInclusive, byte[] upperInclusive) {

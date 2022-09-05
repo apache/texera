@@ -28,13 +28,14 @@ object WorkflowSnapshotResource {
   }
 
   /**
-    * This function retrieves the latest snapshot of a workflow
+    * This function retrieves the latest snapshot of a certain workflow
     * @return sid
     */
-  def getLatestSnapshot(): UInteger = {
+  def getLatestSnapshot(wid: UInteger): UInteger = {
     val snapshots = context
       .select(WORKFLOW_SNAPSHOT.SID)
       .from(WORKFLOW_SNAPSHOT)
+      .where(WORKFLOW_SNAPSHOT.WID.eq(wid))
       .fetchInto(classOf[UInteger])
       .toList
     snapshots.max
@@ -44,9 +45,10 @@ object WorkflowSnapshotResource {
     * This function insert new snapshot into sql
     * @param snapshotBlob
     */
-  private def insertSnapshot(snapshotBlob: Array[Byte]): Unit = {
+  private def insertSnapshot(wid: UInteger, snapshotBlob: Array[Byte]): Unit = {
     val newSnapshot = new WorkflowSnapshot()
     newSnapshot.setSnapshot(snapshotBlob: _*)
+    newSnapshot.setWid(wid)
     snapshotDao.insert(newSnapshot)
   }
 
@@ -107,7 +109,7 @@ class WorkflowSnapshotResource {
     ) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
-      insertSnapshot(snapshotBlob)
+      insertSnapshot(wid, snapshotBlob)
     }
   }
 }

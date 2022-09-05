@@ -60,7 +60,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
     val vid = getLatestVersion(uint)
-    val sid = getLatestSnapshot()
+    val sid = getLatestSnapshot(uint)
     // get latest execution ID
     val latestExecutionID = getLatestExecutionID(uint)
     val newExecution = new WorkflowExecutions()
@@ -73,7 +73,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       // delete new create snapshot
       deleteSnapshot(sid)
       // set current execution's snapshot to previous
-      newExecution.setSid(getLatestSnapshot())
+      newExecution.setSid(getLatestSnapshot(uint))
     }
 
     newExecution.setUid(uid.getOrElse(null))

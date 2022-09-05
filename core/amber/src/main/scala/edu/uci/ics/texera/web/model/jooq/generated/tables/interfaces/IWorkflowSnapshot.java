@@ -26,6 +26,16 @@ public interface IWorkflowSnapshot extends Serializable {
     public UInteger getSid();
 
     /**
+     * Setter for <code>texera_db.workflow_snapshot.wid</code>.
+     */
+    public void setWid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_snapshot.wid</code>.
+     */
+    public UInteger getWid();
+
+    /**
      * Setter for <code>texera_db.workflow_snapshot.snapshot</code>.
      */
     public void setSnapshot(byte... value);
