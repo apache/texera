@@ -167,26 +167,17 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       });
   }
 
-  allBookmarkCheck(rows: Set<WorkflowExecutionsEntry>): boolean {
-    if (rows !== undefined) {
-      for (let row of rows) {
-        if (!row.bookmarked) {
-          return false;
-        }
-      }
-      return true;
-    }
-    return false;
-  }
-
   setBookmarked(): void {
     if (this.workflow.wid === undefined) return;
     if (this.setOfExecution !== undefined) {
+      // isBookmarked: true if all the execution are bookmarked, false if there is one that is unbookmarked
+      const isBookmarked = !Array.from(this.setOfExecution).some(execution => {
+        return execution.bookmarked === null || execution.bookmarked === false;
+      });
       // update the bookmark locally
-      let isBookmarked = this.allBookmarkCheck(this.setOfExecution);
-      for (let row of this.setOfExecution) {
-        row.bookmarked = !isBookmarked;
-      }
+      this.setOfExecution.forEach(execution => {
+        execution.bookmarked = isBookmarked ? false : true;
+      });
       this.workflowExecutionsService
         .groupSetIsBookmarked(this.workflow.wid, Array.from(this.setOfEid), isBookmarked)
         .pipe(untilDestroyed(this))
@@ -221,18 +212,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   onGroupDelete() {
     const modalRef = this.modalService.open(DeletePromptComponent);
-    if (this.setOfEid.size > 10) {
-      let deletionName = `the ${this.setOfEid.size} executions`;
-      modalRef.componentInstance.deletionName = deletionName;
-    } else {
-      modalRef.componentInstance.deletionType = "execution";
-      let deletionNames = "";
-      for (let row of this.setOfExecution) {
-        deletionNames = deletionNames.concat(row.name);
-        deletionNames = deletionNames.concat("; ");
-      }
-      modalRef.componentInstance.deletionName = deletionNames.slice(0, -2);
-    }
+    let deletionName = `the ${this.setOfEid.size} executions`;
+    modalRef.componentInstance.deletionName = deletionName;
     from(modalRef.result)
       .pipe(untilDestroyed(this))
       .subscribe((confirmToDelete: boolean) => {
