@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS file_of_project
 CREATE TABLE IF NOT EXISTS workflow_snapshot
 (
     `sid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `wid`             INT UNSIGNED NOT NULL,
     `snapshot`        MEDIUMBLOB,
     PRIMARY KEY (`sid`)
 ) ENGINE = INNODB;
