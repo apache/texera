@@ -67,7 +67,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     newExecution.setWid(uint)
     newExecution.setVid(vid)
     // check if it's the first execution or different snapshot from previous
-    if (latestExecutionID.isEmpty || !isSnapshotInRangeUnimportant(getExecutionById(latestExecutionID.get).getVid, vid, uint)) {
+    if (
+      latestExecutionID.isEmpty || !isSnapshotInRangeUnimportant(
+        getExecutionById(latestExecutionID.get).getVid,
+        vid,
+        uint
+      )
+    ) {
       newExecution.setSid(sid)
     } else {
       // delete new create snapshot
