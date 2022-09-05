@@ -19,7 +19,7 @@ class PauseManager:
         self._pause_invocations[pause_type] = enable_pause
 
     def get_pause_status_by_type(self, pause_type: PauseType) -> bool:
-        self._pause_invocations.get(pause_type, False)
+        return self._pause_invocations.get(pause_type, False)
 
     def is_paused(self) -> bool:
         return any(pause_status for pause_status in self._pause_invocations.values())
