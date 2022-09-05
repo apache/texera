@@ -22,6 +22,4 @@ class PauseManager:
         self._pause_invocations.get(pause_type, False)
 
     def is_paused(self) -> bool:
-        x = any(pause_status for pause_status in self._pause_invocations.values())
-        print(bool(x))
-        return x
+        any(pause_status for pause_status in self._pause_invocations.values())
