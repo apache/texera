@@ -84,7 +84,11 @@
       </a>
 
       <nz-dropdown-menu #mtimeSearchOptions="nzDropdownMenu">
-        <nz-range-picker nzInline [(ngModel)]="selectedMtime" (ngModelChange)="calendarValueChange($event)"></nz-range-picker>
+        <nz-range-picker
+          nzInline
+          [(ngModel)]="selectedMtime"
+          (ngModelChange)="calendarValueChange($event)"
+        ></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
@@ -99,7 +103,11 @@
         </button>
       </a>
       <nz-dropdown-menu #ctimeSearchOptions="nzDropdownMenu">
-        <nz-range-picker nzInline [(ngModel)]="selectedCtime" (ngModelChange)="calendarValueChange($event)"></nz-range-picker>
+        <nz-range-picker
+          nzInline
+          [(ngModel)]="selectedCtime"
+          (ngModelChange)="calendarValueChange($event)"
+        ></nz-range-picker>
       </nz-dropdown-menu>
 
       <a

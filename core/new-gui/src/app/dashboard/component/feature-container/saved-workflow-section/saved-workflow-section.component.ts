@@ -279,20 +279,24 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   private searchDate(
     date: Date[],
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
-    type: String): ReadonlyArray<DashboardWorkflowEntry> {
+    type: String
+  ): ReadonlyArray<DashboardWorkflowEntry> {
     // eslint-disable-next-line no-unused-expressions
-    date[0].setHours(0), date[0].setMinutes(0), date[0].setSeconds(0), date[0].setMilliseconds(0),
-      date[1].setHours(0), date[1].setMinutes(0), date[1].setSeconds(0), date[1].setMilliseconds(0);
+    date[0].setHours(0),
+      date[0].setMinutes(0),
+      date[0].setSeconds(0),
+      date[0].setMilliseconds(0),
+      date[1].setHours(0),
+      date[1].setMinutes(0),
+      date[1].setSeconds(0),
+      date[1].setMilliseconds(0);
     //sets date time at beginning of day
     //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
       //filters for workflows that were created on the specified date
-      let time = (type=="C")? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
+      let time = type == "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
       if (time) {
-        return (
-          time >= date[0].getTime() &&
-          time < date[1].getTime() + 86400000
-        );
+        return time >= date[0].getTime() && time < date[1].getTime() + 86400000;
         //checks if creation time is within the range of the whole day
       }
       return false;
@@ -434,8 +438,16 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
               this.notificationService.error("Date format is incorrect");
               break;
             }
-            this.selectedCtime[0] = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
-            this.selectedCtime[1] = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
+            this.selectedCtime[0] = new Date(
+              parseInt(searchDate[1]),
+              parseInt(searchDate[2]) - 1,
+              parseInt(searchDate[3])
+            );
+            this.selectedCtime[1] = new Date(
+              parseInt(searchDate[1]),
+              parseInt(searchDate[2]) - 1,
+              parseInt(searchDate[3])
+            );
             break;
           case "mtime": //should only run at most once
             if (this.selectedMtime.length == 0) {
@@ -447,8 +459,16 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
               this.notificationService.error("Date format is incorrect");
               break;
             }
-            this.selectedMtime[0] = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
-            this.selectedMtime[1] = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
+            this.selectedMtime[0] = new Date(
+              parseInt(searchDate[1]),
+              parseInt(searchDate[2]) - 1,
+              parseInt(searchDate[3])
+            );
+            this.selectedMtime[1] = new Date(
+              parseInt(searchDate[1]),
+              parseInt(searchDate[2]) - 1,
+              parseInt(searchDate[3])
+            );
             break;
         }
       }
@@ -517,10 +537,20 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     );
     newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
     if (this.selectedCtime.length != 0) {
-      newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedCtime[0]) + " ~ " + this.getFormattedDateString(this.selectedCtime[0]));
+      newFilterList.push(
+        "ctime: " +
+          this.getFormattedDateString(this.selectedCtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedCtime[0])
+      );
     }
     if (this.selectedMtime.length != 0) {
-      newFilterList.push("mtime: " + this.getFormattedDateString(this.selectedMtime[0]) + " ~ " + this.getFormattedDateString(this.selectedMtime[1]));
+      newFilterList.push(
+        "mtime: " +
+          this.getFormattedDateString(this.selectedMtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedMtime[1])
+      );
     }
     this.masterFilterList = newFilterList;
   }
@@ -593,7 +623,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
     }
 
-    if (this.selectedCtime .length != 0) {
+    if (this.selectedCtime.length != 0) {
       searchOutput = this.searchDate(this.selectedCtime, searchOutput, "C");
     }
 
