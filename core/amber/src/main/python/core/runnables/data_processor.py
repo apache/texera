@@ -149,7 +149,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         if isinstance(self._current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
-
+        print("\t\t\t INPUT TUPLE PROCESSED IN UDF")
         try:
             for output_tuple in self.process_tuple_with_udf(
                     self._current_input_tuple, self._current_input_link
@@ -328,6 +328,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(
                 WorkerState.RUNNING, WorkerState.READY
         ):
+            print("\t\t\t PAUSE HAPPENED")
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
             self._input_queue.disable_sub()
