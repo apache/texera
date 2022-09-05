@@ -90,10 +90,10 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         lifecycle. Thus, this method's invocation could appear in any stage while
         processing a DataElement.
         """
-
         while (
                 not self._input_queue.main_empty() or self.context.pause_manager.is_paused()
         ):
+            print("\t\t\t Is PAUSED " + str(self.context.pause_manager.is_paused()))
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
 
