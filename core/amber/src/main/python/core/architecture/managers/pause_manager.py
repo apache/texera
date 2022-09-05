@@ -22,8 +22,4 @@ class PauseManager:
         self._pause_invocations.get(pause_type, False)
 
     def is_paused(self) -> bool:
-        x = all(not pause_status for pause_status in self._pause_invocations.values())
-        print(bool(x))
-        print("Str " + str(x))
-        print("Str1 " + str(self._pause_invocations.get(PauseType.USER_PAUSE, "Not found")))
-        return x
+        any(pause_status for pause_status in self._pause_invocations.values())
