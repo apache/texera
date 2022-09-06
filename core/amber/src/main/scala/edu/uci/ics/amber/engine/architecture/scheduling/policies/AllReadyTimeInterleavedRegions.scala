@@ -18,10 +18,10 @@ import scala.jdk.CollectionConverters.asScalaSet
 import scala.util.control.Breaks.{break, breakable}
 
 class AllReadyTimeInterleavedRegions(
-                                      workflow: Workflow,
-                                      ctx: ActorContext,
-                                      asyncRPCClient: AsyncRPCClient
-                                    ) extends SchedulingPolicy(workflow, ctx, asyncRPCClient) {
+    workflow: Workflow,
+    ctx: ActorContext,
+    asyncRPCClient: AsyncRPCClient
+) extends SchedulingPolicy(workflow, ctx, asyncRPCClient) {
 
   var currentlyExecutingRegions = new mutable.LinkedHashSet[PipelinedRegion]()
 

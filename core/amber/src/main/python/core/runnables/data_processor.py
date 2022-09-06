@@ -148,7 +148,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         if isinstance(self._current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
-            print("\t\t\t PROCESS INPUT TUPLE")
         try:
             for output_tuple in self.process_tuple_with_udf(
                 self._current_input_tuple, self._current_input_link
