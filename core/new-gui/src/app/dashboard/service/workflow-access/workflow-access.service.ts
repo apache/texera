@@ -37,7 +37,7 @@ export class WorkflowAccessService {
     return this.http.get<ReadonlyArray<AccessEntry>>(`${WORKFLOW_ACCESS_LIST_URL}/${workflow.wid}`);
   }
 
-  public getWorkflowOwner(workflow: WorkflowMetadata): Observable<string> {
-    return this.http.get<string>(`${WORKFLOW_OWNER_URL}/${workflow.wid}`);
+  public getWorkflowOwner(workflow: WorkflowMetadata): Observable<{ownerName: string}> {
+    return this.http.get<{ownerName: string}>(`${WORKFLOW_OWNER_URL}/${workflow.wid}`);
   }
 }

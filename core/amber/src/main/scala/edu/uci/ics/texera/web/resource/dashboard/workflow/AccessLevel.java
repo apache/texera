@@ -13,7 +13,7 @@ public enum AccessLevel {
     }
 
     @JsonValue
-    public String getChartStyle() {
+    public String getAccessLevel() {
         return this.value;
     }
 }

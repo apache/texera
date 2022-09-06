@@ -44,7 +44,7 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
     return of();
   }
 
-  public getWorkflowOwner(workflow: Workflow): Observable<string> {
+  public getWorkflowOwner(workflow: Workflow): Observable<{ownerName: string}> {
     return of();
   }
 }

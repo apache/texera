@@ -3,23 +3,13 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
+import edu.uci.ics.texera.web.model.http.response.OwnershipResponse
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserAccessRecord
 import edu.uci.ics.texera.web.resource.dashboard.workflow.AccessLevel.{NONE, READ, WRITE}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  context,
-  getAccessRecord,
-  getGrantedWorkflowAccessList,
-  getWorkflowOwnerUid,
-  toAccessLevel,
-  toWorkflowUserAccessRecord,
-  userDao
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{context, getAccessRecord, getGrantedWorkflowAccessList, getWorkflowOwnerUid, toAccessLevel, toWorkflowUserAccessRecord, userDao}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -118,11 +108,11 @@ object WorkflowAccessResource {
       wid: UInteger,
       uid: UInteger,
       accessLevel: AccessLevel
-  ): WorkflowUserAccess = {
+  ): WorkflowUserAccessRecord = {
     accessLevel match {
-      case WRITE => new WorkflowUserAccess(wid, uid, true, true)
-      case READ  => new WorkflowUserAccess(wid, uid, true, false)
-      case NONE  => new WorkflowUserAccess(wid, uid, false, false)
+      case WRITE => new WorkflowUserAccessRecord(uid, wid, true, true)
+      case READ  => new WorkflowUserAccessRecord(uid, wid, true, false)
+      case NONE  => new WorkflowUserAccessRecord(uid, wid, false, false)
     }
   }
 
@@ -186,10 +176,10 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/owner/{wid}")
-  def getWorkflowOwnerName(@PathParam("wid") wid: UInteger): String = {
+  def getWorkflowOwnerName(@PathParam("wid") wid: UInteger): OwnershipResponse = {
     val uid = workflowDao.fetchByWid(wid).get(0).getOwnerUid
     val ownerName = userDao.fetchOneByUid(uid).getName
-    ownerName
+    OwnershipResponse(ownerName)
   }
 
   /**
@@ -285,7 +275,12 @@ class WorkflowAccessResource() {
         .where(WORKFLOW_USER_ACCESS.UID.eq(targetUid).and(WORKFLOW_USER_ACCESS.WID.eq(wid)))
         .execute()
     } else {
-      workflowUserAccessDao.update(toWorkflowUserAccessRecord(wid, targetUid, accessLevel))
+      val access = toWorkflowUserAccessRecord(wid, targetUid, accessLevel)
+      context.insertInto(WORKFLOW_USER_ACCESS)
+        .set(access)
+        .onDuplicateKeyUpdate()
+        .set(access)
+        .execute()
     }
   }
 }

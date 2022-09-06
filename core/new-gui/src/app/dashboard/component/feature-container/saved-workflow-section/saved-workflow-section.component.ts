@@ -741,6 +741,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           .pipe(
             concatMap((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
               this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, duplicatedWorkflowInfo];
+              this.sortWorkflows();
               return this.userProjectService.addWorkflowToProject(this.pid, duplicatedWorkflowInfo.workflow.wid!);
             }),
             catchError((err: unknown) => {

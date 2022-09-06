@@ -58,7 +58,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     this.workflowGrantAccessService
       .getWorkflowOwner(workflow)
       .pipe(untilDestroyed(this))
-      .subscribe(ownerName => this.workflowOwnerName = ownerName);
+      .subscribe(response => this.workflowOwnerName = response.ownerName);
   }
 
   /**

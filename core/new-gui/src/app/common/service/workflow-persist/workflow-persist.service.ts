@@ -65,8 +65,11 @@ export class WorkflowPersistService {
    * @param targetWid
    */
   public duplicateWorkflow(targetWid: number): Observable<DashboardWorkflowEntry> {
+    console.log(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`)
+    console.log({ wid: targetWid })
+
     return this.http
-      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, { wid: targetWid });
+      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, targetWid);
   }
 
   /**

@@ -136,6 +136,9 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
 
+    import io.dropwizard.jersey.jackson.JsonProcessingExceptionMapper
+    environment.jersey.register(new JsonProcessingExceptionMapper(true))
+
     // register MultiPartFeature
     environment.jersey.register(classOf[MultiPartFeature])
 
