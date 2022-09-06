@@ -34,13 +34,13 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowScheduler(
-    availableNodes: Array[Address],
-    networkCommunicationActor: NetworkSenderActorRef,
-    ctx: ActorContext,
-    asyncRPCClient: AsyncRPCClient,
-    logger: Logger,
-    workflow: Workflow
-) {
+                         availableNodes: Array[Address],
+                         networkCommunicationActor: NetworkSenderActorRef,
+                         ctx: ActorContext,
+                         asyncRPCClient: AsyncRPCClient,
+                         logger: Logger,
+                         workflow: Workflow
+                       ) {
   val schedulingPolicy =
     SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx, asyncRPCClient)
 
@@ -73,25 +73,42 @@ class WorkflowScheduler(
       regionsToPause = timeExpiredRegions
     }
 
-    doSchedulingWork(nextRegions)
-      .flatMap(_ => {
-        val pauseFutures = new ArrayBuffer[Future[Unit]]()
-        regionsToPause.foreach(stoppingRegion => {
-          schedulingPolicy.removeFromRunningRegion(Set(stoppingRegion))
-          workflow
-            .getAllWorkersOfRegion(stoppingRegion)
-            .foreach(wid => {
-              pauseFutures.append(
-                asyncRPCClient
-                  .send(SchedulerTimeSlotEvent(true), wid)
-              )
-            })
+    val pauseFutures = new ArrayBuffer[Future[Unit]]()
+    regionsToPause.foreach(stoppingRegion => {
+      schedulingPolicy.removeFromRunningRegion(Set(stoppingRegion))
+      workflow
+        .getAllWorkersOfRegion(stoppingRegion)
+        .foreach(wid => {
+          pauseFutures.append(
+            asyncRPCClient
+              .send(SchedulerTimeSlotEvent(true), wid)
+          )
         })
-        Future.collect(pauseFutures)
-      })
-      .map(_ => {
-        Seq()
-      })
+    })
+    Future.collect(pauseFutures).flatMap(_ => doSchedulingWork(nextRegions)).map(_ => {
+      Seq()
+    })
+
+
+    //    doSchedulingWork(nextRegions)
+    //      .flatMap(_ => {
+    //        val pauseFutures = new ArrayBuffer[Future[Unit]]()
+    //        regionsToPause.foreach(stoppingRegion => {
+    //          schedulingPolicy.removeFromRunningRegion(Set(stoppingRegion))
+    //          workflow
+    //            .getAllWorkersOfRegion(stoppingRegion)
+    //            .foreach(wid => {
+    //              pauseFutures.append(
+    //                asyncRPCClient
+    //                  .send(SchedulerTimeSlotEvent(true), wid)
+    //              )
+    //            })
+    //        })
+    //        Future.collect(pauseFutures)
+    //      })
+    //      .map(_ => {
+    //        Seq()
+    //      })
   }
 
   private def doSchedulingWork(regions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
@@ -139,9 +156,9 @@ class WorkflowScheduler(
   }
 
   private def buildOperator(
-      prev: Array[(OperatorIdentity, WorkerLayer)], // used to decide deployment of workers
-      operatorIdentity: OperatorIdentity
-  ): Unit = {
+                             prev: Array[(OperatorIdentity, WorkerLayer)], // used to decide deployment of workers
+                             operatorIdentity: OperatorIdentity
+                           ): Unit = {
     val opExecConfig = workflow.getOperator(operatorIdentity)
     if (opExecConfig.topology.links.isEmpty) {
       opExecConfig.topology.layers.foreach(workerLayer => {
@@ -343,7 +360,6 @@ class WorkflowScheduler(
     }
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())
-      println(s"\t\t Region to construct and start ${region.getOperators().mkString(";;")}")
       constructRegion(region)
       prepareAndStartRegion(region)
     } else {
