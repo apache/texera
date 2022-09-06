@@ -343,6 +343,7 @@ class WorkflowScheduler(
     }
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())
+      println(s"\t\t Region to construct and start ${region.getOperators().mkString(";;")}")
       constructRegion(region)
       prepareAndStartRegion(region)
     } else {
