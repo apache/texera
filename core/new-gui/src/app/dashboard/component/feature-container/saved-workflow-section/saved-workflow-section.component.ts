@@ -376,7 +376,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         const searchArray = tag.split(":");
         const searchField = searchArray[0];
         const searchValue = searchArray[1].trim();
-        const date_regex = /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
+        const date_regex =
+          /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])[~](\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
         const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
         switch (searchField) {
           case "owner":
@@ -444,9 +445,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
               parseInt(searchDate[3])
             );
             this.selectedCtime[1] = new Date(
-              parseInt(searchDate[1]),
-              parseInt(searchDate[2]) - 1,
-              parseInt(searchDate[3])
+              parseInt(searchDate[4]),
+              parseInt(searchDate[5]) - 1,
+              parseInt(searchDate[6])
             );
             break;
           case "mtime": //should only run at most once
@@ -465,9 +466,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
               parseInt(searchDate[3])
             );
             this.selectedMtime[1] = new Date(
-              parseInt(searchDate[1]),
-              parseInt(searchDate[2]) - 1,
-              parseInt(searchDate[3])
+              parseInt(searchDate[4]),
+              parseInt(searchDate[5]) - 1,
+              parseInt(searchDate[6])
             );
             break;
         }
@@ -541,7 +542,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         "ctime: " +
           this.getFormattedDateString(this.selectedCtime[0]) +
           " ~ " +
-          this.getFormattedDateString(this.selectedCtime[0])
+          this.getFormattedDateString(this.selectedCtime[1])
       );
     }
     if (this.selectedMtime.length != 0) {
