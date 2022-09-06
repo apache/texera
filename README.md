@@ -8,10 +8,14 @@
   <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics. <i>
   <br>
   
-  <h3 align="center">
-    <a href="https://texera.github.io/blog/">Read our Blogs</a>
+  <h4 align="center">
+    <a href="https://youtu.be/CRA-aWrJ91c">Demo Video</a>
+    |
+    <a href="https://texera.github.io/blog/">Blogs</a>
+    |
+    <a href="https://github.com/Texera/texera/wiki/Getting-Started">Getting Started</a>
     <br>
-  </h3>
+  </h4>
   
 </p>
 </p>
