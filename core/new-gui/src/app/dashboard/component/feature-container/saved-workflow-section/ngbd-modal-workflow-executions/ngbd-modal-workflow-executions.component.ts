@@ -1,7 +1,8 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, Input, OnInit, AfterViewInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { from } from "rxjs";
+import * as c3 from "c3";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
@@ -9,6 +10,7 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
+import { ChartType } from "src/app/workspace/types/visualization.interface";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -20,7 +22,12 @@ const MAX_USERNAME_SIZE = 5;
   templateUrl: "./ngbd-modal-workflow-executions.component.html",
   styleUrls: ["./ngbd-modal-workflow-executions.component.scss"],
 })
-export class NgbdModalWorkflowExecutionsComponent implements OnInit {
+export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewInit {
+  public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
+
+  public static readonly WIDTH = 300;
+  public static readonly HEIGHT = 300;
+
   @Input() workflow!: Workflow;
   @Input() workflowName!: string;
 
@@ -104,6 +111,26 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
+  }
+
+  ngAfterViewInit() {
+    let chart = c3.generate({
+      size: {
+        height: NgbdModalWorkflowExecutionsComponent.HEIGHT,
+        width: NgbdModalWorkflowExecutionsComponent.WIDTH,
+      },
+      data: {
+        columns: [["admin", 19], ["test", 1]],
+        type: ChartType.PIE,
+      },
+      axis: {
+        x: {
+          type: "category",
+          categories: ["user name"],
+        }
+      },
+      bindto: NgbdModalWorkflowExecutionsComponent.STATUS_PIE_CHART_ID,
+    });
   }
 
   /**
@@ -250,6 +277,27 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
           exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
         );
     }
+  }
+
+  getPieChartStatusData(type: string) {
+    let statusData: {[key: number]: number} = {};
+    this.allExecutionEntries.forEach(execution => {
+      let status = execution.status as number;
+      statusData[status] = statusData[status] !== undefined ? statusData[status] + 1 : 1;
+    });
+    return type === "key" ? Array.from(Object.keys(statusData)) : Array.from(Object.values(statusData));
+  }
+
+  getPieChartUserNameData(rows: WorkflowExecutionsEntry[]) {
+    let userNameData: {[key: string]: [string, number]} = {};
+    rows.forEach(execution => {
+      let userName = execution.userName;
+      if (userNameData[userName] === undefined) {
+        userNameData[userName] = [userName, 0];
+      }
+      userNameData[userName][1] += 1;
+    });
+    return userNameData;
   }
 
   /* sort executions by name/username/start time/update time
@@ -452,5 +500,40 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       (this.currentPageIndex - 1) * this.pageSize,
       this.currentPageIndex * this.pageSize
     );
+  }
+
+  generateChart() {
+    // if (this.workflow === undefined || this.workflow.wid === undefined) {
+    //   return;
+    // }
+    // this.workflowExecutionsService
+    //   .retrieveWorkflowExecutions(this.workflow.wid)
+    //   .pipe(untilDestroyed(this))
+    //   .subscribe(workflowExecutions => {
+    // const dataToDisplay: Array<[string, ...c3.PrimitiveArray]> = [];
+    // const category: string[] = Object.keys(this.getPieChartUserNameData(workflowExecutions));
+    // for (const row of Object.values(this.getPieChartUserNameData(workflowExecutions))) {
+    //   dataToDisplay.push(row as [string, ...c3.PrimitiveArray]);
+    // }
+    // console.log(this.getPieChartUserNameData(workflowExecutions));
+    // console.log(category);
+    let retsome = c3.generate({
+      size: {
+        height: NgbdModalWorkflowExecutionsComponent.HEIGHT,
+        width: NgbdModalWorkflowExecutionsComponent.WIDTH,
+      },
+      data: {
+        columns: [["admin", 19], ["test", 1]],
+        type: ChartType.PIE,
+      },
+      axis: {
+        x: {
+          type: "category",
+          categories: ["user name"],
+        }
+      },
+      bindto: NgbdModalWorkflowExecutionsComponent.STATUS_PIE_CHART_ID,
+    });
+      // });
   }
 }
