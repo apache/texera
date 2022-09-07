@@ -184,7 +184,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         let filenames: string[] = [];
         workflowCopy.content.operators.forEach(operator => {
           const filename: string = operator.operatorProperties.fileName;
-          if(filename) filenames.push(filename);
+          if (filename) filenames.push(filename);
         });
         modalRef.componentInstance.filenames = [...new Set(filenames)];
       });
