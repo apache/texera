@@ -65,8 +65,7 @@ export class SchemaPropagationService {
         // Find out which input schema changed
         // console.log("response.result", response.result)
         for (const operatorID in response.result) {
-          if (isEqual(this.operatorInputSchemaMap[operatorID], response.result[operatorID]))
-            continue;
+          if (isEqual(this.operatorInputSchemaMap[operatorID], response.result[operatorID])) continue;
           // console.log("----inputSchemaStream Changed!----");
           // console.log("oldInputSchema", this.operatorInputSchemaMap[operatorID]);
           // console.log("newInputSchema", response.result[operatorID]);
@@ -76,7 +75,7 @@ export class SchemaPropagationService {
             newInputSchema: response.result[operatorID],
           });
         }
-        
+
         this.operatorInputSchemaMap = response.result;
         this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
@@ -96,9 +95,7 @@ export class SchemaPropagationService {
    *
    * @param schemaPropagationResult
    */
-  private _applySchemaPropagationResult(
-    schemaPropagationResult: { [key: string]: OperatorInputSchema },
-  ): void {
+  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: OperatorInputSchema }): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
@@ -123,10 +120,7 @@ export class SchemaPropagationService {
 
       if (!isEqual(currentDynamicSchema, newDynamicSchema)) {
         // SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
-        this.dynamicSchemaService.setDynamicSchema(
-          operatorID,
-          newDynamicSchema,
-        );
+        this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
     });
   }
@@ -338,9 +332,8 @@ export interface SchemaPropagationError
     message: string;
   }> {}
 
-  
 interface InputSchemaChange {
-  operatorID: string,
-  oldInputSchema: OperatorInputSchema,
-  newInputSchema: OperatorInputSchema,
+  operatorID: string;
+  oldInputSchema: OperatorInputSchema;
+  newInputSchema: OperatorInputSchema;
 }
