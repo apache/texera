@@ -13,11 +13,7 @@ import {
   SchemaAttribute,
   SchemaPropagationService,
 } from "./schema-propagation/schema-propagation.service";
-
-// @ts-ignore
-import jsonRefLite from "json-ref-lite";
-// @ts-ignore
-import { levenshtein } from "edit-distance";
+import { InputSchemaPropagationService } from "./input-schema-propagation/input-schema-propagation";
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 
@@ -74,48 +70,6 @@ export class DynamicSchemaService {
       .getTexeraGraph()
       .getLinkDeleteStream()
       .subscribe(event => this.dynamicBreakpointSchemaMap.delete(event.deletedLink.linkID));
-
-    this.getOperatorDynamicSchemaChangedStream().subscribe(
-      ({ operatorID, dynamicSchema, oldInputSchema, newInputSchema }) => {
-        this.updateOperatorPropertiesOnSchemaChange(operatorID, dynamicSchema, oldInputSchema, newInputSchema);
-      }
-    );
-  }
-
-  private updateOperatorPropertiesOnSchemaChange(
-    operatorID: string,
-    dynamicSchema: OperatorSchema,
-    oldInputSchema: OperatorInputSchema,
-    newInputSchema: OperatorInputSchema
-  ): void {
-    console.log(dynamicSchema, oldInputSchema, newInputSchema);
-    if (!dynamicSchema.jsonSchema.properties) return;
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    // console.log(operator)
-    for (let port = 0; port < oldInputSchema.length; ++port) {
-      const attributeMapping = levenshtein(
-        oldInputSchema[port],
-        newInputSchema[port],
-        (_: any) => 1,
-        (_: any) => 1,
-        (a: SchemaAttribute, b: SchemaAttribute) => {
-          if (a.attributeName === b.attributeName && a.attributeType === b.attributeType) return 0;
-          else if (a.attributeName !== a.attributeName && a.attributeType !== b.attributeType) return 2;
-          else return 1;
-        }
-      );
-      const mapping: SchemaAttribute[][] = attributeMapping.pairs();
-      const resolvedJsonSchema = jsonRefLite.resolve(dynamicSchema.jsonSchema);
-      // console.log("resolved", resolvedJsonSchema)
-      const newProperty = this.updateOperatorProperty(
-        operator.operatorProperties,
-        mapping,
-        resolvedJsonSchema.properties,
-        port
-      );
-      this.workflowActionService.setOperatorProperty(operatorID, newProperty);
-      console.log("updated", this.workflowActionService.getTexeraGraph().getOperator(operatorID));
-    }
   }
 
   private updateOperatorProperty(
@@ -254,8 +208,6 @@ export class DynamicSchemaService {
   public setDynamicSchema(
     operatorID: string,
     dynamicSchema: OperatorSchema,
-    oldInputSchema: OperatorInputSchema = [],
-    newInputSchema: OperatorInputSchema = []
   ): void {
     const currentDynamicSchema = this.dynamicSchemaMap.get(operatorID);
 
@@ -272,8 +224,6 @@ export class DynamicSchemaService {
       this.operatorDynamicSchemaChangedStream.next({
         operatorID: operatorID,
         dynamicSchema: dynamicSchema,
-        oldInputSchema: oldInputSchema,
-        newInputSchema: newInputSchema,
       });
     }
   }
@@ -357,6 +307,4 @@ export class DynamicSchemaService {
 export interface DynamicSchemaChange {
   operatorID: string;
   dynamicSchema: OperatorSchema;
-  oldInputSchema: OperatorInputSchema;
-  newInputSchema: OperatorInputSchema;
 }
