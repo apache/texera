@@ -1,36 +1,38 @@
 import { Injectable } from "@angular/core";
-import { OperatorInputSchema, SchemaAttribute, SchemaPropagationService } from "../schema-propagation/schema-propagation.service";
+import {
+  OperatorInputSchema,
+  SchemaAttribute,
+  SchemaPropagationService,
+} from "../schema-propagation/schema-propagation.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { cloneDeep } from "lodash-es";
+// TODO: Add typing for the below two packages
 // @ts-ignore
 import jsonRefLite from "json-ref-lite";
 // @ts-ignore
 import { levenshtein } from "edit-distance";
-import { untilDestroyed } from "@ngneat/until-destroy";
 
 @Injectable({
   providedIn: "root",
 })
 export class InputSchemaPropagationService {
+  // TODO: solve the problem that contructor is not called unless the service is created somewhere
   constructor(
-      private dynamicSchemaService: DynamicSchemaService,
-      private schemaPropagationService: SchemaPropagationService,
-      private workflowActionService: WorkflowActionService,
+    private dynamicSchemaService: DynamicSchemaService,
+    private schemaPropagationService: SchemaPropagationService,
+    private workflowActionService: WorkflowActionService
   ) {
     this.registerInputSchemaChangedStream();
-    
   }
 
   private registerInputSchemaChangedStream() {
     this.schemaPropagationService
       .getOperatorInputSchemaChangedStream()
-      .subscribe(
-        ({ operatorID, oldInputSchema, newInputSchema }) => {
-          this.updateOperatorPropertiesOnInputSchemaChange(operatorID, oldInputSchema, newInputSchema);
-        }
-      );
+      .subscribe(({ operatorID, oldInputSchema, newInputSchema }) => {
+        this.updateOperatorPropertiesOnInputSchemaChange(operatorID, oldInputSchema, newInputSchema);
+      });
   }
 
   private updateOperatorPropertiesOnInputSchemaChange(
@@ -92,8 +94,7 @@ export class InputSchemaPropagationService {
         const jsonSchemaProperty = jsonSchema[key] as CustomJSONSchema7;
         if (jsonSchemaProperty.autofillAttributeOnPort === port) {
           if (jsonSchemaProperty.type === "array") {
-
-            // TODO: If the operator is Projection, 
+            // TODO: If the operator is Projection,
             // then add new attributes to the list
 
             let newArray = [];
@@ -126,7 +127,12 @@ export class InputSchemaPropagationService {
             let newArray = [];
             for (const index in properties[key]) {
               // console.log("items", prop.items);
-              if (updatePropertyRecurse(properties[key][index], (jsonSchemaProperty.items as CustomJSONSchema7).properties))
+              if (
+                updatePropertyRecurse(
+                  properties[key][index],
+                  (jsonSchemaProperty.items as CustomJSONSchema7).properties
+                )
+              )
                 newArray.push(properties[key][index]);
             }
             properties[key] = newArray;
