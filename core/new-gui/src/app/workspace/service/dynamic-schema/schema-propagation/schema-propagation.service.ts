@@ -1,7 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
-import { EMPTY, merge, Observable } from "rxjs";
+import { EMPTY, merge, Observable, Subject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
@@ -34,6 +34,8 @@ export class SchemaPropagationService {
     [key: string]: OperatorInputSchema;
   }> = {};
 
+  private operatorInputSchemaChangedStream = new Subject<InputSchemaChange>();
+
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
@@ -60,9 +62,23 @@ export class SchemaPropagationService {
         filter(response => response.code === 0)
       )
       .subscribe(response => {
-        const oldOperatorInputSchemaMap = this.operatorInputSchemaMap;
+        // Find out which input schema changed
+        // console.log("response.result", response.result)
+        for (const operatorID in response.result) {
+          if (isEqual(this.operatorInputSchemaMap[operatorID], response.result[operatorID]))
+            continue;
+          // console.log("----inputSchemaStream Changed!----");
+          // console.log("oldInputSchema", this.operatorInputSchemaMap[operatorID]);
+          // console.log("newInputSchema", response.result[operatorID]);
+          this.operatorInputSchemaChangedStream.next({
+            operatorID: operatorID,
+            oldInputSchema: this.operatorInputSchemaMap[operatorID],
+            newInputSchema: response.result[operatorID],
+          });
+        }
+        
         this.operatorInputSchemaMap = response.result;
-        this._applySchemaPropagationResult(this.operatorInputSchemaMap, oldOperatorInputSchemaMap);
+        this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
   }
 
@@ -82,7 +98,6 @@ export class SchemaPropagationService {
    */
   private _applySchemaPropagationResult(
     schemaPropagationResult: { [key: string]: OperatorInputSchema },
-    oldOperatorInputSchemaMap: Readonly<{ [key: string]: OperatorInputSchema }>
   ): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
@@ -90,6 +105,7 @@ export class SchemaPropagationService {
 
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
+      // console.log("schemaPropagationResult", schemaPropagationResult)
       if (schemaPropagationResult[operatorID]) {
         newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(
           currentDynamicSchema,
@@ -110,8 +126,6 @@ export class SchemaPropagationService {
         this.dynamicSchemaService.setDynamicSchema(
           operatorID,
           newDynamicSchema,
-          oldOperatorInputSchemaMap[operatorID],
-          schemaPropagationResult[operatorID]
         );
       }
     });
@@ -128,6 +142,7 @@ export class SchemaPropagationService {
     // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     // make a http post request to the API endpoint with the logical plan object
+    // console.log("invokeSchemaPropagationAPI: body", body)
     return this.httpClient
       .post<SchemaPropagationResponse>(
         `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
@@ -273,6 +288,10 @@ export class SchemaPropagationService {
       jsonSchema: newJsonSchema,
     };
   }
+
+  public getOperatorInputSchemaChangedStream(): Observable<InputSchemaChange> {
+    return this.operatorInputSchemaChangedStream.asObservable();
+  }
 }
 
 // schema: an array of attribute names and types
@@ -318,3 +337,10 @@ export interface SchemaPropagationError
     code: -1;
     message: string;
   }> {}
+
+  
+interface InputSchemaChange {
+  operatorID: string,
+  oldInputSchema: OperatorInputSchema,
+  newInputSchema: OperatorInputSchema,
+}
