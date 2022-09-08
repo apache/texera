@@ -77,6 +77,7 @@ export class WorkflowVersionService {
     this.workflowActionService.disableWorkflowModification();
     // highlight the different elements by changing the color of boudary of the operator
     // needs a list of ids of elements to be highlighted
+    console.log("123", this.differentOpIDsList);
     this.highlightOpVersionDiff(this.differentOpIDsList);
   }
 
@@ -182,6 +183,9 @@ export class WorkflowVersionService {
       if (operator1.operatorProperties[property] != operator2.operatorProperties[property]) {
         difference.set(property, "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
       }
+    }
+    if (operator1.operatorVersion != operator2.operatorVersion) {
+      difference.set("operatorVersion", "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
     }
     return difference;
   }

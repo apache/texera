@@ -341,6 +341,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
       this.fieldStyleOverride = operatorPropertyDiff[this.currentOperatorId];
     }
+    if (this.fieldStyleOverride.has("operatorVersion")) {
+      var boundary = this.fieldStyleOverride.get("operatorVersion");
+      if (boundary) {
+        document.getElementsByClassName("operator-version")[0].setAttribute("style", boundary.toString());
+      }
+    }
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
