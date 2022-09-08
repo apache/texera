@@ -8,12 +8,6 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 import { BreakpointSchema, OperatorPredicate } from "../../types/workflow-common.interface";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import {
-  OperatorInputSchema,
-  SchemaAttribute,
-  SchemaPropagationService,
-} from "./schema-propagation/schema-propagation.service";
-import { InputSchemaPropagationService } from "./input-schema-propagation/input-schema-propagation";
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 
@@ -49,8 +43,7 @@ export class DynamicSchemaService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private operatorMetadataService: OperatorMetadataService
-  ) // private schemaPropagationService: SchemaPropagationService,
-  {
+  ) {
     // when an operator is added, add it to the dynamic schema map
     this.workflowActionService
       .getTexeraGraph()
@@ -70,73 +63,6 @@ export class DynamicSchemaService {
       .getTexeraGraph()
       .getLinkDeleteStream()
       .subscribe(event => this.dynamicBreakpointSchemaMap.delete(event.deletedLink.linkID));
-  }
-
-  private updateOperatorProperty(
-    currentProperties: Readonly<{ [key: string]: any }>,
-    mapping: SchemaAttribute[][],
-    jsonSchemaProperties: { [key: string]: boolean | CustomJSONSchema7 },
-    port: number
-  ) {
-    // console.log("properties: ", currentProperties);
-    // console.log("mapping: ", mapping);
-    const updatePropertyRecurse = (
-      properties: any,
-      jsonSchema: { [key: string]: CustomJSONSchema7 | boolean } | undefined
-    ): boolean => {
-      // console.log("recurse:", properties, jsonSchema)
-      if (!jsonSchema) return false;
-      for (const key in jsonSchema) {
-        if (typeof jsonSchema[key] === "boolean") continue;
-        const jsonSchemaProperty = jsonSchema[key] as CustomJSONSchema7;
-        if (jsonSchemaProperty.autofillAttributeOnPort === port) {
-          if (jsonSchemaProperty.type === "array") {
-
-            // CHECK IF THE OPERATOR IS PROJECTION
-
-            let newArray = [];
-            // console.log(properties);
-            // TODO: low efficiency, can be improved, e.g. by using map
-            for (var i = 0; i < properties[key].length; ++i) {
-              for (var j = 0; j < mapping.length; ++j) {
-                const pair = mapping[j];
-                // console.log(properties[key][i], pair)
-                if (!pair[0] || (properties[key][i] === pair[0].attributeName && pair[1])) {
-                  newArray.push(pair[1].attributeName);
-                }
-              }
-            }
-            // console.log("newArray", newArray)
-            properties[key] = newArray;
-          } else if ((jsonSchema[key] as CustomJSONSchema7).type === "string") {
-            for (var i = 0; i < mapping.length; ++i) {
-              const pair = mapping[i];
-              if (pair[0] && properties[key] === pair[0].attributeName) {
-                if (pair[1]) properties[key] = pair[1].attributeName;
-                else return false; // the attribute was deleted
-              }
-            }
-          }
-        } else {
-          if ((jsonSchema[key] as CustomJSONSchema7).type === "object") {
-            updatePropertyRecurse(properties[key], jsonSchemaProperty.properties);
-          } else if ((jsonSchema[key] as CustomJSONSchema7).type === "array") {
-            let newArray = [];
-            for (const index in properties[key]) {
-              // console.log("items", prop.items);
-              if (updatePropertyRecurse(properties[key][index], (jsonSchemaProperty.items as CustomJSONSchema7).properties))
-                newArray.push(properties[key][index]);
-            }
-            properties[key] = newArray;
-          }
-        }
-      }
-      return true;
-    };
-    const newProperties: { [key: string]: any } = cloneDeep(currentProperties);
-    updatePropertyRecurse(newProperties, jsonSchemaProperties);
-    // console.log("after recurse", newProperties)
-    return newProperties;
   }
 
   /**
@@ -205,10 +131,7 @@ export class DynamicSchemaService {
    * If the changed new dynamic schema invalidates some property, then the invalid properties fields will be dropped.
    *
    */
-  public setDynamicSchema(
-    operatorID: string,
-    dynamicSchema: OperatorSchema,
-  ): void {
+  public setDynamicSchema(operatorID: string, dynamicSchema: OperatorSchema): void {
     const currentDynamicSchema = this.dynamicSchemaMap.get(operatorID);
 
     // do nothing if old & new schema are the same
