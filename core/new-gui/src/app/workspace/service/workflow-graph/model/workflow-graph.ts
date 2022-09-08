@@ -74,6 +74,10 @@ export class WorkflowGraph {
     operatorID: string;
     newDisplayName: string;
   }>();
+  private readonly operatorVersionChangedSubject = new Subject<{
+    operatorID: string;
+    newOperatorVersion: string;
+  }>();
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{
     deletedLink: OperatorLink;
@@ -219,6 +223,18 @@ export class WorkflowGraph {
       customDisplayName: newDisplayName,
     });
     this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
+  }
+
+  public changeOperatorVersion(operatorID: string, newOperatorVersion: string): void {
+    const operator = this.getOperator(operatorID);
+    if (operator.operatorVersion === newOperatorVersion) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, {
+      ...operator,
+      operatorVersion: newOperatorVersion,
+    });
+    this.operatorVersionChangedSubject.next({ operatorID, newOperatorVersion });
   }
 
   public isOperatorDisabled(operatorID: string): boolean {
@@ -581,6 +597,13 @@ export class WorkflowGraph {
     newDisplayName: string;
   }> {
     return this.operatorDisplayNameChangedSubject.asObservable();
+  }
+
+  public getOperatorVersionChangedStream(): Observable<{
+    operatorID: string;
+    newOperatorVersion: string;
+  }> {
+    return this.operatorVersionChangedSubject.asObservable();
   }
 
   /**
