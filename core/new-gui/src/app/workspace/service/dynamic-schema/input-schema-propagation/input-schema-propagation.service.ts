@@ -14,6 +14,16 @@ import jsonRefLite from "json-ref-lite";
 // @ts-ignore
 import { levenshtein } from "edit-distance";
 
+/**
+ * Input Schema Propagation Service propagates the change (adding, removing, and renaming) of attributes.
+ * 
+ * - When user renames an attribute through an operator, 
+ * the attribute name will be updated in all succeeding operators. 
+ * - When user deletes an attribute (e.g., deselected in a projection operator), 
+ * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid. 
+ * - Specifically, when a new attribute is added to the input schema of a projection operator, 
+ * it will include the new attribute in its projection list.
+ */
 @Injectable({
   providedIn: "root",
 })
