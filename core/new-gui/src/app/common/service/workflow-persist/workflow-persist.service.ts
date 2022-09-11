@@ -37,6 +37,7 @@ export class WorkflowPersistService {
       .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
         wid: workflow.wid,
         name: workflow.name,
+        description: workflow.description,
         content: JSON.stringify(workflow.content),
       })
       .pipe(

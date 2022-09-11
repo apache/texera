@@ -323,7 +323,7 @@ class WorkflowResource {
       workflow.getContent
       workflow.getName
       createWorkflow(
-        new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null),
+        new Workflow(workflow.getName + "_copy", workflow.getDescription, null, workflow.getContent, null, null),
         sessionUser
       )
 
@@ -401,4 +401,29 @@ class WorkflowResource {
     }
   }
 
+  /**
+    * This method updates the name of a given workflow
+    *
+    * @return Response
+    */
+  @POST
+  @Path("/update/description/{wid}/{workflowDescription}")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def updateWorkflowDescription(
+                          @PathParam("wid") wid: UInteger,
+                          @PathParam("workflowDescription") workflowDescription: String,
+                          @Auth sessionUser: SessionUser
+                        ): Unit = {
+    val user = sessionUser.getUser
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    } else if (!workflowOfUserExists(wid, user.getUid)) {
+      throw new BadRequestException("The workflow does not exist.")
+    } else {
+      val userWorkflow = workflowDao.fetchOneByWid(wid)
+      userWorkflow.setDescription(workflowDescription)
+      workflowDao.update(userWorkflow)
+    }
+  }
 }

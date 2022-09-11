@@ -27,6 +27,16 @@ public interface IWorkflow extends Serializable {
     public String getName();
 
     /**
+     * Setter for <code>texera_db.workflow.description</code>.
+     */
+    public void setDescription(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow.description</code>.
+     */
+    public String getDescription();
+
+    /**
      * Setter for <code>texera_db.workflow.wid</code>.
      */
     public void setWid(UInteger value);

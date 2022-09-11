@@ -158,22 +158,32 @@ $section-search-bar-height: 60px;
   .workflow-item-meta-description {
     display: flex;
     align-items: center;
+    padding: 2px 8px 2px 8px;
+    margin: 0 8px 0 0;
+
 
     .workflow-description {
       color: #000000;
       font-size: 13px;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      text-align: center;
+
+      display: inline-block;
+      min-width: 17ch;
+      border: 0 none;
+      outline: none;
+
+      &:hover {
+        cursor: pointer;
+        box-shadow: 0 0 0 1px rgb(202, 202, 202);
+      }
     }
 
-    .workflow-description:hover {
-      cursor: pointer;
-    }
-
-    i {
-      position: relative;
-      font-size: 13px;
-      margin-bottom: 6px;
+    .workflow-editable-description {
+      display: inline-block;
+      min-width: 17ch;
+      border: 0 none;
+      outline: none;
+      box-shadow: 0 0 0px 2px #007bff;
     }
   }
 }

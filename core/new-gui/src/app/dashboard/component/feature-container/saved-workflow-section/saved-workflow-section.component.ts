@@ -987,7 +987,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       .subscribe(() => {
         let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
         updatedDashboardWorkFlowEntry.workflow = { ...workflow };
-        // updatedDashboardWorkFlowEntry.workflow.description = description || this.defaultWorkflowDescription;
+        updatedDashboardWorkFlowEntry.workflow.description = description || this.defaultWorkflowDescription;
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;
