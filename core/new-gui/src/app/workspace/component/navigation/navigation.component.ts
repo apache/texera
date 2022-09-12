@@ -146,8 +146,6 @@ export class NavigationComponent implements OnInit {
     this.runButtonText = behavior.text;
     this.runIcon = behavior.icon;
     this.runDisable = behavior.disable;
-    console.log("123", behavior);
-    console.log("e_name ", this.currentExecutionName);
     this.onClickRunHandler = behavior.onClick;
   }
 
