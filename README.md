@@ -5,11 +5,11 @@
   <br>
   <i>Texera supports scalable computation and enables advanced AI/ML techniques.</i>
   <br>
-  <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics. <i>
+  <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics. </i>
   <br>
   
   <h4 align="center">
-    <a href="https://youtu.be/CRA-aWrJ91c">Demo Video</a>
+    <a href="https://youtu.be/2gfPUZNsoBs">Demo Video</a>
     |
     <a href="https://texera.github.io/blog/">Blogs</a>
     |
