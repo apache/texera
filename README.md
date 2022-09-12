@@ -9,7 +9,7 @@
   <br>
   
   <h4 align="center">
-    <a href="https://youtu.be/CRA-aWrJ91c">Demo Video</a>
+    <a href="https://youtu.be/2gfPUZNsoBs">Demo Video</a>
     |
     <a href="https://texera.github.io/blog/">Blogs</a>
     |
