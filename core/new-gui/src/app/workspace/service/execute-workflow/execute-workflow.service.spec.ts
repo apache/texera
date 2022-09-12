@@ -63,7 +63,7 @@ describe("ExecuteWorkflowService", () => {
     if (environment.amberEngineEnabled) {
       const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
 
-      service.executeWorkflow();
+      service.executeWorkflow("");
       tick(FORM_DEBOUNCE_TIME_MS + 1);
       flush();
       expect(wsSendSpy).toHaveBeenCalledTimes(1);
