@@ -84,7 +84,11 @@ class WorkflowJobService(
   }
 
   private[this] def createWorkflowInfo(): WorkflowInfo = {
-    var workflowInfo = WorkflowInfo(request.logicalPlan.operators, request.logicalPlan.links, request.logicalPlan.breakpoints)
+    var workflowInfo = WorkflowInfo(
+      request.logicalPlan.operators,
+      request.logicalPlan.links,
+      request.logicalPlan.breakpoints
+    )
     if (WorkflowCacheService.isAvailable) {
       workflowInfo.cachedOperatorIds = request.logicalPlan.cachedOperatorIds
       logger.debug(
