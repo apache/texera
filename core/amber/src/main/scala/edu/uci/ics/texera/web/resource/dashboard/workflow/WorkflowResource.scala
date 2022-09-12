@@ -199,6 +199,7 @@ class WorkflowResource {
       .select(
         WORKFLOW.WID,
         WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
@@ -228,12 +229,11 @@ class WorkflowResource {
           ).toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[UInteger]()
-          else workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
+          if (workflowRecord.component10() == null) List[UInteger]()
+          else workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
-
   }
 
   /**
