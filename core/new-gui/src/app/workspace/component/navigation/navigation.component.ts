@@ -58,6 +58,7 @@ export class NavigationComponent implements OnInit {
   @Input() private pid: number = 0;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
+  @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
 
@@ -145,6 +146,8 @@ export class NavigationComponent implements OnInit {
     this.runButtonText = behavior.text;
     this.runIcon = behavior.icon;
     this.runDisable = behavior.disable;
+    console.log("123", behavior);
+    console.log("e_name ", this.currentExecutionName);
     this.onClickRunHandler = behavior.onClick;
   }
 
@@ -173,7 +176,7 @@ export class NavigationComponent implements OnInit {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => this.executeWorkflowService.executeWorkflow(),
+          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName),
         };
       case ExecutionState.Initializing:
         return {
