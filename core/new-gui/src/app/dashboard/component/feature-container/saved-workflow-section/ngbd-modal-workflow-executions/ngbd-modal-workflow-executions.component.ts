@@ -11,6 +11,7 @@ import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.comp
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 import { ChartType } from "src/app/workspace/types/visualization.interface";
+import { ceil } from "lodash";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -23,10 +24,16 @@ const MAX_USERNAME_SIZE = 5;
   styleUrls: ["./ngbd-modal-workflow-executions.component.scss"],
 })
 export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewInit {
+  public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
+  public static readonly VID_PIE_CHART_ID = "#execution-vid-pie-chart";
+  public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
+  public static readonly VID_BAR_CHART = "#execution-average-vid-bar-chart";
 
   public static readonly WIDTH = 300;
   public static readonly HEIGHT = 300;
+
+  public static readonly BARCHARTWIDTH = 600;
 
   @Input() workflow!: Workflow;
   @Input() workflowName!: string;
@@ -100,6 +107,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ]);
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
+  public averageProcessingTimeDivider: number = 5;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -114,22 +122,103 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   }
 
   ngAfterViewInit() {
-    let chart = c3.generate({
+    if (this.workflow === undefined || this.workflow.wid === undefined) {
+      return;
+    }
+    this.workflowExecutionsService
+      .retrieveWorkflowExecutions(this.workflow.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflowExecutions => {
+        // generate a userName pie chart
+        const userNameData: Array<[string, ...c3.PrimitiveArray]> = [];
+        for (const row of Object.values(this.getPieChartUserNameData(workflowExecutions))) {
+          userNameData.push(row as [string, ...c3.PrimitiveArray]);
+        };
+        this.generatePieChart(userNameData, ["user name"], "User Participation Percentage Pie Chart", NgbdModalWorkflowExecutionsComponent.USERNAME_PIE_CHART_ID);
+        // generate a status pie chart
+        const statusData: Array<[string, ...c3.PrimitiveArray]> = [];
+        for (const row of Object.values(this.getPieChartStatusData(workflowExecutions))) {
+          statusData.push(row as [string, ...c3.PrimitiveArray]);
+        };
+        this.generatePieChart(statusData, ["status"], "Execution Status Percentage Pie Chart", NgbdModalWorkflowExecutionsComponent.STATUS_PIE_CHART_ID);
+        // generate a vid pie chart
+        const vIdData: Array<[string, ...c3.PrimitiveArray]> = [];
+        for (const row of Object.values(this.getPieChartVidData(workflowExecutions))) {
+          vIdData.push(row as [string, ...c3.PrimitiveArray]);
+        };
+        this.generatePieChart(vIdData, ["version id"], "Execution Version ID Percentage Pie Chart", NgbdModalWorkflowExecutionsComponent.VID_PIE_CHART_ID);
+        // generate an average processing time bar chart
+        const processTimeData: Array<[string, ...c3.PrimitiveArray]> = [["processing time"]];
+        const processTimeCategory: string[] = [];
+        Object.entries(this.getBarChartProcessTimeData(workflowExecutions)).forEach(([eId, processTime]) => {
+          processTimeData[0].push(processTime);
+          processTimeCategory.push(eId);
+        });
+        this.generateBarChart(processTimeData, processTimeCategory, "Execution Numbers", "Average Pocessing Time (ms)", "Execution Average Processing Time Bar Chart", NgbdModalWorkflowExecutionsComponent.PROCESS_TIME_BAR_CHART);
+        // generate an average vid bar chart
+        const vidData: Array<[string, ...c3.PrimitiveArray]> = [["vid"]];
+        const vidCategory: string[] = [];
+        Object.entries(this.getBarChartVidData(workflowExecutions)).forEach(([eId, vId]) => {
+          vidData[0].push(vId);
+          vidCategory.push(eId);
+        });
+        this.generateBarChart(vidData, vidCategory, "Version IDs", "Number of Version IDs", "Execution Average Version ID Bar Chart", NgbdModalWorkflowExecutionsComponent.VID_BAR_CHART);
+      });
+  }
+
+  generatePieChart(dataToDisplay: Array<[string, ...c3.PrimitiveArray]>, category: string[], title: string, chart: string) {
+    c3.generate({
       size: {
         height: NgbdModalWorkflowExecutionsComponent.HEIGHT,
         width: NgbdModalWorkflowExecutionsComponent.WIDTH,
       },
       data: {
-        columns: [["admin", 19], ["test", 1]],
+        columns: dataToDisplay,
         type: ChartType.PIE,
       },
       axis: {
         x: {
           type: "category",
-          categories: ["user name"],
+          categories: category,
         }
       },
-      bindto: NgbdModalWorkflowExecutionsComponent.STATUS_PIE_CHART_ID,
+      title: {
+        text: title,
+      },
+      bindto: chart,
+    });
+  }
+
+  generateBarChart(dataToDisplay: Array<[string, ...c3.PrimitiveArray]>, category: string[], x_label: string, y_label: string, title: string, chart: string) {
+    c3.generate({
+      size: {
+        height: NgbdModalWorkflowExecutionsComponent.BARCHARTWIDTH,
+        width: NgbdModalWorkflowExecutionsComponent.BARCHARTWIDTH,
+      },
+      data: {
+        columns: dataToDisplay,
+        type: ChartType.BAR,
+      },
+      axis: {
+        x: {
+          label: {
+            text: x_label,
+            position: "outer-right",
+          },
+          type: "category",
+          categories: category, // this categories contain the corresponding row eid
+        },
+        y: {
+          label: {
+            text: y_label,
+            position: "outer-top",
+          }
+        }
+      },
+      title: {
+        text: title,
+      },
+      bindto: chart,
     });
   }
 
@@ -277,27 +366,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
         );
     }
-  }
-
-  getPieChartStatusData(type: string) {
-    let statusData: {[key: number]: number} = {};
-    this.allExecutionEntries.forEach(execution => {
-      let status = execution.status as number;
-      statusData[status] = statusData[status] !== undefined ? statusData[status] + 1 : 1;
-    });
-    return type === "key" ? Array.from(Object.keys(statusData)) : Array.from(Object.values(statusData));
-  }
-
-  getPieChartUserNameData(rows: WorkflowExecutionsEntry[]) {
-    let userNameData: {[key: string]: [string, number]} = {};
-    rows.forEach(execution => {
-      let userName = execution.userName;
-      if (userNameData[userName] === undefined) {
-        userNameData[userName] = [userName, 0];
-      }
-      userNameData[userName][1] += 1;
-    });
-    return userNameData;
   }
 
   /* sort executions by name/username/start time/update time
@@ -502,38 +570,110 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     );
   }
 
-  generateChart() {
-    // if (this.workflow === undefined || this.workflow.wid === undefined) {
-    //   return;
-    // }
-    // this.workflowExecutionsService
-    //   .retrieveWorkflowExecutions(this.workflow.wid)
-    //   .pipe(untilDestroyed(this))
-    //   .subscribe(workflowExecutions => {
-    // const dataToDisplay: Array<[string, ...c3.PrimitiveArray]> = [];
-    // const category: string[] = Object.keys(this.getPieChartUserNameData(workflowExecutions));
-    // for (const row of Object.values(this.getPieChartUserNameData(workflowExecutions))) {
-    //   dataToDisplay.push(row as [string, ...c3.PrimitiveArray]);
-    // }
-    // console.log(this.getPieChartUserNameData(workflowExecutions));
-    // console.log(category);
-    let retsome = c3.generate({
-      size: {
-        height: NgbdModalWorkflowExecutionsComponent.HEIGHT,
-        width: NgbdModalWorkflowExecutionsComponent.WIDTH,
-      },
-      data: {
-        columns: [["admin", 19], ["test", 1]],
-        type: ChartType.PIE,
-      },
-      axis: {
-        x: {
-          type: "category",
-          categories: ["user name"],
-        }
-      },
-      bindto: NgbdModalWorkflowExecutionsComponent.STATUS_PIE_CHART_ID,
+  getPieChartStatusData(rows: WorkflowExecutionsEntry[]) {
+    const statusMap: {[key: number]: string} = {
+      0: "initializing",
+      1: "running",
+      2: "paused",
+      3: "completed",
+      4: "aborted",
+    }
+    let statusData: {[key: string]: [string, number]} = {};
+    rows.forEach(execution => {
+      let status = execution.status;
+      if (statusData[statusMap[status]] === undefined) {
+        statusData[statusMap[status]] = [statusMap[status], 0];
+      }
+      statusData[statusMap[status]][1] += 1;
     });
-      // });
+    return statusData;
+  }
+
+  getPieChartUserNameData(rows: WorkflowExecutionsEntry[]) {
+    let userNameData: {[key: string]: [string, number]} = {};
+    rows.forEach(execution => {
+      let userName = execution.userName;
+      if (userNameData[userName] === undefined) {
+        userNameData[userName] = [userName, 0];
+      }
+      userNameData[userName][1] += 1;
+    });
+    return userNameData;
+  }
+
+  getPieChartVidData(rows: WorkflowExecutionsEntry[]) {
+    let vidData: {[key: string]: [string, number]} = {};
+    rows.forEach(execution => {
+      let vId = execution.vId;
+      if (vidData[vId] === undefined) {
+        vidData[vId] = [String(vId), 0];
+      }
+      vidData[vId][1] += 1;
+    });
+    return vidData;
+  }
+
+  getBarChartProcessTimeData(rows: WorkflowExecutionsEntry[]) {
+    let processTimeData: {[key: string]: number} = {};
+    let divider: number = ceil((rows.length)/this.averageProcessingTimeDivider);
+    let tracker = 0; let totProcessTime = 0; let category: string = ""; let eIdToNumber = 1;
+    rows.forEach(execution => {
+      tracker++;
+
+      let processTime = (execution.completionTime - execution.startingTime);
+      totProcessTime += processTime;
+      if (tracker === 1) {
+        category += String(eIdToNumber);
+      }
+      if (tracker === divider) {
+        category += "-" + String(eIdToNumber);
+        processTimeData[category] = totProcessTime/divider;
+        tracker = 0; totProcessTime = 0; category = "";
+      }
+      eIdToNumber++;
+    });
+    return processTimeData;
+  }
+
+  getBarChartVidData(rows: WorkflowExecutionsEntry[]) {
+    let chartVidData: {[key: string]: number} = {};
+    rows.forEach(execution => {
+      let vId = execution.vId;
+      if (chartVidData[vId] === undefined) {
+        chartVidData[vId] = 0;
+      }
+      chartVidData[vId]++;
+    });
+
+    // let divider: number = ceil((rows.length)/5);
+    // let tracker = 0; let totVid = 0; let category: string = "";
+    // rows.forEach(execution => {
+    //   tracker++;
+
+    //   let vId = execution.vId;
+    //   let eId = execution.eId;
+    //   totVid += vId;
+    //   if (tracker === 1) {
+    //     category += String(eId);
+    //   }
+    //   if (tracker === divider) {
+    //     category += "-" + String(eId);
+    //     chartVidData[category] = totVid/divider;
+    //     tracker = 0; totVid = 0; category = "";
+    //   }
+    // });
+    return chartVidData;
+  }
+
+  switchColumnNumber(columnNumber: number) {
+    this.averageProcessingTimeDivider = columnNumber;
+    // generate an average processing time bar chart
+    const processTimeData: Array<[string, ...c3.PrimitiveArray]> = [["processing time"]];
+    const processTimeCategory: string[] = [];
+    Object.entries(this.getBarChartProcessTimeData(this.allExecutionEntries)).forEach(([eId, processTime]) => {
+      processTimeData[0].push(processTime);
+      processTimeCategory.push(eId);
+    });
+    this.generateBarChart(processTimeData, processTimeCategory, "Execution Numbers", "Average Pocessing Time (ms)", "Execution Average Processing Time Bar Chart", NgbdModalWorkflowExecutionsComponent.PROCESS_TIME_BAR_CHART);
   }
 }
