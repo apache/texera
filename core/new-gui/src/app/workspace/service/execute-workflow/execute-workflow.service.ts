@@ -182,22 +182,27 @@ export class ExecuteWorkflowService {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
-    this.workflowSnapshotService.createSnapShotCanvas(0.6, 0.2, 0.7, 0.15).then(canvas => {
-      canvas.toBlob(snapshotBlob => {
-        if (snapshotBlob === null) {
-          this.notificationService.error("Canavas Error");
-          return;
-        }
-        // upload snapshot into sql
-        this.workflowSnapshotService
-          .uploadWorkflowSnapshot(snapshotBlob, this.workflowActionService.getWorkflow().wid)
-          .pipe(untilDestroyed(this))
-          .subscribe(() => {
-            // send execution request to insert new execution
-            this.sendExecutionRequest(logicalPlan);
-          });
+    if (environment.userSystemEnabled) {
+      this.workflowSnapshotService.createSnapShotCanvas(0.6, 0.2, 0.7, 0.15).then(canvas => {
+        canvas.toBlob(snapshotBlob => {
+          if (snapshotBlob === null) {
+            this.notificationService.error("Canavas Error");
+            return;
+          }
+          // upload snapshot into sql
+          this.workflowSnapshotService
+            .uploadWorkflowSnapshot(snapshotBlob, this.workflowActionService.getWorkflow().wid)
+            .pipe(untilDestroyed(this))
+            .subscribe(() => {
+              // send execution request to insert new execution
+              this.sendExecutionRequest(logicalPlan);
+            });
+        });
       });
-    });
+    } else {
+      this.sendExecutionRequest(logicalPlan);
+    }
+
   }
 
   public sendExecutionRequest(logicalPlan: LogicalPlan): void {
