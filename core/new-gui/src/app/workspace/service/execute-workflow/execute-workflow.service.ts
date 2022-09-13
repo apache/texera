@@ -202,7 +202,6 @@ export class ExecuteWorkflowService {
     } else {
       this.sendExecutionRequest(logicalPlan);
     }
-
   }
 
   public sendExecutionRequest(logicalPlan: LogicalPlan): void {
