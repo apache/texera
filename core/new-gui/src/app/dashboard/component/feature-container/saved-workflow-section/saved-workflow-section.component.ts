@@ -101,7 +101,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
-  public isAddingDescription: boolean = false;
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
     useExtendedSearch: true,
     shouldSort: true,
@@ -995,6 +994,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         this.dashboardWorkflowEntriesIsEditingDescription = this.dashboardWorkflowEntriesIsEditingDescription.filter(
           entryIsEditingIndex => entryIsEditingIndex != index
         );
+        
       });
   }
 

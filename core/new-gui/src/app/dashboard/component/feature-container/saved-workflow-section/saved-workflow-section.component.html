@@ -280,7 +280,7 @@
                   <i nz-icon nzTheme="outline" nzType="edit"></i>
                 </button>
                 <button
-                  onClick="isAddingDescription=true"
+                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
                   nz-button
                   nz-tooltip="Add Description"
                   nzSize="small"
@@ -312,7 +312,7 @@
             <nz-list-item-meta-description>
               <div class="workflow-item-meta-description">
                 <label
-                  *ngIf="dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1; else customWorkflowDescription "
+                  *ngIf="(dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1); else customWorkflowDescription "
                   (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
                   class="workflow-description"
                   >
