@@ -1,6 +1,6 @@
 import { fromEvent, Observable, ReplaySubject, Subject, merge } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { Point } from "../../../types/workflow-common.interface";
+import { OperatorLink, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
@@ -360,9 +360,10 @@ export class JointGraphWrapper {
    */
   public highlightOperators(...operatorIDs: string[]): void {
     const highlightedOperatorIDs: string[] = [];
-    operatorIDs.forEach(operatorID =>
-      this.highlightElement(operatorID, this.currentHighlightedOperators, highlightedOperatorIDs)
-    );
+    operatorIDs.forEach(operatorID => {
+      this.highlightElement(operatorID, this.currentHighlightedOperators, highlightedOperatorIDs);
+    });
+
     if (highlightedOperatorIDs.length > 0) {
       this.jointOperatorHighlightStream.next(highlightedOperatorIDs);
     }
@@ -381,6 +382,7 @@ export class JointGraphWrapper {
     operatorIDs.forEach(operatorID =>
       this.unhighlightElement(operatorID, this.currentHighlightedOperators, unhighlightedOperatorIDs)
     );
+
     if (unhighlightedOperatorIDs.length > 0) {
       this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);
     }
