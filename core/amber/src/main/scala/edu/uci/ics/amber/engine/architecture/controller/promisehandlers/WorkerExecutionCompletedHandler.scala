@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.CONTROLLER
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
 
 import scala.collection.mutable

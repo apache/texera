@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Evaluate
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 
 object EvaluatePythonExpressionHandler {
@@ -17,11 +18,13 @@ trait EvaluatePythonExpressionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
   registerHandler { (msg: EvaluatePythonExpression, sender) =>
     {
+      val operatorId = new OperatorIdentity(workflow.workflowId.id, msg.operatorId)
+      val operators =  workflow.getOperator(operatorId)
+      assert(operators.size == 1)
+      val operator = operators.head
 
       Future
-        .collect(
-          workflow
-            .getOperator(msg.operatorId)
+        .collect(operator
             .getAllWorkers
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList

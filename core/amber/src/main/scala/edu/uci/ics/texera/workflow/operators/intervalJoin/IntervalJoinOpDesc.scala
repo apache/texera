@@ -4,20 +4,14 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.{ManyToOneOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
+import edu.uci.ics.amber.engine.common.Constants.defaultBatchSize
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.getBuildTableLinkId
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
@@ -58,19 +52,37 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("Year, Month, Day, Hour, Minute or Second")
   var timeIntervalType: Option[TimeIntervalType] = _
 
-  @JsonIgnore
-  var opExecConfig: IntervalJoinExecConfig = _
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    val partitionRequirement = List(
+      Option(
+        HashBasedShufflePartitioning(
+          defaultBatchSize,
+          List(),
+          List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName))
+        )
+      ),
+      Option(
+        HashBasedShufflePartitioning(
+          defaultBatchSize,
+          List(),
+          List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))
+        )
+      ))
 
-    opExecConfig = new IntervalJoinExecConfig(
+    WorkerLayer.oneToOneLayer(
       operatorIdentifier,
-      leftAttributeName,
-      rightAttributeName,
-      operatorSchemaInfo,
-      this
+      p => new IntervalJoinOpExec(
+        operatorSchemaInfo,
+        this,
+        getBuildTableLinkId(p._2))
+    ).copy(
+      inputPorts = operatorInfo.inputPorts,
+      outputPorts = operatorInfo.outputPorts,
+      partitionRequirement = partitionRequirement,
+      blockingInputs = List(0),
+      dependency = Map(1 -> 0),
     )
-    opExecConfig
 
   }
 
@@ -99,13 +111,6 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
     this.includeLeftBound = includeLeftBound
     this.includeRightBound = includeRightBound
     this.timeIntervalType = Some(timeIntervalType)
-    this.opExecConfig = new IntervalJoinExecConfig(
-      OperatorIdentity("test", "test"),
-      leftTableAttributeName,
-      rightTableAttributeName,
-      OperatorSchemaInfo(schemas, Array(getOutputSchema(schemas))),
-      this
-    )
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

@@ -1,31 +1,15 @@
 package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList
-}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  AggregatedVizOpExecConfig,
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.operators.visualization.{AggregatedVizOpExecConfig, VisualizationConstants, VisualizationOperator}
 
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
@@ -55,7 +39,7 @@ class BarChartOpDesc extends VisualizationOperator {
 
   def resultAttributeNames: List[String] = if (noDataCol) List("count") else dataColumns
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo) = {
     if (nameColumn == null || nameColumn == "") {
       throw new RuntimeException("bar chart: name column is null or empty")
     }
@@ -98,10 +82,10 @@ class BarChartOpDesc extends VisualizationOperator {
           },
           groupByFunc()
         )
-    new AggregatedVizOpExecConfig(
+    AggregatedVizOpExecConfig.opExecPhysicalPlan(
       operatorIdentifier,
       aggregation,
-      new BarChartOpExec(this, operatorSchemaInfo),
+      _ => new BarChartOpExec(this, operatorSchemaInfo),
       operatorSchemaInfo
     )
   }
@@ -166,5 +150,9 @@ class BarChartOpDesc extends VisualizationOperator {
       }
       groupBySchema
     }
+  }
+
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): WorkerLayer = {
+    throw new UnsupportedOperationException("multi layer operators use operatorExecutorMultiLayer")
   }
 }

@@ -1,13 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.Address
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 
 trait DeploymentFilter extends Serializable {
 
   def filter(
-      prev: Array[(OpExecConfig, WorkerLayer)],
+      prev: Array[WorkerLayer],
       all: Array[Address],
       local: Address
   ): Array[Address]

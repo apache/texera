@@ -16,12 +16,12 @@ import scala.collection.mutable
 class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
-    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = ???
+    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
   }
   private class TempTestSinkOpDesc extends SinkOpDesc {
-    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = ???
+    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
     override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -56,7 +56,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     val mlVizSchema = Schema.newBuilder().add("visualization", AttributeType.STRING).build()
 
     val mlTrainingOp = new OperatorDescriptor() {
-      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = ???
+      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
@@ -78,7 +78,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     mlTrainingOp.operatorID = "mlTrainingOp"
 
     val mlInferOp = new OperatorDescriptor() {
-      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = ???
+      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
@@ -104,39 +104,47 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     val inferenceSink = new TempTestSinkOpDesc
     inferenceSink.operatorID = "inferenceSink"
 
-    val operators = new mutable.MutableList[OperatorDescriptor]()
-    operators += (trainingScan, testingScan, inferenceScan, mlTrainingOp, mlInferOp, mlVizSink, inferenceSink)
-
-    val links = new mutable.MutableList[OperatorLink]()
-    links += OperatorLink(
-      OperatorPort(trainingScan.operatorID),
-      OperatorPort(mlTrainingOp.operatorID, 0)
-    )
-    links += OperatorLink(
-      OperatorPort(testingScan.operatorID),
-      OperatorPort(mlTrainingOp.operatorID, 1)
-    )
-    links += OperatorLink(
-      OperatorPort(inferenceScan.operatorID),
-      OperatorPort(mlInferOp.operatorID, 1)
-    )
-    links += OperatorLink(
-      OperatorPort(mlTrainingOp.operatorID, 0),
-      OperatorPort(mlVizSink.operatorID)
-    )
-    links += OperatorLink(
-      OperatorPort(mlTrainingOp.operatorID, 1),
-      OperatorPort(mlInferOp.operatorID, 0)
-    )
-    links += OperatorLink(
-      OperatorPort(mlInferOp.operatorID, 0),
-      OperatorPort(inferenceSink.operatorID, 0)
+    val operators = List(
+      trainingScan,
+      testingScan,
+      inferenceScan,
+      mlTrainingOp,
+      mlInferOp,
+      mlVizSink,
+      inferenceSink
     )
 
-    val workflowInfo = new WorkflowInfo(operators, links, new mutable.MutableList[BreakpointInfo]())
+    val links = List(
+      OperatorLink(
+        OperatorPort(trainingScan.operatorID),
+        OperatorPort(mlTrainingOp.operatorID, 0)
+      ),
+      OperatorLink(
+        OperatorPort(testingScan.operatorID),
+        OperatorPort(mlTrainingOp.operatorID, 1)
+      ),
+      OperatorLink(
+        OperatorPort(inferenceScan.operatorID),
+        OperatorPort(mlInferOp.operatorID, 1)
+      ),
+      OperatorLink(
+        OperatorPort(mlTrainingOp.operatorID, 0),
+        OperatorPort(mlVizSink.operatorID)
+      ),
+      OperatorLink(
+        OperatorPort(mlTrainingOp.operatorID, 1),
+        OperatorPort(mlInferOp.operatorID, 0)
+      ),
+      OperatorLink(
+        OperatorPort(mlInferOp.operatorID, 0),
+        OperatorPort(inferenceSink.operatorID, 0)
+      )
+    )
+
+    val workflowInfo = new LogicalPlan(operators, links, List())
     val workflowCompiler = new WorkflowCompiler(workflowInfo, new WorkflowContext())
 
-    val schemaResult = workflowCompiler.propagateWorkflowSchema()
+    val schemaResult = workflowCompiler.logicalPlan.propagateWorkflowSchema()
 
     assert(schemaResult(mlTrainingOp).head.get.equals(dataSchema))
     assert(schemaResult(mlTrainingOp)(1).get.equals(dataSchema))

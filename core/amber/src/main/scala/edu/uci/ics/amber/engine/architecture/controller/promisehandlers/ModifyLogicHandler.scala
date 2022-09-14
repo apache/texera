@@ -29,8 +29,7 @@ trait ModifyLogicHandler {
   registerHandler { (msg: ModifyLogic, sender) =>
     {
       val operatorUUID = msg.operatorDescriptor.operatorID
-      val operatorId = new OperatorIdentity(msg.operatorDescriptor.context.jobId, operatorUUID)
-      val operator = workflow.getOperator(operatorId)
+      val operatorId = new OperatorIdentity(workflow.workflowId.id, operatorUUID)
       val modifyOperatorLogic: ModifyOperatorLogic = msg.operatorDescriptor match {
         case desc: PythonUDFOpDescV2 =>
           ModifyOperatorLogic(desc.code, isSource = false)
@@ -40,6 +39,11 @@ trait ModifyLogicHandler {
           logger.error(s"Unsupported operator for Modify Logic: $desc")
           null
       }
+
+      val operators =  workflow.getOperator(operatorId)
+      assert(operators.size == 1)
+      val operator = operators.head
+
       Future
         .collect(operator.getAllWorkers.map { worker =>
           send(modifyOperatorLogic, worker).onFailure((err: Throwable) => {

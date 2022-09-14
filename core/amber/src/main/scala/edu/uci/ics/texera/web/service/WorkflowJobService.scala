@@ -13,12 +13,8 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READ
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter
-}
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan.toJgraphtDAG
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, LogicalPlan, WorkflowRewriter}
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
@@ -31,7 +27,7 @@ class WorkflowJobService(
     with LazyLogging {
 
   val stateStore = new JobStateStore()
-  val workflowInfo: WorkflowInfo = createWorkflowInfo()
+  val workflowInfo: LogicalPlan = createWorkflowInfo()
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo)
   val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
@@ -82,8 +78,8 @@ class WorkflowJobService(
     )
   }
 
-  private[this] def createWorkflowInfo(): WorkflowInfo = {
-    var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
+  private[this] def createWorkflowInfo(): LogicalPlan = {
+    var workflowInfo = new LogicalPlan(request.operators, request.links, request.breakpoints)
     if (WorkflowCacheService.isAvailable) {
       workflowInfo.cachedOperatorIds = request.cachedOperatorIds
       logger.debug(
@@ -102,14 +98,14 @@ class WorkflowJobService(
       workflowInfo = newWorkflowInfo
       workflowInfo.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
       logger.info(
-        s"Rewrite the original workflow: ${toJgraphtDAG(oldWorkflowInfo)} to be: ${toJgraphtDAG(workflowInfo)}"
+        s"Rewrite the original workflow: ${oldWorkflowInfo} to be: ${workflowInfo}"
       )
     }
     workflowInfo
   }
 
   private[this] def createWorkflowCompiler(
-      workflowInfo: WorkflowInfo
+      workflowInfo: LogicalPlan
   ): WorkflowCompiler = {
     val compiler = new WorkflowCompiler(workflowInfo, workflowContext)
     val violations = compiler.validate

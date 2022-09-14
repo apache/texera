@@ -26,7 +26,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import org.scalamock.scalatest.MockFactory

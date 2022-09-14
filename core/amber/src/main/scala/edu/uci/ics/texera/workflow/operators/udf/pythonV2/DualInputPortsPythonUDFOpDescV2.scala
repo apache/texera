@@ -3,22 +3,12 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV2
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.{
-  ManyToOneOpExecConfig,
-  OneToOneOpExecConfig,
-  OperatorDescriptor
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonProperty(
@@ -58,12 +48,12 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   )
   var outputColumns: List[Attribute] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val exec = (i: Any) => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1)
-      new OneToOneOpExecConfig(operatorIdentifier, exec, workers, mutable.Map(1 -> 0))
-    else new ManyToOneOpExecConfig(operatorIdentifier, exec, mutable.Map(1 -> 0))
+      WorkerLayer.oneToOneLayer(operatorIdentifier, exec).copy(numWorkers = workers, dependency = Map(1 -> 0))
+    else WorkerLayer.manyToOneLayer(operatorIdentifier, exec).copy(dependency = Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =

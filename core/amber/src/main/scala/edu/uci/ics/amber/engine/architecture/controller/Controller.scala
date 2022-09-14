@@ -29,7 +29,7 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 

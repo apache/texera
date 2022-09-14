@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.InputPort
@@ -12,10 +13,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
@@ -55,7 +53,7 @@ class PieChartOpDesc extends VisualizationOperator {
   def noDataCol: Boolean = dataColumn == null || dataColumn.equals("")
   def resultAttributeNames: List[String] = if (noDataCol) List("count") else List(dataColumn)
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo) = {
     if (nameColumn == null) throw new RuntimeException("pie chart: name column is null")
     if (pruneRatio < 0 || pruneRatio > 1)
       throw new RuntimeException("pie chart: prune ratio not within in [0,1]")
@@ -98,16 +96,15 @@ class PieChartOpDesc extends VisualizationOperator {
           },
           groupByFunc()
         )
-    new PieChartOpExecConfig(
+    PieChartOpExecConfig.opExecPhysicalPlan(
       this.operatorIdentifier,
-      Constants.currentWorkerNum,
-      nameColumn,
-      dataColumn,
-      pruneRatio,
       aggregation,
+      _ => new PieChartOpPartialExec(nameColumn, dataColumn),
+      _ => new PieChartOpFinalExec(pruneRatio, dataColumn),
       operatorSchemaInfo
     )
   }
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Pie Chart",
@@ -168,5 +165,9 @@ class PieChartOpDesc extends VisualizationOperator {
       }
       groupBySchema
     }
+  }
+
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): WorkerLayer = {
+    throw new UnsupportedOperationException("implemented in operatorExecutorMultiLayer")
   }
 }

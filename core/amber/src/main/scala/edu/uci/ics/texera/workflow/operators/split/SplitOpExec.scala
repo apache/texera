@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -14,11 +15,12 @@ import scala.util.Random
 class SplitOpExec(
     val actor: Int,
     val opDesc: SplitOpDesc,
-    val outputMapping: mutable.HashMap[LinkIdentity, (Int, String)]
+    val outputPorts: List[OutputPort],
+    val outputMapping: Map[LinkIdentity, Int]
 ) extends OperatorExecutor {
 
   val outputLinkMapping: Map[String, LinkIdentity] =
-    this.outputMapping.toMap.mapValues(v => v._2).map(_.swap);
+    this.outputMapping.mapValues(index => outputPorts(index).displayName).map(_.swap)
 
   val random = new Random(opDesc.seeds(actor))
 

@@ -3,21 +3,25 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
+import edu.uci.ics.amber.engine.common.Constants.defaultBatchSize
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.getBuildTableLinkId
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+
+object HashJoinOpDesc {
+
+  def getBuildTableLinkId(layer: WorkerLayer): LinkIdentity = {
+    layer.inputToOrdinalMapping.find(input => input._2 == 0).get._1
+  }
+}
 
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
@@ -38,18 +42,39 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonPropertyDescription("select the join type to execute")
   var joinType: JoinType = JoinType.INNER
 
-  @JsonIgnore
-  var opExecConfig: HashJoinOpExecConfig[K] = _
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    val partitionRequirement = List(
+      Option(
+        HashBasedShufflePartitioning(
+          defaultBatchSize,
+          List(),
+          List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))
+        )
+      ),
+      Option(
+        HashBasedShufflePartitioning(
+          defaultBatchSize,
+          List(),
+          List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))
+        )
+      ))
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    opExecConfig = new HashJoinOpExecConfig[K](
+    WorkerLayer.oneToOneLayer(
       operatorIdentifier,
-      probeAttributeName,
-      buildAttributeName,
-      joinType,
-      operatorSchemaInfo
+      p => new HashJoinOpExec[K](
+        getBuildTableLinkId(p._2),
+        buildAttributeName,
+        probeAttributeName,
+        joinType,
+        operatorSchemaInfo)
+    ).copy(
+      inputPorts = operatorInfo.inputPorts,
+      outputPorts = operatorInfo.outputPorts,
+      partitionRequirement = partitionRequirement,
+      blockingInputs = List(0),
+      dependency = Map(1 -> 0),
     )
-    opExecConfig
+
   }
 
   override def operatorInfo: OperatorInfo =

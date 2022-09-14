@@ -27,7 +27,7 @@ object WorkflowRewriter {
 }
 
 class WorkflowRewriter(
-    val workflowInfo: WorkflowInfo,
+    val workflowInfo: LogicalPlan,
     val cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
     val cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
     val cacheSinkOperatorDescriptors: mutable.HashMap[String, ProgressiveSinkOpDesc],
@@ -37,7 +37,7 @@ class WorkflowRewriter(
 
   var visitedOpIdSet: mutable.HashSet[String] = new mutable.HashSet[String]()
 
-  private def workflowDAG: workflowInfo.WorkflowDAG = workflowInfo.toDAG
+  private def workflowDAG = workflowInfo
 
   private val rewrittenToCacheOperatorIDs = if (null != workflowInfo) {
     new mutable.HashSet[String]()
@@ -80,9 +80,9 @@ class WorkflowRewriter(
     null
   }
 
-  var addCacheSourceWorkflowInfo: WorkflowInfo = _
+  var addCacheSourceWorkflowInfo: LogicalPlan = _
 
-  def rewrite: WorkflowInfo = {
+  def rewrite: LogicalPlan = {
     if (null == workflowInfo) {
       logger.debug("Rewriting workflow null")
       null
@@ -110,23 +110,30 @@ class WorkflowRewriter(
       addCacheSourceNewLinks.clear()
       addCacheSourceTmpLinks.foreach(addCacheSourceNewLinks.+=)
 
-      addCacheSourceWorkflowInfo =
-        WorkflowInfo(addCacheSourceNewOps, addCacheSourceNewLinks, addCacheSourceNewBreakpoints)
-      addCacheSourceWorkflowInfo.toDAG.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
+      addCacheSourceWorkflowInfo = new LogicalPlan(
+        addCacheSourceNewOps.toList,
+        addCacheSourceNewLinks.toList,
+        addCacheSourceNewBreakpoints.toList
+      )
+      addCacheSourceWorkflowInfo.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
 
       // Topological traverse and add cache sink operators.
-      val addCacheSinkOpIdIter = addCacheSourceWorkflowInfo.toDAG.jgraphtDag.iterator()
+      val addCacheSinkOpIdIter = addCacheSourceWorkflowInfo.jgraphtDag.iterator()
       var addCacheSinkOpIds: mutable.MutableList[String] = mutable.MutableList[String]()
       addCacheSinkOpIdIter.forEachRemaining(opId => addCacheSinkOpIds.+=(opId))
       addCacheSinkOpIds = addCacheSinkOpIds.reverse
       addCacheSinkOpIds.foreach(addCacheSink)
 
-      new WorkflowInfo(addCacheSinkNewOps, addCacheSinkNewLinks, addCacheSinkNewBreakpoints)
+      new LogicalPlan(
+        addCacheSinkNewOps.toList,
+        addCacheSinkNewLinks.toList,
+        addCacheSinkNewBreakpoints.toList
+      )
     }
   }
 
   private def addCacheSink(opId: String): Unit = {
-    val op = addCacheSourceWorkflowInfo.toDAG.getOperator(opId)
+    val op = addCacheSourceWorkflowInfo.getOperator(opId)
     if (isCacheEnabled(op) && !isCacheValid(op)) {
       val cacheSinkOp = generateCacheSinkOperator(op)
       val cacheSinkLink = generateCacheSinkLink(cacheSinkOp, op)
@@ -134,7 +141,7 @@ class WorkflowRewriter(
       addCacheSinkNewLinks += cacheSinkLink
     }
     addCacheSinkNewOps += op
-    addCacheSourceWorkflowInfo.toDAG.jgraphtDag
+    addCacheSourceWorkflowInfo.jgraphtDag
       .outgoingEdgesOf(opId)
       .forEach(link => {
         addCacheSinkNewLinks += link
@@ -255,8 +262,7 @@ class WorkflowRewriter(
         invalidateIfUpdatedForCacheStatusUpdate(opId)
       }
     }
-    workflowInfo.operators
-      .map(op => op.operatorID)
+    workflowInfo.operators.keys
       .filterNot(visitedOpIdSet.contains)
       .foreach(invalidSet.+=)
     invalidSet

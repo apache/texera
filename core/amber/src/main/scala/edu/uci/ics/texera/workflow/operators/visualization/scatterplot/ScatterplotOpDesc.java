@@ -3,7 +3,10 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayerImpl;
 import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -55,7 +58,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public WorkerLayerImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         AttributeType xType = operatorSchemaInfo.inputSchemas()[0].getAttribute(xColumn).getType();
         AttributeType yType = operatorSchemaInfo.inputSchemas()[0].getAttribute(yColumn).getType();
         Set<AttributeType> allowedAttributeTypesNumbersOnly = EnumSet.of(DOUBLE, INTEGER); //currently, the frontend has limitation it doesn't accept axes of type long
@@ -68,7 +71,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if(isGeometric){
             numWorkers = 1;
         }
-        return new ScatterplotOpExecConfig(this.operatorIdentifier(),this, numWorkers, operatorSchemaInfo);
+        return WorkerLayer.oneToOneLayer(this.operatorIdentifier(), p -> new ScatterplotOpExec(this, operatorSchemaInfo));
     }
 
     @Override

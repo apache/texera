@@ -1,18 +1,19 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.texera.workflow.common.metadata._
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    WorkerLayer.oneToOneLayer(
       operatorIdentifier,
       _ => new ProjectionOpExec(attributes, operatorSchemaInfo)
     )

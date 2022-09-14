@@ -2,10 +2,11 @@ package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
@@ -23,14 +24,8 @@ import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDe
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
-  CSVOldScanSourceOpDesc,
-  CSVScanSourceOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
@@ -38,10 +33,7 @@ import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSou
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2
-}
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
@@ -56,6 +48,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import java.util.UUID
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.csvOld.CSVOldScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 
 @JsonTypeInfo(
@@ -126,7 +119,13 @@ abstract class OperatorDescriptor extends Serializable {
 
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
-  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
+  // a logical operator corresponds to a single physical operator
+  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): WorkerLayer
+
+  // a logical operator corresponds multiple physical operators (a small DAG)
+  def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
+    new PhysicalPlan(List(operatorExecutor(operatorSchemaInfo)), List())
+  }
 
   def operatorInfo: OperatorInfo
 

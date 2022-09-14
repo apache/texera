@@ -1,10 +1,12 @@
 package edu.uci.ics.texera.web.resource
 
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
+import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 import io.dropwizard.auth.Auth
 
 import javax.annotation.security.PermitAll
@@ -24,17 +26,17 @@ class SchemaPropagationResource {
       @Auth sessionUser: SessionUser
   ): SchemaPropagationResponse = {
     try {
-      val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowInfo])
+      val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowExecuteRequest])
 
       val context = new WorkflowContext
       context.userId = Option(sessionUser.getUser.getUid)
 
       val texeraWorkflowCompiler = new WorkflowCompiler(
-        WorkflowInfo(workflow.operators, workflow.links, workflow.breakpoints),
+        new LogicalPlan(workflow.operators, workflow.links, workflow.breakpoints),
         context
       )
 
-      val schemaPropagationResult = texeraWorkflowCompiler
+      val schemaPropagationResult = texeraWorkflowCompiler.logicalPlan
         .propagateWorkflowSchema()
         .map(e => (e._1.operatorID, e._2.map(s => s.map(o => o.getAttributesScala))))
       SchemaPropagationResponse(0, schemaPropagationResult, null)

@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   OperatorLink,
   OperatorPort,
   WorkflowCompiler,
-  WorkflowInfo
+  LogicalPlan
 }
 import org.scalatest.BeforeAndAfterAll
 
@@ -45,8 +45,8 @@ class PauseSpec
   }
 
   def shouldPause(
-      operators: mutable.MutableList[OperatorDescriptor],
-      links: mutable.MutableList[OperatorLink]
+      operators: List[OperatorDescriptor],
+      links: List[OperatorLink]
   ): Unit = {
     val client =
       new AmberClient(
@@ -76,8 +76,8 @@ class PauseSpec
     val sink = TestOperators.sinkOpDesc()
     logger.info(s"csv-id ${csvOpDesc.operatorID}, sink-id ${sink.operatorID}")
     shouldPause(
-      mutable.MutableList[OperatorDescriptor](csvOpDesc, sink),
-      mutable.MutableList[OperatorLink](
+      List(csvOpDesc, sink),
+      List(
         OperatorLink(OperatorPort(csvOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
@@ -91,8 +91,8 @@ class PauseSpec
       s"csv-id ${csvOpDesc.operatorID}, keyword-id ${keywordOpDesc.operatorID}, sink-id ${sink.operatorID}"
     )
     shouldPause(
-      mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, sink),
-      mutable.MutableList[OperatorLink](
+      List(csvOpDesc, keywordOpDesc, sink),
+      List(
         OperatorLink(
           OperatorPort(csvOpDesc.operatorID, 0),
           OperatorPort(keywordOpDesc.operatorID, 0)

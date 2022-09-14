@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.SELF
 
 import scala.collection.mutable
 import scala.concurrent.duration._

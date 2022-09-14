@@ -2,15 +2,11 @@ package edu.uci.ics.texera.workflow.operators.reservoirsampling
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
 import scala.util.Random
@@ -41,10 +37,10 @@ class ReservoirSamplingOpDesc extends OperatorDescriptor {
     kPerActor(actor)
   }
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    WorkerLayer.oneToOneLayer(
       operatorIdentifier,
-      (actor: Int) => new ReservoirSamplingOpExec(actor, this)
+      p => new ReservoirSamplingOpExec(p._1, this)
     )
   }
 

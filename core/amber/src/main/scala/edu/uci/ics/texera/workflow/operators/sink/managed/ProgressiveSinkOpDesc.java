@@ -2,7 +2,9 @@ package edu.uci.ics.texera.workflow.operators.sink.managed;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayerImpl;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -37,8 +39,11 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     private Option<String> cachedUpstreamId = Option.empty();
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return new ProgressiveSinkOpExecConfig(operatorIdentifier(), operatorSchemaInfo, outputMode, storage);
+    public WorkerLayerImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+        return WorkerLayer.localLayer(
+                operatorIdentifier(),
+                p -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter())
+        );
     }
 
     @Override
