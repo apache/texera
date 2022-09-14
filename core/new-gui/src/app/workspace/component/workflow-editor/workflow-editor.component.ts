@@ -1193,6 +1193,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .filter(
             operatorID => !this.workflowActionService.getOperatorGroup().getGroupByOperator(operatorID)?.collapsed
           );
+        const allLinks = this.workflowActionService
+          .getTexeraGraph()
+          .getAllLinks()
+          .map(link => link.linkID);
         const allGroups = this.workflowActionService
           .getOperatorGroup()
           .getAllGroups()
@@ -1201,6 +1205,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getJointGraphWrapper()
           .setMultiSelectMode(allOperators.length + allGroups.length > 1);
         this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
+        this.workflowActionService.highlightLinks(allLinks.length > 1, ...allLinks);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
       });
   }
