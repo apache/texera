@@ -166,7 +166,6 @@ export class WorkflowActionService {
     return this.enableModificationStream.asObservable();
   }
 
-  // TODO: process separately
   public handleJointLinkAdd(): void {
   }
 
@@ -333,6 +332,9 @@ export class WorkflowActionService {
         this.addLinksInternal(links);
         if (breakpoints !== undefined) {
           breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
+        }
+        for (let link of links) {
+          this.jointGraphWrapper.highlightLinks(link.linkID);
         }
       }
       if (isDefined(commentBoxes)) {
@@ -505,9 +507,11 @@ export class WorkflowActionService {
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
-      // operators shouldn't be highlighted during page reload
+      // operators and links shouldn't be highlighted during page reload
       const jointGraphWrapper = this.getJointGraphWrapper();
       jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+      jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
+
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
