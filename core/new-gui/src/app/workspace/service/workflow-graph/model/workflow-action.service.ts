@@ -59,10 +59,9 @@ type GroupInfo = {
 })
 export class WorkflowActionService {
   private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
-  private static readonly DEFAULT_WORKFLOW_DESCRIPTION = "A Texera workflow.";
   private static readonly DEFAULT_WORKFLOW = {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
-    description: WorkflowActionService.DEFAULT_WORKFLOW_DESCRIPTION,
+    description: undefined,
     wid: undefined,
     creationTime: undefined,
     lastModifiedTime: undefined,

@@ -17,7 +17,6 @@ export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
-export const DEFAULT_WORKFLOW_DESCRIPTION = "A Texera workflow.";
 
 @Injectable({
   providedIn: "root",
@@ -125,7 +124,7 @@ export class WorkflowPersistService {
   /**
    * updates the description of a given workflow, the user in the session must own the workflow.
    */
-   public updateWorkflowDescription(wid: number | undefined, description: string): Observable<Response> {
+   public updateWorkflowDescription(wid: number | undefined, description: string | undefined): Observable<Response> {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}/${wid}/${description}`, null)
       .pipe(

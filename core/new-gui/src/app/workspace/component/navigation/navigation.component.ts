@@ -4,7 +4,6 @@ import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
-  DEFAULT_WORKFLOW_DESCRIPTION,
   WorkflowPersistService,
 } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";

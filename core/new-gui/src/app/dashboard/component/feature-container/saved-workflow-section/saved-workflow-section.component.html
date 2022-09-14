@@ -279,6 +279,16 @@
                 >
                   <i nz-icon nzTheme="outline" nzType="edit"></i>
                 </button>
+                <button
+                  onClick="isAddingDescription=true"
+                  nz-button
+                  nz-tooltip="Add Description"
+                  nzSize="small"
+                  nzTooltipPlacement="bottom"
+                  nzType="text"
+                >
+                  <i nz-icon nzTheme="outline" nzType="plus-square"></i>
+                </button>
                 <i
                   *ngIf="dashboardWorkflowEntry.isOwner"
                   ngbTooltip="You are the owner"

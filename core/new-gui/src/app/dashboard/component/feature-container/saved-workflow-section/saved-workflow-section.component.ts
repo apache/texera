@@ -5,7 +5,6 @@ import { remove } from "lodash-es";
 import { from, Observable, map } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
-  DEFAULT_WORKFLOW_DESCRIPTION,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
@@ -102,6 +101,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
+  public isAddingDescription: boolean = false;
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
     useExtendedSearch: true,
     shouldSort: true,
@@ -118,7 +118,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
-  private defaultWorkflowDescription: string = DEFAULT_WORKFLOW_DESCRIPTION;
 
   public searchCriteria: string[] = ["owner", "id", "ctime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
@@ -982,12 +981,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   ): void {
     const { workflow } = dashboardWorkflowEntry;
     this.workflowPersistService
-      .updateWorkflowDescription(workflow.wid, description || this.defaultWorkflowDescription)
+      .updateWorkflowDescription(workflow.wid, description)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
         updatedDashboardWorkFlowEntry.workflow = { ...workflow };
-        updatedDashboardWorkFlowEntry.workflow.description = description || this.defaultWorkflowDescription;
+        updatedDashboardWorkFlowEntry.workflow.description = description;
         const newEntries = this.dashboardWorkflowEntries.slice();
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;
