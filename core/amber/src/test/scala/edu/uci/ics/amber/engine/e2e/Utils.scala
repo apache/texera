@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
   OperatorLink,
   WorkflowCompiler,
-  WorkflowInfo
+  LogicalPlan
 }
 
 import scala.collection.mutable
@@ -18,8 +18,8 @@ import scala.collection.mutable
 object Utils {
 
   def getWorkflow(
-      operators: mutable.MutableList[OperatorDescriptor],
-      links: mutable.MutableList[OperatorLink],
+      operators: List[OperatorDescriptor],
+      links: List[OperatorLink],
       jobId: String = "workflow-test",
       workflowTag: String = "workflow-test"
   ): Workflow = {
@@ -27,7 +27,7 @@ object Utils {
     context.jobId = jobId
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
+      new LogicalPlan(operators, links, List[BreakpointInfo]()),
       context
     )
 

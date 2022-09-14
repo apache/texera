@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Rand
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader
@@ -16,7 +16,7 @@ class ProgressiveSinkOpExecConfig(
     val operatorSchemaInfo: OperatorSchemaInfo,
     outputMode: IncrementalOutputMode,
     storage: SinkStorageReader
-) extends OpExecConfig(tag) {
+) extends SinkOpExecConfig(tag) {
   override lazy val topology = new Topology(
     Array(
       new WorkerLayer(
