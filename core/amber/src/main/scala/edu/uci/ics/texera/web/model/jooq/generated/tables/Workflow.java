@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = -642164538;
+    private static final long serialVersionUID = 860337939;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -58,7 +58,7 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     /**
      * The column <code>texera_db.workflow.description</code>.
      */
-    public final TableField<WorkflowRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(500).nullable(false).defaultValue(org.jooq.impl.DSL.inline("A Texera workflow.", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
+    public final TableField<WorkflowRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
 
     /**
      * The column <code>texera_db.workflow.wid</code>.
