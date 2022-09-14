@@ -130,8 +130,8 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
         workflowInfo.toDAG.operators,
         inputSchemaMap,
         workflowId,
-        amberOperators,
-        outLinks,
+        amberOperators, // may get changed as materialization operators can be added
+        outLinks, // may get changed as links to materialization operators can be added
         opResultStorage
       )
         .buildPipelinedRegions()
