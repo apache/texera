@@ -422,7 +422,7 @@ class WorkflowResource {
       throw new BadRequestException("The workflow does not exist.")
     } else {
       val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setDescription(workflowDescription)
+      userWorkflow.setDescription(workflowDescription.slice(1, workflowDescription.length-1))
       workflowDao.update(userWorkflow)
     }
   }

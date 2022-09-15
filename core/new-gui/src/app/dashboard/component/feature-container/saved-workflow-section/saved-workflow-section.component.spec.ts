@@ -49,6 +49,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow1: Workflow = {
     wid: 1,
     name: "workflow 1",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000, //28800000 is 1970-01-01 in PST
     lastModifiedTime: 28800000 + 2,
@@ -56,6 +57,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow2: Workflow = {
     wid: 2,
     name: "workflow 2",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
     lastModifiedTime: 28800000 + (86400000 + 3),
@@ -63,6 +65,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow3: Workflow = {
     wid: 3,
     name: "workflow 3",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400000,
     lastModifiedTime: 28800000 + (86400000 + 4),
@@ -70,6 +73,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow4: Workflow = {
     wid: 4,
     name: "workflow 4",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400003 * 2,
     lastModifiedTime: 28800000 + 86400000 * 2 + 6,
@@ -77,6 +81,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow5: Workflow = {
     wid: 5,
     name: "workflow 5",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400000 * 2,
     lastModifiedTime: 28800000 + 86400000 * 2 + 8,
@@ -84,6 +89,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testDownloadWorkflow1: Workflow = {
     wid: 6,
     name: "workflow",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000, //28800000 is 1970-01-01 in PST
     lastModifiedTime: 28800000 + 2,
@@ -91,6 +97,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testDownloadWorkflow2: Workflow = {
     wid: 7,
     name: "workflow",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
     lastModifiedTime: 28800000 + (86400000 + 3),
@@ -98,6 +105,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testDownloadWorkflow3: Workflow = {
     wid: 8,
     name: "workflow",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400000,
     lastModifiedTime: 28800000 + (86400000 + 4),
