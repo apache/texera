@@ -46,10 +46,10 @@
   grid-template-columns: 200px auto 350px;
   grid-template-rows:
     var(--header-height)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.6)
+    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.45)
     0px
     var(--resultbar-height)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.4);
+    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.55);
   position: relative;
 }
 
@@ -129,7 +129,6 @@
 .texera-result-panel-grid-container {
   grid-column: 2/3;
   grid-row: 5/6;
-  overflow: auto;
   transition: height 1s;
 }
 
