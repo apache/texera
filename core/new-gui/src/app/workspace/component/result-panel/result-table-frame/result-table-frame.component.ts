@@ -7,7 +7,11 @@ import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
+import {
+  DEFAULT_PAGE_SIZE,
+  setPageSize,
+  WorkflowResultService,
+} from "../../../service/workflow-result/workflow-result.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -48,7 +52,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   totalNumTuples: number = 0;
   pageSize = DEFAULT_PAGE_SIZE;
 
-  private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
+  private readonly TABLE_COLUMN_TEXT_LIMIT: number = 100;
   private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
 
   constructor(
@@ -256,8 +260,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
   trimTableCell(cellContent: string): string {
     if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
-      return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
+      return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT) + "...";
     }
     return cellContent;
+  }
+
+  onPageSizeChange($event: number) {
+    setPageSize($event);
+    this.pageSize = DEFAULT_PAGE_SIZE;
   }
 }

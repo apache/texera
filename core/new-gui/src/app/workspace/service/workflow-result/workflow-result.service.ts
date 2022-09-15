@@ -13,7 +13,11 @@ import { Observable, of, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { ChartType } from "../../types/visualization.interface";
 
-export const DEFAULT_PAGE_SIZE = 10;
+let DEFAULT_PAGE_SIZE = 5;
+function setPageSize(value: any) {
+  DEFAULT_PAGE_SIZE = value;
+}
+export { DEFAULT_PAGE_SIZE, setPageSize };
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
@@ -188,9 +192,9 @@ class OperatorPaginationResultService {
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
-    if (pageSize !== DEFAULT_PAGE_SIZE) {
+    /*f (pageSize !== DEFAULT_PAGE_SIZE) {
       throw new Error("only support fixed page size right now");
-    }
+    } */
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
