@@ -1,0 +1,22 @@
+:host ::ng-deep .ant-table-pagination.ant-pagination {
+  margin: 10px;
+}
+
+:host ::ng-deep .ant-table-pagination-right {
+  justify-content: left;
+}
+
+div.scroll {
+  margin: 0px, 0px;
+  padding-right: 6px;
+  width: 100%;
+  overflow-y: hidden;
+}
+
+td.data-size {
+  font-size: 9px;
+}
+
+th.header-size {
+  font-size: 10px;
+}
