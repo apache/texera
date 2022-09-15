@@ -16,12 +16,12 @@ import { levenshtein } from "edit-distance";
 
 /**
  * Input Schema Propagation Service propagates the change (adding, removing, and renaming) of attributes.
- * 
- * - When user renames an attribute through an operator, 
- * the attribute name will be updated in all succeeding operators. 
- * - When user deletes an attribute (e.g., deselected in a projection operator), 
- * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid. 
- * - Specifically, when a new attribute is added to the input schema of a projection operator, 
+ *
+ * - When user renames an attribute through an operator,
+ * the attribute name will be updated in all succeeding operators.
+ * - When user deletes an attribute (e.g., deselected in a projection operator),
+ * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid.
+ * - Specifically, when a new attribute is added to the input schema of a projection operator,
  * it will include the new attribute in its projection list.
  */
 @Injectable({
@@ -98,10 +98,14 @@ export class InputSchemaPropagationService {
       jsonSchema: { [key: string]: CustomJSONSchema7 | boolean } | undefined
     ): boolean => {
       // console.log("recurse:", properties, jsonSchema)
-      if (!jsonSchema) return false;
+      if (!jsonSchema) {
+        return false;
+      }
       for (const key in jsonSchema) {
-        if (typeof jsonSchema[key] === "boolean") continue;
-        const jsonSchemaProperty = jsonSchema[key] as CustomJSONSchema7;
+        const jsonSchemaProperty = jsonSchema[key];
+        if (typeof jsonSchemaProperty === "boolean") {
+          continue;
+        }
         if (jsonSchemaProperty.autofillAttributeOnPort === port) {
           if (jsonSchemaProperty.type === "array") {
             // TODO: If the operator is Projection,
@@ -121,7 +125,7 @@ export class InputSchemaPropagationService {
             }
             // console.log("newArray", newArray)
             properties[key] = newArray;
-          } else if ((jsonSchema[key] as CustomJSONSchema7).type === "string") {
+          } else if (jsonSchemaProperty.type === "string") {
             for (var i = 0; i < mapping.length; ++i) {
               const pair = mapping[i];
               if (pair[0] && properties[key] === pair[0].attributeName) {
@@ -131,9 +135,9 @@ export class InputSchemaPropagationService {
             }
           }
         } else {
-          if ((jsonSchema[key] as CustomJSONSchema7).type === "object") {
+          if (jsonSchemaProperty.type === "object") {
             updatePropertyRecurse(properties[key], jsonSchemaProperty.properties);
-          } else if ((jsonSchema[key] as CustomJSONSchema7).type === "array") {
+          } else if (jsonSchemaProperty.type === "array") {
             let newArray = [];
             for (const index in properties[key]) {
               // console.log("items", prop.items);
