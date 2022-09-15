@@ -74,7 +74,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Scan worker $i")) = l
           ActorVirtualIdentity(s"Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Scan worker $i"),
@@ -88,7 +88,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Keyword worker $i")) = l
           ActorVirtualIdentity(s"Keyword worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Keyword worker $i"),
@@ -102,7 +102,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Sink worker $i")) = l
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
@@ -176,7 +176,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Build Scan worker $i")) = l
           ActorVirtualIdentity(s"Build Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Build Scan worker $i"),
@@ -190,7 +190,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Probe Scan worker $i")) = l
           ActorVirtualIdentity(s"Probe Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Probe Scan worker $i"),
@@ -204,7 +204,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"HashJoin1 worker $i")) = l
           ActorVirtualIdentity(s"HashJoin1 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin1 worker $i"),
@@ -218,7 +218,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"HashJoin2 worker $i")) = l
           ActorVirtualIdentity(s"HashJoin2 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin2 worker $i"),
@@ -232,7 +232,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Sink worker $i")) = l
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
