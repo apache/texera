@@ -242,7 +242,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
    */
   private searchParameterBackendSetup() {
-    this.operatorMetadataService.getOperatorMetadata()
+    this.operatorMetadataService
+      .getOperatorMetadata()
       .pipe(untilDestroyed(this))
       .subscribe(opdata => {
         opdata.groups.forEach(group => {
@@ -994,7 +995,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         this.dashboardWorkflowEntriesIsEditingDescription = this.dashboardWorkflowEntriesIsEditingDescription.filter(
           entryIsEditingIndex => entryIsEditingIndex != index
         );
-        
       });
   }
 

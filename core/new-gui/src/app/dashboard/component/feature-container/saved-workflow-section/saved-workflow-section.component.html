@@ -316,10 +316,9 @@
                   *ngIf="(dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1); else customWorkflowDescription "
                   (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
                   class="workflow-description"
-                  >
-                  {{ dashboardWorkflowEntry.workflow.description }}
-                  </label
                 >
+                  {{ dashboardWorkflowEntry.workflow.description }}
+                </label>
                 <ng-template #customWorkflowDescription>
                   <input
                     #customDescription
@@ -335,7 +334,9 @@
 
             <!-- last access and created date of saved workflow -->
             <nz-list-item-meta-description class="metadata-container">
-              <span>Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span>
+              <span
+                >Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span
+              >
               <span>Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</span>
             </nz-list-item-meta-description>
           </nz-list-item-meta>
