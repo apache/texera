@@ -123,7 +123,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         })
     })
     scheduler.runningRegions.add(scheduler.getNextRegionToConstructAndPrepare())
-    val isRegionCompleted = scheduler.recordWorkerCompletion(ActorVirtualIdentity("Scan worker 0"))
+    val isRegionCompleted = scheduler.onWorkerCompletion(ActorVirtualIdentity("Scan worker 0"))
     assert(isRegionCompleted == true)
     assert(scheduler.getNextRegionToConstructAndPrepare() == null)
   }
@@ -255,17 +255,17 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         })
     })
     var isRegionCompleted =
-      scheduler.recordWorkerCompletion(ActorVirtualIdentity("Build Scan worker 0"))
+      scheduler.onWorkerCompletion(ActorVirtualIdentity("Build Scan worker 0"))
 
     assert(isRegionCompleted == false)
-    isRegionCompleted = scheduler.recordLinkCompletion(
+    isRegionCompleted = scheduler.onLinkCompletion(
       LinkIdentity(
         workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
         workflow.getOperator(hashJoin1.operatorID).topology.layers.head.id
       )
     )
     assert(isRegionCompleted == false)
-    isRegionCompleted = scheduler.recordLinkCompletion(
+    isRegionCompleted = scheduler.onLinkCompletion(
       LinkIdentity(
         workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
         workflow.getOperator(hashJoin2.operatorID).topology.layers.head.id
@@ -287,7 +287,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       }
     )
     isRegionCompleted =
-      scheduler.recordWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
+      scheduler.onWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
     assert(isRegionCompleted == true)
     assert(scheduler.getNextRegionToConstructAndPrepare() == null)
   }

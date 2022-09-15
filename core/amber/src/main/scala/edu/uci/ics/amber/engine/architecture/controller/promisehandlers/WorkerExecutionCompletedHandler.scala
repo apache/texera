@@ -49,7 +49,7 @@ trait WorkerExecutionCompletedHandler {
             disableSkewHandling()
             Future.Done
           } else {
-            scheduler.recordWorkerCompletion(sender).flatMap(_ => Future.Unit)
+            scheduler.onWorkerCompletion(sender).flatMap(_ => Future.Unit)
           }
         })
     }

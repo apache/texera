@@ -9,10 +9,8 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.jdk.CollectionConverters.asScalaSet
 import scala.util.control.Breaks.{break, breakable}
@@ -20,8 +18,7 @@ import scala.util.control.Breaks.{break, breakable}
 class AllReadyTimeInterleavedRegions(
     workflow: Workflow,
     ctx: ActorContext,
-    asyncRPCClient: AsyncRPCClient
-) extends SchedulingPolicy(workflow, ctx, asyncRPCClient) {
+) extends SchedulingPolicy(workflow) {
 
   var currentlyExecutingRegions = new mutable.LinkedHashSet[PipelinedRegion]()
 
@@ -32,7 +29,7 @@ class AllReadyTimeInterleavedRegions(
     }
   }
 
-  override def recordWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
+  override def onWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
     val region = getRegion(workerId)
     if (region.isEmpty) {
       throw new WorkflowRuntimeException(
@@ -48,7 +45,7 @@ class AllReadyTimeInterleavedRegions(
     }
   }
 
-  override def recordLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
+  override def onLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
     val region = getRegion(linkId)
     if (region == null) {
       throw new WorkflowRuntimeException(

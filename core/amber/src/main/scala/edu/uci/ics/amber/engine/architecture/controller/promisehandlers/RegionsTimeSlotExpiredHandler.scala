@@ -25,11 +25,11 @@ trait RegionsTimeSlotExpiredHandler {
 
   registerHandler { (msg: RegionsTimeSlotExpired, sender) =>
     {
-      if (msg.regions.forall(scheduler.schedulingPolicy.getRunningRegions().contains)) {
-        scheduler.recordTimeSlotExpired(msg.regions).flatMap(_ => Future.Unit)
+      if (msg.regions.subsetOf(scheduler.schedulingPolicy.getRunningRegions())) {
+        scheduler.onTimeSlotExpired(msg.regions).flatMap(_ => Future.Unit)
       } else {
         val notCompletedRegions =
-          msg.regions.filter(r => !scheduler.schedulingPolicy.getCompletedRegions().contains(r))
+          msg.regions.diff(scheduler.schedulingPolicy.getCompletedRegions())
         if (notCompletedRegions.nonEmpty) {
           //  The regions haven't gone into running state yet. Increase the time slot expiration duration
           logger.warn("The regions' time slot expired but they are not running yet.")

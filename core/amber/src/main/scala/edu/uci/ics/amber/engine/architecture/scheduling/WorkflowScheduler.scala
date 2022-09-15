@@ -13,8 +13,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
@@ -41,8 +39,8 @@ class WorkflowScheduler(
     logger: Logger,
     workflow: Workflow
 ) {
-  val schedulingPolicy =
-    SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx, asyncRPCClient)
+  val schedulingPolicy: SchedulingPolicy =
+    SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx)
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built
@@ -58,16 +56,16 @@ class WorkflowScheduler(
     doSchedulingWork(schedulingPolicy.startWorkflow())
   }
 
-  def recordWorkerCompletion(workerId: ActorVirtualIdentity): Future[Seq[Unit]] = {
-    doSchedulingWork(schedulingPolicy.recordWorkerCompletion(workerId))
+  def onWorkerCompletion(workerId: ActorVirtualIdentity): Future[Seq[Unit]] = {
+    doSchedulingWork(schedulingPolicy.onWorkerCompletion(workerId))
   }
 
-  def recordLinkCompletion(linkId: LinkIdentity): Future[Seq[Unit]] = {
-    doSchedulingWork(schedulingPolicy.recordLinkCompletion(linkId))
+  def onLinkCompletion(linkId: LinkIdentity): Future[Seq[Unit]] = {
+    doSchedulingWork(schedulingPolicy.onLinkCompletion(linkId))
   }
 
-  def recordTimeSlotExpired(timeExpiredRegions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
-    val nextRegions = schedulingPolicy.recordTimeSlotExpired()
+  def onTimeSlotExpired(timeExpiredRegions: Set[PipelinedRegion]): Future[Seq[Unit]] = {
+    val nextRegions = schedulingPolicy.onTimeSlotExpired()
     var regionsToPause: Set[PipelinedRegion] = Set()
     if (nextRegions.nonEmpty) {
       regionsToPause = timeExpiredRegions

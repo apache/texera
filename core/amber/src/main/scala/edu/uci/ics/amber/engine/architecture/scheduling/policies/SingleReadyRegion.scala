@@ -1,12 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
-import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
-class SingleReadyRegion(workflow: Workflow, ctx: ActorContext, asyncRPCClient: AsyncRPCClient)
-    extends SchedulingPolicy(workflow, ctx, asyncRPCClient) {
+class SingleReadyRegion(workflow: Workflow)
+    extends SchedulingPolicy(workflow) {
 
   override def getNextSchedulingWork(): Set[PipelinedRegion] = {
     if (
