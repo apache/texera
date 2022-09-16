@@ -15,6 +15,7 @@ import { isEqual } from "lodash-es";
 import {SharedModel} from "./shared-model";
 import {User} from "../../../../common/type/user";
 import * as _ from "lodash";
+import {YText} from "yjs/dist/src/types/YText";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -26,7 +27,25 @@ type restrictedMethods =
   | "setOperatorProperty"
   | "setLinkBreakpoint"
   | "yDoc"
-  | "wsProvider";
+  | "wsProvider"
+  | "sharedModel"
+  | "newYDocLoadedSubject"
+  | "operatorAddSubject"
+  | "operatorDeleteSubject"
+  | "disabledOperatorChangedSubject"
+  | "cachedOperatorChangedSubject"
+  | "operatorDisplayNameChangedSubject"
+  | "linkAddSubject"
+  | "linkDeleteSubject"
+  | "operatorPropertyChangeSubject"
+  | "breakpointChangeStream"
+  | "commentBoxAddSubject"
+  | "commentBoxDeleteSubject"
+  | "commentBoxAddCommentSubject"
+  | "commentBoxDeleteCommentSubject"
+  | "commentBoxEditCommentSubject"
+  | "coeditorOperatorHighlightSubject"
+  | "coeditorCurrentlyEditingSubject";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -60,11 +79,18 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  */
 export class WorkflowGraph {
 
-  // YJS related data
+  private syncTexeraGraph = true;
 
   public sharedModel: SharedModel = new SharedModel();
+
+  // Shared-editing related observables.
+
   public newYDocLoadedSubject = new Subject();
-  private syncTexeraGraph = true;
+  public readonly coeditorOperatorHighlightSubject = new Subject<{coeditor: User, clientId: number, operatorIds: string[]}[]>();
+  public readonly coeditorCurrentlyEditingSubject = new Subject<{coeditor: User, clientId: number, operatorId?: string}[]>();
+
+  // Workflow-graph related observables.
+
   public readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
   public readonly operatorDeleteSubject = new Subject<{
@@ -98,25 +124,15 @@ export class WorkflowGraph {
   public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
-  public readonly coeditorOperatorHighlightSubject = new Subject<{coeditor: User, clientId: number, operatorIds: string[]}[]>();
-  public readonly coeditorCurrentlyEditingSubject = new Subject<{coeditor: User, clientId: number, operatorId?: string}[]>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
-    if (this.sharedModel.wsProvider.wsconnected)
-     this.sharedModel.wsProvider.disconnect();
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox => this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox)));
-  }
-
-  public loadNewYModel(workflowId?: number,
-                       user?: User) {
-    this.sharedModel = new SharedModel(workflowId, user);
-    this.newYDocLoadedSubject.next(undefined);
   }
 
   /**
@@ -127,22 +143,47 @@ export class WorkflowGraph {
     return this.syncTexeraGraph;
   }
 
+  // Shared-editing related methods
+
   /**
-   * Sets the boolean value that indicates whether
-   * or not sync JointJS changes to texera graph.
+   * Exposes the internal <code>{@link SharedModel}</code>.
    */
-  public setSyncTexeraGraph(syncTexeraGraph: boolean): void {
-    this.syncTexeraGraph = syncTexeraGraph;
+  public getSharedModel(): SharedModel {
+    return this.sharedModel;
   }
 
+  /**
+   * Replaces current <code>{@link sharedModel}</code>  with a new one.
+   * Note this does NOT destroy the old model explicitly, so <code>{@link destroyYModel}</code> might
+   * still need to be called before this method.
+   * @param workflowId optional, but needed if want to join shared editing.
+   * @param user optional, but needed if want to have user presence.
+   */
+  public loadNewYModel(workflowId?: number,
+                       user?: User) {
+    this.sharedModel = new SharedModel(workflowId, user);
+    this.newYDocLoadedSubject.next(undefined);
+  }
+
+  /**
+   * Destroys shared-editing related structures and quits the shared editing session.
+   */
   public destroyYModel(): void {
     this.sharedModel.destroy();
   }
 
   /**
+   * Sets the boolean value that specifies whether sync JointJS changes to texera graph.
+   */
+  public setSyncTexeraGraph(syncTexeraGraph: boolean): void {
+    this.syncTexeraGraph = syncTexeraGraph;
+  }
+
+  /**
    * Adds a new operator to the graph.
    * Throws an error the operator has a duplicate operatorID with an existing operator.
-   * @param operator OperatorPredicate
+   * @param operator <code>{@link OperatorPredicate}</code> will be converted to a <code>{@link YType}</code> brefore
+   * adding to the internal Y-graph.
    */
   public addOperator(operator: OperatorPredicate): void {
     this.assertOperatorNotExists(operator.operatorID);
@@ -150,12 +191,23 @@ export class WorkflowGraph {
     this.sharedModel.operatorIDMap.set(operator.operatorID, newOp);
   }
 
+  /**
+   * Adds a comment box to the graph.
+   * @param commentBox <code>{@link CommentBox}</code> will be converted to a <code>{@link YType}</code> before adding
+   * to the internal Y-graph.
+   */
   public addCommentBox(commentBox: CommentBox): void {
     this.assertCommentBoxNotExists(commentBox.commentBoxID);
     const newCommentBox = createYTypeFromObject(commentBox);
     this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, newCommentBox);
   }
 
+  /**
+   * Adds a single comment to an existing comment box.
+   * @param comment the comment's content encapsulated in the <code>{@link Comment}</code> structure. It will be added
+   * as-is to the list of comments, i.e., it won't be converted to <code>{@link YType}</code>.
+   * @param commentBoxID the id of the comment box to add comment to.
+   */
   public addCommentToCommentBox(comment: Comment, commentBoxID: string): void {
     this.assertCommentBoxExists(commentBoxID);
     const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
@@ -164,6 +216,13 @@ export class WorkflowGraph {
     }
   }
 
+  /**
+   * Searches the comment list by <code>creatorID</code> and <code>creationTime</code> and deletes the comment if found.
+   * The deletion is on a y-list.
+   * @param creatorID
+   * @param creationTime
+   * @param commentBoxID
+   */
   public deleteCommentFromCommentBox(creatorID: number, creationTime: string, commentBoxID: string): void {
     this.assertCommentBoxExists(commentBoxID);
     const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
@@ -176,6 +235,14 @@ export class WorkflowGraph {
     }
   }
 
+  /**
+   * Edits a given comment. Due to yjs's limitation, the modification is actually done by
+   * deleting and adding (in place).
+   * @param creatorID
+   * @param creationTime
+   * @param commentBoxID
+   * @param content
+   */
   public editCommentInCommentBox(creatorID: number, creationTime: string, commentBoxID: string, content: string): void {
     this.assertCommentBoxExists(commentBoxID);
     const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID);
@@ -194,7 +261,7 @@ export class WorkflowGraph {
   }
 
   /**
-   * Deletes the operator from the graph by its ID.
+   * Deletes the operator from the graph by its ID. The deletion is on a y-map.
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID
    */
@@ -206,6 +273,10 @@ export class WorkflowGraph {
     this.sharedModel.operatorIDMap.delete(operatorID);
   }
 
+  /**
+   * Deletes the comment box from the model's <code>{@link commentBoxMap}</code>.
+   * @param commentBoxID
+   */
   public deleteCommentBox(commentBoxID: string): void {
     const commentBox = this.getCommentBox(commentBoxID);
     if (!commentBox) {
@@ -214,6 +285,10 @@ export class WorkflowGraph {
     this.sharedModel.commentBoxMap.delete(commentBoxID);
   }
 
+  /**
+   * Disables the operator by setting the <code>isDisabled</code> attribute in the corresponding operator from the map.
+   * @param operatorID
+   */
   public disableOperator(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -225,6 +300,10 @@ export class WorkflowGraph {
     this.sharedModel.operatorIDMap.get(operatorID)?.set("isDisabled", true);
   }
 
+  /**
+   * Enables the operator by setting the <code>isDisabled</code> attribute in the corresponding operator from the map.
+   * @param operatorID
+   */
   public enableOperator(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -236,14 +315,24 @@ export class WorkflowGraph {
     this.sharedModel.operatorIDMap.get(operatorID)?.set("isDisabled", false);
   }
 
+  /**
+   * Atomically sets the display name (<code>YText</code>) given a string. Do NOT use if character-level shared editing
+   * for this field is needed.
+   * @param operatorID
+   * @param newDisplayName will be converted to <code>YText</code> before setting.
+   */
   public changeOperatorDisplayName(operatorID: string, newDisplayName: string): void {
     const operator = this.getOperator(operatorID);
     if (operator.customDisplayName === newDisplayName) {
       return;
     }
-    this.sharedModel.operatorIDMap.set(operatorID, createYTypeFromObject(operator) );
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("customDisplayName", createYTypeFromObject(new String(newDisplayName)) as unknown as YText);
   }
 
+  /**
+   * This method gets this status from readonly object version of the operator data (as opposed to y-type data).
+   * @param operatorID
+   */
   public isOperatorDisabled(operatorID: string): boolean {
     const operator = this.getOperator(operatorID);
     if (!operator) {

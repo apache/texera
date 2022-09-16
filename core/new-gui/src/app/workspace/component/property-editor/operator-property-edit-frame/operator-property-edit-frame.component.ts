@@ -185,7 +185,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId) {
       return;
     }
-    this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("currentlyEditing", this.currentOperatorId);
+    this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
@@ -500,18 +500,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   public connectQuillToText() {
     this.registerQuillBinding();
     if (this.currentOperatorId) {
-      if (!(this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).has("customDisplayName")) {
-        (this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).set("customDisplayName", new Y.Text());
+      if (!(this.workflowActionService.getTexeraGraph().getSharedModel().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).has("customDisplayName")) {
+        (this.workflowActionService.getTexeraGraph().getSharedModel().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).set("customDisplayName", new Y.Text());
         console.log("CREATED");
       } else {
         console.log("EXISTED");
       }
-      const ytext = this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(this.currentOperatorId)?.get("customDisplayName");
+      const ytext = this.workflowActionService.getTexeraGraph().getSharedModel().operatorIDMap.get(this.currentOperatorId)?.get("customDisplayName");
       console.log(ytext);
       this.quillBinding = new QuillBinding(
         ytext as Y.Text,
         this.quill,
-        this.workflowActionService.getTexeraGraph().sharedModel.awareness
+        this.workflowActionService.getTexeraGraph().getSharedModel().awareness
       );
     }
   }

@@ -56,7 +56,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   ngOnDestroy(): void {
-      this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("editingCode", false);
+      this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("editingCode", false);
     }
 
   private finishLoading() {
@@ -99,9 +99,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     .getJointGraphWrapper()
     .getCurrentHighlightedOperatorIDs()[0];
 
-    this.workflowActionService.getTexeraGraph().sharedModel.updateAwareness("editingCode", true);
+    this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("editingCode", true);
 
-    this.ytext = ((this.workflowActionService.getTexeraGraph().sharedModel.operatorIDMap.get(currentOperatorId) as YType<OperatorPredicate>).get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>).get("code") as YText;
+    this.ytext = ((this.workflowActionService.getTexeraGraph().getSharedModel().operatorIDMap.get(currentOperatorId) as YType<OperatorPredicate>).get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>).get("code") as YText;
 
     this.load();
     this.initMonaco();
@@ -117,7 +117,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     }
     const editor = monaco.editor.create(this.divEditor?.nativeElement, this.editorOptions);
     if (this.ytext)
-      new MonacoBinding(this.ytext, editor.getModel(), new Set([editor]), this.workflowActionService.getTexeraGraph().sharedModel.awareness);
+      new MonacoBinding(this.ytext, editor.getModel(), new Set([editor]), this.workflowActionService.getTexeraGraph().getSharedModel().awareness);
   }
 
   private handleLockChange(): void {

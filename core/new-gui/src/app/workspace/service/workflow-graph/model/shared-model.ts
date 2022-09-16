@@ -11,8 +11,12 @@ import {
 } from "../../../types/workflow-common.interface";
 import {User, UserState} from "../../../../common/type/user";
 import {getWebsocketUrl} from "../../../../common/util/url";
-import { v4 as uuid } from "uuid";
+import {v4 as uuid} from "uuid";
 
+/**
+ * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
+ * Most of the yjs-related implementations are within this class.
+ */
 export class SharedModel {
   public yDoc: Y.Doc = new Y.Doc();
   public wsProvider: WebsocketProvider;
@@ -25,13 +29,25 @@ export class SharedModel {
   public undoManager: Y.UndoManager;
   public clientId: string;
 
+  /**
+   * Initializes yjs-related structures and join the shared-editing room. A room number is required for initialization.
+   * When wid is present, it will be used as part of the room number to enable shared editing.
+   * When no wid is provided (new workflow canvas, landing page, etc.), a random room number will be assigned so that
+   * users don't interfere with each other.
+   * @param wid workflow ID number, used as part of the address for the shared-editing room.
+   * @param user current (local) user info, used for initializing local awareness (user presence).
+   */
   constructor(public wid?: number,
               public user?: User) {
+
+    // Initialize Y-structures.
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
     this.elementPositionMap = this.yDoc.getMap("elementPositionMap");
     this.linkBreakpointMap = this.yDoc.getMap("linkBreakPointMap");
+
+    // Initialize Y-undo manager by aggregating intended  Y-structures. Only structures included here will be undoable.
     this.undoManager = new Y.UndoManager([
       this.operatorIDMap,
       this.elementPositionMap,
@@ -39,10 +55,13 @@ export class SharedModel {
       this.commentBoxMap,
       this.linkBreakpointMap
     ]);
-    const websocketUrl = getWebsocketUrl("rtc");
 
+    // Generate editing room number.
+    const websocketUrl = getWebsocketUrl("rtc");
     const suffix = wid ? `${wid}` : uuid();
-    this.wsProvider =  new WebsocketProvider(websocketUrl, suffix, this.yDoc);
+    this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc);
+
+    // Initialize local user awareness information.
     this.awareness = this.wsProvider.awareness;
     this.clientId = this.awareness.clientID.toString();
     if (this.user) {
@@ -55,15 +74,24 @@ export class SharedModel {
     }
   }
 
-  public updateAwareness(field: string, value: any): void {
+  /**
+   * Updates a particular field of local awareness state info. Will only execute update when user info is provided.
+   * @param field the name of the particular state info.
+   * @param value the updated state info.
+   */
+  public updateAwareness(field: keyof UserState, value: any): void {
     if (this.user)
       this.awareness.setLocalStateField(field, value);
   }
 
+  /**
+   * Groups a bunch of actions into one atomic transaction, so that they can be undone/redone in one call.
+   * @param callback Put whatever need to be atomically done within this callback function.
+   */
   public transact(callback: Function) {
     try {
       if (this.wsProvider.shouldConnect) {
-        this.yDoc.transact(()=>callback());
+        this.yDoc.transact(() => callback());
       } else {
         callback();
       }
@@ -72,6 +100,9 @@ export class SharedModel {
     }
   }
 
+  /**
+   * Destroys internal structures related to Yjs and quit the editing room.
+   */
   public destroy(): void {
     this.awareness.destroy();
     if (this.wsProvider.wsconnected)
