@@ -186,6 +186,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
+    // This assumes "fileName" to be the only key for file names in an operator property.
     const filename: string = <string>event["fileName"];
     if (filename) {
       const [owner, fname] = filename.split("/", 2);
@@ -203,10 +204,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             "read"
           )
           .pipe(untilDestroyed(this))
-          .subscribe(
-            // @ts-ignore // TODO: fix this with notification component
-            (err: unknown) => alert(err.error)
-          );
+          .subscribe();
       });
     }
 
