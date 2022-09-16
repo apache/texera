@@ -294,7 +294,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
       //filters for workflows that were created on the specified date
-      let time = type == "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
+      let time = type === "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
       if (time) {
         return time >= date[0].getTime() && time < date[1].getTime() + 86400000;
         //checks if creation time is within the range of the whole day
