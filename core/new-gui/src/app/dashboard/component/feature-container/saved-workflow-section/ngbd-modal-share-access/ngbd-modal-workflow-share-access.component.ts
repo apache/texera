@@ -5,6 +5,8 @@ import { WorkflowAccessService } from "../../../../service/workflow-access/workf
 import { Workflow } from "../../../../../common/type/workflow";
 import { AccessEntry } from "../../../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { DashboardUserFileEntry, UserFile } from "../../../../type/dashboard-user-file-entry";
+import { UserFileService } from "../../../../service/user-file/user-file.service";
 
 @UntilDestroy()
 @Component({
@@ -14,6 +16,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 })
 export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   @Input() workflow!: Workflow;
+  @Input() filenames!: string[];
 
   public shareForm = this.formBuilder.group({
     username: ["", [Validators.required]],
@@ -29,7 +32,8 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   constructor(
     public activeModal: NgbActiveModal,
     private workflowGrantAccessService: WorkflowAccessService,
-    private formBuilder: FormBuilder
+    private formBuilder: FormBuilder,
+    private userFileService: UserFileService
   ) {}
 
   ngOnInit(): void {
@@ -68,6 +72,35 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param accessLevel the type of access to be given
    */
   public grantWorkflowAccess(workflow: Workflow, userToShareWith: string, accessLevel: string): void {
+    if (this.filenames) {
+      this.filenames.forEach(filename => {
+        const [owner, fname] = filename.split("/", 2);
+        let userFile: UserFile;
+        userFile = {
+          fid: undefined!,
+          name: fname,
+          path: undefined!,
+          size: undefined!,
+          description: undefined!,
+          uploadTime: undefined!,
+        };
+        const dashboardUserFileEntry: DashboardUserFileEntry = {
+          ownerName: owner,
+          file: userFile,
+          accessLevel: "read",
+          isOwner: true,
+          projectIDs: undefined!,
+        };
+        this.userFileService
+          .grantUserFileAccess(dashboardUserFileEntry, userToShareWith, "read")
+          .pipe(untilDestroyed(this))
+          .subscribe(
+            // @ts-ignore // TODO: fix this with notification component
+            (err: unknown) => alert(err.error)
+          );
+      });
+    }
+
     this.workflowGrantAccessService
       .grantUserWorkflowAccess(workflow, userToShareWith, accessLevel)
       .pipe(untilDestroyed(this))

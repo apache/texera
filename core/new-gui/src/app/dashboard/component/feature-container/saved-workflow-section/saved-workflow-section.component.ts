@@ -171,6 +171,23 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
+    this.workflowPersistService
+      .retrieveWorkflow(<number>workflow.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(data => {
+        const workflowCopy: Workflow = {
+          ...data,
+          wid: undefined,
+          creationTime: undefined,
+          lastModifiedTime: undefined,
+        };
+        let filenames: string[] = [];
+        workflowCopy.content.operators.forEach(operator => {
+          const filename: string = operator.operatorProperties.fileName;
+          if (filename) filenames.push(filename);
+        });
+        modalRef.componentInstance.filenames = [...new Set(filenames)];
+      });
   }
 
   /**
