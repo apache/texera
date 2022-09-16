@@ -154,11 +154,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     for (const propName in changes) {
-      if (propName == "pid" && changes[propName].currentValue) {
+      if (propName === "pid" && changes[propName].currentValue) {
         // listen to see if component is to be re-rendered inside a different project
         this.pid = changes[propName].currentValue;
         this.refreshDashboardWorkflowEntries();
-      } else if (propName == "updateProjectStatus" && changes[propName].currentValue) {
+      } else if (propName === "updateProjectStatus" && changes[propName].currentValue) {
         // listen to see if parent component has been mutated (e.g. project color changed)
         this.updateProjectStatus = changes[propName].currentValue;
         this.refreshUserProjects();
@@ -315,7 +315,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * updates selectedIDs array to match worfklow ids checked in dropdown menu
    */
   public updateSelectedIDs(): void {
-    this.selectedIDs = this.wids.filter(wid => wid.checked === true).map(wid => wid.id);
+    this.selectedIDs = this.wids.filter(wid => wid.checked).map(wid => wid.id);
     this.searchWorkflow();
   }
 
@@ -344,7 +344,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public updateSelectedProjects(): void {
     this.selectedProjects = this.userProjectsDropdown
-      .filter(proj => proj.checked === true)
+      .filter(proj => proj.checked)
       .map(proj => {
         return { name: proj.name, pid: proj.pid };
       });
@@ -430,7 +430,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             this.selectedProjects.push({ name: selectedProject.name, pid: selectedProject.pid });
             break;
           case "ctime": //should only run at most once
-            if (this.selectedCtime.length == 0) {
+            if (this.selectedCtime.length === 0) {
               // if there is already an selected date, ignore the subsequent ctime tags
               this.notificationService.error("Multiple search dates is not allowed");
               break;
@@ -451,7 +451,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             );
             break;
           case "mtime": //should only run at most once
-            if (this.selectedMtime.length == 0) {
+            if (this.selectedMtime.length === 0) {
               // if there is already an selected date, ignore the subsequent ctime tags
               this.notificationService.error("Multiple search dates is not allowed");
               break;
@@ -688,10 +688,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   private checkIfWorkflowName(tag: string) {
     const stringChecked: string[] = tag.split(":");
-    if (stringChecked.length == 2 && this.searchCriteria.includes(stringChecked[0])) {
-      return false;
-    }
-    return true;
+    return !(stringChecked.length === 2 && this.searchCriteria.includes(stringChecked[0]));
   }
 
   /**
@@ -778,7 +775,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     if (wid) {
-      if (this.pid == 0) {
+      if (this.pid === 0) {
         // not nested within user project section
         this.workflowPersistService
           .duplicateWorkflow(wid)
@@ -940,7 +937,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         // update allDashboardWorkflowEntries
         const newAllDashboardEntries = this.allDashboardWorkflowEntries.slice();
         for (let i = 0; i < newAllDashboardEntries.length; ++i) {
-          if (newAllDashboardEntries[i].workflow.wid == dashboardWorkflowEntry.workflow.wid) {
+          if (newAllDashboardEntries[i].workflow.wid === dashboardWorkflowEntry.workflow.wid) {
             newAllDashboardEntries[i] = updatedDashboardWorkFlowEntry;
             break;
           }
@@ -1030,7 +1027,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
     const fileExtensionIndex = file.name.lastIndexOf(".");
-    if (file.name.substring(fileExtensionIndex) == ".zip") {
+    if (file.name.substring(fileExtensionIndex) === ".zip") {
       this.handleZipUploads(file as unknown as Blob);
     } else {
       this.handleFileUploads(file as unknown as Blob, file.name);
