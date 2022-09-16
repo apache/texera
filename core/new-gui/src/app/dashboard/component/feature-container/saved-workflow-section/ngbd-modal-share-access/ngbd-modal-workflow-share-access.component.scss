@@ -10,3 +10,7 @@
     transform: translateY(-20%);
   }
 }
+
+::ng-deep .cdk-overlay-container {
+  z-index: 1100;
+}
