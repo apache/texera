@@ -72,7 +72,27 @@
 
     <nz-button-group class="filter-button-group" ngbDropdown>
       <a
-        [nzDropdownMenu]="calendar"
+        [nzDropdownMenu]="mtimeSearchOptions"
+        nz-dropdown
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="modification-time-button"
+      >
+        <button id="mtimeSort" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="form" nzTheme="outline" nz-tooltip="Modification Time"></i>
+        </button>
+      </a>
+
+      <nz-dropdown-menu #mtimeSearchOptions="nzDropdownMenu">
+        <nz-range-picker
+          nzInline
+          [(ngModel)]="selectedMtime"
+          (ngModelChange)="calendarValueChange($event)"
+        ></nz-range-picker>
+      </nz-dropdown-menu>
+
+      <a
+        [nzDropdownMenu]="ctimeSearchOptions"
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'border-style': 'double'}"
@@ -82,14 +102,12 @@
           <i nz-icon nzType="calendar" nzTheme="outline" nz-tooltip="Creation Time"></i>
         </button>
       </a>
-      <nz-dropdown-menu #calendar="nzDropdownMenu">
-        <div [ngStyle]="{ width: '300px', border: '1px solid #d9d9d9', borderRadius: '4px' }">
-          <nz-calendar
-            [nzFullscreen]="false"
-            (nzSelectChange)="calendarValueChange($event)"
-            [(ngModel)]="selectedDate"
-          ></nz-calendar>
-        </div>
+      <nz-dropdown-menu #ctimeSearchOptions="nzDropdownMenu">
+        <nz-range-picker
+          nzInline
+          [(ngModel)]="selectedCtime"
+          (ngModelChange)="calendarValueChange($event)"
+        ></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
@@ -206,6 +224,7 @@
       <ul>
         <li>Search by Workflow Name: <strong>workflowName</strong></li>
         <li>Search by Workflow Creation Time: <strong>ctime: yyyy-MM-dd</strong></li>
+        <li>Search by Workflow Modification Time: <strong>mtime: yyyy-MM-dd</strong></li>
         <li>Search by Workflow Owner: <strong>owner: John</strong></li>
         <li>Search by Workflow Id: <strong>id: workflowId</strong></li>
         <li>Search by Workflows' Operators: <strong>operator: operatorName</strong></li>
@@ -224,7 +243,7 @@
   </div>
 
   <nz-card class="section-list-container">
-    <!-- itemSize: the height (px) of each list item, 
+    <!-- itemSize: the height (px) of each list item,
       this MUST be approximately the same as list item size set in CSS,
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
@@ -297,7 +316,7 @@
             </nz-list-item-meta-title>
             <nz-list-item-meta-description class="metadata-container">
               <span
-                >Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span
+                >Last Modified: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span
               >
               <span>Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</span>
             </nz-list-item-meta-description>

@@ -85,7 +85,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     string,
     { userFriendlyName: string; operatorType: string; operatorGroup: string; checked: boolean }[]
   > = new Map();
-  public selectedDate: null | Date = null;
+  public selectedCtime: Date[] = [];
+  public selectedMtime: Date[] = [];
   private selectedOwners: string[] = [];
   private selectedIDs: string[] = [];
   private selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
@@ -117,7 +118,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
 
-  public searchCriteria: string[] = ["owner", "id", "ctime", "operator", "project"];
+  public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
 
   // whether tracking metadata information about executions is enabled
@@ -153,11 +154,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     for (const propName in changes) {
-      if (propName == "pid" && changes[propName].currentValue) {
+      if (propName === "pid" && changes[propName].currentValue) {
         // listen to see if component is to be re-rendered inside a different project
         this.pid = changes[propName].currentValue;
         this.refreshDashboardWorkflowEntries();
-      } else if (propName == "updateProjectStatus" && changes[propName].currentValue) {
+      } else if (propName === "updateProjectStatus" && changes[propName].currentValue) {
         // listen to see if parent component has been mutated (e.g. project color changed)
         this.updateProjectStatus = changes[propName].currentValue;
         this.refreshUserProjects();
@@ -287,24 +288,32 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * Search workflows based on date string
    * String Formats:
-   *  - ctime:YYYY-MM-DD (workflows on this date)
-   *  - ctime:<YYYY-MM-DD (workflows on or before this date)
-   *  - ctime:>YYYY-MM-DD (workflows on or after this date)
+   *  - mtime:YYYY-MM-DD (workflows on this date)
+   *  - mtime:<YYYY-MM-DD (workflows on or before this date)
+   *  - mtime:>YYYY-MM-DD (workflows on or after this date)
    */
-  private searchCreationTime(
-    date: Date,
-    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>
+
+  private searchDate(
+    date: Date[],
+    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
+    type: String
   ): ReadonlyArray<DashboardWorkflowEntry> {
-    date.setHours(0), date.setMinutes(0), date.setSeconds(0), date.setMilliseconds(0);
+    // eslint-disable-next-line no-unused-expressions
+    date[0].setHours(0),
+      date[0].setMinutes(0),
+      date[0].setSeconds(0),
+      date[0].setMilliseconds(0),
+      date[1].setHours(0),
+      date[1].setMinutes(0),
+      date[1].setSeconds(0),
+      date[1].setMilliseconds(0);
     //sets date time at beginning of day
     //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
       //filters for workflows that were created on the specified date
-      if (workflow_entry.workflow.creationTime) {
-        return (
-          workflow_entry.workflow.creationTime >= date.getTime() &&
-          workflow_entry.workflow.creationTime < date.getTime() + 86400000
-        );
+      let time = type === "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
+      if (time) {
+        return time >= date[0].getTime() && time < date[1].getTime() + 86400000;
         //checks if creation time is within the range of the whole day
       }
       return false;
@@ -323,7 +332,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * updates selectedIDs array to match worfklow ids checked in dropdown menu
    */
   public updateSelectedIDs(): void {
-    this.selectedIDs = this.wids.filter(wid => wid.checked === true).map(wid => wid.id);
+    this.selectedIDs = this.wids.filter(wid => wid.checked).map(wid => wid.id);
     this.searchWorkflow();
   }
 
@@ -352,7 +361,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public updateSelectedProjects(): void {
     this.selectedProjects = this.userProjectsDropdown
-      .filter(proj => proj.checked === true)
+      .filter(proj => proj.checked)
       .map(proj => {
         return { name: proj.name, pid: proj.pid };
       });
@@ -376,13 +385,17 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.selectedOwners = [];
     this.selectedProjects = [];
     let newSelectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
-    this.selectedDate = null;
+    this.selectedCtime = [];
+    this.selectedMtime = [];
     this.setDropdownSelectionsToUnchecked();
     tagListString.forEach(tag => {
       if (tag.includes(":")) {
         const searchArray = tag.split(":");
         const searchField = searchArray[0];
         const searchValue = searchArray[1].trim();
+        const date_regex =
+          /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])[~](\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
+        const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
         switch (searchField) {
           case "owner":
             const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
@@ -434,18 +447,46 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             this.selectedProjects.push({ name: selectedProject.name, pid: selectedProject.pid });
             break;
           case "ctime": //should only run at most once
-            if (this.selectedDate) {
+            if (this.selectedCtime.length === 0) {
               // if there is already an selected date, ignore the subsequent ctime tags
               this.notificationService.error("Multiple search dates is not allowed");
               break;
             }
-            const date_regex = /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
-            const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
             if (!searchDate) {
               this.notificationService.error("Date format is incorrect");
               break;
             }
-            this.selectedDate = new Date(parseInt(searchDate[1]), parseInt(searchDate[2]) - 1, parseInt(searchDate[3]));
+            this.selectedCtime[0] = new Date(
+              parseInt(searchDate[1]),
+              parseInt(searchDate[2]) - 1,
+              parseInt(searchDate[3])
+            );
+            this.selectedCtime[1] = new Date(
+              parseInt(searchDate[4]),
+              parseInt(searchDate[5]) - 1,
+              parseInt(searchDate[6])
+            );
+            break;
+          case "mtime": //should only run at most once
+            if (this.selectedMtime.length === 0) {
+              // if there is already an selected date, ignore the subsequent ctime tags
+              this.notificationService.error("Multiple search dates is not allowed");
+              break;
+            }
+            if (!searchDate) {
+              this.notificationService.error("Date format is incorrect");
+              break;
+            }
+            this.selectedMtime[0] = new Date(
+              parseInt(searchDate[1]),
+              parseInt(searchDate[2]) - 1,
+              parseInt(searchDate[3])
+            );
+            this.selectedMtime[1] = new Date(
+              parseInt(searchDate[4]),
+              parseInt(searchDate[5]) - 1,
+              parseInt(searchDate[6])
+            );
             break;
         }
       }
@@ -513,8 +554,21 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
     );
     newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
-    if (this.selectedDate !== null) {
-      newFilterList.push("ctime: " + this.getFormattedDateString(this.selectedDate));
+    if (this.selectedCtime.length != 0) {
+      newFilterList.push(
+        "ctime: " +
+          this.getFormattedDateString(this.selectedCtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedCtime[1])
+      );
+    }
+    if (this.selectedMtime.length != 0) {
+      newFilterList.push(
+        "mtime: " +
+          this.getFormattedDateString(this.selectedMtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedMtime[1])
+      );
     }
     this.masterFilterList = newFilterList;
   }
@@ -587,8 +641,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
     }
 
-    if (this.selectedDate !== null) {
-      searchOutput = this.searchCreationTime(this.selectedDate, searchOutput);
+    if (this.selectedCtime.length != 0) {
+      searchOutput = this.searchDate(this.selectedCtime, searchOutput, "C");
+    }
+
+    if (this.selectedMtime.length != 0) {
+      searchOutput = this.searchDate(this.selectedMtime, searchOutput, "M");
     }
 
     if (this.selectedProjects.length !== 0) {
@@ -647,10 +705,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   private checkIfWorkflowName(tag: string) {
     const stringChecked: string[] = tag.split(":");
-    if (stringChecked.length == 2 && this.searchCriteria.includes(stringChecked[0])) {
-      return false;
-    }
-    return true;
+    return !(stringChecked.length === 2 && this.searchCriteria.includes(stringChecked[0]));
   }
 
   /**
@@ -737,7 +792,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     if (wid) {
-      if (this.pid == 0) {
+      if (this.pid === 0) {
         // not nested within user project section
         this.workflowPersistService
           .duplicateWorkflow(wid)
@@ -899,7 +954,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         // update allDashboardWorkflowEntries
         const newAllDashboardEntries = this.allDashboardWorkflowEntries.slice();
         for (let i = 0; i < newAllDashboardEntries.length; ++i) {
-          if (newAllDashboardEntries[i].workflow.wid == dashboardWorkflowEntry.workflow.wid) {
+          if (newAllDashboardEntries[i].workflow.wid === dashboardWorkflowEntry.workflow.wid) {
             newAllDashboardEntries[i] = updatedDashboardWorkFlowEntry;
             break;
           }
@@ -989,7 +1044,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
     const fileExtensionIndex = file.name.lastIndexOf(".");
-    if (file.name.substring(fileExtensionIndex) == ".zip") {
+    if (file.name.substring(fileExtensionIndex) === ".zip") {
       this.handleZipUploads(file as unknown as Blob);
     } else {
       this.handleFileUploads(file as unknown as Blob, file.name);
