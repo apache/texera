@@ -230,7 +230,8 @@ class WorkflowResource {
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
           if (workflowRecord.component10() == null) List[UInteger]()
-          else workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+          else
+            workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
@@ -323,7 +324,14 @@ class WorkflowResource {
       workflow.getContent
       workflow.getName
       createWorkflow(
-        new Workflow(workflow.getName + "_copy", workflow.getDescription, null, workflow.getContent, null, null),
+        new Workflow(
+          workflow.getName + "_copy",
+          workflow.getDescription,
+          null,
+          workflow.getContent,
+          null,
+          null
+        ),
         sessionUser
       )
 
@@ -411,10 +419,10 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def updateWorkflowDescription(
-                          @PathParam("wid") wid: UInteger,
-                          @PathParam("workflowDescription") workflowDescription: String,
-                          @Auth sessionUser: SessionUser
-                        ): Unit = {
+      @PathParam("wid") wid: UInteger,
+      @PathParam("workflowDescription") workflowDescription: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -422,7 +430,7 @@ class WorkflowResource {
       throw new BadRequestException("The workflow does not exist.")
     } else {
       val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setDescription(workflowDescription.slice(1, workflowDescription.length-1))
+      userWorkflow.setDescription(workflowDescription.slice(1, workflowDescription.length - 1))
       workflowDao.update(userWorkflow)
     }
   }
