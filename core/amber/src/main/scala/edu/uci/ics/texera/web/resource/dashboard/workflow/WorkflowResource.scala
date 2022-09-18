@@ -410,7 +410,7 @@ class WorkflowResource {
   }
 
   /**
-    * This method updates the name of a given workflow
+    * This method updates the description of a given workflow
     *
     * @return Response
     */

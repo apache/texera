@@ -114,7 +114,7 @@ export class WorkflowPersistService {
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}/${wid}/${name}`, null)
       .pipe(
         catchError((error: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
+          // @ts-ignore
           this.notificationService.error(error.error.message);
           return throwError(error);
         })
@@ -122,7 +122,7 @@ export class WorkflowPersistService {
   }
 
   /**
-   * updates the description of a given workflow, the user in the session must own the workflow.
+   * updates the description of a given workflow
    */
   public updateWorkflowDescription(wid: number | undefined, description: string): Observable<Response> {
     return this.http
