@@ -1,8 +1,8 @@
-import { TestBed } from '@angular/core/testing';
+import {TestBed} from "@angular/core/testing";
 
-import { CoeditorPresenceService } from './coeditor-presence.service';
+import {CoeditorPresenceService} from "./coeditor-presence.service";
 
-describe('CoeditorPresenceService', () => {
+describe("CoeditorPresenceService", () => {
   let service: CoeditorPresenceService;
 
   beforeEach(() => {
@@ -10,7 +10,7 @@ describe('CoeditorPresenceService', () => {
     service = TestBed.inject(CoeditorPresenceService);
   });
 
-  it('should be created', () => {
+  it("should be created", () => {
     expect(service).toBeTruthy();
   });
 });

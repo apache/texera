@@ -1,10 +1,10 @@
-import { fromEvent, Observable, ReplaySubject, Subject, merge } from "rxjs";
-import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { OperatorLink, Point } from "../../../types/workflow-common.interface";
+import {fromEvent, merge, Observable, ReplaySubject, Subject} from "rxjs";
+import {bufferToggle, filter, map, mergeMap, startWith, windowToggle} from "rxjs/operators";
+import {Point} from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import { ObservableContextManager } from "src/app/common/util/context";
+import {ObservableContextManager} from "src/app/common/util/context";
 import {User} from "../../../../common/type/user";
 import {
   operatorCoeditorChangedPropertyBGClass,
@@ -1053,6 +1053,10 @@ export class JointGraphWrapper {
   public toggleGrids() {
     this.jointPaperGridsToggleStream.next();
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                     Below are methods for coeditor-presence.                                     //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   deleteCoeditorOperatorHighlight(coeditor: User, operatorId: string) {
     const operatorElement = this.getMainJointPaper()?.findViewByModel(operatorId);

@@ -46,7 +46,6 @@ import {User} from "../../../../common/type/user";
  *
  */
 
-
 @Injectable({
   providedIn: "root",
 })
@@ -94,6 +93,7 @@ export class WorkflowActionService {
     this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
 
     this.handleHighlightedElementPositionChange();
+    this.handleJointElementDrag();
   }
 
   /**
@@ -160,6 +160,22 @@ export class WorkflowActionService {
           this.undoRedoService.setListenJointCommand(true);
         });
       });
+  }
+
+  /**
+   * Subscribes to element position changes from joint graph and updates them in TexeraGraph.
+   * @private
+   */
+  public handleJointElementDrag(): void {
+    this.jointGraphWrapper.getElementPositionChangeEvent().subscribe(element => {
+      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
+        this.texeraGraph.sharedModel.elementPositionMap?.set(element.elementID, element.newPosition);
+        if (element.elementID.includes("commentBox")) {
+          this.texeraGraph.sharedModel.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
+        }
+
+      }
+    });
   }
 
   public getJointGraph(): joint.dia.Graph {
@@ -269,9 +285,6 @@ export class WorkflowActionService {
         this.addLinksInternal(links);
         if (breakpoints !== undefined) {
           breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
-        }
-        for (let link of links) {
-          this.jointGraphWrapper.highlightLinks(link.linkID);
         }
       }
       if (isDefined(commentBoxes)) {
@@ -557,6 +570,12 @@ export class WorkflowActionService {
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
+
+    // After reloading a workflow, need to clear undo/redo stacks because some of the actions involved in reloading
+    // may remain in the undo manager.
+
+    this.undoRedoService.clearUndoStack();
+    this.undoRedoService.clearRedoStack();
   }
 
   public workflowChanged(): Observable<unknown> {

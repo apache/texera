@@ -30,42 +30,34 @@ export class CodeareaCustomTemplateComponent extends FieldType {
     private coeditorPresenceService : CoeditorPresenceService
   ) {
     super();
-    this.handleCodeChange();
     this.handleShadowingMode();
   }
 
+  /**
+   * Opens the code editor.
+   */
   onClickEditor(): void {
     this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
       data: this.formControl?.value || "",
     });
   }
 
+  /**
+   * When shadowing a co-editor, this method handles the opening/closing of the code editor based on the co-editor.
+   * @private
+   */
   private handleShadowingMode(): void {
-    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-    this.coeditorPresenceService.coeditorOpenedCodeEditorStream.subscribe(({operatorId: string})=>{
+    this.coeditorPresenceService
+      .getCoeditorOpenedCodeEditorSubject()
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
       this.onClickEditor();
     });
-    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-    this.coeditorPresenceService.coeditorClosedCodeEditorStream.subscribe(({operatorId: string})=> {
+    this.coeditorPresenceService
+      .getCoeditorClosedCodeEditorSubject()
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
       this.dialogRef?.close();
     });
-  }
-
-  private handleCodeChange(): void {
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorPropertyChangeStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(({ operator }) => {
-        if (this.dialogRef != undefined) {
-          // here the assumption is the operator being edited must be highlighted
-          const currentOperatorId: string = this.workflowActionService
-            .getJointGraphWrapper()
-            .getCurrentHighlightedOperatorIDs()[0];
-          if (currentOperatorId === operator.operatorID) {
-            this.dialogRef.componentInstance.code = operator.operatorProperties["code"];
-          }
-        }
-      });
   }
 }

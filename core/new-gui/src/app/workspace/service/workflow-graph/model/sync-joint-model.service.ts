@@ -1,24 +1,25 @@
-import {WorkflowGraph, WorkflowGraphReadonly} from "./workflow-graph";
+import {WorkflowGraphReadonly} from "./workflow-graph";
 import {JointGraphWrapper} from "./joint-graph-wrapper";
 import * as Y from "yjs";
-import {
-  Breakpoint,
-  CommentBox,
-  Comment,
-  OperatorLink,
-  OperatorPredicate,
-  Point
-} from "../../../types/workflow-common.interface";
+import {Breakpoint, CommentBox, OperatorLink, OperatorPredicate, Point} from "../../../types/workflow-common.interface";
 import {Injectable} from "@angular/core";
 import {JointUIService} from "../../joint-ui/joint-ui.service";
 import {WorkflowActionService} from "./workflow-action.service";
 import * as joint from "jointjs";
 import {environment} from "../../../../../environments/environment";
-import {User, UserState} from "../../../../common/type/user";
-import _remove from "lodash/remove";
-import {YMapEvent} from "yjs";
+import {UserState} from "../../../../common/type/user";
 import {CoeditorPresenceService} from "./coeditor-presence.service";
 import {YType} from "../../../types/shared-editing.interface";
+
+/**
+ * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
+ * regardless of whether the changes are local or from other co-editors.
+ *
+ * In all the handlers, this service will also trigger the necessary subjects, which were written in
+ * <code>{@link WorkflowGraph}</code> in previous implementations and now all migrated here.
+ *
+ * It also serves as an entry point for <code>{@link CoeditorPresenceService}</code>.
+ */
 
 @Injectable({
   providedIn: "root"
@@ -36,7 +37,7 @@ export class SyncJointModelService {
     this.texeraGraph = workflowActionService.getTexeraGraph();
     this.jointGraph = workflowActionService.getJointGraph();
     this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    this.texeraGraph.newYDocLoadedSubject.subscribe( _ => {
+    this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
         this.handleOperatorAddAndDelete();
         this.handleLinkAddAndDelete();
         this.handleElementPositionChange();
@@ -44,12 +45,10 @@ export class SyncJointModelService {
         this.handleBreakpointAddAndDelete();
         this.handleOperatorDeep();
         this.handleCommentBoxDeep();
-        this.handleJointElementDrag();
         this.observeUserState();
       }
     );
   }
-
 
   /**
    * Reflects add and delete operator changes from TexeraGraph onto JointGraph.
@@ -80,13 +79,13 @@ export class SyncJointModelService {
           this.jointGraph.getCell(key).remove();
           // Emit the event streams here, after joint graph is synced.
           this.texeraGraph.setSyncTexeraGraph(true);
-          this.texeraGraph.operatorDeleteSubject.next({deletedOperatorID:key});
+          this.texeraGraph.operatorDeleteSubject.next({deletedOperatorID: key});
         }
       });
 
       if (environment.asyncRenderingEnabled) {
         // Group add
-        this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
+        this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
           this.jointGraph.addCells(jointElementsToAdd);
         });
       } else {
@@ -117,57 +116,61 @@ export class SyncJointModelService {
    */
   private handleLinkAddAndDelete(): void {
     this.texeraGraph.sharedModel.operatorLinkMap.observe((event: Y.YMapEvent<OperatorLink>) => {
-        const jointElementsToAdd: joint.dia.Link[] = [];
-        const linksToAdd: OperatorLink[] = [];
-        const keysToDelete: string[] = [];
-        const linksToDelete: OperatorLink[] = [];
-        event.changes.keys.forEach((change, key)=>{
-          if (change.action === "add") {
-            const newLink = this.texeraGraph.sharedModel.operatorLinkMap.get(key) as OperatorLink;
-            const jointLinkCell = JointUIService.getJointLinkCell(newLink);
-            jointElementsToAdd.push(jointLinkCell);
-            linksToAdd.push(newLink);
-          }
-          if (change.action === "delete") {
-            keysToDelete.push(key);
-            linksToDelete.push(change.oldValue);
-          }
+      const jointElementsToAdd: joint.dia.Link[] = [];
+      const linksToAdd: OperatorLink[] = [];
+      const keysToDelete: string[] = [];
+      const linksToDelete: OperatorLink[] = [];
+      event.changes.keys.forEach((change, key) => {
+        if (change.action === "add") {
+          const newLink = this.texeraGraph.sharedModel.operatorLinkMap.get(key) as OperatorLink;
+          const jointLinkCell = JointUIService.getJointLinkCell(newLink);
+          jointElementsToAdd.push(jointLinkCell);
+          linksToAdd.push(newLink);
+        }
+        if (change.action === "delete") {
+          keysToDelete.push(key);
+          linksToDelete.push(change.oldValue);
+        }
+      });
+
+      // Disables JointGraph -> TexeraGraph sync temporarily
+      this.texeraGraph.setSyncTexeraGraph(false);
+      for (let i = 0; i < keysToDelete.length; i++) {
+        if (this.jointGraph.getCell(keysToDelete[i]))
+          this.jointGraph.getCell(keysToDelete[i]).remove();
+      }
+      if (environment.asyncRenderingEnabled) {
+        this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
+          this.jointGraph.addCells(jointElementsToAdd.filter(x => x !== undefined));
         });
-
-        // Disables JointGraph -> TexeraGraph sync temporarily
-        this.texeraGraph.setSyncTexeraGraph(false);
-        for (let i = 0; i < keysToDelete.length; i++) {
-          if (this.jointGraph.getCell(keysToDelete[i]))
-            this.jointGraph.getCell(keysToDelete[i]).remove();
+      } else {
+        for (let i = 0; i < jointElementsToAdd.length; i++) {
+          this.jointGraph.addCell(jointElementsToAdd[i]);
         }
-        if (environment.asyncRenderingEnabled) {
-          this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
-            this.jointGraph.addCells(jointElementsToAdd.filter(x => x !== undefined));
-          });
-        } else {
-          for (let i = 0; i < jointElementsToAdd.length; i++) {
-            this.jointGraph.addCell(jointElementsToAdd[i]);
-          }
-        }
-        this.texeraGraph.setSyncTexeraGraph(true);
+      }
+      this.texeraGraph.setSyncTexeraGraph(true);
 
-        // Emit event streams
-        for (let i = 0; i < linksToAdd.length; i++) {
-          const link = linksToAdd[i];
-          this.texeraGraph.linkAddSubject.next(link);
-        }
+      // Emit event streams
+      for (let i = 0; i < linksToAdd.length; i++) {
+        const link = linksToAdd[i];
+        this.texeraGraph.linkAddSubject.next(link);
+      }
 
-        for (let i = 0; i < linksToDelete.length; i++) {
+      for (let i = 0; i < linksToDelete.length; i++) {
         const link = linksToDelete[i];
-        this.texeraGraph.linkDeleteSubject.next({deletedLink:link});
+        this.texeraGraph.linkDeleteSubject.next({deletedLink: link});
       }
 
     });
   }
 
+  /**
+   * Syncs element positions. Will temporarily block local updates.
+   * @private
+   */
   private handleElementPositionChange(): void {
     this.texeraGraph.sharedModel.elementPositionMap?.observe((event: Y.YMapEvent<Point>) => {
-      event.changes.keys.forEach((change, key)=> {
+      event.changes.keys.forEach((change, key) => {
         if (change.action === "update") {
           this.texeraGraph.setSyncTexeraGraph(false);
           const newPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(key);
@@ -182,6 +185,10 @@ export class SyncJointModelService {
     });
   }
 
+  /**
+   * Syncs the addition and deletion of comment boxes.
+   * @private
+   */
   private handleCommentBoxAddAndDelete(): void {
     this.texeraGraph.sharedModel.commentBoxMap.observe((event: Y.YMapEvent<YType<CommentBox>>) => {
       event.changes.keys.forEach((change, key) => {
@@ -198,32 +205,47 @@ export class SyncJointModelService {
     });
   }
 
+  /**
+   * Syncs the addition and deletion of breakpoints.
+   * @private
+   */
   private handleBreakpointAddAndDelete(): void {
     this.texeraGraph.sharedModel.linkBreakpointMap.observe((event: Y.YMapEvent<Breakpoint>) => {
       event.changes.keys.forEach((change, key) => {
         const oldBreakpoint = change.oldValue as Breakpoint | undefined;
         if (change.action === "add") {
           this.jointGraphWrapper.showLinkBreakpoint(key);
-          this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
+          this.texeraGraph.breakpointChangeStream.next({oldBreakpoint, linkID: key});
         }
         if (change.action === "delete") {
           if (this.texeraGraph.sharedModel.operatorLinkMap.has(key)) {
             this.jointGraphWrapper.hideLinkBreakpoint(key);
-            this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
+            this.texeraGraph.breakpointChangeStream.next({oldBreakpoint, linkID: key});
           }
         }
       });
     });
   }
 
+  /**
+   * Syncs changes that are on nested-structures of operators, including changes on:
+   *  - <code>customDisplayName</code>
+   *  - <code>operatorProperties</code>
+   *  - <code>isCached</code>
+   *  - <code>isDisabled</code>
+   * @private
+   */
   private handleOperatorDeep(): void {
     this.texeraGraph.sharedModel.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.operatorIDMap) {
           const operatorID = event.path[0] as string;
-          if (event.path[event.path.length-1] === "customDisplayName") {
+          if (event.path[event.path.length - 1] === "customDisplayName") {
             const newName = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("customDisplayName") as Y.Text;
-            this.texeraGraph.operatorDisplayNameChangedSubject.next({operatorID: operatorID, newDisplayName: newName.toJSON()});
+            this.texeraGraph.operatorDisplayNameChangedSubject.next({
+              operatorID: operatorID,
+              newDisplayName: newName.toJSON()
+            });
           } else if (event.path.includes("operatorProperties")) {
             const operator = this.texeraGraph.getOperator(operatorID);
             this.texeraGraph.operatorPropertyChangeSubject.next({operator: operator});
@@ -269,12 +291,19 @@ export class SyncJointModelService {
     });
   }
 
+  /**
+   * Syncs changes that are on nested-structures of comment boxes, including changes of:
+   *  - adding comments
+   *  - deleting comments
+   *  - editing comments (processed as deleting and then adding in-place)
+   * @private
+   */
   private handleCommentBoxDeep(): void {
     this.texeraGraph.sharedModel.commentBoxMap.observeDeep((events: Y.YEvent<any>[]) => {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
-          if (event.path.length === 2 && event.path[event.path.length-1] === "comments") {
+          if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());
             const deletedComments = Array.from(event.changes.deleted.values());
             if (addedComments.length == deletedComments.length) {
@@ -282,7 +311,7 @@ export class SyncJointModelService {
             } else {
               if (addedComments.length > 0) {
                 const newComment = addedComments[0].content.getContent()[0];
-                this.texeraGraph.commentBoxAddCommentSubject.next({ addedComment: newComment, commentBox: commentBox });
+                this.texeraGraph.commentBoxAddCommentSubject.next({addedComment: newComment, commentBox: commentBox});
               }
               if (deletedComments.length > 0) {
                 this.texeraGraph.commentBoxDeleteCommentSubject.next({commentBox: commentBox});
@@ -294,20 +323,8 @@ export class SyncJointModelService {
     });
   }
 
-  private handleJointElementDrag(): void {
-    this.jointGraphWrapper.getElementPositionChangeEvent().subscribe(element => {
-      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
-        this.texeraGraph.sharedModel.elementPositionMap?.set(element.elementID, element.newPosition);
-        if (element.elementID.includes("commentBox")) {
-          this.texeraGraph.sharedModel.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
-        }
-
-      }
-    });
-  }
-
   /**
-   * Handles changes of other users' cursors.
+   * Listens to changes of co-editors' presence infos and lets <code>{@link CoeditorPresenceService}</code> handle them.
    */
   private observeUserState(): void {
     // first time logic
@@ -318,7 +335,7 @@ export class SyncJointModelService {
     }
 
     this.texeraGraph.sharedModel.awareness.on("change", (change: { added: number[], updated: number[], removed: number[] }) => {
-      const currentStates = Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
+      Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>)
         .filter((userState) => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId);
       for (const clientId of change.added) {
         const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;

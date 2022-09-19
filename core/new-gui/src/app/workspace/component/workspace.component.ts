@@ -211,7 +211,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // responsible for persisting the workflow to the backend
           this.registerAutoPersistWorkflow();
         } else {
-          // TODO: ?
           // load the cached workflow
           this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
           // clear stack

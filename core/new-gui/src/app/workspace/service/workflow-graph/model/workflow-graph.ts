@@ -59,10 +59,8 @@ export class WorkflowGraph {
   public sharedModel: SharedModel = new SharedModel();
   public newYDocLoadedSubject = new Subject();
 
-  // Shared-editing related observables.
   public readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
-  // Workflow-graph related observables.
   public readonly operatorDeleteSubject = new Subject<{
     deletedOperatorID: string;
   }>();

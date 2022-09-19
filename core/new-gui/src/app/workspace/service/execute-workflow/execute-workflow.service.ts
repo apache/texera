@@ -169,7 +169,6 @@ export class ExecuteWorkflowService {
 
   public executeWorkflowAmberTexera(): void {
     // get the current workflow graph
-    console.log(this.workflowActionService.getWorkflow());
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
     // wait for the form debounce to complete, then send

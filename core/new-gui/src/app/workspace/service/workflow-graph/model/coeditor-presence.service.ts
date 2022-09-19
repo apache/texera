@@ -1,11 +1,11 @@
-import { Injectable } from "@angular/core";
-import {WorkflowGraph, WorkflowGraphReadonly} from "./workflow-graph";
+import {Injectable} from "@angular/core";
+import {WorkflowGraphReadonly} from "./workflow-graph";
 import * as joint from "jointjs";
 import {JointGraphWrapper} from "./joint-graph-wrapper";
 import {User, UserState} from "../../../../common/type/user";
 import {WorkflowActionService} from "./workflow-action.service";
 import {JointUIService} from "../../joint-ui/joint-ui.service";
-import {Subject} from "rxjs";
+import {Observable, Subject} from "rxjs";
 
 function isEqual(array1: any[] | undefined, array2: any[] | undefined): boolean {
   if (!array1 && !array2) return true;
@@ -16,10 +16,21 @@ function isEqual(array1: any[] | undefined, array2: any[] | undefined): boolean 
   }
 }
 
+/**
+ * CoeditorPresenceService handles user-presence updates from other editors in the same shared-editing room
+ * and shows them on the UI. It also keeps some states in itself for some necessary UI update information,
+ * like which co-editors are currently highlighting a particular operator.
+ */
+
 @Injectable({
   providedIn: "root"
 })
 export class CoeditorPresenceService {
+  private readonly coeditorOpenedCodeEditorSubject = new Subject<{ operatorId: string }>();
+  private readonly coeditorClosedCodeEditorSubject = new Subject<{ operatorId: string }>();
+  public shadowingModeEnabled = false;
+  public shadowingCoeditor?: User;
+  public coeditors: User[] = [];
   private jointGraph: joint.dia.Graph;
   private texeraGraph: WorkflowGraphReadonly;
   private jointGraphWrapper: JointGraphWrapper;
@@ -29,25 +40,27 @@ export class CoeditorPresenceService {
   private coeditorEditingCode = new Map<string, boolean>();
   private coeditorStates = new Map<string, UserState>();
   private currentlyEditingTimers = new Map<string, NodeJS.Timer>();
-  public coeditorOpenedCodeEditorStream = new Subject<{operatorId: string}>();
-  public coeditorClosedCodeEditorStream = new Subject<{operatorId: string}>();
-  public shadowingModeEnabled = false;
-  public shadowingCoeditor?: User;
-  public coeditors: User[] = [];
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private jointUIService: JointUIService
   ) {
     this.texeraGraph = workflowActionService.getTexeraGraph();
     this.jointGraph = workflowActionService.getJointGraph();
     this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
   }
 
+  /**
+   * Returns whether this co-editor is already recorded here.
+   * @param clientId
+   */
   public hasCoeditor(clientId?: string) {
-    return this.coeditors.find(v=>v.clientId === clientId);
+    return this.coeditors.find(v => v.clientId === clientId);
   }
 
+  /**
+   * Adds a new co-editor and initialize UI-updates for this editor.
+   * @param coeditorState
+   */
   public addCoeditor(coeditorState: UserState) {
     const coeditor = coeditorState.user;
     if (!this.hasCoeditor(coeditor.clientId) && coeditor.clientId) {
@@ -57,6 +70,10 @@ export class CoeditorPresenceService {
     }
   }
 
+  /**
+   * Removes a co-editor and clean up states recorded in this service.
+   * @param clientId
+   */
   public removeCoeditor(clientId: string) {
     for (let i = 0; i < this.coeditors.length; i++) {
       const coeditor = this.coeditors[i];
@@ -75,6 +92,13 @@ export class CoeditorPresenceService {
     this.coeditorStates.delete(clientId);
   }
 
+  /**
+   * Given a new <code>{@link UserState}</code> with specified clientId, this method updates this co-editor's presence
+   * information and corresponding UIs. This is an incremental update, i.e., it will first check existing states and
+   * only update what is new.
+   * @param clientId
+   * @param coeditorState
+   */
   public updateCoeditorState(clientId: string, coeditorState: UserState) {
     // Update pointers
     const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(JointUIService.getJointUserPointerName(coeditorState.user));
@@ -153,7 +177,7 @@ export class CoeditorPresenceService {
         this.coeditorOperatorPropertyChanged.set(clientId, currentChanged);
         // Set for 3 seconds
         this.jointGraphWrapper.setPropertyChanged(coeditorState.user, currentChanged);
-        setTimeout(()=>{
+        setTimeout(() => {
           this.coeditorOperatorPropertyChanged.delete(clientId);
           this.jointGraphWrapper.removePropertyChanged(coeditorState.user, currentChanged);
         }, 2000);
@@ -166,19 +190,23 @@ export class CoeditorPresenceService {
       if (currentEditingCode) {
         this.coeditorEditingCode.set(clientId, currentEditingCode);
         if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === clientId.toString() && coeditorState.currentlyEditing) {
-          this.coeditorOpenedCodeEditorStream.next({operatorId: coeditorState.currentlyEditing});
+          this.coeditorOpenedCodeEditorSubject.next({operatorId: coeditorState.currentlyEditing});
         }
       } else {
         if (previousEditing) {
           this.coeditorEditingCode.delete(clientId);
           if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === clientId.toString() && coeditorState.currentlyEditing) {
-            this.coeditorClosedCodeEditorStream.next({operatorId: coeditorState.currentlyEditing});
+            this.coeditorClosedCodeEditorSubject.next({operatorId: coeditorState.currentlyEditing});
           }
         }
       }
     }
   }
 
+  /**
+   * Start shawoding an co-editor.
+   * @param coeditor
+   */
   shadowCoeditor(coeditor: User) {
     this.shadowingModeEnabled = true;
     this.shadowingCoeditor = coeditor;
@@ -189,7 +217,18 @@ export class CoeditorPresenceService {
     }
   }
 
+  /**
+   * End shadowing.
+   */
   stopShadowing() {
     this.shadowingModeEnabled = false;
+  }
+
+  public getCoeditorOpenedCodeEditorSubject(): Observable<{ operatorId: string }> {
+    return this.coeditorOpenedCodeEditorSubject.asObservable();
+  }
+
+  public getCoeditorClosedCodeEditorSubject(): Observable<{ operatorId: string }> {
+    return this.coeditorClosedCodeEditorSubject.asObservable();
   }
 }

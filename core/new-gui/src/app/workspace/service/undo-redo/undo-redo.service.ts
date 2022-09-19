@@ -1,11 +1,10 @@
-import { Injectable } from "@angular/core";
-import { Subject } from "rxjs";
+import {Injectable} from "@angular/core";
 import * as Y from "yjs";
 
-/* TODO LIST FOR BUGS
-1. Problem with repeatedly adding and deleting a link without letting go, unintended behavior
-2. See if there's a way to only store a previous version of an operator's properties
-after a certain period of time so we don't undo one character at a time */
+/**
+ * After the introduction of shared-editing, this service basically wraps the internal yjs undo-redo manager, except it
+ * also adds some of our custom conditions for being able to undo/redo.
+ */
 
 @Injectable({
   providedIn: "root",
@@ -26,6 +25,7 @@ export class UndoRedoService {
   public enableWorkFlowModification() {
     this.workFlowModificationEnabled = true;
   }
+
   public disableWorkFlowModification() {
     this.workFlowModificationEnabled = false;
   }
@@ -62,9 +62,9 @@ export class UndoRedoService {
 
   public canUndo(): boolean {
     if (this.undoManager)
-    return (
-      (this.workFlowModificationEnabled && this.undoManager?.canUndo())
-    );
+      return (
+        (this.workFlowModificationEnabled && this.undoManager?.canUndo())
+      );
     else return false;
   }
 
@@ -77,8 +77,10 @@ export class UndoRedoService {
   }
 
   public clearUndoStack(): void {
+    this.undoManager?.clear(true, false);
   }
 
   public clearRedoStack(): void {
+    this.undoManager?.clear(false, true);
   }
 }

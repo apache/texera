@@ -1,16 +1,16 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
-import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { Subject } from "rxjs";
-import { FormGroup } from "@angular/forms";
-import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
+import {ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges} from "@angular/core";
+import {ExecuteWorkflowService} from "../../../service/execute-workflow/execute-workflow.service";
+import {Subject} from "rxjs";
+import {FormGroup} from "@angular/forms";
+import {FormlyFieldConfig, FormlyFormOptions} from "@ngx-formly/core";
 import Ajv from "ajv";
-import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { cloneDeep, isEqual } from "lodash-es";
-import { CustomJSONSchema7, HideType, hideTypes } from "../../../types/custom-json-schema.interface";
-import { isDefined } from "../../../../common/util/predicate";
-import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
-import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import {FormlyJsonschema} from "@ngx-formly/core/json-schema";
+import {WorkflowActionService} from "../../../service/workflow-graph/model/workflow-action.service";
+import {cloneDeep, isEqual} from "lodash-es";
+import {CustomJSONSchema7, hideTypes} from "../../../types/custom-json-schema.interface";
+import {isDefined} from "../../../../common/util/predicate";
+import {ExecutionState} from "src/app/workspace/types/execute-workflow.interface";
+import {DynamicSchemaService} from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
   SchemaAttribute,
   SchemaPropagationService,
@@ -25,18 +25,17 @@ import {
   TYPE_CASTING_OPERATOR_TYPE,
   TypeCastingDisplayComponent,
 } from "../typecasting-display/type-casting-display.component";
-import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter } from "rxjs/operators";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
-import { environment } from "src/environments/environment";
-import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
-import { DashboardUserFileEntry, UserFile } from "../../../../dashboard/type/dashboard-user-file-entry";
-import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { AccessEntry } from "../../../../dashboard/type/access.interface";
-import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
-import { Workflow } from "../../../../common/type/workflow";
+import {DynamicComponentConfig} from "../../../../common/type/dynamic-component-config";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {filter} from "rxjs/operators";
+import {NotificationService} from "../../../../common/service/notification/notification.service";
+import {PresetWrapperComponent} from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import {environment} from "src/environments/environment";
+import {WorkflowVersionService} from "../../../../dashboard/service/workflow-version/workflow-version.service";
+import {UserFileService} from "../../../../dashboard/service/user-file/user-file.service";
+import {AccessEntry} from "../../../../dashboard/type/access.interface";
+import {WorkflowAccessService} from "../../../../dashboard/service/workflow-access/workflow-access.service";
+import {Workflow} from "../../../../common/type/workflow";
 import {QuillBinding} from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
@@ -106,18 +105,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
-  ajv = new Ajv({ useDefaults: true, strict: false });
+  ajv = new Ajv({useDefaults: true, strict: false});
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-
-  // used to tear down subscriptions that takeUntil(teardownObservable)
-  private teardownObservable: Subject<void> = new Subject();
   public lockGranted: boolean = true;
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
-
   quillBinding!: QuillBinding;
   quill!: Quill;
+  // used to tear down subscriptions that takeUntil(teardownObservable)
+  private teardownObservable: Subject<void> = new Subject();
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -130,7 +127,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowVersionService: WorkflowVersionService,
     private userFileService: UserFileService,
     private workflowGrantAccessService: WorkflowAccessService
-  ) {}
+  ) {
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
@@ -202,7 +200,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           .grantUserFileAccess(
             {
               ownerName: owner,
-              file: { fid: -1, path: "", size: -1, description: "", uploadTime: "", name: fname },
+              file: {fid: -1, path: "", size: -1, description: "", uploadTime: "", name: fname},
               accessLevel: "read",
               isOwner: true,
               projectIDs: [],
@@ -258,7 +256,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     ) {
       this.switchDisplayComponent({
         component: TypeCastingDisplayComponent,
-        componentInputs: { currentOperatorId: this.currentOperatorId },
+        componentInputs: {currentOperatorId: this.currentOperatorId},
       });
     } else {
       this.switchDisplayComponent(undefined);
@@ -314,7 +312,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   registerOperatorSchemaChangeHandler(): void {
     this.dynamicSchemaService
       .getOperatorDynamicSchemaChangedStream()
-      .pipe(filter(({ operatorID }) => operatorID === this.currentOperatorId))
+      .pipe(filter(({operatorID}) => operatorID === this.currentOperatorId))
       .pipe(untilDestroyed(this))
       .subscribe(_ => this.rerenderEditorForm());
   }
@@ -365,16 +363,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
-  private registerOperatorDisplayNameChangeHandler(): void {
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorDisplayNameChangedStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(({ operatorID, newDisplayName }) => {
-        if (operatorID === this.currentOperatorId) this.formTitle = newDisplayName;
-      });
-  }
-
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
@@ -395,7 +383,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             typeof mappedField.key === "string" &&
             this.fieldStyleOverride.has(mappedField.key)
           ) {
-            return { style: this.fieldStyleOverride.get(mappedField.key) };
+            return {style: this.fieldStyleOverride.get(mappedField.key)};
           } else {
             return {};
           }
@@ -494,6 +482,43 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
   }
 
+  /**
+   * Connects the actual y-text structure of this operator's name to the editor's awareness manager.
+   */
+  public connectQuillToText() {
+    this.registerQuillBinding();
+    const currentOperatorSharedType = this.workflowActionService
+      .getTexeraGraph()
+      .getSharedModel()
+      .operatorIDMap
+      .get(<string>this.currentOperatorId) as YType<OperatorPredicate>;
+    if (this.currentOperatorId) {
+      if (!currentOperatorSharedType.has("customDisplayName")) {
+        currentOperatorSharedType.set("customDisplayName", new Y.Text());
+      }
+      const ytext = currentOperatorSharedType.get("customDisplayName");
+      this.quillBinding = new QuillBinding(
+        ytext as Y.Text,
+        this.quill,
+        this.workflowActionService.getTexeraGraph().getSharedModel().awareness
+      );
+    }
+  }
+
+  private registerOperatorDisplayNameChangeHandler(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDisplayNameChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({operatorID, newDisplayName}) => {
+        if (operatorID === this.currentOperatorId) this.formTitle = newDisplayName;
+      });
+  }
+
+  /**
+   * Initializes shared text editor.
+   * @private
+   */
   private registerQuillBinding() {
     // Operator name editor
     const element = document.getElementById("customName") as Element;
@@ -511,24 +536,5 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       placeholder: "Start collaborating...",
       theme: "snow"
     });
-  }
-
-  public connectQuillToText() {
-    this.registerQuillBinding();
-    if (this.currentOperatorId) {
-      if (!(this.workflowActionService.getTexeraGraph().getSharedModel().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).has("customDisplayName")) {
-        (this.workflowActionService.getTexeraGraph().getSharedModel().operatorIDMap.get(this.currentOperatorId) as YType<OperatorPredicate>).set("customDisplayName", new Y.Text());
-        console.log("CREATED");
-      } else {
-        console.log("EXISTED");
-      }
-      const ytext = this.workflowActionService.getTexeraGraph().getSharedModel().operatorIDMap.get(this.currentOperatorId)?.get("customDisplayName");
-      console.log(ytext);
-      this.quillBinding = new QuillBinding(
-        ytext as Y.Text,
-        this.quill,
-        this.workflowActionService.getTexeraGraph().getSharedModel().awareness
-      );
-    }
   }
 }
