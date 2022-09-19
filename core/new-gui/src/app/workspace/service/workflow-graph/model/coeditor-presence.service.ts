@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import {WorkflowGraph} from "./workflow-graph";
+import {WorkflowGraph, WorkflowGraphReadonly} from "./workflow-graph";
 import * as joint from "jointjs";
 import {JointGraphWrapper} from "./joint-graph-wrapper";
 import {User, UserState} from "../../../../common/type/user";
@@ -21,7 +21,7 @@ function isEqual(array1: any[] | undefined, array2: any[] | undefined): boolean 
 })
 export class CoeditorPresenceService {
   private jointGraph: joint.dia.Graph;
-  private texeraGraph: WorkflowGraph;
+  private texeraGraph: WorkflowGraphReadonly;
   private jointGraphWrapper: JointGraphWrapper;
   private coeditorCurrentlyEditing = new Map<string, string | undefined>();
   private coeditorOperatorHighlights = new Map<string, string[]>();
@@ -39,9 +39,9 @@ export class CoeditorPresenceService {
     private workflowActionService: WorkflowActionService,
     private jointUIService: JointUIService
   ) {
-    this.texeraGraph = workflowActionService.texeraGraph;
-    this.jointGraph = workflowActionService.jointGraph;
-    this.jointGraphWrapper = workflowActionService.jointGraphWrapper;
+    this.texeraGraph = workflowActionService.getTexeraGraph();
+    this.jointGraph = workflowActionService.getJointGraph();
+    this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
   }
 
   public hasCoeditor(clientId?: string) {

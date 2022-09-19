@@ -118,7 +118,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.workflowActionService.destroyYModel();
+    this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
     this.workflowCollabService.closeWebsocket();
   }
@@ -171,18 +171,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
-          this.workflowActionService.destroyYModel();
-          this.workflowActionService.setNewYModel(wid, this.userService.getCurrentUser());
-          // enable workspace for modification
-          this.workflowActionService.toggleLockListen(false);
+          this.workflowActionService.destroySharedModel();
+          this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           this.workflowActionService.enableWorkflowModification();
           // load the fetched workflow
           this.workflowActionService.reloadWorkflow(workflow);
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-          this.workflowActionService.toggleLockListen(true);
-          this.workflowActionService.syncLock();
         },
         () => {
           // enable workspace for modification

@@ -1,7 +1,6 @@
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 
 export type commandFuncs =
-  | "undoredo"
   | "addOperator"
   | "deleteOperator"
   | "addOperatorsAndLinks"

@@ -25,27 +25,7 @@ type restrictedMethods =
   | "deleteLink"
   | "deleteLinkWithID"
   | "setOperatorProperty"
-  | "setLinkBreakpoint"
-  | "yDoc"
-  | "wsProvider"
-  | "sharedModel"
-  | "newYDocLoadedSubject"
-  | "operatorAddSubject"
-  | "operatorDeleteSubject"
-  | "disabledOperatorChangedSubject"
-  | "cachedOperatorChangedSubject"
-  | "operatorDisplayNameChangedSubject"
-  | "linkAddSubject"
-  | "linkDeleteSubject"
-  | "operatorPropertyChangeSubject"
-  | "breakpointChangeStream"
-  | "commentBoxAddSubject"
-  | "commentBoxDeleteSubject"
-  | "commentBoxAddCommentSubject"
-  | "commentBoxDeleteCommentSubject"
-  | "commentBoxEditCommentSubject"
-  | "coeditorOperatorHighlightSubject"
-  | "coeditorCurrentlyEditingSubject";
+  | "setLinkBreakpoint";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -86,8 +66,6 @@ export class WorkflowGraph {
   // Shared-editing related observables.
 
   public newYDocLoadedSubject = new Subject();
-  public readonly coeditorOperatorHighlightSubject = new Subject<{coeditor: User, clientId: number, operatorIds: string[]}[]>();
-  public readonly coeditorCurrentlyEditingSubject = new Subject<{coeditor: User, clientId: number, operatorId?: string}[]>();
 
   // Workflow-graph related observables.
 
@@ -156,8 +134,8 @@ export class WorkflowGraph {
    * Replaces current <code>{@link sharedModel}</code>  with a new one.
    * Note this does NOT destroy the old model explicitly, so <code>{@link destroyYModel}</code> might
    * still need to be called before this method.
-   * @param workflowId optional, but needed if want to join shared editing.
-   * @param user optional, but needed if want to have user presence.
+   * @param workflowId optional, but needed if you want to join shared editing.
+   * @param user optional, but needed if you want to have user presence.
    */
   public loadNewYModel(workflowId?: number,
                        user?: User) {
@@ -177,6 +155,14 @@ export class WorkflowGraph {
    */
   public setSyncTexeraGraph(syncTexeraGraph: boolean): void {
     this.syncTexeraGraph = syncTexeraGraph;
+  }
+
+  /**
+   * Groups a bunch of actions into one atomic transaction, so that they can be undone/redone in one call.
+   * @param callback Put whatever need to be atomically done within this callback function.
+   */
+  public bundleActions(callback: Function) {
+    this.sharedModel.transact(callback);
   }
 
   /**
@@ -330,7 +316,7 @@ export class WorkflowGraph {
   }
 
   /**
-   * This method gets this status from readonly object version of the operator data (as opposed to y-type data).
+   * This method gets this status from readonly object version of the operator data as opposed to y-type data.
    * @param operatorID
    */
   public isOperatorDisabled(operatorID: string): boolean {
@@ -341,10 +327,17 @@ export class WorkflowGraph {
     return operator.isDisabled ?? false;
   }
 
+  /**
+   * Gets disabled operators by filtering from all <code>operatorIDs</code> in the <code>OperatorIDMap</code>.
+   */
   public getDisabledOperators(): ReadonlySet<string> {
     return new Set(Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op => this.isOperatorDisabled(op)));
   }
 
+  /**
+   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
   public cacheOperator(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -360,6 +353,10 @@ export class WorkflowGraph {
 
   }
 
+  /**
+   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
   public unCacheOperator(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -371,6 +368,10 @@ export class WorkflowGraph {
     this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", false);
   }
 
+  /**
+   * This method gets this status from readonly object version of the operator data as opposed to y-type data.
+   * @param operatorID
+   */
   public isOperatorCached(operatorID: string): boolean {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -391,12 +392,16 @@ export class WorkflowGraph {
     return this.sharedModel.operatorIDMap.has(operatorID) as boolean;
   }
 
+  /**
+   * Returns whether the comment box exists in the graph.
+   * @param commentBoxId
+   */
   public hasCommentBox(commentBoxId: string): boolean {
     return this.sharedModel.commentBoxMap.has(commentBoxId);
   }
 
   /**
-   * Gets the operator with the operatorID.
+   * Gets the operator with the operatorID. The object version of the operator is returned, as opposed to y-type data.
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID
    */
@@ -409,6 +414,11 @@ export class WorkflowGraph {
     return operator;
   }
 
+  /**
+   * Gets the comment box with the commentBoxID. The object version is returned, as opposed to y-type data.
+   * Throws an Error if the comment box doesn't exist.
+   * @param commentBoxID
+   */
   public getCommentBox(commentBoxID: string): CommentBox {
     const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
     if (!commentBox) {
@@ -418,19 +428,25 @@ export class WorkflowGraph {
   }
 
   /**
-   * Returns an array of all operators in the graph
+   * Returns an array of all operators in the graph.
    */
   public getAllOperators(): OperatorPredicate[] {
     return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>)
       .map(v => v.toJSON());
   }
 
+  /**
+   * Returns an array of all enabled operators in the graph.
+   */
   public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {
     return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>)
       .map(v => v.toJSON())
       .filter(op => !this.isOperatorDisabled(op.operatorID));
   }
 
+  /**
+   * Returns an array of all the comment boxes in the graph.
+   */
   public getAllCommentBoxes(): CommentBox[] {
     return Array.from(this.sharedModel.commentBoxMap.values() as IterableIterator<YType<CommentBox>>)
       .map(v => v.toJSON());
@@ -490,7 +506,7 @@ export class WorkflowGraph {
   }
 
   /**
-   * Returns wheter the graph contains the link with the source and target
+   * Returns whether the graph contains the link with the source and target
    * @param source source operator and port of the link
    * @param target target operator and port of the link
    */
@@ -545,12 +561,15 @@ export class WorkflowGraph {
     return Array.from(this.sharedModel.operatorLinkMap.values());
   }
 
+  /**
+   * Returns an array of all the enabled links in the graph.
+   */
   public getAllEnabledLinks(): ReadonlyArray<OperatorLink> {
     return Array.from(this.sharedModel.operatorLinkMap.values()).filter(link => this.isLinkEnabled(link.linkID));
   }
 
   /**
-   * Return an array of all input links of an operator in the graph.
+   * Returns an array of all input links of an operator in the graph.
    * @param operatorID
    */
   public getInputLinksByOperatorId(operatorID: string): OperatorLink[] {
@@ -558,7 +577,7 @@ export class WorkflowGraph {
   }
 
   /**
-   * Returna an array of all output links of an operator in the graph.
+   * Returns an array of all output links of an operator in the graph.
    * @param operatorID
    */
   public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
@@ -567,10 +586,14 @@ export class WorkflowGraph {
 
   /**
    * Sets the property of the operator to use the newProperty object.
+   * Will create a new y-object based on the new property, so <b>the old y-object will be replaced</b> and as such
+   * fine-grained shared-editing will <b>NOT</b> be enabled.
+   *
+   * Also updates local awareness for changed property status.
    *
    * Throws an error if the operator doesn't exist.
    * @param operatorID operator ID
-   * @param newProperty new property to set
+   * @param newProperty new property to set, the new y-object created from this will replace the old structure.
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     const previousProperty = this.sharedModel.operatorIDMap.get(operatorID)?.get("operatorProperties").toJSON();
@@ -611,10 +634,16 @@ export class WorkflowGraph {
     return this.sharedModel.linkBreakpointMap.get(linkID);
   }
 
+  /**
+   * Returns all link breakpoints as a readonly map. This returns the internal YMap directly.
+   */
   public getAllLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
     return this.sharedModel.linkBreakpointMap;
   }
 
+  /**
+   * Returns breakpoints filtered by enabled status. This returns a new map from the internal YMap.
+   */
   public getAllEnabledLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
     const enabledBreakpoints = new Map();
     this.sharedModel.linkBreakpointMap.forEach((breakpoint, linkID) => {
@@ -634,7 +663,8 @@ export class WorkflowGraph {
 
   /**
    * Gets the observable event stream of an operator being deleted from the graph.
-   * The observable value is the deleted operator.
+   * The observable value is only the deleted operator's ID since a deleted YMap
+   * (the internal structure of the operator) cannot be retrieved.
    */
   public getOperatorDeleteStream(): Observable<{
     deletedOperatorID: string;
@@ -716,14 +746,6 @@ export class WorkflowGraph {
     linkID: string;
   }> {
     return this.breakpointChangeStream.asObservable();
-  }
-
-  public getCoeditorOperatorHighlightStream(): Observable<{coeditor: User, clientId: number, operatorIds: string[]}[]> {
-    return this.coeditorOperatorHighlightSubject.asObservable();
-  }
-
-  public getCoeditorCurrentlyEditingStream(): Observable<{coeditor: User, clientId: number, operatorId?: string}[]> {
-    return this.coeditorCurrentlyEditingSubject.asObservable();
   }
 
   /**

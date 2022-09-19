@@ -367,16 +367,12 @@ export class NavigationComponent implements OnInit {
           lastModifiedTime: undefined,
         };
 
-        // enable workspace for modification
-        this.workflowActionService.toggleLockListen(false);
         this.workflowActionService.enableWorkflowModification();
         // load the fetched workflow
         this.workflowActionService.reloadWorkflow(workflow, true);
         // clear stack
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
-        this.workflowActionService.toggleLockListen(true);
-        this.workflowActionService.syncLock();
       } catch (error) {
         this.notificationService.error(
           "An error occurred when importing the workflow. Please import a workflow json file."

@@ -791,82 +791,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  private handleCoeditorOperatorHighlightEvent(): void {
-    this.workflowActionService.getTexeraGraph().getCoeditorOperatorHighlightStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((highlightStates) => {
-        let highlightedIds: string[] = [];
-        for (const {coeditor, clientId, operatorIds} of highlightStates) {
-          const highlightIdPrefix = `${coeditor.name}_${clientId}_`;
-          for (const operatorId of operatorIds) {
-            const highlightId = highlightIdPrefix + operatorId;
-            const operatorElement = this.getJointPaper().findViewByModel(operatorId);
-            const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
-            // If not already existing, add
-            if (currentStrokeIds.indexOf(highlightId) < 0) {
-              joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {
-                padding: 5 + 5 * currentStrokeIds.length,
-                rx: 5,
-                ry: 5,
-                attrs: {
-                  "stroke-width": 2,
-                  "stroke": coeditor.color
-                }
-              });
-            }
-            highlightedIds.push(highlightId);
-          }
-        }
-
-        // cleanup unhighlighted operators
-        for (const operatorId of this.workflowActionService.getTexeraGraph().getAllOperators().map(v=>v.operatorID)) {
-          const operatorElement = this.getJointPaper().findViewByModel(operatorId);
-          const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
-          for (const strokeId of currentStrokeIds) {
-            if (strokeId && highlightedIds.indexOf(strokeId) < 0) {
-              joint.highlighters.mask.remove(operatorElement, strokeId);
-            }
-          }
-        }
-      });
-  }
-
-  private handleCoeditorCurrentlyEditingEvent(): void {
-    this.workflowActionService.getTexeraGraph().getCoeditorCurrentlyEditingStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((currentlyEditingStates)=> {
-
-        let currentStates: string[] = [];
-        for (const {coeditor, clientId, operatorId} of currentlyEditingStates) {
-          const userClientId = `${coeditor.name}_${clientId}_`;
-          if (!(this.coeditorCurrentlyEditingMap.get(userClientId) && this.coeditorCurrentlyEditingMap.get(userClientId) === operatorId)) {
-            this.coeditorCurrentlyEditingMap.set(userClientId, operatorId);
-            if (operatorId) {
-              currentStates.push(userClientId);
-              // TODO: add info
-                this.jointUIService.changeOperatorEditingStatus(this.getJointPaper(), operatorId, [coeditor]);
-            } else {
-              // TODO: remove info if exists.
-              if (this.coeditorCurrentlyEditingMap.get(userClientId)) {
-                const exisitingOperatorId = this.coeditorCurrentlyEditingMap.get(userClientId) as string;
-                this.jointUIService.changeOperatorEditingStatus(this.getJointPaper(), exisitingOperatorId, undefined);
-              }
-            }
-          }
-        }
-        for (const [key, value] of this.coeditorCurrentlyEditingMap) {
-          if (!currentStates.includes(key)) {
-            // TODO: remove info
-            console.log(key);
-            if (value) {
-              this.jointUIService.changeOperatorEditingStatus(this.getJointPaper(), value, undefined);
-            }
-            this.coeditorCurrentlyEditingMap.set(key, undefined);
-          }
-        }
-      });
-  }
-
   private openCommentBox(commentBoxID: string): void {
     const commentBox = this.workflowActionService.getTexeraGraph().getSharedModel().commentBoxMap.get(commentBoxID);
     const modalRef: NzModalRef = this.nzModalService.create({
@@ -1252,8 +1176,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService
           .getJointGraphWrapper()
           .setMultiSelectMode(allOperators.length + allGroups.length > 1);
-        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.highlightLinks(allLinks.length > 1, ...allLinks);
+        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
       });
   }
