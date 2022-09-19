@@ -193,8 +193,7 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  def buildPipelinedRegions()
-      : PhysicalPlan = {
+  def buildPipelinedRegions(): PhysicalPlan = {
     findAllPipelinedRegions()
     addDependenciesBetweenIOOfBlockingOperator()
     this.physicalPlan.pipelinedRegionsDAG = pipelinedRegionsDAG
