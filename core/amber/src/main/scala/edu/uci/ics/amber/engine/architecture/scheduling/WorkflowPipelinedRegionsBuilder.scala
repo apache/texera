@@ -194,9 +194,10 @@ class WorkflowPipelinedRegionsBuilder(
   }
 
   def buildPipelinedRegions()
-      : (PhysicalPlan, DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]) = {
+      : PhysicalPlan = {
     findAllPipelinedRegions()
     addDependenciesBetweenIOOfBlockingOperator()
-    (this.physicalPlan, pipelinedRegionsDAG)
+    this.physicalPlan.pipelinedRegionsDAG = pipelinedRegionsDAG
+    this.physicalPlan
   }
 }

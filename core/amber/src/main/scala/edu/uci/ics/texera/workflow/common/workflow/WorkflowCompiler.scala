@@ -66,7 +66,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
     val physicalPlan = logicalPlan.toPhysicalPlan(this.context, workflowId, opResultStorage)
 
     // create pipelined regions.
-    val (newPhysicalPlan, pipelinedRegionsDAG) = new WorkflowPipelinedRegionsBuilder(
+    val newPhysicalPlan = new WorkflowPipelinedRegionsBuilder(
       workflowId,
       logicalPlan,
       physicalPlan,
