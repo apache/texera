@@ -6,12 +6,12 @@ import {
   CommentBox,
   OperatorLink,
   OperatorPredicate,
-  Point,
-  YType
+  Point
 } from "../../../types/workflow-common.interface";
 import {User, UserState} from "../../../../common/type/user";
 import {getWebsocketUrl} from "../../../../common/util/url";
 import {v4 as uuid} from "uuid";
+import {YType} from "../../../types/shared-editing.interface";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.

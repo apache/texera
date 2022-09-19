@@ -31,7 +31,6 @@ import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
-import { WorkflowCollabService } from "../../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { DashboardUserFileEntry, UserFile } from "../../../../dashboard/type/dashboard-user-file-entry";
 import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
@@ -42,7 +41,8 @@ import {QuillBinding} from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
-import {OperatorPredicate, YType} from "../../../types/workflow-common.interface";
+import {OperatorPredicate} from "../../../types/workflow-common.interface";
+import {YType} from "../../../types/shared-editing.interface";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -126,7 +126,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
     private notificationService: NotificationService,
-    private workflowCollabService: WorkflowCollabService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private userFileService: UserFileService,
@@ -166,8 +165,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerDisableEditorInteractivityHandler();
 
     this.registerOperatorDisplayNameChangeHandler();
-
-    this.registerLockChangeHandler();
 
     let workflow = this.workflowActionService.getWorkflow();
     if (workflow) this.refreshGrantedList(workflow);
@@ -378,16 +375,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
-  private registerLockChangeHandler(): void {
-    this.workflowCollabService
-      .getLockStatusStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((lockGranted: boolean) => {
-        this.lockGranted = lockGranted;
-        this.changeDetectorRef.detectChanges();
-      });
-  }
-
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
@@ -504,20 +491,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       } catch (e) {
         this.notificationService.error(e);
       }
-    }
-  }
-
-  confirmChangeOperatorCustomName(customDisplayName: string) {
-    if (this.currentOperatorId) {
-      const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-      const userFriendlyName = currentOperatorSchema.additionalMetadata.userFriendlyName;
-      // fall back to the original userFriendlyName if no valid name is provided
-      const newDisplayName =
-        customDisplayName === "" || customDisplayName === undefined
-          ? currentOperatorSchema.additionalMetadata.userFriendlyName
-          : customDisplayName;
-      this.workflowActionService.setOperatorCustomName(this.currentOperatorId, newDisplayName, userFriendlyName);
-      this.formTitle = newDisplayName;
     }
   }
 

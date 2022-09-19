@@ -2,11 +2,9 @@ import { Component } from "@angular/core";
 import { FieldType } from "@ngx-formly/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
-import {takeUntil} from "rxjs/operators";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -24,17 +22,14 @@ import {takeUntil} from "rxjs/operators";
   styleUrls: ["./codearea-custom-template.component.scss"],
 })
 export class CodeareaCustomTemplateComponent extends FieldType {
-  lockGranted: boolean = false;
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
 
   constructor(
     public dialog: MatDialog,
-    public workflowCollabService: WorkflowCollabService,
     public workflowActionService: WorkflowActionService,
     private coeditorPresenceService : CoeditorPresenceService
   ) {
     super();
-    this.handleLockChange();
     this.handleCodeChange();
     this.handleShadowingMode();
   }
@@ -54,15 +49,6 @@ export class CodeareaCustomTemplateComponent extends FieldType {
     this.coeditorPresenceService.coeditorClosedCodeEditorStream.subscribe(({operatorId: string})=> {
       this.dialogRef?.close();
     });
-  }
-
-  private handleLockChange(): void {
-    this.workflowCollabService
-      .getLockStatusStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((lockGranted: boolean) => {
-        this.lockGranted = lockGranted;
-      });
   }
 
   private handleCodeChange(): void {

@@ -1,6 +1,6 @@
 import { Component, HostListener, Inject, Input, LOCALE_ID } from "@angular/core";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import {CommentBox, YType, Comment} from "src/app/workspace/types/workflow-common.interface";
+import {CommentBox, Comment} from "src/app/workspace/types/workflow-common.interface";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -9,6 +9,7 @@ import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { formatDate } from "@angular/common";
 import {Array as YArray} from "yjs";
+import {YType} from "../../../types/shared-editing.interface";
 
 @UntilDestroy()
 @Component({

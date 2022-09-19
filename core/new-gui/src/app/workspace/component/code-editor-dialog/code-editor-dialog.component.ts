@@ -1,9 +1,8 @@
 import {AfterViewInit, Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild} from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import {OperatorPredicate, YType} from "../../types/workflow-common.interface";
+import {OperatorPredicate} from "../../types/workflow-common.interface";
 import {YText} from "yjs/dist/src/types/YText";
 import {MonacoBinding} from "y-monaco";
 import {Subject} from "rxjs";
@@ -11,6 +10,7 @@ import {first} from "rxjs/operators";
 import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
 import {DomSanitizer, SafeStyle} from "@angular/platform-browser";
 import {User} from "../../../common/type/user";
+import {YType} from "../../types/shared-editing.interface";
 declare const monaco: any;
 
 /**
@@ -40,7 +40,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   loaded: boolean = false;
 
   public loadingFinished: Subject<void> = new Subject<void>();
-  public lockGranted: boolean = false;
   private ytext?: YText;
 
   constructor(
@@ -48,11 +47,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
     @Inject(MAT_DIALOG_DATA) code: any,
     private workflowActionService: WorkflowActionService,
-    private workflowCollabService: WorkflowCollabService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
     this.code = code;
-    this.handleLockChange();
   }
 
   ngOnDestroy(): void {
@@ -118,16 +115,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     const editor = monaco.editor.create(this.divEditor?.nativeElement, this.editorOptions);
     if (this.ytext)
       new MonacoBinding(this.ytext, editor.getModel(), new Set([editor]), this.workflowActionService.getTexeraGraph().getSharedModel().awareness);
-  }
-
-  private handleLockChange(): void {
-    this.workflowCollabService
-      .getLockStatusStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((lockGranted: boolean) => {
-        this.lockGranted = lockGranted;
-        this.editorOptions.readOnly = !this.lockGranted;
-      });
   }
 
   public getCoeditorCursorStyles(coeditor: User) {

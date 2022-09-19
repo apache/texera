@@ -1,8 +1,5 @@
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
-import { nonNull } from "../../../common/util/assert";
-import { Command, CommandMessage } from "../../types/command.interface";
-import { WorkflowCollabService } from "./../workflow-collab/workflow-collab.service";
+import { Subject } from "rxjs";
 import * as Y from "yjs";
 
 /* TODO LIST FOR BUGS
@@ -21,13 +18,6 @@ export class UndoRedoService {
   private undoManager?: Y.UndoManager;
 
   private workFlowModificationEnabled = true;
-
-  private canUndoStream = new Subject<boolean>();
-  private canRedoStream = new Subject<boolean>();
-
-  constructor(private workflowCollabService: WorkflowCollabService) {
-    this.listenToRemoteChange();
-  }
 
   public setUndoManager(undoManager: Y.UndoManager) {
     this.undoManager = undoManager;
@@ -90,22 +80,5 @@ export class UndoRedoService {
   }
 
   public clearRedoStack(): void {
-  }
-
-  private listenToRemoteChange(): void {
-    this.workflowCollabService.getChangeStream().subscribe(message => {
-      const previousModificationEnabledStatus = this.workFlowModificationEnabled;
-      this.enableWorkFlowModification();
-      if (message.type === "undo") {
-        this.workflowCollabService.handleRemoteChange(() => {
-          this.undoAction();
-        });
-      } else if (message.type === "redo") {
-        this.workflowCollabService.handleRemoteChange(() => {
-          this.redoAction();
-        });
-      }
-      if (!previousModificationEnabledStatus) this.disableWorkFlowModification();
-    });
   }
 }

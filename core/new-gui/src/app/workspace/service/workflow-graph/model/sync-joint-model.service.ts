@@ -1,4 +1,4 @@
-import {WorkflowGraph} from "./workflow-graph";
+import {WorkflowGraph, WorkflowGraphReadonly} from "./workflow-graph";
 import {JointGraphWrapper} from "./joint-graph-wrapper";
 import * as Y from "yjs";
 import {
@@ -7,8 +7,7 @@ import {
   Comment,
   OperatorLink,
   OperatorPredicate,
-  Point,
-  YType
+  Point
 } from "../../../types/workflow-common.interface";
 import {Injectable} from "@angular/core";
 import {JointUIService} from "../../joint-ui/joint-ui.service";
@@ -19,12 +18,13 @@ import {User, UserState} from "../../../../common/type/user";
 import _remove from "lodash/remove";
 import {YMapEvent} from "yjs";
 import {CoeditorPresenceService} from "./coeditor-presence.service";
+import {YType} from "../../../types/shared-editing.interface";
 
 @Injectable({
   providedIn: "root"
 })
 export class SyncJointModelService {
-  private texeraGraph: WorkflowGraph;
+  private texeraGraph: WorkflowGraphReadonly;
   private jointGraph: joint.dia.Graph;
   private jointGraphWrapper: JointGraphWrapper;
 
@@ -33,9 +33,9 @@ export class SyncJointModelService {
     private jointUIService: JointUIService,
     private coeditorPresenceService: CoeditorPresenceService
   ) {
-    this.texeraGraph = workflowActionService.texeraGraph;
-    this.jointGraph = workflowActionService.jointGraph;
-    this.jointGraphWrapper = workflowActionService.jointGraphWrapper;
+    this.texeraGraph = workflowActionService.getTexeraGraph();
+    this.jointGraph = workflowActionService.getJointGraph();
+    this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
     this.texeraGraph.newYDocLoadedSubject.subscribe( _ => {
         this.handleOperatorAddAndDelete();
         this.handleLinkAddAndDelete();
@@ -44,6 +44,7 @@ export class SyncJointModelService {
         this.handleBreakpointAddAndDelete();
         this.handleOperatorDeep();
         this.handleCommentBoxDeep();
+        this.handleJointElementDrag();
         this.observeUserState();
       }
     );
@@ -290,6 +291,18 @@ export class SyncJointModelService {
           }
         }
       });
+    });
+  }
+
+  private handleJointElementDrag(): void {
+    this.jointGraphWrapper.getElementPositionChangeEvent().subscribe(element => {
+      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
+        this.texeraGraph.sharedModel.elementPositionMap?.set(element.elementID, element.newPosition);
+        if (element.elementID.includes("commentBox")) {
+          this.texeraGraph.sharedModel.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
+        }
+
+      }
     });
   }
 

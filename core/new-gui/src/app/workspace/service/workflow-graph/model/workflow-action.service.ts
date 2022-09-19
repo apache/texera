@@ -1,52 +1,48 @@
-import { Injectable } from "@angular/core";
+import {Injectable} from "@angular/core";
 
 import * as joint from "jointjs";
-import { cloneDeep } from "lodash-es";
-import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
-import { mapToRecord, recordToMap } from "../../../../common/util/map";
-import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
+import {BehaviorSubject, merge, Observable, Subject} from "rxjs";
+import {Workflow, WorkflowContent} from "../../../../common/type/workflow";
+import {mapToRecord, recordToMap} from "../../../../common/util/map";
+import {WorkflowMetadata} from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Breakpoint,
+  Comment,
+  CommentBox,
   OperatorLink,
   OperatorPort,
   OperatorPredicate,
   Point,
-  CommentBox,
-  Comment,
 } from "../../../types/workflow-common.interface";
-import { JointUIService } from "../../joint-ui/joint-ui.service";
-import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { UndoRedoService } from "../../undo-redo/undo-redo.service";
-import { WorkflowUtilService } from "../util/workflow-util.service";
-import { JointGraphWrapper } from "./joint-graph-wrapper";
-import { Group, OperatorGroup, OperatorGroupReadonly } from "./operator-group";
-import { SyncOperatorGroup } from "./sync-operator-group";
-import { SyncTexeraModel } from "./sync-texera-model";
-import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
-import { auditTime, debounceTime, filter } from "rxjs/operators";
-import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.service";
-import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
-import { isDefined } from "../../../../common/util/predicate";
-import { environment } from "../../../../../environments/environment";
+import {JointUIService} from "../../joint-ui/joint-ui.service";
+import {OperatorMetadataService} from "../../operator-metadata/operator-metadata.service";
+import {UndoRedoService} from "../../undo-redo/undo-redo.service";
+import {WorkflowUtilService} from "../util/workflow-util.service";
+import {JointGraphWrapper} from "./joint-graph-wrapper";
+import {Group, OperatorGroup, OperatorGroupReadonly} from "./operator-group";
+import {SyncOperatorGroup} from "./sync-operator-group";
+import {SyncTexeraModel} from "./sync-texera-model";
+import {WorkflowGraph, WorkflowGraphReadonly} from "./workflow-graph";
+import {filter} from "rxjs/operators";
+import {isDefined} from "../../../../common/util/predicate";
+import {environment} from "../../../../../environments/environment";
 import {User} from "../../../../common/type/user";
-
-type OperatorPosition = {
-  position: Point;
-  layer: number;
-};
 
 /**
  *
- * WorkflowActionService exposes functions (actions) to modify the workflow graph model of both JointJS and Texera,
+ * WorkflowActionService exposes functions (actions) to modify the workflow graph model of Texera,
  *  such as addOperator, deleteOperator, addLink, deleteLink, etc.
- * WorkflowActionService performs checks the validity of these actions,
- *  for example, throws an error if deleting an nonsexist operator
+ *
+ * WorkflowActionService bundles a series of steps into atomic actions, like adding an operator and its outgoing link.
+ *  It also checks the validity of these actions, for example, throws an error if deleting a nonsexist operator.
  *
  * All changes(actions) to the workflow graph should be called through WorkflowActionService,
- *  then WorkflowActionService will propagate these actions to JointModel and Texera Model automatically.
  *
- * For an overview of the services in WorkflowGraphModule, see workflow-graph-design.md
+ * With the introduction of shared editing using yjs, WorkflowActionService will only make changes to its internal
+ *  <code>{@link WorkflowGraph}</code>, and <code>{@link SyncJointModelService}</code> will listen to changes to the
+ *  WorkflowGraph to update JointGraph.
+ *
+ * For an overview of the services and updates with shared editing in WorkflowGraphModule, see workflow-graph-design.md.
  *
  */
 
@@ -63,17 +59,16 @@ export class WorkflowActionService {
     lastModifiedTime: undefined,
   };
 
-  public readonly texeraGraph: WorkflowGraph;
-  public readonly jointGraph: joint.dia.Graph;
-  public readonly jointGraphWrapper: JointGraphWrapper;
+  private readonly texeraGraph: WorkflowGraph;
+  private readonly jointGraph: joint.dia.Graph;
+  private readonly jointGraphWrapper: JointGraphWrapper;
+  private readonly syncTexeraModel: SyncTexeraModel;
+  private readonly syncOperatorGroup: SyncOperatorGroup;
   private readonly operatorGroup: OperatorGroup;
-  public readonly syncTexeraModel: SyncTexeraModel;
-  public readonly syncOperatorGroup: SyncOperatorGroup;
   // variable to temporarily hold the current workflow to switch view to a particular version
   private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
-  private lockListenEnabled = true;
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<void> = new Subject<void>();
@@ -82,8 +77,7 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowUtilService: WorkflowUtilService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -99,47 +93,12 @@ export class WorkflowActionService {
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
 
-    this.handleJointLinkAdd();
-    this.handleJointElementDrag();
     this.handleHighlightedElementPositionChange();
-    this.listenToRemoteChange();
-    this.listenToLockChange();
-  }
-
-  public observeFromTexeraGraph(): void {
-      this.handleJointElementDrag();
-  }
-
-  public setNewYModel(workflowId?: number, user?: User) {
-    this.texeraGraph.loadNewYModel(workflowId, user);
-    this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
-    this.observeFromTexeraGraph();
-  }
-
-  public destroyYModel(): void {
-    this.texeraGraph.destroyYModel();
   }
 
   /**
-   * Dummy method used to send a CommandMessage for undo or redo.
+   * Workflow modification lock interface (allows or prevents commands that would modify the workflow graph).
    */
-  public undoredo(): void {}
-
-  /**
-   * Used for temporarily enabling or disabling propagation of changes so that reload won't affect other clients.
-   */
-  public toggleSendData(toggle: boolean): void {
-    this.workflowCollabService.setPropagationEnabled(toggle);
-  }
-
-  /**
-   * Used for temporarily blocking any changes to the lock so that reload can be successfully executed.
-   */
-  public toggleLockListen(toggle: boolean): void {
-    this.lockListenEnabled = toggle;
-  }
-
-  // workflow modification lock interface (allows or prevents commands that would modify the workflow graph)
   public enableWorkflowModification() {
     if (this.workflowModificationEnabled) {
       return;
@@ -166,30 +125,15 @@ export class WorkflowActionService {
     return this.enableModificationStream.asObservable();
   }
 
-  public handleJointLinkAdd(): void {
-  }
-
-  public handleJointElementDrag(): void {
-    this.getJointGraphWrapper().getElementPositionChangeEvent().subscribe(element => {
-      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
-        this.texeraGraph.sharedModel.elementPositionMap?.set(element.elementID, element.newPosition);
-        if (element.elementID.includes("commentBox")) {
-          this.texeraGraph.sharedModel.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
-        };
-      }
-    });
-  }
-
   /**
    * Subscribes to element position change event stream,
-   *  checks if the element (operator or group) is moved by user and
+   *  checks if the element (operator) is moved by user and
    *  if the moved element is currently highlighted,
-   *  if it is, moves other highlighted elements (operators and groups) along with it,
+   *  if it is, moves other highlighted elements (operators) along with it,
    *    links will automatically move with operators.
    *
-   * If a group is highlighted, we consider the whole group as highlighted, including all the
-   *  operators embedded in the group and regardless of whether or not they're actually highlighted.
-   *  Thus, when a highlighted group moves, all its embedded operators move along with it.
+   *  The subscription needs and only needs to be initiated once,
+   *    unlike observers in <code>{@link SyncJointModelService}</code>.
    */
   public handleHighlightedElementPositionChange(): void {
     this.jointGraphWrapper
@@ -199,36 +143,27 @@ export class WorkflowActionService {
         filter(() => this.undoRedoService.listenJointCommand),
         filter(
           movedElement =>
-            this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID) ||
-            this.jointGraphWrapper.getCurrentHighlightedGroupIDs().includes(movedElement.elementID)
+            this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID)
         )
       )
       .subscribe(movedElement => {
-        const selectedElements = this.jointGraphWrapper.getCurrentHighlightedGroupIDs().slice(); // operators added to this list later
-        const movedGroup = this.operatorGroup.getGroupByOperator(movedElement.elementID);
-
-        if (movedGroup && selectedElements.includes(movedGroup.groupID)) {
-          movedGroup.operators.forEach((operatorInfo, operatorID) => selectedElements.push(operatorID));
-          selectedElements.splice(selectedElements.indexOf(movedGroup.groupID), 1);
-        }
-        this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().forEach(operatorID => {
-          const group = this.operatorGroup.getGroupByOperator(operatorID);
-          // operators move with their groups,
-          // do not add elements that are in a group that will also be moved
-          if (!group || !this.jointGraphWrapper.getCurrentHighlightedGroupIDs().includes(group.groupID)) {
-            selectedElements.push(operatorID);
-          }
+        this.texeraGraph.bundleActions(() => {
+          const selectedElements = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
+          const offsetX = movedElement.newPosition.x - movedElement.oldPosition.x;
+          const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
+          this.jointGraphWrapper.setListenPositionChange(false);
+          this.undoRedoService.setListenJointCommand(false);
+          selectedElements
+            .filter(elementID => elementID !== movedElement.elementID)
+            .forEach(elementID => this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY));
+          this.jointGraphWrapper.setListenPositionChange(true);
+          this.undoRedoService.setListenJointCommand(true);
         });
-        const offsetX = movedElement.newPosition.x - movedElement.oldPosition.x;
-        const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
-        this.jointGraphWrapper.setListenPositionChange(false);
-        this.undoRedoService.setListenJointCommand(false);
-        selectedElements
-          .filter(elementID => elementID !== movedElement.elementID)
-          .forEach(elementID => this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY));
-        this.jointGraphWrapper.setListenPositionChange(true);
-        this.undoRedoService.setListenJointCommand(true);
       });
+  }
+
+  public getJointGraph(): joint.dia.Graph {
+    return this.jointGraph;
   }
 
   /**
@@ -262,9 +197,9 @@ export class WorkflowActionService {
     return this.operatorGroup;
   }
 
-
-
-  // Below are actions
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                      Below are all the actions available.                                        //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   /**
    * Adds an operator to the workflow graph at a point.
@@ -277,18 +212,16 @@ export class WorkflowActionService {
     // turn off multiselect since there's only one operator added
     this.jointGraphWrapper.setMultiSelectMode(false);
     // add operator
-    this.addOperatorsInternal([{ operator, point }]);
-    // highlight the newly added operator
-    // TODO: highlight
+    this.addOperatorsInternal([{operator, point}]);
   }
 
   /**
-   * Deletes an operator from the workflow graph
+   * Deletes an operator from the workflow graph, also deleting associated links.
    * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
-    this.texeraGraph.sharedModel.transact(()=> {
+    this.texeraGraph.bundleActions(() => {
       const linksToDelete = new Map<OperatorLink, number>();
       this.getTexeraGraph()
         .getAllLinks()
@@ -299,6 +232,10 @@ export class WorkflowActionService {
     });
   }
 
+  /**
+   * Unhighlight currently selected elements and adds a comment box.
+   * @param commentBox
+   */
   public addCommentBox(commentBox: CommentBox): void {
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
@@ -326,8 +263,8 @@ export class WorkflowActionService {
     // unhighlight previous highlights
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
-    this.texeraGraph.sharedModel.transact(() => {
-      this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
+    this.texeraGraph.bundleActions(() => {
+      this.addOperatorsInternal(operatorsAndPositions.map(o => ({operator: o.op, point: o.pos})));
       if (links) {
         this.addLinksInternal(links);
         if (breakpoints !== undefined) {
@@ -343,6 +280,10 @@ export class WorkflowActionService {
     });
   }
 
+  /**
+   * Deletes a comment box.
+   * @param commentBoxID
+   */
   public deleteCommentBox(commentBoxID: string): void {
     this.deleteCommentBoxInternal(commentBoxID);
   }
@@ -373,7 +314,7 @@ export class WorkflowActionService {
     // save links to be deleted, including links explicitly deleted and implicitly deleted with their operators
     const linksToDelete = new Map<OperatorLink, number>();
 
-    this.texeraGraph.sharedModel.transact(()=> {
+    this.texeraGraph.bundleActions(() => {
       // delete links required by this command
       linkIDs
         .map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
@@ -420,15 +361,23 @@ export class WorkflowActionService {
     this.deleteLinkWithIDInternal(linkID);
   }
 
+  /**
+   * Deletes a link based on the source and target port.
+   * @param source
+   * @param target
+   */
   public deleteLink(source: OperatorPort, target: OperatorPort): void {
     const link = this.getTexeraGraph().getLink(source, target);
     this.deleteLinkWithID(link.linkID);
   }
 
-
+  /**
+   * Replaces the property object with a new one. This is a coarse-grained method for shared-editing.
+   * @param operatorID
+   * @param newProperty
+   */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     this.setOperatorPropertyInternal(operatorID, newProperty);
-    // TODO
     // unhighlight everything but the operator being modified
     const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
     if (!currentHighlightedOperators.includes(operatorID)) {
@@ -453,11 +402,104 @@ export class WorkflowActionService {
     this.setLinkBreakpoint(linkID, undefined);
   }
 
+  public addComment(comment: Comment, commentBoxID: string): void {
+    this.texeraGraph.addCommentToCommentBox(comment, commentBoxID);
+  }
+
+  public deleteComment(creatorID: number, creationTime: string, commentBoxID: string): void {
+    this.texeraGraph.deleteCommentFromCommentBox(creatorID, creationTime, commentBoxID);
+  }
+
+  public editComment(creatorID: number, creationTime: string, commentBoxID: string, newContent: string): void {
+    this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
+  }
+
+  public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
+    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
+    this.getJointGraphWrapper().highlightOperators(...ops);
+    this.getTexeraGraph().getSharedModel().updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+  }
+
+  public unhighlightOperators(...ops: string[]): void {
+    this.getJointGraphWrapper().unhighlightOperators(...ops);
+    this.getTexeraGraph().getSharedModel().updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+  }
+
+  public highlightLinks(multiSelect: boolean, ...links: string[]): void {
+    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
+    this.getJointGraphWrapper().highlightLinks(...links);
+  }
+
+  public unhighlightLinks(...links: string[]): void {
+    this.getJointGraphWrapper().unhighlightLinks(...links);
+  }
+
+  public disableOperators(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().disableOperator(op);
+      });
+    });
+  }
+
+  public enableOperators(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().enableOperator(op);
+      });
+    });
+  }
+
+  public cacheOperators(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().cacheOperator(op);
+      });
+    });
+  }
+
+  public unCacheOperators(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().unCacheOperator(op);
+      });
+    });
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                             Below are workflow-level and metadata-related methods.                               //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Refreshes the internal shared model and joins a new shared-editing room. Note this method does not destroy
+   * the old shared model explicitly, so make sure to also call <code>{@link destroySharedModel}</code> if it is also
+   * intended to quit the previous shared-editing room.
+   *
+   * This method also updates the undo manager.
+   * @param workflowId optional, but needed if you want to join shared editing.
+   * @param user optional, but needed if you want to have user presence.
+   */
+  public setNewSharedModel(workflowId?: number, user?: User) {
+    this.texeraGraph.loadNewYModel(workflowId, user);
+    this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
+  }
+
+  /**
+   * Destroys shared-editing related structures and quits the shared editing session.
+   */
+  public destroySharedModel(): void {
+    this.texeraGraph.destroyYModel();
+  }
+
   /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
+   * This method is based on the assumption that this is on a new SharedModel.
+   *
+   * <b>Warning: this resets the workflow but not the SharedModel, so make sure to quit the shared-editing session
+   * (<code>{@link destroySharedModel}</code>) before using this method.</b>
    */
   public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = environment.asyncRenderingEnabled): void {
-    this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
+    this.jointGraphWrapper.jointGraphContext.withContext({async: asyncRendering}, () => {
       this.setWorkflowMetadata(workflow);
       // remove the existing operators on the paper currently
 
@@ -473,7 +515,7 @@ export class WorkflowActionService {
         .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
 
       if (workflow === undefined) {
-        this.setNewYModel();
+        this.setNewSharedModel();
         return;
       }
 
@@ -485,7 +527,7 @@ export class WorkflowActionService {
         if (!opPosition) {
           throw new Error(`position error: ${op.operatorID}`);
         }
-        operatorsAndPositions.push({ op: op, pos: opPosition });
+        operatorsAndPositions.push({op: op, pos: opPosition});
       });
 
       const links: OperatorLink[] = workflowContent.links;
@@ -515,7 +557,6 @@ export class WorkflowActionService {
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
-    this.toggleSendData(true);
   }
 
   public workflowChanged(): Observable<unknown> {
@@ -546,6 +587,10 @@ export class WorkflowActionService {
     return this.workflowMetadataChangeSubject.asObservable();
   }
 
+  /**
+   * This is not included in shared editing.
+   * @param workflowMetaData
+   */
   public setWorkflowMetadata(workflowMetaData: WorkflowMetadata | undefined): void {
     if (this.workflowMetadata === workflowMetaData) {
       return;
@@ -605,22 +650,14 @@ export class WorkflowActionService {
   public getWorkflow(): Workflow {
     return {
       ...this.workflowMetadata,
-      ...{ content: this.getWorkflowContent() },
+      ...{content: this.getWorkflowContent()},
     };
   }
 
-  public addComment(comment: Comment, commentBoxID: string): void {
-    this.texeraGraph.addCommentToCommentBox(comment, commentBoxID);
-  }
-
-  public deleteComment(creatorID: number, creationTime: string, commentBoxID: string): void {
-    this.texeraGraph.deleteCommentFromCommentBox(creatorID, creationTime, commentBoxID);
-  }
-
-  public editComment(creatorID: number, creationTime: string, commentBoxID: string, newContent: string): void {
-    this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
-  }
-
+  /**
+   * Used for previewing a version. Will clean-up shared editing session before doing so.
+   * @param workflow
+   */
   public setTempWorkflow(workflow: Workflow): void {
     if (this.texeraGraph.sharedModel.wsProvider.shouldConnect) {
       this.texeraGraph.sharedModel.wsProvider.destroy();
@@ -628,6 +665,9 @@ export class WorkflowActionService {
     this.tempWorkflow = workflow;
   }
 
+  /**
+   * Used for ending version preview. Will re-connect to shared editing session after doing so.
+   */
   public resetTempWorkflow(): void {
     this.tempWorkflow = undefined;
     this.texeraGraph.sharedModel.wsProvider.connect();
@@ -637,82 +677,33 @@ export class WorkflowActionService {
     return this.tempWorkflow;
   }
 
-  public setOperatorCustomName(operatorId: string, newDisplayName: string, userFriendlyName: string): void {
-    this.getTexeraGraph().changeOperatorDisplayName(operatorId, newDisplayName);
-  }
-
-  // TODO
+  /**
+   * This is not included in shared editing.
+   * @param name
+   */
   public setWorkflowName(name: string): void {
     this.workflowMetadata.name = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
     this.workflowMetadataChangeSubject.next();
   }
 
+  /**
+   * Need to quit shared-editing room at first.
+   */
   public resetAsNewWorkflow() {
-    this.destroyYModel();
+    this.destroySharedModel();
     this.reloadWorkflow(undefined);
   }
 
-  public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
-    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
-    this.getJointGraphWrapper().highlightOperators(...ops);
-    this.getTexeraGraph().getSharedModel().updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-  }
-
-  public unhighlightOperators(...ops: string[]): void {
-    this.getJointGraphWrapper().unhighlightOperators(...ops);
-    this.getTexeraGraph().getSharedModel().updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-  }
-
-  public highlightLinks(multiSelect: boolean, ...links: string[]): void {
-    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
-    this.getJointGraphWrapper().highlightLinks(...links);
-  }
-
-  public unhighlightLinks(...links: string[]): void {
-    this.getJointGraphWrapper().unhighlightLinks(...links);
-  }
-
-  public disableOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.transact(()=> {
-      ops.forEach(op => {
-        this.getTexeraGraph().disableOperator(op);
-      });
-    });
-  }
-
-  public enableOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.transact(()=> {
-      ops.forEach(op => {
-        this.getTexeraGraph().enableOperator(op);
-      });
-    });
-  }
-
-  public cacheOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.transact(()=> {
-      ops.forEach(op => {
-        this.getTexeraGraph().cacheOperator(op);
-      });
-    });
-  }
-
-  public unCacheOperators(ops: readonly string[]): void {
-    this.texeraGraph.sharedModel.transact(()=> {
-      ops.forEach(op => {
-        this.getTexeraGraph().unCacheOperator(op);
-      });
-    });
-  }
-
-  // Internal methods
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                       Below are private, internal methods.                                       //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   private addCommentBoxInternal(commentBox: CommentBox): void {
     this.texeraGraph.addCommentBox(commentBox);
   }
 
   private addOperatorsInternal(operatorsAndPositions: readonly { operator: OperatorPredicate; point: Point }[]): void {
-    // TODO: (Maybe?) wrap this callback inside TexeraGraph as an API.
-    this.texeraGraph.sharedModel.yDoc?.transact(()=> {
+    this.texeraGraph.bundleActions(() => {
       for (let i = 0; i < operatorsAndPositions.length; i++) {
         let operator = operatorsAndPositions[i].operator;
         // check that the operator doesn't exist
@@ -734,7 +725,7 @@ export class WorkflowActionService {
   }
 
   private addLinksInternal(links: readonly OperatorLink[]): void {
-    this.texeraGraph.sharedModel.yDoc?.transact(()=> {
+    this.texeraGraph.bundleActions(() => {
       for (let i = 0; i < links.length; i++) {
         let link = links[i];
         this.texeraGraph.assertLinkNotExists(link);
@@ -749,7 +740,12 @@ export class WorkflowActionService {
     this.texeraGraph.deleteLinkWithID(linkID);
   }
 
-  // use this to modify properties
+  /**
+   * Replaces previous property object with a new one. This does not enable fine-grained shared editing.
+   * @param operatorID
+   * @param newProperty
+   * @private
+   */
   private setOperatorPropertyInternal(operatorID: string, newProperty: object) {
     this.texeraGraph.setOperatorProperty(operatorID, newProperty);
   }
@@ -761,47 +757,5 @@ export class WorkflowActionService {
 
   private setLinkBreakpointInternal(linkID: string, newBreakpoint: Breakpoint | undefined): void {
     this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
-  }
-
-
-  // TODO: delete old imp
-
-  private listenToRemoteChange(): void {
-    this.workflowCollabService.getChangeStream().subscribe(message => {
-      if (message.type === "execute") {
-        this.workflowCollabService.handleRemoteChange(() => {
-          const func: commandFuncs = message.action;
-          const previousModificationEnabledStatus = this.workflowModificationEnabled;
-          this.enableWorkflowModification();
-          (this[func] as any).apply(this, message.parameters);
-          if (!previousModificationEnabledStatus) this.disableWorkflowModification();
-        });
-      }
-    });
-  }
-
-  /**
-   * Handles lock status change.
-   */
-  private listenToLockChange(): void {
-    this.workflowCollabService.getLockStatusStream().subscribe(isLockGranted => {
-      if (this.lockListenEnabled) {
-        if (isLockGranted) this.enableWorkflowModification();
-        else this.disableWorkflowModification();
-      }
-    });
-  }
-
-  /**
-   * Used after temporarily blocking lock changes.
-   */
-  public syncLock(): void {
-    if (this.lockListenEnabled) {
-      if (this.workflowCollabService.isLockGranted()) {
-        this.enableWorkflowModification();
-      } else {
-        this.disableWorkflowModification();
-      }
-    }
   }
 }
