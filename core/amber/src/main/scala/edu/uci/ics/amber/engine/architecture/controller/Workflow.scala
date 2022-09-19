@@ -2,8 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
-import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
-import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
@@ -16,25 +15,10 @@ import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExec
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
 
-class Workflow(
-//    workflowId: WorkflowIdentity,
-    physicalPlan: PhysicalPlan
-//    operatorToOpExecConfig: Map[OperatorIdentity, OpExecConfig],
-//    outLinks: Map[OperatorIdentity, Set[OperatorIdentity]],
-//    pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]
-) {
-  // The following data structures are created when workflow object is created.
-//  private val inLinks: Map[OperatorIdentity, Set[OperatorIdentity]] =
-//    AmberUtils.reverseMultimap(outLinks)
-//  private val sourceOperators: Iterable[OperatorIdentity] =
-//    operatorToOpExecConfig.keys.filter(!inLinks.contains(_))
-//  private val sinkOperators: Iterable[OperatorIdentity] =
-//    operatorToOpExecConfig.keys.filter(!outLinks.contains(_))
-
+class Workflow(physicalPlan: PhysicalPlan) {
   // This is updated by `instantiateAndStoreLinkInformation`
   val idToLink = new mutable.HashMap[LinkIdentity, LinkStrategy]()
 
@@ -111,28 +95,11 @@ class Workflow(
 
   def getWorkflowId(): WorkflowIdentity = physicalPlan.workflowId
 
-//  def getSources(operator: OperatorIdentity): Set[OperatorIdentity] = {
-//    var result = Set[OperatorIdentity]()
-//    var current = Set[OperatorIdentity](operator)
-//    while (current.nonEmpty) {
-//      var next = Set[OperatorIdentity]()
-//      for (i <- current) {
-//        if (inLinks.contains(i) && inLinks(i).nonEmpty) {
-//          next ++= inLinks(i)
-//        } else {
-//          result += i
-//        }
-//        current = next
-//      }
-//    }
-//    result
-//  }
-
   def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
     physicalPlan.operators.map(op => (op._1.operator, op._2.getOperatorStatistics))
   }
 
-//  def getStartOperators: Iterable[OpExecConfig] = getStartOperatorIds.map(physicalPlan.operators(_))
+  def getStartOperators: Iterable[OpExecConfig] = getStartOperatorIds.map(physicalPlan.operators(_))
 
   def getEndOperators: Iterable[OpExecConfig] =
     physicalPlan.getSinkOperators.map(physicalPlan.operators(_))
@@ -160,7 +127,7 @@ class Workflow(
       opID: OperatorIdentity
   ): mutable.HashMap[OperatorIdentity, WorkerLayer] = {
     val upstreamOperatorToLayers = new mutable.HashMap[OperatorIdentity, WorkerLayer]()
-    getDirectUpstreamOperators(opID).map(uOpID =>
+    getDirectUpstreamOperators(opID).foreach(uOpID =>
       upstreamOperatorToLayers(uOpID) = getOperator(uOpID).topology.layers.last
     )
     upstreamOperatorToLayers
