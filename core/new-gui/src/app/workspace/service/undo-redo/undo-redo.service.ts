@@ -1,4 +1,4 @@
-import {Injectable} from "@angular/core";
+import { Injectable } from "@angular/core";
 import * as Y from "yjs";
 
 /**
@@ -54,25 +54,17 @@ export class UndoRedoService {
     }
   }
 
-
   public setListenJointCommand(toggle: boolean): void {
     this.listenJointCommand = toggle;
   }
 
-
   public canUndo(): boolean {
-    if (this.undoManager)
-      return (
-        (this.workFlowModificationEnabled && this.undoManager?.canUndo())
-      );
+    if (this.undoManager) return this.workFlowModificationEnabled && this.undoManager?.canUndo();
     else return false;
   }
 
   public canRedo(): boolean {
-    if (this.undoManager)
-      return (
-        (this.workFlowModificationEnabled && this.undoManager?.canRedo())
-      );
+    if (this.undoManager) return this.workFlowModificationEnabled && this.undoManager?.canRedo();
     else return false;
   }
 

@@ -1,4 +1,4 @@
-import {Observable, Subject} from "rxjs";
+import { Observable, Subject } from "rxjs";
 import {
   Breakpoint,
   Comment,
@@ -6,13 +6,12 @@ import {
   OperatorLink,
   OperatorPort,
   OperatorPredicate,
-
 } from "../../../types/workflow-common.interface";
-import {isEqual} from "lodash-es";
-import {SharedModel} from "./shared-model";
-import {User} from "../../../../common/type/user";
+import { isEqual } from "lodash-es";
+import { SharedModel } from "./shared-model";
+import { User } from "../../../../common/type/user";
 import * as _ from "lodash";
-import {createYTypeFromObject, YType} from "../../../types/shared-editing.interface";
+import { createYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -55,7 +54,6 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
-
   public sharedModel: SharedModel = new SharedModel();
   public newYDocLoadedSubject = new Subject();
 
@@ -101,7 +99,9 @@ export class WorkflowGraph {
   ) {
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
-    commentBoxes.forEach(commentBox => this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox)));
+    commentBoxes.forEach(commentBox =>
+      this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox))
+    );
   }
 
   /**
@@ -128,8 +128,7 @@ export class WorkflowGraph {
    * @param workflowId optional, but needed if you want to join shared editing.
    * @param user optional, but needed if you want to have user presence.
    */
-  public loadNewYModel(workflowId?: number,
-                       user?: User) {
+  public loadNewYModel(workflowId?: number, user?: User) {
     this.sharedModel = new SharedModel(workflowId, user);
     this.newYDocLoadedSubject.next(undefined);
   }
@@ -227,7 +226,7 @@ export class WorkflowGraph {
       commentBox.get("comments").forEach((comment, index) => {
         if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
           let creatorName = comment.creatorName;
-          let newComment: Comment = {content, creationTime, creatorName, creatorID};
+          let newComment: Comment = { content, creationTime, creatorName, creatorID };
           this.sharedModel.yDoc.transact(() => {
             commentBox.get("comments").delete(index);
             commentBox.get("comments").insert(index, [newComment]);
@@ -308,7 +307,11 @@ export class WorkflowGraph {
    * Gets disabled operators by filtering from all <code>operatorIDs</code> in the <code>OperatorIDMap</code>.
    */
   public getDisabledOperators(): ReadonlySet<string> {
-    return new Set(Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op => this.isOperatorDisabled(op)));
+    return new Set(
+      Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
+        this.isOperatorDisabled(op)
+      )
+    );
   }
 
   /**
@@ -327,7 +330,6 @@ export class WorkflowGraph {
       return;
     }
     this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", true);
-
   }
 
   /**
@@ -358,7 +360,11 @@ export class WorkflowGraph {
   }
 
   public getCachedOperators(): ReadonlySet<string> {
-    return new Set(Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op => this.isOperatorCached(op)));
+    return new Set(
+      Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
+        this.isOperatorCached(op)
+      )
+    );
   }
 
   /**
@@ -408,8 +414,9 @@ export class WorkflowGraph {
    * Returns an array of all operators in the graph.
    */
   public getAllOperators(): OperatorPredicate[] {
-    return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>)
-      .map(v => v.toJSON());
+    return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>).map(v =>
+      v.toJSON()
+    );
   }
 
   /**
@@ -425,8 +432,9 @@ export class WorkflowGraph {
    * Returns an array of all the comment boxes in the graph.
    */
   public getAllCommentBoxes(): CommentBox[] {
-    return Array.from(this.sharedModel.commentBoxMap.values() as IterableIterator<YType<CommentBox>>)
-      .map(v => v.toJSON());
+    return Array.from(this.sharedModel.commentBoxMap.values() as IterableIterator<YType<CommentBox>>).map(v =>
+      v.toJSON()
+    );
   }
 
   /**

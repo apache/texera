@@ -10,7 +10,7 @@ import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.
 import * as joint from "jointjs";
 import { jitOnlyGuardedExpression } from "@angular/compiler/src/render3/util";
 import { fromEvent, fromEventPattern, Observable } from "rxjs";
-import {User} from "../../../common/type/user";
+import { User } from "../../../common/type/user";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -288,11 +288,7 @@ export class JointUIService {
     });
   }
 
-  public changeOperatorEditingStatus(
-    jointPaper: joint.dia.Paper,
-    operatorID: string,
-    users?: User[]
-  ): void {
+  public changeOperatorEditingStatus(jointPaper: joint.dia.Paper, operatorID: string, users?: User[]): void {
     console.log(operatorID);
     if (users) {
       const statusText = users[0].name + " is editing properties...";
@@ -300,14 +296,14 @@ export class JointUIService {
       jointPaper.getModelById(operatorID).attr({
         [`.${operatorCoeditorEditingClass}`]: {
           text: statusText,
-          fillColor: color
-        }
+          fillColor: color,
+        },
       });
     } else {
       jointPaper.getModelById(operatorID).attr({
         [`.${operatorCoeditorEditingClass}`]: {
-          text: ""
-        }
+          text: "",
+        },
       });
     }
   }
@@ -528,12 +524,11 @@ export class JointUIService {
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
     const basic = new joint.shapes.standard.Rectangle();
-    if (commentBox.commentBoxPosition)
-      basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    if (commentBox.commentBoxPosition) basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
     else basic.position(0, 0);
     basic.resize(120, 50);
     const commentElement = new TexeraCustomCommentElement({
-      position: commentBox.commentBoxPosition || {x:0, y:0},
+      position: commentBox.commentBoxPosition || { x: 0, y: 0 },
       size: {
         width: JointUIService.DEFAULT_COMMENT_WIDTH,
         height: JointUIService.DEFAULT_COMMENT_HEIGHT,
@@ -1068,7 +1063,7 @@ export class JointUIService {
       text: coeditor.name,
       "ref-x": 15,
       "ref-y": 20,
-      stroke: coeditor.color
+      stroke: coeditor.color,
     });
     return userCursor;
   }

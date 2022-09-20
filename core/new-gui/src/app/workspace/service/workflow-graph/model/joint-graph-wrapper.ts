@@ -1,18 +1,18 @@
-import {fromEvent, merge, Observable, ReplaySubject, Subject} from "rxjs";
-import {bufferToggle, filter, map, mergeMap, startWith, windowToggle} from "rxjs/operators";
-import {Point} from "../../../types/workflow-common.interface";
+import { fromEvent, merge, Observable, ReplaySubject, Subject } from "rxjs";
+import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
+import { Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import {ObservableContextManager} from "src/app/common/util/context";
-import {User} from "../../../../common/type/user";
+import { ObservableContextManager } from "src/app/common/util/context";
+import { User } from "../../../../common/type/user";
 import {
   operatorCoeditorChangedPropertyBGClass,
   operatorCoeditorChangedPropertyClass,
   operatorCoeditorEditingBGClass,
-  operatorCoeditorEditingClass
+  operatorCoeditorEditingClass,
 } from "../../joint-ui/joint-ui.service";
-import {dia} from "jointjs/types/joint";
+import { dia } from "jointjs/types/joint";
 import Selectors = dia.Cell.Selectors;
 
 type operatorIDsType = { operatorIDs: string[] };
@@ -1075,8 +1075,9 @@ export class JointGraphWrapper {
           const highlightId = currentStrokeIds[i];
           if (highlightId) {
             joint.highlighters.mask.remove(operatorElement, highlightId);
-            joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {...previousStroke.options,
-              padding: 5 + 5 * i
+            joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {
+              ...previousStroke.options,
+              padding: 5 + 5 * i,
             });
           }
         }
@@ -1096,8 +1097,8 @@ export class JointGraphWrapper {
           ry: 5,
           attrs: {
             "stroke-width": 2,
-            "stroke": coeditor.color
-          }
+            stroke: coeditor.color,
+          },
         });
       }
     }
@@ -1107,23 +1108,26 @@ export class JointGraphWrapper {
     // Calculate location
     const statusText = coeditor.name + " is viewing/editing...";
     const color = coeditor.color;
-    this.getMainJointPaper()?.getModelById(currentEditing).attr({
-      [`.${operatorCoeditorEditingClass}`]: {
-        text: statusText,
-        fill: color,
-        visibility:  "visible"
-      },
-      [`.${operatorCoeditorEditingBGClass}`]: {
-        text: statusText,
-        visibility:  "visible"
-      }
-    });
+    this.getMainJointPaper()
+      ?.getModelById(currentEditing)
+      .attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: statusText,
+          fill: color,
+          visibility: "visible",
+        },
+        [`.${operatorCoeditorEditingBGClass}`]: {
+          text: statusText,
+          visibility: "visible",
+        },
+      });
     // "Animation"
     const getCurrentlyEditingText = (): string => {
-      return (this.getMainJointPaper()?.getModelById(currentEditing).attributes.attrs as Selectors)
-        [`.${operatorCoeditorEditingClass}`]?.text as string;
+      return (this.getMainJointPaper()?.getModelById(currentEditing).attributes.attrs as Selectors)[
+        `.${operatorCoeditorEditingClass}`
+      ]?.text as string;
     };
-    return setInterval(()=> {
+    return setInterval(() => {
       const currentText = getCurrentlyEditingText();
       if (currentText.includes(coeditor.name)) {
         let nextText = "";
@@ -1134,59 +1138,67 @@ export class JointGraphWrapper {
         } else if (currentText.length === statusText.length - 2) {
           nextText = coeditor.name + " is viewing/editing..";
         }
-        this.getMainJointPaper()?.getModelById(currentEditing).attr({
-          [`.${operatorCoeditorEditingClass}`]: {
-            text: nextText,
-          },
-          [`.${operatorCoeditorEditingBGClass}`]: {
-            text: nextText,
-          }
-        });
+        this.getMainJointPaper()
+          ?.getModelById(currentEditing)
+          .attr({
+            [`.${operatorCoeditorEditingClass}`]: {
+              text: nextText,
+            },
+            [`.${operatorCoeditorEditingBGClass}`]: {
+              text: nextText,
+            },
+          });
       }
     }, 300);
   }
 
   removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
     clearInterval(intervalId);
-    this.getMainJointPaper()?.getModelById(previousEditing).attr({
-      [`.${operatorCoeditorEditingClass}`]: {
-        text: "",
-        visibility: "hidden"
-      },
-      [`.${operatorCoeditorEditingBGClass}`]: {
-        text: "",
-        visibility: "hidden"
-      }
-    });
+    this.getMainJointPaper()
+      ?.getModelById(previousEditing)
+      .attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+        [`.${operatorCoeditorEditingBGClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+      });
   }
 
   setPropertyChanged(coeditor: User, currentChanged: string) {
     // Calculate location
     const statusText = coeditor.name + " changed property!";
     const color = coeditor.color;
-    this.getMainJointPaper()?.getModelById(currentChanged).attr({
-      [`.${operatorCoeditorChangedPropertyClass}`]: {
-        text: statusText,
-        fill: color,
-        visibility:  "visible"
-      },
-      [`.${operatorCoeditorChangedPropertyBGClass}`]: {
-        text: statusText,
-        visibility: "visible"
-      }
-    });
+    this.getMainJointPaper()
+      ?.getModelById(currentChanged)
+      .attr({
+        [`.${operatorCoeditorChangedPropertyClass}`]: {
+          text: statusText,
+          fill: color,
+          visibility: "visible",
+        },
+        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
+          text: statusText,
+          visibility: "visible",
+        },
+      });
   }
 
   removePropertyChanged(coeditor: User, currentChanged: string) {
-    this.getMainJointPaper()?.getModelById(currentChanged).attr({
-      [`.${operatorCoeditorChangedPropertyClass}`]: {
-        text: "",
-        visibility: "hidden"
-      },
-      [`.${operatorCoeditorChangedPropertyBGClass}`]: {
-        text: "",
-        visibility: "hidden"
-      }
-    });
+    this.getMainJointPaper()
+      ?.getModelById(currentChanged)
+      .attr({
+        [`.${operatorCoeditorChangedPropertyClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+      });
   }
 }

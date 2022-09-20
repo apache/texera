@@ -8,9 +8,8 @@ describe("CoeditorUserIconComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ CoeditorUserIconComponent ]
-    })
-    .compileComponents();
+      declarations: [CoeditorUserIconComponent],
+    }).compileComponents();
   });
 
   beforeEach(() => {

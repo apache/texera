@@ -1,4 +1,4 @@
-import {Point} from "../../workspace/types/workflow-common.interface";
+import { Point } from "../../workspace/types/workflow-common.interface";
 
 /**
  * This interface stores the information about the user account.

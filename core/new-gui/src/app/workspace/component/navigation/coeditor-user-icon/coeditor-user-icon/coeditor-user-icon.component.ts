@@ -1,6 +1,6 @@
-import {Component, Input} from "@angular/core";
-import {User} from "../../../../../common/type/user";
-import {CoeditorPresenceService} from "../../../../service/workflow-graph/model/coeditor-presence.service";
+import { Component, Input } from "@angular/core";
+import { User } from "../../../../../common/type/user";
+import { CoeditorPresenceService } from "../../../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * CoeditorUserIconComponent is the user icon of a co-editor.
@@ -11,15 +11,12 @@ import {CoeditorPresenceService} from "../../../../service/workflow-graph/model/
 @Component({
   selector: "texera-coeditor-user-icon",
   templateUrl: "./coeditor-user-icon.component.html",
-  styleUrls: ["./coeditor-user-icon.component.css"]
+  styleUrls: ["./coeditor-user-icon.component.css"],
 })
 export class CoeditorUserIconComponent {
+  @Input() coeditor: User = { name: "", uid: -1 };
 
-  @Input() coeditor: User = {name: "", uid: -1};
-
-  constructor(public coeditorPresenceService: CoeditorPresenceService,) {
-
-  }
+  constructor(public coeditorPresenceService: CoeditorPresenceService) {}
 
   public shadowCoeditor() {
     this.coeditorPresenceService.shadowCoeditor(this.coeditor);

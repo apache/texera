@@ -1,6 +1,6 @@
-import {TestBed} from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 
-import {CoeditorPresenceService} from "./coeditor-presence.service";
+import { CoeditorPresenceService } from "./coeditor-presence.service";
 
 describe("CoeditorPresenceService", () => {
   let service: CoeditorPresenceService;

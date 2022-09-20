@@ -42,7 +42,9 @@
         <nz-list-item-action
           ><a (click)="toggleEditInput(item['creatorName'], item.creationTime)">edit</a></nz-list-item-action
         >
-        <nz-list-item-action><a (click)="replyToComment(item['creatorName'], item.content)">reply</a></nz-list-item-action>
+        <nz-list-item-action
+          ><a (click)="replyToComment(item['creatorName'], item.content)">reply</a></nz-list-item-action
+        >
       </ul>
     </nz-list-item>
   </nz-list>

@@ -1,6 +1,6 @@
 import { Component, HostListener, Inject, Input, LOCALE_ID } from "@angular/core";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import {CommentBox, Comment} from "src/app/workspace/types/workflow-common.interface";
+import { CommentBox, Comment } from "src/app/workspace/types/workflow-common.interface";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -8,8 +8,8 @@ import { User } from "src/app/common/type/user";
 import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { formatDate } from "@angular/common";
-import {Array as YArray} from "yjs";
-import {YType} from "../../../types/shared-editing.interface";
+import { Array as YArray } from "yjs";
+import { YType } from "../../../types/shared-editing.interface";
 
 @UntilDestroy()
 @Component({
@@ -63,7 +63,11 @@ export class NzModalCommentBoxComponent {
     if (!this.user) {
       return;
     }
-    this.workflowActionService.deleteComment(creatorID, creationTime, this.commentBox.get("commentBoxID").toJSON() as string);
+    this.workflowActionService.deleteComment(
+      creatorID,
+      creationTime,
+      this.commentBox.get("commentBoxID").toJSON() as string
+    );
   }
 
   public toggleEditInput(creatorName: string, creationTime: string): void {
@@ -95,7 +99,12 @@ export class NzModalCommentBoxComponent {
     }
     const newContent = this.editValue;
     this.editValue = "";
-    this.workflowActionService.editComment(creatorID, creationTime, this.commentBox.get("commentBoxID").toJSON() as string, newContent);
+    this.workflowActionService.editComment(
+      creatorID,
+      creationTime,
+      this.commentBox.get("commentBoxID").toJSON() as string,
+      newContent
+    );
     const currTxArea = document.getElementById("txarea" + creatorName + creationTime);
     const btn = document.getElementById("editbtn" + creatorName + creationTime);
     if (currTxArea == null || btn == null) {

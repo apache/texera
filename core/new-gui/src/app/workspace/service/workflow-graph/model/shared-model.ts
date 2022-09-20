@@ -1,17 +1,17 @@
 import * as Y from "yjs";
-import {WebsocketProvider} from "y-websocket";
-import {Awareness} from "y-protocols/awareness";
+import { WebsocketProvider } from "y-websocket";
+import { Awareness } from "y-protocols/awareness";
 import {
   Breakpoint,
   CommentBox,
   OperatorLink,
   OperatorPredicate,
-  Point
+  Point,
 } from "../../../types/workflow-common.interface";
-import {User, UserState} from "../../../../common/type/user";
-import {getWebsocketUrl} from "../../../../common/util/url";
-import {v4 as uuid} from "uuid";
-import {YType} from "../../../types/shared-editing.interface";
+import { User, UserState } from "../../../../common/type/user";
+import { getWebsocketUrl } from "../../../../common/util/url";
+import { v4 as uuid } from "uuid";
+import { YType } from "../../../types/shared-editing.interface";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
@@ -37,9 +37,7 @@ export class SharedModel {
    * @param wid workflow ID number, used as part of the address for the shared-editing room.
    * @param user current (local) user info, used for initializing local awareness (user presence).
    */
-  constructor(public wid?: number,
-              public user?: User) {
-
+  constructor(public wid?: number, public user?: User) {
     // Initialize Y-structures.
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
@@ -53,7 +51,7 @@ export class SharedModel {
       this.elementPositionMap,
       this.operatorLinkMap,
       this.commentBoxMap,
-      this.linkBreakpointMap
+      this.linkBreakpointMap,
     ]);
 
     // Generate editing room number.
@@ -66,9 +64,9 @@ export class SharedModel {
     this.clientId = this.awareness.clientID.toString();
     if (this.user) {
       const userState: UserState = {
-        user: {...this.user, clientId: this.clientId},
+        user: { ...this.user, clientId: this.clientId },
         isActive: true,
-        userCursor: {x: 0, y: 0}
+        userCursor: { x: 0, y: 0 },
       };
       this.awareness.setLocalState(userState);
     }
@@ -80,8 +78,7 @@ export class SharedModel {
    * @param value the updated state info.
    */
   public updateAwareness(field: keyof UserState, value: any): void {
-    if (this.user)
-      this.awareness.setLocalStateField(field, value);
+    if (this.user) this.awareness.setLocalStateField(field, value);
   }
 
   /**
@@ -105,8 +102,7 @@ export class SharedModel {
    */
   public destroy(): void {
     this.awareness.destroy();
-    if (this.wsProvider.wsconnected)
-      this.wsProvider.disconnect();
+    if (this.wsProvider.wsconnected) this.wsProvider.disconnect();
     this.yDoc.destroy();
   }
 }

@@ -1,10 +1,10 @@
-import {Injectable} from "@angular/core";
+import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
-import {BehaviorSubject, merge, Observable, Subject} from "rxjs";
-import {Workflow, WorkflowContent} from "../../../../common/type/workflow";
-import {mapToRecord, recordToMap} from "../../../../common/util/map";
-import {WorkflowMetadata} from "../../../../dashboard/type/workflow-metadata.interface";
+import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
+import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { mapToRecord, recordToMap } from "../../../../common/util/map";
+import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Breakpoint,
   Comment,
@@ -14,19 +14,19 @@ import {
   OperatorPredicate,
   Point,
 } from "../../../types/workflow-common.interface";
-import {JointUIService} from "../../joint-ui/joint-ui.service";
-import {OperatorMetadataService} from "../../operator-metadata/operator-metadata.service";
-import {UndoRedoService} from "../../undo-redo/undo-redo.service";
-import {WorkflowUtilService} from "../util/workflow-util.service";
-import {JointGraphWrapper} from "./joint-graph-wrapper";
-import {Group, OperatorGroup, OperatorGroupReadonly} from "./operator-group";
-import {SyncOperatorGroup} from "./sync-operator-group";
-import {SyncTexeraModel} from "./sync-texera-model";
-import {WorkflowGraph, WorkflowGraphReadonly} from "./workflow-graph";
-import {filter} from "rxjs/operators";
-import {isDefined} from "../../../../common/util/predicate";
-import {environment} from "../../../../../environments/environment";
-import {User} from "../../../../common/type/user";
+import { JointUIService } from "../../joint-ui/joint-ui.service";
+import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
+import { UndoRedoService } from "../../undo-redo/undo-redo.service";
+import { WorkflowUtilService } from "../util/workflow-util.service";
+import { JointGraphWrapper } from "./joint-graph-wrapper";
+import { Group, OperatorGroup, OperatorGroupReadonly } from "./operator-group";
+import { SyncOperatorGroup } from "./sync-operator-group";
+import { SyncTexeraModel } from "./sync-texera-model";
+import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
+import { filter } from "rxjs/operators";
+import { isDefined } from "../../../../common/util/predicate";
+import { environment } from "../../../../../environments/environment";
+import { User } from "../../../../common/type/user";
 
 /**
  *
@@ -141,9 +141,8 @@ export class WorkflowActionService {
       .pipe(
         filter(() => this.jointGraphWrapper.getListenPositionChange()),
         filter(() => this.undoRedoService.listenJointCommand),
-        filter(
-          movedElement =>
-            this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID)
+        filter(movedElement =>
+          this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID)
         )
       )
       .subscribe(movedElement => {
@@ -168,12 +167,16 @@ export class WorkflowActionService {
    */
   public handleJointElementDrag(): void {
     this.jointGraphWrapper.getElementPositionChangeEvent().subscribe(element => {
-      if (this.texeraGraph.getSyncTexeraGraph() && this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point != element.newPosition) {
+      if (
+        this.texeraGraph.getSyncTexeraGraph() &&
+        (this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point) != element.newPosition
+      ) {
         this.texeraGraph.sharedModel.elementPositionMap?.set(element.elementID, element.newPosition);
         if (element.elementID.includes("commentBox")) {
-          this.texeraGraph.sharedModel.commentBoxMap.get(element.elementID)?.set("commentBoxPosition", element.newPosition);
+          this.texeraGraph.sharedModel.commentBoxMap
+            .get(element.elementID)
+            ?.set("commentBoxPosition", element.newPosition);
         }
-
       }
     });
   }
@@ -228,7 +231,7 @@ export class WorkflowActionService {
     // turn off multiselect since there's only one operator added
     this.jointGraphWrapper.setMultiSelectMode(false);
     // add operator
-    this.addOperatorsInternal([{operator, point}]);
+    this.addOperatorsInternal([{ operator, point }]);
   }
 
   /**
@@ -280,7 +283,7 @@ export class WorkflowActionService {
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
     this.texeraGraph.bundleActions(() => {
-      this.addOperatorsInternal(operatorsAndPositions.map(o => ({operator: o.op, point: o.pos})));
+      this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
       if (links) {
         this.addLinksInternal(links);
         if (breakpoints !== undefined) {
@@ -430,12 +433,16 @@ export class WorkflowActionService {
   public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightOperators(...ops);
-    this.getTexeraGraph().getSharedModel().updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+    this.getTexeraGraph()
+      .getSharedModel()
+      .updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
   }
 
   public unhighlightOperators(...ops: string[]): void {
     this.getJointGraphWrapper().unhighlightOperators(...ops);
-    this.getTexeraGraph().getSharedModel().updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+    this.getTexeraGraph()
+      .getSharedModel()
+      .updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
   }
 
   public highlightLinks(multiSelect: boolean, ...links: string[]): void {
@@ -512,7 +519,7 @@ export class WorkflowActionService {
    * (<code>{@link destroySharedModel}</code>) before using this method.</b>
    */
   public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = environment.asyncRenderingEnabled): void {
-    this.jointGraphWrapper.jointGraphContext.withContext({async: asyncRendering}, () => {
+    this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
       this.setWorkflowMetadata(workflow);
       // remove the existing operators on the paper currently
 
@@ -540,7 +547,7 @@ export class WorkflowActionService {
         if (!opPosition) {
           throw new Error(`position error: ${op.operatorID}`);
         }
-        operatorsAndPositions.push({op: op, pos: opPosition});
+        operatorsAndPositions.push({ op: op, pos: opPosition });
       });
 
       const links: OperatorLink[] = workflowContent.links;
@@ -649,11 +656,16 @@ export class WorkflowActionService {
     texeraGraph
       .getAllOperators()
       .forEach(
-        op => (operatorPositions[op.operatorID] = this.texeraGraph.sharedModel.elementPositionMap?.get(op.operatorID) as Point)
+        op =>
+          (operatorPositions[op.operatorID] = this.texeraGraph.sharedModel.elementPositionMap?.get(
+            op.operatorID
+          ) as Point)
       );
     commentBoxes.forEach(
       commentBox =>
-        (commentBox.commentBoxPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(commentBox.commentBoxID) as Point)
+        (commentBox.commentBoxPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(
+          commentBox.commentBoxID
+        ) as Point)
     );
     const workflowContent: WorkflowContent = {
       operators,
@@ -669,7 +681,7 @@ export class WorkflowActionService {
   public getWorkflow(): Workflow {
     return {
       ...this.workflowMetadata,
-      ...{content: this.getWorkflowContent()},
+      ...{ content: this.getWorkflowContent() },
     };
   }
 

@@ -22,7 +22,7 @@ import { OperatorCacheStatusService } from "../service/workflow-status/operator-
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
-import {SyncJointModelService} from "../service/workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../service/workflow-graph/model/sync-joint-model.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -142,10 +142,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (
-          this.userService.isLogin() &&
-          this.workflowPersistService.isWorkflowPersistEnabled()
-        ) {
+        if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
           this.workflowPersistService
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))

@@ -26,8 +26,8 @@ import { UserProjectService } from "src/app/dashboard/service/user-project/user-
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model.service";
-import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
+import { SyncJointModelService } from "../../service/workflow-graph/model/sync-joint-model.service";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -390,7 +390,6 @@ export class NavigationComponent implements OnInit {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
 
-
   /**
    * callback function when user clicks the "disable operator" icon:
    * this.isDisableOperator indicates whether the operators should be disabled or enabled
@@ -523,8 +522,7 @@ export class NavigationComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
-    setTimeout(() => {
-    }, NavigationComponent.COLLAB_RELOAD_WAIT_TIME);
+    setTimeout(() => {}, NavigationComponent.COLLAB_RELOAD_WAIT_TIME);
   }
 
   /**

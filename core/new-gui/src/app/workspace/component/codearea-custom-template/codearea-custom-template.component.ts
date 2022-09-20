@@ -4,7 +4,7 @@ import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -27,7 +27,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
   constructor(
     public dialog: MatDialog,
     public workflowActionService: WorkflowActionService,
-    private coeditorPresenceService : CoeditorPresenceService
+    private coeditorPresenceService: CoeditorPresenceService
   ) {
     super();
     this.handleShadowingMode();
@@ -51,13 +51,13 @@ export class CodeareaCustomTemplateComponent extends FieldType {
       .getCoeditorOpenedCodeEditorSubject()
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
-      this.onClickEditor();
-    });
+        this.onClickEditor();
+      });
     this.coeditorPresenceService
       .getCoeditorClosedCodeEditorSubject()
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
-      this.dialogRef?.close();
-    });
+        this.dialogRef?.close();
+      });
   }
 }

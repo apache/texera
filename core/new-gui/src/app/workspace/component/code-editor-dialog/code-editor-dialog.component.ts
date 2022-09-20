@@ -1,14 +1,14 @@
-import {AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild} from "@angular/core";
-import {MAT_DIALOG_DATA, MatDialogRef} from "@angular/material/dialog";
-import {UntilDestroy} from "@ngneat/until-destroy";
-import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
-import {OperatorPredicate} from "../../types/workflow-common.interface";
-import {YText} from "yjs/dist/src/types/YText";
-import {MonacoBinding} from "y-monaco";
-import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
-import {DomSanitizer, SafeStyle} from "@angular/platform-browser";
-import {User} from "../../../common/type/user";
-import {YType} from "../../types/shared-editing.interface";
+import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } from "@angular/core";
+import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import { UntilDestroy } from "@ngneat/until-destroy";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { OperatorPredicate } from "../../types/workflow-common.interface";
+import { YText } from "yjs/dist/src/types/YText";
+import { MonacoBinding } from "y-monaco";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
+import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
+import { User } from "../../../common/type/user";
+import { YType } from "../../types/shared-editing.interface";
 
 declare const monaco: any;
 
@@ -24,26 +24,32 @@ declare const monaco: any;
  * The dialogue can be closed with ESC key or by clicking on areas outside
  * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
  */
-@UntilDestroy() @Component({
+@UntilDestroy()
+@Component({
   selector: "texera-code-editor-dialog",
   templateUrl: "./code-editor-dialog.component.html",
   styleUrls: ["./code-editor-dialog.component.scss"],
 })
 export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
   editorOptions = {
-    theme: "vs-dark", language: "python", fontSize: "11", automaticLayout: true
+    theme: "vs-dark",
+    language: "python",
+    fontSize: "11",
+    automaticLayout: true,
   };
   code: string;
-  @ViewChild("editor", {static: true}) divEditor: ElementRef | undefined;
+  @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
   loaded: boolean = false;
 
   private ytext?: YText;
 
-  constructor(private sanitizer: DomSanitizer,
-              private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
-              @Inject(MAT_DIALOG_DATA) code: any,
-              private workflowActionService: WorkflowActionService,
-              public coeditorPresenceService: CoeditorPresenceService) {
+  constructor(
+    private sanitizer: DomSanitizer,
+    private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) code: any,
+    private workflowActionService: WorkflowActionService,
+    public coeditorPresenceService: CoeditorPresenceService
+  ) {
     this.code = code;
   }
 
@@ -58,13 +64,14 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
     this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("editingCode", true);
 
-    this.ytext = ((this.workflowActionService
-      .getTexeraGraph()
-      .getSharedModel()
-      .operatorIDMap
-      .get(currentOperatorId) as YType<OperatorPredicate>)
-      .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>)
-      .get("code") as YText;
+    this.ytext = (
+      (
+        this.workflowActionService
+          .getTexeraGraph()
+          .getSharedModel()
+          .operatorIDMap.get(currentOperatorId) as YType<OperatorPredicate>
+      ).get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
+    ).get("code") as YText;
 
     this.initMonaco();
   }
@@ -74,7 +81,12 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * @param coeditor
    */
   public getCoeditorCursorStyles(coeditor: User) {
-    const textCSS = "<style>" + `.yRemoteSelection-${coeditor.clientId} { background-color: ${coeditor.color?.replace("0.8", "0.5")}}` + `.yRemoteSelectionHead-${coeditor.clientId}::after { border-color: ${coeditor.color}}` + `.yRemoteSelectionHead-${coeditor.clientId} { border-color: ${coeditor.color}}` + "</style>";
+    const textCSS =
+      "<style>" +
+      `.yRemoteSelection-${coeditor.clientId} { background-color: ${coeditor.color?.replace("0.8", "0.5")}}` +
+      `.yRemoteSelectionHead-${coeditor.clientId}::after { border-color: ${coeditor.color}}` +
+      `.yRemoteSelectionHead-${coeditor.clientId} { border-color: ${coeditor.color}}` +
+      "</style>";
     return this.sanitizer.bypassSecurityTrustHtml(textCSS);
   }
 
@@ -85,7 +97,12 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   private initMonaco() {
     const editor = monaco.editor.create(this.divEditor?.nativeElement, this.editorOptions);
     if (this.ytext) {
-      new MonacoBinding(this.ytext, editor.getModel(), new Set([editor]), this.workflowActionService.getTexeraGraph().getSharedModel().awareness);
+      new MonacoBinding(
+        this.ytext,
+        editor.getModel(),
+        new Set([editor]),
+        this.workflowActionService.getTexeraGraph().getSharedModel().awareness
+      );
     }
   }
 }

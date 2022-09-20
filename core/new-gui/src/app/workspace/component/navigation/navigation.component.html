@@ -31,12 +31,7 @@
           {{particularVersionDate}}
         </span>
       </label>
-      <button
-        *ngIf="displayParticularWorkflowVersion"
-        nz-button
-        nzType="primary"
-        (click)="revertToVersion()"
-      >
+      <button *ngIf="displayParticularWorkflowVersion" nz-button nzType="primary" (click)="revertToVersion()">
         Restore this version
       </button>
       <button
@@ -52,21 +47,15 @@
       </button>
     </div>
 
-    <div *ngIf="userSystemEnabled"
-         class="texera-navigation-coeditor-icons"
-    >
-      <ng-container
-        *ngFor="let user of coeditorPresenceService.coeditors"
-      >
-        <texera-coeditor-user-icon
-          [coeditor]="user"
-        >
-        </texera-coeditor-user-icon>
+    <div *ngIf="userSystemEnabled" class="texera-navigation-coeditor-icons">
+      <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+        <texera-coeditor-user-icon [coeditor]="user"> </texera-coeditor-user-icon>
       </ng-container>
     </div>
 
-    <div *ngIf="userSystemEnabled && this.coeditorPresenceService.shadowingModeEnabled"
-         class="texera-navigation-shadowing-status"
+    <div
+      *ngIf="userSystemEnabled && this.coeditorPresenceService.shadowingModeEnabled"
+      class="texera-navigation-shadowing-status"
     >
       <button
         *ngIf="this.coeditorPresenceService.shadowingModeEnabled"

@@ -64,7 +64,7 @@ export class UserService {
       const r = Math.floor(Math.random() * 155);
       const g = Math.floor(Math.random() * 155);
       const b = Math.floor(Math.random() * 155);
-      this.currentUser = {...user, color:"rgba(" + r + "," + g + "," + b + ",0.8)"};
+      this.currentUser = { ...user, color: "rgba(" + r + "," + g + "," + b + ",0.8)" };
       this.userChangeSubject.next(this.currentUser);
     } else {
       this.userChangeSubject.next(user);

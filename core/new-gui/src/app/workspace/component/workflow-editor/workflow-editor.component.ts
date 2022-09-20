@@ -760,9 +760,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
         elementIDs.forEach(elementID => {
-            this.getJointPaper().findViewByModel(elementID).highlight("rect.body", {highlighter: highlightOptions});
-          }
-        )
+          this.getJointPaper().findViewByModel(elementID).highlight("rect.body", { highlighter: highlightOptions });
+        })
       );
 
     // unhighlight on OperatorUnhighlightStream or GroupUnhighlightStream
@@ -928,8 +927,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
       });
   }
-
-
 
   /**
    * if the operator is valid , the border of the box will be default
@@ -1845,7 +1842,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private handlePointerEvents(): void {
     // eslint-disable-next-line rxjs-angular/prefer-takeuntil
     fromEvent<MouseMoveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mousemove").subscribe(e => {
-      const jointPoint = this.getJointPaper().clientToLocalPoint({x: e.clientX, y: e.clientY});
+      const jointPoint = this.getJointPaper().clientToLocalPoint({ x: e.clientX, y: e.clientY });
       this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("userCursor", jointPoint);
     });
     // eslint-disable-next-line rxjs-angular/prefer-takeuntil

@@ -15,8 +15,8 @@ export type YType<T> = Omit<Y.AbstractType<any>, "get" | "set" | "has" | "toJSON
   get<TKey extends keyof T>(key: TKey): YArrayify<YTextify<T[TKey]>>;
   set<TKey extends keyof T>(key: TKey, value: YArrayify<YTextify<T[TKey]>>): void;
   has<TKey extends keyof T>(key: TKey): boolean;
-  toJSON(): T
-}
+  toJSON(): T;
+};
 
 /** Creates a <code>YType</code> given a normal object. Returns either a <code>YType</code>,
  *  or the original object if it is a primitive type other than string, because string will be converted to
@@ -74,7 +74,7 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
   if (newObjType !== oldObjType) throw TypeError(`Type ${newObjType} cannot be used to update YType of ${oldObjType}`);
   if (newObjType === "String") {
     const yText = oldYObj as unknown as Y.Text;
-    if (yText.toJSON() !== newObj as unknown as string) {
+    if (yText.toJSON() !== (newObj as unknown as string)) {
       // Inplace update.
       yText.delete(0, yText.length);
       yText.insert(0, newObj as unknown as string);
@@ -83,7 +83,7 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
     const oldYObjAsYArray = oldYObj as unknown as Y.Array<any>;
     const newObjAsArr = newObj as any[];
     const newArrLen = newObjAsArr.length;
-    const oldObjAsArr = (oldYObjAsYArray).toJSON();
+    const oldObjAsArr = oldYObjAsYArray.toJSON();
     const oldArrLen = oldObjAsArr.length;
     for (let i = 0; i < newArrLen; i++) {
       if (i >= oldArrLen) {
