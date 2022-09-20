@@ -14,7 +14,6 @@ import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-grap
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { merge } from "rxjs";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -26,6 +25,7 @@ import { UserProjectService } from "src/app/dashboard/service/user-project/user-
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { SyncJointModelService } from "../../service/workflow-graph/model/sync-joint-model.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 
@@ -73,14 +73,6 @@ export class NavigationComponent implements OnInit {
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
-  // whether the disable-operator-button should be enabled
-  public isDisableOperatorClickable: boolean = false;
-  public isDisableOperator: boolean = true;
-
-  public operatorCacheEnabled: boolean = environment.operatorCacheEnabled;
-  public isCacheOperatorClickable: boolean = false;
-  public isCacheOperator: boolean = true;
-
   public static readonly COLLAB_RELOAD_WAIT_TIME = 500;
 
   constructor(
@@ -98,6 +90,7 @@ export class NavigationComponent implements OnInit {
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
+    public operatorMenu: OperatorMenuService,
     public changeDetectionRef: ChangeDetectorRef,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
@@ -132,8 +125,6 @@ export class NavigationComponent implements OnInit {
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
-    this.handleDisableOperatorStatusChange();
-    this.handleCacheOperatorStatusChange();
   }
 
   // apply a behavior to the run button via bound variables
@@ -390,31 +381,6 @@ export class NavigationComponent implements OnInit {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
 
-  /**
-   * callback function when user clicks the "disable operator" icon:
-   * this.isDisableOperator indicates whether the operators should be disabled or enabled
-   */
-  public onClickDisableOperators(): void {
-    if (this.isDisableOperator) {
-      this.workflowActionService.disableOperators(this.effectivelyHighlightedOperators());
-    } else {
-      this.workflowActionService.enableOperators(this.effectivelyHighlightedOperators());
-    }
-  }
-
-  public onClickCacheOperators(): void {
-    const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-    const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
-      op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
-    );
-
-    if (this.isCacheOperator) {
-      this.workflowActionService.cacheOperators(effectiveHighlightedOperatorsExcludeSink);
-    } else {
-      this.workflowActionService.unCacheOperators(effectiveHighlightedOperatorsExcludeSink);
-    }
-  }
-
   public persistWorkflow(): void {
     this.isSaving = true;
     if (this.pid === 0) {
@@ -523,71 +489,5 @@ export class NavigationComponent implements OnInit {
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
     setTimeout(() => {}, NavigationComponent.COLLAB_RELOAD_WAIT_TIME);
-  }
-
-  /**
-   * Updates the status of the disable operator icon:
-   * If all selected operators are disabled, then click it will re-enable the operators
-   * If any of the selected operator is not disabled, then click will disable all selected operators
-   */
-  handleDisableOperatorStatusChange() {
-    merge(
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
-      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
-    )
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-        const allDisabled = this.effectivelyHighlightedOperators().every(op =>
-          this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
-        );
-
-        this.isDisableOperator = !allDisabled;
-        this.isDisableOperatorClickable = effectiveHighlightedOperators.length !== 0;
-      });
-  }
-
-  handleCacheOperatorStatusChange() {
-    merge(
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
-      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream()
-    )
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-        const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
-          op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
-        );
-
-        const allCached = effectiveHighlightedOperatorsExcludeSink.every(op =>
-          this.workflowActionService.getTexeraGraph().isOperatorCached(op)
-        );
-
-        this.isCacheOperator = !allCached;
-        this.isCacheOperatorClickable = effectiveHighlightedOperatorsExcludeSink.length !== 0;
-      });
-  }
-
-  /**
-   * Gets all highlighted operators, and all operators in the highlighted groups
-   */
-  effectivelyHighlightedOperators(): readonly string[] {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
-    const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
-      Array.from(this.workflowActionService.getOperatorGroup().getGroup(g).operators.keys())
-    );
-
-    const effectiveHighlightedOperators = new Set<string>();
-    highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
-    operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
-    return Array.from(effectiveHighlightedOperators);
   }
 }

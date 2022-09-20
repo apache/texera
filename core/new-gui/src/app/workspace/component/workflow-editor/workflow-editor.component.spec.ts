@@ -34,6 +34,7 @@ import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { of } from "rxjs";
+import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -50,7 +51,7 @@ describe("WorkflowEditorComponent", () => {
       waitForAsync(() => {
         TestBed.configureTestingModule({
           declarations: [WorkflowEditorComponent],
-          imports: [HttpClientTestingModule, NzModalModule],
+          imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule],
           providers: [
             JointUIService,
             WorkflowUtilService,
@@ -59,6 +60,7 @@ describe("WorkflowEditorComponent", () => {
             ResultPanelToggleService,
             ValidationWorkflowService,
             WorkflowActionService,
+            NzContextMenuService,
             Overlay,
             {
               provide: OperatorMetadataService,
@@ -150,7 +152,7 @@ describe("WorkflowEditorComponent", () => {
       waitForAsync(() => {
         TestBed.configureTestingModule({
           declarations: [WorkflowEditorComponent, NzModalCommentBoxComponent],
-          imports: [HttpClientTestingModule, NzModalModule, NoopAnimationsModule],
+          imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule, NoopAnimationsModule],
           providers: [
             JointUIService,
             WorkflowUtilService,
@@ -160,6 +162,7 @@ describe("WorkflowEditorComponent", () => {
             ValidationWorkflowService,
             DragDropService,
             NzModalService,
+            NzContextMenuService,
             {
               provide: OperatorMetadataService,
               useClass: StubOperatorMetadataService,
