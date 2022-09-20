@@ -14,7 +14,7 @@ export const defaultEnvironment = {
    * whether fetching available source tables is enabled
    * see SourceTablesService for details
    */
-  sourceTableEnabled: false,
+  sourceTableEnabled: true,
   /**
    * whether operator schema propagation and autocomplete feature is enabled,
    * see SchemaPropagationService for details
@@ -36,7 +36,7 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: false,
+  userSystemEnabled: true,
 
   /**
    * whether user preset feature is enabled, requires user system to be enabled
