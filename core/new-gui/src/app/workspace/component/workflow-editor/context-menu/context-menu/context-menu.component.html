@@ -1,0 +1,42 @@
+<ul nz-menu>
+  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length > 0" (click)="onCopy()">
+    <span nz-icon nzType="copy" nzTheme="outline"></span>copy
+  </li>
+  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length > 0" (click)="onCut()">
+    <span nz-icon nzType="scissor" nzTheme="outline"></span>cut
+  </li>
+  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length === 0" (click)="onPaste()">
+    <span nz-icon nzType="snippets" nzTheme="outline"></span>paste
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
+    (click)="operatorMenu.disableHighlightedOperators()"
+  >
+    <span nz-icon nzType="stop" nzTheme="outline"></span>disable
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="!operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
+    (click)="operatorMenu.disableHighlightedOperators()"
+  >
+    <span nz-icon nzType="stop" nzTheme="twotone"></span>enable
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
+    (click)="operatorMenu.cacheHighlightedOperators()"
+  >
+    <span nz-icon nzType="database" nzTheme="outline"></span>cache output
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
+    (click)="operatorMenu.cacheHighlightedOperators()"
+  >
+    <span nz-icon nzType="database" nzTheme="twotone"></span>remove cache
+  </li>
+  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length > 0" (click)="onDelete()">
+    <span nz-icon nzType="delete" nzTheme="outline"></span>delete
+  </li>
+</ul>
