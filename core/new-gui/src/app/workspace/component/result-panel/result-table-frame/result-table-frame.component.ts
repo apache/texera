@@ -48,7 +48,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   totalNumTuples: number = 0;
   pageSize = DEFAULT_PAGE_SIZE;
 
-  private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
+  private readonly TABLE_COLUMN_TEXT_LIMIT: number = 100;
   private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
 
   constructor(
@@ -256,7 +256,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
   trimTableCell(cellContent: string): string {
     if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
-      return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
+      return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT) + "...";
     }
     return cellContent;
   }
