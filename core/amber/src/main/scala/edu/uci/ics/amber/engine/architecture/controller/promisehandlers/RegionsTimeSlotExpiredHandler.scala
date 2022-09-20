@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RegionsTimeSlotExpiredHandler.RegionsTimeSlotExpired
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -32,16 +33,12 @@ trait RegionsTimeSlotExpiredHandler {
         scheduler.onTimeSlotExpired(notCompletedRegions).flatMap(_ => Future.Unit)
       } else {
         if (notCompletedRegions.nonEmpty) {
-          //  The regions haven't gone into running state yet. Increase the time slot expiration duration
-          logger.warn("The regions' time slot expired but they are not running yet.")
-          actorContext.system.scheduler.scheduleOnce(
-            FiniteDuration.apply(Constants.timeSlotExpirationDurationInMs, MILLISECONDS),
-            actorContext.self,
-            ControlInvocation(
-              AsyncRPCClient.IgnoreReplyAndDoNotLog,
-              RegionsTimeSlotExpired(notCompletedRegions)
-            )
-          )(actorContext.dispatcher)
+          // This shouldn't happen because the timer starts only after the regions have started
+          // running. The only other possibility is that the region has completed which we have
+          // checked above.
+          throw new WorkflowRuntimeException(
+            "The regions' time slot expired but they are not running yet."
+          )
         }
         Future()
       }
