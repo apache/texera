@@ -19,7 +19,7 @@ object RegionsTimeSlotExpiredHandler {
 
 /** Indicate that the time slot for a reason is up and the execution of the regions needs to be paused
   *
-  * possible sender: controller (scheduler) or self
+  * possible sender: controller (scheduler)
   */
 trait RegionsTimeSlotExpiredHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
