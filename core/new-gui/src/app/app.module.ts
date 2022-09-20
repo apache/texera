@@ -36,6 +36,7 @@ import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
 import { NzUploadModule } from "ng-zorro-antd/upload";
+import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { ColorPickerModule } from "ngx-color-picker";
@@ -110,6 +111,7 @@ import { NzModalCommentBoxComponent } from "./workspace/component/workflow-edito
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
+import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 
 registerLocaleData(en);
 
@@ -169,6 +171,7 @@ registerLocaleData(en);
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
     DeletePromptComponent,
+    ContextMenuComponent,
   ],
   imports: [
     BrowserModule,
@@ -221,6 +224,7 @@ registerLocaleData(en);
     NzSpaceModule,
     NzBadgeModule,
     NzUploadModule,
+    NzNoAnimationModule,
     NgxJsonViewerModule,
     MatDialogModule,
     NzCardModule,
