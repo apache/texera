@@ -27,6 +27,10 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     this.userChangeSubject.next(this.user);
   }
 
+  public getCurrentUser(): User | undefined {
+        throw new Error("Method not implemented.");
+    }
+
   googleLogin(): Observable<void> {
     throw new Error("Method not implemented.");
   }

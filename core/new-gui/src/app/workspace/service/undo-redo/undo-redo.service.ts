@@ -58,6 +58,14 @@ export class UndoRedoService {
     this.listenJointCommand = toggle;
   }
 
+  public getUndoLength(): number {
+    return <number>this.undoManager?.undoStack.length;
+  }
+
+  public getRedoLength(): number {
+    return <number>this.undoManager?.redoStack.length;
+  }
+
   public canUndo(): boolean {
     if (this.undoManager) return this.workFlowModificationEnabled && this.undoManager?.canUndo();
     else return false;
