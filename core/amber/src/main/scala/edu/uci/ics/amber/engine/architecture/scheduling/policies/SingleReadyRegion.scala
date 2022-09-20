@@ -3,8 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling.policies
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 
-class SingleReadyRegion(workflow: Workflow)
-    extends SchedulingPolicy(workflow) {
+class SingleReadyRegion(workflow: Workflow) extends SchedulingPolicy(workflow) {
 
   override def getNextSchedulingWork(): Set[PipelinedRegion] = {
     if (

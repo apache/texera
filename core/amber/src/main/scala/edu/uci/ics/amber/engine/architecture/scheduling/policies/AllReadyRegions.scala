@@ -7,8 +7,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaSet
 import scala.util.control.Breaks.{break, breakable}
 
-class AllReadyRegions(workflow: Workflow)
-    extends SchedulingPolicy(workflow) {
+class AllReadyRegions(workflow: Workflow) extends SchedulingPolicy(workflow) {
 
   override def getNextSchedulingWork(): Set[PipelinedRegion] = {
     val nextToSchedule: mutable.HashSet[PipelinedRegion] = new mutable.HashSet[PipelinedRegion]()

@@ -15,9 +15,9 @@ import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.jdk.CollectionConverters.asScalaSet
 import scala.util.control.Breaks.{break, breakable}
 
-class AllReadyTimeInterleavedRegions(
+class SingleReadyRegionTimeInterleaved(
     workflow: Workflow,
-    ctx: ActorContext,
+    ctx: ActorContext
 ) extends SchedulingPolicy(workflow) {
 
   var currentlyExecutingRegions = new mutable.LinkedHashSet[PipelinedRegion]()
@@ -83,8 +83,9 @@ class AllReadyTimeInterleavedRegions(
     if (currentlyExecutingRegions.nonEmpty) {
       val nextToSchedule = currentlyExecutingRegions.head
       if (!runningRegions.contains(nextToSchedule)) {
-        currentlyExecutingRegions.remove(nextToSchedule)
-        currentlyExecutingRegions.add(nextToSchedule)
+        // if `nextToSchedule` is not running right now.
+        currentlyExecutingRegions.remove(nextToSchedule) // remove first element
+        currentlyExecutingRegions.add(nextToSchedule) // add to end of list
         return Set(nextToSchedule)
       }
     }

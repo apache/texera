@@ -286,8 +286,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           })
       }
     )
-    isRegionCompleted =
-      scheduler.onWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
+    isRegionCompleted = scheduler.onWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
     assert(isRegionCompleted == true)
     assert(scheduler.getNextRegionToConstructAndPrepare() == null)
   }
