@@ -1,11 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
-import com.esotericsoftware.kryo.io.Output
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{DeterminantLogReader, DeterminantLogWriter, EmptyLogReader}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
-import java.io.InputStream
 import java.net.URI
 
 class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage {
@@ -22,25 +20,34 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   if (!hdfs.exists(recoveryLogFolder)) {
     hdfs.mkdirs(recoveryLogFolder)
   }
-  private val recoveryLogPath: Path = new Path("/recovery-logs/" + name + ".logfile")
-  if (!hdfs.exists(recoveryLogPath)) {
-    hdfs.createNewFile(recoveryLogPath)
+
+  private def getLogPath(attempt: Int):Path = {
+    new Path("/recovery-logs/" + name +"-"+attempt+ ".logfile")
   }
 
-  override def getWriter: DeterminantLogWriter = {
+  override def getWriter(attempt:Int): DeterminantLogWriter = {
     new DeterminantLogWriter {
-      val output = new Output(hdfs.append(recoveryLogPath))
-      override def writeLogRecord(obj:AnyRef): Unit = ser.writeObject(output, obj)
-
-      override def flush(): Unit = output.flush()
-
-      override def close(): Unit = output.close()
+      override lazy protected val outputStream = {
+        hdfs.create(getLogPath(attempt))
+      }
     }
   }
 
-  override def deleteLog(): Unit = {
-    if (hdfs.exists(recoveryLogPath)) {
-      hdfs.delete(recoveryLogPath, false)
+  override def getReader(attempt:Int): DeterminantLogReader = {
+    val path = getLogPath(attempt)
+    if(hdfs.exists(path)) {
+      new DeterminantLogReader {
+        override protected val inputStream = hdfs.open(path)
+      }
+    }else{
+      null
+    }
+  }
+
+  override def deleteLog(attempt: Int): Unit = {
+    val path = getLogPath(attempt)
+    if (hdfs.exists(path)) {
+      hdfs.delete(path, false)
     }
   }
 }

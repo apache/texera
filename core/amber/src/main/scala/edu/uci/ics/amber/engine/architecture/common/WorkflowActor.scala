@@ -2,34 +2,21 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{Actor, ActorRef, Stash}
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.logging.storage.{
-  DeterminantLogStorage,
-  LocalFSLogStorage
-}
+import edu.uci.ics.amber.engine.architecture.logging.storage.{DeterminantLogStorage, EmptyLogStorage, LocalFSLogStorage}
 import edu.uci.ics.amber.engine.architecture.logging.{AsyncLogWriter, LogManager}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  GetActorRef,
-  NetworkSenderActorRef,
-  RegisterActorRef,
-  SendRequest
-}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkCommunicationActor,
-  NetworkOutputPort
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkSenderActorRef, RegisterActorRef, SendRequest}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkCommunicationActor, NetworkOutputPort}
+import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
-import edu.uci.ics.amber.engine.common.rpc.{
-  AsyncRPCClient,
-  AsyncRPCHandlerInitializer,
-  AsyncRPCServer
-}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 abstract class WorkflowActor(
     val actorId: ActorVirtualIdentity,
-    parentNetworkCommunicationActorRef: ActorRef
+    parentNetworkCommunicationActorRef: ActorRef,
+    attempt: Int
 ) extends Actor
     with Stash
     with AmberLogging {
@@ -41,7 +28,15 @@ abstract class WorkflowActor(
     // create a network communication actor on the same machine as the WorkflowActor itself
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, actorId))
   )
-  lazy val logManager: LogManager = new LogManager(networkCommunicationActor, getLogName)
+  val enabledLogging: Boolean =
+    AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
+  private val logStorage: DeterminantLogStorage = if (enabledLogging) {
+    new LocalFSLogStorage(getLogName)
+  } else {
+    new EmptyLogStorage()
+  }
+  val recoveryManager = new RecoveryManager(logStorage.getReader(attempt - 1))
+  lazy val logManager: LogManager = new LogManager(networkCommunicationActor, logStorage.getWriter(attempt))
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer

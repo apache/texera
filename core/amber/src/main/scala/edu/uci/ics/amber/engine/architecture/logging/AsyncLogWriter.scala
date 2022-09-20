@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logging
 
 import com.google.common.collect.Queues
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
 
@@ -11,14 +12,13 @@ import scala.util.control.Breaks.{break, breakable}
 
 class AsyncLogWriter(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
-    logStorage: DeterminantLogStorage
+    writer: DeterminantLogWriter
 ) extends Thread {
   private val drained = new util.ArrayList[Either[InMemDeterminant, SendRequest]]()
   private val writerQueue =
     Queues.newLinkedBlockingQueue[Either[InMemDeterminant, SendRequest]]()
   @volatile private var stopped = false
   private val logInterval = 500
-  private val logWriter = logStorage.getWriter
 
   def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {
     determinants.foreach(x => writerQueue.put(Left(x)))
@@ -51,14 +51,13 @@ class AsyncLogWriter(
         drainedScala
           .filter(_.isLeft)
           .map(_.left.get)
-          .foreach(x => logWriter.writeLogRecord(x))
-        logWriter.flush()
+          .foreach(x => writer.writeLogRecord(x))
+        writer.flush()
         drainedScala.filter(_.isRight).foreach(x => networkCommunicationActor ! x.right.get)
         drained.clear()
       }
     }
-    logWriter.close()
-    logStorage.deleteLog()
+    writer.close()
   }
 
 }

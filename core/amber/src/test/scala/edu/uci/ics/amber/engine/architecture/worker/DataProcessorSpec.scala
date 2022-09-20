@@ -3,12 +3,8 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.ActorContext
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.logging.LogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  BatchToTupleConverter,
-  NetworkInputPort,
-  NetworkOutputPort,
-  TupleToBatchConverter
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, NetworkInputPort, NetworkOutputPort, TupleToBatchConverter}
+import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -22,11 +18,7 @@ import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -124,6 +116,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
@@ -157,6 +150,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
@@ -201,6 +195,35 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    val recoveryManager = mock[RecoveryManager]
+    (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
+    val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
+    val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
+    inAnyOrder {
+      (operator.open _).expects().once()
+      (asyncRPCServer.logControlInvocation _).expects(*, *).anyNumberOfTimes()
+      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
+      (asyncRPCServer.receive _).expects(*, *).repeat(3)
+      (operator.close _).expects().once()
+    }
+    val dp: DataProcessor = wire[DataProcessor]
+    operator.open()
+    Await.result(
+      sendControlToDP(dp, (0 until 3).map(_ => ControlInvocation(0, DummyControl()))),
+      1.second
+    )
+    waitForControlProcessing(dp)
+    operator.close()
+    dp.shutdown()
+  }
+
+
+
+  "data processor" should "write determinant to log" in {
+    val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val operator = mock[OperatorExecutor]
+    val logManager = mock[LogManager]
+    val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
@@ -229,6 +252,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val ctx: ActorContext = null
     val batchToTupleConverter = mock[BatchToTupleConverter]
     val logManager = mock[LogManager]
+    val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     (asyncRPCClient.send _).expects(*, *).anyNumberOfTimes()
@@ -285,6 +309,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     Constants.flowControlEnabled = true
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val logManager = mock[LogManager]
+    val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val operator = new IOperatorExecutor {
       override def open(): Unit = {}
