@@ -1,5 +1,13 @@
 <div [hidden]="!showResultPanel" class="texera-workspace-result-panel-body texera-workflow-component-body">
   <nz-tabset [nzSize]="'small'" [nzTabPosition]="'left'">
+    <div *ngIf="frameComponentConfigs.size == 0">
+      <nz-tab nzTitle="Result">
+        <div style="text-align: center">
+          <h4>No results available to display.</h4>
+        </div>
+      </nz-tab>
+    </div>
+
     <div *ngFor="let config of frameComponentConfigs | keyvalue">
       <nz-tab nzTitle="{{config.key}}">
         <ndc-dynamic

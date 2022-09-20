@@ -31,7 +31,7 @@ import scala.concurrent.duration.DurationInt
 
 object JobResultService {
 
-  val defaultPageSize: Int = 10
+  val defaultPageSize: Int = 5
 
   // convert Tuple from engine's format to JSON format
   def webDataFromTuple(
