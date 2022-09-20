@@ -13,6 +13,7 @@
   // transition: grid-template-rows 0.5s;
   --header-height: 56px;
   --resultbar-height: 25px;
+  --result-panel-height: 280px;
 
   &.user-system-enabled {
     --header-height: 96px;
@@ -46,10 +47,10 @@
   grid-template-columns: 200px auto 350px;
   grid-template-rows:
     var(--header-height)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.45)
+    calc((100% - var(--header-height) - var(--resultbar-height) - var(--result-panel-height)))
     0px
     var(--resultbar-height)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.55);
+    var(--result-panel-height);
   position: relative;
 }
 
@@ -129,6 +130,7 @@
 .texera-result-panel-grid-container {
   grid-column: 2/3;
   grid-row: 5/6;
+  overflow: auto;
   transition: height 1s;
 }
 

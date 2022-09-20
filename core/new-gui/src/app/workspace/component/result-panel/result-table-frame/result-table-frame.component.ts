@@ -7,11 +7,7 @@ import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import {
-  DEFAULT_PAGE_SIZE,
-  setPageSize,
-  WorkflowResultService,
-} from "../../../service/workflow-result/workflow-result.service";
+import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -263,10 +259,5 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT) + "...";
     }
     return cellContent;
-  }
-
-  onPageSizeChange($event: number) {
-    setPageSize($event);
-    this.pageSize = DEFAULT_PAGE_SIZE;
   }
 }
