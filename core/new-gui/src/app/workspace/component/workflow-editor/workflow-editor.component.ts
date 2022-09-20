@@ -13,22 +13,16 @@ import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import {
-  fromJointPaperEvent,
-  JointUIService,
-  linkPathStrokeColor,
-  sourceOperatorHandle,
-} from "../../service/joint-ui/joint-ui.service";
+import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
-import { Group, LinkInfo, OperatorInfo } from "../../service/workflow-graph/model/operator-group";
+import { OperatorInfo } from "../../service/workflow-graph/model/operator-group";
 import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { OperatorLink, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -105,8 +99,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private workflowVersionService: WorkflowVersionService,
     private workflowCollabService: WorkflowCollabService,
     private operatorMenu: OperatorMenuService,
-    private nzContextMenu: NzContextMenuService,
-  ) { }
+    private nzContextMenu: NzContextMenuService
+  ) {}
 
   public getJointPaper(): joint.dia.Paper {
     if (this.paper === undefined) {
@@ -382,7 +376,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               .getJointGraphWrapper()
               .setZoomProperty(
                 this.workflowActionService.getJointGraphWrapper().getZoomRatio() -
-                JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF
+                  JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF
               );
           } else {
             // if zoom ratio already at maximum, do not zoom in.
@@ -393,7 +387,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               .getJointGraphWrapper()
               .setZoomProperty(
                 this.workflowActionService.getJointGraphWrapper().getZoomRatio() +
-                JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF
+                  JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF
               );
           }
         }
@@ -411,28 +405,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     yMax: number;
   } {
     return MAIN_CANVAS_LIMIT;
-  }
-
-  /**
-   * This method checks whether the operator is out of bound.
-   */
-  private checkBounding(limitx: number[], limity: number[]): void {
-    // check if operator out of right bound after WrapperElement changes its size
-    if (this.getJointPaper().translate().tx > limitx[0]) {
-      this.getJointPaper().translate(limitx[0], this.getJointPaper().translate().ty);
-    }
-    // check left bound
-    if (this.getJointPaper().translate().tx < limitx[1]) {
-      this.getJointPaper().translate(limitx[1], this.getJointPaper().translate().ty);
-    }
-    // check lower bound
-    if (this.getJointPaper().translate().ty > limity[0]) {
-      this.getJointPaper().translate(this.getJointPaper().translate().tx, limity[0]);
-    }
-    // check upper bound
-    if (this.getJointPaper().translate().ty < limity[1]) {
-      this.getJointPaper().translate(this.getJointPaper().translate().tx, limity[1]);
-    }
   }
 
   /**

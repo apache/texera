@@ -2,13 +2,11 @@ import { Injectable } from "@angular/core";
 import { environment } from "src/environments/environment";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
-import { BehaviorSubject, filter, fromEvent, merge, Subject } from "rxjs";
+import { BehaviorSubject, merge } from "rxjs";
 import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { Group, LinkInfo } from "../workflow-graph/model/operator-group";
-import { assertType } from "src/app/common/util/assert";
+import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-
 
 type OperatorPositions = {
   [key: string]: Point;
@@ -60,7 +58,8 @@ export class OperatorMenuService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private notificationService: NotificationService) {
+    private notificationService: NotificationService
+  ) {
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
 
@@ -262,9 +261,7 @@ export class OperatorMenuService {
       let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
 
       // get all the breakpoints for later when adding the breakpoints for the pasted new links
-      let breakpointsInClipboard: BreakpointWithLinkID = elementsInClipboard.get(
-        "breakpoints"
-      ) as BreakpointWithLinkID;
+      let breakpointsInClipboard: BreakpointWithLinkID = elementsInClipboard.get("breakpoints") as BreakpointWithLinkID;
 
       let linksCopy: LinkWithID = {};
       copiedOps.forEach(copiedOperator => {
@@ -329,10 +326,7 @@ export class OperatorMenuService {
 
       // add breakpoints for the newly pasted links
       for (let oldLinkID in linksCopy) {
-        this.workflowActionService.setLinkBreakpoint(
-          linksCopy[oldLinkID].linkID,
-          breakpointsInClipboard[oldLinkID]
-        );
+        this.workflowActionService.setLinkBreakpoint(linksCopy[oldLinkID].linkID, breakpointsInClipboard[oldLinkID]);
       }
     });
   }
@@ -349,7 +343,6 @@ export class OperatorMenuService {
     };
   }
 
-
   /**
    * Utility function to calculate the position to paste the operator.
    * If a previously pasted operator is moved or deleted, the operator will be
@@ -365,7 +358,6 @@ export class OperatorMenuService {
     };
     return this.getNonOverlappingPosition(position, positions);
   }
-
 
   /**
    * Utility function to find a non-overlapping position for the pasted operator.
@@ -401,6 +393,4 @@ export class OperatorMenuService {
     } while (overlapped);
     return position;
   }
-
-
 }
