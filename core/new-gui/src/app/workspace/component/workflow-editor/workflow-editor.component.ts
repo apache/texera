@@ -1,7 +1,9 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import * as joint from "jointjs";
-// if jQuery needs to be used: 1) use jQuery instead of `$`, and
-// 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
+// if jQuery needs to be used:
+// 1) use `import * as jQuery` as follows, instead of using `$`,
+// 2) import any jquery plugins after importing jQuery
+// 3) always add the imports even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
@@ -11,69 +13,23 @@ import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import {
-  fromJointPaperEvent,
-  JointUIService,
-  linkPathStrokeColor,
-  sourceOperatorHandle,
-} from "../../service/joint-ui/joint-ui.service";
+import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
-import { Group, LinkInfo, OperatorInfo } from "../../service/workflow-graph/model/operator-group";
+import { OperatorInfo } from "../../service/workflow-graph/model/operator-group";
 import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { OperatorLink, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
-import { NotificationService } from "../../../common/service/notification/notification.service";
-
-// This type represents the copied operator and its information:
-// - operatorID: ID for the operator
-// - operator: the copied operator itself, and its properties, etc.
-// - position: the position of the copied operator on the workflow graph
-// - layer: layer number of the operator
-type CopiedOperator = {
-  operatorID: string;
-  operator: OperatorPredicate;
-  position: Point;
-  layer: number;
-};
-
-type OperatorPositions = {
-  [key: string]: Point;
-};
-
-type BreakpointWithLinkID = {
-  [key: string]: Breakpoint;
-};
-
-// this type associates the old link ID with the new link
-type LinkWithID = {
-  [key: string]: OperatorLink;
-};
-
-// This type represents what the serialized string in the clipboard should look like
-type SerializedString = {
-  operators: OperatorPredicate[];
-  operatorPositions: OperatorPositions;
-  links: OperatorLink[];
-  groups: [];
-  breakpoints: BreakpointWithLinkID;
-  commentBoxes: [];
-};
-
-type CopiedGroup = {
-  group: Group;
-  position: Point;
-  pastedGroupIDs: string[];
-};
+import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
+import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -125,10 +81,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   // private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
 
-  // dictionary of {operatorID, CopiedOperator} pairs
-  private copiedOperators = new Map<string, CopiedOperator>(); // References to operators that will be copied
-  private copiedGroups = new Map<string, CopiedGroup>(); // NOT REFERENCES, stores this.copyGroup() copies because groups aren't constant
-
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
 
   constructor(
@@ -140,14 +92,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
-    private workflowUtilService: WorkflowUtilService,
     private executeWorkflowService: ExecuteWorkflowService,
     private nzModalService: NzModalService,
     private changeDetectorRef: ChangeDetectorRef,
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
     private workflowCollabService: WorkflowCollabService,
-    private notificationService: NotificationService
+    private operatorMenu: OperatorMenuService,
+    private nzContextMenu: NzContextMenuService
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -189,6 +141,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
+
+    // this.rightClickContextMenu();
 
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -454,28 +408,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * This method checks whether the operator is out of bound.
-   */
-  private checkBounding(limitx: number[], limity: number[]): void {
-    // check if operator out of right bound after WrapperElement changes its size
-    if (this.getJointPaper().translate().tx > limitx[0]) {
-      this.getJointPaper().translate(limitx[0], this.getJointPaper().translate().ty);
-    }
-    // check left bound
-    if (this.getJointPaper().translate().tx < limitx[1]) {
-      this.getJointPaper().translate(limitx[1], this.getJointPaper().translate().ty);
-    }
-    // check lower bound
-    if (this.getJointPaper().translate().ty > limity[0]) {
-      this.getJointPaper().translate(this.getJointPaper().translate().tx, limity[0]);
-    }
-    // check upper bound
-    if (this.getJointPaper().translate().ty < limity[1]) {
-      this.getJointPaper().translate(this.getJointPaper().translate().tx, limity[1]);
-    }
-  }
-
-  /**
    * This method handles user mouse drag events to pan JointJS paper.
    *
    * This method will listen to 4 events to implement the pan feature
@@ -632,6 +564,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  public contextMenu($event: MouseEvent, menu: NzDropdownMenuComponent): void {
+    this.nzContextMenu.create($event, menu);
+  }
+
   private handleHighlightMouseDBClickInput(): void {
     fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
@@ -658,7 +594,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private handleHighlightMouseInput(): void {
     // on user mouse clicks an operator/group cell, highlight that operator/group
     // operator status tooltips should never be highlighted
-    fromJointPaperEvent(this.getJointPaper(), "cell:pointerdown")
+    merge(
+      fromJointPaperEvent(this.getJointPaper(), "cell:pointerdown"),
+      fromJointPaperEvent(this.getJointPaper(), "cell:contextmenu")
+    )
       // event[0] is the JointJS CellView; event[1] is the original JQuery Event
       .pipe(
         filter(event => event[0].model.isElement()),
@@ -720,7 +659,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
 
     // on user mouse clicks on blank area, unhighlight all operators and groups
-    fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown")
+    merge(
+      fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown"),
+      fromJointPaperEvent(this.getJointPaper(), "blank:contextmenu")
+    )
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService
@@ -1045,8 +987,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       defaultLink: JointUIService.getDefaultLinkCell(),
       // disable jointjs default action that stops propagate click events on jointjs paper
       preventDefaultBlankAction: false,
-      // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
-      preventContextMenu: false,
+      // prevents normal right click menu showing up on jointjs paper
+      preventContextMenu: true,
       // draw dots in the background of the paper
       drawGrid: {
         name: "fixedDot",
@@ -1218,19 +1160,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private handleElementCopy(): void {
     fromEvent<ClipboardEvent>(document, "copy")
       .pipe(filter(event => document.activeElement === document.body))
-      .pipe(untilDestroyed(this))
       .subscribe(() => {
-        const highlightedOperatorIDs = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorIDs();
-        if (highlightedOperatorIDs.length > 0) {
-          this.clearCopiedElements();
-          // actually copy the operators in the system clipboard
-          this.saveHighlightedElements();
-        } else {
-          this.notificationService.error(
-            "Copying not successful. It is likely that only links are selected, which can't exist without operators."
-          );
+        if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
+          this.operatorMenu.saveHighlightedElements();
         }
       });
   }
@@ -1246,114 +1178,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         filter(event => document.activeElement === document.body),
         filter(event => this.interactive)
       )
-      .pipe(untilDestroyed(this))
       .subscribe(() => {
-        const highlightedOperatorIDs = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-        if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
-          this.clearCopiedElements();
-          this.saveHighlightedElements();
+        if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
+          const highlightedOperatorIDs = this.workflowActionService
+            .getJointGraphWrapper()
+            .getCurrentHighlightedOperatorIDs();
+          const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+
+          this.operatorMenu.saveHighlightedElements();
           this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
         }
       });
-  }
-
-  /**
-   * clears copiedOperators and copiedGroups
-   */
-  private clearCopiedElements(): void {
-    this.copiedOperators.clear();
-    this.copiedGroups.clear();
-  }
-
-  /**
-   * saves highlighted elements to the system clipboard
-   */
-  private saveHighlightedElements(): void {
-    // get all the currently selected operators and links
-    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-
-    // initialize the serialized string
-    const serializedString: SerializedString = {
-      operators: [],
-      operatorPositions: {},
-      links: [],
-      groups: [],
-      breakpoints: {},
-      commentBoxes: [],
-    };
-
-    // define the copies that will be put in the serialized json string when copying
-    const operatorsCopy: OperatorPredicate[] = [];
-    const operatorPositionsCopy: OperatorPositions = {};
-    const linksCopy: OperatorLink[] = [];
-    const breakpointsCopy: BreakpointWithLinkID = {};
-
-    // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
-    highlightedOperatorIDs.forEach(operatorID => {
-      operatorsCopy.push(this.workflowActionService.getTexeraGraph().getOperator(operatorID));
-    });
-
-    // sort all the highlighted operators by their layer number
-    operatorsCopy.sort(
-      (first, second) =>
-        this.workflowActionService.getJointGraphWrapper().getCellLayer(first.operatorID) -
-        this.workflowActionService.getJointGraphWrapper().getCellLayer(second.operatorID)
-    );
-
-    operatorsCopy.forEach(op => {
-      operatorPositionsCopy[op.operatorID] = this.workflowActionService
-        .getJointGraphWrapper()
-        .getElementPosition(op.operatorID);
-    });
-
-    serializedString.operators = operatorsCopy;
-    serializedString.operatorPositions = operatorPositionsCopy;
-
-    // get all the highlighted links, and sort them by their layers
-    const highlighghtedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-    highlighghtedLinkIDs.forEach(linkID => {
-      linksCopy.push(this.workflowActionService.getTexeraGraph().getLinkWithID(linkID));
-      const breakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID);
-      if (breakpoint != undefined) {
-        breakpointsCopy[linkID] = breakpoint;
-      }
-    });
-    linksCopy.sort(
-      (first, second) =>
-        this.workflowActionService.getJointGraphWrapper().getCellLayer(first.linkID) -
-        this.workflowActionService.getJointGraphWrapper().getCellLayer(second.linkID)
-    );
-
-    serializedString.links = linksCopy;
-    serializedString.breakpoints = breakpointsCopy;
-
-    // store the stringified copied operators into the clipboard
-    navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
-      // if the Promise returned from writeText rejects, it means the write to clipboard permission is not granted
-      // although if the current tab is active, permission shouldn't be needed
-      this.notificationService.error("Copy failed. You don't have the permission to write to the clipboard.");
-    });
-  }
-
-  /**
-   * removes operator from copiedOperators
-   */
-  private deleteOperatorInfo(operatorID: string) {
-    this.copiedOperators.delete(operatorID);
-  }
-
-  /**
-   * saves copy of group to copiedGroups
-   */
-  private saveGroupInfo(groupID: string): void {
-    this.copiedGroups.set(groupID, {
-      group: this.copyGroup(this.workflowActionService.getOperatorGroup().getGroup(groupID)),
-      position: this.workflowActionService.getJointGraphWrapper().getElementPosition(groupID),
-      pastedGroupIDs: [],
-    });
   }
 
   /**
@@ -1367,285 +1202,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         filter(event => document.activeElement === document.body),
         filter(event => this.interactive)
       )
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        // by reading from the clipboard, permission needs to be granted
-        // a permission prompt automatically shows up by calling readText()
-        navigator.clipboard.readText().then(text => {
-          try {
-            // convert the JSON string in the system clipboard to a JS Map
-            var elementsInClipboard: Map<string, any> = new Map(Object.entries(JSON.parse(text)));
-            // check if the fields in a normal serialized string exist after converting the JSON string
-            // if not, throw an error, which is propagated and produces an alert for the user
-            if (
-              !elementsInClipboard.has("operators") &&
-              !elementsInClipboard.has("operatorPositions") &&
-              !elementsInClipboard.has("links") &&
-              !elementsInClipboard.has("groups") &&
-              !elementsInClipboard.has("breakpoints") &&
-              !elementsInClipboard.has("commentBoxes")
-            ) {
-              throw new Error("You haven't copied any element yet.");
-            }
-          } catch (e) {
-            // if the text in the clipboard is not a JSON object, then it means the user hasn't copied an element
-            this.notificationService.error("You haven't copied any element yet.");
-            return;
-          }
-
-          // define the arguments required for actually adding operators and links
-          const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-          const groups: Group[] = [];
-          const positions: Point[] = [];
-          // calling get() will give either the value or undefined
-          // at this point, after checking the existence of fields in the operators in the clipboard,
-          // the fields "links" and "operatorPositions" should exist
-          const linksInClipboard: OperatorLink[] = elementsInClipboard.get("links") as OperatorLink[];
-          const operatorPositionsInClipboard: OperatorPositions = elementsInClipboard.get(
-            "operatorPositions"
-          ) as OperatorPositions;
-          // get all the operators from the clipboard, which are already sorted by their layers
-          let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
-
-          // get all the breakpoints for later when adding the breakpoints for the pasted new links
-          let breakpointsInClipboard: BreakpointWithLinkID = elementsInClipboard.get(
-            "breakpoints"
-          ) as BreakpointWithLinkID;
-
-          let linksCopy: LinkWithID = {};
-          copiedOps.forEach(copiedOperator => {
-            // copyOperator assigns a new randomly generated operator ID to the new operator
-            const newOperator = this.copyOperator(copiedOperator);
-
-            for (let link of linksInClipboard) {
-              if (linksCopy[link.linkID] === undefined) {
-                const newLinkID = this.workflowUtilService.getLinkRandomUUID();
-                linksCopy[link.linkID] = {
-                  linkID: newLinkID,
-                  source: { operatorID: "", portID: "" },
-                  target: { operatorID: "", portID: "" },
-                };
-              }
-
-              if (link.source.operatorID === copiedOperator.operatorID) {
-                // if current copied operator is the source operator of current link, we assign the new operator ID to be the source operator for the current link, and the port ID should remain unchanged
-                const source = {
-                  operatorID: newOperator.operatorID,
-                  portID: link.source.portID,
-                };
-                const originalLinkProperties = linksCopy[link.linkID];
-                linksCopy[link.linkID] = {
-                  ...originalLinkProperties,
-                  source: source,
-                };
-              } else if (link.target.operatorID === copiedOperator.operatorID) {
-                // if current copied operator is the target operator of current link, we assign the new operator ID to be the target operator for the current link, and the port ID should remain unchanged
-                const target = {
-                  operatorID: newOperator.operatorID,
-                  portID: link.target.portID,
-                };
-                const originalLinkProperties = linksCopy[link.linkID];
-                linksCopy[link.linkID] = {
-                  ...originalLinkProperties,
-                  target: target,
-                };
-              }
-            }
-
-            const position: Point = operatorPositionsInClipboard[copiedOperator.operatorID] as Point;
-            // calculate the new positions for the pasted operators
-            const newOperatorPosition = this.calcOperatorPosition(position, copiedOperator, positions);
-            operatorsAndPositions.push({
-              op: newOperator,
-              pos: newOperatorPosition,
-            });
-            positions.push(newOperatorPosition);
-          });
-
-          const links = Object.values(linksCopy);
-
-          // actually add all operators, links, groups to the workflow
-          try {
-            this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
-          } catch (e) {
-            this.notificationService.info(
-              "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
-            );
-          }
-
-          // add breakpoints for the newly pasted links
-          for (let oldLinkID in linksCopy) {
-            this.workflowActionService.setLinkBreakpoint(
-              linksCopy[oldLinkID].linkID,
-              breakpointsInClipboard[oldLinkID]
-            );
-          }
-        });
-      });
-  }
-
-  /**
-   * Utility function to create a new operator that contains same
-   * info as the copied operator.
-   * @param operator
-   */
-  private copyOperator(operator: OperatorPredicate): OperatorPredicate {
-    return {
-      ...operator,
-      operatorID: operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID(),
-    };
-  }
-
-  private copyGroup(group: Group) {
-    // copying a group involves copying all the operators and links inside it (inlinks and outlinks not copied)
-
-    const operatorMap = new Map<string, string>();
-
-    const operators = new Map(
-      Array.from(group.operators.values()).map(operatorInfo => {
-        const newOperatorInfo = {
-          operator: this.copyOperator(operatorInfo.operator),
-          position: {
-            x: operatorInfo.position.x,
-            y: operatorInfo.position.y,
-          },
-          layer: operatorInfo.layer,
-        };
-
-        operatorMap.set(operatorInfo.operator.operatorID, newOperatorInfo.operator.operatorID);
-        return [newOperatorInfo.operator.operatorID, newOperatorInfo];
-      })
-    );
-
-    const links = new Map<string, LinkInfo>(
-      Array.from(group.links.values()).map(linkInfo => {
-        const sourceID = operatorMap.get(linkInfo.link.source.operatorID);
-        const targetID = operatorMap.get(linkInfo.link.target.operatorID);
-        assertType<string>(sourceID);
-        assertType<string>(targetID);
-
-        const newLinkInfo = {
-          link: {
-            linkID: this.workflowUtilService.getLinkRandomUUID(),
-            source: {
-              operatorID: sourceID,
-              portID: linkInfo.link.source.portID,
-            },
-            target: {
-              operatorID: targetID,
-              portID: linkInfo.link.target.portID,
-            },
-          },
-          layer: linkInfo.layer,
-        };
-
-        return [newLinkInfo.link.linkID, newLinkInfo];
-      })
-    );
-
-    // this is a Group, but not casted as one to avoid readonly restrictions
-    // probably should refactor group to be a class with a proper constructor, since future refactors to the group template could break this
-    return {
-      groupID: this.workflowUtilService.getGroupRandomUUID(),
-      operators: operators,
-      links: links,
-      inLinks: [],
-      outLinks: [],
-      collapsed: group.collapsed,
-    };
-  }
-
-  /**
-   * Utility function to calculate the position to paste the operator.
-   * If a previously pasted operator is moved or deleted, the operator will be
-   * pasted to the emptied position. Otherwise, it will be pasted to a position
-   * that's non-overlapping and calculated according to the copy operator offset.
-   * @param pos
-   * @param copiedOperator
-   * @param positions
-   */
-  private calcOperatorPosition(pos: Point, copiedOperator: OperatorPredicate, positions: Point[]): Point {
-    const position = {
-      x: pos.x + this.COPY_OFFSET,
-      y: pos.y + this.COPY_OFFSET,
-    };
-    return this.getNonOverlappingPosition(position, positions);
-  }
-
-  /**
-   * Utility function to calculate the position to paste the group.
-   * If a previously pasted group is moved or deleted, the operator will be
-   * pasted to the emptied position. Otherwise, it will be pasted to a position
-   * that's non-overlapping and calculated according to the copy operator offset.
-   * @param newGroupID
-   * @param copiedGroupID
-   * @param positions
-   */
-  private calcGroupPosition(newGroupID: string, copiedGroupID: string, positions: Point[]): Point {
-    let i, position;
-    const copiedGroup = this.copiedGroups.get(copiedGroupID);
-    if (!copiedGroup) {
-      throw Error(`Internal error: cannot find ${copiedGroupID} in copied groups`);
-    }
-    const copiedGroupPosition = copiedGroup.position;
-    const pastedGroups = copiedGroup.pastedGroupIDs;
-
-    for (i = 0; i < pastedGroups.length; ++i) {
-      position = {
-        x: copiedGroupPosition.x + i * this.COPY_OFFSET,
-        y: copiedGroupPosition.y + i * this.COPY_OFFSET,
-      };
-      if (
-        !positions.includes(position) &&
-        (!this.workflowActionService.getOperatorGroup().hasGroup(pastedGroups[i]) ||
-          this.workflowActionService.getJointGraphWrapper().getElementPosition(pastedGroups[i]).x !== position.x ||
-          this.workflowActionService.getJointGraphWrapper().getElementPosition(pastedGroups[i]).y !== position.y)
-      ) {
-        pastedGroups[i] = newGroupID;
-        return this.getNonOverlappingPosition(position, positions);
-      }
-    }
-    pastedGroups.push(newGroupID);
-    position = {
-      x: copiedGroupPosition.x + i * this.COPY_OFFSET,
-      y: copiedGroupPosition.y + i * this.COPY_OFFSET,
-    };
-    return this.getNonOverlappingPosition(position, positions);
-  }
-
-  /**
-   * Utility function to find a non-overlapping position for the pasted operator.
-   * The function will check if the current position overlaps with an existing
-   * operator. If it does, the function will find a new non-overlapping position.
-   * @param position
-   * @param positions
-   */
-  private getNonOverlappingPosition(position: Point, positions: Point[]): Point {
-    let overlapped = false;
-    const operatorPositions = positions.concat(
-      this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(operator => this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(operator.operatorID)),
-      this.workflowActionService
-        .getOperatorGroup()
-        .getAllGroups()
-        .map(group => this.workflowActionService.getJointGraphWrapper().getElementPosition(group.groupID))
-    );
-    do {
-      for (const operatorPosition of operatorPositions) {
-        if (operatorPosition.x === position.x && operatorPosition.y === position.y) {
-          position = {
-            x: position.x + this.COPY_OFFSET,
-            y: position.y + this.COPY_OFFSET,
-          };
-          overlapped = true;
-          break;
-        }
-        overlapped = false;
-      }
-    } while (overlapped);
-    return position;
+      .subscribe(() => this.operatorMenu.performPasteOperation());
   }
 
   /**
