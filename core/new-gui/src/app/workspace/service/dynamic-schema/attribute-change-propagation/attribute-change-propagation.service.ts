@@ -48,11 +48,9 @@ export class AttributeChangePropagationService {
     newInputSchema: OperatorInputSchema
   ): void {
     const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
-    // console.log(dynamicSchema, oldInputSchema, newInputSchema);
     if (!dynamicSchema.jsonSchema.properties) return;
     if (!oldInputSchema) return;
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    // console.log(operator)
     for (let port = 0; port < oldInputSchema.length; ++port) {
       // TODO: the substitute cost function can be improved to reach expected behaviour
       const attributeMapping = levenshtein(
@@ -70,7 +68,6 @@ export class AttributeChangePropagationService {
       const mapping: SchemaAttribute[][] = attributeMapping.pairs();
       // Resolve #ref in some json schema (e.g. Filter)
       const resolvedJsonSchema = jsonRefLite.resolve(dynamicSchema.jsonSchema);
-      // console.log("resolved", resolvedJsonSchema)
       const newProperty = this.updateOperatorProperty(
         operator.operatorProperties,
         mapping,
@@ -78,7 +75,6 @@ export class AttributeChangePropagationService {
         port
       );
       this.workflowActionService.setOperatorProperty(operatorID, newProperty);
-      // console.log("updated", this.workflowActionService.getTexeraGraph().getOperator(operatorID));
     }
   }
 
@@ -88,13 +84,10 @@ export class AttributeChangePropagationService {
     jsonSchemaProperties: { [key: string]: boolean | CustomJSONSchema7 },
     port: number
   ) {
-    // console.log("properties: ", currentProperties);
-    // console.log("mapping: ", mapping);
     const updatePropertyRecurse = (
       properties: any,
       jsonSchema: { [key: string]: CustomJSONSchema7 | boolean } | undefined
     ): boolean => {
-      // console.log("recurse:", properties, jsonSchema)
       if (!jsonSchema) {
         return false;
       }
@@ -106,18 +99,15 @@ export class AttributeChangePropagationService {
         if (jsonSchemaProperty.autofillAttributeOnPort === port) {
           if (jsonSchemaProperty.type === "array") {
             let newArray = [];
-            // console.log(properties);
-            // TODO: low efficiency, can be improved, e.g. by using map
+            // this loop may be improved, e.g. by using map
             for (var i = 0; i < properties[key].length; ++i) {
               for (var j = 0; j < mapping.length; ++j) {
                 const pair = mapping[j];
-                // console.log(properties[key][i], pair)
                 if (!pair[0] || (properties[key][i] === pair[0].attributeName && pair[1])) {
                   newArray.push(pair[1].attributeName);
                 }
               }
             }
-            // console.log("newArray", newArray)
             properties[key] = newArray;
           } else if (jsonSchemaProperty.type === "string") {
             for (var i = 0; i < mapping.length; ++i) {
@@ -134,7 +124,6 @@ export class AttributeChangePropagationService {
           } else if (jsonSchemaProperty.type === "array") {
             let newArray = [];
             for (const index in properties[key]) {
-              // console.log("items", prop.items);
               if (
                 updatePropertyRecurse(
                   properties[key][index],
@@ -151,7 +140,6 @@ export class AttributeChangePropagationService {
     };
     const newProperties: { [key: string]: any } = cloneDeep(currentProperties);
     updatePropertyRecurse(newProperties, jsonSchemaProperties);
-    // console.log("after recurse", newProperties)
     return newProperties;
   }
 }

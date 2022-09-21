@@ -322,14 +322,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorPropertyChangeStream()
+      // .pipe(untilDestroyed(this))
+      // Commented to prevent rollback of input data
+      // Might have other effects if commenting this line
       .pipe(
         filter(_ => this.currentOperatorId !== undefined),
         filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId),
         filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       )
-      // .pipe(untilDestroyed(this))
-      // Commented to prevent rollback of input data
-      // TODO: check any potential effect of commenting this line
       .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
   }
 
