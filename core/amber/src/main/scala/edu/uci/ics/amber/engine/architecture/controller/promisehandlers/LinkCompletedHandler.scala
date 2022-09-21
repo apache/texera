@@ -28,20 +28,9 @@ trait LinkCompletedHandler {
       val link = workflow.getLink(msg.linkID)
       link.incrementCompletedReceiversCount()
       if (link.isCompleted) {
-        val isRegionCompleted =
-          scheduler.recordLinkCompletion(LinkIdentity(link.from.id, link.to.id))
-        if (isRegionCompleted) {
-          val region = scheduler.getNextRegionToConstructAndPrepare()
-          if (region != null) {
-            scheduler.constructAndPrepare(region)
-          } else {
-            throw new WorkflowRuntimeException(
-              s"No region to schedule after ${msg.linkID} link completed"
-            )
-          }
-        } else {
-          Future()
-        }
+        scheduler
+          .onLinkCompletion(LinkIdentity(link.from.id, link.to.id))
+          .flatMap(_ => Future.Unit)
       } else {
         // if the link is not completed yet, do nothing
         Future()
