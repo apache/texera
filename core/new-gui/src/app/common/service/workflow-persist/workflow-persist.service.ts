@@ -111,7 +111,10 @@ export class WorkflowPersistService {
    */
   public updateWorkflowName(wid: number | undefined, name: string): Observable<Response> {
     return this.http
-      .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}/${wid}/${name}`, null)
+      .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}`, {
+        wid: wid,
+        name: name,
+      })
       .pipe(
         catchError((error: unknown) => {
           // @ts-ignore
@@ -127,8 +130,11 @@ export class WorkflowPersistService {
   public updateWorkflowDescription(wid: number | undefined, description: string): Observable<Response> {
     return this.http
       .post<Response>(
-        `${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}/${wid}/${"'" + description + "'"}`,
-        null
+        `${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}`,
+        {
+          wid: wid,
+          description: description,
+        }
       )
       .pipe(
         catchError((error: unknown) => {
