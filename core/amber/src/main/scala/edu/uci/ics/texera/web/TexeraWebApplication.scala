@@ -105,7 +105,7 @@ object TexeraWebApplication {
     val path = "core/amber/src/main/scala/"
     val operatorTypeMapKeys = OperatorMetadataGenerator.operatorTypeMap.keys;
     for (operatorInfo <- operatorTypeMapKeys) {
-      val operatorPath = path + operatorInfo.getPackageName.replace(".", "/")
+      val operatorPath = path + operatorInfo.getPackage.getName.replace(".", "/")
       val index = operatorInfo.getName.lastIndexOf(".")
       val operatorName = operatorInfo.getName.slice(index + 1, operatorInfo.getName.length)
       OPversion.refreshVersion(operatorName, operatorPath)
