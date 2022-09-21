@@ -21,8 +21,6 @@ import { levenshtein } from "edit-distance";
  * the attribute name will be updated in all succeeding operators.
  * - When user deletes an attribute (e.g., deselected in a projection operator),
  * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid.
- * - Specifically, when a new attribute is added to the input schema of a projection operator,
- * it will include the new attribute in its projection list.
  */
 @Injectable({
   providedIn: "root",
@@ -108,9 +106,6 @@ export class InputSchemaPropagationService {
         }
         if (jsonSchemaProperty.autofillAttributeOnPort === port) {
           if (jsonSchemaProperty.type === "array") {
-            // TODO: If the operator is Projection,
-            // then add new attributes to the list
-
             let newArray = [];
             // console.log(properties);
             // TODO: low efficiency, can be improved, e.g. by using map

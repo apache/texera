@@ -6,13 +6,12 @@ import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { cloneDeep, isEqual, update } from "lodash-es";
+import { cloneDeep, isEqual } from "lodash-es";
 import { CustomJSONSchema7, HideType, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
-  OperatorInputSchema,
   SchemaAttribute,
   SchemaPropagationService,
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
@@ -39,14 +38,6 @@ import { UserFileService } from "../../../../dashboard/service/user-file/user-fi
 import { AccessEntry } from "../../../../dashboard/type/access.interface";
 import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
 import { Workflow } from "../../../../common/type/workflow";
-import { json } from "d3";
-// @ts-ignore
-import jsonRefLite from "json-ref-lite";
-import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
-import { JSONSchema7Type } from "json-schema";
-// @ts-ignore
-import { levenshtein } from "edit-distance";
-import { OperatorPredicate } from "src/app/workspace/types/workflow-common.interface";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -448,25 +439,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
           this.currentOperatorId
         );
-      }
-      // if we need to reorder the array, a custom template `dragablearray` is used
-      if (mapSource?.autofill === "attributeNameReorderList") {
-        if (mappedField.type) {
-          mappedField.type = "draggablearray";
-        }
-        // sort according to the reordered list
-        if (this.formData && this.formData.attributes && mappedField.templateOptions?.options) {
-          const options = mappedField.templateOptions?.options as any[]; // safe to do so?
-          for (var i = 0; i < this.formData.attributes.length; ++i) {
-            for (var j = 0; j < options.length; ++j) {
-              if (options[j].label === this.formData.attributes[i]) {
-                const temp = options[j];
-                options[j] = options[i];
-                options[i] = temp;
-              }
-            }
-          }
-        }
       }
       return mappedField;
     };
