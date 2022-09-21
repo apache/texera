@@ -1,9 +1,10 @@
 from enum import Enum
 
 
-class PauseState(Enum):
+class PauseType(Enum):
     NO_PAUSE = 0
-    PAUSED = 1
+    USER_PAUSE = 1
+    SCHEDULER_TIME_SLOT_EXPIRED_PAUSE = 2
 
 
 class PauseManager:
@@ -12,23 +13,13 @@ class PauseManager:
     """
 
     def __init__(self):
-        self._pause_state = PauseState.NO_PAUSE
+        self._pause_invocations = dict()
 
-    def pause(self) -> None:
-        """
-        Transit to PAUSED state from any state.
-        """
-        self._pause_state = PauseState.PAUSED
+    def record_request(self, pause_type: PauseType, enable_pause: bool) -> None:
+        self._pause_invocations[pause_type] = enable_pause
 
-    def resume(self) -> None:
-        """
-        Transit to NO_PAUSE state from any state.
-        """
-        self._pause_state = PauseState.NO_PAUSE
+    def get_pause_status_by_type(self, pause_type: PauseType) -> bool:
+        return self._pause_invocations.get(pause_type, False)
 
     def is_paused(self) -> bool:
-        """
-        Check if it is at PAUSED state.
-        :return: bool, indicating whether paused or not.
-        """
-        return self._pause_state == PauseState.PAUSED
+        return any(pause_status for pause_status in self._pause_invocations.values())
