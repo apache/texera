@@ -428,8 +428,6 @@ class WorkflowResource {
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
-    } else if (!workflowOfUserExists(wid, user.getUid)) {
-      throw new BadRequestException("The workflow does not exist.")
     } else {
       val userWorkflow = workflowDao.fetchOneByWid(wid)
       userWorkflow.setDescription(description)

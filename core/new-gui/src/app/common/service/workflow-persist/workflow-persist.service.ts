@@ -138,7 +138,7 @@ export class WorkflowPersistService {
       )
       .pipe(
         catchError((error: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
+          // @ts-ignore
           this.notificationService.error(error.error.message);
           return throwError(error);
         })
