@@ -23,7 +23,7 @@ import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { WorkflowCollabService } from "../service/workflow-collab/workflow-collab.service";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
-import { InputSchemaPropagationService } from "../service/dynamic-schema/input-schema-propagation/input-schema-propagation.service";
+import { AttributeChangePropagationService } from "../service/dynamic-schema/attribute-change-propagation/attribute-change-propagation.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -62,7 +62,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
     private userProjectService: UserProjectService,
-    private inputSchemaPropagationService: InputSchemaPropagationService
+    private attributeChangePropagationService: AttributeChangePropagationService
   ) {}
 
   ngOnInit() {

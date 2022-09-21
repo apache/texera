@@ -15,7 +15,7 @@ import jsonRefLite from "json-ref-lite";
 import { levenshtein } from "edit-distance";
 
 /**
- * Input Schema Propagation Service propagates the change (adding, removing, and renaming) of attributes.
+ * Attribute Change Propagation Service propagates the change (adding, removing, and renaming) of attributes.
  *
  * - When user renames an attribute through an operator,
  * the attribute name will be updated in all succeeding operators.
@@ -25,8 +25,7 @@ import { levenshtein } from "edit-distance";
 @Injectable({
   providedIn: "root",
 })
-export class InputSchemaPropagationService {
-  // TODO: solve the problem that contructor is not called unless the service is created somewhere
+export class AttributeChangePropagationService {
   constructor(
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
