@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.{PauseType, WorkerAsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.PAUSED
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object BackpressureHandler {

@@ -24,12 +24,13 @@ trait StartWorkflowHandler {
 
   registerHandler { (msg: StartWorkflow, sender) =>
     {
-      val region = scheduler.getNextRegionToConstructAndPrepare()
-      if (region != null) {
-        scheduler.constructAndPrepare(region)
-      } else {
-        throw new WorkflowRuntimeException(s"No region to be scheduled.")
-      }
+      scheduler
+        .startWorkflow()
+        .map(_ => {
+          enableStatusUpdate()
+          enableMonitoring()
+          enableSkewHandling()
+        })
     }
   }
 }

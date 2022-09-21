@@ -49,19 +49,7 @@ trait WorkerExecutionCompletedHandler {
             disableSkewHandling()
             Future.Done
           } else {
-            val isRegionCompleted = scheduler.recordWorkerCompletion(sender)
-            if (isRegionCompleted) {
-              val region = scheduler.getNextRegionToConstructAndPrepare()
-              if (region != null) {
-                scheduler.constructAndPrepare(region)
-              } else {
-                throw new WorkflowRuntimeException(
-                  s"No region to schedule after ${sender} worker finished"
-                )
-              }
-            } else {
-              Future()
-            }
+            scheduler.onWorkerCompletion(sender).flatMap(_ => Future.Unit)
           }
         })
     }

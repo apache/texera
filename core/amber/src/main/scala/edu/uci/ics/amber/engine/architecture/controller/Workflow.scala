@@ -20,6 +20,7 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class Workflow(
     workflowId: WorkflowIdentity,
@@ -104,6 +105,53 @@ class Workflow(
   }
 
   def getPipelinedRegionsDAG() = pipelinedRegionsDAG
+
+  def getBlockingOutlinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
+    val outlinks = new mutable.HashSet[LinkIdentity]()
+    region.blockingDowstreamOperatorsInOtherRegions.foreach(opId => {
+      getDirectUpstreamOperators(opId)
+        .foreach(uOpId => {
+          if (region.getOperators().contains(uOpId)) {
+            outlinks.add(
+              LinkIdentity(
+                getOperator(uOpId).topology.layers.last.id,
+                getOperator(opId).topology.layers.head.id
+              )
+            )
+          }
+        })
+    })
+    outlinks.toSet
+  }
+
+  /**
+    * Returns the operators in a region whose all inputs are from operators that are not in this region.
+    */
+  def getSourcesOfRegion(region: PipelinedRegion): Array[OperatorIdentity] = {
+    val sources = new ArrayBuffer[OperatorIdentity]()
+    region
+      .getOperators()
+      .foreach(opId => {
+        if (
+          getDirectUpstreamOperators(opId)
+            .forall(upOp =>
+              !region
+                .getOperators()
+                .contains(upOp)
+            )
+        ) {
+          sources.append(opId)
+        }
+      })
+    sources.toArray
+  }
+
+  def getAllWorkersOfRegion(region: PipelinedRegion): Array[ActorVirtualIdentity] = {
+    val allOperatorsInRegion =
+      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+
+    allOperatorsInRegion.map(opId => operatorToOpExecConfig(opId).getAllWorkers.toList).flatten
+  }
 
   def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
 

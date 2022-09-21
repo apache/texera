@@ -26,6 +26,9 @@ from core.architecture.handlers.start_worker_handler import StartWorkerHandler
 from core.architecture.handlers.update_input_linking_handler import (
     UpdateInputLinkingHandler,
 )
+from core.architecture.handlers.scheduler_time_slot_event_handler import (
+    SchedulerTimeSlotEventHandler,
+)
 from core.architecture.managers.context import Context
 from core.models.internal_queue import ControlElement, InternalQueue
 from core.util import get_one_of, set_one_of
@@ -60,6 +63,7 @@ class AsyncRPCServer:
         self.register(ReplayCurrentTupleHandler())
         self.register(EvaluateExpressionHandler())
         self.register(MonitoringHandler())
+        self.register(SchedulerTimeSlotEventHandler())
 
     def receive(
         self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2

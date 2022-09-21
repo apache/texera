@@ -58,4 +58,8 @@ object Constants {
     AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-initial-delay-in-ms")
   var creditPollingIntervalinMs: Int =
     AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-interval-in-ms")
+
+  var schedulingPolicyName: String = AmberUtils.amberConfig.getString("scheduling.policy-name")
+  var timeSlotExpirationDurationInMs: Int =
+    AmberUtils.amberConfig.getInt("scheduling.time-slot-expiration-duration-ms")
 }
