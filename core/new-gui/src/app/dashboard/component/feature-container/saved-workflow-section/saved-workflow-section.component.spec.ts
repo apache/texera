@@ -238,7 +238,8 @@ describe("SavedWorkflowSectionComponent", () => {
     fixture.detectChanges();
     modalService = TestBed.get(NgbModal);
     spyOn(console, "log").and.callThrough();
-    component.selectedDate = null;
+    component.selectedMtime = [];
+    component.selectedMtime = [];
     component.owners = [
       { userName: "Texera", checked: false },
       { userName: "Angular", checked: false },
@@ -376,11 +377,24 @@ describe("SavedWorkflowSectionComponent", () => {
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.selectedDate = new Date(1970, 0, 3);
+    component.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
-    expect(component.masterFilterList).toEqual(["ctime: 1970-01-03"]);
+    expect(component.masterFilterList).toEqual(["ctime: 1970-01-03 ~ 1981-03-13"]);
+  });
+
+  it("searchByModifyTime", () => {
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
+    component.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
+    component.searchWorkflow();
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
+    expect(component.masterFilterList).toEqual(["mtime: 1970-01-03 ~ 1981-03-13"]);
   });
 
   /*
@@ -462,7 +476,8 @@ describe("SavedWorkflowSectionComponent", () => {
       component.owners[1].checked = true; //Angular
       (component.wids[0].checked = true), (component.wids[1].checked = true), (component.wids[2].checked = true); //id 1,2,3
       component.userProjectsDropdown[0].checked = true; //Project 1
-      component.selectedDate = new Date(1970, 0, 1);
+      component.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
+      component.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
       component.masterFilterList.push("1");
       //add/select new search parameter here
 
@@ -484,7 +499,8 @@ describe("SavedWorkflowSectionComponent", () => {
       "id: 3",
       "operator: Sentiment Analysis",
       "project: Project1",
-      "ctime: 1970-01-01",
+      "ctime: 1970-01-01 ~ 1973-03-11",
+      "mtime: 1970-01-01 ~ 1982-04-14",
     ]);
   });
 
