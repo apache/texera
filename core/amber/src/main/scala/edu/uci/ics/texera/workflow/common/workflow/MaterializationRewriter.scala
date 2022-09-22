@@ -71,10 +71,10 @@ class MaterializationRewriter(
       )
 
     newPlan = newPlan
-      .addOperator(matWriterOpExecConfig.id, matWriterOpExecConfig)
-      .addOperator(matReaderOpExecConfig.id, matReaderOpExecConfig)
-      .addEdge(fromOpId, 0, matWriterOpExecConfig.id, 0)
-      .addEdge(matReaderOpExecConfig.id, 0, toOpId, 0)
+      .addOperator(matWriterOpExecConfig)
+      .addOperator(matReaderOpExecConfig)
+      .addEdge(fromOpId, matWriterOpExecConfig.id)
+      .addEdge(matReaderOpExecConfig.id, toOpId)
 
     newPlan
   }

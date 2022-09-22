@@ -3,45 +3,18 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
-  DeploymentFilter,
-  FollowPrevious,
-  ForceLocal,
-  UseAll
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
-  DeployStrategy,
-  OneOnEach,
-  RandomDeployment,
-  RoundRobinDeployment
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{DeploymentFilter, ForceLocal, UseAll}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{DeployStrategy, OneOnEach, RoundRobinDeployment}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
-  HashBasedShufflePartitioning,
-  OneToOnePartitioning,
-  Partitioning,
-  RangeBasedShufflePartitioning,
-  RoundRobinPartitioning
-}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  PAUSED,
-  READY,
-  RUNNING,
-  UNINITIALIZED
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED, READY, RUNNING, UNINITIALIZED}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
@@ -118,7 +91,7 @@ object WorkerLayer {
       initIOperatorExecutor = opExec,
       numWorkers = 1,
       deploymentFilter = ForceLocal(),
-      deployStrategy = RandomDeployment()
+      deployStrategy = RoundRobinDeployment()
     )
   }
 

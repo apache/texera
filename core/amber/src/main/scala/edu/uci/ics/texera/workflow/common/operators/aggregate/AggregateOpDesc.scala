@@ -1,23 +1,9 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
-  FollowPrevious,
-  ForceLocal,
-  UseAll
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
-  RandomDeployment,
-  RoundRobinDeployment
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerLayerImpl}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.{
-  WorkerLayer,
-  oneToOneLayer
-}
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.{WorkerLayer, oneToOneLayer}
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan

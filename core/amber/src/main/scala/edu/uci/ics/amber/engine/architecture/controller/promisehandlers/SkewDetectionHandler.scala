@@ -244,10 +244,6 @@ object SkewDetectionHandler {
     * by Reshape.
     */
   def getPreviousWorkerLayer(opId: LayerIdentity, workflow: Workflow): WorkerLayer = {
-    val a = workflow.getOperator(opId)
-//    a match {
-//      case element: WorkerLayer[HashJoinOpExec[Any]] =>
-//    }
     if (workflow.getOperator(opId).opExecClass == classOf[HashJoinOpExec[_]]) {
       workflow
         .getUpStreamConnectedWorkerLayers(opId)

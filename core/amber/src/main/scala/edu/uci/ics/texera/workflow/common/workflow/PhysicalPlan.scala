@@ -1,12 +1,9 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity, OperatorIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -28,12 +25,12 @@ object PhysicalPlan {
 
 }
 
-class PhysicalPlan(
-    val operatorList: List[WorkerLayer],
-    val links: List[LinkIdentity]
+case class PhysicalPlan(
+    operatorList: List[WorkerLayer],
+    links: List[LinkIdentity],
+    linkStrategies: Map[LinkIdentity, LinkStrategy] = Map(),
+    pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = null
 ) {
-
-  var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = _
 
   lazy val operators: Map[LayerIdentity, WorkerLayer] = operatorList.map(o => (o.id, o)).toMap
 
@@ -58,6 +55,8 @@ class PhysicalPlan(
 
   def getSinkOperators: List[LayerIdentity] = this.sinkOperators
 
+  def getOperator(layer: LayerIdentity): WorkerLayer = operators(layer)
+
   def getUpstream(opID: LayerIdentity): List[LayerIdentity] = {
     dag.incomingEdgesOf(opID).asScala.map(e => dag.getEdgeSource(e)).toList
   }
@@ -70,17 +69,19 @@ class PhysicalPlan(
     new TopologicalOrderIterator(dag).asScala
   }
   // returns a new physical plan with the operators added
-  def addOperator(opID: LayerIdentity, opExecConfig: WorkerLayer): PhysicalPlan = {
+  def addOperator(opExecConfig: WorkerLayer): PhysicalPlan = {
     new PhysicalPlan(opExecConfig :: operatorList, links)
   }
 
   // returns a new physical plan with the edges added
-  def addEdge(from: LayerIdentity, fromPort: Int, to: LayerIdentity, toPort: Int): PhysicalPlan = {
-    val fromOp = operators(from).addOutput(to, toPort)
-    val toOp = operators(to).addInput(from, fromPort)
-    val newOperators = fromOp :: toOp :: operatorList
+  def addEdge(from: LayerIdentity, to: LayerIdentity, fromPort: Int = 0, toPort: Int = 0): PhysicalPlan = {
+
+    val newOperators = operators +
+      (from -> operators(from).addOutput(to, toPort)) +
+      (to -> operators(to).addInput(from, fromPort))
+
     val newLinks = links :+ LinkIdentity(from, to)
-    new PhysicalPlan(newOperators, newLinks)
+    new PhysicalPlan(newOperators.values.toList, newLinks)
   }
 
 }

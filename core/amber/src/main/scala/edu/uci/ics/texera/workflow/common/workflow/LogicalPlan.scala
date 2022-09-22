@@ -59,6 +59,16 @@ class LogicalPlan(
   lazy val inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]] =
     propagateWorkflowSchema()
 
+  lazy val outputSchemaMap: Map[String, List[Schema]] =
+    operators.values.map(o => {
+      val inputSchemas: Array[Schema] =
+        if (!o.isInstanceOf[SourceOperatorDescriptor])
+          inputSchemaMap(o).map(s => s.get).toArray
+        else Array()
+      val outputSchemas = o.getOutputSchemas(inputSchemas).toList
+      (o.operatorID, outputSchemas)
+    }).toMap
+
   def getOperator(operatorID: String): OperatorDescriptor = operators(operatorID)
 
   def getSourceOperators: List[String] = this.sourceOperators
@@ -146,32 +156,42 @@ class LogicalPlan(
       context: WorkflowContext,
       opResultStorage: OpResultStorage
   ): PhysicalPlan = {
-    val amberOperators: mutable.Map[LayerIdentity, WorkerLayer] = mutable.Map()
-    val amberLinks: mutable.MutableList[LinkIdentity] = mutable.MutableList()
+//    val amberOperators: mutable.Map[LayerIdentity, WorkerLayer] = mutable.Map()
+//    val amberLinks: mutable.MutableList[LinkIdentity] = mutable.MutableList()
+//    val physicalOperators: mutable.Map[String, WorkerLayer] = mutable.Map()
+
+    // assign storage to texera-managed sinks before generating exec config
+    operatorList.foreach {
+      case o@(sink: ProgressiveSinkOpDesc) =>
+        sink.getCachedUpstreamId match {
+          case Some(upstreamId) =>
+            sink.setStorage(opResultStorage.create(upstreamId, outputSchemaMap(o.operatorID).head))
+          case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchemaMap(o.operatorID).head))
+        }
+      case _ =>
+    }
+
+    var physicalPlan = PhysicalPlan(List(), List())
 
     operatorList.foreach(o => {
       val inputSchemas: Array[Schema] =
         if (!o.isInstanceOf[SourceOperatorDescriptor])
           inputSchemaMap(o).map(s => s.get).toArray
         else Array()
-      val outputSchemas = o.getOutputSchemas(inputSchemas)
-
-      // assign storage to texera-managed sinks before generating exec config
-      o match {
-        case sink: ProgressiveSinkOpDesc =>
-          sink.getCachedUpstreamId match {
-            case Some(upstreamId) =>
-              sink.setStorage(opResultStorage.create(upstreamId, outputSchemas(0)))
-            case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchemas(0)))
-          }
-        case _ =>
-      }
+      val outputSchemas = outputSchemaMap(o.operatorID).toArray
       val smallPhysicalPlan =
         o.operatorExecutorMultiLayer(OperatorSchemaInfo(inputSchemas, outputSchemas))
 
-      smallPhysicalPlan.operatorList.foreach(layer => amberOperators.put(layer.id, layer))
-      smallPhysicalPlan.links.foreach(link => amberLinks += link)
+      smallPhysicalPlan.operatorList.foreach(op => physicalPlan = physicalPlan.addOperator(op))
+      // connect intra-operator links
+      smallPhysicalPlan.links.foreach(l => physicalPlan = physicalPlan.addEdge(l.from, l.to))
+
     })
+
+//    // connect inter-operator links
+//    links.foreach(link => {
+//      physicalPlan = physicalPlan.addEdge()
+//    })
 
     // update the input and output port maps of OpExecConfigs with the link identities
 //    val outLinks: mutable.Map[OperatorIdentity, Set[OperatorIdentity]] = mutable.Map()
@@ -193,7 +213,8 @@ class LogicalPlan(
 //        .setOutputToOrdinalMapping(layerLink, link.origin.portOrdinal, link.origin.portName)
 //    })
 
-    new PhysicalPlan(amberOperators.values.toList, amberLinks.toList)
+//    new PhysicalPlan(amberOperators.values.toList, amberLinks.toList)
+    null
   }
 
 }
