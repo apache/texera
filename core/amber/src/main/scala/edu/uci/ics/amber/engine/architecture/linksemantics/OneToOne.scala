@@ -2,7 +2,10 @@ package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{OneToOnePartitioning, Partitioning}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
+  OneToOnePartitioning,
+  Partitioning
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 class OneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int)

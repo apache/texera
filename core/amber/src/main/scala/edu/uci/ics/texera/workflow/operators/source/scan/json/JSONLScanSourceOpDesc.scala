@@ -38,7 +38,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
         val numWorkers = Constants.currentWorkerNum
 
-       WorkerLayer.oneToOneLayer(
+        WorkerLayer.oneToOneLayer(
           operatorIdentifier,
           p => {
             val i: Int = p._1

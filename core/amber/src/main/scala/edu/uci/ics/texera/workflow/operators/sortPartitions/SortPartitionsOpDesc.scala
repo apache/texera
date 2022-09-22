@@ -7,7 +7,12 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
 import edu.uci.ics.amber.engine.common.Constants.defaultBatchSize
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
@@ -30,7 +35,7 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
   var domainMax: Long = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    val   partitionRequirement = List(
+    val partitionRequirement = List(
       Option(
         RangeBasedShufflePartitioning(
           defaultBatchSize,
@@ -42,19 +47,22 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
       )
     )
 
-    WorkerLayer.oneToOneLayer(
-      operatorIdentifier,
-      p => new SortPartitionOpExec(
-        sortAttributeName,
-        operatorSchemaInfo,
-        p._1,
-        domainMin,
-        domainMax,
-        p._2.numWorkers
+    WorkerLayer
+      .oneToOneLayer(
+        operatorIdentifier,
+        p =>
+          new SortPartitionOpExec(
+            sortAttributeName,
+            operatorSchemaInfo,
+            p._1,
+            domainMin,
+            domainMax,
+            p._2.numWorkers
+          )
       )
-    ).copy(
-      partitionRequirement = partitionRequirement,
-    )
+      .copy(
+        partitionRequirement = partitionRequirement
+      )
   }
 
   override def operatorInfo: OperatorInfo =

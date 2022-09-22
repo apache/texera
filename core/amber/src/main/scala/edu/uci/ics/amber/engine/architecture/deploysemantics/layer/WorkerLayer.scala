@@ -3,18 +3,45 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{DeploymentFilter, FollowPrevious, ForceLocal, UseAll}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{DeployStrategy, OneOnEach, RandomDeployment, RoundRobinDeployment}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
+  DeploymentFilter,
+  FollowPrevious,
+  ForceLocal,
+  UseAll
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
+  DeployStrategy,
+  OneOnEach,
+  RandomDeployment,
+  RoundRobinDeployment
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{HashBasedShufflePartitioning, OneToOnePartitioning, Partitioning, RangeBasedShufflePartitioning, RoundRobinPartitioning}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
+  HashBasedShufflePartitioning,
+  OneToOnePartitioning,
+  Partitioning,
+  RangeBasedShufflePartitioning,
+  RoundRobinPartitioning
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED, READY, RUNNING, UNINITIALIZED}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  PAUSED,
+  READY,
+  RUNNING,
+  UNINITIALIZED
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.makeLayer
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
@@ -26,108 +53,94 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.{ClassTag, classTag}
 
-
 object WorkerLayer {
   type WorkerLayer = WorkerLayerImpl[_ <: IOperatorExecutor]
 
-  def oneToOneLayer
-  (
-    opId: OperatorIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+  def oneToOneLayer(
+      opId: OperatorIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = oneToOneLayer(layerId = makeLayer(opId, "main"), opExec)
 
-  def oneToOneLayer
-  (
-    layerId: LayerIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+  def oneToOneLayer(
+      layerId: LayerIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = {
     WorkerLayerImpl(
       layerId,
       initIOperatorExecutor = opExec,
       deploymentFilter = UseAll(),
-      deployStrategy = RoundRobinDeployment(),
+      deployStrategy = RoundRobinDeployment()
     )
   }
 
-  def manyToOneLayer
-  (
-    opId: OperatorIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+  def manyToOneLayer(
+      opId: OperatorIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = manyToOneLayer(makeLayer(opId, "main"), opExec)
 
-
-  def manyToOneLayer
-  (
-    layerId: LayerIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+  def manyToOneLayer(
+      layerId: LayerIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = {
     WorkerLayerImpl(
       layerId,
       initIOperatorExecutor = opExec,
       numWorkers = 1,
       deploymentFilter = UseAll(),
-      deployStrategy = RoundRobinDeployment(),
+      deployStrategy = RoundRobinDeployment()
     )
   }
 
-
-  def sqlSourceLayer
-  (
-    opId: OperatorIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+  def sqlSourceLayer(
+      opId: OperatorIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = {
     WorkerLayerImpl(
       id = makeLayer(opId, "main"),
       initIOperatorExecutor = opExec,
       numWorkers = 1,
       deploymentFilter = UseAll(),
-      deployStrategy = OneOnEach(),
+      deployStrategy = OneOnEach()
     )
   }
 
-  def localLayer
-  (
-    opId: OperatorIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+  def localLayer(
+      opId: OperatorIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = localLayer(makeLayer(opId, "main"), opExec)
 
-  def localLayer
-  (
-    layerId: LayerIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+  def localLayer(
+      layerId: LayerIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = {
     WorkerLayerImpl(
       id = layerId,
       initIOperatorExecutor = opExec,
       numWorkers = 1,
       deploymentFilter = ForceLocal(),
-      deployStrategy = RandomDeployment(),
+      deployStrategy = RandomDeployment()
     )
   }
 
-  def hashLayer
-  (
-    opId: OperatorIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
-    hashColumnIndices: Array[Int]
+  def hashLayer(
+      opId: OperatorIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+      hashColumnIndices: Array[Int]
   ): WorkerLayer = hashLayer(makeLayer(opId, "main"), opExec, hashColumnIndices)
 
-  def hashLayer
-  (
-    layerId: LayerIdentity,
-    opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
-    hashColumnIndices: Array[Int]
+  def hashLayer(
+      layerId: LayerIdentity,
+      opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
+      hashColumnIndices: Array[Int]
   ): WorkerLayer = {
-    val partitionRequirement = HashBasedShufflePartitioning(
-      Constants.defaultBatchSize, List(), hashColumnIndices)
+    val partitionRequirement =
+      HashBasedShufflePartitioning(Constants.defaultBatchSize, List(), hashColumnIndices)
     oneToOneLayer(layerId, opExec).copy(partitionRequirement = List(Option(partitionRequirement)))
   }
 
 }
 
-
-case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag]
-(
+case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag](
     id: LayerIdentity,
     initIOperatorExecutor: ((Int, WorkerLayerImpl[_ <: IOperatorExecutor])) => T,
     numWorkers: Int = Constants.numWorkerPerNode,
@@ -139,19 +152,18 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag]
     inputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
     outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
     blockingInputs: List[Int] = List(),
-    dependency: Map[Int, Int] = Map(),
+    dependency: Map[Int, Int] = Map()
 ) {
 
   // runtime related variables
 
   // workers of this operator
   var workers: ListMap[ActorVirtualIdentity, WorkerInfo] =
-  ListMap[ActorVirtualIdentity, WorkerInfo]()
+    ListMap[ActorVirtualIdentity, WorkerInfo]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
-
 
   // helper functions
 
@@ -165,7 +177,10 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag]
   }
 
   def addOutput(to: LayerIdentity, port: Int) = {
-    assert(port < this.outputPorts.size, s"cannot add output on port $port, all ports: $outputPorts")
+    assert(
+      port < this.outputPorts.size,
+      s"cannot add output on port $port, all ports: $outputPorts"
+    )
     this.copy(outputToOrdinalMapping = outputToOrdinalMapping + (LinkIdentity(this.id, to) -> port))
   }
 
@@ -233,7 +248,7 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag]
         throw new RuntimeException("partition requirement cannot be one-to-one")
       case RoundRobinPartitioning(_, _) =>
         throw new RuntimeException("partition requirement cannot be round-robin")
-      case HashBasedShufflePartitioning(_, _, hashColumnIndices) => hashColumnIndices
+      case HashBasedShufflePartitioning(_, _, hashColumnIndices)         => hashColumnIndices
       case RangeBasedShufflePartitioning(_, _, rangeColumnIndices, _, _) => rangeColumnIndices
     }
 
@@ -243,8 +258,6 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag]
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {
     identifiers
   }
-
-
 
   // runtime related functions
 
@@ -307,17 +320,15 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag]
 
   def getRangeShuffleMinAndMax: (Long, Long) = (Long.MinValue, Long.MaxValue)
 
-
-
   def build(
-             prev: Array[WorkerLayer],
-             all: Array[Address],
-             parentNetworkCommunicationActorRef: ActorRef,
-             context: ActorContext,
-             allUpstreamLinkIds: Set[LinkIdentity],
-             workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
-             workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
-           ): Unit = {
+      prev: Array[WorkerLayer],
+      all: Array[Address],
+      parentNetworkCommunicationActorRef: ActorRef,
+      context: ActorContext,
+      allUpstreamLinkIds: Set[LinkIdentity],
+      workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
+      workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
+  ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     workers = ListMap((0 until numWorkers).map { i =>
       val operatorExecutor: IOperatorExecutor = initIOperatorExecutor((i, this))

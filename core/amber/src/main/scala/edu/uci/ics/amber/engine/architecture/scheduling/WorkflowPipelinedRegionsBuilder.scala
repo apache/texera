@@ -2,14 +2,23 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.toOperatorIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan.toOutLinks
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, MaterializationRewriter, PhysicalPlan}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  LogicalPlan,
+  MaterializationRewriter,
+  PhysicalPlan
+}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.Graph
@@ -59,8 +68,8 @@ class WorkflowPipelinedRegionsBuilder(
   }
 
   private def createPipelinedRegionFromComponent(
-                                                  component: Graph[LayerIdentity, DefaultEdge],
-                                                  regionCount: Int
+      component: Graph[LayerIdentity, DefaultEdge],
+      regionCount: Int
   ): PipelinedRegion = {
     val regionId = PipelinedRegionIdentity(workflowId, regionCount.toString())
     val operatorArray = new ArrayBuffer[LayerIdentity]()

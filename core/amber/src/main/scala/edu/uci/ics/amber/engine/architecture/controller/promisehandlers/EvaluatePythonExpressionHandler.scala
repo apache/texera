@@ -19,13 +19,13 @@ trait EvaluatePythonExpressionHandler {
   registerHandler { (msg: EvaluatePythonExpression, sender) =>
     {
       val operatorId = new OperatorIdentity(workflow.workflowId.id, msg.operatorId)
-      val operators =  workflow.getOperator(operatorId)
+      val operators = workflow.getOperator(operatorId)
       assert(operators.size == 1)
       val operator = operators.head
 
       Future
-        .collect(operator
-            .getAllWorkers
+        .collect(
+          operator.getAllWorkers
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList
         )

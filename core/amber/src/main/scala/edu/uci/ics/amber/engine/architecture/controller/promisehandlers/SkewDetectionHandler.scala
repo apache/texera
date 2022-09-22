@@ -1,8 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, Workflow}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.{ControllerInitiateSkewDetection, getPreviousWorkerLayer, getSkewedAndFreeWorkersEligibleForPauseMitigationPhase, getSkewedAndFreeWorkersEligibleForSecondPhase, getSkewedAndHelperWorkersEligibleForFirstPhase, predictedWorkload}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  Workflow
+}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.{
+  ControllerInitiateSkewDetection,
+  getPreviousWorkerLayer,
+  getSkewedAndFreeWorkersEligibleForPauseMitigationPhase,
+  getSkewedAndFreeWorkersEligibleForSecondPhase,
+  getSkewedAndHelperWorkersEligibleForFirstPhase,
+  predictedWorkload
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerWorkloadInfo}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseSkewMitigationHandler.PauseSkewMitigation
@@ -10,7 +20,11 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutabl
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SharePartitionHandler.SharePartition
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.getBuildTableLinkId
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionOpExec
@@ -238,9 +252,7 @@ object SkewDetectionHandler {
       workflow
         .getUpStreamConnectedWorkerLayers(opId)
         .values
-        .find(layer =>
-          layer.id != getBuildTableLinkId(workflow.getOperator(opId)).from
-        )
+        .find(layer => layer.id != getBuildTableLinkId(workflow.getOperator(opId)).from)
         .get
     } else {
       // Should be sort operator
@@ -367,7 +379,7 @@ trait SkewDetectionHandler {
       workflow.getAllOperators.foreach(opConfig => {
         if (
           opConfig.opExecClass == classOf[HashJoinOpExec[_]] ||
-            opConfig.opExecClass == classOf[SortPartitionOpExec]
+          opConfig.opExecClass == classOf[SortPartitionOpExec]
         ) {
           // Skew handling is only for hash-join operator for now.
           // 1: Find the skewed and helper worker that need first phase.

@@ -1,11 +1,21 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer, WorkerLayerImpl}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  WorkerInfo,
+  WorkerLayer,
+  WorkerLayerImpl
+}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.toOperatorIdentity
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
@@ -75,7 +85,6 @@ class Workflow(val workflowId: WorkflowIdentity, physicalPlan: PhysicalPlan) {
 //    }
     null
   }
-
 
   def getPipelinedRegionsDAG() = physicalPlan.pipelinedRegionsDAG
 
@@ -200,8 +209,11 @@ class Workflow(val workflowId: WorkflowIdentity, physicalPlan: PhysicalPlan) {
 
   // get all worker layers corresponding to an operator, sorted in topological order
   def getOperator(opId: OperatorIdentity): List[WorkerLayer] = {
-    physicalPlan.topologicalIterator().filter(layerId => toOperatorIdentity(layerId) == opId)
-      .map(layerId => getOperator(layerId)).toList
+    physicalPlan
+      .topologicalIterator()
+      .filter(layerId => toOperatorIdentity(layerId) == opId)
+      .map(layerId => getOperator(layerId))
+      .toList
   }
 
   def getLink(linkID: LinkIdentity): LinkStrategy = idToLink(linkID)

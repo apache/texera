@@ -242,15 +242,27 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
 
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
-        workflow.getOperator(new OperatorIdentity(workflow.workflowId.id, buildCsv.operatorID)).last.id,
-        workflow.getOperator(new OperatorIdentity(workflow.workflowId.id, hashJoin1.operatorID)).head.id
+        workflow
+          .getOperator(new OperatorIdentity(workflow.workflowId.id, buildCsv.operatorID))
+          .last
+          .id,
+        workflow
+          .getOperator(new OperatorIdentity(workflow.workflowId.id, hashJoin1.operatorID))
+          .head
+          .id
       )
     )
     assert(nextRegions.isEmpty)
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
-        workflow.getOperator(new OperatorIdentity(workflow.workflowId.id, buildCsv.operatorID)).last.id,
-        workflow.getOperator(new OperatorIdentity(workflow.workflowId.id, hashJoin2.operatorID)).head.id
+        workflow
+          .getOperator(new OperatorIdentity(workflow.workflowId.id, buildCsv.operatorID))
+          .last
+          .id,
+        workflow
+          .getOperator(new OperatorIdentity(workflow.workflowId.id, hashJoin2.operatorID))
+          .head
+          .id
       )
     )
     assert(nextRegions.nonEmpty)

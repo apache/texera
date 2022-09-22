@@ -21,7 +21,12 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
@@ -29,13 +34,13 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowScheduler(
-                         availableNodes: Array[Address],
-                         networkCommunicationActor: NetworkSenderActorRef,
-                         ctx: ActorContext,
-                         asyncRPCClient: AsyncRPCClient,
-                         logger: Logger,
-                         workflow: Workflow
-                       ) {
+    availableNodes: Array[Address],
+    networkCommunicationActor: NetworkSenderActorRef,
+    ctx: ActorContext,
+    asyncRPCClient: AsyncRPCClient,
+    logger: Logger,
+    workflow: Workflow
+) {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx)
 
@@ -129,19 +134,19 @@ class WorkflowScheduler(
   }
 
   private def buildOperator(
-                             prev: Array[(LayerIdentity, WorkerLayer)], // used to decide deployment of workers
-                             operatorIdentity: LayerIdentity
-                           ): Unit = {
-      val workerLayer = workflow.getOperator(operatorIdentity)
-      workerLayer.build(
-        prev.map(pair => pair._2),
-        availableNodes,
-        networkCommunicationActor.ref,
-        ctx,
-        workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
-        workflow.workerToLayer,
-        workflow.workerToOperatorExec
-      )
+      prev: Array[(LayerIdentity, WorkerLayer)], // used to decide deployment of workers
+      operatorIdentity: LayerIdentity
+  ): Unit = {
+    val workerLayer = workflow.getOperator(operatorIdentity)
+    workerLayer.build(
+      prev.map(pair => pair._2),
+      availableNodes,
+      networkCommunicationActor.ref,
+      ctx,
+      workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
+      workflow.workerToLayer,
+      workflow.workerToOperatorExec
+    )
   }
 
   private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {

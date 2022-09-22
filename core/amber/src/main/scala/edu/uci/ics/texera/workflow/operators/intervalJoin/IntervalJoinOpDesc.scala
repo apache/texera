@@ -7,8 +7,16 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
 import edu.uci.ics.amber.engine.common.Constants.defaultBatchSize
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.getBuildTableLinkId
@@ -68,21 +76,21 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
           List(),
           List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))
         )
-      ))
-
-    WorkerLayer.oneToOneLayer(
-      operatorIdentifier,
-      p => new IntervalJoinOpExec(
-        operatorSchemaInfo,
-        this,
-        getBuildTableLinkId(p._2))
-    ).copy(
-      inputPorts = operatorInfo.inputPorts,
-      outputPorts = operatorInfo.outputPorts,
-      partitionRequirement = partitionRequirement,
-      blockingInputs = List(0),
-      dependency = Map(1 -> 0),
+      )
     )
+
+    WorkerLayer
+      .oneToOneLayer(
+        operatorIdentifier,
+        p => new IntervalJoinOpExec(operatorSchemaInfo, this, getBuildTableLinkId(p._2))
+      )
+      .copy(
+        inputPorts = operatorInfo.inputPorts,
+        outputPorts = operatorInfo.outputPorts,
+        partitionRequirement = partitionRequirement,
+        blockingInputs = List(0),
+        dependency = Map(1 -> 0)
+      )
 
   }
 

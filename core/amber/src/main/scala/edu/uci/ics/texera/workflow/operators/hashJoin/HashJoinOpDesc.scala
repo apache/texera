@@ -8,8 +8,16 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.W
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
 import edu.uci.ics.amber.engine.common.Constants.defaultBatchSize
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.getBuildTableLinkId
@@ -57,23 +65,28 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
           List(),
           List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))
         )
-      ))
-
-    WorkerLayer.oneToOneLayer(
-      operatorIdentifier,
-      p => new HashJoinOpExec[K](
-        getBuildTableLinkId(p._2),
-        buildAttributeName,
-        probeAttributeName,
-        joinType,
-        operatorSchemaInfo)
-    ).copy(
-      inputPorts = operatorInfo.inputPorts,
-      outputPorts = operatorInfo.outputPorts,
-      partitionRequirement = partitionRequirement,
-      blockingInputs = List(0),
-      dependency = Map(1 -> 0),
+      )
     )
+
+    WorkerLayer
+      .oneToOneLayer(
+        operatorIdentifier,
+        p =>
+          new HashJoinOpExec[K](
+            getBuildTableLinkId(p._2),
+            buildAttributeName,
+            probeAttributeName,
+            joinType,
+            operatorSchemaInfo
+          )
+      )
+      .copy(
+        inputPorts = operatorInfo.inputPorts,
+        outputPorts = operatorInfo.outputPorts,
+        partitionRequirement = partitionRequirement,
+        blockingInputs = List(0),
+        dependency = Map(1 -> 0)
+      )
 
   }
 

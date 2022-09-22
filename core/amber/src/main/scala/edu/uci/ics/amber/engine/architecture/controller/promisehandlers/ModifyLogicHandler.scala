@@ -40,7 +40,7 @@ trait ModifyLogicHandler {
           null
       }
 
-      val operators =  workflow.getOperator(operatorId)
+      val operators = workflow.getOperator(operatorId)
       assert(operators.size == 1)
       val operator = operators.head
 
