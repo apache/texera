@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.makeLayer
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 class DifferenceOpExecConf[K](

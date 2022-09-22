@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import java.util.concurrent.atomic.AtomicLong
 
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.SELF
 
 import scala.collection.mutable
 

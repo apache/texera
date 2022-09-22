@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{makeLayer, toOperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.{makeLayer, toOperatorIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,

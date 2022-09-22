@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,

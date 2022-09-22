@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{makeLayer, toOperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.{makeLayer, toOperatorIdentity}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}

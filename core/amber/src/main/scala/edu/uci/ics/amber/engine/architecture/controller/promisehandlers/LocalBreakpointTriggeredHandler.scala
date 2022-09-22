@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemo
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.CONTROLLER
 
 import scala.collection.convert.ImplicitConversions.`collection asJava`
 import scala.collection.mutable

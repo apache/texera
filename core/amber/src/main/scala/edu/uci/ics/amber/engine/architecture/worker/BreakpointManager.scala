@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBre
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalBreakpointTriggeredHandler.LocalBreakpointTriggered
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.CONTROLLER
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks

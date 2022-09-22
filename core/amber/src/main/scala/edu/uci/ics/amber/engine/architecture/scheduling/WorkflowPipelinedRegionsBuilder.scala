@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.toOperatorIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity,
