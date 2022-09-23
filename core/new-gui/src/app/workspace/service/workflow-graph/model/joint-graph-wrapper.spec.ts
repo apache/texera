@@ -19,7 +19,7 @@ import { StubOperatorMetadataService } from "../../operator-metadata/stub-operat
 import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { map, share, tap } from "rxjs/operators";
-import {SyncJointModelService} from "./sync-joint-model.service";
+import { SyncJointModelService } from "./sync-joint-model.service";
 
 describe("JointGraphWrapperService", () => {
   let jointGraph: joint.dia.Graph;

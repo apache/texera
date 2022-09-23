@@ -18,7 +18,7 @@ import { OperatorMetadataService } from "../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
-import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../../service/workflow-graph/model/sync-joint-model.service";
 
 describe("PropertyEditorComponent", () => {
   let component: PropertyEditorComponent;

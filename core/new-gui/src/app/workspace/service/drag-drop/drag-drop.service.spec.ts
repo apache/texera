@@ -19,7 +19,7 @@ import {
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { map } from "rxjs/operators";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
-import {SyncJointModelService} from "../workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("DragDropService", () => {
   let dragDropService: DragDropService;
@@ -41,7 +41,6 @@ describe("DragDropService", () => {
     });
 
     dragDropService = TestBed.get(DragDropService);
-
 
     // custom equality disregards link ID (since I use DragDropService.getNew)
     jasmine.addCustomEqualityTester((link1: OperatorLink, link2: OperatorLink) => {

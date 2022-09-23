@@ -28,8 +28,8 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   }
 
   public getCurrentUser(): User | undefined {
-        throw new Error("Method not implemented.");
-    }
+    throw new Error("Method not implemented.");
+  }
 
   googleLogin(): Observable<void> {
     throw new Error("Method not implemented.");

@@ -18,7 +18,7 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { mockScanSourceSchema } from "../operator-metadata/mock-operator-metadata.data";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import {SyncJointModelService} from "../workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("DynamicSchemaService", () => {
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe("DynamicSchemaService", () => {
         WorkflowUtilService,
         UndoRedoService,
         DynamicSchemaService,
-        SyncJointModelService
+        SyncJointModelService,
       ],
     });
   });

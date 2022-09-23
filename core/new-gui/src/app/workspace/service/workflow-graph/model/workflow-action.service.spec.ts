@@ -23,7 +23,7 @@ import { g } from "jointjs";
 import { environment } from "./../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { join } from "lodash";
-import {SyncJointModelService} from "./sync-joint-model.service";
+import { SyncJointModelService } from "./sync-joint-model.service";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;

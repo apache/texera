@@ -46,15 +46,12 @@ export class SharedModel {
     this.linkBreakpointMap = this.yDoc.getMap("linkBreakPointMap");
 
     // Initialize Y-undo manager by aggregating intended  Y-structures. Only structures included here will be undoable.
-    this.undoManager = new Y.UndoManager([
-      this.operatorIDMap,
-      this.elementPositionMap,
-      this.operatorLinkMap,
-      this.commentBoxMap,
-      this.linkBreakpointMap,
-    ], {
-      captureTimeout: 0
-    });
+    this.undoManager = new Y.UndoManager(
+      [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap, this.linkBreakpointMap],
+      {
+        captureTimeout: 0,
+      }
+    );
 
     // Generate editing room number.
     const websocketUrl = getWebsocketUrl("rtc");
@@ -95,7 +92,7 @@ export class SharedModel {
         callback();
       }
     } catch (e) {
-      throw (e);
+      throw e;
     }
   }
 

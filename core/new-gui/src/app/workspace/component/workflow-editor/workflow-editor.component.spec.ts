@@ -35,7 +35,7 @@ import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
-import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../../service/workflow-graph/model/sync-joint-model.service";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -69,7 +69,7 @@ describe("WorkflowEditorComponent", () => {
             },
             WorkflowStatusService,
             ExecuteWorkflowService,
-            SyncJointModelService
+            SyncJointModelService,
           ],
         }).compileComponents();
       })
@@ -178,7 +178,7 @@ describe("WorkflowEditorComponent", () => {
             ExecuteWorkflowService,
             UndoRedoService,
             WorkflowVersionService,
-            SyncJointModelService
+            SyncJointModelService,
           ],
         }).compileComponents();
       })

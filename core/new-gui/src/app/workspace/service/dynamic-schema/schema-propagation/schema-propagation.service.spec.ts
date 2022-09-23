@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import {discardPeriodicTasks, fakeAsync, inject, TestBed, tick} from "@angular/core/testing";
+import { discardPeriodicTasks, fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
@@ -33,7 +33,7 @@ import {
   SCHEMA_PROPAGATION_ENDPOINT,
   SchemaPropagationService,
 } from "./schema-propagation.service";
-import {SyncJointModelService} from "../../workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../../workflow-graph/model/sync-joint-model.service";
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 describe("SchemaPropagationService", () => {

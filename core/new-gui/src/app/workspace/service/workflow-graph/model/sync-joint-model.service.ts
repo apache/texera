@@ -150,7 +150,8 @@ export class SyncJointModelService {
       this.texeraGraph.setSyncTexeraGraph(false);
       for (let i = 0; i < keysToDelete.length; i++) {
         console.log("Link deleted:", keysToDelete[i]);
-        if (this.texeraGraph.getSyncJointGraph() && this.jointGraph.getCell(keysToDelete[i])) this.jointGraph.getCell(keysToDelete[i]).remove();
+        if (this.texeraGraph.getSyncJointGraph() && this.jointGraph.getCell(keysToDelete[i]))
+          this.jointGraph.getCell(keysToDelete[i]).remove();
       }
       if (environment.asyncRenderingEnabled) {
         this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {

@@ -7,7 +7,7 @@ import { TestBed, inject } from "@angular/core/testing";
 
 import { UndoRedoService } from "./undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import {SyncJointModelService} from "../workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("UndoRedoService", () => {
   let service: UndoRedoService;

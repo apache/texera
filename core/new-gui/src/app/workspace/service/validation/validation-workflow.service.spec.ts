@@ -14,7 +14,7 @@ import { JointUIService } from "../joint-ui/joint-ui.service";
 import { marbles } from "rxjs-marbles";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { map } from "rxjs/operators";
-import {SyncJointModelService} from "../workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("ValidationWorkflowService", () => {
   let validationWorkflowService: ValidationWorkflowService;

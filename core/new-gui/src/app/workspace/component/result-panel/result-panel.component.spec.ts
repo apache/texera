@@ -14,7 +14,7 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { DynamicModule } from "ng-dynamic-component";
 import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
-import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model.service";
+import { SyncJointModelService } from "../../service/workflow-graph/model/sync-joint-model.service";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;

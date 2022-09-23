@@ -357,7 +357,7 @@ export class WorkflowActionService {
    */
   // Originally: drag Operator
   public autoLayoutWorkflow(): void {
-    this.texeraGraph.bundleActions(()=>{
+    this.texeraGraph.bundleActions(() => {
       this.jointGraphWrapper.autoLayoutJoint();
     });
   }
