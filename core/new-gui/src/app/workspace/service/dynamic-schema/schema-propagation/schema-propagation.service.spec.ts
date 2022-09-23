@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
+import {discardPeriodicTasks, fakeAsync, inject, TestBed, tick} from "@angular/core/testing";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
@@ -33,6 +33,7 @@ import {
   SCHEMA_PROPAGATION_ENDPOINT,
   SchemaPropagationService,
 } from "./schema-propagation.service";
+import {SyncJointModelService} from "../../workflow-graph/model/sync-joint-model.service";
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 describe("SchemaPropagationService", () => {
@@ -68,6 +69,7 @@ describe("SchemaPropagationService", () => {
   it("should invoke schema propagation API on link changes, property changes, and disable status changes", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
+    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
 
@@ -102,15 +104,16 @@ describe("SchemaPropagationService", () => {
     });
     // verify debounce time: no request before debounce time ticks
     httpTestingController.verify();
-    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
     // reqeuest should be made after debounce time
     httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
     httpTestingController.verify();
+    discardPeriodicTasks();
   }));
 
   it("should invoke schema propagation API when a operator property is changed", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
+    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, {
@@ -122,11 +125,13 @@ describe("SchemaPropagationService", () => {
     expect(req1.request.method).toEqual("POST");
     req1.flush(mockSchemaPropagationResponse);
     httpTestingController.verify();
+    discardPeriodicTasks();
   }));
 
   it("should handle error responses from server gracefully", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
+    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, {
@@ -151,12 +156,14 @@ describe("SchemaPropagationService", () => {
     expect(req2.request.method).toEqual("POST");
     req2.flush(mockSchemaPropagationResponse);
     httpTestingController.verify();
+    discardPeriodicTasks();
   }));
 
   it("should modify `attribute` of operator schema", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
+    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     const mockOperator = {
       ...mockSentimentPredicate,
@@ -195,12 +202,14 @@ describe("SchemaPropagationService", () => {
       enum: expectedEnum,
       uniqueItems: true,
     });
+    discardPeriodicTasks();
   }));
 
   it("should restore `attribute` to original schema if input attributes no longer exists", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
+    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     const mockOperator = {
       ...mockSentimentPredicate,
@@ -270,12 +279,14 @@ describe("SchemaPropagationService", () => {
       enum: undefined,
       uniqueItems: undefined,
     });
+    discardPeriodicTasks();
   }));
 
   it("should modify `attributes` of operator schema", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
+    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     const mockKeywordSearchOperator: OperatorPredicate = {
       operatorID: mockSchemaPropagationOperatorID,
@@ -323,12 +334,14 @@ describe("SchemaPropagationService", () => {
         enum: expectedEnum,
       },
     });
+    discardPeriodicTasks();
   }));
 
   it("should modify nested deep `attribute` of operator schema", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
+    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     // to match the operator ID of mockSchemaPropagationResponse
     const mockAggregationPredicate: OperatorPredicate = {
@@ -392,5 +405,6 @@ describe("SchemaPropagationService", () => {
         },
       },
     });
+    discardPeriodicTasks();
   }));
 });

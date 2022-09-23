@@ -91,6 +91,7 @@ export class WorkflowActionService {
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
+    this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
     this.handleHighlightedElementPositionChange();
     this.handleJointElementDrag();
@@ -356,7 +357,9 @@ export class WorkflowActionService {
    */
   // Originally: drag Operator
   public autoLayoutWorkflow(): void {
-    this.jointGraphWrapper.autoLayoutJoint();
+    this.texeraGraph.bundleActions(()=>{
+      this.jointGraphWrapper.autoLayoutJoint();
+    });
   }
 
   /**

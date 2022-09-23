@@ -91,6 +91,7 @@ export class WorkflowGraph {
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
   private syncTexeraGraph = true;
+  private syncJointGraph = true;
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -102,6 +103,7 @@ export class WorkflowGraph {
     commentBoxes.forEach(commentBox =>
       this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox))
     );
+    this.newYDocLoadedSubject.next(undefined);
   }
 
   /**
@@ -110,6 +112,14 @@ export class WorkflowGraph {
    */
   public getSyncTexeraGraph(): boolean {
     return this.syncTexeraGraph;
+  }
+
+  public setSyncJointGraph(syncJointGraph: boolean): void {
+    this.syncJointGraph = syncJointGraph;
+  }
+
+  public getSyncJointGraph(): boolean {
+    return this.syncJointGraph;
   }
 
   // Shared-editing related methods
@@ -581,6 +591,9 @@ export class WorkflowGraph {
    * @param newProperty new property to set, the new y-object created from this will replace the old structure.
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
+    if (!this.hasOperator(operatorID)) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
     const previousProperty = this.sharedModel.operatorIDMap.get(operatorID)?.get("operatorProperties").toJSON();
     if (!_.isEqual(previousProperty, newProperty)) {
       const localState = this.sharedModel.awareness.getLocalState();

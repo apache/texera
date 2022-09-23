@@ -28,12 +28,14 @@ import { SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
+import {SyncJointModelService} from "../../../service/workflow-graph/model/sync-joint-model.service";
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {
   let component: OperatorPropertyEditFrameComponent;
   let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
   let workflowActionService: WorkflowActionService;
+  let syncJointModelService: SyncJointModelService;
 
   beforeEach(
     waitForAsync(() => {
@@ -66,6 +68,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
+    syncJointModelService= TestBed.get(SyncJointModelService);
     fixture.detectChanges();
   });
 

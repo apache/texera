@@ -52,7 +52,9 @@ export class SharedModel {
       this.operatorLinkMap,
       this.commentBoxMap,
       this.linkBreakpointMap,
-    ]);
+    ], {
+      captureTimeout: 0
+    });
 
     // Generate editing room number.
     const websocketUrl = getWebsocketUrl("rtc");
@@ -93,7 +95,7 @@ export class SharedModel {
         callback();
       }
     } catch (e) {
-      console.log(e, callback);
+      throw (e);
     }
   }
 

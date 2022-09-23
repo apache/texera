@@ -35,6 +35,7 @@ import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import {SyncJointModelService} from "../../service/workflow-graph/model/sync-joint-model.service";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -68,6 +69,7 @@ describe("WorkflowEditorComponent", () => {
             },
             WorkflowStatusService,
             ExecuteWorkflowService,
+            SyncJointModelService
           ],
         }).compileComponents();
       })
@@ -147,6 +149,7 @@ describe("WorkflowEditorComponent", () => {
     let nzModalService: NzModalService;
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
+    let syncJointModelService: SyncJointModelService;
 
     beforeEach(
       waitForAsync(() => {
@@ -175,6 +178,7 @@ describe("WorkflowEditorComponent", () => {
             ExecuteWorkflowService,
             UndoRedoService,
             WorkflowVersionService,
+            SyncJointModelService
           ],
         }).compileComponents();
       })
@@ -183,6 +187,7 @@ describe("WorkflowEditorComponent", () => {
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
+      syncJointModelService = TestBed.inject(SyncJointModelService);
       workflowActionService = TestBed.inject(WorkflowActionService);
       validationWorkflowService = TestBed.inject(ValidationWorkflowService);
       dragDropService = TestBed.inject(DragDropService);

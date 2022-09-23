@@ -121,7 +121,10 @@ export class SyncTexeraModel {
         tap(link => {
           const linkID = link.id.toString();
           if (this.texeraGraph.hasLinkWithID(linkID)) {
+            const previousSyncJointGraph = this.texeraGraph.getSyncJointGraph();
+            this.texeraGraph.setSyncJointGraph(false);
             this.texeraGraph.deleteLinkWithID(linkID);
+            this.texeraGraph.setSyncJointGraph(previousSyncJointGraph);
           }
         }),
         filter(link => this.isValidJointLink(link)),

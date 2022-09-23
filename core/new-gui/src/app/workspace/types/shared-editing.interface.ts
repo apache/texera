@@ -39,7 +39,7 @@ export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
     const yMap = new Y.Map();
     Object.keys(obj).forEach((k: string) => {
       const value = obj[k as keyof T] as any;
-      if (value) {
+      if (value !== undefined) {
         yMap.set(k, tryToCreateYTypeFromObject(value));
       }
     });

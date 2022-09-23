@@ -43,6 +43,14 @@ export class SyncJointModelService {
     this.texeraGraph = workflowActionService.getTexeraGraph();
     this.jointGraph = workflowActionService.getJointGraph();
     this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    this.handleOperatorAddAndDelete();
+    this.handleLinkAddAndDelete();
+    this.handleElementPositionChange();
+    this.handleCommentBoxAddAndDelete();
+    this.handleBreakpointAddAndDelete();
+    this.handleOperatorDeep();
+    this.handleCommentBoxDeep();
+    this.observeUserState();
     this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
       this.handleOperatorAddAndDelete();
       this.handleLinkAddAndDelete();
@@ -141,7 +149,8 @@ export class SyncJointModelService {
       // Disables JointGraph -> TexeraGraph sync temporarily
       this.texeraGraph.setSyncTexeraGraph(false);
       for (let i = 0; i < keysToDelete.length; i++) {
-        if (this.jointGraph.getCell(keysToDelete[i])) this.jointGraph.getCell(keysToDelete[i]).remove();
+        console.log("Link deleted:", keysToDelete[i]);
+        if (this.texeraGraph.getSyncJointGraph() && this.jointGraph.getCell(keysToDelete[i])) this.jointGraph.getCell(keysToDelete[i]).remove();
       }
       if (environment.asyncRenderingEnabled) {
         this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
@@ -162,6 +171,7 @@ export class SyncJointModelService {
 
       for (let i = 0; i < linksToDelete.length; i++) {
         const link = linksToDelete[i];
+        console.log("Link deleted (after):", link);
         this.texeraGraph.linkDeleteSubject.next({ deletedLink: link });
       }
     });
@@ -242,6 +252,7 @@ export class SyncJointModelService {
     this.texeraGraph.sharedModel.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.operatorIDMap) {
+          console.log(event.path);
           const operatorID = event.path[0] as string;
           if (event.path[event.path.length - 1] === "customDisplayName") {
             const newName = this.texeraGraph.sharedModel.operatorIDMap
