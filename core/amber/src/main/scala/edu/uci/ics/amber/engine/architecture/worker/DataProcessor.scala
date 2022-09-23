@@ -5,8 +5,16 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
-import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LogManager, ProcessControlMessage, ProcessEnd, ProcessEndOfAll, SenderActorChange}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  DeterminantLogger,
+  LogManager,
+  ProcessControlMessage,
+  ProcessEnd,
+  ProcessEndOfAll,
+  SenderActorChange
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
@@ -35,6 +43,7 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
+    logStorage: DeterminantLogStorage,
     val logManager: LogManager,
     val recoveryManager: RecoveryManager,
     val actorId: ActorVirtualIdentity
@@ -47,7 +56,11 @@ class DataProcessor( // dependencies:
       try {
         // TODO: setup context
         // operator.context = new OperatorContext(new TimeService(logManager))
-        runDPThreadRecovery()
+        if (!recoveryManager.replayCompleted()) {
+          runDPThreadRecovery()
+          logManager.terminate()
+          logStorage.swapTempLog()
+        }
         runDPThreadMainLogic()
       } catch safely {
         case _: InterruptedException =>
@@ -157,16 +170,17 @@ class DataProcessor( // dependencies:
     }
   }
 
-
-  private[this] def runDPThreadRecovery():Unit = {
-    while(!recoveryManager.replayCompleted()){
-      internalQueueElementHandler(recoveryManager.get(), null)
+  private[this] def runDPThreadRecovery(): Unit = {
+    while (!recoveryManager.replayCompleted()) {
+      internalQueueElementHandler(recoveryManager.get())
     }
     restoreInputs()
   }
 
-  private[this] def internalQueueElementHandler(internalQueueElement: InternalQueueElement, determinantLogger:DeterminantLogger): Unit ={
-   internalQueueElement match {
+  private[this] def internalQueueElementHandler(
+      internalQueueElement: InternalQueueElement
+  ): Unit = {
+    internalQueueElement match {
       case InputTuple(from, tuple) =>
         if (currentInputActor != from) {
           if (isDeterminantLoggingAllowed) {
@@ -292,9 +306,9 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def takeOneControlCommandAndProcess(): Unit = {
-    val control = if(recoveryManager.replayCompleted()){
+    val control = if (recoveryManager.replayCompleted()) {
       getElement.asInstanceOf[ControlElement]
-    }else{
+    } else {
       recoveryManager.get().asInstanceOf[ControlElement]
     }
     processControlCommand(control.payload, control.from)

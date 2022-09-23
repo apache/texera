@@ -57,9 +57,8 @@ class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
     parentNetworkCommunicationActorRef: ActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity],
-    attempt: Int
-) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, attempt) {
+    allUpstreamLinkIds: Set[LinkIdentity]
+) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef) {
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =

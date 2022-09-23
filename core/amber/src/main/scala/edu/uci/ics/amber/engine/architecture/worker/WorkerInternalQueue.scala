@@ -2,7 +2,13 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LogManager}
 import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{CONTROL_QUEUE, ControlElement, DATA_QUEUE, InputTuple, InternalQueueElement}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  CONTROL_QUEUE,
+  ControlElement,
+  DATA_QUEUE,
+  InputTuple,
+  InternalQueueElement
+}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataFrame, EndOfUpstream}
@@ -84,11 +90,11 @@ trait WorkerInternalQueue {
       }
     }
     lock.lock()
-    if(recoveryManager.replayCompleted()){
+    if (recoveryManager.replayCompleted()) {
       dataQueue.add(elem)
-    }else{
-      elem match{
-        case x:InputTuple =>
+    } else {
+      elem match {
+        case x: InputTuple =>
           recoveryManager.acceptInput(x)
         case other => //skip
       }
@@ -98,9 +104,9 @@ trait WorkerInternalQueue {
 
   def enqueueCommand(payload: ControlPayload, from: ActorVirtualIdentity): Unit = {
     lock.lock()
-    if(recoveryManager.replayCompleted()){
+    if (recoveryManager.replayCompleted()) {
       controlQueue.add(ControlElement(payload, from))
-    }else {
+    } else {
       recoveryManager.acceptControl(ControlElement(payload, from))
     }
     lock.unlock()
@@ -136,7 +142,7 @@ trait WorkerInternalQueue {
 
   def getControlQueueLength: Int = controlQueue.size()
 
-  def restoreInputs():Unit = {
+  def restoreInputs(): Unit = {
     lock.lock()
     recoveryManager.drainAllStashedElements(dataQueue, controlQueue)
     lock.unlock()
@@ -146,9 +152,9 @@ trait WorkerInternalQueue {
     if (isDeterminantLoggingAllowed) {
       determinantLogger.stepIncrement()
     }
-    if(recoveryManager.replayCompleted()) {
+    if (recoveryManager.replayCompleted()) {
       controlQueue.isEmpty
-    }else{
+    } else {
       recoveryManager.checkInput()
     }
   }

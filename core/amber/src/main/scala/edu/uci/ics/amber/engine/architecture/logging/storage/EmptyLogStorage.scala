@@ -1,11 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
 class EmptyLogStorage extends DeterminantLogStorage {
-  override def getWriter(attempt: Int): DeterminantLogStorage.DeterminantLogWriter = null
+  override def getWriter(isTempLog: Boolean): DeterminantLogStorage.DeterminantLogWriter = null
 
-  override def getReader(attempt: Int): DeterminantLogStorage.DeterminantLogReader = null
+  override def getReader: DeterminantLogStorage.DeterminantLogReader = null
 
-  override def deleteLog(attempt: Int): Unit = {
+  override def deleteLog(): Unit = {
+    // empty
+  }
+
+  override def swapTempLog(): Unit = {
     // empty
   }
 }

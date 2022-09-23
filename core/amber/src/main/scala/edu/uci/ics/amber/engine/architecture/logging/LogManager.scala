@@ -1,7 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.logging
 
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
-import edu.uci.ics.amber.engine.architecture.logging.storage.{DeterminantLogStorage, LocalFSLogStorage}
+import edu.uci.ics.amber.engine.architecture.logging.storage.{
+  DeterminantLogStorage,
+  LocalFSLogStorage
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -23,7 +26,6 @@ class LogManager(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
     logWriter: DeterminantLogWriter
 ) {
-
 
   private val enabledLogging = logWriter == null
 

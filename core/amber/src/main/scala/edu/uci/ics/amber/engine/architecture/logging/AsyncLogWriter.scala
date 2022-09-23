@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
 
 import java.util
+import java.util.concurrent.CompletableFuture
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
@@ -19,6 +20,7 @@ class AsyncLogWriter(
     Queues.newLinkedBlockingQueue[Either[InMemDeterminant, SendRequest]]()
   @volatile private var stopped = false
   private val logInterval = 500
+  private var gracefullyStopped = new CompletableFuture[Unit]()
 
   def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {
     determinants.foreach(x => writerQueue.put(Left(x)))
@@ -30,7 +32,7 @@ class AsyncLogWriter(
 
   def terminate(): Unit = {
     stopped = true
-    interrupt()
+    gracefullyStopped.get()
   }
 
   override def run(): Unit = {
@@ -40,12 +42,11 @@ class AsyncLogWriter(
           if (logInterval > 0) {
             Thread.sleep(logInterval)
           }
-          if (writerQueue.drainTo(drained) == 0) {
-            drained.add(writerQueue.take())
-          }
         } catch {
           case t: InterruptedException =>
-            break
+        }
+        if (writerQueue.drainTo(drained) == 0) {
+          drained.add(writerQueue.take())
         }
         val drainedScala = drained.asScala
         drainedScala
@@ -58,6 +59,7 @@ class AsyncLogWriter(
       }
     }
     writer.close()
+    gracefullyStopped.complete()
   }
 
 }

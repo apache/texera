@@ -6,26 +6,26 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
 class RecordIterator(logReader: DeterminantLogReader) {
 
   private var stop = logReader == null
-  private var head:InMemDeterminant = _
+  private var head: InMemDeterminant = _
 
-  def peek():InMemDeterminant = {
-    if(!stop && head == null){
+  def peek(): InMemDeterminant = {
+    if (!stop && head == null) {
       readNext()
     }
     head
   }
 
-  def isEmpty:Boolean = {
-    if(!stop && head == null){
+  def isEmpty: Boolean = {
+    if (!stop && head == null) {
       readNext()
     }
     stop
   }
 
-  def readNext():Unit = {
-    try{
+  def readNext(): Unit = {
+    try {
       head = logReader.readLogRecord()
-    }catch{
+    } catch {
       case exception: Exception =>
         logReader.close()
         stop = true

@@ -4,7 +4,10 @@ import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.twitter.chill.ScalaKryoInstantiator
 import edu.uci.ics.amber.engine.architecture.logging.InMemDeterminant
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{DeterminantLogReader, DeterminantLogWriter}
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
+  DeterminantLogReader,
+  DeterminantLogWriter
+}
 
 import java.io.{DataInputStream, DataOutputStream}
 
@@ -31,7 +34,7 @@ object DeterminantLogStorage {
     protected val inputStream: DataInputStream
     lazy val input = new Input(inputStream)
     lazy val kryo = instantiator.newKryo()
-    def readLogRecord():InMemDeterminant = {
+    def readLogRecord(): InMemDeterminant = {
       kryo.readClassAndObject(input).asInstanceOf[InMemDeterminant]
     }
     def close(): Unit = {
@@ -42,10 +45,12 @@ object DeterminantLogStorage {
 
 abstract class DeterminantLogStorage {
 
-  def getWriter(attempt: Int): DeterminantLogWriter
+  def getWriter(isTempLog: Boolean): DeterminantLogWriter
 
-  def getReader(attempt: Int): DeterminantLogReader
+  def getReader: DeterminantLogReader
 
-  def deleteLog(attempt: Int): Unit
+  def deleteLog(): Unit
+
+  def swapTempLog(): Unit
 
 }

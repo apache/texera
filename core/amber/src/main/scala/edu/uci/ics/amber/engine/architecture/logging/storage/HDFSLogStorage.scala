@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{DeterminantLogReader, DeterminantLogWriter, EmptyLogReader}
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
+  DeterminantLogReader,
+  DeterminantLogWriter,
+  EmptyLogReader
+}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -21,33 +25,52 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
     hdfs.mkdirs(recoveryLogFolder)
   }
 
-  private def getLogPath(attempt: Int):Path = {
-    new Path("/recovery-logs/" + name +"-"+attempt+ ".logfile")
+  private def getLogPath(isTempLog: Boolean): Path = {
+    new Path("/recovery-logs/" + name + ".logfile" + (if (isTempLog) {
+                                                        ".tmp"
+                                                      } else { "" }))
   }
 
-  override def getWriter(attempt:Int): DeterminantLogWriter = {
+  override def getWriter(isTempLog: Boolean): DeterminantLogWriter = {
     new DeterminantLogWriter {
       override lazy protected val outputStream = {
-        hdfs.create(getLogPath(attempt))
+        hdfs.append(getLogPath(isTempLog))
       }
     }
   }
 
-  override def getReader(attempt:Int): DeterminantLogReader = {
-    val path = getLogPath(attempt)
-    if(hdfs.exists(path)) {
+  override def getReader: DeterminantLogReader = {
+    val path = getLogPath(false)
+    if (hdfs.exists(path)) {
       new DeterminantLogReader {
         override protected val inputStream = hdfs.open(path)
       }
-    }else{
+    } else {
       null
     }
   }
 
-  override def deleteLog(attempt: Int): Unit = {
-    val path = getLogPath(attempt)
+  override def deleteLog(): Unit = {
+    // delete temp log if exists
+    val tempLogPath = getLogPath(true)
+    if (hdfs.exists(tempLogPath)) {
+      hdfs.delete(tempLogPath, false)
+    }
+    // delete log if exists
+    val path = getLogPath(false)
     if (hdfs.exists(path)) {
       hdfs.delete(path, false)
+    }
+  }
+
+  override def swapTempLog(): Unit = {
+    val tempLogPath = getLogPath(true)
+    val path = getLogPath(false)
+    if (hdfs.exists(path)) {
+      hdfs.delete(path, false)
+    }
+    if (hdfs.exists(tempLogPath)) {
+      hdfs.rename(tempLogPath, path)
     }
   }
 }
