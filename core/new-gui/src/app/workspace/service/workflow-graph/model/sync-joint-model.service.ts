@@ -1,4 +1,4 @@
-import { WorkflowGraphReadonly } from "./workflow-graph";
+import { WorkflowGraph } from "./workflow-graph";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import * as Y from "yjs";
 import {
@@ -10,7 +10,6 @@ import {
 } from "../../../types/workflow-common.interface";
 import { Injectable } from "@angular/core";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
-import { WorkflowActionService } from "./workflow-action.service";
 import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
 import { UserState } from "../../../../common/type/user";
@@ -31,18 +30,12 @@ import { YType } from "../../../types/shared-editing.interface";
   providedIn: "root",
 })
 export class SyncJointModelService {
-  private texeraGraph: WorkflowGraphReadonly;
-  private jointGraph: joint.dia.Graph;
-  private jointGraphWrapper: JointGraphWrapper;
-
   constructor(
-    private workflowActionService: WorkflowActionService,
-    private jointUIService: JointUIService,
-    private coeditorPresenceService: CoeditorPresenceService
+    private texeraGraph: WorkflowGraph,
+    private jointGraph: joint.dia.Graph,
+    private jointGraphWrapper: JointGraphWrapper,
+    private jointUIService: JointUIService
   ) {
-    this.texeraGraph = workflowActionService.getTexeraGraph();
-    this.jointGraph = workflowActionService.getJointGraph();
-    this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
     this.handleOperatorAddAndDelete();
     this.handleLinkAddAndDelete();
     this.handleElementPositionChange();
@@ -50,7 +43,6 @@ export class SyncJointModelService {
     this.handleBreakpointAddAndDelete();
     this.handleOperatorDeep();
     this.handleCommentBoxDeep();
-    this.observeUserState();
     this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
       this.handleOperatorAddAndDelete();
       this.handleLinkAddAndDelete();
@@ -59,7 +51,6 @@ export class SyncJointModelService {
       this.handleBreakpointAddAndDelete();
       this.handleOperatorDeep();
       this.handleCommentBoxDeep();
-      this.observeUserState();
     });
   }
 
@@ -342,51 +333,5 @@ export class SyncJointModelService {
         }
       });
     });
-  }
-
-  /**
-   * Listens to changes of co-editors' presence infos and lets <code>{@link CoeditorPresenceService}</code> handle them.
-   */
-  private observeUserState(): void {
-    // first time logic
-    const currentStates = Array.from(
-      this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>
-    ).filter(
-      userState =>
-        userState.user && userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId
-    );
-    for (const state of currentStates) {
-      this.coeditorPresenceService.addCoeditor(state);
-    }
-
-    this.texeraGraph.sharedModel.awareness.on(
-      "change",
-      (change: { added: number[]; updated: number[]; removed: number[] }) => {
-        Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>).filter(
-          userState => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId
-        );
-        for (const clientId of change.added) {
-          const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
-          if (coeditorState.user.clientId !== this.texeraGraph.sharedModel.clientId)
-            this.coeditorPresenceService.addCoeditor(coeditorState);
-        }
-
-        for (const clientId of change.removed) {
-          if (!this.texeraGraph.sharedModel.awareness.getStates().has(clientId))
-            this.coeditorPresenceService.removeCoeditor(clientId.toString());
-        }
-
-        for (const clientId of change.updated) {
-          const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
-          if (clientId.toString() !== this.texeraGraph.sharedModel.clientId) {
-            if (!this.coeditorPresenceService.hasCoeditor(clientId.toString())) {
-              this.coeditorPresenceService.addCoeditor(coeditorState);
-            } else {
-              this.coeditorPresenceService.updateCoeditorState(clientId.toString(), coeditorState);
-            }
-          }
-        }
-      }
-    );
   }
 }

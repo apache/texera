@@ -19,7 +19,6 @@ import { StubOperatorMetadataService } from "../../operator-metadata/stub-operat
 import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { map, share, tap } from "rxjs/operators";
-import { SyncJointModelService } from "./sync-joint-model.service";
 
 describe("JointGraphWrapperService", () => {
   let jointGraph: joint.dia.Graph;
@@ -33,7 +32,6 @@ describe("JointGraphWrapperService", () => {
         WorkflowActionService,
         WorkflowUtilService,
         UndoRedoService,
-        SyncJointModelService,
         {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
@@ -169,7 +167,6 @@ describe("JointGraphWrapperService", () => {
     "should emit a highlight event correctly when an operator is highlighted",
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add one operator, it should be automatically highlighted
@@ -208,7 +205,6 @@ describe("JointGraphWrapperService", () => {
     "should emit a highlight event correctly when multiple operators are highlighted",
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add two operators, they should be automatically highlighted
@@ -264,7 +260,6 @@ describe("JointGraphWrapperService", () => {
     "should emit an unhighlight event correctly when an operator is unhighlighted",
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add and highlight an operator
@@ -302,7 +297,6 @@ describe("JointGraphWrapperService", () => {
     "should emit an unhighlight event correctly when multiple operators are unhighlighted",
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add and highlight two operators
@@ -348,7 +342,6 @@ describe("JointGraphWrapperService", () => {
     "should unhighlight previous highlighted operator if a new operator is highlighted",
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -390,7 +383,6 @@ describe("JointGraphWrapperService", () => {
     "should ignore the action if trying to highlight the same currently highlighted operator",
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add an operator, it should be automatically highlighted
@@ -423,7 +415,6 @@ describe("JointGraphWrapperService", () => {
     "should unhighlight the currently highlighted operator if it is deleted",
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add and highlight the operator
@@ -451,7 +442,6 @@ describe("JointGraphWrapperService", () => {
 
   it("should get operator position successfully if the operator exists in the paper", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -470,7 +460,6 @@ describe("JointGraphWrapperService", () => {
 
   it("should throw an error if the id we are using is linkID when calling 'getElementPosition()'", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -484,7 +473,6 @@ describe("JointGraphWrapperService", () => {
 
   it("should repositions the operator successfully if the operator exists in the paper", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -536,7 +524,6 @@ describe("JointGraphWrapperService", () => {
 
   it("should move all highlighted operators together when any one of them is moved", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight two operators
@@ -572,7 +559,6 @@ describe("JointGraphWrapperService", () => {
       "should emit link highlight event correctly when a link is selected",
       marbles(m => {
         const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-        const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
         const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -606,7 +592,6 @@ describe("JointGraphWrapperService", () => {
       "should emit an unhighlight event correctly when an link is unhighlighted",
       marbles(m => {
         const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-        const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
         const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
         // add one operator
@@ -643,7 +628,6 @@ describe("JointGraphWrapperService", () => {
       "should emit an unhighlight event correctly when an highlighted link is deleted",
       marbles(m => {
         const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-        const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
         const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
         // add one operator
@@ -680,7 +664,6 @@ describe("JointGraphWrapperService", () => {
       "should unhighlight previous highlighted link if another link is selected/highlighted",
       marbles(m => {
         const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-        const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
         const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -728,7 +711,6 @@ describe("JointGraphWrapperService", () => {
       "should unhighlight previous highlighted links if an operator is highlighted",
       marbles(m => {
         const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-        const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
         const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -786,7 +768,6 @@ describe("JointGraphWrapperService", () => {
       "should emit an show breakpoint event correctly when adding a breakpoint to a link",
       marbles(m => {
         const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-        const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
         const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
         // add one link
@@ -828,7 +809,6 @@ describe("JointGraphWrapperService", () => {
       "should emit an hide breakpoint event correctly when removing a breakpoint",
       marbles(m => {
         const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-        const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
         const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
         // add one link

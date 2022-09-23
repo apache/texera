@@ -23,7 +23,6 @@ import { g } from "jointjs";
 import { environment } from "./../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { join } from "lodash";
-import { SyncJointModelService } from "./sync-joint-model.service";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -38,7 +37,6 @@ describe("WorkflowActionService", () => {
         WorkflowUtilService,
         JointUIService,
         UndoRedoService,
-        SyncJointModelService,
         {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
@@ -57,7 +55,6 @@ describe("WorkflowActionService", () => {
   }));
 
   it("should add an operator to both jointjs and texera graph correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
 
     expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
@@ -65,14 +62,12 @@ describe("WorkflowActionService", () => {
   });
 
   it("should add commentBox to both jointjs and texera graph correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addCommentBox(mockCommentBox);
     expect(texeraGraph.hasCommentBox(mockCommentBox.commentBoxID)).toBeTruthy();
     expect(jointGraph.getCell(mockCommentBox.commentBoxID)).toBeTruthy();
   });
 
   it("should throw an error when adding an existed operator", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
 
     expect(() => {
@@ -81,7 +76,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should throw an error when adding an operator with invalid operator type", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     const invalidOperator: OperatorPredicate = {
       ...mockScanPredicate,
       operatorType: "invalidOperatorTypeForTesting",
@@ -93,7 +87,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should delete an operator to both jointjs and texera graph correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
 
     service.deleteOperator(mockScanPredicate.operatorID);
@@ -103,14 +96,12 @@ describe("WorkflowActionService", () => {
   });
 
   it("should throw an error when trying to delete an non-existing operator", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     expect(() => {
       service.deleteOperator(mockScanPredicate.operatorID);
     }).toThrowError(new RegExp("does not exist|doesn't exist"));
   });
 
   it("should add a link to both jointjs and texera graph correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockResultPredicate, mockPoint);
 
@@ -122,7 +113,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should throw appropriate errors when adding various types of incorrect links", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockResultPredicate, mockPoint);
     service.addLink(mockScanResultLink);
@@ -168,7 +158,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should delete a link by link ID from both jointjs and texera graph correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockResultPredicate, mockPoint);
     service.addLink(mockScanResultLink);
@@ -182,7 +171,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should delete a link by source and target from both jointjs and texera graph correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockResultPredicate, mockPoint);
     service.addLink(mockScanResultLink);
@@ -196,7 +184,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should throw an error when trying to delete non-existing link", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockResultPredicate, mockPoint);
 
@@ -210,7 +197,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should set operator property to texera graph correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
 
     const newProperty = { table: "test-table" };
@@ -224,7 +210,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should throw an error when trying to set operator property of an nonexist operator", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     expect(() => {
       const newProperty = { table: "test-table" };
       service.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
@@ -232,7 +217,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should handle delete an operator causing connected links to be deleted correctly", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     // add operator scan, sentiment, and result
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockSentimentPredicate, mockPoint);
@@ -249,7 +233,6 @@ describe("WorkflowActionService", () => {
   });
 
   it("should reformat the workflow", () => {
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockSentimentPredicate, mockPoint);
     service.addOperator(mockResultPredicate, mockPoint);

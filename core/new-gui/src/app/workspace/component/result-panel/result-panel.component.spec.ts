@@ -14,7 +14,6 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { DynamicModule } from "ng-dynamic-component";
 import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
-import { SyncJointModelService } from "../../service/workflow-graph/model/sync-joint-model.service";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -23,7 +22,6 @@ describe("ResultPanelComponent", () => {
   let nzModalService: NzModalService;
   let workflowActionService: WorkflowActionService;
   let resultPanelToggleService: ResultPanelToggleService;
-  let syncJointModelService: SyncJointModelService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -48,7 +46,6 @@ describe("ResultPanelComponent", () => {
     resultPanelToggleService = TestBed.inject(ResultPanelToggleService);
     nzModalService = TestBed.inject(NzModalService);
     workflowActionService = TestBed.inject(WorkflowActionService);
-    syncJointModelService = TestBed.get(SyncJointModelService);
     fixture.detectChanges();
   });
 

@@ -34,7 +34,6 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockScanPredicate);
     expect(workflowGraph.getOperator(mockScanPredicate.operatorID)).toBeTruthy();
     expect(workflowGraph.getAllOperators().length).toEqual(1);
-    console.log(workflowGraph.getAllOperators()[0].isDisabled, mockScanPredicate.isDisabled);
     expect(workflowGraph.getAllOperators()[0]).toEqual(mockScanPredicate);
   });
 

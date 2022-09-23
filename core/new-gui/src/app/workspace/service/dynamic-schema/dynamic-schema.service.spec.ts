@@ -18,7 +18,6 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { mockScanSourceSchema } from "../operator-metadata/mock-operator-metadata.data";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("DynamicSchemaService", () => {
   beforeEach(() => {
@@ -33,7 +32,6 @@ describe("DynamicSchemaService", () => {
         WorkflowUtilService,
         UndoRedoService,
         DynamicSchemaService,
-        SyncJointModelService,
       ],
     });
   });
@@ -56,7 +54,6 @@ describe("DynamicSchemaService", () => {
   it("should call all initial schema transformers when creating a new dynamic schema", () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     const testTransformers = {
       transformer1: (op: OperatorPredicate, schema: OperatorSchema) => schema,
@@ -80,7 +77,6 @@ describe("DynamicSchemaService", () => {
     marbles(m => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
       const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
       const newSchema: OperatorSchema = {
         ...mockScanSourceSchema,

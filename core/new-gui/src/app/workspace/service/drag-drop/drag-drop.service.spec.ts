@@ -19,7 +19,6 @@ import {
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { map } from "rxjs/operators";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
-import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("DragDropService", () => {
   let dragDropService: DragDropService;
@@ -27,7 +26,6 @@ describe("DragDropService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        SyncJointModelService,
         JointUIService,
         WorkflowActionService,
         UndoRedoService,
@@ -94,7 +92,6 @@ describe("DragDropService", () => {
       spyOn(dragDropService, "getOperatorDropStream").and.returnValue(m.hot(marbleString, marbleValues));
 
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-      const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
       dragDropService.handleOperatorDropEvent();
 
@@ -174,7 +171,6 @@ describe("DragDropService", () => {
 
   it("should not find any operator when the mouse coordinate is greater than the threshold defined", () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     workflowActionService.addOperator(mockScanPredicate, { x: 0, y: 0 });
 

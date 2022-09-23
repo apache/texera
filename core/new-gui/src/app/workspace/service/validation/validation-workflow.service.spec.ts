@@ -14,12 +14,10 @@ import { JointUIService } from "../joint-ui/joint-ui.service";
 import { marbles } from "rxjs-marbles";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { map } from "rxjs/operators";
-import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("ValidationWorkflowService", () => {
   let validationWorkflowService: ValidationWorkflowService;
   let workflowActionservice: WorkflowActionService;
-  let syncJointModelService: SyncJointModelService;
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -37,7 +35,6 @@ describe("ValidationWorkflowService", () => {
 
     validationWorkflowService = TestBed.get(ValidationWorkflowService);
     workflowActionservice = TestBed.get(WorkflowActionService);
-    syncJointModelService = TestBed.get(SyncJointModelService);
   });
 
   it("should be created", inject([ValidationWorkflowService], (service: ValidationWorkflowService) => {

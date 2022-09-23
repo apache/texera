@@ -7,12 +7,10 @@ import { TestBed, inject } from "@angular/core/testing";
 
 import { UndoRedoService } from "./undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { SyncJointModelService } from "../workflow-graph/model/sync-joint-model.service";
 
 describe("UndoRedoService", () => {
   let service: UndoRedoService;
   let workflowActionService: WorkflowActionService;
-  let syncJointModelService: SyncJointModelService;
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -28,7 +26,6 @@ describe("UndoRedoService", () => {
     });
     service = TestBed.get(UndoRedoService);
     workflowActionService = TestBed.get(WorkflowActionService);
-    syncJointModelService = TestBed.get(SyncJointModelService);
   });
 
   it("should be created", inject([UndoRedoService], (injectedService: UndoRedoService) => {

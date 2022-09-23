@@ -27,6 +27,7 @@ import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
+import { SyncJointModelService } from "./sync-joint-model.service";
 
 /**
  *
@@ -64,6 +65,7 @@ export class WorkflowActionService {
   private readonly syncTexeraModel: SyncTexeraModel;
   private readonly syncOperatorGroup: SyncOperatorGroup;
   private readonly operatorGroup: OperatorGroup;
+  private readonly syncJointModelService: SyncJointModelService;
   // variable to temporarily hold the current workflow to switch view to a particular version
   private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
@@ -89,6 +91,12 @@ export class WorkflowActionService {
       this.jointUIService
     );
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
+    this.syncJointModelService = new SyncJointModelService(
+      this.texeraGraph,
+      this.jointGraph,
+      this.jointGraphWrapper,
+      this.jointUIService
+    );
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);

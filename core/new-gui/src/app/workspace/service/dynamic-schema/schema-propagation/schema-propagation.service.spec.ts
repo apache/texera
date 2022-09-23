@@ -33,7 +33,6 @@ import {
   SCHEMA_PROPAGATION_ENDPOINT,
   SchemaPropagationService,
 } from "./schema-propagation.service";
-import { SyncJointModelService } from "../../workflow-graph/model/sync-joint-model.service";
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 describe("SchemaPropagationService", () => {
@@ -69,7 +68,6 @@ describe("SchemaPropagationService", () => {
   it("should invoke schema propagation API on link changes, property changes, and disable status changes", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
 
@@ -113,7 +111,6 @@ describe("SchemaPropagationService", () => {
   it("should invoke schema propagation API when a operator property is changed", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, {
@@ -131,7 +128,6 @@ describe("SchemaPropagationService", () => {
   it("should handle error responses from server gracefully", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, {
@@ -163,7 +159,6 @@ describe("SchemaPropagationService", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     const mockOperator = {
       ...mockSentimentPredicate,
@@ -209,7 +204,6 @@ describe("SchemaPropagationService", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     const mockOperator = {
       ...mockSentimentPredicate,
@@ -286,7 +280,6 @@ describe("SchemaPropagationService", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     const mockKeywordSearchOperator: OperatorPredicate = {
       operatorID: mockSchemaPropagationOperatorID,
@@ -341,7 +334,6 @@ describe("SchemaPropagationService", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const syncJointModelService: SyncJointModelService = TestBed.get(SyncJointModelService);
 
     // to match the operator ID of mockSchemaPropagationResponse
     const mockAggregationPredicate: OperatorPredicate = {

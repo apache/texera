@@ -45,6 +45,55 @@ export class CoeditorPresenceService {
     this.texeraGraph = workflowActionService.getTexeraGraph();
     this.jointGraph = workflowActionService.getJointGraph();
     this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    this.observeUserState();
+    this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
+      this.observeUserState();
+    });
+  }
+
+  /**
+   * Listens to changes of co-editors' presence infos and lets <code>{@link CoeditorPresenceService}</code> handle them.
+   */
+  private observeUserState(): void {
+    // first time logic
+    const currentStates = Array.from(
+      this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>
+    ).filter(
+      userState =>
+        userState.user && userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId
+    );
+    for (const state of currentStates) {
+      this.addCoeditor(state);
+    }
+
+    this.texeraGraph.sharedModel.awareness.on(
+      "change",
+      (change: { added: number[]; updated: number[]; removed: number[] }) => {
+        Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>).filter(
+          userState => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId
+        );
+        for (const clientId of change.added) {
+          const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
+          if (coeditorState.user.clientId !== this.texeraGraph.sharedModel.clientId) this.addCoeditor(coeditorState);
+        }
+
+        for (const clientId of change.removed) {
+          if (!this.texeraGraph.sharedModel.awareness.getStates().has(clientId))
+            this.removeCoeditor(clientId.toString());
+        }
+
+        for (const clientId of change.updated) {
+          const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
+          if (clientId.toString() !== this.texeraGraph.sharedModel.clientId) {
+            if (!this.hasCoeditor(clientId.toString())) {
+              this.addCoeditor(coeditorState);
+            } else {
+              this.updateCoeditorState(clientId.toString(), coeditorState);
+            }
+          }
+        }
+      }
+    );
   }
 
   /**

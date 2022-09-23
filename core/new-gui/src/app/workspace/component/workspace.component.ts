@@ -22,7 +22,6 @@ import { OperatorCacheStatusService } from "../service/workflow-status/operator-
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
-import { SyncJointModelService } from "../service/workflow-graph/model/sync-joint-model.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -59,8 +58,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
-    private userProjectService: UserProjectService,
-    private syncJointModelService: SyncJointModelService
+    private userProjectService: UserProjectService
   ) {}
 
   ngOnInit() {
