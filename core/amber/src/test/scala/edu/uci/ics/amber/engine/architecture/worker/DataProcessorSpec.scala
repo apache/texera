@@ -3,12 +3,8 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.ActorContext
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.logging.LogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  BatchToTupleConverter,
-  NetworkInputPort,
-  NetworkOutputPort,
-  TupleToBatchConverter
-}
+import edu.uci.ics.amber.engine.architecture.logging.storage.{DeterminantLogStorage, EmptyLogStorage}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, NetworkInputPort, NetworkOutputPort, TupleToBatchConverter}
 import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -23,11 +19,7 @@ import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -128,6 +120,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = null
+    val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     inAnyOrder {
       (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
@@ -159,6 +152,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    val logStorage = new EmptyLogStorage()
     val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
@@ -204,6 +198,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    val logStorage = new EmptyLogStorage()
     val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
@@ -230,6 +225,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val logManager = mock[LogManager]
+    val logStorage = new EmptyLogStorage()
     val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
@@ -259,6 +255,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val ctx: ActorContext = null
     val batchToTupleConverter = mock[BatchToTupleConverter]
     val logManager = mock[LogManager]
+    val logStorage = new EmptyLogStorage()
     val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
@@ -316,6 +313,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     Constants.flowControlEnabled = true
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val logManager = mock[LogManager]
+    val logStorage = new EmptyLogStorage()
     val recoveryManager = mock[RecoveryManager]
     (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val operator = new IOperatorExecutor {

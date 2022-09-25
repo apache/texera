@@ -22,42 +22,26 @@ case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirt
     extends InMemDeterminant
 case class TimeStamp(value: Long) extends InMemDeterminant
 
-class LogManager(
-    networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
-    logWriter: DeterminantLogWriter
-) {
-
-  private val enabledLogging = logWriter == null
-
-  private val determinantLogger = if (enabledLogging) {
-    new DeterminantLogger()
-  } else {
-    null
-  }
-
-  private val writer = if (enabledLogging) {
-    val res = new AsyncLogWriter(networkCommunicationActor, logWriter)
-    res.start()
-    res
-  } else {
-    null
-  }
-
-  def getDeterminantLogger: DeterminantLogger = determinantLogger
-
-  def sendDirectlyOrCommitted(sendRequest: SendRequest): Unit = {
-    if (!enabledLogging) {
-      networkCommunicationActor ! sendRequest
-    } else {
-      writer.putDeterminants(determinantLogger.drainCurrentLogRecords())
-      writer.putOutput(sendRequest)
+object LogManager{
+  def getLogManager(networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef): LogManager ={
+    val enabledLogging: Boolean =
+      AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
+    if(enabledLogging){
+      new LogManagerImpl(networkCommunicationActor)
+    }else{
+      new EmptyLogManagerImpl()
     }
   }
+}
 
-  def terminate(): Unit = {
-    if (enabledLogging) {
-      writer.terminate()
-    }
-  }
+
+abstract class LogManager {
+  def setupWriter(logWriter:DeterminantLogWriter): Unit
+
+  def getDeterminantLogger: DeterminantLogger
+
+  def sendDirectlyOrCommitted(sendRequest: SendRequest): Unit
+
+  def terminate(): Unit
 
 }

@@ -2,8 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logging.storage
 
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
   DeterminantLogReader,
-  DeterminantLogWriter,
-  EmptyLogReader
+  DeterminantLogWriter
 }
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}

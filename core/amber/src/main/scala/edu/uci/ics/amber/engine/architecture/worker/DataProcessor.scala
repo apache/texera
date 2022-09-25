@@ -183,9 +183,7 @@ class DataProcessor( // dependencies:
     internalQueueElement match {
       case InputTuple(from, tuple) =>
         if (currentInputActor != from) {
-          if (isDeterminantLoggingAllowed) {
-            determinantLogger.logDeterminant(SenderActorChange(from))
-          }
+          determinantLogger.logDeterminant(SenderActorChange(from))
           currentInputActor = from
         }
         currentInputTuple = Left(tuple)
@@ -193,18 +191,14 @@ class DataProcessor( // dependencies:
       case SenderChangeMarker(link) =>
         currentInputLink = link
       case EndMarker =>
-        if (isDeterminantLoggingAllowed) {
-          determinantLogger.logDeterminant(ProcessEnd)
-        }
+        determinantLogger.logDeterminant(ProcessEnd)
         currentInputTuple = Right(InputExhausted())
         handleInputTuple()
         if (currentInputLink != null) {
           asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
         }
       case EndOfAllMarker =>
-        if (isDeterminantLoggingAllowed) {
-          determinantLogger.logDeterminant(ProcessEndOfAll)
-        }
+        determinantLogger.logDeterminant(ProcessEndOfAll)
         // end of processing, break DP loop
         isCompleted = true
         batchProducer.emitEndOfUpstream()
@@ -222,7 +216,7 @@ class DataProcessor( // dependencies:
     // main DP loop
     while (!isCompleted) {
       // take the next data element from internal queue, blocks if not available.
-      internalQueueElementHandler(getElement, determinantLogger)
+      internalQueueElementHandler(getElement)
     }
     // Send Completed signal to worker actor.
     logger.info(s"$operator completed")
@@ -318,9 +312,7 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
-    if (isDeterminantLoggingAllowed) {
-      determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
-    }
+    determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)

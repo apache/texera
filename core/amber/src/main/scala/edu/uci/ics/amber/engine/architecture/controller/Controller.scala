@@ -11,17 +11,11 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, ProcessControlMessage}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkMessage,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, InMemDeterminant, ProcessControlMessage}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.scheduling.{
-  WorkflowPipelinedRegionsBuilder,
-  WorkflowScheduler
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.{WorkflowPipelinedRegionsBuilder, WorkflowScheduler}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
@@ -155,7 +149,35 @@ class Controller(
     }
   }
 
-  override def receive: Receive = running
+  def recovering:Receive = {
+    case d:InMemDeterminant =>
+      d match {
+      case ProcessControlMessage(controlPayload, from) =>
+        handleControlPayloadWithTryCatch(from, controlPayload)
+        if(recoveryManager.replayCompleted()){
+          logManager.terminate()
+          logStorage.swapTempLog()
+          logManager.setupWriter(logStorage.getWriter(false))
+          context.become(running)
+          unstashAll()
+        }else{
+          self ! recoveryManager.getDeterminant()
+        }
+      case otherDeterminant =>
+          throw new RuntimeException("Controller cannot handle "+otherDeterminant+" during recovery!")
+    }
+    case other =>
+      stash()
+  }
+
+  override def receive: Receive = {
+    if(!recoveryManager.replayCompleted()){
+      self ! recoveryManager.getDeterminant()
+      recovering
+    }else{
+      running
+    }
+  }
 
   override def postStop(): Unit = {
     if (statusUpdateAskHandle != null) {

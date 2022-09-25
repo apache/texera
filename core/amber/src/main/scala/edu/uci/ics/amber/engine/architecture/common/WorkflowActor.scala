@@ -43,18 +43,10 @@ abstract class WorkflowActor(
     // create a network communication actor on the same machine as the WorkflowActor itself
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, actorId))
   )
-  val enabledLogging: Boolean =
-    AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
-  private val logStorage: DeterminantLogStorage = if (enabledLogging) {
-    new LocalFSLogStorage(getLogName)
-  } else {
-    new EmptyLogStorage()
-  }
+  val logStorage: DeterminantLogStorage = DeterminantLogStorage.getLogStorage(getLogName)
   val recoveryManager = new RecoveryManager(logStorage.getReader)
-  lazy val logManager: LogManager = new LogManager(
-    networkCommunicationActor,
-    logStorage.getWriter(!recoveryManager.replayCompleted())
-  )
+  lazy val logManager: LogManager = LogManager.getLogManager(networkCommunicationActor)
+  logManager.setupWriter(logStorage.getWriter(!recoveryManager.replayCompleted()))
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer

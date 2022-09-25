@@ -57,14 +57,7 @@ trait WorkerInternalQueue {
   // logging related variables:
   def logManager: LogManager // require dp thread to have log manager
   def recoveryManager: RecoveryManager // require dp thread to have recovery manager
-  protected val determinantLogger: DeterminantLogger =
-    if (logManager != null) {
-      logManager.getDeterminantLogger
-    } else {
-      null
-    }
-
-  def isDeterminantLoggingAllowed: Boolean = determinantLogger != null
+  protected val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   // the values in below maps are in tuples (not batches)
   private var inputTuplesPutInQueue =
@@ -149,9 +142,7 @@ trait WorkerInternalQueue {
   }
 
   def isControlQueueEmpty: Boolean = {
-    if (isDeterminantLoggingAllowed) {
-      determinantLogger.stepIncrement()
-    }
+    determinantLogger.stepIncrement()
     if (recoveryManager.replayCompleted()) {
       controlQueue.isEmpty
     } else {

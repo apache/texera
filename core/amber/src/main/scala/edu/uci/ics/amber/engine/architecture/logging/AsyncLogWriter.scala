@@ -20,7 +20,7 @@ class AsyncLogWriter(
     Queues.newLinkedBlockingQueue[Either[InMemDeterminant, SendRequest]]()
   @volatile private var stopped = false
   private val logInterval = 500
-  private var gracefullyStopped = new CompletableFuture[Unit]()
+  private val gracefullyStopped = new CompletableFuture[Unit]()
 
   def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {
     determinants.foreach(x => writerQueue.put(Left(x)))

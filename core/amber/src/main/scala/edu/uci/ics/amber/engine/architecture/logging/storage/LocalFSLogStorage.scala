@@ -3,13 +3,12 @@ package edu.uci.ics.amber.engine.architecture.logging.storage
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
   DeterminantLogReader,
   DeterminantLogWriter,
-  EmptyLogReader
 }
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.nio.file.{CopyOption, Files, Path, Paths, StandardCopyOption}
 
-class LocalFSLogStorage(name: String, attempt: Int) extends DeterminantLogStorage {
+class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
   private val recoveryLogFolder: Path = Paths.get("").resolve("recovery-logs")
   if (!Files.exists(recoveryLogFolder)) {
@@ -17,7 +16,7 @@ class LocalFSLogStorage(name: String, attempt: Int) extends DeterminantLogStorag
   }
 
   private def getLogPath(isTempLog: Boolean): Path = {
-    recoveryLogFolder.resolve(name + "-" + attempt + ".logfile" + (if (isTempLog) { ".tmp" }
+    recoveryLogFolder.resolve(name + ".logfile" + (if (isTempLog) { ".tmp" }
                                                                    else { "" }))
   }
 
