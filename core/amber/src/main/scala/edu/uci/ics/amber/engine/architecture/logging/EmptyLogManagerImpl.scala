@@ -7,7 +7,9 @@ class EmptyLogManagerImpl extends LogManager {
 
   override def getDeterminantLogger: DeterminantLogger = new EmptyDeterminantLogger()
 
-  override def sendDirectlyOrCommitted(sendRequest: NetworkCommunicationActor.SendRequest): Unit = {}
+  override def sendDirectlyOrCommitted(
+      sendRequest: NetworkCommunicationActor.SendRequest
+  ): Unit = {}
 
   override def terminate(): Unit = {}
 }

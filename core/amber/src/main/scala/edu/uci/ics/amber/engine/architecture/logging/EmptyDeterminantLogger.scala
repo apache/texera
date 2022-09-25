@@ -5,5 +5,5 @@ class EmptyDeterminantLogger extends DeterminantLogger {
 
   override def logDeterminant(inMemDeterminant: InMemDeterminant): Unit = {}
 
-  override def drainCurrentLogRecords(): Array[InMemDeterminant] = {Array.empty}
+  override def drainCurrentLogRecords(): Array[InMemDeterminant] = { Array.empty }
 }

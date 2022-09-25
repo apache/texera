@@ -22,21 +22,22 @@ case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirt
     extends InMemDeterminant
 case class TimeStamp(value: Long) extends InMemDeterminant
 
-object LogManager{
-  def getLogManager(networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef): LogManager ={
+object LogManager {
+  def getLogManager(
+      networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
+  ): LogManager = {
     val enabledLogging: Boolean =
       AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
-    if(enabledLogging){
+    if (enabledLogging) {
       new LogManagerImpl(networkCommunicationActor)
-    }else{
+    } else {
       new EmptyLogManagerImpl()
     }
   }
 }
 
-
 abstract class LogManager {
-  def setupWriter(logWriter:DeterminantLogWriter): Unit
+  def setupWriter(logWriter: DeterminantLogWriter): Unit
 
   def getDeterminantLogger: DeterminantLogger
 

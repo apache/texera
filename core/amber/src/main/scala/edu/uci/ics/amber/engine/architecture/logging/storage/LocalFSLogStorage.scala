@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logging.storage
 
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
   DeterminantLogReader,
-  DeterminantLogWriter,
+  DeterminantLogWriter
 }
 
 import java.io.{DataInputStream, DataOutputStream}
@@ -17,7 +17,7 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
   private def getLogPath(isTempLog: Boolean): Path = {
     recoveryLogFolder.resolve(name + ".logfile" + (if (isTempLog) { ".tmp" }
-                                                                   else { "" }))
+                                                   else { "" }))
   }
 
   override def getWriter(isTempLog: Boolean): DeterminantLogWriter = {

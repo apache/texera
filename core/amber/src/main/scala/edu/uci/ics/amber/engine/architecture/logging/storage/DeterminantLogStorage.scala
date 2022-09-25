@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.logging.storage
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.twitter.chill.ScalaKryoInstantiator
 import edu.uci.ics.amber.engine.architecture.logging.InMemDeterminant
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{DeterminantLogReader, DeterminantLogWriter}
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
+  DeterminantLogReader,
+  DeterminantLogWriter
+}
 import edu.uci.ics.amber.engine.common.AmberUtils
 
 import java.io.{DataInputStream, DataOutputStream}
@@ -39,21 +42,21 @@ object DeterminantLogStorage {
     }
   }
 
-  def getLogStorage(name:String): DeterminantLogStorage ={
+  def getLogStorage(name: String): DeterminantLogStorage = {
     val enabledLogging: Boolean =
       AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
     val storageType: String =
       AmberUtils.amberConfig.getString("fault-tolerance.log-storage-type")
-    if(enabledLogging){
-      storageType match{
+    if (enabledLogging) {
+      storageType match {
         case "local" => new LocalFSLogStorage(name)
         case "hdfs" =>
           val hdfsIP: String =
             AmberUtils.amberConfig.getString("fault-tolerance.hdfs-storage.address")
           new HDFSLogStorage(name, hdfsIP)
-        case other => throw new RuntimeException("Cannot support log storage type of "+other)
+        case other => throw new RuntimeException("Cannot support log storage type of " + other)
       }
-    }else{
+    } else {
       new EmptyLogStorage()
     }
   }

@@ -89,7 +89,7 @@ class RecoveryManager(logReader: DeterminantLogReader) {
     step == 0
   }
 
-  def getDeterminant():InMemDeterminant = {
+  def getDeterminant(): InMemDeterminant = {
     val determinant = records.peek()
     records.readNext()
     determinant

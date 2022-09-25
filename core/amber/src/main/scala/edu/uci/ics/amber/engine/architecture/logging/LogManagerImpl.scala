@@ -5,14 +5,14 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
 
 class LogManagerImpl(
-                  networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
-                )extends LogManager {
+    networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
+) extends LogManager {
 
   private val determinantLogger = new DeterminantLoggerImpl()
 
-  private var writer:AsyncLogWriter = _
+  private var writer: AsyncLogWriter = _
 
-  def setupWriter(logWriter:DeterminantLogWriter): Unit ={
+  def setupWriter(logWriter: DeterminantLogWriter): Unit = {
     writer = new AsyncLogWriter(networkCommunicationActor, logWriter)
     writer.start()
   }
