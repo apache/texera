@@ -32,6 +32,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { mockOperatorMetaData } from "src/app/workspace/service/operator-metadata/mock-operator-metadata.data";
 import { AppSettings } from "src/app/common/app-setting";
+import { By } from "@angular/platform-browser";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
@@ -556,5 +557,23 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.downloadListWorkflow.get(index1)).toEqual("workflow.json");
     expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
     expect(component.downloadListWorkflow.get(index)).toEqual("workflow-2.json");
+  });
+
+  it("editing a workflow name triggers a POST request on the backend", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    let testWorkflowEntry = component.dashboardWorkflowEntries[0];
+    component.confirmUpdateWorkflowCustomName(testWorkflowEntry, "Edited Workflow Name", 0);
+    httpTestingController.expectOne(request => request.method === "POST");
+  });
+
+  it("adding a workflow description adds a description to the workflow", () => {
+    let addWorkflowDescriptionBtn = fixture.debugElement.query(By.css(".add-description-btn"));
+    expect(addWorkflowDescriptionBtn).toBeFalsy();
+
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
+    expect(addWorkflowDescriptionBtn1).toBeTruthy();
   });
 });
