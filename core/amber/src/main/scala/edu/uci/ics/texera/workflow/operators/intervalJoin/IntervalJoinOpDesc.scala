@@ -19,6 +19,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.getBuildTableLinkId
 
 /** This Operator have two assumptions:
@@ -61,22 +62,9 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   var timeIntervalType: Option[TimeIntervalType] = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-
     val partitionRequirement = List(
-      Option(
-        HashBasedShufflePartitioning(
-          defaultBatchSize,
-          List(),
-          List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName))
-        )
-      ),
-      Option(
-        HashBasedShufflePartitioning(
-          defaultBatchSize,
-          List(),
-          List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))
-        )
-      )
+      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName)))),
+      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))))
     )
 
     WorkerLayer

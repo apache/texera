@@ -1,7 +1,10 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.{WorkerLayer, oneToOneLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.{
+  WorkerLayer,
+  oneToOneLayer
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor

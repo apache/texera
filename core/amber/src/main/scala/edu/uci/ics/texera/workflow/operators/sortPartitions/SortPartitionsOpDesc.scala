@@ -15,6 +15,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.RangePartition
 
 class SortPartitionsOpDesc extends OperatorDescriptor {
 
@@ -37,9 +38,7 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val partitionRequirement = List(
       Option(
-        RangeBasedShufflePartitioning(
-          defaultBatchSize,
-          List(),
+        RangePartition(
           List(operatorSchemaInfo.inputSchemas(0).getIndex(sortAttributeName)),
           domainMin,
           domainMax

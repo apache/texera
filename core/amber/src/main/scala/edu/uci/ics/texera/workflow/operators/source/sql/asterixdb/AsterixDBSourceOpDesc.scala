@@ -98,7 +98,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def getKeywords: Option[String] = super.getKeywords
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    WorkerLayer.sqlSourceLayer(
+    WorkerLayer.manyToOneLayer(
       this.operatorIdentifier,
       _ =>
         new AsterixDBSourceOpExec(

@@ -3,7 +3,11 @@ package edu.uci.ics.texera.workflow.common.workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -74,7 +78,12 @@ case class PhysicalPlan(
   }
 
   // returns a new physical plan with the edges added
-  def addEdge(from: LayerIdentity, to: LayerIdentity, fromPort: Int = 0, toPort: Int = 0): PhysicalPlan = {
+  def addEdge(
+      from: LayerIdentity,
+      to: LayerIdentity,
+      fromPort: Int = 0,
+      toPort: Int = 0
+  ): PhysicalPlan = {
 
     val newOperators = operators +
       (from -> operators(from).addOutput(to, toPort)) +

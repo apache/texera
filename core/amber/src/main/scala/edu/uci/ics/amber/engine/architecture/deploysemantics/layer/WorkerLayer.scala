@@ -1,11 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
-import akka.actor.{ActorContext, ActorRef, Address, Deploy}
+import akka.actor.{ActorContext, ActorRef, Deploy}
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{DeploymentFilter, ForceLocal, UseAll}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{DeployStrategy, OneOnEach, RoundRobinDeployment}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
@@ -17,6 +16,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, La
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.workflow
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, RangePartition, RoundRobin, Singleton}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -40,9 +41,7 @@ object WorkerLayer {
   ): WorkerLayer = {
     WorkerLayerImpl(
       layerId,
-      initIOperatorExecutor = opExec,
-      deploymentFilter = UseAll(),
-      deployStrategy = RoundRobinDeployment()
+      initIOperatorExecutor = opExec
     )
   }
 
@@ -58,22 +57,8 @@ object WorkerLayer {
     WorkerLayerImpl(
       layerId,
       initIOperatorExecutor = opExec,
-      numWorkers = 1,
-      deploymentFilter = UseAll(),
-      deployStrategy = RoundRobinDeployment()
-    )
-  }
-
-  def sqlSourceLayer(
-      opId: OperatorIdentity,
-      opExec: ((Int, WorkerLayer)) => IOperatorExecutor
-  ): WorkerLayer = {
-    WorkerLayerImpl(
-      id = makeLayer(opId, "main"),
-      initIOperatorExecutor = opExec,
-      numWorkers = 1,
-      deploymentFilter = UseAll(),
-      deployStrategy = OneOnEach()
+      partitionRequirement = List(Option(Singleton())),
+      derivePartition = _ => Singleton()
     )
   }
 
@@ -86,13 +71,7 @@ object WorkerLayer {
       layerId: LayerIdentity,
       opExec: ((Int, WorkerLayer)) => IOperatorExecutor
   ): WorkerLayer = {
-    WorkerLayerImpl(
-      id = layerId,
-      initIOperatorExecutor = opExec,
-      numWorkers = 1,
-      deploymentFilter = ForceLocal(),
-      deployStrategy = RoundRobinDeployment()
-    )
+    manyToOneLayer(layerId, opExec).copy(locationPreference = Option(new PreferController()))
   }
 
   def hashLayer(
@@ -106,9 +85,12 @@ object WorkerLayer {
       opExec: ((Int, WorkerLayer)) => IOperatorExecutor,
       hashColumnIndices: Array[Int]
   ): WorkerLayer = {
-    val partitionRequirement =
-      HashBasedShufflePartitioning(Constants.defaultBatchSize, List(), hashColumnIndices)
-    oneToOneLayer(layerId, opExec).copy(partitionRequirement = List(Option(partitionRequirement)))
+    WorkerLayerImpl(
+      id = layerId,
+      initIOperatorExecutor = opExec,
+      partitionRequirement = List(Option(HashPartition(hashColumnIndices))),
+      derivePartition = _ => HashPartition(hashColumnIndices)
+    )
   }
 
 }
@@ -116,15 +98,23 @@ object WorkerLayer {
 case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag](
     id: LayerIdentity,
     initIOperatorExecutor: ((Int, WorkerLayerImpl[_ <: IOperatorExecutor])) => T,
+    // preference of parallelism (number of workers)
     numWorkers: Int = Constants.numWorkerPerNode,
+    // preference of worker placement
+    locationPreference: Option[LocationPreference] = None,
+    // requirement of partition policy (hash/range/singleton) on inputs
+    partitionRequirement: List[Option[PartitionInfo]] = List(),
+    // derive the output partition info given the input partitions
+    // the compiler ensure the partition requirements are satisfied
+    derivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => inputPartitions.head,
+    // input ports / output ports of the physical operator
     inputPorts: List[InputPort] = List(InputPort("")),
     outputPorts: List[OutputPort] = List(OutputPort("")),
-    deploymentFilter: DeploymentFilter = UseAll(),
-    deployStrategy: DeployStrategy = RoundRobinDeployment(),
-    partitionRequirement: List[Option[Partitioning]] = List(),
     inputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
     outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
+    // the ports that are blocking
     blockingInputs: List[Int] = List(),
+    // the execution dependency of ports
     dependency: Map[Int, Int] = Map()
 ) {
 
@@ -211,18 +201,13 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag](
     if (reqOpt.isEmpty) {
       return Array()
     }
-    if (reqOpt.get == Partitioning.Empty) {
-      return Array()
-    }
-    val req = reqOpt.get.asInstanceOf[Partitioning.NonEmpty]
 
-    val partitionColumnIndices = req match {
-      case OneToOnePartitioning(_, _) =>
-        throw new RuntimeException("partition requirement cannot be one-to-one")
-      case RoundRobinPartitioning(_, _) =>
-        throw new RuntimeException("partition requirement cannot be round-robin")
-      case HashBasedShufflePartitioning(_, _, hashColumnIndices)         => hashColumnIndices
-      case RangeBasedShufflePartitioning(_, _, rangeColumnIndices, _, _) => rangeColumnIndices
+    val partitionColumnIndices = reqOpt.get match {
+      case HashPartition(hashColumnIndices) => hashColumnIndices
+      case RangePartition(rangeColumnIndices, _, _) => rangeColumnIndices
+      case Singleton() => List()
+      case RoundRobin() => List()
+      case workflow.Any() => List()
     }
 
     partitionColumnIndices.toArray
@@ -294,20 +279,20 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag](
   def getRangeShuffleMinAndMax: (Long, Long) = (Long.MinValue, Long.MaxValue)
 
   def build(
-      prev: Array[WorkerLayer],
-      all: Array[Address],
+      addressInfo: AddressInfo,
       parentNetworkCommunicationActorRef: ActorRef,
       context: ActorContext,
-      allUpstreamLinkIds: Set[LinkIdentity],
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
       workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
   ): Unit = {
-    deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
-    workers = ListMap((0 until numWorkers).map { i =>
+    (0 until numWorkers).foreach(i => {
       val operatorExecutor: IOperatorExecutor = initIOperatorExecutor((i, this))
       val workerId: ActorVirtualIdentity =
         ActorVirtualIdentity(s"Worker:WF${id.workflow}-${id.operator}-${id.layerID}-$i")
-      val address: Address = deployStrategy.next()
+      val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
+      val address = locationPreference.getPreferredLocation(addressInfo, this, i)
+
+      val allUpstreamLinkIds = inputToOrdinalMapping.keySet
       workerToOperatorExec(workerId) = operatorExecutor
       val ref: ActorRef = context.actorOf(
         if (operatorExecutor.isInstanceOf[PythonUDFOpExecV2]) {
@@ -337,6 +322,6 @@ case class WorkerLayerImpl[T <: IOperatorExecutor: ClassTag](
         UNINITIALIZED,
         WorkerStatistics(UNINITIALIZED, 0, 0)
       )
-    }: _*)
+    })
   }
 }

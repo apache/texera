@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.AddressInfo
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
@@ -116,7 +117,7 @@ class WorkflowScheduler(
             .map(upStreamOp => (upStreamOp, workflow.getOperator(upStreamOp)))
             .toArray // Last layer of upstream operators in the same region.
         if (!builtOperators.contains(op)) {
-          buildOperator(prev, op)
+          buildOperator(op)
           builtOperators.add(op)
         }
         builtOpsInRegion.add(op)
@@ -134,16 +135,13 @@ class WorkflowScheduler(
   }
 
   private def buildOperator(
-      prev: Array[(LayerIdentity, WorkerLayer)], // used to decide deployment of workers
       operatorIdentity: LayerIdentity
   ): Unit = {
     val workerLayer = workflow.getOperator(operatorIdentity)
     workerLayer.build(
-      prev.map(pair => pair._2),
-      availableNodes,
+      AddressInfo(availableNodes, ctx.self.path.address),
       networkCommunicationActor.ref,
       ctx,
-      workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
       workflow.workerToLayer,
       workflow.workerToOperatorExec
     )

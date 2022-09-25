@@ -17,7 +17,7 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    WorkerLayer.sqlSourceLayer(
+    WorkerLayer.manyToOneLayer(
       operatorIdentifier,
       _ =>
         new PostgreSQLSourceOpExec(

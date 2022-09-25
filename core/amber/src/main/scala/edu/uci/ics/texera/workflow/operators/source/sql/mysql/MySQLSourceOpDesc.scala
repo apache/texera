@@ -17,7 +17,7 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    WorkerLayer.sqlSourceLayer(
+    WorkerLayer.manyToOneLayer(
       this.operatorIdentifier,
       _ =>
         new MySQLSourceOpExec(

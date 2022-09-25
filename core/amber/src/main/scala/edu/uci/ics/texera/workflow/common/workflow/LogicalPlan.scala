@@ -60,14 +60,16 @@ class LogicalPlan(
     propagateWorkflowSchema()
 
   lazy val outputSchemaMap: Map[String, List[Schema]] =
-    operators.values.map(o => {
-      val inputSchemas: Array[Schema] =
-        if (!o.isInstanceOf[SourceOperatorDescriptor])
-          inputSchemaMap(o).map(s => s.get).toArray
-        else Array()
-      val outputSchemas = o.getOutputSchemas(inputSchemas).toList
-      (o.operatorID, outputSchemas)
-    }).toMap
+    operators.values
+      .map(o => {
+        val inputSchemas: Array[Schema] =
+          if (!o.isInstanceOf[SourceOperatorDescriptor])
+            inputSchemaMap(o).map(s => s.get).toArray
+          else Array()
+        val outputSchemas = o.getOutputSchemas(inputSchemas).toList
+        (o.operatorID, outputSchemas)
+      })
+      .toMap
 
   def getOperator(operatorID: String): OperatorDescriptor = operators(operatorID)
 
@@ -162,11 +164,14 @@ class LogicalPlan(
 
     // assign storage to texera-managed sinks before generating exec config
     operatorList.foreach {
-      case o@(sink: ProgressiveSinkOpDesc) =>
+      case o @ (sink: ProgressiveSinkOpDesc) =>
         sink.getCachedUpstreamId match {
           case Some(upstreamId) =>
             sink.setStorage(opResultStorage.create(upstreamId, outputSchemaMap(o.operatorID).head))
-          case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchemaMap(o.operatorID).head))
+          case None =>
+            sink.setStorage(
+              opResultStorage.create(o.operatorID, outputSchemaMap(o.operatorID).head)
+            )
         }
       case _ =>
     }

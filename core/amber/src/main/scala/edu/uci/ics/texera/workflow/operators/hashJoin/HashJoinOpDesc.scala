@@ -20,6 +20,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.getBuildTableLinkId
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -52,20 +53,8 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val partitionRequirement = List(
-      Option(
-        HashBasedShufflePartitioning(
-          defaultBatchSize,
-          List(),
-          List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))
-        )
-      ),
-      Option(
-        HashBasedShufflePartitioning(
-          defaultBatchSize,
-          List(),
-          List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))
-        )
-      )
+      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)))),
+      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))))
     )
 
     WorkerLayer
@@ -87,7 +76,6 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
         blockingInputs = List(0),
         dependency = Map(1 -> 0)
       )
-
   }
 
   override def operatorInfo: OperatorInfo =

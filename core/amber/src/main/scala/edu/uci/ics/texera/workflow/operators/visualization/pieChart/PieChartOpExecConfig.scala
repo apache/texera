@@ -5,7 +5,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer.W
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentityUtil.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, DistributedAggregation}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{
+  AggregateOpDesc,
+  DistributedAggregation
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
