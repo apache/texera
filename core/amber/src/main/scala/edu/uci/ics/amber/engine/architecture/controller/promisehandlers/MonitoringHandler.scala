@@ -3,8 +3,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.{
-  ControllerInitiateMonitoring,
-  previousCallFinished
+  ControllerInitiateMonitoring
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.Constants
@@ -15,8 +14,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object MonitoringHandler {
-  var previousCallFinished = true
-
   final case class ControllerInitiateMonitoring(
       filterByWorkers: List[ActorVirtualIdentity] = List()
   ) extends ControlCommand[Unit]
@@ -72,6 +69,7 @@ trait MonitoringHandler {
       val requests = workers.map(worker =>
         send(QuerySelfWorkloadMetrics(), worker).map({
           case (metrics, samples) => {
+            logger.info("Receive samples = "+samples)
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
               metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =

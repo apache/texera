@@ -4,24 +4,17 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
-import edu.uci.ics.amber.engine.architecture.logging.{
-  DeterminantLogger,
-  LogManager,
-  ProcessControlMessage,
-  ProcessEnd,
-  ProcessEndOfAll,
-  SenderActorChange
-}
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LinkChange, LogManager, ProcessControlMessage, ProcessEnd, ProcessEndOfAll, SenderActorChange}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED, READY, RUNNING, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
@@ -55,11 +48,14 @@ class DataProcessor( // dependencies:
     def run(): Unit = {
       try {
         // TODO: setup context
+        stateManager.assertState(UNINITIALIZED)
         // operator.context = new OperatorContext(new TimeService(logManager))
+        stateManager.transitTo(READY)
         if (!recoveryManager.replayCompleted()) {
           runDPThreadRecovery()
           logManager.terminate()
           logStorage.swapTempLog()
+          logger.info("Recovery Completed!")
         }
         runDPThreadMainLogic()
       } catch safely {
@@ -172,7 +168,11 @@ class DataProcessor( // dependencies:
 
   private[this] def runDPThreadRecovery(): Unit = {
     while (!recoveryManager.replayCompleted()) {
-      internalQueueElementHandler(recoveryManager.get())
+      recoveryManager.stepDecrement()
+      determinantLogger.stepIncrement()
+      val elem = recoveryManager.get()
+      logger.info("Recovery: replaying "+elem)
+      internalQueueElementHandler(elem)
     }
     restoreInputs()
   }
@@ -182,6 +182,13 @@ class DataProcessor( // dependencies:
   ): Unit = {
     internalQueueElement match {
       case InputTuple(from, tuple) =>
+        if (stateManager.getCurrentState == READY) {
+          stateManager.transitTo(RUNNING)
+          asyncRPCClient.send(
+            WorkerStateUpdated(stateManager.getCurrentState),
+            CONTROLLER
+          )
+        }
         if (currentInputActor != from) {
           determinantLogger.logDeterminant(SenderActorChange(from))
           currentInputActor = from
@@ -189,6 +196,7 @@ class DataProcessor( // dependencies:
         currentInputTuple = Left(tuple)
         handleInputTuple()
       case SenderChangeMarker(link) =>
+        determinantLogger.logDeterminant(LinkChange(link))
         currentInputLink = link
       case EndMarker =>
         determinantLogger.logDeterminant(ProcessEnd)

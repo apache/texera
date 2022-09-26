@@ -29,13 +29,13 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
   }
 
   override def getReader: DeterminantLogReader = {
-    val path = getLogPath(true)
+    val path = getLogPath(false)
     if (Files.exists(path)) {
       new DeterminantLogReader {
         override protected val inputStream = new DataInputStream(Files.newInputStream(path))
       }
     } else {
-      null
+      new EmptyLogStorage().getReader
     }
   }
 
@@ -54,11 +54,13 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
   override def swapTempLog(): Unit = {
     val tempLogPath = getLogPath(true)
     val path = getLogPath(false)
-    Files.move(
-      tempLogPath,
-      path,
-      StandardCopyOption.REPLACE_EXISTING,
-      StandardCopyOption.ATOMIC_MOVE
-    )
+    if (Files.exists(tempLogPath)) {
+      Files.move(
+        tempLogPath,
+        path,
+        StandardCopyOption.REPLACE_EXISTING,
+        StandardCopyOption.ATOMIC_MOVE
+      )
+    }
   }
 }

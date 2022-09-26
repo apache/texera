@@ -41,6 +41,7 @@ class RecoveryManager(logReader: DeterminantLogReader) {
   private var cleaned = false
 
   def acceptInput(tuple: InputTuple): Unit = {
+    print("received "+tuple)
     inputMapping(tuple.from).put(tuple)
   }
 
@@ -82,10 +83,13 @@ class RecoveryManager(logReader: DeterminantLogReader) {
     res
   }
 
-  def checkInput(): Boolean = {
+  def stepDecrement(): Unit ={
     if (step > 0) {
       step -= 1
     }
+  }
+
+  def isReadyToEmitNextControl: Boolean = {
     step == 0
   }
 
@@ -95,30 +99,42 @@ class RecoveryManager(logReader: DeterminantLogReader) {
     determinant
   }
 
+  def readNextAndAssignStepDelta(): Unit ={
+    records.readNext()
+    records.peek() match{
+      case StepDelta(steps) =>
+        step = steps
+      case other => //skip
+    }
+  }
+
   def get(): InternalQueueElement = {
     records.peek() match {
       case ProcessEnd =>
-        records.readNext()
+        readNextAndAssignStepDelta()
         EndMarker
       case ProcessEndOfAll =>
-        records.readNext()
+        readNextAndAssignStepDelta()
         EndOfAllMarker
       case SenderActorChange(actorVirtualIdentity) =>
-        records.readNext()
+        readNextAndAssignStepDelta()
         targetVId = actorVirtualIdentity
         get()
       case LinkChange(linkIdentity) =>
-        records.readNext()
+        readNextAndAssignStepDelta()
         SenderChangeMarker(linkIdentity)
       case StepDelta(steps) =>
-        //wait until input[targetVId] available
-        val res = inputMapping(targetVId).take()
-        if (step == 0) {
-          step = steps
+        if(step == 0){
+          readNextAndAssignStepDelta()
+          get()
+        }else if(targetVId != null){
+          //wait until input[targetVId] available
+          inputMapping(targetVId).take()
+        }else{
+          throw new RuntimeException("cannot take from vid = null step = "+step)
         }
-        res
       case ProcessControlMessage(controlPayload, from) =>
-        records.readNext()
+        readNextAndAssignStepDelta()
         controlCounter(from) += 1
         ControlElement(controlPayload, from)
       case TimeStamp(value) => ???

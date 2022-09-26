@@ -35,7 +35,12 @@ object DeterminantLogStorage {
     lazy val input = new Input(inputStream)
     lazy val kryo = instantiator.newKryo()
     def readLogRecord(): InMemDeterminant = {
-      kryo.readClassAndObject(input).asInstanceOf[InMemDeterminant]
+      try{
+        kryo.readClassAndObject(input).asInstanceOf[InMemDeterminant]
+      }catch{
+        case e:Exception =>
+          null
+      }
     }
     def close(): Unit = {
       input.close()

@@ -153,7 +153,7 @@ class WorkflowService(
         )
       )
     }
-    new WorkflowContext(jobID, uidOpt, wId)
+    new WorkflowContext("1", uidOpt, wId)
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {

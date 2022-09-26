@@ -1,12 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
-  DeterminantLogReader,
-  DeterminantLogWriter
-}
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{DeterminantLogReader, DeterminantLogWriter}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
+import java.io.{DataInputStream, InputStream}
 import java.net.URI
 
 class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage {
@@ -45,7 +43,7 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
         override protected val inputStream = hdfs.open(path)
       }
     } else {
-      null
+      new EmptyLogStorage().getReader
     }
   }
 

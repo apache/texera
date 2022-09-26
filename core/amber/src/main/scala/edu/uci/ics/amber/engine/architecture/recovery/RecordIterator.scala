@@ -1,34 +1,46 @@
 package edu.uci.ics.amber.engine.architecture.recovery
 
-import edu.uci.ics.amber.engine.architecture.logging.InMemDeterminant
+import edu.uci.ics.amber.engine.architecture.logging.{InMemDeterminant, StepDelta}
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogReader
 
 class RecordIterator(logReader: DeterminantLogReader) {
 
-  private var stop = logReader == null
-  private var head: InMemDeterminant = _
+  private var stop = false
+  private var current: InMemDeterminant = _
+  private var temp: InMemDeterminant = _
 
   def peek(): InMemDeterminant = {
-    if (!stop && head == null) {
+    if (current == null) {
       readNext()
     }
-    head
+    current
   }
 
   def isEmpty: Boolean = {
-    if (!stop && head == null) {
+    if (current == null) {
       readNext()
     }
     stop
   }
 
   def readNext(): Unit = {
-    try {
-      head = logReader.readLogRecord()
-    } catch {
-      case exception: Exception =>
-        logReader.close()
-        stop = true
+    if(temp != null){
+      current = temp
+      temp = null
+    }else{
+      current = logReader.readLogRecord()
+    }
+    if(current != null){
+      println("reading: "+current)
+    }
+    if(current == null){
+      stop = true
+    }else if(current != null && current.isInstanceOf[StepDelta]){
+      temp = logReader.readLogRecord()
+      while(temp != null && temp.isInstanceOf[StepDelta]){
+        current = StepDelta(current.asInstanceOf[StepDelta].steps+temp.asInstanceOf[StepDelta].steps)
+        temp = logReader.readLogRecord()
+      }
     }
   }
 

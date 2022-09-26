@@ -84,7 +84,7 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   var statusUpdateAskHandle: Cancellable = _
 
-  override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
+  override def getLogName: String = "WF" + "-CONTROLLER"
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   def availableNodes: Array[Address] =
@@ -169,9 +169,11 @@ class Controller(
             logStorage.swapTempLog()
             logManager.setupWriter(logStorage.getWriter(false))
             context.become(running)
-            unstashAll()
+            //unstashAll()
           } else {
-            self ! recoveryManager.getDeterminant()
+            val inMemDeterminant = recoveryManager.getDeterminant()
+            logger.info("Recovery: replaying "+inMemDeterminant)
+            self ! inMemDeterminant
           }
         case otherDeterminant =>
           throw new RuntimeException(
@@ -179,12 +181,15 @@ class Controller(
           )
       }
     case other =>
-      stash()
+      logger.info("Ignore during recovery: "+other)
+      //stash()
   }
 
   override def receive: Receive = {
     if (!recoveryManager.replayCompleted()) {
-      self ! recoveryManager.getDeterminant()
+      val inMemDeterminant = recoveryManager.getDeterminant()
+      logger.info("Recovery: replaying "+inMemDeterminant)
+      self ! inMemDeterminant
       recovering
     } else {
       running

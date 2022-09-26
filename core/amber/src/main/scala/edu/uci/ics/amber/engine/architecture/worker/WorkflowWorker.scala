@@ -83,9 +83,6 @@ class WorkflowWorker(
     parentNetworkCommunicationActorRef ! RegisterActorRef(this.actorId, self)
   }
 
-  workerStateManager.assertState(UNINITIALIZED)
-  workerStateManager.transitTo(READY)
-
   override def getLogName: String = actorId.name.replace("Worker:", "")
 
   def getSenderCredits(sender: ActorVirtualIdentity) = {
@@ -131,13 +128,6 @@ class WorkflowWorker(
     }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-    if (workerStateManager.getCurrentState == READY) {
-      workerStateManager.transitTo(RUNNING)
-      asyncRPCClient.send(
-        WorkerStateUpdated(workerStateManager.getCurrentState),
-        CONTROLLER
-      )
-    }
     tupleProducer.processDataPayload(from, dataPayload)
   }
 
