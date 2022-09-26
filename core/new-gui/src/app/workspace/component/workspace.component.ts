@@ -161,7 +161,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
-          this.workflowActionService.destroySharedModel();
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           this.workflowActionService.enableWorkflowModification();
           // load the fetched workflow

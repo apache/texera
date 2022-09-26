@@ -80,6 +80,15 @@ export class SyncJointModelService {
         if (change.action === "delete") {
           // Disables JointGraph -> TexeraGraph sync temporarily
           this.texeraGraph.setSyncTexeraGraph(false);
+          // Unhighlight every operator and link to prevent sync error.
+          if (event.transaction.local) {
+            this.jointGraphWrapper.unhighlightElements({
+              operators: this.jointGraphWrapper.getCurrentHighlightedOperatorIDs(),
+              links: this.jointGraphWrapper.getCurrentHighlightedLinkIDs(),
+              groups: [],
+              commentBoxes: [],
+            });
+          }
           this.jointGraph.getCell(key).remove();
           // Emit the event streams here, after joint graph is synced.
           this.texeraGraph.setSyncTexeraGraph(true);
@@ -108,6 +117,7 @@ export class SyncJointModelService {
 
       if (event.transaction.local) {
         // Only highlight when this is added by current user.
+        this.jointGraphWrapper.setMultiSelectMode(newOpIDs.length > 1);
         this.jointGraphWrapper.highlightOperators(...newOpIDs);
       }
       this.texeraGraph.setSyncTexeraGraph(true);
@@ -140,7 +150,6 @@ export class SyncJointModelService {
       // Disables JointGraph -> TexeraGraph sync temporarily
       this.texeraGraph.setSyncTexeraGraph(false);
       for (let i = 0; i < keysToDelete.length; i++) {
-        console.log("Link deleted:", keysToDelete[i]);
         if (this.texeraGraph.getSyncJointGraph() && this.jointGraph.getCell(keysToDelete[i]))
           this.jointGraph.getCell(keysToDelete[i]).remove();
       }
@@ -155,7 +164,7 @@ export class SyncJointModelService {
       }
       this.texeraGraph.setSyncTexeraGraph(true);
 
-      // Emit event streams
+      // Emit event streams and highlight
       for (let i = 0; i < linksToAdd.length; i++) {
         const link = linksToAdd[i];
         this.texeraGraph.linkAddSubject.next(link);
@@ -163,9 +172,15 @@ export class SyncJointModelService {
 
       for (let i = 0; i < linksToDelete.length; i++) {
         const link = linksToDelete[i];
-        console.log("Link deleted (after):", link);
         this.texeraGraph.linkDeleteSubject.next({ deletedLink: link });
       }
+
+      // Uncomment this if you also want link to be highlighted when adding but this conflicts with test cases.
+      // if (event.transaction.local) {
+      //   this.jointGraphWrapper.setMultiSelectMode(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().length + linksToAdd.length > 1);
+      //   // Only highlight when this is added by current user.
+      //   this.jointGraphWrapper.highlightLinks(...linksToAdd.map(link => link.linkID));
+      // }
     });
   }
 
@@ -244,7 +259,6 @@ export class SyncJointModelService {
     this.texeraGraph.sharedModel.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.operatorIDMap) {
-          console.log(event.path);
           const operatorID = event.path[0] as string;
           if (event.path[event.path.length - 1] === "customDisplayName") {
             const newName = this.texeraGraph.sharedModel.operatorIDMap

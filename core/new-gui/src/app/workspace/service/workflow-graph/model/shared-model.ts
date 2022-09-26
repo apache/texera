@@ -49,7 +49,7 @@ export class SharedModel {
     this.undoManager = new Y.UndoManager(
       [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap, this.linkBreakpointMap],
       {
-        captureTimeout: 0,
+        captureTimeout: 100,
       }
     );
 
@@ -101,7 +101,9 @@ export class SharedModel {
    */
   public destroy(): void {
     this.awareness.destroy();
-    if (this.wsProvider.wsconnected) this.wsProvider.disconnect();
+    try {
+      if (this.wsProvider.shouldConnect && this.wsProvider.wsconnected) this.wsProvider.disconnect();
+    } catch (e) {}
     this.yDoc.destroy();
   }
 }

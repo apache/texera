@@ -101,7 +101,6 @@ export class WorkflowActionService {
     this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
-    this.handleHighlightedElementPositionChange();
     this.handleJointElementDrag();
   }
 
@@ -132,62 +131,6 @@ export class WorkflowActionService {
 
   public getWorkflowModificationEnabledStream(): Observable<boolean> {
     return this.enableModificationStream.asObservable();
-  }
-
-  /**
-   * Subscribes to element position change event stream,
-   *  checks if the element (operator) is moved by user and
-   *  if the moved element is currently highlighted,
-   *  if it is, moves other highlighted elements (operators) along with it,
-   *    links will automatically move with operators.
-   *
-   *  The subscription needs and only needs to be initiated once,
-   *    unlike observers in <code>{@link SyncJointModelService}</code>.
-   */
-  public handleHighlightedElementPositionChange(): void {
-    this.jointGraphWrapper
-      .getElementPositionChangeEvent()
-      .pipe(
-        filter(() => this.jointGraphWrapper.getListenPositionChange()),
-        filter(() => this.undoRedoService.listenJointCommand),
-        filter(movedElement =>
-          this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID)
-        )
-      )
-      .subscribe(movedElement => {
-        this.texeraGraph.bundleActions(() => {
-          const selectedElements = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
-          const offsetX = movedElement.newPosition.x - movedElement.oldPosition.x;
-          const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
-          this.jointGraphWrapper.setListenPositionChange(false);
-          this.undoRedoService.setListenJointCommand(false);
-          selectedElements
-            .filter(elementID => elementID !== movedElement.elementID)
-            .forEach(elementID => this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY));
-          this.jointGraphWrapper.setListenPositionChange(true);
-          this.undoRedoService.setListenJointCommand(true);
-        });
-      });
-  }
-
-  /**
-   * Subscribes to element position changes from joint graph and updates them in TexeraGraph.
-   * @private
-   */
-  public handleJointElementDrag(): void {
-    this.jointGraphWrapper.getElementPositionChangeEvent().subscribe(element => {
-      if (
-        this.texeraGraph.getSyncTexeraGraph() &&
-        (this.texeraGraph.sharedModel.elementPositionMap.get(element.elementID) as Point) != element.newPosition
-      ) {
-        this.texeraGraph.sharedModel.elementPositionMap?.set(element.elementID, element.newPosition);
-        if (element.elementID.includes("commentBox")) {
-          this.texeraGraph.sharedModel.commentBoxMap
-            .get(element.elementID)
-            ?.set("commentBoxPosition", element.newPosition);
-        }
-      }
-    });
   }
 
   public getJointGraph(): joint.dia.Graph {
@@ -239,8 +182,18 @@ export class WorkflowActionService {
   public addOperator(operator: OperatorPredicate, point: Point): void {
     // turn off multiselect since there's only one operator added
     this.jointGraphWrapper.setMultiSelectMode(false);
-    // add operator
-    this.addOperatorsInternal([{ operator, point }]);
+    // check that the operator doesn't exist
+    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+    // check that the operator type exists
+    if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+      throw new Error(`operator type ${operator.operatorType} is invalid`);
+    }
+
+    this.texeraGraph.bundleActions(() => {
+      // add operator to texera graph
+      this.texeraGraph.addOperator(operator);
+      this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, point);
+    });
   }
 
   /**
@@ -249,14 +202,16 @@ export class WorkflowActionService {
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
+    this.unhighlightOperators(operatorID);
     this.texeraGraph.bundleActions(() => {
       const linksToDelete = new Map<OperatorLink, number>();
       this.getTexeraGraph()
         .getAllLinks()
         .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID)
         .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
-      linksToDelete.forEach((linkLayer, link) => this.deleteLinkWithIDInternal(link.linkID));
-      this.deleteOperatorInternal(operatorID);
+      linksToDelete.forEach((linkLayer, link) => this.deleteLinkWithID(link.linkID));
+      this.texeraGraph.assertOperatorExists(operatorID);
+      this.texeraGraph.deleteOperator(operatorID);
     });
   }
 
@@ -268,7 +223,7 @@ export class WorkflowActionService {
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(false);
-    this.addCommentBoxInternal(commentBox);
+    this.texeraGraph.addCommentBox(commentBox);
   }
 
   /**
@@ -292,11 +247,15 @@ export class WorkflowActionService {
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
     this.texeraGraph.bundleActions(() => {
-      this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
+      for (const operatorsAndPosition of operatorsAndPositions) {
+        this.addOperator(operatorsAndPosition.op, operatorsAndPosition.pos);
+      }
       if (links) {
-        this.addLinksInternal(links);
+        for (let i = 0; i < links.length; i++) {
+          this.addLink(links[i]);
+        }
         if (breakpoints !== undefined) {
-          breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
+          breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpoint(linkID, breakpoint));
         }
       }
       if (isDefined(commentBoxes)) {
@@ -310,7 +269,8 @@ export class WorkflowActionService {
    * @param commentBoxID
    */
   public deleteCommentBox(commentBoxID: string): void {
-    this.deleteCommentBoxInternal(commentBoxID);
+    this.texeraGraph.assertCommentBoxExists(commentBoxID);
+    this.texeraGraph.deleteCommentBox(commentBoxID);
   }
 
   /**
@@ -351,9 +311,9 @@ export class WorkflowActionService {
           link => operatorIDsCopy.includes(link.source.operatorID) || operatorIDsCopy.includes(link.target.operatorID)
         )
         .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
-      linksToDelete.forEach((layer, link) => this.deleteLinkWithIDInternal(link.linkID));
+      linksToDelete.forEach((layer, link) => this.deleteLinkWithID(link.linkID));
       operatorIDsCopy.forEach(operatorID => {
-        this.deleteOperatorInternal(operatorID);
+        this.deleteOperator(operatorID);
       });
     });
   }
@@ -376,7 +336,9 @@ export class WorkflowActionService {
    * @param link
    */
   public addLink(link: OperatorLink): void {
-    this.addLinksInternal([link]);
+    this.texeraGraph.assertLinkNotExists(link);
+    this.texeraGraph.assertLinkIsValid(link);
+    this.texeraGraph.addLink(link);
   }
 
   /**
@@ -385,7 +347,9 @@ export class WorkflowActionService {
    * @param linkID
    */
   public deleteLinkWithID(linkID: string): void {
-    this.deleteLinkWithIDInternal(linkID);
+    this.texeraGraph.assertLinkWithIDExists(linkID);
+    this.unhighlightLinks(linkID);
+    this.texeraGraph.deleteLinkWithID(linkID);
   }
 
   /**
@@ -404,20 +368,24 @@ export class WorkflowActionService {
    * @param newProperty
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
-    this.setOperatorPropertyInternal(operatorID, newProperty);
-    // unhighlight everything but the operator being modified
-    const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
-    if (!currentHighlightedOperators.includes(operatorID)) {
-      this.jointGraphWrapper.setMultiSelectMode(false);
-      this.jointGraphWrapper.highlightOperators(operatorID);
-    }
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.setOperatorProperty(operatorID, newProperty);
+      // unhighlight everything but the operator being modified
+      const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
+      if (!currentHighlightedOperators.includes(operatorID)) {
+        this.jointGraphWrapper.setMultiSelectMode(false);
+        this.jointGraphWrapper.highlightOperators(operatorID);
+      }
+    });
   }
 
   /**
    * set a given link's breakpoint properties to specific values
    */
   public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
-    this.setLinkBreakpointInternal(linkID, newBreakpoint);
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
+    });
   }
 
   /**
@@ -426,19 +394,27 @@ export class WorkflowActionService {
    * @param linkID
    */
   public removeLinkBreakpoint(linkID: string): void {
-    this.setLinkBreakpoint(linkID, undefined);
+    this.texeraGraph.bundleActions(() => {
+      this.setLinkBreakpoint(linkID, undefined);
+    });
   }
 
   public addComment(comment: Comment, commentBoxID: string): void {
-    this.texeraGraph.addCommentToCommentBox(comment, commentBoxID);
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.addCommentToCommentBox(comment, commentBoxID);
+    });
   }
 
   public deleteComment(creatorID: number, creationTime: string, commentBoxID: string): void {
-    this.texeraGraph.deleteCommentFromCommentBox(creatorID, creationTime, commentBoxID);
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.deleteCommentFromCommentBox(creatorID, creationTime, commentBoxID);
+    });
   }
 
   public editComment(creatorID: number, creationTime: string, commentBoxID: string, newContent: string): void {
-    this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
+    });
   }
 
   public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
@@ -502,9 +478,7 @@ export class WorkflowActionService {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Refreshes the internal shared model and joins a new shared-editing room. Note this method does not destroy
-   * the old shared model explicitly, so make sure to also call <code>{@link destroySharedModel}</code> if it is also
-   * intended to quit the previous shared-editing room.
+   * Refreshes the internal shared model and joins a new shared-editing room.
    *
    * This method also updates the undo manager.
    * @param workflowId optional, but needed if you want to join shared editing.
@@ -702,7 +676,7 @@ export class WorkflowActionService {
    */
   public setTempWorkflow(workflow: Workflow): void {
     if (this.texeraGraph.sharedModel.wsProvider.shouldConnect) {
-      this.texeraGraph.sharedModel.wsProvider.destroy();
+      this.destroySharedModel();
     }
     this.tempWorkflow = workflow;
   }
@@ -737,67 +711,65 @@ export class WorkflowActionService {
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //                                       Below are private, internal methods.                                       //
+  //                                          Below are private methods.                                              //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private addCommentBoxInternal(commentBox: CommentBox): void {
-    this.texeraGraph.addCommentBox(commentBox);
-  }
-
-  private addOperatorsInternal(operatorsAndPositions: readonly { operator: OperatorPredicate; point: Point }[]): void {
-    this.texeraGraph.bundleActions(() => {
-      for (let i = 0; i < operatorsAndPositions.length; i++) {
-        let operator = operatorsAndPositions[i].operator;
-        // check that the operator doesn't exist
-        this.texeraGraph.assertOperatorNotExists(operator.operatorID);
-        // check that the operator type exists
-        if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
-          throw new Error(`operator type ${operator.operatorType} is invalid`);
-        }
-        // add operator to texera graph
-        this.texeraGraph.addOperator(operator);
-        this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, operatorsAndPositions[i].point);
-      }
-    });
-  }
-
-  private deleteOperatorInternal(operatorID: string): void {
-    this.texeraGraph.assertOperatorExists(operatorID);
-    this.texeraGraph.deleteOperator(operatorID);
-  }
-
-  private addLinksInternal(links: readonly OperatorLink[]): void {
-    this.texeraGraph.bundleActions(() => {
-      for (let i = 0; i < links.length; i++) {
-        let link = links[i];
-        this.texeraGraph.assertLinkNotExists(link);
-        this.texeraGraph.assertLinkIsValid(link);
-        this.texeraGraph.addLink(link);
-      }
-    });
-  }
-
-  private deleteLinkWithIDInternal(linkID: string): void {
-    this.texeraGraph.assertLinkWithIDExists(linkID);
-    this.texeraGraph.deleteLinkWithID(linkID);
-  }
-
   /**
-   * Replaces previous property object with a new one. This does not enable fine-grained shared editing.
-   * @param operatorID
-   * @param newProperty
+   * Subscribes to element position changes from joint graph and updates them in TexeraGraph.
+   *
+   * Also subscribes to element position change event stream,
+   *  checks if the element (operator) is moved by user and
+   *  if the moved element is currently highlighted,
+   *  if it is, moves other highlighted elements (operators) along with it,
+   *    links will automatically move with operators.
+   *
+   *  The subscriptions need and only need to be initiated once,
+   *    unlike observers in <code>{@link SyncJointModelService}</code>.
    * @private
    */
-  private setOperatorPropertyInternal(operatorID: string, newProperty: object) {
-    this.texeraGraph.setOperatorProperty(operatorID, newProperty);
-  }
+  private handleJointElementDrag(): void {
+    this.jointGraphWrapper.getElementPositionChangeEvent().subscribe(element => {
+      if (element.elementID.includes("commentBox")) {
+        this.texeraGraph.sharedModel.commentBoxMap
+          .get(element.elementID)
+          ?.set("commentBoxPosition", element.newPosition);
+      }
+    });
 
-  private deleteCommentBoxInternal(commentBoxID: string): void {
-    this.texeraGraph.assertCommentBoxExists(commentBoxID);
-    this.texeraGraph.deleteCommentBox(commentBoxID);
-  }
-
-  private setLinkBreakpointInternal(linkID: string, newBreakpoint: Breakpoint | undefined): void {
-    this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
+    this.jointGraphWrapper
+      .getElementPositionChangeEvent()
+      .pipe(
+        filter(() => this.jointGraphWrapper.getListenPositionChange()),
+        filter(() => this.undoRedoService.listenJointCommand),
+        filter(() => this.texeraGraph.getSyncTexeraGraph()),
+        filter(movedElement =>
+          this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID)
+        )
+      )
+      .subscribe(movedElement => {
+        this.texeraGraph.bundleActions(() => {
+          if (
+            this.texeraGraph.sharedModel.elementPositionMap.get(movedElement.elementID) !== movedElement.newPosition
+          ) {
+            this.texeraGraph.sharedModel.elementPositionMap.set(movedElement.elementID, movedElement.newPosition);
+            const selectedElements = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
+            const offsetX = movedElement.newPosition.x - movedElement.oldPosition.x;
+            const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
+            this.jointGraphWrapper.setListenPositionChange(false);
+            this.undoRedoService.setListenJointCommand(false);
+            selectedElements
+              .filter(elementID => elementID !== movedElement.elementID)
+              .forEach(elementID => {
+                this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY);
+                this.texeraGraph.sharedModel.elementPositionMap.set(
+                  elementID,
+                  this.jointGraphWrapper.getElementPosition(elementID)
+                );
+              });
+            this.jointGraphWrapper.setListenPositionChange(true);
+            this.undoRedoService.setListenJointCommand(true);
+          }
+        });
+      });
   }
 }

@@ -132,13 +132,12 @@ export class WorkflowGraph {
   }
 
   /**
-   * Replaces current <code>{@link sharedModel}</code>  with a new one.
-   * Note this does NOT destroy the old model explicitly, so <code>{@link destroyYModel}</code> might
-   * still need to be called before this method.
+   * Replaces current <code>{@link sharedModel}</code>  with a new one and destroy the old model if any.
    * @param workflowId optional, but needed if you want to join shared editing.
    * @param user optional, but needed if you want to have user presence.
    */
   public loadNewYModel(workflowId?: number, user?: User) {
+    this.destroyYModel();
     this.sharedModel = new SharedModel(workflowId, user);
     this.newYDocLoadedSubject.next(undefined);
   }
