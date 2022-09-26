@@ -3,10 +3,21 @@ package edu.uci.ics.amber.engine.faulttolerance
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
+import com.esotericsoftware.kryo.io.{Input, Output}
+import com.twitter.chill.ScalaKryoInstantiator
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.logging.{InMemDeterminant, ProcessControlMessage}
+import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ReturnInvocation
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
+import com.twitter.chill.KryoInstantiator
+import com.twitter.chill.KryoPool
 
+import java.io.ByteArrayOutputStream
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
@@ -24,6 +35,41 @@ class RecoverySpec
   }
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
+  }
+
+  "Controller" should "serialize" in {
+    val selfworkload = SelfWorkloadMetrics(1,1,1,1)
+    val buffer = ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+    val m = mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
+    m(ActorVirtualIdentity("1")) = ArrayBuffer[Long](1,2,3,4)
+    buffer.append(m)
+    val instantiator = new ScalaKryoInstantiator
+    instantiator.setRegistrationRequired(false)
+    val kryo = instantiator.newKryo()
+    val b = new ByteArrayOutputStream()
+    val output = new Output(b)
+    val a = ProcessControlMessage(ReturnInvocation(1,(selfworkload, buffer)), ActorVirtualIdentity("test"))
+    kryo.writeClassAndObject(output, a)
+    output.flush()
+    output.close()
+    val input = new Input(output.getBuffer)
+    val deser = kryo.readClassAndObject(input).asInstanceOf[InMemDeterminant]
+    println(deser)
+  }
+
+  "Controller" should "serialize2" in {
+    val selfworkload = SelfWorkloadMetrics(1,1,1,1)
+    val buffer = ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+    val m = mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
+    m(ActorVirtualIdentity("1")) = ArrayBuffer[Long](1,2,3,4)
+    buffer.append(m)
+    val a = ProcessControlMessage(ReturnInvocation(1,(selfworkload, buffer)), ActorVirtualIdentity("test"))
+    val POOL_SIZE = 10
+    val in = new KryoInstantiator
+    val kryo = KryoPool.withByteArrayOutputStream(POOL_SIZE, in)
+    val ser = kryo.toBytesWithClass(a)
+    val deserObj = kryo.fromBytes(ser)
+    println(deserObj)
   }
 
 //  private val logicalPlan1 =
