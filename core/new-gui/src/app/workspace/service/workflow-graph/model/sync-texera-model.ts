@@ -8,7 +8,6 @@ import { filter, map, tap } from "rxjs/operators";
 /**
  * SyncTexeraModel subscribes to the graph change events from JointJS,
  *  then sync the changes to the TexeraGraph:
- *    - delete operator
  *    - link events: link add/delete/change
  *
  * For details of handling each JointJS event type, see the comments below for each function.
@@ -22,34 +21,7 @@ export class SyncTexeraModel {
     private jointGraphWrapper: JointGraphWrapper,
     private operatorGroup: OperatorGroup
   ) {
-    this.handleJointOperatorDelete();
     this.handleJointLinkEvents();
-  }
-
-  /**
-   * Handles JointJS operator element delete events:
-   *  deletes the corresponding operator in Texera workflow graph.
-   *
-   * Deletion of an operator will also cause its connected links to be deleted as well,
-   *  JointJS automatically handles this logic,
-   *  therefore we don't handle it to avoid inconsistency (deleting already deleted link).
-   *
-   * When an operator is deleted, JointJS will trigger the corresponding
-   *  link delete events and cause texera link to be deleted.
-   */
-  private handleJointOperatorDelete(): void {
-    this.jointGraphWrapper
-      .getJointElementCellDeleteStream()
-      .pipe(
-        map(element => element.id.toString()),
-        filter(
-          elementID =>
-            this.texeraGraph.hasOperator(elementID) &&
-            this.operatorGroup.getSyncTexeraGraph() &&
-            this.texeraGraph.getSyncTexeraGraph()
-        )
-      )
-      .subscribe(elementID => this.texeraGraph.deleteOperator(elementID));
   }
 
   /**

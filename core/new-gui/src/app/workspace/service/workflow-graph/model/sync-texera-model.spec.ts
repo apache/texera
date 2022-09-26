@@ -114,110 +114,112 @@ describe("SyncTexeraModel", () => {
     jointGraphWrapper = new JointGraphWrapper(jointGraph);
   });
 
-  /**
-   * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
-   *
-   * Add one operator
-   * Then emit one delete operator event from JointJS
-   *
-   * addOperator
-   * jointDeleteOperator: ---d-|
-   *
-   * Expected:
-   * The workflow graph should not have the added operator
-   * The workflow graph should have 0 operators
-   */
-  it(
-    "should delete an operator when the delete operator event happens from JointJS",
-    marbles(m => {
-      // add operators
-      texeraGraph.addOperator(mockScanPredicate);
+  // The delete event will not happen from JointJS.
+  // /**
+  //  * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
+  //  *
+  //  * Add one operator
+  //  * Then emit one delete operator event from JointJS
+  //  *
+  //  * addOperator
+  //  * jointDeleteOperator: ---d-|
+  //  *
+  //  * Expected:
+  //  * The workflow graph should not have the added operator
+  //  * The workflow graph should have 0 operators
+  //  */
+  // it(
+  //   "should delete an operator when the delete operator event happens from JointJS",
+  //   marbles(m => {
+  //     // add operators
+  //     texeraGraph.addOperator(mockScanPredicate);
+  //
+  //     // prepare delete operator event stream
+  //     const deleteOpMarbleString = "---d-|";
+  //     const deleteOpMarbleValues = {
+  //       d: getJointOperatorValue(mockScanPredicate.operatorID),
+  //     };
+  //     spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+  //       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
+  //     );
+  //
+  //     // construct the texera sync model with spied dependencies
+  //     const syncTexeraModel = new SyncTexeraModel(
+  //       texeraGraph,
+  //       jointGraphWrapper,
+  //       new OperatorGroup(
+  //         texeraGraph,
+  //         jointGraph,
+  //         jointGraphWrapper,
+  //         TestBed.inject(WorkflowUtilService),
+  //         TestBed.inject(JointUIService)
+  //       )
+  //     );
+  //
+  //     // assert workflow graph
+  //     jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
+  //       complete: () => {
+  //         expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+  //         expect(texeraGraph.getAllOperators().length).toEqual(0);
+  //       },
+  //     });
+  //   })
+  // );
 
-      // prepare delete operator event stream
-      const deleteOpMarbleString = "---d-|";
-      const deleteOpMarbleValues = {
-        d: getJointOperatorValue(mockScanPredicate.operatorID),
-      };
-      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
-        m.hot(deleteOpMarbleString, deleteOpMarbleValues)
-      );
-
-      // construct the texera sync model with spied dependencies
-      const syncTexeraModel = new SyncTexeraModel(
-        texeraGraph,
-        jointGraphWrapper,
-        new OperatorGroup(
-          texeraGraph,
-          jointGraph,
-          jointGraphWrapper,
-          TestBed.inject(WorkflowUtilService),
-          TestBed.inject(JointUIService)
-        )
-      );
-
-      // assert workflow graph
-      jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
-        complete: () => {
-          expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
-          expect(texeraGraph.getAllOperators().length).toEqual(0);
-        },
-      });
-    })
-  );
-
-  /**
-   * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
-   *
-   * Add two operators
-   * Then emit one delete operator event from JointJS
-   *
-   * addOperator
-   * jointDeleteOperator: -----d-|
-   *
-   * Expected:
-   * Only the deleted operator should be removed.
-   * The graph should have 1 operators and 0 links.
-   */
-  it(
-    "should delete an operator and not touch other operators when the delete operator event happens from JointJS",
-    marbles(m => {
-      // add operators
-      texeraGraph.addOperator(mockScanPredicate);
-      texeraGraph.addOperator(mockResultPredicate);
-
-      // prepare delete operator
-      const deleteOpMarbleString = "-----d-|";
-      const deleteOpMarbleValues = {
-        d: getJointOperatorValue(mockScanPredicate.operatorID),
-      };
-      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
-        m.hot(deleteOpMarbleString, deleteOpMarbleValues)
-      );
-
-      // construct the texera sync model with spied dependencies
-      // construct the texera sync model with spied dependencies
-      const syncTexeraModel = new SyncTexeraModel(
-        texeraGraph,
-        jointGraphWrapper,
-        new OperatorGroup(
-          texeraGraph,
-          jointGraph,
-          jointGraphWrapper,
-          TestBed.inject(WorkflowUtilService),
-          TestBed.inject(JointUIService)
-        )
-      );
-
-      jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
-        complete: () => {
-          expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
-          expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
-          expect(texeraGraph.getAllOperators().length).toEqual(1);
-          expect(texeraGraph.getAllLinks().length).toEqual(0);
-        },
-      });
-    })
-  );
+  // The delete event will not happen from JointJS.
+  // /**
+  //  * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
+  //  *
+  //  * Add two operators
+  //  * Then emit one delete operator event from JointJS
+  //  *
+  //  * addOperator
+  //  * jointDeleteOperator: -----d-|
+  //  *
+  //  * Expected:
+  //  * Only the deleted operator should be removed.
+  //  * The graph should have 1 operators and 0 links.
+  //  */
+  // it(
+  //   "should delete an operator and not touch other operators when the delete operator event happens from JointJS",
+  //   marbles(m => {
+  //     // add operators
+  //     texeraGraph.addOperator(mockScanPredicate);
+  //     texeraGraph.addOperator(mockResultPredicate);
+  //
+  //     // prepare delete operator
+  //     const deleteOpMarbleString = "-----d-|";
+  //     const deleteOpMarbleValues = {
+  //       d: getJointOperatorValue(mockScanPredicate.operatorID),
+  //     };
+  //     spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+  //       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
+  //     );
+  //
+  //     // construct the texera sync model with spied dependencies
+  //     // construct the texera sync model with spied dependencies
+  //     const syncTexeraModel = new SyncTexeraModel(
+  //       texeraGraph,
+  //       jointGraphWrapper,
+  //       new OperatorGroup(
+  //         texeraGraph,
+  //         jointGraph,
+  //         jointGraphWrapper,
+  //         TestBed.inject(WorkflowUtilService),
+  //         TestBed.inject(JointUIService)
+  //       )
+  //     );
+  //
+  //     jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
+  //       complete: () => {
+  //         expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+  //         expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
+  //         expect(texeraGraph.getAllOperators().length).toEqual(1);
+  //         expect(texeraGraph.getAllLinks().length).toEqual(0);
+  //       },
+  //     });
+  //   })
+  // );
 
   /**
    * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
@@ -708,82 +710,83 @@ describe("SyncTexeraModel", () => {
   //   })
   // );
 
-  /**
-   * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly,
-   *  when the operator delete causes its connected links being deleted as well
-   *
-   * Add three operators
-   * Then add a link from operator 1 to operator 2 and a link from operator 2 to operator 3
-   *
-   * addOperators + addLinks: 1 -> 2 -> 3
-   * jointDeleteOperator:  ---------d-| (delete operator 2)
-   * jointDeleteLink:      ---------(gh)-| (mock event triggered automatically at the same time frame by jointJS)
-   *
-   * Expected:
-   * There will be 2 operators left
-   * There will be no links left
-   * Texera Operator Delete stream should emit event when the operator is deleted
-   * Texera Link Delete Stream should emit event twice when the operator is deleted
-   *
-   */
-  it(
-    "should remove an operator and its connected links when that operator is deleted from jointJS",
-    marbles(m => {
-      // add operators
-      texeraGraph.addOperator(mockScanPredicate);
-      texeraGraph.addOperator(mockSentimentPredicate);
-      texeraGraph.addOperator(mockResultPredicate);
-
-      // add links
-      texeraGraph.addLink(mockScanSentimentLink);
-      texeraGraph.addLink(mockSentimentResultLink);
-
-      // prepare the delete oprator event
-      const deleteOperatorString = "---------d-|";
-      const deleteOperatorValue = {
-        d: getJointOperatorValue(mockSentimentPredicate.operatorID),
-      };
-      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
-        m.hot(deleteOperatorString, deleteOperatorValue)
-      );
-
-      /**
-       * once the operator is deleted, JointJS will automatically delete connected links
-       *  and will trigger delete link events at the same timeframe
-       */
-      const deleteLinkString = "---------(gh)-|";
-      const deleteLinkValue = {
-        g: getJointLinkValue(mockScanSentimentLink),
-        h: getJointLinkValue(mockSentimentResultLink),
-      };
-
-      spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
-        m.hot(deleteLinkString, deleteLinkValue)
-      );
-
-      // construct texera model
-      const syncTexeraModel = new SyncTexeraModel(
-        texeraGraph,
-        jointGraphWrapper,
-        new OperatorGroup(
-          texeraGraph,
-          jointGraph,
-          jointGraphWrapper,
-          TestBed.inject(WorkflowUtilService),
-          TestBed.inject(JointUIService)
-        )
-      );
-      jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
-        complete: () => {
-          expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
-          expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
-          expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
-          expect(texeraGraph.getAllOperators().length).toEqual(2);
-          expect(texeraGraph.hasLinkWithID(mockScanSentimentLink.linkID)).toBeFalsy();
-          expect(texeraGraph.hasLinkWithID(mockSentimentResultLink.linkID)).toBeFalsy();
-          expect(texeraGraph.getAllLinks().length).toEqual(0);
-        },
-      });
-    })
-  );
+  // The delete event will not happen from JointJS.
+  // /**
+  //  * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly,
+  //  *  when the operator delete causes its connected links being deleted as well
+  //  *
+  //  * Add three operators
+  //  * Then add a link from operator 1 to operator 2 and a link from operator 2 to operator 3
+  //  *
+  //  * addOperators + addLinks: 1 -> 2 -> 3
+  //  * jointDeleteOperator:  ---------d-| (delete operator 2)
+  //  * jointDeleteLink:      ---------(gh)-| (mock event triggered automatically at the same time frame by jointJS)
+  //  *
+  //  * Expected:
+  //  * There will be 2 operators left
+  //  * There will be no links left
+  //  * Texera Operator Delete stream should emit event when the operator is deleted
+  //  * Texera Link Delete Stream should emit event twice when the operator is deleted
+  //  *
+  //  */
+  // it(
+  //   "should remove an operator and its connected links when that operator is deleted from jointJS",
+  //   marbles(m => {
+  //     // add operators
+  //     texeraGraph.addOperator(mockScanPredicate);
+  //     texeraGraph.addOperator(mockSentimentPredicate);
+  //     texeraGraph.addOperator(mockResultPredicate);
+  //
+  //     // add links
+  //     texeraGraph.addLink(mockScanSentimentLink);
+  //     texeraGraph.addLink(mockSentimentResultLink);
+  //
+  //     // prepare the delete oprator event
+  //     const deleteOperatorString = "---------d-|";
+  //     const deleteOperatorValue = {
+  //       d: getJointOperatorValue(mockSentimentPredicate.operatorID),
+  //     };
+  //     spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+  //       m.hot(deleteOperatorString, deleteOperatorValue)
+  //     );
+  //
+  //     /**
+  //      * once the operator is deleted, JointJS will automatically delete connected links
+  //      *  and will trigger delete link events at the same timeframe
+  //      */
+  //     const deleteLinkString = "---------(gh)-|";
+  //     const deleteLinkValue = {
+  //       g: getJointLinkValue(mockScanSentimentLink),
+  //       h: getJointLinkValue(mockSentimentResultLink),
+  //     };
+  //
+  //     spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
+  //       m.hot(deleteLinkString, deleteLinkValue)
+  //     );
+  //
+  //     // construct texera model
+  //     const syncTexeraModel = new SyncTexeraModel(
+  //       texeraGraph,
+  //       jointGraphWrapper,
+  //       new OperatorGroup(
+  //         texeraGraph,
+  //         jointGraph,
+  //         jointGraphWrapper,
+  //         TestBed.inject(WorkflowUtilService),
+  //         TestBed.inject(JointUIService)
+  //       )
+  //     );
+  //     jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
+  //       complete: () => {
+  //         expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
+  //         expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+  //         expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
+  //         expect(texeraGraph.getAllOperators().length).toEqual(2);
+  //         expect(texeraGraph.hasLinkWithID(mockScanSentimentLink.linkID)).toBeFalsy();
+  //         expect(texeraGraph.hasLinkWithID(mockSentimentResultLink.linkID)).toBeFalsy();
+  //         expect(texeraGraph.getAllLinks().length).toEqual(0);
+  //       },
+  //     });
+  //   })
+  // );
 });
