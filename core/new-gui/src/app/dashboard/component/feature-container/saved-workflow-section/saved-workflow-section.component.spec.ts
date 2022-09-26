@@ -1,4 +1,4 @@
-import { ComponentFixture, fakeAsync, flush, TestBed, tick, waitForAsync } from "@angular/core/testing";
+import { async, ComponentFixture, fakeAsync, flush, TestBed, tick, waitForAsync } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -38,6 +38,8 @@ import { MatSelectModule } from "@angular/material/select";
 import { By } from "@angular/platform-browser";
 import { animationFrameScheduler } from "rxjs";
 import { ScrollingModule } from "@angular/cdk/scrolling";
+import { NzAvatarModule } from "ng-zorro-antd/avatar";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
@@ -217,6 +219,8 @@ describe("SavedWorkflowSectionComponent", () => {
           NzDatePickerModule,
           NzSelectModule,
           NzPopoverModule,
+          NzAvatarModule,
+          NzToolTipModule,
           NzUploadModule,
           ScrollingModule,
           NoopAnimationsModule,
@@ -541,12 +545,12 @@ describe("SavedWorkflowSectionComponent", () => {
     httpTestingController.expectOne(request => request.method === "POST");
   });
 
-  it("adding a workflow description adds a description to the workflow", fakeAsync(() => {
-    // must use fakeAsync and fixture.whenStable when testing component with virtual scroll
+  fit("adding a workflow description adds a description to the workflow", waitForAsync(() => {
+    // must use waitForAsync and fixture.whenStable when testing component with virtual scroll
     // check https://github.com/rintoj/ngx-virtual-scroller/issues/97
-    // check https://stackoverflow.com/questions/53726484/angular-material-virtual-scroll-not-rendering-items-in-unit-tests
 
     fixture.whenStable().then(() => {
+      console.log("fixture when stable ru")
       component.dashboardWorkflowEntries = testWorkflowEntries;
       fixture.detectChanges();
       let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
