@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, fakeAsync, flush, TestBed, tick, waitForAsync } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -11,11 +11,11 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
 import { MatDialogModule } from "@angular/material/dialog";
-import { NgbActiveModal, NgbModal, NgbModalRef, NgbModule } from "@ng-bootstrap/ng-bootstrap";
+import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpClientModule } from "@angular/common/http";
 import { WorkflowAccessService } from "../../../service/workflow-access/workflow-access.service";
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -32,16 +32,17 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { mockOperatorMetaData } from "src/app/workspace/service/operator-metadata/mock-operator-metadata.data";
 import { AppSettings } from "src/app/common/app-setting";
+import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
+import { NzUploadModule } from "ng-zorro-antd/upload";
+import { MatSelectModule } from "@angular/material/select";
 import { By } from "@angular/platform-browser";
+import { animationFrameScheduler } from "rxjs";
+import { ScrollingModule } from "@angular/cdk/scrolling";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
   let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
-  let modalService: NgbModal;
 
-  let mockWorkflowPersistService: WorkflowPersistService;
-  let mockOperatorMetadataService: OperatorMetadataService;
-  let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
   //All times in test Workflows are in PST because our local machine's timezone is PST
@@ -184,6 +185,7 @@ describe("SavedWorkflowSectionComponent", () => {
     },
   });
 
+  // must use waitForAsync for configureTestingModule in components with virtual scroll 
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
@@ -194,6 +196,7 @@ describe("SavedWorkflowSectionComponent", () => {
           HttpClient,
           NgbActiveModal,
           WorkflowAccessService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
           { provide: UserService, useClass: StubUserService },
           { provide: NZ_I18N, useValue: en_US },
         ],
@@ -214,6 +217,8 @@ describe("SavedWorkflowSectionComponent", () => {
           NzDatePickerModule,
           NzSelectModule,
           NzPopoverModule,
+          NzUploadModule,
+          ScrollingModule,
           NoopAnimationsModule,
         ],
       }).compileComponents();
@@ -221,32 +226,10 @@ describe("SavedWorkflowSectionComponent", () => {
   );
 
   beforeEach(() => {
-    httpClient = TestBed.get(HttpClient);
     httpTestingController = TestBed.get(HttpTestingController);
     fixture = TestBed.createComponent(SavedWorkflowSectionComponent);
-    mockWorkflowPersistService = TestBed.inject(WorkflowPersistService);
-    mockOperatorMetadataService = TestBed.inject(OperatorMetadataService);
-    mockOperatorMetadataService.getOperatorMetadata().subscribe(opdata => {
-      opdata.groups.forEach(group => {
-        component.operators.set(
-          group.groupName,
-          opdata.operators
-            .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
-            .map(operator => {
-              return {
-                userFriendlyName: operator.additionalMetadata.userFriendlyName,
-                operatorType: operator.operatorType,
-                operatorGroup: operator.additionalMetadata.operatorGroupName,
-                checked: false,
-              };
-            })
-        );
-      });
-    });
+
     component = fixture.componentInstance;
-    fixture.detectChanges();
-    modalService = TestBed.get(NgbModal);
-    spyOn(console, "log").and.callThrough();
     component.selectedMtime = [];
     component.selectedMtime = [];
     component.owners = [
@@ -266,12 +249,9 @@ describe("SavedWorkflowSectionComponent", () => {
       { pid: 2, name: "Project2", checked: false },
       { pid: 3, name: "Project3", checked: false },
     ];
-  });
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-    expect(mockWorkflowPersistService).toBeTruthy();
-  });
+    fixture.detectChanges();
+  })
 
   it("alphaSortTest increaseOrder", () => {
     component.dashboardWorkflowEntries = [];
@@ -290,14 +270,14 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   // TODO: add this test case back and figure out why it failed
-  xit("Modal Opened, then Closed", () => {
-    const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
-    spyOn(modalService, "open").and.returnValue(modalRef);
-    component.onClickOpenShareAccess(testWorkflowEntries[0]);
-    expect(modalService.open).toHaveBeenCalled();
-    fixture.detectChanges();
-    modalRef.dismiss();
-  });
+  // xit("Modal Opened, then Closed", () => {
+  //   const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
+  //   spyOn(modalService, "open").and.returnValue(modalRef);
+  //   component.onClickOpenShareAccess(testWorkflowEntries[0]);
+  //   expect(modalService.open).toHaveBeenCalled();
+  //   fixture.detectChanges();
+  //   modalRef.dismiss();
+  // });
 
   it("createDateSortTest", () => {
     component.dashboardWorkflowEntries = [];
@@ -423,8 +403,6 @@ describe("SavedWorkflowSectionComponent", () => {
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    const operatorDropdownRequest = httpTestingController.match("api/resources/operator-metadata");
-    operatorDropdownRequest[0].flush(mockOperatorMetaData);
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
       const operatorSelectionList = []; // list of operators for query
@@ -445,8 +423,6 @@ describe("SavedWorkflowSectionComponent", () => {
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    const operatorDropdownRequest = httpTestingController.match("api/resources/operator-metadata");
-    operatorDropdownRequest[0].flush(mockOperatorMetaData);
     const operatorGroup = component.operators.get("Analysis");
     const operatorGroup2 = component.operators.get("View Results");
     if (operatorGroup && operatorGroup2) {
@@ -472,8 +448,6 @@ describe("SavedWorkflowSectionComponent", () => {
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
 
-    const operatorDropdownRequest = httpTestingController.match("api/resources/operator-metadata");
-    operatorDropdownRequest[0].flush(mockOperatorMetaData);
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
       const operatorSelectionList = []; // list of operators for query
@@ -567,13 +541,17 @@ describe("SavedWorkflowSectionComponent", () => {
     httpTestingController.expectOne(request => request.method === "POST");
   });
 
-  it("adding a workflow description adds a description to the workflow", () => {
-    let addWorkflowDescriptionBtn = fixture.debugElement.query(By.css(".add-description-btn"));
-    expect(addWorkflowDescriptionBtn).toBeFalsy();
+  it("adding a workflow description adds a description to the workflow", fakeAsync(() => {
+    // must use fakeAsync and fixture.whenStable when testing component with virtual scroll
+    // check https://github.com/rintoj/ngx-virtual-scroller/issues/97
+    // check https://stackoverflow.com/questions/53726484/angular-material-virtual-scroll-not-rendering-items-in-unit-tests
 
-    component.dashboardWorkflowEntries = [];
-    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
-    let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
-    expect(addWorkflowDescriptionBtn1).toBeTruthy();
-  });
+    fixture.whenStable().then(() => {
+      component.dashboardWorkflowEntries = testWorkflowEntries;
+      fixture.detectChanges();
+      let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
+      expect(addWorkflowDescriptionBtn1).toBeTruthy();
+    })
+
+  }));
 });

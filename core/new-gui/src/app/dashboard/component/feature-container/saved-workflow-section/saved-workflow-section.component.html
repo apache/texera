@@ -88,6 +88,7 @@
           nzInline
           [(ngModel)]="selectedMtime"
           (ngModelChange)="calendarValueChange($event)"
+          ngDefaultControl
         ></nz-range-picker>
       </nz-dropdown-menu>
 
@@ -107,6 +108,7 @@
           nzInline
           [(ngModel)]="selectedCtime"
           (ngModelChange)="calendarValueChange($event)"
+          ngDefaultControl
         ></nz-range-picker>
       </nz-dropdown-menu>
 
@@ -124,7 +126,7 @@
       <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let owner of owners">
           <li nz-menu-item>
-            <label nz-checkbox [(ngModel)]="owner.checked" (ngModelChange)="updateSelectedOwners()"
+            <label nz-checkbox ngDefaultControl [(ngModel)]="owner.checked" (ngModelChange)="updateSelectedOwners()"
               >{{owner.userName}}</label
             >
           </li>
@@ -145,7 +147,7 @@
       <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let wid of wids">
           <li nz-menu-item>
-            <label nz-checkbox [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()">{{wid.id}}</label>
+            <label nz-checkbox ngDefaultControl [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()">{{wid.id}}</label>
           </li>
         </ul>
       </nz-dropdown-menu>
@@ -166,7 +168,7 @@
           <li nz-submenu nzTitle="{{group}}">
             <ul *ngFor="let operator of operators.get(group)">
               <li nz-menu-item>
-                <label nz-checkbox [(ngModel)]="operator.checked" (ngModelChange)="updateSelectedOperators()"
+                <label nz-checkbox ngDefaultControl [(ngModel)]="operator.checked" (ngModelChange)="updateSelectedOperators()"
                   >{{operator.userFriendlyName}}</label
                 >
               </li>
@@ -189,7 +191,7 @@
       <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let project of userProjectsDropdown">
           <li nz-menu-item>
-            <label nz-checkbox [(ngModel)]="project.checked" (ngModelChange)="updateSelectedProjects()"
+            <label nz-checkbox ngDefaultControl [(ngModel)]="project.checked" (ngModelChange)="updateSelectedProjects()"
               >{{project.name}}</label
             >
           </li>
@@ -214,6 +216,7 @@
       nzPlaceHolder="Search all workflows"
       [nzBorderless]="true"
       [nzOpen]="false"
+      ngDefaultControl
       [(ngModel)]="masterFilterList"
       [nzAllowClear]="true"
       (ngModelChange)="updateDropdownMenus($event)"
