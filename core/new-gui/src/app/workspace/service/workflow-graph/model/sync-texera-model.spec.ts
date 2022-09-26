@@ -9,7 +9,6 @@ import {
   mockScanResultLink,
   mockScanSentimentLink,
   mockSentimentPredicate,
-  mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { TestBed } from "@angular/core/testing";
 import { marbles } from "rxjs-marbles";
@@ -19,8 +18,6 @@ import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { SyncJointModelService } from "./sync-joint-model.service";
-import { WorkflowActionService } from "./workflow-action.service";
 
 describe("SyncTexeraModel", () => {
   let texeraGraph: WorkflowGraph;

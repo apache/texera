@@ -27,7 +27,7 @@ import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
-import { SyncJointModelService } from "./sync-joint-model.service";
+import { SharedModelChangeHandler } from "./shared-model-change-handler";
 
 /**
  *
@@ -40,7 +40,7 @@ import { SyncJointModelService } from "./sync-joint-model.service";
  * All changes(actions) to the workflow graph should be called through WorkflowActionService,
  *
  * With the introduction of shared editing using yjs, WorkflowActionService will only make changes to its internal
- *  <code>{@link WorkflowGraph}</code>, and <code>{@link SyncJointModelService}</code> will listen to changes to the
+ *  <code>{@link WorkflowGraph}</code>, and <code>{@link SharedModelChangeHandler}</code> will listen to changes to the
  *  WorkflowGraph to update JointGraph.
  *
  * For an overview of the services and updates with shared editing in WorkflowGraphModule, see workflow-graph-design.md.
@@ -65,7 +65,7 @@ export class WorkflowActionService {
   private readonly syncTexeraModel: SyncTexeraModel;
   private readonly syncOperatorGroup: SyncOperatorGroup;
   private readonly operatorGroup: OperatorGroup;
-  private readonly syncJointModelService: SyncJointModelService;
+  private readonly sharedModelChangeHandler: SharedModelChangeHandler;
   // variable to temporarily hold the current workflow to switch view to a particular version
   private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
@@ -91,7 +91,7 @@ export class WorkflowActionService {
       this.jointUIService
     );
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
-    this.syncJointModelService = new SyncJointModelService(
+    this.sharedModelChangeHandler = new SharedModelChangeHandler(
       this.texeraGraph,
       this.jointGraph,
       this.jointGraphWrapper,
@@ -726,7 +726,7 @@ export class WorkflowActionService {
    *    links will automatically move with operators.
    *
    *  The subscriptions need and only need to be initiated once,
-   *    unlike observers in <code>{@link SyncJointModelService}</code>.
+   *    unlike observers in <code>{@link SharedModelChangeHandler}</code>.
    * @private
    */
   private handleJointElementDrag(): void {

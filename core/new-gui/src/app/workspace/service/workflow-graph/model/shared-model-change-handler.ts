@@ -8,11 +8,9 @@ import {
   OperatorPredicate,
   Point,
 } from "../../../types/workflow-common.interface";
-import { Injectable } from "@angular/core";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
-import { UserState } from "../../../../common/type/user";
 import { CoeditorPresenceService } from "./coeditor-presence.service";
 import { YType } from "../../../types/shared-editing.interface";
 
@@ -26,10 +24,7 @@ import { YType } from "../../../types/shared-editing.interface";
  * It also serves as an entry point for <code>{@link CoeditorPresenceService}</code>.
  */
 
-@Injectable({
-  providedIn: "root",
-})
-export class SyncJointModelService {
+export class SharedModelChangeHandler {
   constructor(
     private texeraGraph: WorkflowGraph,
     private jointGraph: joint.dia.Graph,
@@ -260,26 +255,11 @@ export class SyncJointModelService {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.operatorIDMap) {
           const operatorID = event.path[0] as string;
-          if (event.path[event.path.length - 1] === "customDisplayName") {
-            const newName = this.texeraGraph.sharedModel.operatorIDMap
-              .get(operatorID)
-              ?.get("customDisplayName") as Y.Text;
-            this.texeraGraph.operatorDisplayNameChangedSubject.next({
-              operatorID: operatorID,
-              newDisplayName: newName.toJSON(),
-            });
-          } else if (event.path.includes("operatorProperties")) {
-            const operator = this.texeraGraph.getOperator(operatorID);
-            this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
-          } else if (event.path.length === 1) {
+          if (event.path.length === 1) {
+            // Changes one level below the operatorPredicate type
             for (const entry of event.changes.keys.entries()) {
               const contentKey = entry[0];
-              const contentValue = entry[1];
-              if (contentKey === "operatorProperties") {
-                const oldProperty = contentValue?.oldValue as Readonly<{ [key: string]: any }>;
-                const operator = this.texeraGraph.getOperator(operatorID);
-                this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
-              } else if (contentKey === "isCached") {
+              if (contentKey === "isCached") {
                 const newCachedStatus = this.texeraGraph.sharedModel.operatorIDMap
                   .get(operatorID)
                   ?.get("isCached") as boolean;
@@ -309,8 +289,22 @@ export class SyncJointModelService {
                     newEnabled: [operatorID],
                   });
                 }
+              } else if (contentKey === "operatorProperties") {
+                const operator = this.texeraGraph.getOperator(operatorID);
+                this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
               }
             }
+          } else if (event.path[event.path.length - 1] === "customDisplayName") {
+            const newName = this.texeraGraph.sharedModel.operatorIDMap
+              .get(operatorID)
+              ?.get("customDisplayName") as Y.Text;
+            this.texeraGraph.operatorDisplayNameChangedSubject.next({
+              operatorID: operatorID,
+              newDisplayName: newName.toJSON(),
+            });
+          } else if (event.path.includes("operatorProperties")) {
+            const operator = this.texeraGraph.getOperator(operatorID);
+            this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
           }
         }
       });
