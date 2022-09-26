@@ -223,10 +223,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId) {
       return;
     }
-    this.workflowActionService
-      .getTexeraGraph()
-      .getSharedModel()
-      .updateAwareness("currentlyEditing", this.currentOperatorId);
+    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
@@ -491,8 +488,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerQuillBinding();
     const currentOperatorSharedType = this.workflowActionService
       .getTexeraGraph()
-      .getSharedModel()
-      .operatorIDMap.get(<string>this.currentOperatorId) as YType<OperatorPredicate>;
+      .getSharedOperatorType(<string>this.currentOperatorId);
     if (this.currentOperatorId) {
       if (!currentOperatorSharedType.has("customDisplayName")) {
         currentOperatorSharedType.set("customDisplayName", new Y.Text());
@@ -501,7 +497,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       this.quillBinding = new QuillBinding(
         ytext as Y.Text,
         this.quill,
-        this.workflowActionService.getTexeraGraph().getSharedModel().awareness
+        this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
       );
     }
   }

@@ -54,7 +54,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   ngOnDestroy(): void {
-    this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("editingCode", false);
+    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
   }
 
   ngAfterViewInit() {
@@ -62,15 +62,13 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
 
-    this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("editingCode", true);
+    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
 
     this.ytext = (
-      (
-        this.workflowActionService
-          .getTexeraGraph()
-          .getSharedModel()
-          .operatorIDMap.get(currentOperatorId) as YType<OperatorPredicate>
-      ).get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
+      this.workflowActionService
+        .getTexeraGraph()
+        .getSharedOperatorType(currentOperatorId)
+        .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
 
     this.initMonaco();
@@ -101,7 +99,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         this.ytext,
         editor.getModel(),
         new Set([editor]),
-        this.workflowActionService.getTexeraGraph().getSharedModel().awareness
+        this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
       );
     }
   }

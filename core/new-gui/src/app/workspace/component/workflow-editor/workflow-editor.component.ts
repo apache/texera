@@ -729,7 +729,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private openCommentBox(commentBoxID: string): void {
-    const commentBox = this.workflowActionService.getTexeraGraph().getSharedModel().commentBoxMap.get(commentBoxID);
+    const commentBox = this.workflowActionService.getTexeraGraph().getSharedCommentBoxType(commentBoxID);
     const modalRef: NzModalRef = this.nzModalService.create({
       // modal title
       nzTitle: "Comments",
@@ -1398,15 +1398,15 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     // eslint-disable-next-line rxjs-angular/prefer-takeuntil
     fromEvent<MouseMoveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mousemove").subscribe(e => {
       const jointPoint = this.getJointPaper().clientToLocalPoint({ x: e.clientX, y: e.clientY });
-      this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("userCursor", jointPoint);
+      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("userCursor", jointPoint);
     });
     // eslint-disable-next-line rxjs-angular/prefer-takeuntil
     fromEvent<MouseLeaveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseleave").subscribe(() => {
-      this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("isActive", false);
+      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", false);
     });
     // eslint-disable-next-line rxjs-angular/prefer-takeuntil
     fromEvent<MouseEnterEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseenter").subscribe(() => {
-      this.workflowActionService.getTexeraGraph().getSharedModel().updateAwareness("isActive", true);
+      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);
     });
   }
 }

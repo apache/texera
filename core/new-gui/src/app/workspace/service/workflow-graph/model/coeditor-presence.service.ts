@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { WorkflowGraphReadonly } from "./workflow-graph";
+import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import * as joint from "jointjs";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import { User, UserState } from "../../../../common/type/user";
@@ -32,7 +32,7 @@ export class CoeditorPresenceService {
   public shadowingCoeditor?: User;
   public coeditors: User[] = [];
   private jointGraph: joint.dia.Graph;
-  private texeraGraph: WorkflowGraphReadonly;
+  private texeraGraph: WorkflowGraph;
   private jointGraphWrapper: JointGraphWrapper;
   private coeditorCurrentlyEditing = new Map<string, string | undefined>();
   private coeditorOperatorHighlights = new Map<string, string[]>();
@@ -42,7 +42,7 @@ export class CoeditorPresenceService {
   private currentlyEditingTimers = new Map<string, NodeJS.Timer>();
 
   constructor(private workflowActionService: WorkflowActionService) {
-    this.texeraGraph = workflowActionService.getTexeraGraph();
+    this.texeraGraph = workflowActionService.getTexeraGraph() as WorkflowGraph;
     this.jointGraph = workflowActionService.getJointGraph();
     this.jointGraphWrapper = workflowActionService.getJointGraphWrapper();
     this.observeUserState();

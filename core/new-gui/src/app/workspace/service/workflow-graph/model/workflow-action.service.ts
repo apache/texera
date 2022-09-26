@@ -420,16 +420,18 @@ export class WorkflowActionService {
   public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightOperators(...ops);
-    this.getTexeraGraph()
-      .getSharedModel()
-      .updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+    this.getTexeraGraph().updateSharedModelAwareness(
+      "highlighted",
+      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
+    );
   }
 
   public unhighlightOperators(...ops: string[]): void {
     this.getJointGraphWrapper().unhighlightOperators(...ops);
-    this.getTexeraGraph()
-      .getSharedModel()
-      .updateAwareness("highlighted", this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+    this.getTexeraGraph().updateSharedModelAwareness(
+      "highlighted",
+      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
+    );
   }
 
   public highlightLinks(multiSelect: boolean, ...links: string[]): void {
