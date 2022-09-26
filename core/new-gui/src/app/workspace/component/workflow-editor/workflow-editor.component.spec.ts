@@ -33,7 +33,6 @@ import { tap } from "rxjs/operators";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 
@@ -148,7 +147,6 @@ describe("WorkflowEditorComponent", () => {
     let nzModalService: NzModalService;
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
-    let workflowCollabService: WorkflowCollabService;
 
     beforeEach(
       waitForAsync(() => {
@@ -177,7 +175,6 @@ describe("WorkflowEditorComponent", () => {
             ExecuteWorkflowService,
             UndoRedoService,
             WorkflowVersionService,
-            WorkflowCollabService,
           ],
         }).compileComponents();
       })
@@ -194,7 +191,6 @@ describe("WorkflowEditorComponent", () => {
       nzModalService = TestBed.inject(NzModalService);
       undoRedoService = TestBed.inject(UndoRedoService);
       workflowVersionService = TestBed.inject(WorkflowVersionService);
-      workflowCollabService = TestBed.inject(WorkflowCollabService);
       fixture.detectChanges();
     });
 
@@ -890,7 +886,6 @@ describe("WorkflowEditorComponent", () => {
     //undo
     it("should undo action when user presses command + Z or control + Z", () => {
       spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
       spyOn(undoRedoService, "canUndo").and.returnValue(true);
       let undoSpy = spyOn(undoRedoService, "undoAction");
       fixture.detectChanges();
@@ -910,7 +905,6 @@ describe("WorkflowEditorComponent", () => {
     //redo
     it("should redo action when user presses command/control + Y or command/control + shift + Z", () => {
       spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
       spyOn(undoRedoService, "canRedo").and.returnValue(true);
       let redoSpy = spyOn(undoRedoService, "redoAction");
       fixture.detectChanges();
