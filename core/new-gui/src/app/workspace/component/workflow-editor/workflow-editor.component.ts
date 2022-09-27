@@ -156,6 +156,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
     }
+
+    if (this.getJointPaper()) {
+      this.handlePointerEvents();
+    }
   }
 
   private _unregisterKeyboard() {
@@ -1385,5 +1389,24 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.gridOn = true;
         }
       });
+  }
+
+  /**
+   * Handles mouse events to enable shared cursor.
+   */
+  private handlePointerEvents(): void {
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    fromEvent<MouseMoveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mousemove").subscribe(e => {
+      const jointPoint = this.getJointPaper().clientToLocalPoint({ x: e.clientX, y: e.clientY });
+      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("userCursor", jointPoint);
+    });
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    fromEvent<MouseLeaveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseleave").subscribe(() => {
+      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", false);
+    });
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    fromEvent<MouseEnterEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseenter").subscribe(() => {
+      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);
+    });
   }
 }

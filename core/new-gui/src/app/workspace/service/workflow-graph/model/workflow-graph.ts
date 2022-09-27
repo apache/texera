@@ -9,7 +9,7 @@ import {
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
-import { User } from "../../../../common/type/user";
+import { User, UserState } from "../../../../common/type/user";
 import * as _ from "lodash";
 import { createYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
@@ -165,6 +165,15 @@ export class WorkflowGraph {
    */
   public getSharedModelAwareness(): Awareness {
     return this.sharedModel.awareness;
+  }
+
+  /**
+   * Updates a particular field of local awareness state info. Will only execute update when user info is provided.
+   * @param field the name of the particular state info.
+   * @param value the updated state info.
+   */
+  public updateSharedModelAwareness(field: keyof UserState, value: any) {
+    this.sharedModel.updateAwareness(field, value);
   }
 
   /**
@@ -632,6 +641,14 @@ export class WorkflowGraph {
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    const previousProperty = this.sharedModel.operatorIDMap.get(operatorID)?.get("operatorProperties").toJSON();
+    if (!_.isEqual(previousProperty, newProperty)) {
+      const localState = this.sharedModel.awareness.getLocalState();
+      if (localState && localState["currentlyEditing"] === operatorID) {
+        this.updateSharedModelAwareness("changed", operatorID);
+        this.updateSharedModelAwareness("changed", undefined);
+      }
     }
     // set the new copy back to the operator ID map
     this.sharedModel.operatorIDMap.get(operatorID)?.set("operatorProperties", createYTypeFromObject(newProperty));

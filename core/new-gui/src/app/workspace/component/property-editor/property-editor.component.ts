@@ -106,6 +106,7 @@ export class PropertyEditorComponent implements OnInit {
           });
         } else {
           this.switchFrameComponent(undefined);
+          this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
         this.changeDetectorRef.detectChanges();
       });

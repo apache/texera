@@ -4,6 +4,7 @@ import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -23,8 +24,13 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 export class CodeareaCustomTemplateComponent extends FieldType {
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
 
-  constructor(public dialog: MatDialog, public workflowActionService: WorkflowActionService) {
+  constructor(
+    public dialog: MatDialog,
+    public workflowActionService: WorkflowActionService,
+    private coeditorPresenceService: CoeditorPresenceService
+  ) {
     super();
+    this.handleShadowingMode();
   }
 
   /**
@@ -34,5 +40,24 @@ export class CodeareaCustomTemplateComponent extends FieldType {
     this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
       data: this.formControl?.value || "",
     });
+  }
+
+  /**
+   * When shadowing a co-editor, this method handles the opening/closing of the code editor based on the co-editor.
+   * @private
+   */
+  private handleShadowingMode(): void {
+    this.coeditorPresenceService
+      .getCoeditorOpenedCodeEditorSubject()
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.onClickEditor();
+      });
+    this.coeditorPresenceService
+      .getCoeditorClosedCodeEditorSubject()
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.dialogRef?.close();
+      });
   }
 }
