@@ -92,7 +92,6 @@ class DataProcessor( // dependencies:
   private var currentInputActor: ActorVirtualIdentity = _
   private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
   private var isCompleted = false
-  var backpressured = false
 
   def getOperatorExecutor(): IOperatorExecutor = operator
 
@@ -136,7 +135,7 @@ class DataProcessor( // dependencies:
       if (currentInputTuple.isLeft) {
         inputTupleCount += 1
       }
-      if (pauseManager.pausedByOperatorLogic) {
+      if (pauseManager.getPauseStatusByType(PauseType.OperatorLogicPause)) {
         // if the operatorLogic decides to pause, we need to disable the data queue for this worker.
         disableDataQueue()
       }
@@ -168,7 +167,7 @@ class DataProcessor( // dependencies:
 
     val (outputTuple, outputPortOpt) = out
     if (breakpointManager.evaluateTuple(outputTuple)) {
-      pauseManager.pause()
+      pauseManager.recordRequest(PauseType.UserPause, true)
       disableDataQueue()
       stateManager.transitTo(PAUSED)
     } else {
@@ -305,7 +304,7 @@ class DataProcessor( // dependencies:
   private[this] def processControlCommandsDuringExecution(): Unit = {
     if (recoveryManager.replayCompleted()) {
       while (
-        !isControlQueueEmpty || pauseManager.isPaused || backpressured || pauseManager.pausedByOperatorLogic
+        !isControlQueueEmpty || pauseManager.isPaused ()
       ) {
         takeOneControlCommandAndProcess()
       }
