@@ -50,7 +50,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   }
 
   public onChange(value: string): void {
-    if(value === undefined){
+    if (value === undefined) {
       this.filteredOwners = [];
     } else {
       this.filteredOwners = this.allOwners.filter(owner => owner.toLowerCase().indexOf(value.toLowerCase()) !== -1);
