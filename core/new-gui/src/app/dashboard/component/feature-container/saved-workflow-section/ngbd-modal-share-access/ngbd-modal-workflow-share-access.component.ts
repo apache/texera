@@ -30,7 +30,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   public workflowOwner: string = "";
 
-  public filteredOwners: Array<string> = new Array();
+  public filteredOwners: Array<string> = [];
 
   public ownerSearchValue?: string;
 
@@ -50,8 +50,11 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   }
 
   public onChange(value: string): void {
-    this.filteredOwners = [];
-    this.filteredOwners = this.allOwners.filter(owner => owner.toLowerCase().indexOf(value.toLowerCase()) !== -1);
+    if(value === undefined){
+      this.filteredOwners = [];
+    } else {
+      this.filteredOwners = this.allOwners.filter(owner => owner.toLowerCase().indexOf(value.toLowerCase()) !== -1);
+    }
   }
 
   /**
