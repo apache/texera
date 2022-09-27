@@ -86,7 +86,7 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   var statusUpdateAskHandle: Cancellable = _
 
-  override def getLogName: String = "WF" + workflow.getWorkflowId().id +"-CONTROLLER"
+  override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   def availableNodes: Array[Address] =
