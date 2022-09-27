@@ -17,7 +17,6 @@ import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflo
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
-import { WorkflowCollabService } from "../workflow-collab/workflow-collab.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -64,8 +63,7 @@ export class ExecuteWorkflowService {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -358,10 +356,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Aborted:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
-        this.workflowActionService.toggleLockListen(true);
-        if (this.workflowCollabService.isLockGranted()) {
-          this.workflowActionService.enableWorkflowModification();
-        }
+        this.workflowActionService.enableWorkflowModification();
         return;
       case ExecutionState.Paused:
       case ExecutionState.Pausing:
@@ -369,7 +364,6 @@ export class ExecuteWorkflowService {
       case ExecutionState.Resuming:
       case ExecutionState.Running:
       case ExecutionState.Initializing:
-        this.workflowActionService.toggleLockListen(false);
         this.workflowActionService.disableWorkflowModification();
         return;
       default:
