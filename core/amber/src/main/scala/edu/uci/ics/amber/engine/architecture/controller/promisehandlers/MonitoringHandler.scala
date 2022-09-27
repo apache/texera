@@ -69,7 +69,6 @@ trait MonitoringHandler {
       val requests = workers.map(worker =>
         send(QuerySelfWorkloadMetrics(), worker).map({
           case (metrics, samples) => {
-            logger.info("Receive samples = " + samples)
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
               metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =

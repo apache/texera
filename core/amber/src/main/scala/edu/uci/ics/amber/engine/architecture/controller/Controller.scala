@@ -86,7 +86,7 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   var statusUpdateAskHandle: Cancellable = _
 
-  override def getLogName: String = "WF" + "-CONTROLLER"
+  override def getLogName: String = "WF" + workflow.getWorkflowId().id +"-CONTROLLER"
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   def availableNodes: Array[Address] =
@@ -163,14 +163,12 @@ class Controller(
     case d: InMemDeterminant =>
       d match {
         case ProcessControlMessage(controlPayload, from) =>
-          Thread.sleep(1000)
           handleControlPayloadWithTryCatch(from, controlPayload)
           if (recoveryManager.replayCompleted()) {
             logManager.terminate()
             logStorage.swapTempLog()
             logManager.setupWriter(logStorage.getWriter(false))
             context.become(running)
-            //unstashAll()
           } else {
             val inMemDeterminant = recoveryManager.getDeterminant()
             self ! inMemDeterminant
@@ -182,7 +180,6 @@ class Controller(
       }
     case other =>
       logger.info("Ignore during recovery: " + other)
-    //stash()
   }
 
   override def receive: Receive = {
