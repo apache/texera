@@ -30,7 +30,7 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   override def getWriter: DeterminantLogWriter = {
     new DeterminantLogWriter {
       val output = new Output(hdfs.append(recoveryLogPath))
-      override def writeLogRecord(obj:AnyRef): Unit = ser.writeObject(output, obj)
+      override def writeLogRecord(obj: AnyRef): Unit = ser.writeObject(output, obj)
 
       override def flush(): Unit = output.flush()
 
