@@ -7,6 +7,7 @@ import com.twitter.chill.{KryoPool, KryoSerializer, ScalaKryoInstantiator}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.logging.storage.{
   DeterminantLogStorage,
+  EmptyLogStorage,
   LocalFSLogStorage
 }
 import edu.uci.ics.amber.engine.architecture.logging.{
@@ -113,6 +114,12 @@ class RecoverySpec
       idx += 1
     }
     logStorage.deleteLog()
+  }
+
+  "Logreader" should "not read anything from empty log" in {
+    val workerName = "Test"
+    val logStorage = new EmptyLogStorage()
+    assert(DeterminantLogStorage.fetchAllLogRecords(logStorage).isEmpty)
   }
 
 }

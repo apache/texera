@@ -4,14 +4,16 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
   DeterminantLogReader,
   DeterminantLogWriter
 }
+import org.apache.commons.io.input.NullInputStream
+import org.apache.hadoop.io.IOUtils.NullOutputStream
 
-import java.io.{DataInputStream, DataOutputStream, InputStream, OutputStream}
+import java.io.{DataInputStream, DataOutputStream}
 
 class EmptyLogStorage extends DeterminantLogStorage {
   override def getWriter(isTempLog: Boolean): DeterminantLogWriter = {
     new DeterminantLogWriter {
       override protected val outputStream: DataOutputStream = new DataOutputStream(
-        OutputStream.nullOutputStream()
+        new NullOutputStream()
       )
     }
   }
@@ -19,7 +21,7 @@ class EmptyLogStorage extends DeterminantLogStorage {
   override def getReader: DeterminantLogReader = {
     new DeterminantLogReader {
       override protected val inputStream: DataInputStream = new DataInputStream(
-        InputStream.nullInputStream()
+        new NullInputStream()
       )
     }
   }
