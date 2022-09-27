@@ -81,6 +81,51 @@ describe("SavedWorkflowSectionComponent", () => {
     creationTime: 28800000 + 86400000 * 2,
     lastModifiedTime: 28800000 + 86400000 * 2 + 8,
   };
+  const testDownloadWorkflow1: Workflow = {
+    wid: 6,
+    name: "workflow",
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000, //28800000 is 1970-01-01 in PST
+    lastModifiedTime: 28800000 + 2,
+  };
+  const testDownloadWorkflow2: Workflow = {
+    wid: 7,
+    name: "workflow",
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
+    lastModifiedTime: 28800000 + (86400000 + 3),
+  };
+  const testDownloadWorkflow3: Workflow = {
+    wid: 8,
+    name: "workflow",
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + 86400000,
+    lastModifiedTime: 28800000 + (86400000 + 4),
+  };
+  const testWorkflowFileNameConflictEntries: DashboardWorkflowEntry[] = [
+    {
+      workflow: testDownloadWorkflow1,
+      isOwner: true,
+      ownerName: "Texera",
+      accessLevel: "Write",
+      projectIDs: [1],
+    },
+    {
+      workflow: testDownloadWorkflow2,
+      isOwner: true,
+      ownerName: "Texera",
+      accessLevel: "Write",
+      projectIDs: [1, 2],
+    },
+    {
+      workflow: testDownloadWorkflow3,
+      isOwner: true,
+      ownerName: "Angular",
+      accessLevel: "Write",
+      projectIDs: [1],
+    },
+  ];
+
   const testWorkflowEntries: DashboardWorkflowEntry[] = [
     {
       workflow: testWorkflow1,
@@ -118,6 +163,17 @@ describe("SavedWorkflowSectionComponent", () => {
       projectIDs: [3],
     },
   ];
+
+  const checked = <Event>(<any>{
+    target: {
+      checked: true,
+    },
+  });
+  const unchecked = <Event>(<any>{
+    target: {
+      checked: false,
+    },
+  });
 
   beforeEach(
     waitForAsync(() => {
@@ -182,7 +238,8 @@ describe("SavedWorkflowSectionComponent", () => {
     fixture.detectChanges();
     modalService = TestBed.get(NgbModal);
     spyOn(console, "log").and.callThrough();
-    component.selectedDate = null;
+    component.selectedMtime = [];
+    component.selectedMtime = [];
     component.owners = [
       { userName: "Texera", checked: false },
       { userName: "Angular", checked: false },
@@ -320,11 +377,24 @@ describe("SavedWorkflowSectionComponent", () => {
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.selectedDate = new Date(1970, 0, 3);
+    component.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
-    expect(component.masterFilterList).toEqual(["ctime: 1970-01-03"]);
+    expect(component.masterFilterList).toEqual(["ctime: 1970-01-03 ~ 1981-03-13"]);
+  });
+
+  it("searchByModifyTime", () => {
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
+    component.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
+    component.searchWorkflow();
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
+    expect(component.masterFilterList).toEqual(["mtime: 1970-01-03 ~ 1981-03-13"]);
   });
 
   /*
@@ -406,7 +476,8 @@ describe("SavedWorkflowSectionComponent", () => {
       component.owners[1].checked = true; //Angular
       (component.wids[0].checked = true), (component.wids[1].checked = true), (component.wids[2].checked = true); //id 1,2,3
       component.userProjectsDropdown[0].checked = true; //Project 1
-      component.selectedDate = new Date(1970, 0, 1);
+      component.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
+      component.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
       component.masterFilterList.push("1");
       //add/select new search parameter here
 
@@ -428,13 +499,54 @@ describe("SavedWorkflowSectionComponent", () => {
       "id: 3",
       "operator: Sentiment Analysis",
       "project: Project1",
-      "ctime: 1970-01-01",
+      "ctime: 1970-01-01 ~ 1973-03-11",
+      "mtime: 1970-01-01 ~ 1982-04-14",
     ]);
   });
 
-  it("Sends http request to backend to retrieve export json", () => {
+  it("sends http request to backend to retrieve export json", () => {
     component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
     httpTestingController.match(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${testWorkflowEntries[0]}`);
     httpTestingController.expectOne("api/workflow/1");
+  });
+
+  it("adds selected workflow to the downloadListWorkflow", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.onClickAddToDownload(testWorkflowEntries[0], checked);
+    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[0].workflow.wid)).toEqual(true);
+    component.onClickAddToDownload(testWorkflowEntries[3], checked);
+    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[3].workflow.wid)).toEqual(true);
+  });
+
+  it("remove unchecked workflow from the downloadListWorkflow", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.onClickAddToDownload(testWorkflowEntries[0], checked);
+    component.onClickAddToDownload(testWorkflowEntries[3], checked);
+    component.onClickAddToDownload(testWorkflowEntries[0], unchecked);
+    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[0].workflow.wid)).toEqual(false);
+    component.onClickAddToDownload(testWorkflowEntries[3], unchecked);
+    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[3].workflow.wid)).toEqual(false);
+  });
+
+  it("detects conflict filename and resolves it", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowFileNameConflictEntries);
+    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], checked);
+    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[2], checked);
+    let index = testWorkflowFileNameConflictEntries[0].workflow.wid as number;
+    let index1 = testWorkflowFileNameConflictEntries[1].workflow.wid as number;
+    let index2 = testWorkflowFileNameConflictEntries[2].workflow.wid as number;
+    expect(component.downloadListWorkflow.get(index)).toEqual("workflow.json");
+    expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
+    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], unchecked);
+    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[1], checked);
+    expect(component.downloadListWorkflow.get(index1)).toEqual("workflow.json");
+    expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
+    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], checked);
+    expect(component.downloadListWorkflow.get(index1)).toEqual("workflow.json");
+    expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
+    expect(component.downloadListWorkflow.get(index)).toEqual("workflow-2.json");
   });
 });

@@ -1,6 +1,6 @@
 import pytest
 
-from core.architecture.managers.pause_manager import PauseManager
+from core.architecture.managers.pause_manager import PauseManager, PauseType
 
 
 class TestPauseManager:
@@ -15,21 +15,21 @@ class TestPauseManager:
         assert not pause_manager.is_paused()
 
     def test_it_can_be_paused_and_resumed(self, pause_manager):
-        pause_manager.pause()
+        pause_manager.record_request(PauseType.USER_PAUSE, True)
         assert pause_manager.is_paused()
-        pause_manager.resume()
+        pause_manager.record_request(PauseType.USER_PAUSE, False)
         assert not pause_manager.is_paused()
 
     def test_it_can_be_paused_when_paused(self, pause_manager):
-        pause_manager.pause()
+        pause_manager.record_request(PauseType.USER_PAUSE, True)
         assert pause_manager.is_paused()
-        pause_manager.pause()
+        pause_manager.record_request(PauseType.USER_PAUSE, True)
         assert pause_manager.is_paused()
 
     def test_it_can_be_resumed_when_resumed(self, pause_manager):
-        pause_manager.pause()
+        pause_manager.record_request(PauseType.USER_PAUSE, True)
         assert pause_manager.is_paused()
-        pause_manager.resume()
+        pause_manager.record_request(PauseType.USER_PAUSE, False)
         assert not pause_manager.is_paused()
-        pause_manager.resume()
+        pause_manager.record_request(PauseType.USER_PAUSE, False)
         assert not pause_manager.is_paused()
