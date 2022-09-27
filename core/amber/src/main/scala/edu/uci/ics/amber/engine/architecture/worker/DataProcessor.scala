@@ -303,9 +303,7 @@ class DataProcessor( // dependencies:
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
     if (recoveryManager.replayCompleted()) {
-      while (
-        !isControlQueueEmpty || pauseManager.isPaused ()
-      ) {
+      while (!isControlQueueEmpty || pauseManager.isPaused()) {
         takeOneControlCommandAndProcess()
       }
     } else {
