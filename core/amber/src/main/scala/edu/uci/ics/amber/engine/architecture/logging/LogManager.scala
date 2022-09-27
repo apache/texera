@@ -13,8 +13,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 //In-mem formats:
 sealed trait InMemDeterminant
-case object ProcessEnd extends InMemDeterminant
-case object ProcessEndOfAll extends InMemDeterminant
 case class LinkChange(linkIdentity: LinkIdentity) extends InMemDeterminant
 case class SenderActorChange(actorVirtualIdentity: ActorVirtualIdentity) extends InMemDeterminant
 case class StepDelta(steps: Long) extends InMemDeterminant

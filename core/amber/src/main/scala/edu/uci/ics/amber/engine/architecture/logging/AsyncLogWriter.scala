@@ -23,7 +23,9 @@ class AsyncLogWriter(
   private val gracefullyStopped = new CompletableFuture[Unit]()
 
   def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {
-    determinants.foreach(x => writerQueue.put(Left(x)))
+    determinants.foreach(x => {
+      writerQueue.put(Left(x))
+    })
   }
 
   def putOutput(output: SendRequest): Unit = {
@@ -32,6 +34,7 @@ class AsyncLogWriter(
 
   def terminate(): Unit = {
     stopped = true
+    interrupt()
     gracefullyStopped.get()
   }
 
@@ -42,11 +45,11 @@ class AsyncLogWriter(
           if (logInterval > 0) {
             Thread.sleep(logInterval)
           }
+          if (writerQueue.drainTo(drained) == 0) {
+            drained.add(writerQueue.take())
+          }
         } catch {
           case t: InterruptedException =>
-        }
-        if (writerQueue.drainTo(drained) == 0) {
-          drained.add(writerQueue.take())
         }
         val drainedScala = drained.asScala
         drainedScala

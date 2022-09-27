@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkCommunicationActor,
   NetworkOutputPort
 }
-import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
@@ -31,7 +31,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 abstract class WorkflowActor(
     val actorId: ActorVirtualIdentity,
-    parentNetworkCommunicationActorRef: ActorRef
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef
 ) extends Actor
     with Stash
     with AmberLogging {
@@ -41,10 +41,12 @@ abstract class WorkflowActor(
   lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     // create a network communication actor on the same machine as the WorkflowActor itself
-    context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, actorId))
+    context.actorOf(
+      NetworkCommunicationActor.props(parentNetworkCommunicationActorRef.ref, actorId)
+    )
   )
   val logStorage: DeterminantLogStorage = DeterminantLogStorage.getLogStorage(getLogName)
-  val recoveryManager = new RecoveryManager(logStorage.getReader)
+  val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
   lazy val logManager: LogManager = LogManager.getLogManager(networkCommunicationActor)
   logManager.setupWriter(logStorage.getWriter(!recoveryManager.replayCompleted()))
   // this variable cannot be lazy

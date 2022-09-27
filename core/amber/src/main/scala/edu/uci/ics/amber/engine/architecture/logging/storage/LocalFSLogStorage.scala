@@ -4,9 +4,18 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
   DeterminantLogReader,
   DeterminantLogWriter
 }
+import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 
 import java.io.{DataInputStream, DataOutputStream}
-import java.nio.file.{CopyOption, Files, Path, Paths, StandardCopyOption}
+import java.nio.file.{
+  CopyOption,
+  Files,
+  OpenOption,
+  Path,
+  Paths,
+  StandardCopyOption,
+  StandardOpenOption
+}
 
 class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
@@ -23,7 +32,13 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
   override def getWriter(isTempLog: Boolean): DeterminantLogWriter = {
     new DeterminantLogWriter {
       override lazy protected val outputStream = {
-        new DataOutputStream(Files.newOutputStream(getLogPath(isTempLog)))
+        new DataOutputStream(
+          Files.newOutputStream(
+            getLogPath(isTempLog),
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND
+          )
+        )
       }
     }
   }

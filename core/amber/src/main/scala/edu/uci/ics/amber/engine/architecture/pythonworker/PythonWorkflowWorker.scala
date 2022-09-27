@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
@@ -23,7 +24,7 @@ object PythonWorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       op: IOperatorExecutor,
-      parentNetworkCommunicationActorRef: ActorRef,
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
       allUpstreamLinkIds: Set[LinkIdentity]
   ): Props =
     Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
@@ -32,7 +33,7 @@ object PythonWorkflowWorker {
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
-    parentNetworkCommunicationActorRef: ActorRef,
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
     allUpstreamLinkIds: Set[LinkIdentity]
 ) extends WorkflowWorker(
       actorId,

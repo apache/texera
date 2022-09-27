@@ -1,10 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
+import akka.pattern.ask
 import akka.remote.RemoteScope
+import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.DeploymentFilter
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.DeployStrategy
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkSenderActorRef,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
@@ -20,6 +25,8 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class WorkerLayer(
     val id: LayerIdentity,
@@ -56,7 +63,7 @@ class WorkerLayer(
   def build(
       prev: Array[(OpExecConfig, WorkerLayer)],
       all: Array[Address],
-      parentNetworkCommunicationActorRef: ActorRef,
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
       context: ActorContext,
       allUpstreamLinkIds: Set[LinkIdentity],
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
@@ -90,7 +97,7 @@ class WorkerLayer(
             .withDeploy(Deploy(scope = RemoteScope(address)))
         }
       )
-      parentNetworkCommunicationActorRef ! RegisterActorRef(workerId, ref)
+      parentNetworkCommunicationActorRef.waitUntil(RegisterActorRef(workerId, ref))
       workerToLayer(workerId) = this
       workerId -> WorkerInfo(
         workerId,

@@ -1,26 +1,64 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
 import com.esotericsoftware.kryo.io.{Input, Output}
-import com.twitter.chill.ScalaKryoInstantiator
-import edu.uci.ics.amber.engine.architecture.logging.InMemDeterminant
+import com.twitter.chill.{KryoBase, KryoPool, KryoSerializer, ScalaKryoInstantiator}
+import edu.uci.ics.amber.engine.architecture.logging.{InMemDeterminant, ProcessControlMessage}
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
   DeterminantLogReader,
   DeterminantLogWriter
 }
+import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 
 import java.io.{DataInputStream, DataOutputStream}
+import scala.collection.mutable.ArrayBuffer
 
 object DeterminantLogStorage {
-  val instantiator = new ScalaKryoInstantiator
-  instantiator.setRegistrationRequired(false)
+  private val kryoPool = {
+    val r = KryoSerializer.registerAll
+    val ki = new ScalaKryoInstantiator {
+      override def newKryo(): KryoBase = {
+        val kryo = super.newKryo()
+        kryo.register(classOf[ProcessControlMessage])
+        kryo.register(classOf[ControlInvocation])
+        kryo.register(classOf[WorkerState])
+        kryo.register(classOf[ReturnInvocation])
+        kryo.register(classOf[QueryStatistics])
+        kryo
+      }
+    }.withRegistrar(r)
+    KryoPool.withByteArrayOutputStream(Runtime.getRuntime.availableProcessors * 2, ki)
+  }
+
+  private val maxSize: Long =
+    AmberUtils.amberConfig.getLong("fault-tolerance.log-record-max-size-in-byte")
+
+  // For debugging purpose only
+  def fetchAllLogRecords(storage: DeterminantLogStorage): Iterable[InMemDeterminant] = {
+    val reader = storage.getReader
+    val recordIter = new RecordIterator(reader)
+    val buffer = new ArrayBuffer[InMemDeterminant]()
+    while (!recordIter.isEmpty) {
+      buffer.append(recordIter.peek())
+      recordIter.readNext()
+    }
+    buffer
+  }
 
   abstract class DeterminantLogWriter {
     protected val outputStream: DataOutputStream
     lazy val output = new Output(outputStream)
-    lazy val kryo = instantiator.newKryo()
     def writeLogRecord(obj: InMemDeterminant): Unit = {
-      kryo.writeClassAndObject(output, obj)
+      val bytes = kryoPool.toBytesWithClass(obj)
+      assert(
+        bytes.length < maxSize,
+        "Writing log record size = " + bytes.length + " which exceeds the max size of " + maxSize + " bytes"
+      )
+      output.writeInt(bytes.length)
+      output.write(bytes)
     }
     def flush(): Unit = {
       output.flush()
@@ -33,12 +71,17 @@ object DeterminantLogStorage {
   abstract class DeterminantLogReader {
     protected val inputStream: DataInputStream
     lazy val input = new Input(inputStream)
-    lazy val kryo = instantiator.newKryo()
     def readLogRecord(): InMemDeterminant = {
-      try{
-        kryo.readClassAndObject(input).asInstanceOf[InMemDeterminant]
-      }catch{
-        case e:Exception =>
+      try {
+        val len = input.readInt()
+        assert(
+          len < maxSize,
+          "Reading log record size = " + len + " which exceeds the max size of " + maxSize + " bytes"
+        )
+        val bytes = input.readBytes(len)
+        kryoPool.fromBytes(bytes).asInstanceOf[InMemDeterminant]
+      } catch {
+        case e: Throwable =>
           null
       }
     }

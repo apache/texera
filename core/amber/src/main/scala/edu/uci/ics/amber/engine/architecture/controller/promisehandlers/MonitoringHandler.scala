@@ -2,9 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.{
-  ControllerInitiateMonitoring
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -21,11 +19,12 @@ object MonitoringHandler {
 
 trait MonitoringHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
+  var previousCallFinished = true
 
   def updateWorkloadSamples(
       collectedAt: ActorVirtualIdentity,
-      allDownstreamWorkerToNewSamples: ArrayBuffer[
-        mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+      allDownstreamWorkerToNewSamples: Array[
+        Map[ActorVirtualIdentity, Array[Long]]
       ]
   ): Unit = {
     if (allDownstreamWorkerToNewSamples.isEmpty) {
@@ -39,8 +38,9 @@ trait MonitoringHandler {
       for ((wid, samples) <- workerToNewSamples) {
         var existingSamplesForWorker = existingSamples.getOrElse(wid, new ArrayBuffer[Long]())
         // Remove the lowest sample as it may be incomplete
-        samples.remove(samples.indexOf(samples.min))
-        existingSamplesForWorker.appendAll(samples)
+        val samplesWithoutLowest = samples.toBuffer
+        samplesWithoutLowest.remove(samples.indexOf(samples.min))
+        existingSamplesForWorker.appendAll(samplesWithoutLowest)
 
         // clean up to save memory
         val maxSamplesPerWorker = Constants.reshapeMaxWorkloadSamplesInController
@@ -69,7 +69,7 @@ trait MonitoringHandler {
       val requests = workers.map(worker =>
         send(QuerySelfWorkloadMetrics(), worker).map({
           case (metrics, samples) => {
-            logger.info("Receive samples = "+samples)
+            logger.info("Receive samples = " + samples)
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
               metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =

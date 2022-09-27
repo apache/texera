@@ -56,7 +56,6 @@ class ControllerAsyncRPCHandlerInitializer(
 
   var monitoringHandle: Option[Cancellable] = None
   var workflowReshapeState: WorkflowReshapeState = new WorkflowReshapeState()
-  var previousCallFinished = true
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {

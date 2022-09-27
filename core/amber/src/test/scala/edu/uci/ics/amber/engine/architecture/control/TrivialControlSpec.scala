@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   GetActorRef,
   NetworkAck,
   NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.common.Constants
@@ -73,7 +74,8 @@ class TrivialControlSpec
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
     for (i <- 0 until numActors) {
       val id = ActorVirtualIdentity(s"$i")
-      val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
+      val ref =
+        probe.childActorOf(Props(new TrivialControlTester(id, NetworkSenderActorRef(probe.ref))))
       idMap(id) = ref
     }
     idMap(CONTROLLER) = probe.ref

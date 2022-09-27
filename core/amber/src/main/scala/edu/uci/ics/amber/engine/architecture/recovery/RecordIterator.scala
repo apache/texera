@@ -24,21 +24,20 @@ class RecordIterator(logReader: DeterminantLogReader) {
   }
 
   def readNext(): Unit = {
-    if(temp != null){
+    if (temp != null) {
       current = temp
       temp = null
-    }else{
+    } else {
       current = logReader.readLogRecord()
     }
-    if(current != null){
-      println("reading: "+current)
-    }
-    if(current == null){
+    if (current == null) {
       stop = true
-    }else if(current != null && current.isInstanceOf[StepDelta]){
+    } else if (current != null && current.isInstanceOf[StepDelta]) {
       temp = logReader.readLogRecord()
-      while(temp != null && temp.isInstanceOf[StepDelta]){
-        current = StepDelta(current.asInstanceOf[StepDelta].steps+temp.asInstanceOf[StepDelta].steps)
+      while (temp != null && temp.isInstanceOf[StepDelta]) {
+        current = StepDelta(
+          current.asInstanceOf[StepDelta].steps + temp.asInstanceOf[StepDelta].steps
+        )
         temp = logReader.readLogRecord()
       }
     }

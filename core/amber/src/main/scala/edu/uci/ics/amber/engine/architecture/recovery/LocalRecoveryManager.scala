@@ -4,13 +4,12 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   InMemDeterminant,
   LinkChange,
   ProcessControlMessage,
-  ProcessEnd,
-  ProcessEndOfAll,
   SenderActorChange,
   StepDelta,
   TimeStamp
 }
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogReader
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   ControlElement,
   EndMarker,
@@ -26,27 +25,34 @@ import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class RecoveryManager(logReader: DeterminantLogReader) {
+class LocalRecoveryManager(logReader: DeterminantLogReader) {
 
   private val records = new RecordIterator(logReader)
   private val inputMapping = mutable
-    .HashMap[ActorVirtualIdentity, LinkedBlockingQueue[InputTuple]]()
-    .withDefaultValue(new LinkedBlockingQueue[InputTuple]())
+    .HashMap[ActorVirtualIdentity, LinkedBlockingQueue[InternalQueueElement]]()
+    .withDefaultValue(new LinkedBlockingQueue[InternalQueueElement]())
   private val controlMessages = mutable
     .HashMap[ActorVirtualIdentity, mutable.Queue[ControlElement]]()
     .withDefaultValue(new mutable.Queue[ControlElement]())
-  private val controlCounter = mutable.HashMap[ActorVirtualIdentity, Int]().withDefaultValue(0)
   private var step = 0L
   private var targetVId: ActorVirtualIdentity = _
+  private var currentInputSender: ActorVirtualIdentity = _
   private var cleaned = false
 
-  def acceptInput(tuple: InputTuple): Unit = {
-    print("received "+tuple)
-    inputMapping(tuple.from).put(tuple)
-  }
-
-  def acceptControl(control: ControlElement): Unit = {
-    controlMessages(control.from).enqueue(control)
+  def accept(elem: InternalQueueElement): Unit = {
+    elem match {
+      case tuple: InputTuple =>
+        currentInputSender = tuple.from
+        inputMapping(tuple.from).put(tuple)
+      case SenderChangeMarker(newUpstreamLink) =>
+      //ignore, we use log to enforce original order
+      case control: ControlElement =>
+        controlMessages(control.from).enqueue(control)
+      case WorkerInternalQueue.EndMarker =>
+        inputMapping(currentInputSender).put(EndMarker)
+      case WorkerInternalQueue.EndOfAllMarker =>
+        inputMapping(currentInputSender).put(EndOfAllMarker)
+    }
   }
 
   def replayCompleted(): Boolean = records.isEmpty
@@ -62,8 +68,8 @@ class RecoveryManager(logReader: DeterminantLogReader) {
     }
   }
 
-  private def getAllStashedInputs: Iterable[InputTuple] = {
-    val res = new ArrayBuffer[InputTuple]
+  private def getAllStashedInputs: Iterable[InternalQueueElement] = {
+    val res = new ArrayBuffer[InternalQueueElement]
     inputMapping.values.foreach { x =>
       while (!x.isEmpty) {
         res.append(x.take())
@@ -75,7 +81,6 @@ class RecoveryManager(logReader: DeterminantLogReader) {
   private def getAllStashedControls: Iterable[ControlElement] = {
     val res = new ArrayBuffer[ControlElement]
     controlMessages.foreach { x =>
-      x._2.drop(controlCounter(x._1))
       while (x._2.nonEmpty) {
         res.append(x._2.dequeue())
       }
@@ -83,7 +88,7 @@ class RecoveryManager(logReader: DeterminantLogReader) {
     res
   }
 
-  def stepDecrement(): Unit ={
+  def stepDecrement(): Unit = {
     if (step > 0) {
       step -= 1
     }
@@ -99,9 +104,9 @@ class RecoveryManager(logReader: DeterminantLogReader) {
     determinant
   }
 
-  def readNextAndAssignStepDelta(): Unit ={
+  def readNextAndAssignStepDelta(): Unit = {
     records.readNext()
-    records.peek() match{
+    records.peek() match {
       case StepDelta(steps) =>
         step = steps
       case other => //skip
@@ -110,12 +115,6 @@ class RecoveryManager(logReader: DeterminantLogReader) {
 
   def get(): InternalQueueElement = {
     records.peek() match {
-      case ProcessEnd =>
-        readNextAndAssignStepDelta()
-        EndMarker
-      case ProcessEndOfAll =>
-        readNextAndAssignStepDelta()
-        EndOfAllMarker
       case SenderActorChange(actorVirtualIdentity) =>
         readNextAndAssignStepDelta()
         targetVId = actorVirtualIdentity
@@ -124,18 +123,15 @@ class RecoveryManager(logReader: DeterminantLogReader) {
         readNextAndAssignStepDelta()
         SenderChangeMarker(linkIdentity)
       case StepDelta(steps) =>
-        if(step == 0){
+        if (step == 0) {
           readNextAndAssignStepDelta()
           get()
-        }else if(targetVId != null){
+        } else {
           //wait until input[targetVId] available
           inputMapping(targetVId).take()
-        }else{
-          throw new RuntimeException("cannot take from vid = null step = "+step)
         }
       case ProcessControlMessage(controlPayload, from) =>
         readNextAndAssignStepDelta()
-        controlCounter(from) += 1
         ControlElement(controlPayload, from)
       case TimeStamp(value) => ???
     }

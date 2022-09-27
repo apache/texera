@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LogManager}
-import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   CONTROL_QUEUE,
   ControlElement,
@@ -56,7 +56,7 @@ trait WorkerInternalQueue {
 
   // logging related variables:
   def logManager: LogManager // require dp thread to have log manager
-  def recoveryManager: RecoveryManager // require dp thread to have recovery manager
+  def recoveryManager: LocalRecoveryManager // require dp thread to have recovery manager
   protected val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   // the values in below maps are in tuples (not batches)
@@ -86,11 +86,7 @@ trait WorkerInternalQueue {
     if (recoveryManager.replayCompleted()) {
       dataQueue.add(elem)
     } else {
-      elem match {
-        case x: InputTuple =>
-          recoveryManager.acceptInput(x)
-        case other => //skip
-      }
+      recoveryManager.accept(elem)
     }
     lock.unlock()
   }
@@ -100,7 +96,7 @@ trait WorkerInternalQueue {
     if (recoveryManager.replayCompleted()) {
       controlQueue.add(ControlElement(payload, from))
     } else {
-      recoveryManager.acceptControl(ControlElement(payload, from))
+      recoveryManager.accept(ControlElement(payload, from))
     }
     lock.unlock()
   }
@@ -144,12 +140,7 @@ trait WorkerInternalQueue {
 
   def isControlQueueEmpty: Boolean = {
     determinantLogger.stepIncrement()
-    if (recoveryManager.replayCompleted()) {
-      controlQueue.isEmpty
-    } else {
-      recoveryManager.stepDecrement()
-      !recoveryManager.isReadyToEmitNextControl
-    }
+    controlQueue.isEmpty
   }
 
 }

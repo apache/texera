@@ -8,12 +8,24 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerEx
 import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
-import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LinkChange, LogManager, ProcessControlMessage, ProcessEnd, ProcessEndOfAll, SenderActorChange}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  DeterminantLogger,
+  LinkChange,
+  LogManager,
+  ProcessControlMessage,
+  SenderActorChange
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.recovery.RecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED, READY, RUNNING, UNINITIALIZED}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  PAUSED,
+  READY,
+  RUNNING,
+  UNINITIALIZED
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
@@ -36,9 +48,9 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
-    logStorage: DeterminantLogStorage,
+    val logStorage: DeterminantLogStorage,
     val logManager: LogManager,
-    val recoveryManager: RecoveryManager,
+    val recoveryManager: LocalRecoveryManager,
     val actorId: ActorVirtualIdentity
 ) extends WorkerInternalQueue
     with AmberLogging {
@@ -61,7 +73,6 @@ class DataProcessor( // dependencies:
       } catch safely {
         case _: InterruptedException =>
           // dp thread will stop here
-          logManager.terminate()
           logger.info("DP Thread exits")
         case err: Exception =>
           logger.error("DP Thread exists unexpectedly", err)
@@ -171,7 +182,7 @@ class DataProcessor( // dependencies:
       recoveryManager.stepDecrement()
       determinantLogger.stepIncrement()
       val elem = recoveryManager.get()
-      logger.info("Recovery: replaying "+elem)
+      logger.info("Recovery: replaying " + elem)
       internalQueueElementHandler(elem)
     }
     restoreInputs()
@@ -199,14 +210,12 @@ class DataProcessor( // dependencies:
         determinantLogger.logDeterminant(LinkChange(link))
         currentInputLink = link
       case EndMarker =>
-        determinantLogger.logDeterminant(ProcessEnd)
         currentInputTuple = Right(InputExhausted())
         handleInputTuple()
         if (currentInputLink != null) {
           asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
         }
       case EndOfAllMarker =>
-        determinantLogger.logDeterminant(ProcessEndOfAll)
         // end of processing, break DP loop
         isCompleted = true
         batchProducer.emitEndOfUpstream()
@@ -294,16 +303,31 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    while (
-      !isControlQueueEmpty || pauseManager.isPaused || backpressured || pauseManager.pausedByOperatorLogic
-    ) {
-      takeOneControlCommandAndProcess()
+    if (recoveryManager.replayCompleted()) {
+      while (
+        !isControlQueueEmpty || pauseManager.isPaused || backpressured || pauseManager.pausedByOperatorLogic
+      ) {
+        takeOneControlCommandAndProcess()
+      }
+    } else {
+      determinantLogger.stepIncrement()
+      recoveryManager.stepDecrement()
+      if (recoveryManager.isReadyToEmitNextControl) {
+        takeOneControlCommandAndProcess()
+      }
     }
   }
 
   private[this] def processControlCommandsAfterCompletion(): Unit = {
-    while (true) {
-      takeOneControlCommandAndProcess()
+    if (recoveryManager.replayCompleted()) {
+      while (true) {
+        takeOneControlCommandAndProcess()
+      }
+    } else {
+      recoveryManager.stepDecrement()
+      if (recoveryManager.isReadyToEmitNextControl) {
+        takeOneControlCommandAndProcess()
+      }
     }
   }
 
