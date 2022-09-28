@@ -83,7 +83,7 @@ class WorkerSpec
         new WorkflowWorker(
           identifier1,
           mockOpExecutor,
-          NetworkSenderActorRef(TestProbe().ref),
+          NetworkSenderActorRef(null),
           Set(mockTag)
         ) {
           override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter

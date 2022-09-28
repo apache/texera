@@ -33,11 +33,15 @@ object NetworkCommunicationActor {
     */
   case class NetworkSenderActorRef(ref: ActorRef = null) {
     def !(message: Any)(implicit sender: ActorRef = Actor.noSender): Unit = {
-      ref ! message
+      if (ref != null) {
+        ref ! message
+      }
     }
     def waitUntil(message: Any)(implicit sender: ActorRef = Actor.noSender): Unit = {
       implicit val timeout: Timeout = 3.seconds
-      Await.result(ref ? message, 5.seconds)
+      if (ref != null) {
+        Await.result(ref ? message, 5.seconds)
+      }
     }
   }
 
