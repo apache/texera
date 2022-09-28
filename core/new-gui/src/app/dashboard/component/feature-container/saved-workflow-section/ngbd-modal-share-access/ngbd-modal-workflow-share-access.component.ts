@@ -17,6 +17,7 @@ import { UserFileService } from "../../../../service/user-file/user-file.service
 export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   @Input() workflow!: Workflow;
   @Input() filenames!: string[];
+  @Input() allOwners!: string[];
 
   public shareForm = this.formBuilder.group({
     username: ["", [Validators.required]],
@@ -28,6 +29,10 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
 
   public workflowOwner: string = "";
+
+  public filteredOwners: Array<string> = [];
+
+  public ownerSearchValue?: string;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -42,6 +47,14 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   public onClickGetAllSharedAccess(workflow: Workflow): void {
     this.refreshGrantedList(workflow);
+  }
+
+  public onChange(value: string): void {
+    if (value === undefined) {
+      this.filteredOwners = [];
+    } else {
+      this.filteredOwners = this.allOwners.filter(owner => owner.toLowerCase().indexOf(value.toLowerCase()) !== -1);
+    }
   }
 
   /**
