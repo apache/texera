@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
+import edu.uci.ics.amber.engine.common.AmberUtils
 
 import java.util
 import java.util.concurrent.CompletableFuture
@@ -19,7 +20,8 @@ class AsyncLogWriter(
   private val writerQueue =
     Queues.newLinkedBlockingQueue[Either[InMemDeterminant, SendRequest]]()
   @volatile private var stopped = false
-  private val logInterval = 500
+  private val logInterval =
+    AmberUtils.amberConfig.getLong("fault-tolerance.log-flush-interval-ms")
   private val gracefullyStopped = new CompletableFuture[Unit]()
 
   def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {

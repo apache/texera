@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.control
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.pattern.ask
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.Timeout
@@ -66,6 +66,9 @@ class TrivialControlSpec
     }
     if (flag != expectedValues.length) {
       throw new AssertionError()
+    }
+    idMap.foreach { x =>
+      x._2 ! PoisonPill
     }
   }
 

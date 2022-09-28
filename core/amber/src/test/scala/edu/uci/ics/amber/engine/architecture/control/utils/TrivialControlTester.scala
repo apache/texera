@@ -45,6 +45,11 @@ class TrivialControlTester(
     }
   }
 
+  override def postStop(): Unit = {
+    logManager.terminate()
+    logStorage.deleteLog()
+  }
+
   def handleControlPayloadWithTryCatch(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
