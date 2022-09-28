@@ -29,7 +29,7 @@ object LogManager {
     if (enabledLogging) {
       new LogManagerImpl(networkCommunicationActor)
     } else {
-      new EmptyLogManagerImpl()
+      new EmptyLogManagerImpl(networkCommunicationActor)
     }
   }
 }

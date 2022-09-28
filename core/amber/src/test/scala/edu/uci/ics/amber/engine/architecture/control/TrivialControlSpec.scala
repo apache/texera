@@ -1,7 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.control
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.pattern.ask
 import akka.testkit.{TestKit, TestProbe}
+import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
 import edu.uci.ics.amber.engine.architecture.control.utils.ErrorHandler.ErrorCommand
@@ -10,13 +12,7 @@ import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
 import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
 import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  GetActorRef,
-  NetworkAck,
-  NetworkMessage,
-  NetworkSenderActorRef,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, NetworkSenderActorRef, RegisterActorRef}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
@@ -27,6 +23,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import scala.collection.mutable
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class TrivialControlSpec
@@ -43,7 +40,7 @@ class TrivialControlSpec
     val (events, expectedValues) = eventPairs.unzip
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
-    probe.receiveWhile(5.minutes, 5.seconds) {
+    probe.receiveWhile(5.minutes, 10.seconds) {
       case GetActorRef(id, replyTo) =>
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))

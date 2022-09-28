@@ -2,26 +2,14 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.logging.storage.EmptyLogStorage
-import edu.uci.ics.amber.engine.architecture.logging.{
-  DeterminantLogger,
-  EmptyLogManagerImpl,
-  LogManager
-}
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, EmptyLogManagerImpl, LogManager}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  EndMarker,
-  EndOfAllMarker,
-  InputTuple,
-  SenderChangeMarker
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -30,7 +18,7 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
   val linkID2: LinkIdentity = LinkIdentity(LayerIdentity("", "", ""), null)
 
   class TestWorkerInternalQueue extends WorkerInternalQueue {
-    val logManager: LogManager = new EmptyLogManagerImpl()
+    val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val recoveryManager: LocalRecoveryManager = new LocalRecoveryManager(
       new EmptyLogStorage().getReader
     )
