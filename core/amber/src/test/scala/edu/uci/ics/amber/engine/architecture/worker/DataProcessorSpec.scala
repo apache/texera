@@ -4,15 +4,27 @@ import akka.actor.ActorContext
 import akka.testkit.TestProbe
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.logging.{EmptyLogManagerImpl, LogManager}
-import edu.uci.ics.amber.engine.architecture.logging.storage.{DeterminantLogStorage, EmptyLogStorage}
+import edu.uci.ics.amber.engine.architecture.logging.storage.{
+  DeterminantLogStorage,
+  EmptyLogStorage
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, NetworkInputPort, NetworkOutputPort, TupleToBatchConverter}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  BatchToTupleConverter,
+  NetworkInputPort,
+  NetworkOutputPort,
+  TupleToBatchConverter
+}
 import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, RUNNING, UNINITIALIZED}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  RUNNING,
+  UNINITIALIZED
+}
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -21,7 +33,11 @@ import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
