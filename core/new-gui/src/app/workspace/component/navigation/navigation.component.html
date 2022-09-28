@@ -171,36 +171,36 @@
           <i nz-icon nzTheme="outline" nzType="ungroup"></i>
         </button> -->
         <button
-          (click)="onClickDisableOperators()"
-          *ngIf="isDisableOperator || !isDisableOperatorClickable"
-          [disabled]="!isDisableOperatorClickable || !lockGranted"
+          (click)="operatorMenu.disableHighlightedOperators()"
+          *ngIf="operatorMenu.isDisableOperator || !operatorMenu.isDisableOperatorClickable"
+          [disabled]="!operatorMenu.isDisableOperatorClickable || !lockGranted"
           nz-button
           title="disable operators"
         >
           <i nz-icon nzTheme="outline" nzType="stop"></i>
         </button>
         <button
-          (click)="onClickDisableOperators()"
-          *ngIf="!isDisableOperator && isDisableOperatorClickable"
-          [disabled]="!isDisableOperatorClickable || !lockGranted"
+          (click)="operatorMenu.disableHighlightedOperators()"
+          *ngIf="!operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
+          [disabled]="!operatorMenu.isDisableOperatorClickable || !lockGranted"
           nz-button
           title="operators disabled, click to re-enable"
         >
           <i nz-icon nzTheme="twotone" nzType="stop"></i>
         </button>
         <button
-          *ngIf="operatorCacheEnabled && (isCacheOperator || ! isCacheOperatorClickable)"
-          [disabled]="! isCacheOperatorClickable || !lockGranted"
-          (click)="onClickCacheOperators()"
+          *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator || ! operatorMenu.isCacheOperatorClickable)"
+          [disabled]="! operatorMenu.isCacheOperatorClickable || !lockGranted"
+          (click)="operatorMenu.cacheHighlightedOperators()"
           nz-button
           title="cache operators"
         >
           <i nz-icon nzType="database" nzTheme="outline"></i>
         </button>
         <button
-          *ngIf="operatorCacheEnabled && (! isCacheOperator && isCacheOperatorClickable)"
-          [disabled]="! isCacheOperatorClickable || !lockGranted"
-          (click)="onClickCacheOperators()"
+          *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
+          [disabled]="! operatorMenu.isCacheOperatorClickable || !lockGranted"
+          (click)="operatorMenu.cacheHighlightedOperators()"
           nz-button
           title="operators cached, click to remove cache"
         >

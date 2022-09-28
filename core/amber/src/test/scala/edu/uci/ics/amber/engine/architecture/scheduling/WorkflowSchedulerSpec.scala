@@ -122,10 +122,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           })
         })
     })
-    scheduler.runningRegions.add(scheduler.getNextRegionToConstructAndPrepare())
-    val isRegionCompleted = scheduler.recordWorkerCompletion(ActorVirtualIdentity("Scan worker 0"))
-    assert(isRegionCompleted == true)
-    assert(scheduler.getNextRegionToConstructAndPrepare() == null)
+    scheduler.schedulingPolicy.addToRunningRegions(scheduler.schedulingPolicy.startWorkflow())
+    val nextRegions =
+      scheduler.schedulingPolicy.onWorkerCompletion(ActorVirtualIdentity("Scan worker 0"))
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 1)
   }
 
   "Scheduler" should "correctly schedule regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
@@ -242,7 +243,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         }: _*)
       })
 
-    scheduler.runningRegions.add(scheduler.getNextRegionToConstructAndPrepare())
+    scheduler.schedulingPolicy.addToRunningRegions(scheduler.schedulingPolicy.startWorkflow())
     Set(buildCsv.operatorID).foreach(opID => {
       workflow
         .getOperator(opID)
@@ -254,25 +255,27 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           })
         })
     })
-    var isRegionCompleted =
-      scheduler.recordWorkerCompletion(ActorVirtualIdentity("Build Scan worker 0"))
 
-    assert(isRegionCompleted == false)
-    isRegionCompleted = scheduler.recordLinkCompletion(
+    var nextRegions =
+      scheduler.schedulingPolicy.onWorkerCompletion(ActorVirtualIdentity("Build Scan worker 0"))
+    assert(nextRegions.isEmpty)
+
+    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
         workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
         workflow.getOperator(hashJoin1.operatorID).topology.layers.head.id
       )
     )
-    assert(isRegionCompleted == false)
-    isRegionCompleted = scheduler.recordLinkCompletion(
+    assert(nextRegions.isEmpty)
+    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
         workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
         workflow.getOperator(hashJoin2.operatorID).topology.layers.head.id
       )
     )
-    assert(isRegionCompleted == true)
-    scheduler.runningRegions.add(scheduler.getNextRegionToConstructAndPrepare())
+    assert(nextRegions.nonEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 1)
+    scheduler.schedulingPolicy.addToRunningRegions(nextRegions)
     Set(probeCsv.operatorID, hashJoin1.operatorID, hashJoin2.operatorID, sink.operatorID).foreach(
       opID => {
         workflow
@@ -286,10 +289,10 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           })
       }
     )
-    isRegionCompleted =
-      scheduler.recordWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
-    assert(isRegionCompleted == true)
-    assert(scheduler.getNextRegionToConstructAndPrepare() == null)
+    nextRegions =
+      scheduler.schedulingPolicy.onWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 2)
   }
 
 }
