@@ -129,13 +129,10 @@ export class WorkflowPersistService {
    */
   public updateWorkflowDescription(wid: number | undefined, description: string): Observable<Response> {
     return this.http
-      .post<Response>(
-        `${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}`,
-        {
-          wid: wid,
-          description: description,
-        }
-      )
+      .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}`, {
+        wid: wid,
+        description: description,
+      })
       .pipe(
         catchError((error: unknown) => {
           // @ts-ignore

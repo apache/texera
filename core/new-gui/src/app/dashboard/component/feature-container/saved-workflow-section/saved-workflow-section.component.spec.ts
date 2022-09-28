@@ -35,7 +35,7 @@ import { AppSettings } from "src/app/common/app-setting";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 import { NzUploadModule } from "ng-zorro-antd/upload";
 import { MatSelectModule } from "@angular/material/select";
-import { By } from "@angular/platform-browser";
+import { By, EVENT_MANAGER_PLUGINS } from "@angular/platform-browser";
 import { animationFrameScheduler } from "rxjs";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
@@ -92,6 +92,7 @@ describe("SavedWorkflowSectionComponent", () => {
     creationTime: 28800000 + 86400000 * 2,
     lastModifiedTime: 28800000 + 86400000 * 2 + 8,
   };
+
   const testDownloadWorkflow1: Workflow = {
     wid: 6,
     name: "workflow",
@@ -189,7 +190,7 @@ describe("SavedWorkflowSectionComponent", () => {
     },
   });
 
-  // must use waitForAsync for configureTestingModule in components with virtual scroll 
+  // must use waitForAsync for configureTestingModule in components with virtual scroll
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
@@ -540,75 +541,73 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   // it("editing a workflow name triggers a POST request on the backend", () => {
-  //   component.dashboardWorkflowEntries = 
+  //   component.dashboardWorkflowEntries =
   //   component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
   //   let testWorkflowEntry = component.dashboardWorkflowEntries[0];
   //   component.confirmUpdateWorkflowCustomName(testWorkflowEntry, "Edited Workflow Name", 0);
   //   httpTestingController.expectOne(request => request.method === "POST");
   // });
 
-  fit("adding a workflow description adds a description to the workflow", waitForAsync(() => {
-    // must use waitForAsync and fixture.whenStable when testing component with virtual scroll
-    // check https://github.com/rintoj/ngx-virtual-scroller/issues/97
-
-    // let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
-    // expect(addWorkflowDescriptionBtn1).toBeTruthy();
-
-    // // add some test workflows
-    // component.dashboardWorkflowEntries = testWorkflowEntries;
-    // fixture.detectChanges();
-    // // the button for adding workflow descriptions should appear now
-    // expect(addWorkflowDescriptionBtn1).toBeTruthy();
-
-    // let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(".workflow-editable-description");
-    // expect(editableDescriptionInput1).toBeTruthy();
-    
-    // addWorkflowDescriptionBtn1.triggerEventHandler("click", null);
-    
-    // expect(editableDescriptionInput1).toBeTruthy();
-    // sendInput(editableDescriptionInput1, "dummy description.").then(() => {
-    //   fixture.detectChanges();
-
-    //   spyOn(component, "confirmUpdateWorkflowCustomDescription");
-    //   editableDescriptionInput1.dispatchEvent(new Event("keyup.enter"));
-    //   expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
-    // });
-    
-    // when there's no workflow yet, the button to add workflow description shouldn't appear
-    
-    fixture.whenStable().then(() => {
-      let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
-      expect(addWorkflowDescriptionBtn1).toBeFalsy();
-      // add some test workflows
-      component.dashboardWorkflowEntries = testWorkflowEntries; 
-      fixture.detectChanges();
-      let addWorkflowDescriptionBtn2 = fixture.debugElement.query(By.css(".add-description-btn"));
-      // the button for adding workflow descriptions should appear now
-      expect(addWorkflowDescriptionBtn2).toBeTruthy();
-      addWorkflowDescriptionBtn2.triggerEventHandler("click", null);
-      fixture.detectChanges();
-      let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(".workflow-editable-description");
-      expect(editableDescriptionInput1).toBeTruthy();
-
-      spyOn(component, "confirmUpdateWorkflowCustomDescription");
-      sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
+  fit(
+    "adding a workflow description adds a description to the workflow",
+    waitForAsync(() => {
+      fixture.whenStable().then(() => {
+        let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
+        expect(addWorkflowDescriptionBtn1).toBeFalsy();
+        // add some test workflows
+        component.dashboardWorkflowEntries = testWorkflowEntries;
         fixture.detectChanges();
-        editableDescriptionInput1.dispatchEvent(new Event("focusout"));
+        let addWorkflowDescriptionBtn2 = fixture.debugElement.query(By.css(".add-description-btn"));
+        // the button for adding workflow descriptions should appear now
+        expect(addWorkflowDescriptionBtn2).toBeTruthy();
+        addWorkflowDescriptionBtn2.triggerEventHandler("click", null);
         fixture.detectChanges();
-        expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
-      });
+        let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
+          ".workflow-editable-description"
+        );
+        expect(editableDescriptionInput1).toBeTruthy();
 
-      sendInput(editableDescriptionInput1, "dummy description added by pressing the Enter key.").then(() => {
-        fixture.detectChanges();
-        const event = new KeyboardEvent("keypress",{
-          "key": "Enter"
+        spyOn(component, "confirmUpdateWorkflowCustomDescription");
+        sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
+          fixture.detectChanges();
+          editableDescriptionInput1.dispatchEvent(new Event("focusout"));
+          fixture.detectChanges();
+          expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
         });
-        editableDescriptionInput1.dispatchEvent(event);
-        fixture.detectChanges();
-        expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(2);
       });
-    });
-  }));
+    })
+  );
+
+  it(
+    "Editing a workflow description edits a description to the workflow",
+    waitForAsync(() => {
+      fixture.whenStable().then(() => {
+        let workflowDescriptionLabel1 = fixture.debugElement.query(By.css(".workflow-description"));
+        expect(workflowDescriptionLabel1).toBeFalsy();
+        // add some test workflows
+        component.dashboardWorkflowEntries = testWorkflowEntries;
+        fixture.detectChanges();
+        let workflowDescriptionLabel2 = fixture.debugElement.query(By.css(".workflow-description"));
+        // the workflow description label should appear now
+        expect(workflowDescriptionLabel2).toBeTruthy();
+        workflowDescriptionLabel1.triggerEventHandler("click", null);
+        fixture.detectChanges();
+        let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
+          ".workflow-editable-description"
+        );
+        expect(editableDescriptionInput1).toBeTruthy();
+
+        spyOn(component, "confirmUpdateWorkflowCustomDescription");
+
+        sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
+          fixture.detectChanges();
+          editableDescriptionInput1.dispatchEvent(new Event("focusout"));
+          fixture.detectChanges();
+          expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
+        });
+      });
+    })
+  );
 
   function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
     // editableDescriptionInput.dispatchEvent(new Event("focus"));
@@ -623,5 +622,5 @@ describe("SavedWorkflowSectionComponent", () => {
     const event: KeyboardEvent = new KeyboardEvent("keyup", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "target", { value: { value } });
     return event;
-}
+  }
 });

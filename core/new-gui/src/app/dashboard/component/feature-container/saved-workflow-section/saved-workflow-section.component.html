@@ -147,7 +147,9 @@
       <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let wid of wids">
           <li nz-menu-item>
-            <label nz-checkbox ngDefaultControl [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()">{{wid.id}}</label>
+            <label nz-checkbox ngDefaultControl [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()"
+              >{{wid.id}}</label
+            >
           </li>
         </ul>
       </nz-dropdown-menu>
@@ -168,7 +170,11 @@
           <li nz-submenu nzTitle="{{group}}">
             <ul *ngFor="let operator of operators.get(group)">
               <li nz-menu-item>
-                <label nz-checkbox ngDefaultControl [(ngModel)]="operator.checked" (ngModelChange)="updateSelectedOperators()"
+                <label
+                  nz-checkbox
+                  ngDefaultControl
+                  [(ngModel)]="operator.checked"
+                  (ngModelChange)="updateSelectedOperators()"
                   >{{operator.userFriendlyName}}</label
                 >
               </li>
