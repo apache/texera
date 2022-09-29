@@ -36,7 +36,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.texera.workflow.common.operators.OperatorContext
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
 
@@ -56,33 +55,41 @@ class DataProcessor( // dependencies:
     with AmberLogging {
   // initialize dp thread upon construction
   private val dpThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
-  private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
-    def run(): Unit = {
-      try {
-        // TODO: setup context
-        stateManager.assertState(UNINITIALIZED)
-        // operator.context = new OperatorContext(new TimeService(logManager))
-        stateManager.transitTo(READY)
-        if (!recoveryManager.replayCompleted()) {
-          runDPThreadRecovery()
-          logManager.terminate()
-          logStorage.swapTempLog()
-          logger.info("Recovery Completed!")
+  private var dpThread: Future[_] = _
+  def start(): Unit = {
+    if (dpThread == null) {
+      dpThread = dpThreadExecutor.submit(new Runnable() {
+        def run(): Unit = {
+          try {
+            // TODO: setup context
+            stateManager.assertState(UNINITIALIZED)
+            // operator.context = new OperatorContext(new TimeService(logManager))
+            stateManager.transitTo(READY)
+            if (!recoveryManager.replayCompleted()) {
+              recoveryManager.onStart()
+              runDPThreadRecovery()
+              logManager.terminate()
+              logStorage.swapTempLog()
+              logManager.setupWriter(logStorage.getWriter(false))
+              recoveryManager.onEnd()
+              logger.info("Recovery Completed!")
+            }
+            runDPThreadMainLogic()
+          } catch safely {
+            case _: InterruptedException =>
+              // dp thread will stop here
+              logger.info("DP Thread exits")
+            case err: Exception =>
+              logger.error("DP Thread exists unexpectedly", err)
+              asyncRPCClient.send(
+                FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
+                CONTROLLER
+              )
+          }
         }
-        runDPThreadMainLogic()
-      } catch safely {
-        case _: InterruptedException =>
-          // dp thread will stop here
-          logger.info("DP Thread exits")
-        case err: Exception =>
-          logger.error("DP Thread exists unexpectedly", err)
-          asyncRPCClient.send(
-            FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
-            CONTROLLER
-          )
-      }
+      })
     }
-  })
+  }
   // dp thread stats:
   // TODO: add another variable for recovery index instead of using the counts below.
   private var inputTupleCount = 0L

@@ -3,9 +3,13 @@ package edu.uci.ics.amber.clustering
 import akka.actor.{Actor, ActorLogging, Address, ExtendedActorSystem}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member}
+import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.texera.web.service.WorkflowService
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.DurationInt
 
 object ClusterListener {
   final case class GetAvailableNodeAddresses()
@@ -30,7 +34,19 @@ class ClusterListener extends Actor with ActorLogging {
     case evt: MemberEvent =>
       log.info(s"received member event = $evt")
       updateClusterStatus()
-    case ClusterListener.GetAvailableNodeAddresses => sender ! getAllAddressExcludingMaster.toArray
+    case unreachable: UnreachableMember =>
+      val futures = new ArrayBuffer[Future[Any]]
+      WorkflowService.getAllWorkflowService.foreach { workflow =>
+        val jobService = workflow.jobService.getValue
+        if (jobService != null && !jobService.workflow.isCompleted) {
+          try {
+            futures.append(jobService.client.notifyNodeFailure(unreachable.member.address))
+          }
+        }
+      }
+      Await.all(futures: _*)
+    case ClusterListener.GetAvailableNodeAddresses =>
+      sender ! getAllAddressExcludingMaster.toArray
   }
 
   private def getAllAddressExcludingMaster: Iterable[Address] = {

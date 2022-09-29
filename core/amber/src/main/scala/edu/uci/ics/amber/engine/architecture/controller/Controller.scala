@@ -1,16 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorRef, Address, Cancellable, Props}
+import akka.actor.{ActorRef, Address, Cancellable, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
-import com.twitter.util.Future
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.logging.{
   DeterminantLogger,
   InMemDeterminant,
@@ -22,23 +20,30 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.{
+  FIFOStateRecoveryManager,
+  GlobalRecoveryManager
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   WorkflowPipelinedRegionsBuilder,
   WorkflowScheduler
 }
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
-import edu.uci.ics.amber.engine.common.{AmberUtils, Constants, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  NotifyFailedNode,
+  ResendOutputTo,
+  UpdateRecoveryStatus,
+  WorkflowControlMessage,
+  WorkflowRecoveryMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -88,6 +93,10 @@ class Controller(
 
   override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
+  val globalRecoveryManager: GlobalRecoveryManager = new GlobalRecoveryManager(
+    () => asyncRPCClient.sendToClient(WorkflowRecoveryStatus(true)),
+    () => asyncRPCClient.sendToClient(WorkflowRecoveryStatus(false))
+  )
 
   def availableNodes: Array[Address] =
     Await
@@ -112,7 +121,7 @@ class Controller(
   networkCommunicationActor.waitUntil(RegisterActorRef(CLIENT, context.parent))
 
   def running: Receive = {
-    acceptDirectInvocations orElse {
+    acceptRecoveryMessages orElse acceptDirectInvocations orElse {
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(
           this.sender(),
@@ -130,6 +139,37 @@ class Controller(
   def acceptDirectInvocations: Receive = {
     case invocation: ControlInvocation =>
       this.handleControlPayloadWithTryCatch(CLIENT, invocation)
+  }
+
+  def acceptRecoveryMessages: Receive = {
+    case recoveryMsg: WorkflowRecoveryMessage =>
+      recoveryMsg.payload match {
+        case UpdateRecoveryStatus(isRecovering) =>
+          globalRecoveryManager.markRecoveryStatus(recoveryMsg.from, isRecovering)
+        case ResendOutputTo(vid) =>
+          logger.warn(s"controller should not resend output to " + vid)
+        case NotifyFailedNode(addr) =>
+          val deployNodes = availableNodes.filter(_ != self.path.address)
+          if (deployNodes.nonEmpty) {
+            val infoSet = workflow.getAllWorkerInfoOfAddress(addr)
+            infoSet.foreach { info =>
+              info.ref ! PoisonPill // in case we can still access the worker
+            }
+            // wait for 15 secs to re-create workers and re-send output
+            context.system.scheduler.scheduleOnce(15.seconds) {
+              infoSet.foreach { info =>
+                workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+                workflow.getDirectUpstreamWorkers(info.id).foreach { vid =>
+                  workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id)
+                }
+              }
+            }
+          } else {
+            throw new RuntimeException(
+              "Cannot recover failed workers! No available worker machines!"
+            )
+          }
+      }
   }
 
   def handleControlPayloadWithTryCatch(
@@ -168,6 +208,7 @@ class Controller(
             logManager.terminate()
             logStorage.swapTempLog()
             logManager.setupWriter(logStorage.getWriter(false))
+            globalRecoveryManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
             context.become(running)
           } else {
             val inMemDeterminant = recoveryManager.getDeterminant()
@@ -184,6 +225,7 @@ class Controller(
 
   override def receive: Receive = {
     if (!recoveryManager.replayCompleted()) {
+      globalRecoveryManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
       val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
       val fifoState = fifoStateRecoveryManager.getFIFOState
       controlInputPort.overwriteFIFOState(fifoState)
@@ -201,8 +243,11 @@ class Controller(
     }
     logManager.terminate()
     if (workflow.isCompleted) {
+      workflow.getAllWorkers.foreach { workerId =>
+        DeterminantLogStorage.getLogStorage(WorkflowWorker.getWorkerLogName(workerId)).deleteLog()
+      }
       logStorage.deleteLog()
     }
-    logger.info("stopped!")
+    logger.info("stopped successfully!")
   }
 }

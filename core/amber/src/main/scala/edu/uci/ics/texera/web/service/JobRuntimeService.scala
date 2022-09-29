@@ -41,7 +41,12 @@ class JobRuntimeService(
         if (WorkflowService.userSystemEnabled) {
           ExecutionsMetadataPersistService.tryUpdateExistingExecution(newState.eid, newState.state)
         }
-        outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+        // Check if is recovering
+        if (newState.isRecovering) {
+          outputEvts.append(WorkflowStateEvent("Recovering"))
+        } else {
+          outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+        }
       }
       // Check if new error occurred
       if (newState.error != oldState.error && newState.error != null) {

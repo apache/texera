@@ -39,6 +39,25 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
   private var currentInputSender: ActorVirtualIdentity = _
   private var cleaned = false
 
+  private val callbacksOnStart = new ArrayBuffer[() => Unit]()
+  private val callbacksOnEnd = new ArrayBuffer[() => Unit]()
+
+  def registerOnStart(callback: () => Unit): Unit = {
+    callbacksOnStart.append(callback)
+  }
+
+  def registerOnEnd(callback: () => Unit): Unit = {
+    callbacksOnEnd.append(callback)
+  }
+
+  def onStart(): Unit = {
+    callbacksOnStart.foreach(callback => callback())
+  }
+
+  def onEnd(): Unit = {
+    callbacksOnEnd.foreach(callback => callback())
+  }
+
   def accept(elem: InternalQueueElement): Unit = {
     elem match {
       case tuple: InputTuple =>

@@ -21,7 +21,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  ResendOutputTo,
+  WorkflowControlMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -54,7 +58,7 @@ abstract class WorkflowActor(
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
 
   // Get log file name
-  def getLogName: String = ""
+  def getLogName: String = "worker-actor"
 
   def outputControlPayload(
       to: ActorVirtualIdentity,

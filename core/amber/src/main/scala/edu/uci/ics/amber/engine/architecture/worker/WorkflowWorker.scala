@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
+import akka.pattern.ask
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
@@ -11,6 +12,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   NetworkMessage,
   NetworkSenderActorRef,
   RegisterActorRef,
+  ResendFeasibility,
   SendRequest
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
@@ -20,6 +22,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
@@ -32,6 +35,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   CreditRequest,
   DataPayload,
+  ResendOutputTo,
+  UpdateRecoveryStatus,
   WorkflowControlMessage,
   WorkflowDataMessage
 }
@@ -42,7 +47,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 object WorkflowWorker {
@@ -53,6 +58,8 @@ object WorkflowWorker {
       allUpstreamLinkIds: Set[LinkIdentity]
   ): Props =
     Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
+
+  def getWorkerLogName(id: ActorVirtualIdentity): String = id.name.replace("Worker:", "")
 }
 
 class WorkflowWorker(
@@ -85,22 +92,35 @@ class WorkflowWorker(
     parentNetworkCommunicationActorRef.waitUntil(RegisterActorRef(this.actorId, self))
   }
 
-  override def getLogName: String = actorId.name.replace("Worker:", "")
+  override def getLogName: String = getWorkerLogName(actorId)
 
   def getSenderCredits(sender: ActorVirtualIdentity) = {
     tupleProducer.getSenderCredits(sender)
   }
 
   override def receive: Receive = {
-    val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
-    val fifoState = fifoStateRecoveryManager.getFIFOState
-    controlInputPort.overwriteFIFOState(fifoState)
+    if (!recoveryManager.replayCompleted()) {
+      recoveryManager.registerOnStart(() => context.parent ! UpdateRecoveryStatus(true))
+      recoveryManager.registerOnEnd(() => context.parent ! UpdateRecoveryStatus(false))
+      val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
+      val fifoState = fifoStateRecoveryManager.getFIFOState
+      controlInputPort.overwriteFIFOState(fifoState)
+    }
+    dataProcessor.start()
     receiveAndProcessMessages
+  }
+
+  def forwardResendRequest: Receive = {
+    case resend: ResendOutputTo =>
+      val result = Await.result(networkCommunicationActor.ref ? resend, 5.seconds)
+      if (!result.isInstanceOf[ResendFeasibility] || !result.asInstanceOf[ResendFeasibility].isOk) {
+        throw new WorkflowRuntimeException(s"network sender cannot resend message!")
+      }
   }
 
   def receiveAndProcessMessages: Receive =
     try {
-      disallowActorRefRelatedMessages orElse {
+      forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
         case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
           dataInputPort.handleMessage(
             this.sender(),

@@ -117,7 +117,6 @@ class RecoverySpec
   }
 
   "Logreader" should "not read anything from empty log" in {
-    val workerName = "Test"
     val logStorage = new EmptyLogStorage()
     assert(DeterminantLogStorage.fetchAllLogRecords(logStorage).isEmpty)
   }

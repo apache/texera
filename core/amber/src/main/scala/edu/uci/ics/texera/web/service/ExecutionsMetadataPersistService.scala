@@ -35,7 +35,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       case WorkflowAggregatedState.PAUSING                         => ???
       case WorkflowAggregatedState.PAUSED                          => 2
       case WorkflowAggregatedState.RESUMING                        => ???
-      case WorkflowAggregatedState.RECOVERING                      => ???
       case WorkflowAggregatedState.COMPLETED                       => 3
       case WorkflowAggregatedState.ABORTED                         => 4
       case WorkflowAggregatedState.UNKNOWN                         => ???
