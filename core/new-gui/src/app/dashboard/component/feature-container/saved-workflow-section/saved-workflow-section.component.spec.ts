@@ -541,7 +541,6 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("editing a workflow name triggers a POST request on the backend", () => {
-    component.dashboardWorkflowEntries =
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     let testWorkflowEntry = component.dashboardWorkflowEntries[0];
     component.confirmUpdateWorkflowCustomName(testWorkflowEntry, "Edited Workflow Name", 0);
