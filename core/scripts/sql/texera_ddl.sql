@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS keyword_dictionary
 CREATE TABLE IF NOT EXISTS workflow
 (
     `name`               VARCHAR(128)                NOT NULL,
+	`description`        VARCHAR(500),
     `wid`                INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `content`            TEXT                        NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,

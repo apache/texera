@@ -21,6 +21,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const workflow: Workflow = {
     wid: 1,
     name: "workflow 1",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>(
       " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
     ),
