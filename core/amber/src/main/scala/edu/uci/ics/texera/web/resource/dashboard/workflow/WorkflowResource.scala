@@ -199,6 +199,7 @@ class WorkflowResource {
       .select(
         WORKFLOW.WID,
         WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
@@ -228,12 +229,12 @@ class WorkflowResource {
           ).toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[UInteger]()
-          else workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
+          if (workflowRecord.component10() == null) List[UInteger]()
+          else
+            workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
-
   }
 
   /**
@@ -323,7 +324,14 @@ class WorkflowResource {
       workflow.getContent
       workflow.getName
       createWorkflow(
-        new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null),
+        new Workflow(
+          workflow.getName + "_copy",
+          workflow.getDescription,
+          null,
+          workflow.getContent,
+          null,
+          null
+        ),
         sessionUser
       )
 
@@ -381,14 +389,15 @@ class WorkflowResource {
     * @return Response
     */
   @POST
-  @Path("/update/name/{wid}/{workflowName}")
+  @Path("/update/name")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def updateWorkflowName(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("workflowName") workflowName: String,
+      workflow: Workflow,
       @Auth sessionUser: SessionUser
   ): Unit = {
+    val wid = workflow.getWid
+    val name = workflow.getName
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -396,9 +405,33 @@ class WorkflowResource {
       throw new BadRequestException("The workflow does not exist.")
     } else {
       val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setName(workflowName)
+      userWorkflow.setName(name)
       workflowDao.update(userWorkflow)
     }
   }
 
+  /**
+    * This method updates the description of a given workflow
+    *
+    * @return Response
+    */
+  @POST
+  @Path("/update/description")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def updateWorkflowDescription(
+      workflow: Workflow,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    val wid = workflow.getWid
+    val description = workflow.getDescription
+    val user = sessionUser.getUser
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    } else {
+      val userWorkflow = workflowDao.fetchOneByWid(wid)
+      userWorkflow.setDescription(description)
+      workflowDao.update(userWorkflow)
+    }
+  }
 }
