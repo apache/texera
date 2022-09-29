@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
+import { discardPeriodicTasks, fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
@@ -102,10 +102,10 @@ describe("SchemaPropagationService", () => {
     });
     // verify debounce time: no request before debounce time ticks
     httpTestingController.verify();
-    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
     // reqeuest should be made after debounce time
     httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
     httpTestingController.verify();
+    discardPeriodicTasks();
   }));
 
   it("should invoke schema propagation API when a operator property is changed", fakeAsync(() => {
@@ -122,6 +122,7 @@ describe("SchemaPropagationService", () => {
     expect(req1.request.method).toEqual("POST");
     req1.flush(mockSchemaPropagationResponse);
     httpTestingController.verify();
+    discardPeriodicTasks();
   }));
 
   it("should handle error responses from server gracefully", fakeAsync(() => {
@@ -151,6 +152,7 @@ describe("SchemaPropagationService", () => {
     expect(req2.request.method).toEqual("POST");
     req2.flush(mockSchemaPropagationResponse);
     httpTestingController.verify();
+    discardPeriodicTasks();
   }));
 
   it("should modify `attribute` of operator schema", fakeAsync(() => {
@@ -195,6 +197,7 @@ describe("SchemaPropagationService", () => {
       enum: expectedEnum,
       uniqueItems: true,
     });
+    discardPeriodicTasks();
   }));
 
   it("should restore `attribute` to original schema if input attributes no longer exists", fakeAsync(() => {
@@ -270,6 +273,7 @@ describe("SchemaPropagationService", () => {
       enum: undefined,
       uniqueItems: undefined,
     });
+    discardPeriodicTasks();
   }));
 
   it("should modify `attributes` of operator schema", fakeAsync(() => {
@@ -323,6 +327,7 @@ describe("SchemaPropagationService", () => {
         enum: expectedEnum,
       },
     });
+    discardPeriodicTasks();
   }));
 
   it("should modify nested deep `attribute` of operator schema", fakeAsync(() => {
@@ -392,5 +397,6 @@ describe("SchemaPropagationService", () => {
         },
       },
     });
+    discardPeriodicTasks();
   }));
 });
