@@ -60,7 +60,7 @@ export class WorkflowGraph {
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
   private readonly operatorDeleteSubject = new Subject<{
-    deletedOperator: OperatorPredicate;
+    deletedOperatorID: string;
   }>();
   private readonly disabledOperatorChangedSubject = new Subject<{
     newDisabled: string[];
@@ -167,7 +167,7 @@ export class WorkflowGraph {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     this.operatorIDMap.delete(operatorID);
-    this.operatorDeleteSubject.next({ deletedOperator: operator });
+    this.operatorDeleteSubject.next({ deletedOperatorID: operator.operatorID });
   }
 
   public deleteCommentBox(commentBoxID: string): void {
@@ -537,7 +537,7 @@ export class WorkflowGraph {
    * The observable value is the deleted operator.
    */
   public getOperatorDeleteStream(): Observable<{
-    deletedOperator: OperatorPredicate;
+    deletedOperatorID: string;
   }> {
     return this.operatorDeleteSubject.asObservable();
   }

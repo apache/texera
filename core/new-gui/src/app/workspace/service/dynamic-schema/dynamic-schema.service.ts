@@ -58,7 +58,7 @@ export class DynamicSchemaService {
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorDeleteStream()
-      .subscribe(event => this.dynamicSchemaMap.delete(event.deletedOperator.operatorID));
+      .subscribe(event => this.dynamicSchemaMap.delete(event.deletedOperatorID));
 
     // when a link is deleted, remove it from the dynamic schema map
     this.workflowActionService
