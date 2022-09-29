@@ -23,24 +23,12 @@ CREATE TABLE IF NOT EXISTS user
     `uid`       INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `password`  VARCHAR(256),
     `google_id` VARCHAR(256) UNIQUE,
-    `role_id`   INT  UNSIGNED,
     PRIMARY KEY (`uid`),
-    FOREIGN KEY (`role_id`) REFERENCES role (`role_id`) ON SET NULL,
     CONSTRAINT CK_nulltest
         CHECK (`password` IS NOT NULL OR `google_id` IS NOT NULL)
 ) ENGINE = INNODB,
 -- start auto increment userID from 1 because userID 0 means user not exists
   AUTO_INCREMENT = 1;
-
-
-CREATE TABLE IF NOT EXISTS role 
-(
-    `role_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `role_name` VARCHAR(128) NOT NULL,
-    `role_description` VARCHAR(512) NOT NULL,
-    UNIQUE(`role_name`),
-    PRIMARY KEY (`role_id`)
-);
 
 
 CREATE TABLE IF NOT EXISTS user_config
@@ -98,7 +86,9 @@ CREATE TABLE IF NOT EXISTS workflow
     `content`            TEXT                        NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `last_modified_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`wid`)
+    `owner_uid`          INT UNSIGNED                NOT NULL 
+    PRIMARY KEY (`wid`),
+    FOREIGN KEY (`owner_uid`) REFERENCES user (`uid`) ON DELETE CASCADE
 ) ENGINE = INNODB,
   AUTO_INCREMENT = 1;
 
