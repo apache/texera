@@ -146,22 +146,26 @@ class Controller(
       recoveryMsg.payload match {
         case UpdateRecoveryStatus(isRecovering) =>
           globalRecoveryManager.markRecoveryStatus(recoveryMsg.from, isRecovering)
-        case ResendOutputTo(vid) =>
+        case ResendOutputTo(vid, ref) =>
           logger.warn(s"controller should not resend output to " + vid)
         case NotifyFailedNode(addr) =>
           val deployNodes = availableNodes.filter(_ != self.path.address)
           if (deployNodes.nonEmpty) {
-            val infoSet = workflow.getAllWorkerInfoOfAddress(addr)
-            infoSet.foreach { info =>
+            val infoIter = workflow.getAllWorkerInfoOfAddress(addr)
+            infoIter.foreach { info =>
               info.ref ! PoisonPill // in case we can still access the worker
             }
             // wait for 15 secs to re-create workers and re-send output
             context.system.scheduler.scheduleOnce(15.seconds) {
-              infoSet.foreach { info =>
-                workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
-                workflow.getDirectUpstreamWorkers(info.id).foreach { vid =>
-                  workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id)
-                }
+              val vidSet = infoIter.map(_.id).toSet
+              infoIter.foreach { info =>
+                val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+                workflow
+                  .getDirectUpstreamWorkers(info.id)
+                  .filter(x => !vidSet.contains(x))
+                  .foreach { vid =>
+                    workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
+                  }
               }
             }
           } else {

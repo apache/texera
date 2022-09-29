@@ -115,9 +115,10 @@ class WorkerLayer(
     }: _*)
   }
 
-  def recover(actorVirtualIdentity: ActorVirtualIdentity, address: Address): Unit = {
+  def recover(actorVirtualIdentity: ActorVirtualIdentity, address: Address): ActorRef = {
     val newRef = workerActorGen(actorVirtualIdentity)(address)
     workers(actorVirtualIdentity).ref = newRef
+    newRef
   }
 
 }

@@ -297,8 +297,9 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
             sendOrGetActorRef(actorID, msg)
           }
       }
-    case ResendOutputTo(dest) =>
+    case ResendOutputTo(dest, ref) =>
       sender ! ResendFeasibility(sentMessages != null)
+      idToActorRefs(actorId) = ref
       if (sentMessages != null) {
         sentMessages(dest).foreach { message =>
           forwardMessageFromFlowControl(dest, message)
@@ -309,7 +310,6 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       // to trigger discover mechanism
       val actorID = messageIDToIdentity(msg.messageId)
       logger.warn(s"actor for $actorID might have crashed or failed")
-      idToActorRefs.remove(actorID)
       if (parentRef != null) {
         fetchActorRefMappingFromParent(actorID)
       }
