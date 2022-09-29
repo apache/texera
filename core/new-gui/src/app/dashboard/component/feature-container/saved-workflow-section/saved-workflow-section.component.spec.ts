@@ -548,7 +548,7 @@ describe("SavedWorkflowSectionComponent", () => {
   //   httpTestingController.expectOne(request => request.method === "POST");
   // });
 
-  fit(
+  it(
     "adding a workflow description adds a description to the workflow",
     waitForAsync(() => {
       fixture.whenStable().then(() => {
@@ -590,7 +590,7 @@ describe("SavedWorkflowSectionComponent", () => {
         let workflowDescriptionLabel2 = fixture.debugElement.query(By.css(".workflow-description"));
         // the workflow description label should appear now
         expect(workflowDescriptionLabel2).toBeTruthy();
-        workflowDescriptionLabel1.triggerEventHandler("click", null);
+        workflowDescriptionLabel2.triggerEventHandler("click", null);
         fixture.detectChanges();
         let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
           ".workflow-editable-description"
@@ -616,11 +616,5 @@ describe("SavedWorkflowSectionComponent", () => {
     editableDescriptionInput.dispatchEvent(new Event("input"));
     fixture.detectChanges();
     return fixture.whenStable();
-  }
-
-  function generateKeyUpEvent(value: string): KeyboardEvent {
-    const event: KeyboardEvent = new KeyboardEvent("keyup", { bubbles: true, cancelable: true });
-    Object.defineProperty(event, "target", { value: { value } });
-    return event;
   }
 });
