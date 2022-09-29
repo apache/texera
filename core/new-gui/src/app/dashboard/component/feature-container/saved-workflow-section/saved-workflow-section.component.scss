@@ -117,7 +117,7 @@ $section-search-bar-height: 60px;
 
   .metadata-container {
     span {
-      margin: 0 1rem 0 0; // add space to the right
+      margin: 0 1rem 0rem 0; // add space to the right
     }
   }
 }
@@ -142,6 +142,7 @@ $section-search-bar-height: 60px;
       font-size: 20px;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       text-align: center;
+      margin-bottom: 0px;
     }
 
     .workflow-name:hover {
@@ -151,7 +152,43 @@ $section-search-bar-height: 60px;
     i {
       position: relative;
       font-size: 17px;
-      margin-bottom: 6px;
+      // margin-bottom: 6px;
+    }
+
+    i.workflow-is-owner-icon {
+      margin-left: 4.7px;
+    }
+  }
+
+  .workflow-item-meta-description {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px 2px 10px;
+    margin-bottom: 5px;
+
+    .workflow-description {
+      // color: #000000;
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+
+      display: inline-block;
+      min-width: 17ch;
+      border: 0 none;
+      outline: none;
+
+      &:hover {
+        cursor: pointer;
+        box-shadow: 0 0 0 1px rgb(202, 202, 202);
+      }
+    }
+
+    .workflow-editable-description {
+      margin-bottom: 5px;
+      display: inline-block;
+      min-width: 17ch;
+      border: 0 none;
+      outline: none;
+      box-shadow: 0 0 0px 2px #007bff;
     }
   }
 }

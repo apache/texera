@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { async, ComponentFixture, fakeAsync, flush, TestBed, tick, waitForAsync } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -11,11 +11,11 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
 import { MatDialogModule } from "@angular/material/dialog";
-import { NgbActiveModal, NgbModal, NgbModalRef, NgbModule } from "@ng-bootstrap/ng-bootstrap";
+import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpClientModule } from "@angular/common/http";
 import { WorkflowAccessService } from "../../../service/workflow-access/workflow-access.service";
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -32,16 +32,22 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { mockOperatorMetaData } from "src/app/workspace/service/operator-metadata/mock-operator-metadata.data";
 import { AppSettings } from "src/app/common/app-setting";
+import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
+import { NzUploadModule } from "ng-zorro-antd/upload";
+import { MatSelectModule } from "@angular/material/select";
+import { By, EVENT_MANAGER_PLUGINS } from "@angular/platform-browser";
+import { animationFrameScheduler } from "rxjs";
+import { ScrollingModule } from "@angular/cdk/scrolling";
+import { NzAvatarModule } from "ng-zorro-antd/avatar";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
   let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
-  let modalService: NgbModal;
 
-  let mockWorkflowPersistService: WorkflowPersistService;
-  let mockOperatorMetadataService: OperatorMetadataService;
-  let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
+
+  let editableDescriptionInput: HTMLInputElement;
 
   //All times in test Workflows are in PST because our local machine's timezone is PST
   //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
@@ -49,6 +55,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow1: Workflow = {
     wid: 1,
     name: "workflow 1",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000, //28800000 is 1970-01-01 in PST
     lastModifiedTime: 28800000 + 2,
@@ -56,6 +63,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow2: Workflow = {
     wid: 2,
     name: "workflow 2",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
     lastModifiedTime: 28800000 + (86400000 + 3),
@@ -63,6 +71,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow3: Workflow = {
     wid: 3,
     name: "workflow 3",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400000,
     lastModifiedTime: 28800000 + (86400000 + 4),
@@ -70,6 +79,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow4: Workflow = {
     wid: 4,
     name: "workflow 4",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400003 * 2,
     lastModifiedTime: 28800000 + 86400000 * 2 + 6,
@@ -77,13 +87,16 @@ describe("SavedWorkflowSectionComponent", () => {
   const testWorkflow5: Workflow = {
     wid: 5,
     name: "workflow 5",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400000 * 2,
     lastModifiedTime: 28800000 + 86400000 * 2 + 8,
   };
+
   const testDownloadWorkflow1: Workflow = {
     wid: 6,
     name: "workflow",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000, //28800000 is 1970-01-01 in PST
     lastModifiedTime: 28800000 + 2,
@@ -91,6 +104,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testDownloadWorkflow2: Workflow = {
     wid: 7,
     name: "workflow",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
     lastModifiedTime: 28800000 + (86400000 + 3),
@@ -98,6 +112,7 @@ describe("SavedWorkflowSectionComponent", () => {
   const testDownloadWorkflow3: Workflow = {
     wid: 8,
     name: "workflow",
+    description: "dummy description",
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 28800000 + 86400000,
     lastModifiedTime: 28800000 + (86400000 + 4),
@@ -175,6 +190,7 @@ describe("SavedWorkflowSectionComponent", () => {
     },
   });
 
+  // must use waitForAsync for configureTestingModule in components with virtual scroll
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
@@ -185,6 +201,7 @@ describe("SavedWorkflowSectionComponent", () => {
           HttpClient,
           NgbActiveModal,
           WorkflowAccessService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
           { provide: UserService, useClass: StubUserService },
           { provide: NZ_I18N, useValue: en_US },
         ],
@@ -205,6 +222,10 @@ describe("SavedWorkflowSectionComponent", () => {
           NzDatePickerModule,
           NzSelectModule,
           NzPopoverModule,
+          NzAvatarModule,
+          NzToolTipModule,
+          NzUploadModule,
+          ScrollingModule,
           NoopAnimationsModule,
         ],
       }).compileComponents();
@@ -212,32 +233,10 @@ describe("SavedWorkflowSectionComponent", () => {
   );
 
   beforeEach(() => {
-    httpClient = TestBed.get(HttpClient);
     httpTestingController = TestBed.get(HttpTestingController);
     fixture = TestBed.createComponent(SavedWorkflowSectionComponent);
-    mockWorkflowPersistService = TestBed.inject(WorkflowPersistService);
-    mockOperatorMetadataService = TestBed.inject(OperatorMetadataService);
-    mockOperatorMetadataService.getOperatorMetadata().subscribe(opdata => {
-      opdata.groups.forEach(group => {
-        component.operators.set(
-          group.groupName,
-          opdata.operators
-            .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
-            .map(operator => {
-              return {
-                userFriendlyName: operator.additionalMetadata.userFriendlyName,
-                operatorType: operator.operatorType,
-                operatorGroup: operator.additionalMetadata.operatorGroupName,
-                checked: false,
-              };
-            })
-        );
-      });
-    });
+
     component = fixture.componentInstance;
-    fixture.detectChanges();
-    modalService = TestBed.get(NgbModal);
-    spyOn(console, "log").and.callThrough();
     component.selectedMtime = [];
     component.selectedMtime = [];
     component.owners = [
@@ -257,11 +256,8 @@ describe("SavedWorkflowSectionComponent", () => {
       { pid: 2, name: "Project2", checked: false },
       { pid: 3, name: "Project3", checked: false },
     ];
-  });
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-    expect(mockWorkflowPersistService).toBeTruthy();
+    fixture.detectChanges();
   });
 
   it("alphaSortTest increaseOrder", () => {
@@ -281,14 +277,14 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   // TODO: add this test case back and figure out why it failed
-  xit("Modal Opened, then Closed", () => {
-    const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
-    spyOn(modalService, "open").and.returnValue(modalRef);
-    component.onClickOpenShareAccess(testWorkflowEntries[0]);
-    expect(modalService.open).toHaveBeenCalled();
-    fixture.detectChanges();
-    modalRef.dismiss();
-  });
+  // xit("Modal Opened, then Closed", () => {
+  //   const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
+  //   spyOn(modalService, "open").and.returnValue(modalRef);
+  //   component.onClickOpenShareAccess(testWorkflowEntries[0]);
+  //   expect(modalService.open).toHaveBeenCalled();
+  //   fixture.detectChanges();
+  //   modalRef.dismiss();
+  // });
 
   it("createDateSortTest", () => {
     component.dashboardWorkflowEntries = [];
@@ -414,8 +410,6 @@ describe("SavedWorkflowSectionComponent", () => {
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    const operatorDropdownRequest = httpTestingController.match("api/resources/operator-metadata");
-    operatorDropdownRequest[0].flush(mockOperatorMetaData);
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
       const operatorSelectionList = []; // list of operators for query
@@ -436,8 +430,6 @@ describe("SavedWorkflowSectionComponent", () => {
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    const operatorDropdownRequest = httpTestingController.match("api/resources/operator-metadata");
-    operatorDropdownRequest[0].flush(mockOperatorMetaData);
     const operatorGroup = component.operators.get("Analysis");
     const operatorGroup2 = component.operators.get("View Results");
     if (operatorGroup && operatorGroup2) {
@@ -463,8 +455,6 @@ describe("SavedWorkflowSectionComponent", () => {
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
 
-    const operatorDropdownRequest = httpTestingController.match("api/resources/operator-metadata");
-    operatorDropdownRequest[0].flush(mockOperatorMetaData);
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
       const operatorSelectionList = []; // list of operators for query
@@ -549,4 +539,81 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
     expect(component.downloadListWorkflow.get(index)).toEqual("workflow-2.json");
   });
+
+  it("editing a workflow name triggers a POST request on the backend", () => {
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
+    let testWorkflowEntry = component.dashboardWorkflowEntries[0];
+    component.confirmUpdateWorkflowCustomName(testWorkflowEntry, "Edited Workflow Name", 0);
+    httpTestingController.expectOne(request => request.method === "POST");
+  });
+
+  it(
+    "adding a workflow description adds a description to the workflow",
+    waitForAsync(() => {
+      fixture.whenStable().then(() => {
+        let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
+        expect(addWorkflowDescriptionBtn1).toBeFalsy();
+        // add some test workflows
+        component.dashboardWorkflowEntries = testWorkflowEntries;
+        fixture.detectChanges();
+        let addWorkflowDescriptionBtn2 = fixture.debugElement.query(By.css(".add-description-btn"));
+        // the button for adding workflow descriptions should appear now
+        expect(addWorkflowDescriptionBtn2).toBeTruthy();
+        addWorkflowDescriptionBtn2.triggerEventHandler("click", null);
+        fixture.detectChanges();
+        let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
+          ".workflow-editable-description"
+        );
+        expect(editableDescriptionInput1).toBeTruthy();
+
+        spyOn(component, "confirmUpdateWorkflowCustomDescription");
+        sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
+          fixture.detectChanges();
+          editableDescriptionInput1.dispatchEvent(new Event("focusout"));
+          fixture.detectChanges();
+          expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
+        });
+      });
+    })
+  );
+
+  it(
+    "Editing a workflow description edits a description to the workflow",
+    waitForAsync(() => {
+      fixture.whenStable().then(() => {
+        let workflowDescriptionLabel1 = fixture.debugElement.query(By.css(".workflow-description"));
+        expect(workflowDescriptionLabel1).toBeFalsy();
+        // add some test workflows
+        component.dashboardWorkflowEntries = testWorkflowEntries;
+        fixture.detectChanges();
+        let workflowDescriptionLabel2 = fixture.debugElement.query(By.css(".workflow-description"));
+        // the workflow description label should appear now
+        expect(workflowDescriptionLabel2).toBeTruthy();
+        workflowDescriptionLabel2.triggerEventHandler("click", null);
+        fixture.detectChanges();
+        let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
+          ".workflow-editable-description"
+        );
+        expect(editableDescriptionInput1).toBeTruthy();
+
+        spyOn(component, "confirmUpdateWorkflowCustomDescription");
+
+        sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
+          fixture.detectChanges();
+          editableDescriptionInput1.dispatchEvent(new Event("focusout"));
+          fixture.detectChanges();
+          expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
+        });
+      });
+    })
+  );
+
+  function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
+    // editableDescriptionInput.dispatchEvent(new Event("focus"));
+    // fixture.detectChanges();
+    editableDescriptionInput.value = text;
+    editableDescriptionInput.dispatchEvent(new Event("input"));
+    fixture.detectChanges();
+    return fixture.whenStable();
+  }
 });

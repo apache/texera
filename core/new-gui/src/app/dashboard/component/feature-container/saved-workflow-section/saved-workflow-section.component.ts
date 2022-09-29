@@ -99,6 +99,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   // see https://github.com/angular/components/issues/14635
   public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
+  public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
@@ -116,7 +117,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     ["owner", ["ownerName"]],
   ]);
   public workflowSearchValue: string = "";
-  private defaultWorkflowName: string = "Untitled Workflow";
+  private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
 
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
@@ -260,24 +261,27 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
    */
   private searchParameterBackendSetup() {
-    this.operatorMetadataService.getOperatorMetadata().subscribe(opdata => {
-      opdata.groups.forEach(group => {
-        this.operators.set(
-          group.groupName,
-          opdata.operators
-            .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
-            .map(operator => {
-              return {
-                userFriendlyName: operator.additionalMetadata.userFriendlyName,
-                operatorType: operator.operatorType,
-                operatorGroup: operator.additionalMetadata.operatorGroupName,
-                checked: false,
-              };
-            })
-        );
+    this.operatorMetadataService
+      .getOperatorMetadata()
+      .pipe(untilDestroyed(this))
+      .subscribe(opdata => {
+        opdata.groups.forEach(group => {
+          this.operators.set(
+            group.groupName,
+            opdata.operators
+              .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
+              .map(operator => {
+                return {
+                  userFriendlyName: operator.additionalMetadata.userFriendlyName,
+                  operatorType: operator.operatorType,
+                  operatorGroup: operator.additionalMetadata.operatorGroupName,
+                  checked: false,
+                };
+              })
+          );
+        });
+        this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
-      this.operatorGroups = opdata.groups.map(group => group.groupName);
-    });
     this.retrieveOwners()
       .pipe(untilDestroyed(this))
       .subscribe(list_of_owners => (this.owners = list_of_owners));
@@ -1035,6 +1039,30 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       })
       .add(() => {
         this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
+      });
+  }
+
+  public confirmUpdateWorkflowCustomDescription(
+    dashboardWorkflowEntry: DashboardWorkflowEntry,
+    description: string,
+    index: number
+  ): void {
+    const { workflow } = dashboardWorkflowEntry;
+    this.workflowPersistService
+      .updateWorkflowDescription(workflow.wid, description)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
+        updatedDashboardWorkFlowEntry.workflow.description = description;
+        const newEntries = this.dashboardWorkflowEntries.slice();
+        newEntries[index] = updatedDashboardWorkFlowEntry;
+        this.dashboardWorkflowEntries = newEntries;
+      })
+      .add(() => {
+        this.dashboardWorkflowEntriesIsEditingDescription = this.dashboardWorkflowEntriesIsEditingDescription.filter(
           entryIsEditingIndex => entryIsEditingIndex != index
         );
       });
