@@ -70,7 +70,10 @@ export class CoeditorPresenceService {
       "change",
       (change: { added: number[]; updated: number[]; removed: number[] }) => {
         Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>).filter(
-          userState => userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId
+          userState =>
+            userState.user.clientId &&
+            this.texeraGraph.sharedModel.clientId &&
+            userState.user.clientId !== this.texeraGraph.sharedModel.clientId
         );
         for (const clientId of change.added) {
           const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
@@ -137,6 +140,9 @@ export class CoeditorPresenceService {
       }
     }
     this.coeditorStates.delete(clientId);
+    if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === clientId) {
+      this.stopShadowing();
+    }
   }
 
   /**
@@ -280,7 +286,11 @@ export class CoeditorPresenceService {
     this.shadowingCoeditor = coeditor;
     if (coeditor.clientId) {
       const currentlyEditing = this.coeditorCurrentlyEditing.get(coeditor.clientId);
-      if (currentlyEditing) this.workflowActionService.highlightOperators(false, currentlyEditing);
+      if (currentlyEditing) {
+        this.workflowActionService.highlightOperators(false, currentlyEditing);
+        const currentlyEditingCode = this.coeditorEditingCode.get(coeditor.clientId);
+        if (currentlyEditingCode) this.coeditorOpenedCodeEditorSubject.next({ operatorId: currentlyEditing });
+      }
     }
   }
 
