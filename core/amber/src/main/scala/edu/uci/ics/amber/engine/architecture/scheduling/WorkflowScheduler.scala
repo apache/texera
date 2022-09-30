@@ -245,7 +245,7 @@ class WorkflowScheduler(
         })
         .map { link: LinkStrategy =>
           asyncRPCClient
-            .send(LinkWorkers(link), CONTROLLER)
+            .send(LinkWorkers(link.id), CONTROLLER)
             .onSuccess(_ => activatedLink.add(link.id))
         }
         .toSeq
