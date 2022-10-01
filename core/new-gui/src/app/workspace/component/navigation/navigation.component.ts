@@ -27,6 +27,7 @@ import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
+import { UserFileService } from "src/app/dashboard/service/user-file/user-file.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -60,6 +61,7 @@ export class NavigationComponent implements OnInit {
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
+  @Input() public inputValue: string = "";
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -94,7 +96,8 @@ export class NavigationComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
-    public changeDetectionRef: ChangeDetectorRef
+    public changeDetectionRef: ChangeDetectorRef,
+    public userFileService: UserFileService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -567,5 +570,18 @@ export class NavigationComponent implements OnInit {
       .subscribe((workflowReadonly: boolean) => {
         this.workflowReadonly = workflowReadonly;
       });
+  }
+
+  options: string[] = [];
+  onAutocomplete(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.options = [];
+    if (value.length > 0) {
+      this.userFileService.getAutoCompleteUserFileAccessList(value).pipe(untilDestroyed(this))
+      .subscribe(autocompleteList => {
+        console.log(autocompleteList);
+        this.options = value ? autocompleteList.concat() : [];
+      });
+    }
   }
 }

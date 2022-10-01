@@ -112,6 +112,7 @@ import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
+import { InputFilenameAutoCompleteComponent } from "./workspace/component/input-filename-autocomplete/input-filename-autocomplete-template.component";
 
 registerLocaleData(en);
 
@@ -172,6 +173,7 @@ registerLocaleData(en);
     NzModalCommentBoxComponent,
     DeletePromptComponent,
     ContextMenuComponent,
+    InputFilenameAutoCompleteComponent,
   ],
   imports: [
     BrowserModule,
@@ -239,6 +241,11 @@ registerLocaleData(en);
     NzCommentModule,
     ColorPickerModule,
     NgPipesModule,
+    FormlyModule.forRoot({
+      types: [
+        { name: 'inputautocomplete', component: InputFilenameAutoCompleteComponent },
+      ]
+    }),
   ],
   providers: [
     DatePipe,

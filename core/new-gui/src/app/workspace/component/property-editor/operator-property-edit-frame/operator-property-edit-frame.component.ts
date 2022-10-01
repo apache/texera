@@ -108,7 +108,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   private teardownObservable: Subject<void> = new Subject();
   public lockGranted: boolean = true;
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
-
+  
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -207,7 +207,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           .subscribe();
       });
     }
-
+    console.log("event", event);
     this.sourceFormChangeEventStream.next(event);
   }
 
@@ -222,6 +222,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
+
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
 
@@ -240,8 +241,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.ajv.validate(currentOperatorSchema, this.formData);
 
     // manually trigger a form change event because default value might be filled in
-    this.onFormChanges(this.formData);
 
+    console.log("from render", this.formData)
+    this.onFormChanges(this.formData);
     if (
       this.workflowActionService
         .getTexeraGraph()
@@ -281,14 +283,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   checkOperatorProperty(formData: object): boolean {
     // check if the component is displaying operator property
+    console.log("step 1")
     if (this.currentOperatorId === undefined) {
       return false;
     }
+    console.log("step 2")
     // check if the operator still exists, it might be deleted during debounce time
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     if (!operator) {
       return false;
     }
+    console.log("step 3")
     // only emit change event if the form data actually changes
     return !isEqual(formData, operator.operatorProperties);
   }
@@ -338,7 +343,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   registerOnFormChangeHandler(): void {
     this.operatorPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
       // set the operator property to be the new form data
+      console.log("set", formData)
       if (this.currentOperatorId) {
+        
         this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
       }
     });
@@ -403,7 +410,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           }
         },
       };
-
+      
       // conditionally hide the field according to the schema
       if (
         isDefined(mapSource.hideExpectedValue) &&
@@ -417,6 +424,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mapSource.hideExpectedValue
         );
       }
+      if (mappedField.key == "fileName") {
+        mappedField.type = "inputautocomplete"
+      }
+      // if (currentOperatorSchema.operatorType == "CSVFileScan") {
+      //   const filename = currentOperatorSchema.jsonSchema.properties!.fileName;
+      //   if (filename.hasOwnProperty("type")) {
+      //     const newJson = JSON.stringify(filename).replace("\"type\":\"string\"", "\"type\":\"inputautocomplete\"")
+      //     currentOperatorSchema.jsonSchema.properties!.fileName = JSON.parse(newJson)
+      //   }
+      //   // console.log(currentOperatorSchema)
+      // }
 
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
@@ -424,6 +442,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mappedField.type = "codearea";
         }
       }
+
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
         environment.userSystemEnabled &&

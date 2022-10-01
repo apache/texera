@@ -1,0 +1,9 @@
+<input
+  placeholder="input here"
+  (input)="onAutocomplete($event)"
+  [formControl]="formControl"
+  [(ngModel)]="inputValue"
+  nz-input
+  [nzAutocomplete]="auto"/>
+<nz-autocomplete [nzDataSource]="selections" nzBackfill #auto>
+</nz-autocomplete>

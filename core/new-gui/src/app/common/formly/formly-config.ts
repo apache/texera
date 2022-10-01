@@ -5,6 +5,7 @@ import { MultiSchemaTypeComponent } from "./multischema.type";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { CodeareaCustomTemplateComponent } from "../../workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
+import { InputFilenameAutoCompleteComponent } from "../../workspace/component/input-filename-autocomplete/input-filename-autocomplete-template.component";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -54,6 +55,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "object", component: ObjectTypeComponent },
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
+    { name: "inputautocomplete", component: InputFilenameAutoCompleteComponent },
   ],
   wrappers: [{ name: "preset-wrapper", component: PresetWrapperComponent }],
 };
