@@ -87,11 +87,9 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
       controlQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue
   ): Unit = {
     if (!cleaned) {
-      println("Start restore inputs")
       getAllStashedInputs.foreach(dataQueue.add)
       getAllStashedControls.foreach(controlQueue.add)
       cleaned = true
-      println("finished restore inputs")
     }
   }
 
@@ -146,9 +144,7 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
   def get(): InternalQueueElement = {
     if(step > 0){
       //wait until input[targetVId] available
-      println("waiting for input from "+ targetVId+" step = "+step)
       val res = inputMapping.getOrElseUpdate(targetVId, new LinkedBlockingQueue[InternalQueueElement]()).take()
-      println("get input from "+targetVId+" content"+res)
       res
     }else{
       val record = records.peek()

@@ -114,11 +114,4 @@ class RecoverySpec
     assert(DeterminantLogStorage.fetchAllLogRecords(logStorage).isEmpty)
   }
 
-  "Logreader" should "read anything from log" in {
-    val workerName = "WF1-CONTROLLER"
-    val logStorage = new LocalFSLogStorage(workerName)
-    DeterminantLogStorage.fetchAllLogRecords(logStorage).foreach(println)
-  }
-
-
 }

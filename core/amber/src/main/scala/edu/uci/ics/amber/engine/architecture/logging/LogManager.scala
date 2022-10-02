@@ -23,10 +23,9 @@ case object TerminateSignal extends InMemDeterminant
 
 object LogManager {
   def getLogManager(
-      networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
+                     enabledLogging:Boolean,
+                     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
   ): LogManager = {
-    val enabledLogging: Boolean =
-      AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
     if (enabledLogging) {
       new LogManagerImpl(networkCommunicationActor)
     } else {

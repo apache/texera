@@ -207,11 +207,9 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
     val data = NetworkMessage(networkMessageID, msg)
     messageIDToIdentity(networkMessageID) = to
     if (congestionControl.canSend) {
-      println("congestionControl can send this message "+msg+" to "+to)
       congestionControl.markMessageInTransit(data)
       sendOrGetActorRef(to, data)
     } else {
-      println("congestionControl rejected "+msg+" to "+to)
       congestionControl.enqueueMessage(data)
     }
     networkMessageID += 1
@@ -248,7 +246,6 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
 
   def sendMessagesAndReceiveAcks: Receive = {
     case SendRequest(id, msg) =>
-      logger.info("ready to send "+msg)
       val msgToForward = flowControl.getMessageToForward(id, msg)
       if (msgToForward.nonEmpty) {
         forwardMessageFromFlowControl(id, msgToForward.get)
@@ -334,7 +331,6 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   @inline
   private[this] def sendOrGetActorRef(actorID: ActorVirtualIdentity, msg: NetworkMessage): Unit = {
     if (idToActorRefs.contains(actorID)) {
-      logger.info("send out"+msg)
       idToActorRefs(actorID) ! msg
     } else {
       // otherwise, we ask the parent for the actorRef.

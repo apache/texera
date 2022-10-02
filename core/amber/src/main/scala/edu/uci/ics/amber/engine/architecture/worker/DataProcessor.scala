@@ -68,11 +68,12 @@ class DataProcessor( // dependencies:
             if (!recoveryManager.replayCompleted()) {
               recoveryManager.onStart()
               recoveryManager.registerOnEnd(() =>{
-                logger.info("ready to transit from recovery to normal processing")
+                logger.info("recovery complete! restoring stashed inputs...")
                 logManager.terminate()
                 logStorage.cleanPartiallyWrittenLogFile()
                 logManager.setupWriter(logStorage.getWriter)
                 restoreInputs()
+                logger.info("stashed inputs restored!")
               })
             }
             runDPThreadMainLogic()
@@ -186,7 +187,6 @@ class DataProcessor( // dependencies:
   private[this] def internalQueueElementHandler(
       internalQueueElement: InternalQueueElement
   ): Unit = {
-    logger.info("handling: "+internalQueueElement)
     internalQueueElement match {
       case InputTuple(from, tuple) =>
         if (stateManager.getCurrentState == READY) {
