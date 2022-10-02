@@ -67,12 +67,13 @@ class DataProcessor( // dependencies:
             stateManager.transitTo(READY)
             if (!recoveryManager.replayCompleted()) {
               recoveryManager.onStart()
-              runDPThreadRecovery()
-              logManager.terminate()
-              logStorage.swapTempLog()
-              logManager.setupWriter(logStorage.getWriter(false))
-              recoveryManager.onEnd()
-              logger.info("Recovery Completed!")
+              recoveryManager.registerOnEnd(() =>{
+                logger.info("ready to transit from recovery to normal processing")
+                logManager.terminate()
+                logStorage.cleanPartiallyWrittenLogFile()
+                logManager.setupWriter(logStorage.getWriter)
+                restoreInputs()
+              })
             }
             runDPThreadMainLogic()
           } catch safely {
@@ -98,7 +99,6 @@ class DataProcessor( // dependencies:
   private var currentInputLink: LinkIdentity = _
   private var currentInputActor: ActorVirtualIdentity = _
   private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
-  private var isCompleted = false
 
   def getOperatorExecutor(): IOperatorExecutor = operator
 
@@ -183,20 +183,10 @@ class DataProcessor( // dependencies:
     }
   }
 
-  private[this] def runDPThreadRecovery(): Unit = {
-    while (!recoveryManager.replayCompleted()) {
-      recoveryManager.stepDecrement()
-      determinantLogger.stepIncrement()
-      val elem = recoveryManager.get()
-      logger.info("Recovery: replaying " + elem)
-      internalQueueElementHandler(elem)
-    }
-    restoreInputs()
-  }
-
   private[this] def internalQueueElementHandler(
       internalQueueElement: InternalQueueElement
   ): Unit = {
+    logger.info("handling: "+internalQueueElement)
     internalQueueElement match {
       case InputTuple(from, tuple) =>
         if (stateManager.getCurrentState == READY) {
@@ -222,9 +212,14 @@ class DataProcessor( // dependencies:
           asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
         }
       case EndOfAllMarker =>
-        // end of processing, break DP loop
-        isCompleted = true
+        processControlCommandsDuringExecution() // necessary for trigger correct recovery
         batchProducer.emitEndOfUpstream()
+        // Send Completed signal to worker actor.
+        logger.info(s"$operator completed")
+        disableDataQueue()
+        operator.close() // close operator
+        asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
+        stateManager.transitTo(COMPLETED)
       case ControlElement(payload, from) =>
         processControlCommand(payload, from)
     }
@@ -237,17 +232,15 @@ class DataProcessor( // dependencies:
   @throws[Exception]
   private[this] def runDPThreadMainLogic(): Unit = {
     // main DP loop
-    while (!isCompleted) {
+    while (true) {
       // take the next data element from internal queue, blocks if not available.
-      internalQueueElementHandler(getElement)
+      val elem = if(recoveryManager.replayCompleted()){
+        getElement
+      }else{
+        recoveryManager.get()
+      }
+      internalQueueElementHandler(elem)
     }
-    // Send Completed signal to worker actor.
-    logger.info(s"$operator completed")
-    disableDataQueue()
-    operator.close() // close operator
-    asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
-    stateManager.transitTo(COMPLETED)
-    processControlCommandsAfterCompletion()
   }
 
   private[this] def handleOperatorException(e: Throwable): Unit = {
@@ -314,22 +307,7 @@ class DataProcessor( // dependencies:
         takeOneControlCommandAndProcess()
       }
     } else {
-      determinantLogger.stepIncrement()
-      recoveryManager.stepDecrement()
-      if (recoveryManager.isReadyToEmitNextControl) {
-        takeOneControlCommandAndProcess()
-      }
-    }
-  }
-
-  private[this] def processControlCommandsAfterCompletion(): Unit = {
-    if (recoveryManager.replayCompleted()) {
-      while (true) {
-        takeOneControlCommandAndProcess()
-      }
-    } else {
-      recoveryManager.stepDecrement()
-      if (recoveryManager.isReadyToEmitNextControl) {
+      while(recoveryManager.isReadyToEmitNextControl) {
         takeOneControlCommandAndProcess()
       }
     }
@@ -348,6 +326,7 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
+    logger.info("process Control: "+payload+" from "+from)
     determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
     payload match {
       case invocation: ControlInvocation =>

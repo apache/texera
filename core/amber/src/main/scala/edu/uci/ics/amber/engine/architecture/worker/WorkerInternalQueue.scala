@@ -102,7 +102,6 @@ trait WorkerInternalQueue {
   }
 
   def getElement: InternalQueueElement = {
-    determinantLogger.stepIncrement()
     val elem = lbmq.take()
     if (Constants.flowControlEnabled) {
       elem match {

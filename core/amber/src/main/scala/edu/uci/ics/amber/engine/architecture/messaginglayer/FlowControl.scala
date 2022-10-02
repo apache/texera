@@ -69,6 +69,7 @@ class FlowControl {
           Constants.unprocessedBatchesCreditLimitPerSender
         ) > 0
       ) {
+        println(receiverId+": "+receiverIdToCredits(receiverId))
         if (
           dataMessagesAwaitingCredits
             .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())

@@ -51,8 +51,12 @@ abstract class WorkflowActor(
   )
   val logStorage: DeterminantLogStorage = DeterminantLogStorage.getLogStorage(getLogName)
   val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
-  lazy val logManager: LogManager = LogManager.getLogManager(networkCommunicationActor)
-  logManager.setupWriter(logStorage.getWriter(!recoveryManager.replayCompleted()))
+  val logManager: LogManager = LogManager.getLogManager(networkCommunicationActor)
+  if(!recoveryManager.replayCompleted()){
+    logManager.setupWriter(new EmptyLogStorage().getWriter)
+  }else{
+    logManager.setupWriter(logStorage.getWriter)
+  }
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer

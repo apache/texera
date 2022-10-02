@@ -2,24 +2,15 @@ package edu.uci.ics.texera.web.service
 
 import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowPaused
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowExecutionErrorEvent,
-  WorkflowStateEvent
-}
-import edu.uci.ics.texera.web.model.websocket.request.{
-  RemoveBreakpointRequest,
-  SkipTupleRequest,
-  WorkflowKillRequest,
-  WorkflowPauseRequest,
-  WorkflowResumeRequest
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
+import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
 import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
@@ -37,7 +28,7 @@ class JobRuntimeService(
     stateStore.jobMetadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
-      if (newState.state != oldState.state) {
+      if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
         if (WorkflowService.userSystemEnabled) {
           ExecutionsMetadataPersistService.tryUpdateExistingExecution(newState.eid, newState.state)
         }
@@ -61,13 +52,15 @@ class JobRuntimeService(
     throw new RuntimeException("skipping tuple is temporarily disabled")
   }))
 
+  // Receive Paused from Amber
+  addSubscription(client.registerCallback[WorkflowPaused]((evt:WorkflowPaused) =>{
+    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSED))
+  }))
+
   // Receive Pause
   addSubscription(wsInput.subscribe((req: WorkflowPauseRequest, uidOpt) => {
     stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSING))
-    client.sendAsyncWithCallback[Unit](
-      PauseWorkflow(),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSED))
-    )
+    client.sendAsync(PauseWorkflow())
   }))
 
   // Receive Resume

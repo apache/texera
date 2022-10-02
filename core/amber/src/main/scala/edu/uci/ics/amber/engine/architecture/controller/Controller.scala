@@ -9,37 +9,16 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
-import edu.uci.ics.amber.engine.architecture.logging.{
-  DeterminantLogger,
-  InMemDeterminant,
-  ProcessControlMessage
-}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkMessage,
-  NetworkSenderActorRef,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, InMemDeterminant, ProcessControlMessage}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, NetworkSenderActorRef, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.recovery.{
-  FIFOStateRecoveryManager,
-  GlobalRecoveryManager
-}
-import edu.uci.ics.amber.engine.architecture.scheduling.{
-  WorkflowPipelinedRegionsBuilder,
-  WorkflowScheduler
-}
+import edu.uci.ics.amber.engine.architecture.recovery.{FIFOStateRecoveryManager, GlobalRecoveryManager}
+import edu.uci.ics.amber.engine.architecture.scheduling.{WorkflowPipelinedRegionsBuilder, WorkflowScheduler}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  NotifyFailedNode,
-  ResendOutputTo,
-  UpdateRecoveryStatus,
-  WorkflowControlMessage,
-  WorkflowRecoveryMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, NotifyFailedNode, ResendOutputTo, UpdateRecoveryStatus, WorkflowControlMessage, WorkflowRecoveryMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
@@ -94,8 +73,14 @@ class Controller(
   override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
   val globalRecoveryManager: GlobalRecoveryManager = new GlobalRecoveryManager(
-    () => asyncRPCClient.sendToClient(WorkflowRecoveryStatus(true)),
-    () => asyncRPCClient.sendToClient(WorkflowRecoveryStatus(false))
+    () => {
+      logger.info("Start global recovery")
+      asyncRPCClient.sendToClient(WorkflowRecoveryStatus(true))
+    },
+    () => {
+      logger.info("global recovery complete!")
+      asyncRPCClient.sendToClient(WorkflowRecoveryStatus(false))
+    }
   )
 
   def availableNodes: Array[Address] =
@@ -145,6 +130,7 @@ class Controller(
     case recoveryMsg: WorkflowRecoveryMessage =>
       recoveryMsg.payload match {
         case UpdateRecoveryStatus(isRecovering) =>
+          logger.info("recovery status for "+recoveryMsg.from+" is "+isRecovering)
           globalRecoveryManager.markRecoveryStatus(recoveryMsg.from, isRecovering)
         case ResendOutputTo(vid, ref) =>
           logger.warn(s"controller should not resend output to " + vid)
@@ -210,9 +196,10 @@ class Controller(
           handleControlPayloadWithTryCatch(from, controlPayload)
           if (recoveryManager.replayCompleted()) {
             logManager.terminate()
-            logStorage.swapTempLog()
-            logManager.setupWriter(logStorage.getWriter(false))
-            globalRecoveryManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
+            logStorage.cleanPartiallyWrittenLogFile()
+            logManager.setupWriter(logStorage.getWriter)
+            globalRecoveryManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
+            unstashAll()
             context.become(running)
           } else {
             val inMemDeterminant = recoveryManager.getDeterminant()
@@ -223,6 +210,10 @@ class Controller(
             "Controller cannot handle " + otherDeterminant + " during recovery!"
           )
       }
+    case x:NetworkMessage =>
+      stash()
+    case invocation: ControlInvocation =>
+      logger.info("Reject during recovery: " + invocation)
     case other =>
       logger.info("Ignore during recovery: " + other)
   }
@@ -235,7 +226,7 @@ class Controller(
       controlInputPort.overwriteFIFOState(fifoState)
       val inMemDeterminant = recoveryManager.getDeterminant()
       self ! inMemDeterminant
-      recovering
+      acceptRecoveryMessages orElse recovering
     } else {
       running
     }
@@ -245,6 +236,7 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
+    logger.info("Controller start to shutdown")
     logManager.terminate()
     if (workflow.isCompleted) {
       workflow.getAllWorkers.foreach { workerId =>

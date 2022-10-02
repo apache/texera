@@ -5,16 +5,9 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.twitter.chill.{KryoPool, KryoSerializer, ScalaKryoInstantiator}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.logging.storage.{
-  DeterminantLogStorage,
-  EmptyLogStorage,
-  LocalFSLogStorage
-}
-import edu.uci.ics.amber.engine.architecture.logging.{
-  InMemDeterminant,
-  ProcessControlMessage,
-  StepDelta
-}
+import edu.uci.ics.amber.engine.architecture.logging.storage.{DeterminantLogStorage, EmptyLogStorage, LocalFSLogStorage}
+import edu.uci.ics.amber.engine.architecture.logging.{InMemDeterminant, ProcessControlMessage, StepDelta}
+import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
@@ -69,7 +62,7 @@ class RecoverySpec
     val workerName = "Test"
     val logStorage = new LocalFSLogStorage(workerName)
     logStorage.deleteLog()
-    val writer = logStorage.getWriter(false)
+    val writer = logStorage.getWriter
     val determinants: Array[InMemDeterminant] = Array(
       ProcessControlMessage(
         ReturnInvocation(16, WorkerStatistics(COMPLETED, 6, 2)),
@@ -120,5 +113,12 @@ class RecoverySpec
     val logStorage = new EmptyLogStorage()
     assert(DeterminantLogStorage.fetchAllLogRecords(logStorage).isEmpty)
   }
+
+  "Logreader" should "read anything from log" in {
+    val workerName = "WF1-CONTROLLER"
+    val logStorage = new LocalFSLogStorage(workerName)
+    DeterminantLogStorage.fetchAllLogRecords(logStorage).foreach(println)
+  }
+
 
 }

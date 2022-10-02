@@ -16,6 +16,7 @@ class KeywordSearchOpExec(var counter: Int, val opDesc: KeywordSearchOpDesc) ext
   this.setFilterFunc(this.findKeyword)
 
   def findKeyword(tuple: Tuple): Boolean = {
+    Thread.sleep(5000)
     if (tuple.getField(opDesc.attribute) == null) {
       false
     } else {

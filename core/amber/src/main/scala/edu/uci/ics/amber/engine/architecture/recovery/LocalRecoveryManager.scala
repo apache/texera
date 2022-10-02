@@ -30,14 +30,13 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
   private val records = new RecordIterator(logReader)
   private val inputMapping = mutable
     .HashMap[ActorVirtualIdentity, LinkedBlockingQueue[InternalQueueElement]]()
-    .withDefaultValue(new LinkedBlockingQueue[InternalQueueElement]())
   private val controlMessages = mutable
     .HashMap[ActorVirtualIdentity, mutable.Queue[ControlElement]]()
-    .withDefaultValue(new mutable.Queue[ControlElement]())
   private var step = 0L
   private var targetVId: ActorVirtualIdentity = _
   private var currentInputSender: ActorVirtualIdentity = _
   private var cleaned = false
+  private var endCallbackTriggered = false
 
   private val callbacksOnStart = new ArrayBuffer[() => Unit]()
   private val callbacksOnEnd = new ArrayBuffer[() => Unit]()
@@ -54,7 +53,7 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     callbacksOnStart.foreach(callback => callback())
   }
 
-  def onEnd(): Unit = {
+  private def onEnd(): Unit = {
     callbacksOnEnd.foreach(callback => callback())
   }
 
@@ -62,28 +61,37 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     elem match {
       case tuple: InputTuple =>
         currentInputSender = tuple.from
-        inputMapping(tuple.from).put(tuple)
+        inputMapping.getOrElseUpdate(tuple.from, new LinkedBlockingQueue[InternalQueueElement]()).put(tuple)
       case SenderChangeMarker(newUpstreamLink) =>
       //ignore, we use log to enforce original order
       case control: ControlElement =>
-        controlMessages(control.from).enqueue(control)
+        controlMessages.getOrElseUpdate(control.from, new mutable.Queue[ControlElement]()).enqueue(control)
       case WorkerInternalQueue.EndMarker =>
-        inputMapping(currentInputSender).put(EndMarker)
+        inputMapping.getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]()).put(EndMarker)
       case WorkerInternalQueue.EndOfAllMarker =>
-        inputMapping(currentInputSender).put(EndOfAllMarker)
+        inputMapping.getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]()).put(EndOfAllMarker)
     }
   }
 
-  def replayCompleted(): Boolean = records.isEmpty
+  def replayCompleted(): Boolean = {
+    val res = records.isEmpty
+    if(res && !endCallbackTriggered){
+      endCallbackTriggered = true
+      onEnd()
+    }
+    res
+  }
 
   def drainAllStashedElements(
       dataQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue,
       controlQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue
   ): Unit = {
     if (!cleaned) {
+      println("Start restore inputs")
       getAllStashedInputs.foreach(dataQueue.add)
       getAllStashedControls.foreach(controlQueue.add)
       cleaned = true
+      println("finished restore inputs")
     }
   }
 
@@ -107,13 +115,8 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     res
   }
 
-  def stepDecrement(): Unit = {
-    if (step > 0) {
-      step -= 1
-    }
-  }
-
   def isReadyToEmitNextControl: Boolean = {
+    step -= 1
     step == 0
   }
 
@@ -123,36 +126,45 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     determinant
   }
 
-  def readNextAndAssignStepDelta(): Unit = {
-    records.readNext()
-    records.peek() match {
-      case StepDelta(steps) =>
-        step = steps
-      case other => //skip
+  def processInternalEvents(): Unit ={
+    var finished = false
+    while(!finished){
+      records.peek() match{
+        case StepDelta(steps) =>
+          assert(step <= 0)
+          step = steps
+          records.readNext()
+        case SenderActorChange(actorVirtualIdentity) =>
+          targetVId = actorVirtualIdentity
+          records.readNext()
+        case other =>
+          finished = true
+      }
     }
   }
 
   def get(): InternalQueueElement = {
-    records.peek() match {
-      case SenderActorChange(actorVirtualIdentity) =>
-        readNextAndAssignStepDelta()
-        targetVId = actorVirtualIdentity
-        get()
-      case LinkChange(linkIdentity) =>
-        readNextAndAssignStepDelta()
-        SenderChangeMarker(linkIdentity)
-      case StepDelta(steps) =>
-        if (step == 0) {
-          readNextAndAssignStepDelta()
-          get()
-        } else {
-          //wait until input[targetVId] available
-          inputMapping(targetVId).take()
-        }
-      case ProcessControlMessage(controlPayload, from) =>
-        readNextAndAssignStepDelta()
-        ControlElement(controlPayload, from)
-      case TimeStamp(value) => ???
+    if(step > 0){
+      //wait until input[targetVId] available
+      println("waiting for input from "+ targetVId+" step = "+step)
+      val res = inputMapping.getOrElseUpdate(targetVId, new LinkedBlockingQueue[InternalQueueElement]()).take()
+      println("get input from "+targetVId+" content"+res)
+      res
+    }else{
+      val record = records.peek()
+      records.readNext()
+      processInternalEvents()
+      record match {
+        case SenderActorChange(actorVirtualIdentity) =>
+          throw new RuntimeException("cannot handle sender actor change here!")
+        case LinkChange(linkIdentity) =>
+          SenderChangeMarker(linkIdentity)
+        case StepDelta(steps) =>
+          throw new RuntimeException("cannot handle step delta here!")
+        case ProcessControlMessage(controlPayload, from) =>
+          ControlElement(controlPayload, from)
+        case TimeStamp(value) => ???
+      }
     }
   }
 }

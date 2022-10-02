@@ -7,39 +7,15 @@ import akka.pattern.ask
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkAck,
-  NetworkMessage,
-  NetworkSenderActorRef,
-  RegisterActorRef,
-  ResendFeasibility,
-  SendRequest
-}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  BatchToTupleConverter,
-  NetworkInputPort,
-  NetworkOutputPort,
-  TupleToBatchConverter
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, NetworkSenderActorRef, RegisterActorRef, ResendFeasibility, SendRequest}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, NetworkInputPort, NetworkOutputPort, TupleToBatchConverter}
 import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  READY,
-  RUNNING,
-  UNINITIALIZED
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  CreditRequest,
-  DataPayload,
-  ResendOutputTo,
-  UpdateRecoveryStatus,
-  WorkflowControlMessage,
-  WorkflowDataMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, CreditRequest, DataPayload, ResendOutputTo, UpdateRecoveryStatus, WorkflowControlMessage, WorkflowDataMessage, WorkflowRecoveryMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
@@ -100,8 +76,8 @@ class WorkflowWorker(
 
   override def receive: Receive = {
     if (!recoveryManager.replayCompleted()) {
-      recoveryManager.registerOnStart(() => context.parent ! UpdateRecoveryStatus(true))
-      recoveryManager.registerOnEnd(() => context.parent ! UpdateRecoveryStatus(false))
+      recoveryManager.registerOnStart(() => context.parent ! WorkflowRecoveryMessage(actorId,UpdateRecoveryStatus(true)))
+      recoveryManager.registerOnEnd(() => context.parent ! WorkflowRecoveryMessage(actorId,UpdateRecoveryStatus(false)))
       val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
       val fifoState = fifoStateRecoveryManager.getFIFOState
       controlInputPort.overwriteFIFOState(fifoState)

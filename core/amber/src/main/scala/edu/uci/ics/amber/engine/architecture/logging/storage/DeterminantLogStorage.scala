@@ -113,12 +113,21 @@ object DeterminantLogStorage {
 
 abstract class DeterminantLogStorage {
 
-  def getWriter(isTempLog: Boolean): DeterminantLogWriter
+  def getWriter: DeterminantLogWriter
 
   def getReader: DeterminantLogReader
 
   def deleteLog(): Unit
 
-  def swapTempLog(): Unit
+  def cleanPartiallyWrittenLogFile(): Unit
+
+  protected def copyReadableLogRecords(writer:DeterminantLogWriter): Unit ={
+    val recordIterator = new RecordIterator(getReader)
+    while(!recordIterator.isEmpty){
+      writer.writeLogRecord(recordIterator.peek())
+      recordIterator.readNext()
+    }
+    writer.close()
+  }
 
 }

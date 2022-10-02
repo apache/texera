@@ -2,16 +2,12 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.pattern.ask
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.pattern.StatusReply.Ack
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  CreditRequest,
-  ResendOutputTo,
-  WorkflowControlMessage,
-  WorkflowMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{CreditRequest, ResendOutputTo, WorkflowControlMessage, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -91,7 +87,6 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   val messageStash = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
   var sentMessages = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
-    .withDefaultValue(new mutable.Queue[WorkflowMessage]())
   val resendForRecoveryQueueLimit: Long =
     AmberUtils.amberConfig.getLong("fault-tolerance.max-supported-resend-queue-length")
   // register timer for resending messages
@@ -199,7 +194,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
-      sender ! Unit
+      sender ! Ack
   }
 
   /** This method forward a message by using tell pattern
@@ -212,9 +207,11 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
     val data = NetworkMessage(networkMessageID, msg)
     messageIDToIdentity(networkMessageID) = to
     if (congestionControl.canSend) {
+      println("congestionControl can send this message "+msg+" to "+to)
       congestionControl.markMessageInTransit(data)
       sendOrGetActorRef(to, data)
     } else {
+      println("congestionControl rejected "+msg+" to "+to)
       congestionControl.enqueueMessage(data)
     }
     networkMessageID += 1
@@ -251,6 +248,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
 
   def sendMessagesAndReceiveAcks: Receive = {
     case SendRequest(id, msg) =>
+      logger.info("ready to send "+msg)
       val msgToForward = flowControl.getMessageToForward(id, msg)
       if (msgToForward.nonEmpty) {
         forwardMessageFromFlowControl(id, msgToForward.get)
@@ -272,7 +270,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
           val msgSent = congestionControl.ack(id)
           if (msgSent.isDefined) {
             if (sentMessages != null) {
-              sentMessages(actorId).enqueue(msgSent.get.internalMessage)
+              sentMessages.getOrElseUpdate(actorId, new mutable.Queue[WorkflowMessage]()).enqueue(msgSent.get.internalMessage)
               if (sentMessages(actorId).size == resendForRecoveryQueueLimit) {
                 sentMessages = null //invalidate recovery
               }
@@ -323,7 +321,9 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   }
 
   override def receive: Receive = {
-    sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity
+    sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity orElse{
+      case other => //skip
+    }
   }
 
   override def postStop(): Unit = {
@@ -334,6 +334,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   @inline
   private[this] def sendOrGetActorRef(actorID: ActorVirtualIdentity, msg: NetworkMessage): Unit = {
     if (idToActorRefs.contains(actorID)) {
+      logger.info("send out"+msg)
       idToActorRefs(actorID) ! msg
     } else {
       // otherwise, we ask the parent for the actorRef.

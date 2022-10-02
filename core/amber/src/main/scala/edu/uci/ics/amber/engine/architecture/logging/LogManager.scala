@@ -19,6 +19,7 @@ case class StepDelta(steps: Long) extends InMemDeterminant
 case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirtualIdentity)
     extends InMemDeterminant
 case class TimeStamp(value: Long) extends InMemDeterminant
+case object TerminateSignal extends InMemDeterminant
 
 object LogManager {
   def getLogManager(
