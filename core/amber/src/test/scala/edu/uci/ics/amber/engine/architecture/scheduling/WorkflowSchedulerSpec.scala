@@ -1,31 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerInfo
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  UNINITIALIZED
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, UNINITIALIZED}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LinkIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
-  OperatorLink,
-  OperatorPort,
-  WorkflowCompiler,
-  WorkflowInfo
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, OperatorLink, OperatorPort, WorkflowCompiler, WorkflowInfo}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
@@ -68,7 +54,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
     workflow
       .getOperator(headerlessCsvOpDesc.operatorID)
       .topology
@@ -173,7 +159,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
 
     workflow
       .getOperator(buildCsv.operatorID)

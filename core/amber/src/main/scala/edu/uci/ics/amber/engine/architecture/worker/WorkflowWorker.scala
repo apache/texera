@@ -31,9 +31,10 @@ object WorkflowWorker {
       id: ActorVirtualIdentity,
       op: IOperatorExecutor,
       parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-      allUpstreamLinkIds: Set[LinkIdentity]
+      allUpstreamLinkIds: Set[LinkIdentity],
+      supportFaultTolerance: Boolean
   ): Props =
-    Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
+    Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds, supportFaultTolerance))
 
   def getWorkerLogName(id: ActorVirtualIdentity): String = id.name.replace("Worker:", "")
 }
@@ -42,8 +43,9 @@ class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
     parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity]
-) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef) {
+    allUpstreamLinkIds: Set[LinkIdentity],
+    supportFaultTolerance: Boolean
+) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =

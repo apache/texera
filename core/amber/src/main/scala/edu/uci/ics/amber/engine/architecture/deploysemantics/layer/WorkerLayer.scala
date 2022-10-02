@@ -69,7 +69,8 @@ class WorkerLayer(
       context: ActorContext,
       allUpstreamLinkIds: Set[LinkIdentity],
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
-      workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
+      workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor],
+      supportFaultTolerance: Boolean
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     workers = ListMap((0 until numWorkers).map { i =>
@@ -95,7 +96,8 @@ class WorkerLayer(
                 workerId,
                 operatorExecutor,
                 parentNetworkCommunicationActorRef,
-                allUpstreamLinkIds
+                allUpstreamLinkIds,
+                supportFaultTolerance
               )
               .withDeploy(Deploy(scope = RemoteScope(address)))
           }

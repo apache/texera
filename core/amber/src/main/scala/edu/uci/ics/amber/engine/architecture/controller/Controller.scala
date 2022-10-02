@@ -33,14 +33,16 @@ object ControllerConfig {
       monitoringIntervalMs = Option(Constants.monitoringIntervalInMs),
       skewDetectionIntervalMs = Option(Constants.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs =
-        Option(AmberUtils.amberConfig.getLong("constants.status-update-interval"))
+        Option(AmberUtils.amberConfig.getLong("constants.status-update-interval")),
+      AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
     )
 }
 
 final case class ControllerConfig(
     monitoringIntervalMs: Option[Long],
     skewDetectionIntervalMs: Option[Long],
-    statusUpdateIntervalMs: Option[Long]
+    statusUpdateIntervalMs: Option[Long],
+    var supportFaultTolerance:Boolean
 )
 
 object Controller {
@@ -63,7 +65,7 @@ class Controller(
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
     parentNetworkCommunicationActorRef: NetworkSenderActorRef
-) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
+) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef, controllerConfig.supportFaultTolerance) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
@@ -95,7 +97,8 @@ class Controller(
       context,
       asyncRPCClient,
       logger,
-      workflow
+      workflow,
+      controllerConfig
     )
 
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
@@ -135,29 +138,37 @@ class Controller(
         case ResendOutputTo(vid, ref) =>
           logger.warn(s"controller should not resend output to " + vid)
         case NotifyFailedNode(addr) =>
-          val deployNodes = availableNodes.filter(_ != self.path.address)
-          if (deployNodes.nonEmpty) {
-            val infoIter = workflow.getAllWorkerInfoOfAddress(addr)
-            infoIter.foreach { info =>
-              info.ref ! PoisonPill // in case we can still access the worker
-            }
-            // wait for 15 secs to re-create workers and re-send output
-            context.system.scheduler.scheduleOnce(15.seconds) {
-              val vidSet = infoIter.map(_.id).toSet
+          if(controllerConfig.supportFaultTolerance) {
+            val deployNodes = availableNodes.filter(_ != self.path.address)
+            if (deployNodes.nonEmpty) {
+              val infoIter = workflow.getAllWorkerInfoOfAddress(addr)
               infoIter.foreach { info =>
-                val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
-                workflow
-                  .getDirectUpstreamWorkers(info.id)
-                  .filter(x => !vidSet.contains(x))
-                  .foreach { vid =>
-                    workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
-                  }
+                info.ref ! PoisonPill // in case we can still access the worker
               }
+              // wait for 15 secs to re-create workers and re-send output
+              context.system.scheduler.scheduleOnce(15.seconds) {
+                val vidSet = infoIter.map(_.id).toSet
+                infoIter.foreach { info =>
+                  val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+                  workflow
+                    .getDirectUpstreamWorkers(info.id)
+                    .filter(x => !vidSet.contains(x))
+                    .foreach { vid =>
+                      workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
+                    }
+                }
+              }
+            } else {
+              throw new RuntimeException(
+                "Cannot recover failed workers! No available worker machines!"
+              )
             }
-          } else {
-            throw new RuntimeException(
-              "Cannot recover failed workers! No available worker machines!"
-            )
+          }else{
+            // do not support recovery
+            val error = new RuntimeException("Recovery not supported, abort.")
+            asyncRPCClient.sendToClient(FatalError(error))
+            // re-throw the error to fail the actor
+            throw error
           }
       }
   }
@@ -210,6 +221,11 @@ class Controller(
             "Controller cannot handle " + otherDeterminant + " during recovery!"
           )
       }
+    case NetworkMessage(_, WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err)))) =>
+      // fatal error during recovery, fail
+      asyncRPCClient.sendToClient(FatalError(err))
+      // re-throw the error to fail the actor
+      throw err
     case x:NetworkMessage =>
       stash()
     case invocation: ControlInvocation =>
@@ -240,7 +256,7 @@ class Controller(
     logManager.terminate()
     if (workflow.isCompleted) {
       workflow.getAllWorkers.foreach { workerId =>
-        DeterminantLogStorage.getLogStorage(WorkflowWorker.getWorkerLogName(workerId)).deleteLog()
+        DeterminantLogStorage.getLogStorage(controllerConfig.supportFaultTolerance, WorkflowWorker.getWorkerLogName(workerId)).deleteLog()
       }
       logStorage.deleteLog()
     }

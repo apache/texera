@@ -90,9 +90,7 @@ object DeterminantLogStorage {
     }
   }
 
-  def getLogStorage(name: String): DeterminantLogStorage = {
-    val enabledLogging: Boolean =
-      AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
+  def getLogStorage(enabledLogging:Boolean, name: String): DeterminantLogStorage = {
     val storageType: String =
       AmberUtils.amberConfig.getString("fault-tolerance.log-storage-type")
     if (enabledLogging) {

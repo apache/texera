@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, Address}
 import com.twitter.util.Future
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
@@ -19,11 +19,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
@@ -37,7 +33,8 @@ class WorkflowScheduler(
     ctx: ActorContext,
     asyncRPCClient: AsyncRPCClient,
     logger: Logger,
-    workflow: Workflow
+    workflow: Workflow,
+    controllerConf: ControllerConfig
 ) {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx)
@@ -150,7 +147,8 @@ class WorkflowScheduler(
           ctx,
           workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
-          workflow.workerToOperatorExec
+          workflow.workerToOperatorExec,
+          controllerConf.supportFaultTolerance
         )
       })
     } else {
@@ -168,7 +166,8 @@ class WorkflowScheduler(
           ctx,
           workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
-          workflow.workerToOperatorExec
+          workflow.workerToOperatorExec,
+          controllerConf.supportFaultTolerance
         )
       })
       layers = operatorInLinks.filter(x => x._2.forall(_.isBuilt)).keys
@@ -181,7 +180,8 @@ class WorkflowScheduler(
             ctx,
             workflow.getInlinksIdsToWorkerLayer(layer.id),
             workflow.workerToLayer,
-            workflow.workerToOperatorExec
+            workflow.workerToOperatorExec,
+            controllerConf.supportFaultTolerance
           )
         })
         layers = operatorInLinks.filter(x => !x._1.isBuilt && x._2.forall(_.isBuilt)).keys

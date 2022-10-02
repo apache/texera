@@ -35,7 +35,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 abstract class WorkflowActor(
     val actorId: ActorVirtualIdentity,
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
+    supportFaultTolerance: Boolean
 ) extends Actor
     with Stash
     with AmberLogging {
@@ -49,13 +50,13 @@ abstract class WorkflowActor(
       NetworkCommunicationActor.props(parentNetworkCommunicationActorRef.ref, actorId)
     )
   )
-  val logStorage: DeterminantLogStorage = DeterminantLogStorage.getLogStorage(getLogName)
+  val logStorage: DeterminantLogStorage = DeterminantLogStorage.getLogStorage(supportFaultTolerance, getLogName)
   val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
-  val logManager: LogManager = LogManager.getLogManager(networkCommunicationActor)
-  if(!recoveryManager.replayCompleted()){
-    logManager.setupWriter(new EmptyLogStorage().getWriter)
-  }else{
+  val logManager: LogManager = LogManager.getLogManager(supportFaultTolerance, networkCommunicationActor)
+  if(recoveryManager.replayCompleted()){
     logManager.setupWriter(logStorage.getWriter)
+  }else{
+    logManager.setupWriter(new EmptyLogStorage().getWriter)
   }
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
