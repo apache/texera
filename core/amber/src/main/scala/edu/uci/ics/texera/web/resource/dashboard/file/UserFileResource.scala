@@ -337,7 +337,6 @@ class UserFileResource {
     }
   }
 
-
   /**
     * This method updates the description of a given userFile
     *
