@@ -10,15 +10,13 @@ import { OperatorPropertyEditFrameComponent } from "src/app/workspace/component/
   templateUrl: "./input-filename-autocomplete-template.component.html",
   // styleUrls: ["input-filename-autocomplete-template.scss"],
 })
-export class InputFilenameAutoCompleteComponent extends FieldType {
+
+// The FieldType<any> is a workaround for the issue of not assignable FormControl.
+// details https://github.com/ngx-formly/ngx-formly/issues/2842#issuecomment-1066116865
+// need to upgrade formly to v6 to properly fix this issue.
+export class InputFilenameAutoCompleteComponent extends FieldType<any> {
   inputValue?: string;
   public selections: string[] = [];
-  // fields: FormlyFieldConfig[] = [
-  //   {
-  //     key: "fileName",
-  //     type: "fileName",
-  //   },
-  // ];
 
   constructor(
     public userFileService: UserFileService,
@@ -36,12 +34,8 @@ export class InputFilenameAutoCompleteComponent extends FieldType {
     if (value.length > 0) {
       this.userFileService.getAutoCompleteUserFileAccessList(value).pipe(untilDestroyed(this))
       .subscribe(autocompleteList => {
-        console.log(autocompleteList);
         this.selections = value ? autocompleteList.concat() : [];
-        const eventData = this.operatorPropertyEditFrameComponent.formData;
-        eventData.fileName = value
-        eventData.filename = value
-        this.operatorPropertyEditFrameComponent.onFormChanges(eventData);
+        // To YunYan: do not change formData manually here. Form data should be updated by FormControl.
       });
     }
   }
