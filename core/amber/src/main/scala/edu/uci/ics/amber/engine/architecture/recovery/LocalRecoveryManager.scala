@@ -61,21 +61,29 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     elem match {
       case tuple: InputTuple =>
         currentInputSender = tuple.from
-        inputMapping.getOrElseUpdate(tuple.from, new LinkedBlockingQueue[InternalQueueElement]()).put(tuple)
+        inputMapping
+          .getOrElseUpdate(tuple.from, new LinkedBlockingQueue[InternalQueueElement]())
+          .put(tuple)
       case SenderChangeMarker(newUpstreamLink) =>
       //ignore, we use log to enforce original order
       case control: ControlElement =>
-        controlMessages.getOrElseUpdate(control.from, new mutable.Queue[ControlElement]()).enqueue(control)
+        controlMessages
+          .getOrElseUpdate(control.from, new mutable.Queue[ControlElement]())
+          .enqueue(control)
       case WorkerInternalQueue.EndMarker =>
-        inputMapping.getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]()).put(EndMarker)
+        inputMapping
+          .getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]())
+          .put(EndMarker)
       case WorkerInternalQueue.EndOfAllMarker =>
-        inputMapping.getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]()).put(EndOfAllMarker)
+        inputMapping
+          .getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]())
+          .put(EndOfAllMarker)
     }
   }
 
   def replayCompleted(): Boolean = {
     val res = records.isEmpty
-    if(res && !endCallbackTriggered){
+    if (res && !endCallbackTriggered) {
       endCallbackTriggered = true
       onEnd()
     }
@@ -124,10 +132,10 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     determinant
   }
 
-  def processInternalEvents(): Unit ={
+  def processInternalEvents(): Unit = {
     var finished = false
-    while(!finished){
-      records.peek() match{
+    while (!finished) {
+      records.peek() match {
         case StepDelta(steps) =>
           assert(step <= 0)
           step = steps
@@ -142,11 +150,13 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
   }
 
   def get(): InternalQueueElement = {
-    if(step > 0){
+    if (step > 0) {
       //wait until input[targetVId] available
-      val res = inputMapping.getOrElseUpdate(targetVId, new LinkedBlockingQueue[InternalQueueElement]()).take()
+      val res = inputMapping
+        .getOrElseUpdate(targetVId, new LinkedBlockingQueue[InternalQueueElement]())
+        .take()
       res
-    }else{
+    } else {
       val record = records.peek()
       records.readNext()
       processInternalEvents()

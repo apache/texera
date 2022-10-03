@@ -23,8 +23,8 @@ case object TerminateSignal extends InMemDeterminant
 
 object LogManager {
   def getLogManager(
-                     enabledLogging:Boolean,
-                     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
+      enabledLogging: Boolean,
+      networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
   ): LogManager = {
     if (enabledLogging) {
       new LogManagerImpl(networkCommunicationActor)

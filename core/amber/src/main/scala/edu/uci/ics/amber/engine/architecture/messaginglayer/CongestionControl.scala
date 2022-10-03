@@ -87,6 +87,12 @@ class CongestionControl {
     inTransit.values
   }
 
+  def getAllMessages: Iterable[NetworkMessage] = {
+    val intransitMsg = inTransit.values
+    val toBeSentMsg = toBeSent
+    intransitMsg.toSet.union(toBeSentMsg.toSet)
+  }
+
   def getStatusReport: String = {
     s"current window size = ${windowSize} \t in transit = ${inTransit.size} \t waiting = ${toBeSent.size}"
   }

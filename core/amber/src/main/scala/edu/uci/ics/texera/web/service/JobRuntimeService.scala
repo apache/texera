@@ -9,8 +9,18 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
-import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowExecutionErrorEvent,
+  WorkflowStateEvent
+}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  RemoveBreakpointRequest,
+  SkipTupleRequest,
+  WorkflowKillRequest,
+  WorkflowPauseRequest,
+  WorkflowResumeRequest
+}
 import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
@@ -53,7 +63,7 @@ class JobRuntimeService(
   }))
 
   // Receive Paused from Amber
-  addSubscription(client.registerCallback[WorkflowPaused]((evt:WorkflowPaused) =>{
+  addSubscription(client.registerCallback[WorkflowPaused]((evt: WorkflowPaused) => {
     stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSED))
   }))
 

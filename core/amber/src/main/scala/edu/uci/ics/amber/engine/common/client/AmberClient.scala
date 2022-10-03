@@ -79,9 +79,9 @@ class AmberClient(
 
   def notifyNodeFailure(address: Address): Future[Any] = {
     if (!isActive) {
-      (clientActor ? WorkflowRecoveryMessage(CLIENT, NotifyFailedNode(address))).asTwitter()
-    } else {
       Future[Any]()
+    } else {
+      (clientActor ? WorkflowRecoveryMessage(CLIENT, NotifyFailedNode(address))).asTwitter()
     }
   }
 

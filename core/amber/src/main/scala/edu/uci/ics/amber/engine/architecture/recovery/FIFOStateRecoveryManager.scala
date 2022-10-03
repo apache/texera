@@ -14,9 +14,9 @@ class FIFOStateRecoveryManager(logReader: DeterminantLogReader) {
     while (!records.isEmpty) {
       records.peek() match {
         case ProcessControlMessage(controlPayload, from) =>
-          if(fifoState.contains(from)){
+          if (fifoState.contains(from)) {
             fifoState(from) += 1
-          }else{
+          } else {
             fifoState(from) = 1
           }
         case other => //skip

@@ -5,8 +5,16 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.twitter.chill.{KryoPool, KryoSerializer, ScalaKryoInstantiator}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.logging.storage.{DeterminantLogStorage, EmptyLogStorage, LocalFSLogStorage}
-import edu.uci.ics.amber.engine.architecture.logging.{InMemDeterminant, ProcessControlMessage, StepDelta}
+import edu.uci.ics.amber.engine.architecture.logging.storage.{
+  DeterminantLogStorage,
+  EmptyLogStorage,
+  LocalFSLogStorage
+}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  InMemDeterminant,
+  ProcessControlMessage,
+  StepDelta
+}
 import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics

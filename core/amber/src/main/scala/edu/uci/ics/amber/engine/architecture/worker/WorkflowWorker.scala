@@ -7,15 +7,40 @@ import akka.pattern.ask
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, NetworkSenderActorRef, RegisterActorRef, ResendFeasibility, SendRequest}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, NetworkInputPort, NetworkOutputPort, TupleToBatchConverter}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage,
+  NetworkSenderActorRef,
+  RegisterActorRef,
+  ResendFeasibility,
+  SendRequest
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  BatchToTupleConverter,
+  NetworkInputPort,
+  NetworkOutputPort,
+  TupleToBatchConverter
+}
 import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING, UNINITIALIZED}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  READY,
+  RUNNING,
+  UNINITIALIZED
+}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, CreditRequest, DataPayload, ResendOutputTo, UpdateRecoveryStatus, WorkflowControlMessage, WorkflowDataMessage, WorkflowRecoveryMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  CreditRequest,
+  DataPayload,
+  ResendOutputTo,
+  UpdateRecoveryStatus,
+  WorkflowControlMessage,
+  WorkflowDataMessage,
+  WorkflowRecoveryMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
@@ -34,7 +59,15 @@ object WorkflowWorker {
       allUpstreamLinkIds: Set[LinkIdentity],
       supportFaultTolerance: Boolean
   ): Props =
-    Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds, supportFaultTolerance))
+    Props(
+      new WorkflowWorker(
+        id,
+        op,
+        parentNetworkCommunicationActorRef,
+        allUpstreamLinkIds,
+        supportFaultTolerance
+      )
+    )
 
   def getWorkerLogName(id: ActorVirtualIdentity): String = id.name.replace("Worker:", "")
 }
@@ -78,8 +111,12 @@ class WorkflowWorker(
 
   override def receive: Receive = {
     if (!recoveryManager.replayCompleted()) {
-      recoveryManager.registerOnStart(() => context.parent ! WorkflowRecoveryMessage(actorId,UpdateRecoveryStatus(true)))
-      recoveryManager.registerOnEnd(() => context.parent ! WorkflowRecoveryMessage(actorId,UpdateRecoveryStatus(false)))
+      recoveryManager.registerOnStart(() =>
+        context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(true))
+      )
+      recoveryManager.registerOnEnd(() =>
+        context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(false))
+      )
       val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
       val fifoState = fifoStateRecoveryManager.getFIFOState
       controlInputPort.overwriteFIFOState(fifoState)
@@ -90,8 +127,9 @@ class WorkflowWorker(
 
   def forwardResendRequest: Receive = {
     case resend: ResendOutputTo =>
-      val result = Await.result(networkCommunicationActor.ref ? resend, 5.seconds)
-      if (!result.isInstanceOf[ResendFeasibility] || !result.asInstanceOf[ResendFeasibility].isOk) {
+      networkCommunicationActor ! resend
+    case ResendFeasibility(status) =>
+      if (!status) {
         throw new WorkflowRuntimeException(s"network sender cannot resend message!")
       }
   }

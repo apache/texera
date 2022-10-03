@@ -62,7 +62,7 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 
   override def cleanPartiallyWrittenLogFile(): Unit = {
     var tmpPath = getLogPath
-    tmpPath = tmpPath.resolveSibling(tmpPath.getFileName+".tmp")
+    tmpPath = tmpPath.resolveSibling(tmpPath.getFileName + ".tmp")
     copyReadableLogRecords(new DeterminantLogWriter {
       override lazy protected val outputStream = {
         new DataOutputStream(

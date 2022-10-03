@@ -50,12 +50,14 @@ abstract class WorkflowActor(
       NetworkCommunicationActor.props(parentNetworkCommunicationActorRef.ref, actorId)
     )
   )
-  val logStorage: DeterminantLogStorage = DeterminantLogStorage.getLogStorage(supportFaultTolerance, getLogName)
+  val logStorage: DeterminantLogStorage =
+    DeterminantLogStorage.getLogStorage(supportFaultTolerance, getLogName)
   val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
-  val logManager: LogManager = LogManager.getLogManager(supportFaultTolerance, networkCommunicationActor)
-  if(recoveryManager.replayCompleted()){
+  val logManager: LogManager =
+    LogManager.getLogManager(supportFaultTolerance, networkCommunicationActor)
+  if (recoveryManager.replayCompleted()) {
     logManager.setupWriter(logStorage.getWriter)
-  }else{
+  } else {
     logManager.setupWriter(new EmptyLogStorage().getWriter)
   }
   // this variable cannot be lazy

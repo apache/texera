@@ -54,14 +54,14 @@ class AsyncLogWriter(
     gracefullyStopped.complete()
   }
 
-  def drainWriterQueueAndProcess(): Boolean ={
+  def drainWriterQueueAndProcess(): Boolean = {
     var stop = false
     if (writerQueue.drainTo(drained) == 0) {
-        drained.add(writerQueue.take())
+      drained.add(writerQueue.take())
     }
-    val drainedScala = drained.asScala
-    if(drainedScala.last == Left(TerminateSignal)){
-      drainedScala.dropRight(1)
+    var drainedScala = drained.asScala
+    if (drainedScala.last == Left(TerminateSignal)) {
+      drainedScala = drainedScala.dropRight(1)
       stop = true
     }
     drainedScala

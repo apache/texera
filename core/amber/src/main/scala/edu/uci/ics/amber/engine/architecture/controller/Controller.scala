@@ -9,16 +9,38 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
-import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, InMemDeterminant, ProcessControlMessage}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, NetworkSenderActorRef, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  DeterminantLogger,
+  InMemDeterminant,
+  ProcessControlMessage
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage,
+  NetworkSenderActorRef,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.recovery.{FIFOStateRecoveryManager, GlobalRecoveryManager}
-import edu.uci.ics.amber.engine.architecture.scheduling.{WorkflowPipelinedRegionsBuilder, WorkflowScheduler}
+import edu.uci.ics.amber.engine.architecture.recovery.{
+  FIFOStateRecoveryManager,
+  GlobalRecoveryManager
+}
+import edu.uci.ics.amber.engine.architecture.scheduling.{
+  WorkflowPipelinedRegionsBuilder,
+  WorkflowScheduler
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, NotifyFailedNode, ResendOutputTo, UpdateRecoveryStatus, WorkflowControlMessage, WorkflowRecoveryMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  NotifyFailedNode,
+  ResendOutputTo,
+  UpdateRecoveryStatus,
+  WorkflowControlMessage,
+  WorkflowRecoveryMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
@@ -42,7 +64,7 @@ final case class ControllerConfig(
     monitoringIntervalMs: Option[Long],
     skewDetectionIntervalMs: Option[Long],
     statusUpdateIntervalMs: Option[Long],
-    var supportFaultTolerance:Boolean
+    var supportFaultTolerance: Boolean
 )
 
 object Controller {
@@ -65,7 +87,11 @@ class Controller(
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
     parentNetworkCommunicationActorRef: NetworkSenderActorRef
-) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef, controllerConfig.supportFaultTolerance) {
+) extends WorkflowActor(
+      CONTROLLER,
+      parentNetworkCommunicationActorRef,
+      controllerConfig.supportFaultTolerance
+    ) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
@@ -133,37 +159,47 @@ class Controller(
     case recoveryMsg: WorkflowRecoveryMessage =>
       recoveryMsg.payload match {
         case UpdateRecoveryStatus(isRecovering) =>
-          logger.info("recovery status for "+recoveryMsg.from+" is "+isRecovering)
+          logger.info("recovery status for " + recoveryMsg.from + " is " + isRecovering)
           globalRecoveryManager.markRecoveryStatus(recoveryMsg.from, isRecovering)
         case ResendOutputTo(vid, ref) =>
           logger.warn(s"controller should not resend output to " + vid)
         case NotifyFailedNode(addr) =>
-          if(controllerConfig.supportFaultTolerance) {
+          if (controllerConfig.supportFaultTolerance) {
             val deployNodes = availableNodes.filter(_ != self.path.address)
             if (deployNodes.nonEmpty) {
+              logger.info(
+                "Global Recovery: move all worker from " + addr + " to " + deployNodes.head
+              )
               val infoIter = workflow.getAllWorkerInfoOfAddress(addr)
+              logger.info("Global Recovery: sent kill signal to workers on failed node")
               infoIter.foreach { info =>
                 info.ref ! PoisonPill // in case we can still access the worker
               }
-              // wait for 15 secs to re-create workers and re-send output
-              context.system.scheduler.scheduleOnce(15.seconds) {
+              logger.info("Global Recovery: triggering worker respawn")
+              infoIter.foreach { info =>
+                val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+                logger.info("Global Recovery: respawn " + info.id)
                 val vidSet = infoIter.map(_.id).toSet
-                infoIter.foreach { info =>
-                  val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+                // wait for some secs to re-send output
+                context.system.scheduler.scheduleOnce(10.seconds) {
+                  logger.info("Global Recovery: triggering upstream resend for " + info.id)
                   workflow
                     .getDirectUpstreamWorkers(info.id)
                     .filter(x => !vidSet.contains(x))
                     .foreach { vid =>
+                      logger.info("Global Recovery: trigger resend from " + vid + " to " + info.id)
                       workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
                     }
                 }
               }
             } else {
-              throw new RuntimeException(
+              val error = new RuntimeException(
                 "Cannot recover failed workers! No available worker machines!"
               )
+              asyncRPCClient.sendToClient(FatalError(error))
+              throw error
             }
-          }else{
+          } else {
             // do not support recovery
             val error = new RuntimeException("Recovery not supported, abort.")
             asyncRPCClient.sendToClient(FatalError(error))
@@ -217,16 +253,21 @@ class Controller(
             self ! inMemDeterminant
           }
         case otherDeterminant =>
-          throw new RuntimeException(
+          val err = new RuntimeException(
             "Controller cannot handle " + otherDeterminant + " during recovery!"
           )
+          asyncRPCClient.sendToClient(FatalError(err))
+          throw err
       }
-    case NetworkMessage(_, WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err)))) =>
+    case NetworkMessage(
+          _,
+          WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err)))
+        ) =>
       // fatal error during recovery, fail
       asyncRPCClient.sendToClient(FatalError(err))
       // re-throw the error to fail the actor
       throw err
-    case x:NetworkMessage =>
+    case x: NetworkMessage =>
       stash()
     case invocation: ControlInvocation =>
       logger.info("Reject during recovery: " + invocation)
@@ -256,7 +297,12 @@ class Controller(
     logManager.terminate()
     if (workflow.isCompleted) {
       workflow.getAllWorkers.foreach { workerId =>
-        DeterminantLogStorage.getLogStorage(controllerConfig.supportFaultTolerance, WorkflowWorker.getWorkerLogName(workerId)).deleteLog()
+        DeterminantLogStorage
+          .getLogStorage(
+            controllerConfig.supportFaultTolerance,
+            WorkflowWorker.getWorkerLogName(workerId)
+          )
+          .deleteLog()
       }
       logStorage.deleteLog()
     }

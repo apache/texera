@@ -67,7 +67,7 @@ class DataProcessor( // dependencies:
             stateManager.transitTo(READY)
             if (!recoveryManager.replayCompleted()) {
               recoveryManager.onStart()
-              recoveryManager.registerOnEnd(() =>{
+              recoveryManager.registerOnEnd(() => {
                 logger.info("recovery complete! restoring stashed inputs...")
                 logManager.terminate()
                 logStorage.cleanPartiallyWrittenLogFile()
@@ -234,9 +234,9 @@ class DataProcessor( // dependencies:
     // main DP loop
     while (true) {
       // take the next data element from internal queue, blocks if not available.
-      val elem = if(recoveryManager.replayCompleted()){
+      val elem = if (recoveryManager.replayCompleted()) {
         getElement
-      }else{
+      } else {
         recoveryManager.get()
       }
       internalQueueElementHandler(elem)
@@ -307,7 +307,7 @@ class DataProcessor( // dependencies:
         takeOneControlCommandAndProcess()
       }
     } else {
-      while(recoveryManager.isReadyToEmitNextControl) {
+      while (recoveryManager.isReadyToEmitNextControl) {
         takeOneControlCommandAndProcess()
       }
     }
@@ -326,7 +326,7 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
-    logger.info("process Control: "+payload+" from "+from)
+    logger.info("process Control: " + payload + " from " + from)
     determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
     payload match {
       case invocation: ControlInvocation =>
