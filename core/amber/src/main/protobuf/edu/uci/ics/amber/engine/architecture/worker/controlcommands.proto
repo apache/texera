@@ -18,6 +18,10 @@ message PauseWorkerV2 {}
 
 message ResumeWorkerV2 {}
 
+message SchedulerTimeSlotEventV2 {
+    bool time_slot_expired = 1;
+}
+
 message OpenOperatorV2 {}
 
 message UpdateInputLinkingV2 {
@@ -45,8 +49,9 @@ message LocalOperatorExceptionV2 {
 
 message InitializeOperatorLogicV2 {
     string code = 1;
-    bool is_source = 2;
-    map<string, string> output_schema = 3;
+    repeated common.LinkIdentity upstreamLinkIds = 2;
+    bool is_source = 3;
+    map<string, string> output_schema = 4;
 }
 
 message ModifyOperatorLogicV2 {
@@ -86,8 +91,10 @@ message ControlCommandV2 {
 
         LocalOperatorExceptionV2 local_operator_exception = 8;
 
-        OpenOperatorV2 open_operator= 9;
+        OpenOperatorV2 open_operator = 9;
         LinkCompletedV2 link_completed = 10;
+
+        SchedulerTimeSlotEventV2 scheduler_time_slot_event = 11;
 
         InitializeOperatorLogicV2 initialize_operator_logic = 21;
         ModifyOperatorLogicV2 modify_operator_logic = 22;
@@ -101,5 +108,4 @@ message ControlCommandV2 {
     }
 
 }
-
 

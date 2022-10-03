@@ -54,7 +54,7 @@ val akkaDependencies = Seq(
 val dropwizardVersion = "1.3.23"
 // jersey version should be the same as jersey-server that is contained in dropwizard
 val jerseyMultipartVersion = "2.25.1"
-val jacksonVersion = "2.12.0"
+val jacksonVersion = "2.13.2"
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-client" % dropwizardVersion,
@@ -67,6 +67,8 @@ val dropwizardDependencies = Seq(
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
+  "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.11.0"
 )
@@ -114,7 +116,7 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "5.0.0"
+val arrowVersion = "8.0.0"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -191,6 +193,9 @@ libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
 
 // https://mvnrepository.com/artifact/com.github.tototoshi/scala-csv
 libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.6"
+
+// https://mvnrepository.com/artifact/com.univocity/univocity-parsers
+libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
 
 // https://mvnrepository.com/artifact/com.konghq/unirest-java
 libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"

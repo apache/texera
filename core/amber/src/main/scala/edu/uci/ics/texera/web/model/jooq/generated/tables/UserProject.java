@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row4;
+import org.jooq.Row5;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserProject extends TableImpl<UserProjectRecord> {
 
-    private static final long serialVersionUID = 665555893;
+    private static final long serialVersionUID = -1484603250;
 
     /**
      * The reference instance of <code>texera_db.user_project</code>
@@ -69,6 +69,11 @@ public class UserProject extends TableImpl<UserProjectRecord> {
      * The column <code>texera_db.user_project.creation_time</code>.
      */
     public final TableField<UserProjectRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+
+    /**
+     * The column <code>texera_db.user_project.color</code>.
+     */
+    public final TableField<UserProjectRecord, String> COLOR = createField(DSL.name("color"), org.jooq.impl.SQLDataType.VARCHAR(6), this, "");
 
     /**
      * Create a <code>texera_db.user_project</code> table reference
@@ -164,11 +169,11 @@ public class UserProject extends TableImpl<UserProjectRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row4 type methods
+    // Row5 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<UInteger, String, UInteger, Timestamp> fieldsRow() {
-        return (Row4) super.fieldsRow();
+    public Row5<UInteger, String, UInteger, Timestamp, String> fieldsRow() {
+        return (Row5) super.fieldsRow();
     }
 }

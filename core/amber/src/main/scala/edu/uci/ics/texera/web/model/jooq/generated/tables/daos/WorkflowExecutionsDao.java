@@ -90,6 +90,20 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfUid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.UID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>uid IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByUid(UInteger... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.UID, values);
+    }
+
+    /**
      * Fetch records that have <code>status BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStatus(Byte lowerInclusive, Byte upperInclusive) {
@@ -157,5 +171,19 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByBookmarked(Byte... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.BOOKMARKED, values);
+    }
+
+    /**
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.NAME, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>name IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByName(String... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.NAME, values);
     }
 }

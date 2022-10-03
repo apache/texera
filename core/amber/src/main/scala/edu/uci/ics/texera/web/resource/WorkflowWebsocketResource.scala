@@ -59,7 +59,7 @@ class WorkflowWebsocketResource extends LazyLogging {
         case wIdRequest: RegisterWIdRequest =>
           // hack to refresh frontend run button state
           send(session, WorkflowStateEvent("Uninitialized"))
-          val workflowState = WorkflowService.getOrCreate(wIdRequest.wId, uidOpt)
+          val workflowState = WorkflowService.getOrCreate(wIdRequest.wId)
           sessionState.subscribe(workflowState)
           send(session, RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>

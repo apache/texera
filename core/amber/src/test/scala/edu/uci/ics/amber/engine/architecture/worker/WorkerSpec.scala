@@ -23,11 +23,12 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   DataPayload,
   WorkflowControlMessage
 }
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -66,7 +67,9 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity
+          input: LinkIdentity,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
       ): Iterator[(ITuple, Option[LinkIdentity])] = ???
     }
 
@@ -74,10 +77,12 @@ class WorkerSpec
 
     val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
-      override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
-      override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] = mockControlOutputPort
-    })
+    val worker =
+      TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref, Set(mockTag)) {
+        override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
+        override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
+          mockControlOutputPort
+      })
     (mockTupleToBatchConverter.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
     (mockHandler.apply _).expects(*, *, *, *).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
@@ -101,11 +106,13 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity
+          input: LinkIdentity,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
       ): Iterator[(ITuple, Option[LinkIdentity])] = { return Iterator() }
     }
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, probe.ref))
+    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, probe.ref, Set()))
 
     idMap(identifier1) = worker
     idMap(CONTROLLER) = probe.ref
@@ -127,8 +134,11 @@ class WorkerSpec
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }
-      case NetworkMessage(msgID, WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))) =>
-        probe.sender() ! NetworkAck(msgID)
+      case NetworkMessage(
+            msgID,
+            WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))
+          ) =>
+        probe.sender() ! NetworkAck(msgID, Some(Constants.unprocessedBatchesCreditLimitPerSender))
         returnValue match {
           case e: Throwable => throw e
           case _ =>

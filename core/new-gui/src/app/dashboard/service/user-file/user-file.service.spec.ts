@@ -18,18 +18,21 @@ const description = "this is a test file";
 const size = 1024;
 const username = "Jim";
 const accessLevel = "read";
+const uploadTime = "1658145732";
 const testFile: UserFile = {
   fid: id,
   name: name,
   path: path,
   size: size,
   description: description,
+  uploadTime: uploadTime,
 };
 const testFileEntry: DashboardUserFileEntry = {
   ownerName: "Texera",
   file: testFile,
   accessLevel: "Write",
   isOwner: true,
+  projectIDs: [],
 };
 
 describe("UserFileService", () => {

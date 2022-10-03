@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart;
 
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager;
 import edu.uci.ics.amber.engine.common.InputExhausted;
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -49,7 +51,7 @@ public class PieChartOpFinalExec implements OperatorExecutor {
     }
 
     @Override
-    public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
+    public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         if (tuple.isLeft()) {
             if (noDataCol) {
                 sum += tuple.left().get().getInt(1);
@@ -86,7 +88,7 @@ public class PieChartOpFinalExec implements OperatorExecutor {
                 resultList.add(t);
                 if (total / sum > pruneRatio) {
                     if (noDataCol) {
-                        int otherDataField = (int)(sum - total);
+                        int otherDataField = (int) (sum - total);
                         resultList.add(Tuple.newBuilder(resultSchema).addSequentially(new Object[]{"Other", otherDataField}).build());
                     } else {
                         double otherDataField = sum - total;

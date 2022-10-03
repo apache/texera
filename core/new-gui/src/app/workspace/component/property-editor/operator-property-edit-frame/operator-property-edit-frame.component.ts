@@ -7,7 +7,7 @@ import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { cloneDeep, isEqual } from "lodash-es";
-import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { CustomJSONSchema7, HideType, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
@@ -17,6 +17,7 @@ import {
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
   createOutputFormChangeEventStream,
+  createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
@@ -31,6 +32,12 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
 import { WorkflowCollabService } from "../../../service/workflow-collab/workflow-collab.service";
+import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
+import { DashboardUserFileEntry, UserFile } from "../../../../dashboard/type/dashboard-user-file-entry";
+import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
+import { AccessEntry } from "../../../../dashboard/type/access.interface";
+import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
+import { Workflow } from "../../../../common/type/workflow";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -82,6 +89,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
+  // The field name and its css style to be overridden, e.g., for showing the diff between two workflows.
+  // example: new Map([
+  //     ["attribute", "outline: 3px solid green; transition: 0.3s ease-in-out outline;"],
+  //     ["condition", "background: red; border-color: red;"],
+  //   ]);
+  fieldStyleOverride: Map<String, String> = new Map([]);
+
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
@@ -93,6 +107,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
   public lockGranted: boolean = true;
+  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -102,7 +117,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private schemaPropagationService: SchemaPropagationService,
     private notificationService: NotificationService,
     private workflowCollabService: WorkflowCollabService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private workflowVersionService: WorkflowVersionService,
+    private userFileService: UserFileService,
+    private workflowGrantAccessService: WorkflowAccessService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -140,6 +158,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerOperatorDisplayNameChangeHandler();
 
     this.registerLockChangeHandler();
+
+    let workflow = this.workflowActionService.getWorkflow();
+    if (workflow) this.refreshGrantedList(workflow);
+  }
+
+  public refreshGrantedList(workflow: Workflow): void {
+    this.workflowGrantAccessService
+      .retrieveGrantedWorkflowAccessList(workflow)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => console.log(err.error)
+      );
   }
 
   async ngOnDestroy() {
@@ -154,6 +186,28 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
+    // This assumes "fileName" to be the only key for file names in an operator property.
+    const filename: string = <string>event["fileName"];
+    if (filename) {
+      const [owner, fname] = filename.split("/", 2);
+      this.allUserWorkflowAccess.forEach(userWorkflowAccess => {
+        this.userFileService
+          .grantUserFileAccess(
+            {
+              ownerName: owner,
+              file: { fid: -1, path: "", size: -1, description: "", uploadTime: "", name: fname },
+              accessLevel: "read",
+              isOwner: true,
+              projectIDs: [],
+            },
+            userWorkflowAccess.userName,
+            "read"
+          )
+          .pipe(untilDestroyed(this))
+          .subscribe();
+      });
+    }
+
     this.sourceFormChangeEventStream.next(event);
   }
 
@@ -206,6 +260,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     setTimeout(() => {
       const interactive = this.evaluateInteractivity();
       this.setInteractivity(interactive);
+      this.changeDetectorRef.detectChanges();
     }, 0);
   }
 
@@ -323,6 +378,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
+    var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
+    if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
+      this.fieldStyleOverride = operatorPropertyDiff[this.currentOperatorId];
+    }
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -330,6 +389,35 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField: FormlyFieldConfig,
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
+      // apply the overridden css style if applicable
+      mappedField.expressionProperties = {
+        "templateOptions.attributes": () => {
+          if (
+            isDefined(mappedField) &&
+            typeof mappedField.key === "string" &&
+            this.fieldStyleOverride.has(mappedField.key)
+          ) {
+            return { style: this.fieldStyleOverride.get(mappedField.key) };
+          } else {
+            return {};
+          }
+        },
+      };
+
+      // conditionally hide the field according to the schema
+      if (
+        isDefined(mapSource.hideExpectedValue) &&
+        isDefined(mapSource.hideTarget) &&
+        isDefined(mapSource.hideType) &&
+        hideTypes.includes(mapSource.hideType)
+      ) {
+        mappedField.hideExpression = createShouldHideFieldFunc(
+          mapSource.hideTarget,
+          mapSource.hideType,
+          mapSource.hideExpectedValue
+        );
+      }
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {

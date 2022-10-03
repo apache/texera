@@ -12,6 +12,7 @@ import { NgbModule, NgbPopoverModule } from "@ng-bootstrap/ng-bootstrap";
 import { FormlyModule } from "@ngx-formly/core";
 import { FormlyMaterialModule } from "@ngx-formly/material";
 import { FormlyMatDatepickerModule } from "@ngx-formly/material/datepicker";
+import { NgPipesModule } from "ngx-pipes";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
@@ -23,17 +24,22 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzInputModule } from "ng-zorro-antd/input";
 import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzListModule } from "ng-zorro-antd/list";
+import { NzCalendarModule } from "ng-zorro-antd/calendar";
 import { NzMenuModule } from "ng-zorro-antd/menu";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { NzTableModule } from "ng-zorro-antd/table";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzUploadModule } from "ng-zorro-antd/upload";
+import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
+import { ColorPickerModule } from "ngx-color-picker";
 import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
@@ -43,28 +49,20 @@ import { TEXERA_FORMLY_CONFIG } from "./common/formly/formly-config";
 import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
-import { UserDictionaryUploadService } from "./dashboard/service/user-dictionary/user-dictionary-upload.service";
 import { UserFileUploadService } from "./dashboard/service/user-file/user-file-upload.service";
 import { UserFileService } from "./dashboard/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { FeatureBarComponent } from "./dashboard/component/feature-bar/feature-bar.component";
 import { FeatureContainerComponent } from "./dashboard/component/feature-container/feature-container.component";
-import { ResourceSectionComponent } from "./dashboard/component/feature-container/resource-section/resource-section.component";
-import { RunningJobSectionComponent } from "./dashboard/component/feature-container/running-job-section/running-job-section.component";
 import { NgbdModalAddWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component";
-import { NgbdModalDeleteWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
 import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
-import { NgbdModalResourceAddComponent } from "./dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-add/ngbd-modal-resource-add.component";
-import { NgbdModalResourceDeleteComponent } from "./dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-delete/ngbd-modal-resource-delete.component";
-import { NgbdModalResourceViewComponent } from "./dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-view/ngbd-modal-resource-view.component";
-import { UserDictionarySectionComponent } from "./dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
 import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
 import { UserIconComponent } from "./dashboard/component/top-bar/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
-import { NgbdModalUserLoginComponent } from "./dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component";
+import { UserLoginModalComponent } from "./dashboard/component/top-bar/user-icon/user-login/user-login-modal.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
@@ -112,6 +110,8 @@ import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wr
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
+import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 
 registerLocaleData(en);
 
@@ -134,16 +134,9 @@ registerLocaleData(en);
     FeatureContainerComponent,
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
-    NgbdModalDeleteWorkflowComponent,
-    RunningJobSectionComponent,
-    UserDictionarySectionComponent,
-    NgbdModalResourceViewComponent,
-    NgbdModalResourceAddComponent,
-    NgbdModalResourceDeleteComponent,
-    NgbdModalUserLoginComponent,
+    UserLoginModalComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
-    ResourceSectionComponent,
     RowModalComponent,
     OperatorLabelComponent,
     MiniMapComponent,
@@ -177,6 +170,8 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
+    DeletePromptComponent,
+    ContextMenuComponent,
   ],
   imports: [
     BrowserModule,
@@ -216,16 +211,20 @@ registerLocaleData(en);
     NzListModule,
     NzInputModule,
     NzPopoverModule,
+    NzCalendarModule,
     NzMenuModule,
     NzMessageModule,
     NzCollapseModule,
     NzToolTipModule,
+    NzCheckboxModule,
     NzTableModule,
     NzModalModule,
     NzSelectModule,
     NzSliderModule,
     NzSpaceModule,
     NzBadgeModule,
+    NzUploadModule,
+    NzNoAnimationModule,
     NgxJsonViewerModule,
     MatDialogModule,
     NzCardModule,
@@ -238,13 +237,14 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzPaginationModule,
     NzCommentModule,
+    ColorPickerModule,
+    NgPipesModule,
   ],
   providers: [
     DatePipe,
     UserService,
     UserFileService,
     UserFileUploadService,
-    UserDictionaryUploadService,
     { provide: NZ_I18N, useValue: en_US },
     {
       provide: HTTP_INTERCEPTORS,

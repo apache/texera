@@ -63,6 +63,7 @@ export class WorkflowActionService {
   private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
   private static readonly DEFAULT_WORKFLOW = {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
+    description: undefined,
     wid: undefined,
     creationTime: undefined,
     lastModifiedTime: undefined,
@@ -621,6 +622,9 @@ export class WorkflowActionService {
           if (breakpoints !== undefined) {
             breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
           }
+          for (let link of links) {
+            this.jointGraphWrapper.highlightLinks(link.linkID);
+          }
         }
 
         if (groups) {
@@ -1165,9 +1169,11 @@ export class WorkflowActionService {
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
-      // operators shouldn't be highlighted during page reload
+      // operators and links shouldn't be highlighted during page reload
       const jointGraphWrapper = this.getJointGraphWrapper();
       jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+      jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
+
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
@@ -1192,6 +1198,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxAddStream(),
       this.getTexeraGraph().getCommentBoxDeleteStream(),
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
+      this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
+      this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getCachedOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream()
     );
@@ -1269,6 +1277,26 @@ export class WorkflowActionService {
     const commandMessage: CommandMessage = {
       action: "addComment",
       parameters: [comment, commentBoxID],
+      type: "execute",
+    };
+    this.workflowCollabService.propagateChange(commandMessage);
+  }
+
+  public deleteComment(creatorID: number, creationTime: string, commentBoxID: string): void {
+    this.texeraGraph.deleteCommentFromCommentBox(creatorID, creationTime, commentBoxID);
+    const commandMessage: CommandMessage = {
+      action: "deleteComment",
+      parameters: [creatorID, creationTime, commentBoxID],
+      type: "execute",
+    };
+    this.workflowCollabService.propagateChange(commandMessage);
+  }
+
+  public editComment(creatorID: number, creationTime: string, commentBoxID: string, newContent: string): void {
+    this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
+    const commandMessage: CommandMessage = {
+      action: "editComment",
+      parameters: [creatorID, creationTime, commentBoxID, newContent],
       type: "execute",
     };
     this.workflowCollabService.propagateChange(commandMessage);

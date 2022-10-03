@@ -63,7 +63,7 @@ export class WorkflowGraph {
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
   private readonly operatorDeleteSubject = new Subject<{
-    deletedOperator: OperatorPredicate;
+    deletedOperatorID: string;
   }>();
   private readonly disabledOperatorChangedSubject = new Subject<{
     newDisabled: string[];
@@ -97,6 +97,8 @@ export class WorkflowGraph {
   private readonly commentBoxAddSubject = new Subject<CommentBox>();
   private readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
   private readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
+  private readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
+  private readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -134,6 +136,34 @@ export class WorkflowGraph {
     }
   }
 
+  public deleteCommentFromCommentBox(creatorID: number, creationTime: string, commentBoxID: string): void {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.commentBoxMap.get(commentBoxID);
+    if (commentBox != null) {
+      commentBox.comments.forEach((comment, index) => {
+        if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
+          commentBox.comments.splice(index, 1);
+        }
+      });
+      this.commentBoxDeleteCommentSubject.next({ commentBox: commentBox });
+    }
+  }
+
+  public editCommentInCommentBox(creatorID: number, creationTime: string, commentBoxID: string, content: string): void {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.commentBoxMap.get(commentBoxID);
+    if (commentBox != null) {
+      commentBox.comments.forEach((comment, index) => {
+        if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
+          let creatorName = comment.creatorName;
+          let newComment: Comment = { content, creationTime, creatorName, creatorID };
+          commentBox.comments[index] = newComment;
+        }
+      });
+      this.commentBoxEditCommentSubject.next({ commentBox: commentBox });
+    }
+  }
+
   /**
    * Deletes the operator from the graph by its ID.
    * Throws an Error if the operator doesn't exist.
@@ -145,7 +175,7 @@ export class WorkflowGraph {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     this.operatorIDMap.delete(operatorID);
-    this.operatorDeleteSubject.next({ deletedOperator: operator });
+    this.operatorDeleteSubject.next({ deletedOperatorID: operator.operatorID });
   }
 
   public deleteCommentBox(commentBoxID: string): void {
@@ -547,7 +577,7 @@ export class WorkflowGraph {
    * The observable value is the deleted operator.
    */
   public getOperatorDeleteStream(): Observable<{
-    deletedOperator: OperatorPredicate;
+    deletedOperatorID: string;
   }> {
     return this.operatorDeleteSubject.asObservable();
   }
@@ -569,6 +599,14 @@ export class WorkflowGraph {
 
   public getCommentBoxAddCommentStream(): Observable<{ addedComment: Comment; commentBox: CommentBox }> {
     return this.commentBoxAddCommentSubject.asObservable();
+  }
+
+  public getCommentBoxDeleteCommentStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxDeleteCommentSubject.asObservable();
+  }
+
+  public getCommentBoxEditCommentStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxEditCommentSubject.asObservable();
   }
 
   public getCachedOperatorsChangedStream(): Observable<{

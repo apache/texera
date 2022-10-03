@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity,
@@ -78,6 +79,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       }
     })
 
+    // create and save OpExecConfigs for the operators
     val inputSchemaMap = propagateWorkflowSchema()
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     workflowInfo.operators.foreach(o => {
@@ -101,6 +103,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       amberOperators.put(amberOperator.id, amberOperator)
     })
 
+    // update the input and output port maps of OpExecConfigs with the link identities
     val outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]] = mutable.Map()
     workflowInfo.links.foreach(link => {
       val origin = OperatorIdentity(this.context.jobId, link.origin.operatorID)
@@ -120,10 +123,28 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
         .setOutputToOrdinalMapping(layerLink, link.origin.portOrdinal, link.origin.portName)
     })
 
+    // create pipelined regions.
+    val pipelinedRegionsDAG =
+      new WorkflowPipelinedRegionsBuilder(
+        context,
+        workflowInfo.toDAG.operators,
+        inputSchemaMap,
+        workflowId,
+        amberOperators, // may get changed as materialization operators can be added
+        outLinks, // may get changed as links to materialization operators can be added
+        opResultStorage
+      )
+        .buildPipelinedRegions()
+
     val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
       outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
 
-    new Workflow(workflowId, amberOperators, outLinksImmutable)
+    new Workflow(
+      workflowId,
+      amberOperators,
+      outLinksImmutable,
+      pipelinedRegionsDAG
+    )
   }
 
   def propagateWorkflowSchema(): Map[OperatorDescriptor, List[Option[Schema]]] = {

@@ -22,6 +22,11 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaSet
 
+object ShuffleType extends Enumeration {
+  val HASH_BASED, RANGE_BASED, NONE =
+    Value
+}
+
 abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   lazy val topology: Topology = null
@@ -30,6 +35,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
+  var shuffleType: ShuffleType.Value = ShuffleType.NONE
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = topology.layers.flatMap(l => l.identifiers)
 
@@ -59,6 +65,9 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getState: WorkflowAggregatedState = {
     val workerStates = getAllWorkerStates
+    if (workerStates.isEmpty) {
+      return WorkflowAggregatedState.UNINITIALIZED
+    }
     if (workerStates.forall(_ == COMPLETED)) {
       return WorkflowAggregatedState.COMPLETED
     }
@@ -83,11 +92,9 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputTupleCount).sum
 
-  def checkStartDependencies(workflow: Workflow): Unit = {
-    //do nothing by default
-  }
+  def requiresShuffle: Boolean = shuffleType != ShuffleType.NONE
 
-  def requiredShuffle: Boolean = false
+  def getRangeShuffleMinAndMax: (Long, Long) = (Long.MinValue, Long.MaxValue)
 
   def setInputToOrdinalMapping(input: LinkIdentity, ordinal: Integer, name: String): Unit = {
     this.inputToOrdinalMapping.update(input, (ordinal, name))
@@ -96,6 +103,18 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def setOutputToOrdinalMapping(output: LinkIdentity, ordinal: Integer, name: String): Unit = {
     this.outputToOrdinalMapping.update(output, (ordinal, name))
   }
+
+  /**
+    * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
+    * outputs all its tuples
+    */
+  def isInputBlocking(input: LinkIdentity): Boolean = false
+
+  /**
+    * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
+    * processes the build input, then the probe input.
+    */
+  def getInputProcessingOrder(): Array[LinkIdentity] = null
 
   def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 

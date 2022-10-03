@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class HashJoinOpExecConfig[K](
@@ -24,12 +24,21 @@ class HashJoinOpExecConfig[K](
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
+  shuffleType = ShuffleType.HASH_BASED
+
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new WorkerLayer(
           makeLayer(id, "main"),
-          null,
+          _ =>
+            new HashJoinOpExec[K](
+              getBuildTableLinkId(),
+              buildAttributeName,
+              probeAttributeName,
+              joinType,
+              operatorSchemaInfo
+            ),
           Constants.currentWorkerNum,
           UseAll(),
           RoundRobinDeployment()
@@ -38,29 +47,23 @@ class HashJoinOpExecConfig[K](
       Array()
     )
   }
-  var buildTable: LinkIdentity = _
 
-  override def checkStartDependencies(workflow: Workflow): Unit = {
-    val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
-    buildTable = buildLink
-    val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
-    workflow.getSources(toOperatorIdentity(probeLink.from)).foreach { source =>
-      workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
-    }
-    topology.layers.head.initIOperatorExecutor = _ =>
-      new HashJoinOpExec[K](
-        buildTable,
-        buildAttributeName,
-        probeAttributeName,
-        joinType,
-        operatorSchemaInfo
-      )
+  def getBuildTableLinkId(): LinkIdentity = {
+    inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
   }
 
-  override def requiredShuffle: Boolean = true
+  override def isInputBlocking(input: LinkIdentity): Boolean = {
+    input == getBuildTableLinkId()
+  }
+
+  override def getInputProcessingOrder(): Array[LinkIdentity] =
+    Array(
+      inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1,
+      inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
+    )
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
-    if (layer == buildTable.from) {
+    if (layer == getBuildTableLinkId().from) {
       Array(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))
 
     } else {

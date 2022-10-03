@@ -13,15 +13,30 @@ class BatchToTupleConverter:
 
     def __init__(self):
         self._input_map: Dict[ActorVirtualIdentity, LinkIdentity] = dict()
-        self._upstream_map: defaultdict[LinkIdentity, Set[ActorVirtualIdentity]] = defaultdict(set)
+        self._upstream_map: defaultdict[
+            LinkIdentity, Set[ActorVirtualIdentity]
+        ] = defaultdict(set)
         self._current_link: Optional[LinkIdentity] = None
+        self._all_upstream_link_ids: Set[LinkIdentity] = set()
+        self._end_received_from_workers: defaultdict[
+            LinkIdentity, Set[ActorVirtualIdentity]
+        ] = defaultdict(set)
+        self._completed_link_ids: Set[LinkIdentity] = set()
 
-    def register_input(self, identifier: ActorVirtualIdentity, input_: LinkIdentity) -> None:
+    def update_all_upstream_link_ids(
+        self, upstream_link_ids: Set[LinkIdentity]
+    ) -> None:
+        self._all_upstream_link_ids = upstream_link_ids
+
+    def register_input(
+        self, identifier: ActorVirtualIdentity, input_: LinkIdentity
+    ) -> None:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_
 
-    def process_data_payload(self, from_: ActorVirtualIdentity, payload: DataPayload) -> Iterator[
-        Union[Tuple, InputExhausted, Marker]]:
+    def process_data_payload(
+        self, from_: ActorVirtualIdentity, payload: DataPayload
+    ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
         # special case used to yield for source op
         if from_ == BatchToTupleConverter.SOURCE_STARTER:
             yield InputExhausted()
@@ -36,14 +51,16 @@ class BatchToTupleConverter:
 
         if isinstance(payload, InputDataFrame):
             for field_accessor in ArrowTableTupleProvider(payload.frame):
-                yield Tuple({name: field_accessor for name in payload.frame.column_names})
+                yield Tuple(
+                    {name: field_accessor for name in payload.frame.column_names}
+                )
 
         elif isinstance(payload, EndOfUpstream):
-            self._upstream_map[link].remove(from_)
-            if len(self._upstream_map[link]) == 0:
-                del self._upstream_map[link]
+            self._end_received_from_workers[link].add(from_)
+            if self._upstream_map[link] == self._end_received_from_workers[link]:
+                self._completed_link_ids.add(link)
                 yield InputExhausted()
-            if len(self._upstream_map) == 0:
+            if self._completed_link_ids == self._all_upstream_link_ids:
                 yield EndOfAllMarker()
 
         else:

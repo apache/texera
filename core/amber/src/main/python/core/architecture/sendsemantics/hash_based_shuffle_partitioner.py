@@ -8,7 +8,10 @@ from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
 from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import HashBasedShufflePartitioning, Partitioning
+from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
+    HashBasedShufflePartitioning,
+    Partitioning,
+)
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 
 
@@ -17,12 +20,15 @@ class HashBasedShufflePartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         logger.info(f"got {partitioning}")
         self.batch_size = partitioning.batch_size
-        self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [(receiver, list()) for receiver in
-                                                                                 partitioning.receivers]
+        self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
+            (receiver, list()) for receiver in partitioning.receivers
+        ]
         self.hash_column_indices = partitioning.hash_column_indices
 
     @overrides
-    def add_tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+    def add_tuple_to_batch(
+        self, tuple_: Tuple
+    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         partial_tuple = tuple_.get_fields(self.hash_column_indices)
         hash_code = hash(partial_tuple) % len(self.receivers)
         receiver, batch = self.receivers[hash_code]

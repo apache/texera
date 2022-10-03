@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW,
+  WORKFLOW_OF_PROJECT,
   WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
@@ -26,6 +27,8 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   workflowOfUserExists
 }
 import io.dropwizard.auth.Auth
+import org.jooq.Condition
+import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
@@ -74,15 +77,111 @@ object WorkflowResource {
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
-      workflow: Workflow
+      workflow: Workflow,
+      projectIDs: List[UInteger]
   )
-
 }
 
 @PermitAll
 @Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
+
+  /**
+    * This method returns all workflow IDs that the user has access to
+    *
+    * @return WorkflowID[]
+    */
+  @GET
+  @Path("/workflow-ids")
+  def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
+    val user = sessionUser.getUser
+    val workflowEntries = context
+      .select(WORKFLOW_USER_ACCESS.WID)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue().toString())
+      .toList
+  }
+
+  /**
+    * This method returns all owner user names of the workflows that the user has access to
+    *
+    * @return OwnerName[]
+    */
+  @GET
+  @Path("/owners")
+  def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
+    val user = sessionUser.getUser
+    val workflowEntries = context
+      .select(USER.NAME)
+      .from(WORKFLOW_USER_ACCESS)
+      .join(WORKFLOW_OF_USER)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .join(USER)
+      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(USER.UID)
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord => workflowRecord.into(USER).getName())
+      .toList
+  }
+
+  /**
+    * This method returns workflow IDs, that contain the selected operators, as strings
+    *
+    * @return WorkflowID[]
+    */
+  @GET
+  @Path("/search-by-operators")
+  def searchWorkflowByOperator(
+      @QueryParam("operator") operator: String,
+      @Auth sessionUser: SessionUser
+  ): List[String] = {
+    // Example GET url: localhost:8080/workflow/searchOperators?operator=Regex,CSVFileScan
+    val user = sessionUser.getUser
+    val quotes = "\""
+    val operatorArray =
+      operator.replaceAllLiterally(" ", "").stripPrefix("[").stripSuffix("]").split(',')
+    var orCondition: Condition = noCondition()
+    for (i <- operatorArray.indices) {
+      val operatorName = operatorArray(i)
+      orCondition = orCondition.or(
+        WORKFLOW.CONTENT
+          .likeIgnoreCase(
+            "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
+            //gives error when I try to combine escape character with formatted string
+            //may be due to old scala version bug
+          )
+      )
+
+    }
+
+    val workflowEntries =
+      context
+        .select(
+          WORKFLOW.WID
+        )
+        .from(WORKFLOW)
+        .join(WORKFLOW_USER_ACCESS)
+        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+        .where(
+          orCondition
+            .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+        )
+        .fetch()
+
+    workflowEntries
+      .map(workflowRecord => {
+        workflowRecord.into(WORKFLOW).getWid().intValue().toString()
+      })
+      .toList
+  }
 
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to
@@ -100,12 +199,14 @@ class WorkflowResource {
       .select(
         WORKFLOW.WID,
         WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME
+        USER.NAME,
+        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -114,7 +215,10 @@ class WorkflowResource {
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
     workflowEntries
       .map(workflowRecord =>
@@ -124,11 +228,13 @@ class WorkflowResource {
             workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
           ).toString,
           workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow])
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          if (workflowRecord.component10() == null) List[UInteger]()
+          else
+            workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
-
   }
 
   /**
@@ -218,7 +324,14 @@ class WorkflowResource {
       workflow.getContent
       workflow.getName
       createWorkflow(
-        new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null),
+        new Workflow(
+          workflow.getName + "_copy",
+          workflow.getDescription,
+          null,
+          workflow.getContent,
+          null,
+          null
+        ),
         sessionUser
       )
 
@@ -247,7 +360,8 @@ class WorkflowResource {
         isOwner = true,
         WorkflowAccess.WRITE.toString,
         user.getName,
-        workflowDao.fetchOneByWid(workflow.getWid)
+        workflowDao.fetchOneByWid(workflow.getWid),
+        List[UInteger]()
       )
     }
 
@@ -275,14 +389,15 @@ class WorkflowResource {
     * @return Response
     */
   @POST
-  @Path("/update/name/{wid}/{workflowName}")
+  @Path("/update/name")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def updateWorkflowName(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("workflowName") workflowName: String,
+      workflow: Workflow,
       @Auth sessionUser: SessionUser
   ): Unit = {
+    val wid = workflow.getWid
+    val name = workflow.getName
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -290,9 +405,33 @@ class WorkflowResource {
       throw new BadRequestException("The workflow does not exist.")
     } else {
       val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setName(workflowName)
+      userWorkflow.setName(name)
       workflowDao.update(userWorkflow)
     }
   }
 
+  /**
+    * This method updates the description of a given workflow
+    *
+    * @return Response
+    */
+  @POST
+  @Path("/update/description")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def updateWorkflowDescription(
+      workflow: Workflow,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    val wid = workflow.getWid
+    val description = workflow.getDescription
+    val user = sessionUser.getUser
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    } else {
+      val userWorkflow = workflowDao.fetchOneByWid(wid)
+      userWorkflow.setDescription(description)
+      workflowDao.update(userWorkflow)
+    }
+  }
 }

@@ -1,7 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -21,7 +23,8 @@ import scala.collection.mutable.ListBuffer
   */
 class IntervalJoinOpExec(
     val operatorSchemaInfo: OperatorSchemaInfo,
-    val desc: IntervalJoinOpDesc
+    val desc: IntervalJoinOpDesc,
+    val leftInputLink: LinkIdentity
 ) extends OperatorExecutor {
 
   val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
@@ -31,11 +34,13 @@ class IntervalJoinOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity
+      input: LinkIdentity,
+      pauseManager: PauseManager,
+      asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
     tuple match {
       case Left(currentTuple) =>
-        if (input == desc.leftInputLink) {
+        if (input == leftInputLink) {
           leftTable += currentTuple
           if (rightTable.nonEmpty) {
             removeTooSmallTupleInRightCache(leftTable.head)

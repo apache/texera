@@ -2,7 +2,7 @@ from typing import TypeVar
 
 import pandas
 
-TableLike = TypeVar('TableLike', pandas.DataFrame, pandas.DataFrame)
+TableLike = TypeVar("TableLike", pandas.DataFrame, pandas.DataFrame)
 
 
 class Table(pandas.DataFrame):
