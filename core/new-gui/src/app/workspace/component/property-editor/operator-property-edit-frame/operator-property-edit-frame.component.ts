@@ -108,7 +108,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   private teardownObservable: Subject<void> = new Subject();
   public lockGranted: boolean = true;
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
-  
+
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -207,7 +207,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           .subscribe();
       });
     }
-    console.log("event", event);
     this.sourceFormChangeEventStream.next(event);
   }
 
@@ -241,8 +240,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.ajv.validate(currentOperatorSchema, this.formData);
 
     // manually trigger a form change event because default value might be filled in
-
-    console.log("from render", this.formData)
     this.onFormChanges(this.formData);
     if (
       this.workflowActionService
@@ -283,17 +280,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   checkOperatorProperty(formData: object): boolean {
     // check if the component is displaying operator property
-    console.log("step 1")
     if (this.currentOperatorId === undefined) {
       return false;
     }
-    console.log("step 2")
+
     // check if the operator still exists, it might be deleted during debounce time
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     if (!operator) {
       return false;
     }
-    console.log("step 3")
+
     // only emit change event if the form data actually changes
     return !isEqual(formData, operator.operatorProperties);
   }
@@ -343,9 +339,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   registerOnFormChangeHandler(): void {
     this.operatorPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
       // set the operator property to be the new form data
-      console.log("set", formData)
       if (this.currentOperatorId) {
-        
         this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
       }
     });
@@ -410,7 +404,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           }
         },
       };
-      
+
       // conditionally hide the field according to the schema
       if (
         isDefined(mapSource.hideExpectedValue) &&
@@ -425,7 +419,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
       if (mappedField.key == "fileName") {
-        mappedField.type = "inputautocomplete"
+        mappedField.type = "inputautocomplete";
       }
       // if (currentOperatorSchema.operatorType == "CSVFileScan") {
       //   const filename = currentOperatorSchema.jsonSchema.properties!.fileName;
