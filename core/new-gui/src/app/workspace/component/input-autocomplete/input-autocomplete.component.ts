@@ -8,15 +8,15 @@ import {
 
 @UntilDestroy()
 @Component({
-  selector: "input-filename-autocomplete-template",
-  templateUrl: "./input-filename-autocomplete-template.component.html",
-  // styleUrls: ["input-filename-autocomplete-template.scss"],
+  selector: "texera-input-autocomplete-template",
+  templateUrl: "./input-autocomplete.component.html",
+  styleUrls: ["input-autocomplete.component.scss"],
 })
 
 // The FieldType<any> is a workaround for the issue of not assignable FormControl.
 // details https://github.com/ngx-formly/ngx-formly/issues/2842#issuecomment-1066116865
 // need to upgrade formly to v6 to properly fix this issue.
-export class InputFilenameAutoCompleteComponent extends FieldType<any> {
+export class InputAutoCompleteComponent extends FieldType<any> {
   inputValue?: string;
   public selections: string[] = [];
 

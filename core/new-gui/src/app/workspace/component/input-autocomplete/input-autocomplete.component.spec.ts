@@ -1,7 +1,5 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-
-import { InputFilenameAutoCompleteComponent } from "./input-filename-autocomplete-template.component";
+import { InputAutoCompleteComponent } from "./input-autocomplete.component";
 import { MatDialogModule } from "@angular/material/dialog";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -9,13 +7,13 @@ import { OperatorMetadataService } from "../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 
 describe("InputFilenameAutoCompleteComponent", () => {
-  let component: InputFilenameAutoCompleteComponent;
-  let fixture: ComponentFixture<InputFilenameAutoCompleteComponent>;
+  let component: InputAutoCompleteComponent;
+  let fixture: ComponentFixture<InputAutoCompleteComponent>;
 
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
-        declarations: [InputFilenameAutoCompleteComponent],
+        declarations: [InputAutoCompleteComponent],
         imports: [MatDialogModule, HttpClientTestingModule],
         providers: [
           WorkflowActionService,
@@ -29,7 +27,7 @@ describe("InputFilenameAutoCompleteComponent", () => {
   );
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(InputFilenameAutoCompleteComponent);
+    fixture = TestBed.createComponent(InputAutoCompleteComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
