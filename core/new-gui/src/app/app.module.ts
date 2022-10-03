@@ -241,11 +241,6 @@ registerLocaleData(en);
     NzCommentModule,
     ColorPickerModule,
     NgPipesModule,
-    FormlyModule.forRoot({
-      types: [
-        { name: 'inputautocomplete', component: InputFilenameAutoCompleteComponent },
-      ]
-    }),
   ],
   providers: [
     DatePipe,
