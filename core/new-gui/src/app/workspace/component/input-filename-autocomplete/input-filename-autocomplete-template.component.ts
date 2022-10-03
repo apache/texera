@@ -1,8 +1,10 @@
-import { Input, OnInit, Component, OnDestroy } from "@angular/core";
-import { FieldType, FormlyFieldConfig } from '@ngx-formly/core';
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { UserFileService } from "src/app/dashboard/service/user-file/user-file.service";
-import { OperatorPropertyEditFrameComponent } from "src/app/workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component"
+import {Component} from "@angular/core";
+import {FieldType} from "@ngx-formly/core";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {UserFileService} from "src/app/dashboard/service/user-file/user-file.service";
+import {
+  OperatorPropertyEditFrameComponent
+} from "src/app/workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 
 @UntilDestroy()
 @Component({
@@ -33,10 +35,10 @@ export class InputFilenameAutoCompleteComponent extends FieldType<any> {
     this.inputValue = value;
     if (value.length > 0) {
       this.userFileService.getAutoCompleteUserFileAccessList(value).pipe(untilDestroyed(this))
-      .subscribe(autocompleteList => {
-        this.selections = value ? autocompleteList.concat() : [];
-        // To YunYan: do not change formData manually here. Form data should be updated by FormControl.
-      });
+        .subscribe(autocompleteList => {
+          this.selections = value ? autocompleteList.concat() : [];
+          // To YunYan: do not change formData manually here. Form data should be updated by FormControl.
+        });
     }
   }
 }
