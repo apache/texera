@@ -272,7 +272,6 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
           val msgSent = congestionControl.ack(id)
           if (msgSent.isDefined) {
             if (sentMessages != null) {
-              logger.info("add sent message: " + msgSent.get.internalMessage)
               sentMessages
                 .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
                 .enqueue(msgSent.get.internalMessage)
