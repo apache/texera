@@ -326,7 +326,6 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
-    logger.info("process Control: " + payload + " from " + from)
     determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
     payload match {
       case invocation: ControlInvocation =>
