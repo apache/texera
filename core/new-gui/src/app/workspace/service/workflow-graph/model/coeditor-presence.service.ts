@@ -55,6 +55,11 @@ export class CoeditorPresenceService {
    * Listens to changes of co-editors' presence infos and lets <code>{@link CoeditorPresenceService}</code> handle them.
    */
   private observeUserState(): void {
+    // destroy previous user states if any
+    for (const coeditor of this.coeditors) {
+      if (coeditor.clientId) this.removeCoeditor(coeditor.clientId);
+    }
+
     // first time logic
     const currentStates = Array.from(
       this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>
