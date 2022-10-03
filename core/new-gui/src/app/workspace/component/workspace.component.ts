@@ -170,10 +170,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.undoRedoService.clearRedoStack();
         },
         () => {
+          this.workflowActionService.resetAsNewWorkflow();
           // enable workspace for modification
           this.workflowActionService.enableWorkflowModification();
-          // clear the current workflow
-          this.workflowActionService.reloadWorkflow(undefined);
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
