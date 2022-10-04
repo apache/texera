@@ -421,14 +421,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       if (mappedField.key == "fileName") {
         mappedField.type = "inputautocomplete";
       }
-      // if (currentOperatorSchema.operatorType == "CSVFileScan") {
-      //   const filename = currentOperatorSchema.jsonSchema.properties!.fileName;
-      //   if (filename.hasOwnProperty("type")) {
-      //     const newJson = JSON.stringify(filename).replace("\"type\":\"string\"", "\"type\":\"inputautocomplete\"")
-      //     currentOperatorSchema.jsonSchema.properties!.fileName = JSON.parse(newJson)
-      //   }
-      //   // console.log(currentOperatorSchema)
-      // }
 
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {

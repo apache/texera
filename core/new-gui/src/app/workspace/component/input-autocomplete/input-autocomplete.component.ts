@@ -29,10 +29,9 @@ export class InputAutoCompleteComponent extends FieldType<any> {
       this.inputValue = this.operatorPropertyEditFrameComponent.formData.fileName;
   }
 
-  onAutocomplete(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
+  onAutocomplete(): void {
     this.selections = [];
-    this.inputValue = value;
+    const value = JSON.parse(JSON.stringify(this.inputValue));
     if (value.length > 0) {
       this.userFileService.getAutoCompleteUserFileAccessList(value).pipe(untilDestroyed(this))
         .subscribe(autocompleteList => {
