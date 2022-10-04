@@ -218,6 +218,9 @@
 					executionState !== ExecutionState.Aborted
 			}"
     >
+      <label class="execution-name">
+        <input [(ngModel)]="currentExecutionName" placeholder="Untitled Execution" />
+      </label>
       <nz-button-group nzSize="large">
         <button
           (click)="undoRedoService.undoAction()"

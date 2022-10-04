@@ -161,21 +161,21 @@ export class ExecuteWorkflowService {
     return undefined;
   }
 
-  public executeWorkflow(): void {
+  public executeWorkflow(executionName: string): void {
     if (environment.amberEngineEnabled) {
-      this.executeWorkflowAmberTexera();
+      this.executeWorkflowAmberTexera(executionName);
     } else {
       throw new Error("old texera engine not supported");
     }
   }
 
-  public executeWorkflowAmberTexera(): void {
+  public executeWorkflowAmberTexera(executionName: string): void {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
-    console.log(logicalPlan);
+    const workflowExecuteRequest = { executionName: executionName, logicalPlan: logicalPlan };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
-      this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
+      this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);
     }, FORM_DEBOUNCE_TIME_MS);
     this.setExecutionTimeout(
       "submit workflow timeout",
