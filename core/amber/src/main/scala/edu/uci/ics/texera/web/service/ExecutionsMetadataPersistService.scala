@@ -59,7 +59,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     val uint = UInteger.valueOf(wid)
     val vid = WorkflowVersionResource.getLatestVersion(uint)
     val newExecution = new WorkflowExecutions()
-    newExecution.setWid(uint)
     newExecution.setVid(vid)
     newExecution.setUid(uid.getOrElse(null))
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
@@ -72,7 +71,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       val code = maptoStatusCode(state)
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
       execution.setStatus(code)
-      execution.setCompletionTime(new Timestamp(System.currentTimeMillis()))
+      execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
       workflowExecutionsDao.update(execution)
     } catch {
       case t: Throwable =>
