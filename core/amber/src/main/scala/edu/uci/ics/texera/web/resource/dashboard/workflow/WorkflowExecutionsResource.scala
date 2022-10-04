@@ -2,7 +2,11 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_EXECUTIONS,
+  WORKFLOW_VERSION
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
@@ -83,10 +87,13 @@ class WorkflowExecutionsResource {
           WORKFLOW_EXECUTIONS.BOOKMARKED,
           WORKFLOW_EXECUTIONS.NAME
         )
-        .from(WORKFLOW_EXECUTIONS).join(WORKFLOW_VERSION).on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+        .from(WORKFLOW_EXECUTIONS)
+        .join(WORKFLOW_VERSION)
+        .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
         .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[WorkflowExecutionEntry])
-        .toList.reverse
+        .toList
+        .reverse
     }
   }
 
