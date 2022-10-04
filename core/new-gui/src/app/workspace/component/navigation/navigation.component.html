@@ -207,14 +207,6 @@
           <i nz-icon nzType="database" nzTheme="twotone"></i>
         </button>
       </nz-button-group>
-        <input
-          placeholder="input here"
-          nz-input
-          [(ngModel)]="inputValue"
-          (input)="onAutocomplete($event)"
-          [nzAutocomplete]="auto"
-        />
-        <nz-autocomplete [nzDataSource]="options" nzBackfill #auto></nz-autocomplete>
     </div>
 
     <div

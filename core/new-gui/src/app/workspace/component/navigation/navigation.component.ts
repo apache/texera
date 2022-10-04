@@ -572,17 +572,4 @@ export class NavigationComponent implements OnInit {
         this.workflowReadonly = workflowReadonly;
       });
   }
-
-  options: string[] = [];
-  onAutocomplete(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.options = [];
-    if (value.length > 0) {
-      this.userFileService.getAutoCompleteUserFileAccessList(value).pipe(untilDestroyed(this))
-      .subscribe(autocompleteList => {
-        console.log(autocompleteList);
-        this.options = value ? autocompleteList.concat() : [];
-      });
-    }
-  }
 }
