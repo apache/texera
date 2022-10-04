@@ -36,7 +36,6 @@ export class InputAutoCompleteComponent extends FieldType<any> {
       this.userFileService.getAutoCompleteUserFileAccessList(value).pipe(untilDestroyed(this))
         .subscribe(autocompleteList => {
           this.selections = value ? autocompleteList.concat() : [];
-          // To YunYan: do not change formData manually here. Form data should be updated by FormControl.
         });
     }
   }
