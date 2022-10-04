@@ -144,7 +144,11 @@ class UserFileResource {
       @PathParam("query") query: String
   ): util.List[String] = {
     val user = sessionUser.getUser
-    val filenames = List("a", "ab", "abc", "acdb", "appec", "adddc", "b", "bde", "pdoe")
+    val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
+    val filenames = ArrayBuffer[String]()
+    for (i <- fileList) {
+      filenames += i.file.getName
+    }
     val selectedFile = ArrayBuffer[String]()
     for (e <- filenames) {
       if (e.startsWith(query))
@@ -352,5 +356,4 @@ class UserFileResource {
       fileDao.update(userFile)
     }
   }
-
 }
