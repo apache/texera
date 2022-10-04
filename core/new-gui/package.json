@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "ng": "nx",
-    "start": "ng serve",
+    "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve\"",
     "build": "ng build --configuration production --progress=false --source-map=false",
     "analyze": "ng build --configuration production --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test",
@@ -124,6 +124,7 @@
     "@types/uuid": "~8.3.4",
     "@typescript-eslint/eslint-plugin": "~5.14.0",
     "@typescript-eslint/parser": "~5.14.0",
+    "concurrently": "^7.4.0",
     "cypress": "~9.5.1",
     "eslint": "~7.32.0",
     "eslint-plugin-import": "latest",
