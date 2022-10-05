@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -407822234;
+    private static final long serialVersionUID = -1647312266;
 
     private UInteger  eid;
     private UInteger  vid;
@@ -28,6 +28,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private Byte      bookmarked;
     private String    name;
     private UInteger  uid;
+    private UInteger  sid;
 
     public WorkflowExecutions() {}
 
@@ -41,6 +42,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.bookmarked = value.getBookmarked();
         this.name = value.getName();
         this.uid = value.getUid();
+        this.sid = value.getSid();
     }
 
     public WorkflowExecutions(
@@ -52,7 +54,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Timestamp lastUpdateTime,
         Byte      bookmarked,
         String    name,
-        UInteger  uid
+        UInteger  uid,
+        UInteger  sid
     ) {
         this.eid = eid;
         this.vid = vid;
@@ -63,6 +66,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.bookmarked = bookmarked;
         this.name = name;
         this.uid = uid;
+        this.sid = sid;
     }
 
     @Override
@@ -156,6 +160,16 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
+    public UInteger getSid() {
+        return this.sid;
+    }
+
+    @Override
+    public void setSid(UInteger sid) {
+        this.sid = sid;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowExecutions (");
 
@@ -168,6 +182,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(bookmarked);
         sb.append(", ").append(name);
         sb.append(", ").append(uid);
+        sb.append(", ").append(sid);
 
         sb.append(")");
         return sb.toString();
@@ -188,6 +203,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setBookmarked(from.getBookmarked());
         setName(from.getName());
         setUid(from.getUid());
+        setSid(from.getSid());
     }
 
     @Override
