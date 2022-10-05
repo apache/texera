@@ -41,5 +41,4 @@ class RegexOpDesc extends FilterOpDesc {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-
 }

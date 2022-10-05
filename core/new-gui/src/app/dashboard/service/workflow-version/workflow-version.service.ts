@@ -77,7 +77,6 @@ export class WorkflowVersionService {
     this.workflowActionService.disableWorkflowModification();
     // highlight the different elements by changing the color of boudary of the operator
     // needs a list of ids of elements to be highlighted
-    console.log("123", this.differentOpIDsList);
     this.highlightOpVersionDiff(this.differentOpIDsList);
   }
 

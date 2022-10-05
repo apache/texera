@@ -56,8 +56,8 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   def insertNewExecution(
       wid: Long,
       uid: Option[UInteger],
-      environmentVersion: String,
-      executionName: String
+      executionName: String,
+      environmentVersion: String
   ): Long = {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
