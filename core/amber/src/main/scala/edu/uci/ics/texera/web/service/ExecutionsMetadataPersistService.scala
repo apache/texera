@@ -4,7 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource._
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowSnapshotResource._
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jooq.types.UInteger
 
@@ -58,12 +60,33 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   ): Long = {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
-    val vid = WorkflowVersionResource.getLatestVersion(uint)
+    val vid = getLatestVersion(uint)
+    val (first, sid) = getLatestSnapshot(uint)
+    // get latest execution ID
+    val latestExecutionID = getLatestExecutionID(uint)
     val newExecution = new WorkflowExecutions()
     if (executionName != "") {
       newExecution.setName(executionName)
     }
     newExecution.setVid(vid)
+    // check if it's the first execution or different snapshot from previous
+    if (
+      latestExecutionID.isEmpty || !isSnapshotInRangeUnimportant(
+        getExecutionById(latestExecutionID.get).getVid,
+        vid,
+        uint
+      )
+    ) {
+      newExecution.setSid(sid)
+    } else {
+      if (!first) {
+        // delete new create snapshot
+        deleteSnapshot(sid)
+      }
+      // set current execution's snapshot to previous
+      newExecution.setSid(getLatestSnapshot(uint)._2)
+    }
+
     newExecution.setUid(uid.getOrElse(null))
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     workflowExecutionsDao.insert(newExecution)

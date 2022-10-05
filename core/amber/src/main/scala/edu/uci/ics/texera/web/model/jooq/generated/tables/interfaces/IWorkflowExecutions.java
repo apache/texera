@@ -106,6 +106,16 @@ public interface IWorkflowExecutions extends Serializable {
      */
     public UInteger getUid();
 
+    /**
+     * Setter for <code>texera_db.workflow_executions.sid</code>.
+     */
+    public void setSid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.sid</code>.
+     */
+    public UInteger getSid();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

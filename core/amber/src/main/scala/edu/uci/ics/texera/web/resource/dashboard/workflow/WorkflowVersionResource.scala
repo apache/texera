@@ -38,6 +38,7 @@ object WorkflowVersionResource {
     AmberUtils.amberConfig.getInt("user-sys.version-time-limit-in-minutes") * 60000
   // list of Json keys in the diff patch that are considered UNimportant
   private final val VERSION_UNIMPORTANCE_RULES = List("/operatorPositions/")
+  private final val SNAPSHOT_UNIMPORTANCE_RULES = List("replace")
 
   /**
     * This function retrieves the latest version of a workflow
@@ -116,6 +117,31 @@ object WorkflowVersionResource {
     }
     workflowVersion.setContent(patch)
     workflowVersionDao.update(workflowVersion)
+  }
+
+  /*
+   * This function retrieves the content of versions from a specific workflow in a range
+   * @param lowerBound lower bound of the version search range
+   * @param UpperBound upper bound of the search range
+   * @param wid workflow id
+   * @return a list of contents as strings
+   */
+  def isSnapshotInRangeUnimportant(
+      lowerBound: UInteger,
+      UpperBound: UInteger,
+      wid: UInteger
+  ): Boolean = {
+    if (lowerBound == UpperBound) {
+      return true
+    }
+    val contents = context
+      .select(WORKFLOW_VERSION.CONTENT)
+      .from(WORKFLOW_VERSION)
+      .where(WORKFLOW_VERSION.WID.eq(wid))
+      .and(WORKFLOW_VERSION.VID.between(lowerBound).and(UpperBound))
+      .fetchInto(classOf[String])
+      .toList
+    contents.forall(content => !isSnapshotImportant(content))
   }
 
   /**
@@ -205,6 +231,25 @@ object WorkflowVersionResource {
       // doesn't contain any of the specified keywords then it shall be deemed important
       if (
         !VERSION_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("path").asText().contains)
+      ) {
+        return true
+      }
+    }
+    false
+  }
+
+  /**
+    * This function parses the content of the delta to determine if it is positional only
+    * @param versionContent
+    * @return
+    */
+  private def isSnapshotImportant(versionContent: String): Boolean = {
+    val jsonTreeIterator = objectMapper.readTree(versionContent).iterator()
+    while (jsonTreeIterator.hasNext) {
+      // if the change(which is marked by the key `path` using the Json patch library
+      // doesn't contain any of the specified keywords then it shall be deemed important
+      if (
+        !SNAPSHOT_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("op").asText().contains)
       ) {
         return true
       }

@@ -31,6 +31,7 @@ object WorkflowExecutionsResource {
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
+      sId: UInteger,
       userName: String,
       startingTime: Timestamp,
       completionTime: Timestamp,
@@ -39,6 +40,24 @@ object WorkflowExecutionsResource {
       bookmarked: Boolean,
       name: String
   )
+
+  /**
+    * This function retrieves the latest execution id of a workflow
+    * @param wid
+    * @return UInteger
+    */
+  def getLatestExecutionID(wid: UInteger): Option[UInteger] = {
+    val executions = context
+      .select(WORKFLOW_EXECUTIONS.EID)
+      .from(WORKFLOW_EXECUTIONS)
+      .fetchInto(classOf[UInteger])
+      .toList
+    if (executions.isEmpty) {
+      None
+    } else {
+      Some(executions.max)
+    }
+  }
 
 }
 
@@ -74,6 +93,7 @@ class WorkflowExecutionsResource {
         .select(
           WORKFLOW_EXECUTIONS.EID,
           WORKFLOW_EXECUTIONS.VID,
+          WORKFLOW_EXECUTIONS.SID,
           field(
             context
               .select(USER.NAME)
@@ -149,4 +169,5 @@ class WorkflowExecutionsResource {
     execution.setName(request.executionName)
     executionsDao.update(execution)
   }
+
 }

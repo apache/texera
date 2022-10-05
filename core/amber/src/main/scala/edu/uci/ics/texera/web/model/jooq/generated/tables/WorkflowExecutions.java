@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row9;
+import org.jooq.Row10;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = -1416803742;
+    private static final long serialVersionUID = 79022866;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -94,6 +94,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.uid</code>.
      */
     public final TableField<WorkflowExecutionsRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.sid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, UInteger> SID = createField(DSL.name("sid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -189,11 +194,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row9 type methods
+    // Row10 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row9<UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, UInteger> fieldsRow() {
-        return (Row9) super.fieldsRow();
+    public Row10<UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, UInteger, UInteger> fieldsRow() {
+        return (Row10) super.fieldsRow();
     }
 }
