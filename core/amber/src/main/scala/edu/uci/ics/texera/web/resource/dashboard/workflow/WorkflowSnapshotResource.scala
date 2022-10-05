@@ -31,14 +31,17 @@ object WorkflowSnapshotResource {
     * This function retrieves the latest snapshot of a certain workflow
     * @return sid
     */
-  def getLatestSnapshot(wid: UInteger): UInteger = {
+  def getLatestSnapshot(wid: UInteger): (Boolean, UInteger) = {
     val snapshots = context
       .select(WORKFLOW_SNAPSHOT.SID)
       .from(WORKFLOW_SNAPSHOT)
       .where(WORKFLOW_SNAPSHOT.WID.eq(wid))
       .fetchInto(classOf[UInteger])
       .toList
-    snapshots.max
+    if (snapshots.size < 2) {
+      return (true, snapshots.max)
+    }
+    (false, snapshots.max)
   }
 
   /**
