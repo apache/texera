@@ -31,6 +31,7 @@ export interface RegisterWIdRequest
 export interface WorkflowExecuteRequest
   extends Readonly<{
     executionName: string;
+    engineVersion: string;
     logicalPlan: LogicalPlan;
   }> {}
 
@@ -141,11 +142,6 @@ export type PythonExpressionEvaluateResponse = Readonly<{
 
 export type WorkflowStateInfo = Readonly<{
   state: ExecutionState;
-}>;
-
-export type WorkflowExecuteRequest = Readonly<{
-  logicalPlan: LogicalPlan;
-  engineVersion: string;
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {

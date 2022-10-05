@@ -186,4 +186,18 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchBySid(UInteger... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.SID, values);
     }
+
+    /**
+     * Fetch records that have <code>environment_version BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfEnvironmentVersion(String lowerInclusive, String upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>environment_version IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByEnvironmentVersion(String... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION, values);
+    }
 }

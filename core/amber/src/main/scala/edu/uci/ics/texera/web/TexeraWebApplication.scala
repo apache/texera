@@ -38,11 +38,7 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.time.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
-import java.time.Duration
-
-import edu.uci.ics.amber.engine.common.client.AmberClient
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
-import edu.uci.ics.texera.workflow.common.metadata.OperatorMetadataGenerator
 
 import scala.annotation.tailrec
 
@@ -103,14 +99,6 @@ object TexeraWebApplication {
         .toString
     )
 
-    val path = "core/amber/src/main/scala/"
-    val operatorTypeMapKeys = OperatorMetadataGenerator.operatorTypeMap.keys;
-    for (operatorInfo <- operatorTypeMapKeys) {
-      val operatorPath = path + operatorInfo.getPackage.getName.replace(".", "/")
-      val index = operatorInfo.getName.lastIndexOf(".")
-      val operatorName = operatorInfo.getName.slice(index + 1, operatorInfo.getName.length)
-      OPversion.refreshVersion(operatorName, operatorPath)
-    }
   }
 }
 

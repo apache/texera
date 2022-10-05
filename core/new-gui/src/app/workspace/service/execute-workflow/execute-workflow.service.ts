@@ -210,7 +210,11 @@ export class ExecuteWorkflowService {
   }
 
   public sendExecutionRequest(executionName: string, logicalPlan: LogicalPlan): void {
-    const workflowExecuteRequest = { executionName: executionName, engineVersion: version.hash, logicalPlan: logicalPlan };
+    const workflowExecuteRequest = {
+      executionName: executionName,
+      engineVersion: version.hash,
+      logicalPlan: logicalPlan,
+    };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);
