@@ -1109,7 +1109,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getCachedOperatorsChangedStream(),
-      this.getTexeraGraph().getOperatorDisplayNameChangedStream()
+      this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
+      this.getTexeraGraph().getOperatorVersionChangedStream()
     );
   }
 
@@ -1237,6 +1238,24 @@ export class WorkflowActionService {
     const commandMessage: CommandMessage = {
       action: "setOperatorCustomName",
       parameters: [operatorId, newDisplayName, userFriendlyName],
+      type: "execute",
+    };
+    this.executeStoreAndPropagateCommand(command, commandMessage);
+  }
+
+  public setOperatorVersion(operatorId: string, newVersion: string): void {
+    const command: Command = {
+      modifiesWorkflow: true,
+      execute: () => {
+        this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
+      },
+      undo: () => {
+        this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
+      },
+    };
+    const commandMessage: CommandMessage = {
+      action: "setOperatorVersion",
+      parameters: [operatorId, newVersion],
       type: "execute",
     };
     this.executeStoreAndPropagateCommand(command, commandMessage);

@@ -116,6 +116,16 @@ public interface IWorkflowExecutions extends Serializable {
      */
     public UInteger getSid();
 
+    /**
+     * Setter for <code>texera_db.workflow_executions.environment_version</code>.
+     */
+    public void setEnvironmentVersion(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.environment_version</code>.
+     */
+    public String getEnvironmentVersion();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

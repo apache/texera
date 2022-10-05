@@ -1,4 +1,4 @@
-import { Injectable } from "@angular/core";
+import { Injectable, Version } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -13,11 +13,16 @@ import {
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from "../../types/workflow-common.interface";
-import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
+import {
+  OperatorCurrentTuples,
+  TexeraWebsocketEvent,
+  WorkflowExecuteRequest,
+} from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { WorkflowCollabService } from "../workflow-collab/workflow-collab.service";
+import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowSnapshotService } from "src/app/dashboard/service/workflow-snapshot/workflow-snapshot.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -205,7 +210,11 @@ export class ExecuteWorkflowService {
   }
 
   public sendExecutionRequest(executionName: string, logicalPlan: LogicalPlan): void {
-    const workflowExecuteRequest = { executionName: executionName, logicalPlan: logicalPlan };
+    const workflowExecuteRequest = {
+      executionName: executionName,
+      engineVersion: version.hash,
+      logicalPlan: logicalPlan,
+    };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);

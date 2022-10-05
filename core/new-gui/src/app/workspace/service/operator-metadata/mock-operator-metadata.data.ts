@@ -25,6 +25,7 @@ export const mockScanSourceSchema: OperatorSchema = {
     required: ["tableName"],
     type: "object",
   },
+  operatorVersion: "scan",
 };
 
 export const mockPresetEnabledSchema: OperatorSchema = {
@@ -49,6 +50,7 @@ export const mockPresetEnabledSchema: OperatorSchema = {
     required: ["normalProperty"],
     type: "object",
   },
+  operatorVersion: "preset1",
 };
 
 export const mockFileSourceSchema: OperatorSchema = {
@@ -67,6 +69,7 @@ export const mockFileSourceSchema: OperatorSchema = {
     inputPorts: [],
     outputPorts: [{}],
   },
+  operatorVersion: "fileSource1",
 };
 
 export const mockNlpSentimentSchema: OperatorSchema = {
@@ -91,6 +94,7 @@ export const mockNlpSentimentSchema: OperatorSchema = {
     required: ["attribute", "resultAttribute"],
     type: "object",
   },
+  operatorVersion: "Nlp1",
 };
 
 export const mockKeywordSourceSchema: OperatorSchema = {
@@ -118,6 +122,7 @@ export const mockKeywordSourceSchema: OperatorSchema = {
     inputPorts: [],
     outputPorts: [{}],
   },
+  operatorVersion: "keywordSource1",
 };
 
 export const mockKeywordSearchSchema: OperatorSchema = {
@@ -144,6 +149,7 @@ export const mockKeywordSearchSchema: OperatorSchema = {
     inputPorts: [{}],
     outputPorts: [{}],
   },
+  operatorVersion: "keywordMatcher1",
 };
 
 export const mockAggregationSchema: OperatorSchema = {
@@ -183,6 +189,7 @@ export const mockAggregationSchema: OperatorSchema = {
     inputPorts: [{}],
     outputPorts: [{}],
   },
+  operatorVersion: "agg1",
 };
 
 export const mockViewResultsSchema: OperatorSchema = {
@@ -209,6 +216,7 @@ export const mockViewResultsSchema: OperatorSchema = {
     inputPorts: [{}],
     outputPorts: [],
   },
+  operatorVersion: "view1",
 };
 
 export const mockMultiInputOutputSchema: OperatorSchema = {
@@ -224,6 +232,7 @@ export const mockMultiInputOutputSchema: OperatorSchema = {
     inputPorts: [{}, {}, {}],
     outputPorts: [{}, {}, {}],
   },
+  operatorVersion: "multiInput1",
 };
 
 export const mockUnionSchema: OperatorSchema = {
@@ -239,6 +248,7 @@ export const mockUnionSchema: OperatorSchema = {
     inputPorts: [{ allowMultiInputs: true }],
     outputPorts: [{}],
   },
+  operatorVersion: "union1",
 };
 
 export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [

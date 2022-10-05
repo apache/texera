@@ -183,6 +183,9 @@ export class WorkflowVersionService {
         difference.set(property, "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
       }
     }
+    if (operator1.operatorVersion != operator2.operatorVersion) {
+      difference.set("operatorVersion", "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
+    }
     return difference;
   }
 

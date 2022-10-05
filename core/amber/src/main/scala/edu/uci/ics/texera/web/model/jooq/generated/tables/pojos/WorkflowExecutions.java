@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -1647312266;
+    private static final long serialVersionUID = -1282631973;
 
     private UInteger  eid;
     private UInteger  vid;
@@ -29,6 +29,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private String    name;
     private UInteger  uid;
     private UInteger  sid;
+    private String    environmentVersion;
 
     public WorkflowExecutions() {}
 
@@ -43,6 +44,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.name = value.getName();
         this.uid = value.getUid();
         this.sid = value.getSid();
+        this.environmentVersion = value.getEnvironmentVersion();
     }
 
     public WorkflowExecutions(
@@ -55,7 +57,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Byte      bookmarked,
         String    name,
         UInteger  uid,
-        UInteger  sid
+        UInteger  sid,
+        String    environmentVersion
     ) {
         this.eid = eid;
         this.vid = vid;
@@ -67,6 +70,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.name = name;
         this.uid = uid;
         this.sid = sid;
+        this.environmentVersion = environmentVersion;
     }
 
     @Override
@@ -170,6 +174,16 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
+    public String getEnvironmentVersion() {
+        return this.environmentVersion;
+    }
+
+    @Override
+    public void setEnvironmentVersion(String environmentVersion) {
+        this.environmentVersion = environmentVersion;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowExecutions (");
 
@@ -183,6 +197,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(name);
         sb.append(", ").append(uid);
         sb.append(", ").append(sid);
+        sb.append(", ").append(environmentVersion);
 
         sb.append(")");
         return sb.toString();
@@ -204,6 +219,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setName(from.getName());
         setUid(from.getUid());
         setSid(from.getSid());
+        setEnvironmentVersion(from.getEnvironmentVersion());
     }
 
     @Override

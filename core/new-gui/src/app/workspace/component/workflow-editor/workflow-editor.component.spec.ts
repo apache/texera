@@ -433,6 +433,7 @@ describe("WorkflowEditorComponent", () => {
       const mockUnionPredicate: OperatorPredicate = {
         operatorID: "union-1",
         operatorType: "Union",
+        operatorVersion: "u1",
         operatorProperties: {},
         inputPorts: [{ portID: "input-0" }],
         outputPorts: [{ portID: "output-0" }],

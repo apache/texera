@@ -30,6 +30,7 @@ import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.{BehaviorSubject, Subject}
 import org.jooq.types.UInteger
+import play.api.libs.json.Json
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
@@ -156,17 +157,26 @@ class WorkflowService(
       //unsubscribe all
       jobService.getValue.unsubscribeAll()
     }
+
     val job = new WorkflowJobService(
       createWorkflowContext(req, uidOpt),
       wsInput,
       operatorCache,
       resultService,
       req,
-      errorHandler
+      errorHandler,
+      convertToJson(req.engineVersion)
     )
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
     jobService.onNext(job)
     job.startWorkflow()
+  }
+
+  def convertToJson(frontendVersion: String): String = {
+    val environmentVersionMap = Map(
+      "engine_version" -> Json.toJson(frontendVersion)
+    )
+    Json.stringify(Json.toJson(environmentVersionMap))
   }
 
   override def unsubscribeAll(): Unit = {

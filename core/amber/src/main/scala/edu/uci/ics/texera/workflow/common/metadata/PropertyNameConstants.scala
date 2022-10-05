@@ -13,6 +13,7 @@ object PropertyNameConstants { // logical plan property names
   final val DESTINATION_OPERATOR_ID = "destination"
   final val OPERATOR_LIST = "operators"
   final val OPERATOR_LINK_LIST = "links"
+  final val OPERATOR_VERSION = "operatorVersion"
   // common operator property names
   final val ATTRIBUTE_NAMES = "attributes"
   final val ATTRIBUTE_NAME = "attribute"
