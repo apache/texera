@@ -172,7 +172,7 @@ export class WorkflowGraph {
    * @param field the name of the particular state info.
    * @param value the updated state info.
    */
-  public updateSharedModelAwareness(field: keyof UserState, value: any) {
+  public updateSharedModelAwareness<K extends keyof UserState>(field: K, value: UserState[K]) {
     this.sharedModel.updateAwareness(field, value);
   }
 

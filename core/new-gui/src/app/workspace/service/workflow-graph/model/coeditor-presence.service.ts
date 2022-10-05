@@ -6,15 +6,8 @@ import { User, UserState } from "../../../../common/type/user";
 import { WorkflowActionService } from "./workflow-action.service";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { Observable, Subject } from "rxjs";
+import { isEqual } from "lodash";
 
-function isEqual(array1: any[] | undefined, array2: any[] | undefined): boolean {
-  if (!array1 && !array2) return true;
-  else {
-    if (array1 && array2) {
-      return array1.length === array2.length && array1.every((value, index) => value === array2[index]);
-    } else return false;
-  }
-}
 
 /**
  * CoeditorPresenceService handles user-presence updates from other editors in the same shared-editing room
@@ -35,7 +28,7 @@ export class CoeditorPresenceService {
   private texeraGraph: WorkflowGraph;
   private jointGraphWrapper: JointGraphWrapper;
   private coeditorCurrentlyEditing = new Map<string, string | undefined>();
-  private coeditorOperatorHighlights = new Map<string, string[]>();
+  private coeditorOperatorHighlights = new Map<string, readonly string[]>();
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorEditingCode = new Map<string, boolean>();
   private coeditorStates = new Map<string, UserState>();
@@ -108,15 +101,15 @@ export class CoeditorPresenceService {
    * Returns whether this co-editor is already recorded here.
    * @param clientId
    */
-  public hasCoeditor(clientId?: string) {
-    return this.coeditors.find(v => v.clientId === clientId);
+  public hasCoeditor(clientId?: string): boolean {
+    return this.coeditors.find(v => v.clientId === clientId) !== undefined;
   }
 
   /**
    * Adds a new co-editor and initialize UI-updates for this editor.
    * @param coeditorState
    */
-  public addCoeditor(coeditorState: UserState) {
+  public addCoeditor(coeditorState: UserState): void {
     const coeditor = coeditorState.user;
     if (!this.hasCoeditor(coeditor.clientId) && coeditor.clientId) {
       this.coeditors.push(coeditor);
@@ -129,7 +122,7 @@ export class CoeditorPresenceService {
    * Removes a co-editor and clean up states recorded in this service.
    * @param clientId
    */
-  public removeCoeditor(clientId: string) {
+  public removeCoeditor(clientId: string): void {
     for (let i = 0; i < this.coeditors.length; i++) {
       const coeditor = this.coeditors[i];
       if (coeditor.clientId === clientId) {
@@ -157,7 +150,7 @@ export class CoeditorPresenceService {
    * @param clientId
    * @param coeditorState
    */
-  public updateCoeditorState(clientId: string, coeditorState: UserState) {
+  public updateCoeditorState(clientId: string, coeditorState: UserState): void {
     // Update pointers
     const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(
       JointUIService.getJointUserPointerName(coeditorState.user)
@@ -286,7 +279,7 @@ export class CoeditorPresenceService {
    * Start shawoding an co-editor.
    * @param coeditor
    */
-  shadowCoeditor(coeditor: User) {
+  shadowCoeditor(coeditor: User): void {
     this.shadowingModeEnabled = true;
     this.shadowingCoeditor = coeditor;
     if (coeditor.clientId) {

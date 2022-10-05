@@ -21,8 +21,8 @@ export interface UserState {
   user: User;
   isActive: boolean;
   userCursor: Point;
-  highlighted?: string[];
-  unhighlighted?: string[];
+  highlighted?: readonly string[];
+  unhighlighted?: readonly string[];
   currentlyEditing?: string;
   changed?: string;
   editingCode?: boolean;
