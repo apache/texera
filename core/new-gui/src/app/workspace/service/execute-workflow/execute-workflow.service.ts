@@ -23,6 +23,10 @@ import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/r
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { WorkflowCollabService } from "../workflow-collab/workflow-collab.service";
 import { Version as version } from "src/environments/version";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { WorkflowSnapshotService } from "src/app/dashboard/service/workflow-snapshot/workflow-snapshot.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -55,6 +59,7 @@ export const EXECUTION_TIMEOUT = 3000;
 @Injectable({
   providedIn: "root",
 })
+@UntilDestroy()
 export class ExecuteWorkflowService {
   private currentState: ExecutionStateInfo = {
     state: ExecutionState.Uninitialized,
@@ -66,11 +71,15 @@ export class ExecuteWorkflowService {
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
+  private hasSnapshot: boolean = false;
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowCollabService: WorkflowCollabService,
+    private workflowSnapshotService: WorkflowSnapshotService,
+    private notificationService: NotificationService,
+    private workflowPersistService: WorkflowPersistService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -166,22 +175,45 @@ export class ExecuteWorkflowService {
     return undefined;
   }
 
-  public executeWorkflow(): void {
+  public executeWorkflow(executionName: string): void {
     if (environment.amberEngineEnabled) {
-      this.executeWorkflowAmberTexera();
+      this.executeWorkflowAmberTexera(executionName);
     } else {
       throw new Error("old texera engine not supported");
     }
   }
 
-  public executeWorkflowAmberTexera(): void {
+  public executeWorkflowAmberTexera(executionName: string): void {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
-    const workflowExecutionRequest: WorkflowExecuteRequest = { logicalPlan, engineVersion: version.hash };
+    if (environment.userSystemEnabled) {
+      this.workflowSnapshotService.createSnapShotCanvas(0.6, 0.2, 0.7, 0.15).then(canvas => {
+        canvas.toBlob(snapshotBlob => {
+          if (snapshotBlob === null) {
+            this.notificationService.error("Canavas Error");
+            return;
+          }
+          // upload snapshot into sql
+          this.workflowSnapshotService
+            .uploadWorkflowSnapshot(snapshotBlob, this.workflowActionService.getWorkflow().wid)
+            .pipe(untilDestroyed(this))
+            .subscribe(() => {
+              // send execution request to insert new execution
+              this.sendExecutionRequest(executionName, logicalPlan);
+            });
+        });
+      });
+    } else {
+      this.sendExecutionRequest(executionName, logicalPlan);
+    }
+  }
+
+  public sendExecutionRequest(executionName: string, logicalPlan: LogicalPlan): void {
+    const workflowExecuteRequest = { executionName: executionName, engineVersion: version.hash, logicalPlan: logicalPlan };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
-      this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecutionRequest);
+      this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);
     }, FORM_DEBOUNCE_TIME_MS);
     this.setExecutionTimeout(
       "submit workflow timeout",

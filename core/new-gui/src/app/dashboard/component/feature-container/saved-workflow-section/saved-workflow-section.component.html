@@ -88,6 +88,7 @@
           nzInline
           [(ngModel)]="selectedMtime"
           (ngModelChange)="calendarValueChange($event)"
+          ngDefaultControl
         ></nz-range-picker>
       </nz-dropdown-menu>
 
@@ -107,6 +108,7 @@
           nzInline
           [(ngModel)]="selectedCtime"
           (ngModelChange)="calendarValueChange($event)"
+          ngDefaultControl
         ></nz-range-picker>
       </nz-dropdown-menu>
 
@@ -124,7 +126,7 @@
       <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let owner of owners">
           <li nz-menu-item>
-            <label nz-checkbox [(ngModel)]="owner.checked" (ngModelChange)="updateSelectedOwners()"
+            <label nz-checkbox ngDefaultControl [(ngModel)]="owner.checked" (ngModelChange)="updateSelectedOwners()"
               >{{owner.userName}}</label
             >
           </li>
@@ -145,7 +147,9 @@
       <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let wid of wids">
           <li nz-menu-item>
-            <label nz-checkbox [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()">{{wid.id}}</label>
+            <label nz-checkbox ngDefaultControl [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()"
+              >{{wid.id}}</label
+            >
           </li>
         </ul>
       </nz-dropdown-menu>
@@ -166,7 +170,11 @@
           <li nz-submenu nzTitle="{{group}}">
             <ul *ngFor="let operator of operators.get(group)">
               <li nz-menu-item>
-                <label nz-checkbox [(ngModel)]="operator.checked" (ngModelChange)="updateSelectedOperators()"
+                <label
+                  nz-checkbox
+                  ngDefaultControl
+                  [(ngModel)]="operator.checked"
+                  (ngModelChange)="updateSelectedOperators()"
                   >{{operator.userFriendlyName}}</label
                 >
               </li>
@@ -189,7 +197,7 @@
       <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
         <ul nz-menu *ngFor="let project of userProjectsDropdown">
           <li nz-menu-item>
-            <label nz-checkbox [(ngModel)]="project.checked" (ngModelChange)="updateSelectedProjects()"
+            <label nz-checkbox ngDefaultControl [(ngModel)]="project.checked" (ngModelChange)="updateSelectedProjects()"
               >{{project.name}}</label
             >
           </li>
@@ -214,6 +222,7 @@
       nzPlaceHolder="Search all workflows"
       [nzBorderless]="true"
       [nzOpen]="false"
+      ngDefaultControl
       [(ngModel)]="masterFilterList"
       [nzAllowClear]="true"
       (ngModelChange)="updateDropdownMenus($event)"
@@ -269,15 +278,17 @@
                 style="vertical-align: middle"
               ></nz-avatar>
             </nz-list-item-meta-avatar>
-            <nz-list-item-meta-title>
+
+            <!-- editable name of saved workflow -->
+            <nz-list-item-meta-title class="meta-title-container">
               <div class="workflow-item-meta-title">
                 <label
-                  *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customeWorkflow "
+                  *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowTitle "
                   (click)="jumpToWorkflow(dashboardWorkflowEntry)"
                   class="workflow-name"
                   >{{ dashboardWorkflowEntry.workflow.name }}</label
                 >
-                <ng-template #customeWorkflow>
+                <ng-template #customWorkflowTitle>
                   <input
                     #customName
                     (focusout)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
@@ -296,7 +307,19 @@
                 >
                   <i nz-icon nzTheme="outline" nzType="edit"></i>
                 </button>
+                <button
+                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
+                  nz-button
+                  nz-tooltip="Add Description"
+                  nzSize="small"
+                  nzTooltipPlacement="bottom"
+                  nzType="text"
+                  class="add-description-btn"
+                >
+                  <i nz-icon nzTheme="outline" nzType="plus-square"></i>
+                </button>
                 <i
+                  class="workflow-is-owner-icon"
                   *ngIf="dashboardWorkflowEntry.isOwner"
                   ngbTooltip="You are the owner"
                   nz-icon
@@ -314,6 +337,31 @@
                 ></i>
               </div>
             </nz-list-item-meta-title>
+
+            <!-- editable description of saved workflow -->
+            <nz-list-item-meta-description>
+              <div class="workflow-item-meta-description">
+                <label
+                  *ngIf="(dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1); else customWorkflowDescription "
+                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
+                  class="workflow-description"
+                >
+                  {{ dashboardWorkflowEntry.workflow.description }}
+                </label>
+                <ng-template #customWorkflowDescription>
+                  <input
+                    #customDescription
+                    (focusout)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
+                    (keyup.enter)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
+                    class="workflow-editable-description"
+                    value="{{ dashboardWorkflowEntry.workflow.description }}"
+                    maxlength="500"
+                  />
+                </ng-template>
+              </div>
+            </nz-list-item-meta-description>
+
+            <!-- last access and created date of saved workflow -->
             <nz-list-item-meta-description class="metadata-container">
               <span
                 >Last Modified: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span
@@ -325,7 +373,7 @@
           <div *ngIf="userProjectsLoaded" class="project-label-container">
             <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="project-label">
               <div
-                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
+                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
                 nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
                 nzTooltipPlacement="bottom"
                 class="left-div"
@@ -336,7 +384,7 @@
                 {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
               </div>
               <div
-                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
+                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
                 class="right-div"

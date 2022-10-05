@@ -28,6 +28,12 @@ export interface RegisterWIdRequest
     wId: number;
   }> {}
 
+export interface WorkflowExecuteRequest
+  extends Readonly<{
+    executionName: string;
+    logicalPlan: LogicalPlan;
+  }> {}
+
 export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
 
 export interface TexeraConstraintViolation

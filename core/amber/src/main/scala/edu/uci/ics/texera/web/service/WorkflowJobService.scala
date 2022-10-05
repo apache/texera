@@ -72,6 +72,7 @@ class WorkflowJobService(
       workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
         workflowContext.wId,
         workflowContext.userId,
+        request.executionName,
         engineVersion
       )
     }
