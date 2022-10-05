@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web;
 import java.io.*;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
@@ -7,15 +8,18 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 public class OPversion {
-    private static final Git git;
+    private static Git git = null;
     private static String currentPath = System.getProperty("user.dir");
     private static Map<String, String> opMap = new HashMap<>();
     static {
         try {
-            System.out.println();
-            git = Git.open(new File(Paths.get(currentPath).getParent().getParent()+"/.git"));
+            Path path = Paths.get(currentPath);
+            if(currentPath.contains("core/amber")){
+                path = Paths.get(currentPath).getParent().getParent();
+            }
+            git = Git.open(new File(path+"/.git"));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
