@@ -61,6 +61,7 @@ export class WorkflowActionService {
   private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
   private static readonly DEFAULT_WORKFLOW = {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
+    description: undefined,
     wid: undefined,
     creationTime: undefined,
     lastModifiedTime: undefined,

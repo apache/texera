@@ -17,9 +17,10 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow implements IWorkflow {
 
-    private static final long serialVersionUID = -1716659515;
+    private static final long serialVersionUID = -380738907;
 
     private String    name;
+    private String    description;
     private UInteger  wid;
     private String    content;
     private Timestamp creationTime;
@@ -29,6 +30,7 @@ public class Workflow implements IWorkflow {
 
     public Workflow(IWorkflow value) {
         this.name = value.getName();
+        this.description = value.getDescription();
         this.wid = value.getWid();
         this.content = value.getContent();
         this.creationTime = value.getCreationTime();
@@ -37,12 +39,14 @@ public class Workflow implements IWorkflow {
 
     public Workflow(
         String    name,
+        String    description,
         UInteger  wid,
         String    content,
         Timestamp creationTime,
         Timestamp lastModifiedTime
     ) {
         this.name = name;
+        this.description = description;
         this.wid = wid;
         this.content = content;
         this.creationTime = creationTime;
@@ -57,6 +61,16 @@ public class Workflow implements IWorkflow {
     @Override
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public String getDescription() {
+        return this.description;
+    }
+
+    @Override
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     @Override
@@ -104,6 +118,7 @@ public class Workflow implements IWorkflow {
         StringBuilder sb = new StringBuilder("Workflow (");
 
         sb.append(name);
+        sb.append(", ").append(description);
         sb.append(", ").append(wid);
         sb.append(", ").append(content);
         sb.append(", ").append(creationTime);
@@ -120,6 +135,7 @@ public class Workflow implements IWorkflow {
     @Override
     public void from(IWorkflow from) {
         setName(from.getName());
+        setDescription(from.getDescription());
         setWid(from.getWid());
         setContent(from.getContent());
         setCreationTime(from.getCreationTime());

@@ -65,8 +65,10 @@ describe("ExecuteWorkflowService", () => {
   it("should create canvas and take workflow snapshot", () => {
     if (environment.amberEngineEnabled) {
       const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
-      service.executeWorkflow();
-      expect(mockWorkflowSnapshotService).toHaveBeenCalled;
+      service.executeWorkflow("");
+      tick(FORM_DEBOUNCE_TIME_MS + 1);
+      flush();
+      expect(wsSendSpy).toHaveBeenCalledTimes(1);
     } else {
       throw new Error("old texera engine not supported");
     }
@@ -77,7 +79,7 @@ describe("ExecuteWorkflowService", () => {
       const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
       const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
       const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
-      service.sendExecutionRequest(logicalPlan);
+      service.sendExecutionRequest("", logicalPlan);
       tick(FORM_DEBOUNCE_TIME_MS + 1);
       flush();
       expect(wsSendSpy).toHaveBeenCalledTimes(1);
