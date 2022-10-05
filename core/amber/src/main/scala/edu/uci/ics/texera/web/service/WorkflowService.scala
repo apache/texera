@@ -141,10 +141,10 @@ class WorkflowService(
     if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
         CacheStatusUpdateRequest(
-          request.operators,
-          request.links,
-          request.breakpoints,
-          request.cachedOperatorIds
+          request.logicalPlan.operators,
+          request.logicalPlan.links,
+          request.logicalPlan.breakpoints,
+          request.logicalPlan.cachedOperatorIds
         )
       )
     }
