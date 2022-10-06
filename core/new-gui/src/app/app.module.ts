@@ -89,7 +89,6 @@ import { ConsoleFrameComponent } from "./workspace/component/result-panel/consol
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
 import { DynamicModule } from "ng-dynamic-component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
-import { MonacoEditorModule } from "ngx-monaco-editor";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
@@ -113,6 +112,7 @@ import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feat
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { NzImageModule } from "ng-zorro-antd/image";
+import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
 
 registerLocaleData(en);
 
@@ -173,6 +173,7 @@ registerLocaleData(en);
     NzModalCommentBoxComponent,
     DeletePromptComponent,
     ContextMenuComponent,
+    CoeditorUserIconComponent,
   ],
   imports: [
     BrowserModule,
@@ -234,7 +235,6 @@ registerLocaleData(en);
     NzTagModule,
     NzAvatarModule,
     DynamicModule,
-    MonacoEditorModule.forRoot(),
     NzTabsModule,
     NzTreeViewModule,
     NzPaginationModule,

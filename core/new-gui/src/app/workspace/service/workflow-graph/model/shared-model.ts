@@ -8,7 +8,7 @@ import {
   OperatorPredicate,
   Point,
 } from "../../../types/workflow-common.interface";
-import { User, UserState } from "../../../../common/type/user";
+import { User, CoeditorState } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
@@ -62,9 +62,8 @@ export class SharedModel {
     this.awareness = this.wsProvider.awareness;
     this.clientId = this.awareness.clientID.toString();
     if (this.user) {
-      const userState: UserState = {
-        user: { ...this.user },
-        clientId: this.clientId,
+      const userState: CoeditorState = {
+        coeditor: { ...this.user, clientId: this.clientId },
         isActive: true,
         userCursor: { x: 0, y: 0 },
       };
@@ -77,7 +76,7 @@ export class SharedModel {
    * @param field the name of the particular state info.
    * @param value the updated state info.
    */
-  public updateAwareness(field: keyof UserState, value: any): void {
+  public updateAwareness<K extends keyof CoeditorState>(field: K, value: CoeditorState[K]): void {
     if (this.user) this.awareness.setLocalStateField(field, value);
   }
 

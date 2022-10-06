@@ -1,11 +1,19 @@
 import { fromEvent, merge, Observable, ReplaySubject, Subject } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { OperatorLink, Point } from "../../../types/workflow-common.interface";
+import { Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
+import { Coeditor, User } from "../../../../common/type/user";
+import {
+  operatorCoeditorChangedPropertyBGClass,
+  operatorCoeditorChangedPropertyClass,
+  operatorCoeditorEditingBGClass,
+  operatorCoeditorEditingClass,
+} from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
+import Selectors = dia.Cell.Selectors;
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -1044,5 +1052,153 @@ export class JointGraphWrapper {
    */
   public toggleGrids() {
     this.jointPaperGridsToggleStream.next();
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                     Below are methods for coeditor-presence.                                     //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public deleteCoeditorOperatorHighlight(coeditor: Coeditor, operatorId: string) {
+    const operatorElement = this.getMainJointPaper()?.findViewByModel(operatorId);
+    if (operatorElement) {
+      const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
+      const highlightIdToDelete = `coeditorHighlight_${coeditor.clientId}_${operatorId}`;
+      if (currentStrokeIds.includes(highlightIdToDelete)) {
+        const deletedIndex = currentStrokeIds.indexOf(highlightIdToDelete);
+        joint.highlighters.mask.remove(operatorElement, highlightIdToDelete);
+        currentStrokeIds.splice(deletedIndex, 1);
+        const currentStrokes = joint.highlighters.mask.get(operatorElement);
+
+        // Update other highlights on this operator to make the diameters consistent.
+        for (let i = deletedIndex; i < currentStrokeIds.length; i++) {
+          const previousStroke = currentStrokes[i];
+          const highlightId = currentStrokeIds[i];
+          if (highlightId) {
+            joint.highlighters.mask.remove(operatorElement, highlightId);
+            joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {
+              ...previousStroke.options,
+              padding: 5 + 5 * i,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  public addCoeditorOperatorHighlight(coeditor: Coeditor, operatorId: string) {
+    const operatorElement = this.getMainJointPaper()?.findViewByModel(operatorId);
+    if (operatorElement) {
+      const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
+      const highlightId = `coeditorHighlight_${coeditor.clientId}_${operatorId}`;
+      if (!currentStrokeIds.includes(highlightId)) {
+        joint.highlighters.mask.add(operatorElement, "rect.body", highlightId, {
+          padding: 5 + 5 * currentStrokeIds.length,
+          rx: 5,
+          ry: 5,
+          attrs: {
+            "stroke-width": 2,
+            stroke: coeditor.color,
+          },
+        });
+      }
+    }
+  }
+
+  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): NodeJS.Timer {
+    // Calculate location
+    const statusText = coeditor.name + " is viewing/editing...";
+    const color = coeditor.color;
+    this.getMainJointPaper()
+      ?.getModelById(currentEditing)
+      .attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: statusText,
+          fill: color,
+          visibility: "visible",
+        },
+        [`.${operatorCoeditorEditingBGClass}`]: {
+          text: statusText,
+          visibility: "visible",
+        },
+      });
+    // "Animation"
+    const getCurrentlyEditingText = (): string => {
+      return (this.getMainJointPaper()?.getModelById(currentEditing).attributes.attrs as Selectors)[
+        `.${operatorCoeditorEditingClass}`
+      ]?.text as string;
+    };
+    return setInterval(() => {
+      const currentText = getCurrentlyEditingText();
+      if (currentText.includes(coeditor.name)) {
+        let nextText = "";
+        if (currentText.length === statusText.length) {
+          nextText = coeditor.name + " is viewing/editing.";
+        } else if (currentText.length === statusText.length - 1) {
+          nextText = coeditor.name + " is viewing/editing...";
+        } else if (currentText.length === statusText.length - 2) {
+          nextText = coeditor.name + " is viewing/editing..";
+        }
+        this.getMainJointPaper()
+          ?.getModelById(currentEditing)
+          .attr({
+            [`.${operatorCoeditorEditingClass}`]: {
+              text: nextText,
+            },
+            [`.${operatorCoeditorEditingBGClass}`]: {
+              text: nextText,
+            },
+          });
+      }
+    }, 300);
+  }
+
+  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
+    clearInterval(intervalId);
+    this.getMainJointPaper()
+      ?.getModelById(previousEditing)
+      .attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+        [`.${operatorCoeditorEditingBGClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+      });
+  }
+
+  public setPropertyChanged(coeditor: User, currentChanged: string) {
+    // Calculate location
+    const statusText = coeditor.name + " changed property!";
+    const color = coeditor.color;
+    this.getMainJointPaper()
+      ?.getModelById(currentChanged)
+      .attr({
+        [`.${operatorCoeditorChangedPropertyClass}`]: {
+          text: statusText,
+          fill: color,
+          visibility: "visible",
+        },
+        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
+          text: statusText,
+          visibility: "visible",
+        },
+      });
+  }
+
+  public removePropertyChanged(coeditor: User, currentChanged: string) {
+    this.getMainJointPaper()
+      ?.getModelById(currentChanged)
+      .attr({
+        [`.${operatorCoeditorChangedPropertyClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+      });
   }
 }

@@ -47,6 +47,29 @@
       </button>
     </div>
 
+    <div *ngIf="userSystemEnabled" class="texera-navigation-coeditor-icons">
+      <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+        <texera-coeditor-user-icon [coeditor]="user"> </texera-coeditor-user-icon>
+      </ng-container>
+    </div>
+
+    <div
+      *ngIf="userSystemEnabled && this.coeditorPresenceService.shadowingModeEnabled"
+      class="texera-navigation-shadowing-status"
+    >
+      <button
+        *ngIf="this.coeditorPresenceService.shadowingModeEnabled"
+        nz-button
+        nzType="link"
+        class="stop-shadowing"
+        [ngStyle]="{ 'color': this.coeditorPresenceService.shadowingCoeditor?.color }"
+        spellcheck="false"
+        (click)="this.coeditorPresenceService.stopShadowing()"
+      >
+        <b>Shadowing {{this.coeditorPresenceService.shadowingCoeditor?.name}}, click to stop</b>
+      </button>
+    </div>
+
     <div *ngIf="userSystemEnabled" class="texera-navigation-user-icon">
       <texera-user-icon></texera-user-icon>
     </div>

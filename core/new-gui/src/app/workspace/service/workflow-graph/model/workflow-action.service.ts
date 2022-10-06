@@ -135,6 +135,13 @@ export class WorkflowActionService {
   }
 
   /**
+   * Gets joint paper, mainly used for co-editor presence.
+   */
+  public getJointGraph(): joint.dia.Graph {
+    return this.jointGraph;
+  }
+
+  /**
    * Gets the read-only version of the TexeraGraph
    *  to access the properties and event streams.
    *
@@ -434,10 +441,18 @@ export class WorkflowActionService {
   public highlightOperators(multiSelect: boolean, ...ops: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightOperators(...ops);
+    this.getTexeraGraph().updateSharedModelAwareness(
+      "highlighted",
+      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
+    );
   }
 
   public unhighlightOperators(...ops: string[]): void {
     this.getJointGraphWrapper().unhighlightOperators(...ops);
+    this.getTexeraGraph().updateSharedModelAwareness(
+      "highlighted",
+      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
+    );
   }
 
   public highlightLinks(multiSelect: boolean, ...links: string[]): void {

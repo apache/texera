@@ -287,8 +287,7 @@ export class SharedModelChangeHandler {
                   });
                 }
               } else if (contentKey === "operatorProperties") {
-                const operator = this.texeraGraph.getOperator(operatorID);
-                this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
+                this.onOperatorPropertyChanged(operatorID, event.transaction.local);
               }
             }
           } else if (event.path[event.path.length - 1] === "customDisplayName") {
@@ -300,12 +299,30 @@ export class SharedModelChangeHandler {
               newDisplayName: newName.toJSON(),
             });
           } else if (event.path.includes("operatorProperties")) {
-            const operator = this.texeraGraph.getOperator(operatorID);
-            this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
+            this.onOperatorPropertyChanged(operatorID, event.transaction.local);
           }
         }
       });
     });
+  }
+
+  /**
+   * Also update awareness info here to accommodate different paths of updates.
+   * @param operatorID
+   * @param isLocal
+   * @private
+   */
+  private onOperatorPropertyChanged(operatorID: string, isLocal: boolean) {
+    const operator = this.texeraGraph.getOperator(operatorID);
+    this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
+    if (isLocal) {
+      // emit operator property changed here
+      const localState = this.texeraGraph.sharedModel.awareness.getLocalState();
+      if (localState && localState["currentlyEditing"] === operatorID) {
+        this.texeraGraph.updateSharedModelAwareness("changed", operatorID);
+        this.texeraGraph.updateSharedModelAwareness("changed", undefined);
+      }
+    }
   }
 
   /**

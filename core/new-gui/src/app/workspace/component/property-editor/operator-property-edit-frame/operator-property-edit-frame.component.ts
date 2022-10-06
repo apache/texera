@@ -222,6 +222,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId) {
       return;
     }
+    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);

@@ -9,7 +9,7 @@ import {
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
-import { User } from "../../../../common/type/user";
+import { User, CoeditorState } from "../../../../common/type/user";
 import { createYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 
@@ -168,6 +168,15 @@ export class WorkflowGraph {
    */
   public getSharedModelAwareness(): Awareness {
     return this.sharedModel.awareness;
+  }
+
+  /**
+   * Updates a particular field of local awareness state info. Will only execute update when user info is provided.
+   * @param field the name of the particular state info.
+   * @param value the updated state info.
+   */
+  public updateSharedModelAwareness<K extends keyof CoeditorState>(field: K, value: CoeditorState[K]) {
+    this.sharedModel.updateAwareness(field, value);
   }
 
   /**

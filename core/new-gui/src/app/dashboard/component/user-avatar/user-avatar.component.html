@@ -2,6 +2,7 @@
   <nz-avatar
     id="texera-user-avatar"
     class="texera-user-avatar"
+    [style.background-color]="userColor"
     [nzSrc]="googleUserAvatarSrc || ''"
     [nzAlt]=""
     [nzText]="abbreviate(userName || '')"
