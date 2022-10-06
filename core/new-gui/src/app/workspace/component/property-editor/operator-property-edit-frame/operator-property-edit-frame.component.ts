@@ -548,15 +548,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           bindings: {
             enter: {
               key: 13,
-              handler: () => this.disconnectQuillFromText()
-              },
+              handler: () => this.disconnectQuillFromText(),
+            },
             shift_enter: {
               key: 13,
               shiftKey: true,
-              handler: () => this.disconnectQuillFromText()
-            }
-            }
-          }
+              handler: () => this.disconnectQuillFromText(),
+            },
+          },
+        },
       },
       formats: [],
       placeholder: "Start collaborating...",

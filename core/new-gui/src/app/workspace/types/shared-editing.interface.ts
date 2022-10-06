@@ -40,8 +40,7 @@ export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
       return obj as any;
     case "string":
       return new Y.Text(obj as unknown as string) as unknown as YType<T>;
-    case "object":
-    {
+    case "object": {
       const objType = obj.constructor.name;
       if (objType === "String") {
         return new Y.Text(obj as unknown as string) as unknown as YType<T>;

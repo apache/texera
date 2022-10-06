@@ -91,7 +91,7 @@ export class WorkflowGraph {
   }>();
   public readonly linkAddSubject = new Subject<OperatorLink>();
   public readonly linkDeleteSubject = new Subject<{
-    deletedLink: OperatorLink
+    deletedLink: OperatorLink;
   }>();
   public readonly operatorVersionChangedSubject = new Subject<{
     operatorID: string;
