@@ -12,7 +12,7 @@ import { User, CoeditorState } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
-import {environment} from "../../../../../environments/environment";
+import { environment } from "../../../../../environments/environment";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
