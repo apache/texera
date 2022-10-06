@@ -11,7 +11,6 @@ export interface User
     uid: number;
     googleId?: string;
     color?: string;
-    clientId?: string;
   }> {}
 
 /**
@@ -19,6 +18,7 @@ export interface User
  */
 export interface UserState {
   user: User;
+  clientId: String;
   isActive: boolean;
   userCursor: Point;
   highlighted?: string[];

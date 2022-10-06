@@ -13,7 +13,12 @@
   </button>
 </div>
 
-<div id="customName" [hidden]="!editingTitle"></div>
+<div
+  id="customName"
+  [hidden]="!editingTitle"
+  (focusout)="disconnectQuillFromText()"
+  (keyup.enter)="disconnectQuillFromText()"
+></div>
 
 <form
   *ngIf="formlyFields && formlyFormGroup"

@@ -22,43 +22,50 @@ export type YType<T> = Omit<Y.AbstractType<any>, "get" | "set" | "has" | "toJSON
  *  or the original object if it is a primitive type other than string, because string will be converted to
  *  <code>Y.Text</code>.
  *  @param obj: a normal object, could be either a string, an array, or a complicated object with its own attributes.
+ *  Note it is NOT supposed to be a primitive type (if you pass a primitive type into this function the TS code will not
+ *  compile), but we handle the case of primitive type and return it as-is because we do the conversion recursively
+ *  to the deepest level in the obj using this same function, so during runtime this function <b>might</b> be called
+ *  on primitive types.
  */
 export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
-  const objType = obj.constructor.name;
-  if (objType === "String") {
-    return new Y.Text(obj as unknown as string) as unknown as YType<T>;
-  } else if (objType === "Array") {
-    const yArray = new Y.Array();
-    // Create YType for each array item and push
-    for (const item of obj as any) {
-      yArray.push([createYTypeFromObject(item) as unknown]);
-    }
-    return yArray as unknown as YType<T>;
-  } else if (objType === "Object") {
-    // return new
-    const yMap = new Y.Map();
-    Object.keys(obj).forEach((k: string) => {
-      const value = obj[k as keyof T] as any;
-      if (value !== undefined) {
-        yMap.set(k, tryToCreateYTypeFromObject(value));
+  if (obj === null) return obj;
+  const originalType = typeof (obj as any);
+  switch (originalType) {
+    case "bigint":
+    case "boolean":
+    case "function":
+    case "number":
+    case "symbol":
+    case "undefined":
+      return obj as any;
+    case "string":
+      return new Y.Text(obj as unknown as string) as unknown as YType<T>;
+    case "object":
+    {
+      const objType = obj.constructor.name;
+      if (objType === "String") {
+        return new Y.Text(obj as unknown as string) as unknown as YType<T>;
+      } else if (objType === "Array") {
+        const yArray = new Y.Array();
+        // Create YType for each array item and push
+        for (const item of obj as any) {
+          yArray.push([createYTypeFromObject(item) as unknown]);
+        }
+        return yArray as unknown as YType<T>;
+      } else if (objType === "Object") {
+        // return new
+        const yMap = new Y.Map();
+        Object.keys(obj).forEach((k: string) => {
+          const value = obj[k as keyof T] as any as object;
+          if (value !== undefined) {
+            yMap.set(k, createYTypeFromObject(value));
+          }
+        });
+        return yMap as unknown as YType<T>;
+      } else {
+        // All other objects that cannot be processed.
+        throw TypeError(`Cannot create YType from ${objType}!`);
       }
-    });
-    return yMap as unknown as YType<T>;
-  } else {
-    throw TypeError(`Cannot create YType from ${objType}!`);
-  }
-}
-
-/**
- * Given any type, creates a <code>YType</code> if it is an object, or return itself as-is if it is a primitive type.
- * @param obj
- */
-export function tryToCreateYTypeFromObject(obj: any): any {
-  try {
-    return createYTypeFromObject(obj as unknown as object);
-  } catch (e) {
-    if (e instanceof TypeError) {
-      return obj;
     }
   }
 }
@@ -87,7 +94,7 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
     const oldArrLen = oldObjAsArr.length;
     for (let i = 0; i < newArrLen; i++) {
       if (i >= oldArrLen) {
-        oldYObjAsYArray.push([tryToCreateYTypeFromObject(newObjAsArr[i])]);
+        oldYObjAsYArray.push([createYTypeFromObject(newObjAsArr[i])]);
       } else {
         if (!_.isEqual(oldObjAsArr[i], newObjAsArr[i])) {
           try {
@@ -95,7 +102,7 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
           } catch (e) {
             if (e instanceof TypeError) {
               oldYObjAsYArray.delete(i, 1);
-              oldYObjAsYArray.insert(i, [tryToCreateYTypeFromObject(newObjAsArr[i])]);
+              oldYObjAsYArray.insert(i, [createYTypeFromObject(newObjAsArr[i])]);
             }
           }
         }
@@ -112,11 +119,10 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
             updateYTypeFromObject(oldYObjAsYMap.get(k), newValue);
           } catch (e) {
             if (e instanceof TypeError) {
-              oldYObjAsYMap.set(k, tryToCreateYTypeFromObject(newValue));
+              oldYObjAsYMap.set(k, createYTypeFromObject(newValue));
             }
           }
         }
-        console.log(k, newValue, newObj, oldYObj.toJSON());
       }
     });
   } else {

@@ -109,7 +109,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
   public lockGranted: boolean = true;
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
-  quillBinding!: QuillBinding;
+  quillBinding?: QuillBinding;
   quill!: Quill;
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
@@ -481,7 +481,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   /**
    * Connects the actual y-text structure of this operator's name to the editor's awareness manager.
    */
-  public connectQuillToText() {
+  connectQuillToText() {
     this.registerQuillBinding();
     const currentOperatorSharedType = this.workflowActionService
       .getTexeraGraph()
@@ -497,6 +497,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
       );
     }
+  }
+
+  /**
+   * Stop editing title and hide the editor.
+   */
+  disconnectQuillFromText() {
+    this.quill.blur();
+    this.quillBinding = undefined;
+    this.editingTitle = false;
   }
 
   private registerOperatorDisplayNameChangeHandler(): void {
@@ -525,6 +534,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           // from remote users
           userOnly: true,
         },
+        // Disable newline on enter and instead quit editing
+        keyboard: {
+          bindings: {
+            enter: {
+              key: 13,
+              handler: () => this.disconnectQuillFromText()
+              },
+            shift_enter: {
+              key: 13,
+              shiftKey: true,
+              handler: () => this.disconnectQuillFromText()
+            }
+            }
+          }
       },
       formats: [],
       placeholder: "Start collaborating...",
