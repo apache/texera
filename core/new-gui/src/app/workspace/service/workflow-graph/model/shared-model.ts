@@ -12,6 +12,7 @@ import { User, CoeditorState } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
+import { environment } from "../../../../../environments/environment";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
@@ -54,7 +55,7 @@ export class SharedModel {
     );
 
     // Generate editing room number.
-    const websocketUrl = getWebsocketUrl("rtc");
+    const websocketUrl = SharedModel.getYWebSocketBaseUrl();
     const suffix = wid ? `${wid}` : uuid();
     this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc);
 
@@ -69,6 +70,16 @@ export class SharedModel {
       };
       this.awareness.setLocalState(userState);
     }
+  }
+
+  /**
+   * Shared editing needs y-websocket to be running. The base url depends on whether reverse proxy is set up. For local
+   * development, we need to use localhost; For production server which has reverse proxy, we can use the same base url
+   * as the server.
+   * @private
+   */
+  private static getYWebSocketBaseUrl() {
+    return environment.productionSharedEditingServer ? getWebsocketUrl("rtc") : "ws://localhost:1234";
   }
 
   /**
