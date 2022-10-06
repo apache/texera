@@ -15,6 +15,7 @@ import { HttpClient } from "@angular/common/http";
 import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { WorkflowSnapshotService } from "../../../dashboard/service/workflow-snapshot/workflow-snapshot.service";
 
 class StubHttpClient {
   constructor() {}
@@ -28,6 +29,7 @@ class StubHttpClient {
 
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
+  let mockWorkflowSnapshotService: WorkflowSnapshotService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -46,6 +48,7 @@ describe("ExecuteWorkflowService", () => {
     });
 
     service = TestBed.inject(ExecuteWorkflowService);
+    mockWorkflowSnapshotService = TestBed.inject(WorkflowSnapshotService);
     environment.pauseResumeEnabled = true;
   });
 
@@ -61,9 +64,10 @@ describe("ExecuteWorkflowService", () => {
 
   it("should msg backend when executing workflow", fakeAsync(() => {
     if (environment.amberEngineEnabled) {
+      const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
+      const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
       const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
-
-      service.executeWorkflow();
+      service.sendExecutionRequest("", logicalPlan);
       tick(FORM_DEBOUNCE_TIME_MS + 1);
       flush();
       expect(wsSendSpy).toHaveBeenCalledTimes(1);

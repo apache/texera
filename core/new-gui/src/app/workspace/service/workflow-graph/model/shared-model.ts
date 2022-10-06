@@ -63,7 +63,8 @@ export class SharedModel {
     this.clientId = this.awareness.clientID.toString();
     if (this.user) {
       const userState: UserState = {
-        user: { ...this.user, clientId: this.clientId },
+        user: { ...this.user },
+        clientId: this.clientId,
         isActive: true,
         userCursor: { x: 0, y: 0 },
       };

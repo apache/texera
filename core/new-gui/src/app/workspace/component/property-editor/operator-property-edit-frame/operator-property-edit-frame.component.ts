@@ -109,7 +109,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
   public lockGranted: boolean = true;
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
-  quillBinding!: QuillBinding;
+  public operatorVersion: string = "";
+  quillBinding?: QuillBinding;
   quill!: Quill;
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
@@ -225,6 +226,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
+    this.workflowActionService.setOperatorVersion(operator.operatorID, currentOperatorSchema.operatorVersion);
+    this.operatorVersion = operator.operatorVersion.slice(0, 9);
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
 
@@ -365,6 +368,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
       this.fieldStyleOverride = operatorPropertyDiff[this.currentOperatorId];
     }
+    if (this.fieldStyleOverride.has("operatorVersion")) {
+      var boundary = this.fieldStyleOverride.get("operatorVersion");
+      if (boundary) {
+        document.getElementsByClassName("operator-version")[0].setAttribute("style", boundary.toString());
+      }
+    }
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -482,7 +491,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   /**
    * Connects the actual y-text structure of this operator's name to the editor's awareness manager.
    */
-  public connectQuillToText() {
+  connectQuillToText() {
     this.registerQuillBinding();
     const currentOperatorSharedType = this.workflowActionService
       .getTexeraGraph()
@@ -498,6 +507,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
       );
     }
+  }
+
+  /**
+   * Stop editing title and hide the editor.
+   */
+  disconnectQuillFromText() {
+    this.quill.blur();
+    this.quillBinding = undefined;
+    this.editingTitle = false;
   }
 
   private registerOperatorDisplayNameChangeHandler(): void {
@@ -525,6 +543,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           // Local undo shouldn't undo changes
           // from remote users
           userOnly: true,
+        },
+        // Disable newline on enter and instead quit editing
+        keyboard: {
+          bindings: {
+            enter: {
+              key: 13,
+              handler: () => this.disconnectQuillFromText(),
+            },
+            shift_enter: {
+              key: 13,
+              shiftKey: true,
+              handler: () => this.disconnectQuillFromText(),
+            },
+          },
         },
       },
       formats: [],

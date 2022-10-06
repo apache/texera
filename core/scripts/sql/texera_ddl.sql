@@ -151,20 +151,29 @@ CREATE TABLE IF NOT EXISTS file_of_project
      FOREIGN KEY (`pid`) REFERENCES `user_project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
+CREATE TABLE IF NOT EXISTS workflow_snapshot
+(
+    `sid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `wid`             INT UNSIGNED NOT NULL,
+    `snapshot`        MEDIUMBLOB,
+    PRIMARY KEY (`sid`)
+) ENGINE = INNODB;
+
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
     `eid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `wid`             INT UNSIGNED NOT NULL,
     `vid`             INT UNSIGNED NOT NULL,
     `uid`             INT UNSIGNED NOT NULL,
+    `sid`             INT UNSIGNED NOT NULL,
     `status`          TINYINT NOT NULL DEFAULT 1,
     `result`          TEXT, #pointer to volume
     `starting_time`   TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `completion_time`   TIMESTAMP,
+    `last_update_time`   TIMESTAMP,
     `bookmarked`      BOOLEAN DEFAULT FALSE,
     `name`				VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
+    `environment_version`    VARCHAR(128) NOT NULL,
     PRIMARY KEY (`eid`),
-    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
-    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`sid`) REFERENCES `workflow_snapshot` (`sid`) ON DELETE CASCADE
     ) ENGINE = INNODB;

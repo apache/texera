@@ -113,7 +113,6 @@ export class SharedModelChangeHandler {
         this.jointGraphWrapper.setMultiSelectMode(newOpIDs.length > 1);
         this.jointGraphWrapper.highlightOperators(...newOpIDs);
       }
-      this.texeraGraph.setSyncTexeraGraph(true);
     });
   }
 

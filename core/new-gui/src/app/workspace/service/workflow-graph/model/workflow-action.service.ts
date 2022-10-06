@@ -496,6 +496,10 @@ export class WorkflowActionService {
     });
   }
 
+  public setOperatorVersion(operatorId: string, newVersion: string): void {
+    this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
+  }
+
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //                             Below are workflow-level and metadata-related methods.                               //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -613,7 +617,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getCachedOperatorsChangedStream(),
-      this.getTexeraGraph().getOperatorDisplayNameChangedStream()
+      this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
+      this.getTexeraGraph().getOperatorVersionChangedStream()
     );
   }
 
