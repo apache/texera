@@ -7,23 +7,6 @@
       src="assets/logos/full_logo_small.png?v=1"
     />
 
-    <div *ngIf="userSystemEnabled && workflowCollabEnabled" class="texera-navigation-lockholder-status">
-      <button
-        (click)="onClickAcquireLock()"
-        nz-button
-        [disabled]="lockGranted || workflowReadonly"
-        title="acquire lock"
-        class="lockholder-status"
-        [ngClass]="{ 'clickable': !lockGranted && !workflowReadonly }"
-      >
-        <i *ngIf="lockGranted && !workflowReadonly" nz-icon nzTheme="outline" nzType="lock"></i>
-        <i *ngIf="!lockGranted || workflowReadonly" nz-icon nzTheme="outline" nzType="unlock"></i>
-        <span *ngIf="lockGranted && !workflowReadonly"> {{ "You can edit now" }} </span>
-        <span *ngIf="!lockGranted && !workflowReadonly"> {{ "Readonly - click to edit" }} </span>
-        <span *ngIf="workflowReadonly"> {{ "Readonly - cannot edit" }} </span>
-      </button>
-    </div>
-
     <!-- workflow metadata display -->
     <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-metadata">
       <button
@@ -41,7 +24,6 @@
           *ngIf="!displayParticularWorkflowVersion"
           (change)="onWorkflowNameChange()"
           [(ngModel)]="currentWorkflowName"
-          [disabled]="!lockGranted"
           class="workflow-name"
           placeholder="Untitled Workflow"
         />
@@ -49,13 +31,7 @@
           {{particularVersionDate}}
         </span>
       </label>
-      <button
-        *ngIf="displayParticularWorkflowVersion"
-        [disabled]="!lockGranted"
-        nz-button
-        nzType="primary"
-        (click)="revertToVersion()"
-      >
+      <button *ngIf="displayParticularWorkflowVersion" nz-button nzType="primary" (click)="revertToVersion()">
         Restore this version
       </button>
       <button
@@ -86,18 +62,18 @@
         <button
           (click)="persistWorkflow()"
           *ngIf="userSystemEnabled"
-          [disabled]="!userService.isLogin() || isSaving || !lockGranted"
+          [disabled]="!userService.isLogin() || isSaving"
           nz-button
           title="save"
         >
           <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
           <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
         </button>
-        <button (click)="onClickDeleteAllOperators()" [disabled]="!lockGranted" nz-button title="delete all">
+        <button (click)="onClickDeleteAllOperators()" nz-button title="delete all">
           <i nz-icon nzTheme="outline" nzType="delete"></i>
         </button>
-        <nz-upload [nzDisabled]="!lockGranted" [nzBeforeUpload]="onClickImportWorkflow">
-          <button nz-button [disabled]="!lockGranted" title="import workflow">
+        <nz-upload [nzBeforeUpload]="onClickImportWorkflow">
+          <button nz-button title="import workflow">
             <i nz-icon nzTheme="outline" nzType="upload"></i>
           </button>
         </nz-upload>
@@ -121,7 +97,7 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzTheme="outline" nzType="fullscreen"></i>
         </button>
-        <button nz-button (click)="onClickAutoLayout()" [disabled]="!lockGranted" title="auto layout">
+        <button nz-button (click)="onClickAutoLayout()" title="auto layout">
           <i nz-icon nzType="partition" nzTheme="outline"></i>
         </button>
         <button (click)="onClickAddCommentBox()" nz-button title="add a comment">
@@ -154,26 +130,10 @@
             <!--            </li>-->
           </ul>
         </nz-dropdown-menu>
-        <!-- <button
-          (click)="onClickGroupOperators()"
-          [disabled]="!highlightedElementsGroupable()"
-          nz-button
-          title="group"
-        >
-          <i nz-icon nzTheme="outline" nzType="group"></i>
-        </button>
-        <button
-          (click)="onClickUngroupOperators()"
-          [disabled]="!highlightedElementsUngroupable()"
-          nz-button
-          title="ungroup"
-        >
-          <i nz-icon nzTheme="outline" nzType="ungroup"></i>
-        </button> -->
         <button
           (click)="operatorMenu.disableHighlightedOperators()"
           *ngIf="operatorMenu.isDisableOperator || !operatorMenu.isDisableOperatorClickable"
-          [disabled]="!operatorMenu.isDisableOperatorClickable || !lockGranted"
+          [disabled]="!operatorMenu.isDisableOperatorClickable"
           nz-button
           title="disable operators"
         >
@@ -182,7 +142,7 @@
         <button
           (click)="operatorMenu.disableHighlightedOperators()"
           *ngIf="!operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
-          [disabled]="!operatorMenu.isDisableOperatorClickable || !lockGranted"
+          [disabled]="!operatorMenu.isDisableOperatorClickable"
           nz-button
           title="operators disabled, click to re-enable"
         >
@@ -190,7 +150,7 @@
         </button>
         <button
           *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator || ! operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable || !lockGranted"
+          [disabled]="! operatorMenu.isCacheOperatorClickable"
           (click)="operatorMenu.cacheHighlightedOperators()"
           nz-button
           title="cache operators"
@@ -199,7 +159,7 @@
         </button>
         <button
           *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable || !lockGranted"
+          [disabled]="! operatorMenu.isCacheOperatorClickable"
           (click)="operatorMenu.cacheHighlightedOperators()"
           nz-button
           title="operators cached, click to remove cache"
@@ -224,7 +184,7 @@
       <nz-button-group nzSize="large">
         <button
           (click)="undoRedoService.undoAction()"
-          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo() || !lockGranted"
+          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"
@@ -233,7 +193,7 @@
         </button>
         <button
           (click)="undoRedoService.redoAction()"
-          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo() || !lockGranted"
+          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"
@@ -246,8 +206,7 @@
           [disabled]="
 						executionState === ExecutionState.Uninitialized ||
 						executionState === ExecutionState.Completed ||
-						executionState === ExecutionState.Aborted ||
-            !lockGranted
+						executionState === ExecutionState.Aborted
 					"
           class="texera-navigation-stop-button"
           nz-button
@@ -259,7 +218,7 @@
         </button>
         <button
           (click)="onClickRunHandler()"
-          [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion|| !lockGranted"
+          [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           class="texera-navigation-run-button animate-to-reveal-stop-button"
           nz-button
           nzType="primary"

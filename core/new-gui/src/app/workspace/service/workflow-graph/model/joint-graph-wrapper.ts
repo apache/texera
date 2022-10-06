@@ -1,10 +1,11 @@
-import { fromEvent, Observable, ReplaySubject, Subject, merge } from "rxjs";
+import { fromEvent, merge, Observable, ReplaySubject, Subject } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
 import { OperatorLink, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
+import { dia } from "jointjs/types/joint";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };

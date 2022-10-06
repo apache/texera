@@ -1,7 +1,6 @@
 import { Component, Inject } from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPredicate } from "../../types/workflow-common.interface";
 
@@ -25,30 +24,16 @@ export class CodeEditorDialogComponent {
     language: "python",
     fontSize: "11",
     automaticLayout: true,
-    readOnly: true,
+    readOnly: false,
   };
   code: string;
-
-  public lockGranted: boolean = false;
 
   constructor(
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
     @Inject(MAT_DIALOG_DATA) code: any,
-    private workflowActionService: WorkflowActionService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowActionService: WorkflowActionService
   ) {
     this.code = code;
-    this.handleLockChange();
-  }
-
-  private handleLockChange(): void {
-    this.workflowCollabService
-      .getLockStatusStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((lockGranted: boolean) => {
-        this.lockGranted = lockGranted;
-        this.editorOptions.readOnly = !this.lockGranted;
-      });
   }
 
   onCodeChange(code: string): void {

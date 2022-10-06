@@ -21,7 +21,6 @@ import {
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
-import { WorkflowCollabService } from "../workflow-collab/workflow-collab.service";
 import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowSnapshotService } from "src/app/dashboard/service/workflow-snapshot/workflow-snapshot.service";
@@ -76,7 +75,6 @@ export class ExecuteWorkflowService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowCollabService: WorkflowCollabService,
     private workflowSnapshotService: WorkflowSnapshotService,
     private notificationService: NotificationService,
     private workflowPersistService: WorkflowPersistService
@@ -400,10 +398,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Aborted:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
-        this.workflowActionService.toggleLockListen(true);
-        if (this.workflowCollabService.isLockGranted()) {
-          this.workflowActionService.enableWorkflowModification();
-        }
+        this.workflowActionService.enableWorkflowModification();
         return;
       case ExecutionState.Paused:
       case ExecutionState.Pausing:
@@ -411,7 +406,6 @@ export class ExecuteWorkflowService {
       case ExecutionState.Resuming:
       case ExecutionState.Running:
       case ExecutionState.Initializing:
-        this.workflowActionService.toggleLockListen(false);
         this.workflowActionService.disableWorkflowModification();
         return;
       default:

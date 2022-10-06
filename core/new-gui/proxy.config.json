@@ -9,5 +9,11 @@
     "secure": false,
     "changeOrigin": false,
     "ws": true
+  },
+  "/rtc": {
+    "target": "http://localhost:1234",
+    "ws": true,
+    "secure": false,
+    "changeOrigin": false
   }
 }

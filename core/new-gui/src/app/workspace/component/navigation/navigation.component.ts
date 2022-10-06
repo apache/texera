@@ -22,7 +22,6 @@ import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -69,14 +68,9 @@ export class NavigationComponent implements OnInit {
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
-  public workflowCollabEnabled: boolean = environment.workflowCollabEnabled;
-  public lockGranted: boolean = true;
-  public workflowReadonly: boolean = false;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
-
-  public static readonly COLLAB_RELOAD_WAIT_TIME = 500;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -90,7 +84,6 @@ export class NavigationComponent implements OnInit {
     public userService: UserService,
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
-    public workflowCollabService: WorkflowCollabService,
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
@@ -128,8 +121,6 @@ export class NavigationComponent implements OnInit {
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
-    this.handleLockChange();
-    this.handleWorkflowAccessChange();
   }
 
   // apply a behavior to the run button via bound variables
@@ -357,16 +348,12 @@ export class NavigationComponent implements OnInit {
           lastModifiedTime: undefined,
         };
 
-        // enable workspace for modification
-        this.workflowActionService.toggleLockListen(false);
         this.workflowActionService.enableWorkflowModification();
         // load the fetched workflow
         this.workflowActionService.reloadWorkflow(workflow, true);
         // clear stack
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
-        this.workflowActionService.toggleLockListen(true);
-        this.workflowActionService.syncLock();
       } catch (error) {
         this.notificationService.error(
           "An error occurred when importing the workflow. Please import a workflow json file."
@@ -391,89 +378,44 @@ export class NavigationComponent implements OnInit {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
 
-  /**
-   * Groups highlighted operators on the graph.
-   */
-  public onClickGroupOperators(): void {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (this.highlightedElementsGroupable()) {
-      const group = this.workflowActionService.getOperatorGroup().getNewGroup(highlightedOperators);
-      this.workflowActionService.addGroups(group);
-    }
-  }
-
-  /**
-   * Returns true if currently highlighted elements are all operators
-   * and if they are groupable.
-   */
-  public highlightedElementsGroupable(): boolean {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    return (
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length === 0 &&
-      this.workflowActionService.getOperatorGroup().operatorsGroupable(highlightedOperators)
-    );
-  }
-
-  /**
-   * Ungroups highlighted groups on the graph.
-   */
-  public onClickUngroupOperators(): void {
-    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-    if (this.highlightedElementsUngroupable()) {
-      this.workflowActionService.unGroupGroups(...highlightedGroups);
-    }
-  }
-
-  /**
-   * Returns true if currently highlighted elements are all groups.
-   */
-  public highlightedElementsUngroupable(): boolean {
-    return (
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length > 0 &&
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 0
-    );
-  }
-
   public persistWorkflow(): void {
-    if (this.workflowCollabService.isLockGranted()) {
-      this.isSaving = true;
-      if (this.pid === 0) {
-        this.workflowPersistService
-          .persistWorkflow(this.workflowActionService.getWorkflow())
-          .pipe(untilDestroyed(this))
-          .subscribe(
-            (updatedWorkflow: Workflow) => {
-              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-              this.isSaving = false;
-            },
-            (error: unknown) => {
-              alert(error);
-              this.isSaving = false;
-            }
-          );
-      } else {
-        // add workflow to project, backend will create new mapping if not already added
-        this.workflowPersistService
-          .persistWorkflow(this.workflowActionService.getWorkflow())
-          .pipe(
-            concatMap((updatedWorkflow: Workflow) => {
-              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-              this.isSaving = false;
-              return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
-            }),
-            catchError((err: unknown) => {
-              throw err;
-            }),
-            untilDestroyed(this)
-          )
-          .subscribe(
-            () => {},
-            (error: unknown) => {
-              alert(error);
-              this.isSaving = false;
-            }
-          );
-      }
+    this.isSaving = true;
+    if (this.pid === 0) {
+      this.workflowPersistService
+        .persistWorkflow(this.workflowActionService.getWorkflow())
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          (updatedWorkflow: Workflow) => {
+            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            this.isSaving = false;
+          },
+          (error: unknown) => {
+            alert(error);
+            this.isSaving = false;
+          }
+        );
+    } else {
+      // add workflow to project, backend will create new mapping if not already added
+      this.workflowPersistService
+        .persistWorkflow(this.workflowActionService.getWorkflow())
+        .pipe(
+          concatMap((updatedWorkflow: Workflow) => {
+            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            this.isSaving = false;
+            return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
+          }),
+          catchError((err: unknown) => {
+            throw err;
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(
+          () => {},
+          (error: unknown) => {
+            alert(error);
+            this.isSaving = false;
+          }
+        );
     }
   }
 
@@ -490,10 +432,6 @@ export class NavigationComponent implements OnInit {
   onClickCreateNewWorkflow() {
     this.workflowActionService.resetAsNewWorkflow();
     this.location.go("/");
-  }
-
-  onClickAcquireLock() {
-    this.workflowCollabService.acquireLock();
   }
 
   registerWorkflowMetadataDisplayRefresh() {
@@ -547,27 +485,5 @@ export class NavigationComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
-    setTimeout(() => {
-      this.workflowCollabService.requestOthersToReload();
-    }, NavigationComponent.COLLAB_RELOAD_WAIT_TIME);
-  }
-
-  private handleLockChange(): void {
-    this.workflowCollabService
-      .getLockStatusStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((lockGranted: boolean) => {
-        this.lockGranted = lockGranted;
-        this.changeDetectionRef.detectChanges();
-      });
-  }
-
-  private handleWorkflowAccessChange(): void {
-    this.workflowCollabService
-      .getWorkflowAccessStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((workflowReadonly: boolean) => {
-        this.workflowReadonly = workflowReadonly;
-      });
   }
 }

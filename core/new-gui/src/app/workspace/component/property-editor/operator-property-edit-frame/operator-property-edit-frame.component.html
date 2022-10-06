@@ -1,7 +1,7 @@
 <div *ngIf="!editingTitle" id="formly-title">
   <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title">{{ formTitle }}</h3>
   <button
-    (click)="editingTitle=true"
+    (click)="editingTitle=true; connectQuillToText()"
     nz-button
     nz-tooltip="Customize Operator Name"
     nzSize="small"
@@ -13,14 +13,12 @@
   </button>
 </div>
 
-<input
-  #customName
-  (focusout)="confirmChangeOperatorCustomName(customName.value)"
-  (keyup.enter)="confirmChangeOperatorCustomName(customName.value)"
-  *ngIf="editingTitle"
-  placeholder="{{formTitle}}"
-  value="{{formTitle}}"
-/>
+<div
+  id="customName"
+  [hidden]="!editingTitle"
+  (focusout)="disconnectQuillFromText()"
+  (keyup.enter)="disconnectQuillFromText()"
+></div>
 
 <form
   *ngIf="formlyFields && formlyFormGroup"

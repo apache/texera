@@ -48,4 +48,8 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   userChanged(): Observable<User | undefined> {
     return this.userChangeSubject.asObservable();
   }
+
+  getCurrentUser(): User | undefined {
+    return this.user;
+  }
 }
