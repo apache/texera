@@ -14,11 +14,17 @@ export interface User
   }> {}
 
 /**
+ * Coeditor extends User and adds clientId to differentiate local user and collaborative editor
+ */
+export interface Coeditor extends User {
+  clientId: string;
+}
+
+/**
  * This interface is for user-presence information in shared-editing.
  */
-export interface UserState {
-  user: User;
-  clientId: String;
+export interface CoeditorState {
+  coeditor: Coeditor;
   isActive: boolean;
   userCursor: Point;
   highlighted?: readonly string[];

@@ -1,5 +1,5 @@
 import { Component, Input } from "@angular/core";
-import { User } from "../../../../../common/type/user";
+import { Coeditor } from "../../../../../common/type/user";
 import { CoeditorPresenceService } from "../../../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
@@ -14,7 +14,7 @@ import { CoeditorPresenceService } from "../../../../service/workflow-graph/mode
   styleUrls: ["./coeditor-user-icon.component.css"],
 })
 export class CoeditorUserIconComponent {
-  @Input() coeditor: User = { name: "", uid: -1 };
+  @Input() coeditor: Coeditor = { name: "", uid: -1, clientId: "0" };
 
   constructor(public coeditorPresenceService: CoeditorPresenceService) {}
 

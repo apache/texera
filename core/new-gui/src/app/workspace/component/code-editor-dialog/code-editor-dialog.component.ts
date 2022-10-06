@@ -2,12 +2,11 @@ import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } fr
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
-import { User } from "../../../common/type/user";
+import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 
 declare const monaco: any;
@@ -82,7 +81,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * Specify the co-editor's cursor style. This step is missing from MonacoBinding.
    * @param coeditor
    */
-  public getCoeditorCursorStyles(coeditor: User) {
+  public getCoeditorCursorStyles(coeditor: Coeditor) {
     const textCSS =
       "<style>" +
       `.yRemoteSelection-${coeditor.clientId} { background-color: ${coeditor.color?.replace("0.8", "0.5")}}` +

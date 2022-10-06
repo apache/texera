@@ -2,14 +2,14 @@ import { Injectable } from "@angular/core";
 import { WorkflowGraph } from "./workflow-graph";
 import * as joint from "jointjs";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
-import { User, UserState } from "../../../../common/type/user";
+import { Coeditor, CoeditorState } from "../../../../common/type/user";
 import { WorkflowActionService } from "./workflow-action.service";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { Observable, Subject } from "rxjs";
 import { isEqual } from "lodash";
 
-
 /**
+ * "Coeditor" means "collaboratively editing user".
  * CoeditorPresenceService handles user-presence updates from other editors in the same shared-editing room
  * and shows them on the UI. It also keeps some states in itself for some necessary UI update information,
  * like which co-editors are currently highlighting a particular operator.
@@ -22,8 +22,8 @@ export class CoeditorPresenceService {
   private readonly coeditorOpenedCodeEditorSubject = new Subject<{ operatorId: string }>();
   private readonly coeditorClosedCodeEditorSubject = new Subject<{ operatorId: string }>();
   public shadowingModeEnabled = false;
-  public shadowingCoeditor?: User;
-  public coeditors: User[] = [];
+  public shadowingCoeditor?: Coeditor;
+  public coeditors: Coeditor[] = [];
   private jointGraph: joint.dia.Graph;
   private texeraGraph: WorkflowGraph;
   private jointGraphWrapper: JointGraphWrapper;
@@ -31,7 +31,7 @@ export class CoeditorPresenceService {
   private coeditorOperatorHighlights = new Map<string, readonly string[]>();
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorEditingCode = new Map<string, boolean>();
-  private coeditorStates = new Map<string, UserState>();
+  private coeditorStates = new Map<string, CoeditorState>();
   private currentlyEditingTimers = new Map<string, NodeJS.Timer>();
 
   constructor(private workflowActionService: WorkflowActionService) {
@@ -45,6 +45,38 @@ export class CoeditorPresenceService {
   }
 
   /**
+   * Start shawoding an co-editor.
+   * @param coeditor
+   */
+  public shadowCoeditor(coeditor: Coeditor): void {
+    this.shadowingModeEnabled = true;
+    this.shadowingCoeditor = coeditor;
+    if (coeditor.clientId) {
+      const currentlyEditing = this.coeditorCurrentlyEditing.get(coeditor.clientId);
+      if (currentlyEditing) {
+        this.workflowActionService.highlightOperators(false, currentlyEditing);
+        const currentlyEditingCode = this.coeditorEditingCode.get(coeditor.clientId);
+        if (currentlyEditingCode) this.coeditorOpenedCodeEditorSubject.next({ operatorId: currentlyEditing });
+      }
+    }
+  }
+
+  /**
+   * End shadowing.
+   */
+  public stopShadowing() {
+    this.shadowingModeEnabled = false;
+  }
+
+  public getCoeditorOpenedCodeEditorSubject(): Observable<{ operatorId: string }> {
+    return this.coeditorOpenedCodeEditorSubject.asObservable();
+  }
+
+  public getCoeditorClosedCodeEditorSubject(): Observable<{ operatorId: string }> {
+    return this.coeditorClosedCodeEditorSubject.asObservable();
+  }
+
+  /**
    * Listens to changes of co-editors' presence infos and lets <code>{@link CoeditorPresenceService}</code> handle them.
    */
   private observeUserState(): void {
@@ -54,11 +86,9 @@ export class CoeditorPresenceService {
     }
 
     // first time logic
-    const currentStates = Array.from(
-      this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>
-    ).filter(
+    const currentStates = this.getCoeditorStatesArray().filter(
       userState =>
-        userState.user && userState.user.clientId && userState.user.clientId !== this.texeraGraph.sharedModel.clientId
+        userState.coeditor && userState.coeditor.clientId && userState.coeditor.clientId !== this.getLocalClientId()
     );
     for (const state of currentStates) {
       this.addCoeditor(state);
@@ -67,25 +97,26 @@ export class CoeditorPresenceService {
     this.texeraGraph.sharedModel.awareness.on(
       "change",
       (change: { added: number[]; updated: number[]; removed: number[] }) => {
-        Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<UserState>).filter(
+        this.getCoeditorStatesArray().filter(
           userState =>
-            userState.user.clientId &&
-            this.texeraGraph.sharedModel.clientId &&
-            userState.user.clientId !== this.texeraGraph.sharedModel.clientId
+            userState.coeditor.clientId &&
+            this.getLocalClientId() &&
+            userState.coeditor.clientId !== this.getLocalClientId()
         );
+
         for (const clientId of change.added) {
-          const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
-          if (coeditorState.user.clientId !== this.texeraGraph.sharedModel.clientId) this.addCoeditor(coeditorState);
+          const coeditorState = this.getCoeditorStatesMap().get(clientId);
+          if (coeditorState && coeditorState.coeditor.clientId !== this.getLocalClientId())
+            this.addCoeditor(coeditorState);
         }
 
         for (const clientId of change.removed) {
-          if (!this.texeraGraph.sharedModel.awareness.getStates().has(clientId))
-            this.removeCoeditor(clientId.toString());
+          if (!this.getCoeditorStatesMap().has(clientId)) this.removeCoeditor(clientId.toString());
         }
 
         for (const clientId of change.updated) {
-          const coeditorState = this.texeraGraph.sharedModel.awareness.getStates().get(clientId) as UserState;
-          if (clientId.toString() !== this.texeraGraph.sharedModel.clientId) {
+          const coeditorState = this.getCoeditorStatesMap().get(clientId);
+          if (coeditorState && clientId.toString() !== this.getLocalClientId()) {
             if (!this.hasCoeditor(clientId.toString())) {
               this.addCoeditor(coeditorState);
             } else {
@@ -101,7 +132,7 @@ export class CoeditorPresenceService {
    * Returns whether this co-editor is already recorded here.
    * @param clientId
    */
-  public hasCoeditor(clientId?: string): boolean {
+  private hasCoeditor(clientId?: string): boolean {
     return this.coeditors.find(v => v.clientId === clientId) !== undefined;
   }
 
@@ -109,8 +140,8 @@ export class CoeditorPresenceService {
    * Adds a new co-editor and initialize UI-updates for this editor.
    * @param coeditorState
    */
-  public addCoeditor(coeditorState: UserState): void {
-    const coeditor = coeditorState.user;
+  private addCoeditor(coeditorState: CoeditorState): void {
+    const coeditor = coeditorState.coeditor;
     if (!this.hasCoeditor(coeditor.clientId) && coeditor.clientId) {
       this.coeditors.push(coeditor);
       this.coeditorStates.set(coeditor.clientId, coeditorState);
@@ -122,12 +153,12 @@ export class CoeditorPresenceService {
    * Removes a co-editor and clean up states recorded in this service.
    * @param clientId
    */
-  public removeCoeditor(clientId: string): void {
+  private removeCoeditor(clientId: string): void {
     for (let i = 0; i < this.coeditors.length; i++) {
       const coeditor = this.coeditors[i];
       if (coeditor.clientId === clientId) {
         this.updateCoeditorState(clientId, {
-          user: coeditor,
+          coeditor: coeditor,
           userCursor: { x: 0, y: 0 },
           currentlyEditing: undefined,
           isActive: false,
@@ -144,25 +175,37 @@ export class CoeditorPresenceService {
   }
 
   /**
-   * Given a new <code>{@link UserState}</code> with specified clientId, this method updates this co-editor's presence
-   * information and corresponding UIs. This is an incremental update, i.e., it will first check existing states and
-   * only update what is new.
+   * Given a new <code>{@link CoeditorState}</code> with specified clientId, this method updates this co-editor's
+   * presence information and corresponding UIs. This is an incremental update, i.e., it will first check existing
+   * states and only update what is new. The update is handled separately in each sub-method called.
    * @param clientId
    * @param coeditorState
    */
-  public updateCoeditorState(clientId: string, coeditorState: UserState): void {
+  private updateCoeditorState(clientId: string, coeditorState: CoeditorState): void {
+    this.updateCoeditorCursor(coeditorState);
+    this.updateCoeditorHighlightedOperators(clientId, coeditorState);
+    this.updateCoeditorCurrentlyEditing(clientId, coeditorState);
+    this.updateCoeditorChangedProperty(clientId, coeditorState);
+    this.updateCoeditorOpenAndCloseCode(clientId, coeditorState);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                         Below are methods to update different co-editor states.                                  //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private updateCoeditorCursor(coeditorState: CoeditorState) {
     // Update pointers
     const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(
-      JointUIService.getJointUserPointerName(coeditorState.user)
+      JointUIService.getJointUserPointerName(coeditorState.coeditor)
     );
-    const userColor = coeditorState.user.color;
+    const userColor = coeditorState.coeditor.color;
     if (existingPointer) {
       if (coeditorState.isActive) {
         if (coeditorState.userCursor !== existingPointer.position()) {
           existingPointer.remove();
           if (userColor) {
             const newPoint = JointUIService.getJointUserPointerCell(
-              coeditorState.user,
+              coeditorState.coeditor,
               coeditorState.userCursor,
               userColor
             );
@@ -174,14 +217,16 @@ export class CoeditorPresenceService {
       if (coeditorState.isActive && userColor) {
         // create new user point (directly updating the point would cause unknown errors)
         const newPoint = JointUIService.getJointUserPointerCell(
-          coeditorState.user,
+          coeditorState.coeditor,
           coeditorState.userCursor,
           userColor
         );
         this.jointGraph.addCell(newPoint);
       }
     }
+  }
 
+  private updateCoeditorHighlightedOperators(clientId: string, coeditorState: CoeditorState) {
     // Update operator highlights
     const previousHighlighted = this.coeditorOperatorHighlights.get(clientId);
     const currentHighlighted = coeditorState.highlighted;
@@ -189,7 +234,7 @@ export class CoeditorPresenceService {
       if (previousHighlighted) {
         for (const operatorId of previousHighlighted) {
           if (!currentHighlighted || !currentHighlighted.includes(operatorId)) {
-            this.jointGraphWrapper.deleteCoeditorOperatorHighlight(coeditorState.user, operatorId);
+            this.jointGraphWrapper.deleteCoeditorOperatorHighlight(coeditorState.coeditor, operatorId);
           }
         }
       }
@@ -197,7 +242,7 @@ export class CoeditorPresenceService {
       if (currentHighlighted) {
         for (const operatorId of currentHighlighted) {
           if (!previousHighlighted || !previousHighlighted.includes(operatorId)) {
-            this.jointGraphWrapper.addCoeditorOperatorHighlight(coeditorState.user, operatorId);
+            this.jointGraphWrapper.addCoeditorOperatorHighlight(coeditorState.coeditor, operatorId);
           }
         }
         this.coeditorOperatorHighlights.set(clientId, currentHighlighted);
@@ -205,7 +250,9 @@ export class CoeditorPresenceService {
         this.coeditorOperatorHighlights.delete(clientId);
       }
     }
+  }
 
+  private updateCoeditorCurrentlyEditing(clientId: string, coeditorState: CoeditorState) {
     // Update currently editing status
     const previousEditing = this.coeditorCurrentlyEditing.get(clientId);
     const previousIntervalId = this.currentlyEditingTimers.get(clientId);
@@ -216,23 +263,25 @@ export class CoeditorPresenceService {
         previousIntervalId &&
         this.workflowActionService.getTexeraGraph().hasOperator(previousEditing)
       ) {
-        this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing, previousIntervalId);
+        this.jointGraphWrapper.removeCurrentEditing(coeditorState.coeditor, previousEditing, previousIntervalId);
         this.coeditorCurrentlyEditing.delete(clientId);
         this.currentlyEditingTimers.delete(clientId);
-        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
+        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.coeditor.clientId) {
           this.workflowActionService.unhighlightOperators(previousEditing);
         }
       }
       if (currentEditing && this.workflowActionService.getTexeraGraph().hasOperator(currentEditing)) {
-        const intervalId = this.jointGraphWrapper.setCurrentEditing(coeditorState.user, currentEditing);
+        const intervalId = this.jointGraphWrapper.setCurrentEditing(coeditorState.coeditor, currentEditing);
         this.coeditorCurrentlyEditing.set(clientId, currentEditing);
         this.currentlyEditingTimers.set(clientId, intervalId);
-        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
+        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.coeditor.clientId) {
           this.workflowActionService.highlightOperators(false, currentEditing);
         }
       }
     }
+  }
 
+  private updateCoeditorChangedProperty(clientId: string, coeditorState: CoeditorState) {
     // Update property changed status
     const previousChanged = this.coeditorOperatorPropertyChanged.get(clientId);
     const currentChanged = coeditorState.changed;
@@ -240,14 +289,16 @@ export class CoeditorPresenceService {
       if (currentChanged) {
         this.coeditorOperatorPropertyChanged.set(clientId, currentChanged);
         // Set for 3 seconds
-        this.jointGraphWrapper.setPropertyChanged(coeditorState.user, currentChanged);
+        this.jointGraphWrapper.setPropertyChanged(coeditorState.coeditor, currentChanged);
         setTimeout(() => {
           this.coeditorOperatorPropertyChanged.delete(clientId);
-          this.jointGraphWrapper.removePropertyChanged(coeditorState.user, currentChanged);
+          this.jointGraphWrapper.removePropertyChanged(coeditorState.coeditor, currentChanged);
         }, 2000);
       }
     }
+  }
 
+  private updateCoeditorOpenAndCloseCode(clientId: string, coeditorState: CoeditorState) {
     const previousEditingCode = this.coeditorEditingCode.get(clientId);
     const currentEditingCode = coeditorState.editingCode;
     if (previousEditingCode !== currentEditingCode) {
@@ -261,7 +312,7 @@ export class CoeditorPresenceService {
           this.coeditorOpenedCodeEditorSubject.next({ operatorId: coeditorState.currentlyEditing });
         }
       } else {
-        if (previousEditing) {
+        if (previousEditingCode) {
           this.coeditorEditingCode.delete(clientId);
           if (
             this.shadowingModeEnabled &&
@@ -275,35 +326,19 @@ export class CoeditorPresenceService {
     }
   }
 
-  /**
-   * Start shawoding an co-editor.
-   * @param coeditor
-   */
-  shadowCoeditor(coeditor: User): void {
-    this.shadowingModeEnabled = true;
-    this.shadowingCoeditor = coeditor;
-    if (coeditor.clientId) {
-      const currentlyEditing = this.coeditorCurrentlyEditing.get(coeditor.clientId);
-      if (currentlyEditing) {
-        this.workflowActionService.highlightOperators(false, currentlyEditing);
-        const currentlyEditingCode = this.coeditorEditingCode.get(coeditor.clientId);
-        if (currentlyEditingCode) this.coeditorOpenedCodeEditorSubject.next({ operatorId: currentlyEditing });
-      }
-    }
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                       Below are internal utility methods                                         //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private getCoeditorStatesArray(): CoeditorState[] {
+    return Array.from(this.texeraGraph.sharedModel.awareness.getStates().values() as IterableIterator<CoeditorState>);
   }
 
-  /**
-   * End shadowing.
-   */
-  stopShadowing() {
-    this.shadowingModeEnabled = false;
+  private getCoeditorStatesMap(): Map<number, CoeditorState> {
+    return this.texeraGraph.sharedModel.awareness.getStates() as Map<number, CoeditorState>;
   }
 
-  public getCoeditorOpenedCodeEditorSubject(): Observable<{ operatorId: string }> {
-    return this.coeditorOpenedCodeEditorSubject.asObservable();
-  }
-
-  public getCoeditorClosedCodeEditorSubject(): Observable<{ operatorId: string }> {
-    return this.coeditorClosedCodeEditorSubject.asObservable();
+  private getLocalClientId() {
+    return this.texeraGraph.sharedModel.clientId;
   }
 }

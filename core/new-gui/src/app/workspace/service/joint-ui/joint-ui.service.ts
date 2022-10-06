@@ -9,7 +9,7 @@ import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group"
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
-import { User } from "../../../common/type/user";
+import { Coeditor, User } from "../../../common/type/user";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -1050,7 +1050,7 @@ export class JointUIService {
     return commentStyleAttrs;
   }
 
-  public static getJointUserPointerCell(coeditor: User, position: Point, color: string): joint.dia.Element {
+  public static getJointUserPointerCell(coeditor: Coeditor, position: Point, color: string): joint.dia.Element {
     const userCursor = new joint.shapes.standard.Circle({
       id: this.getJointUserPointerName(coeditor),
     });
@@ -1067,7 +1067,7 @@ export class JointUIService {
     return userCursor;
   }
 
-  public static getJointUserPointerName(coeditor: User) {
+  public static getJointUserPointerName(coeditor: Coeditor) {
     return "pointer_" + coeditor.clientId;
   }
 }

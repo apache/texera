@@ -23,8 +23,7 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 export class CodeareaCustomTemplateComponent extends FieldType {
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
 
-  constructor(public dialog: MatDialog,
-              private coeditorPresenceService: CoeditorPresenceService) {
+  constructor(public dialog: MatDialog, private coeditorPresenceService: CoeditorPresenceService) {
     super();
     this.handleShadowingMode();
   }

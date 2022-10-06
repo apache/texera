@@ -1395,18 +1395,21 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * Handles mouse events to enable shared cursor.
    */
   private handlePointerEvents(): void {
-    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-    fromEvent<MouseMoveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mousemove").subscribe(e => {
-      const jointPoint = this.getJointPaper().clientToLocalPoint({ x: e.clientX, y: e.clientY });
-      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("userCursor", jointPoint);
-    });
-    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-    fromEvent<MouseLeaveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseleave").subscribe(() => {
-      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", false);
-    });
-    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-    fromEvent<MouseEnterEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseenter").subscribe(() => {
-      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);
-    });
+    fromEvent<MouseMoveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mousemove")
+      .pipe(untilDestroyed(this))
+      .subscribe(e => {
+        const jointPoint = this.getJointPaper().clientToLocalPoint({ x: e.clientX, y: e.clientY });
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("userCursor", jointPoint);
+      });
+    fromEvent<MouseLeaveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseleave")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", false);
+      });
+    fromEvent<MouseEnterEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseenter")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);
+      });
   }
 }

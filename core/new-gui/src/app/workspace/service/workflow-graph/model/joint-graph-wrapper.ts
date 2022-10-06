@@ -5,7 +5,7 @@ import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
-import { User } from "../../../../common/type/user";
+import { Coeditor, User } from "../../../../common/type/user";
 import {
   operatorCoeditorChangedPropertyBGClass,
   operatorCoeditorChangedPropertyClass,
@@ -1058,7 +1058,7 @@ export class JointGraphWrapper {
   //                                     Below are methods for coeditor-presence.                                     //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  deleteCoeditorOperatorHighlight(coeditor: User, operatorId: string) {
+  public deleteCoeditorOperatorHighlight(coeditor: Coeditor, operatorId: string) {
     const operatorElement = this.getMainJointPaper()?.findViewByModel(operatorId);
     if (operatorElement) {
       const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
@@ -1085,7 +1085,7 @@ export class JointGraphWrapper {
     }
   }
 
-  addCoeditorOperatorHighlight(coeditor: User, operatorId: string) {
+  public addCoeditorOperatorHighlight(coeditor: Coeditor, operatorId: string) {
     const operatorElement = this.getMainJointPaper()?.findViewByModel(operatorId);
     if (operatorElement) {
       const currentStrokeIds = joint.highlighters.mask.get(operatorElement).map(stroke => stroke.id);
@@ -1104,7 +1104,7 @@ export class JointGraphWrapper {
     }
   }
 
-  setCurrentEditing(coeditor: User, currentEditing: string): NodeJS.Timer {
+  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): NodeJS.Timer {
     // Calculate location
     const statusText = coeditor.name + " is viewing/editing...";
     const color = coeditor.color;
@@ -1152,7 +1152,7 @@ export class JointGraphWrapper {
     }, 300);
   }
 
-  removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
+  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
     clearInterval(intervalId);
     this.getMainJointPaper()
       ?.getModelById(previousEditing)
@@ -1168,7 +1168,7 @@ export class JointGraphWrapper {
       });
   }
 
-  setPropertyChanged(coeditor: User, currentChanged: string) {
+  public setPropertyChanged(coeditor: User, currentChanged: string) {
     // Calculate location
     const statusText = coeditor.name + " changed property!";
     const color = coeditor.color;
@@ -1187,7 +1187,7 @@ export class JointGraphWrapper {
       });
   }
 
-  removePropertyChanged(coeditor: User, currentChanged: string) {
+  public removePropertyChanged(coeditor: User, currentChanged: string) {
     this.getMainJointPaper()
       ?.getModelById(currentChanged)
       .attr({
