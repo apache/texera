@@ -195,8 +195,7 @@ class OperatorPaginationResultService {
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
-    console.log('pageIndex: ', pageIndex);
-    return this.selectPage(pageIndex, pageSize).pipe(map(p => p.table[tupleIndex % pageSize]))
+    return this.selectPage(pageIndex, pageSize).pipe(map(p => p.table[tupleIndex % pageSize]));
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {

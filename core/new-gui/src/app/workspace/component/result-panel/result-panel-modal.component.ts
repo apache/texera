@@ -24,7 +24,7 @@ import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.
 })
 export class RowModalComponent implements OnChanges {
   // Index of current displayed row in currentResult
-  @Input() operatorId?: string
+  @Input() operatorId?: string;
   @Input() rowIndex: number = 0;
 
   // when modal is opened, currentDisplayRow will be passed as
@@ -32,20 +32,14 @@ export class RowModalComponent implements OnChanges {
   //  as data table.
   currentDisplayRowData: Record<string, unknown> = {};
 
-  constructor(
-    public modal: NzModalRef<any, number>,
-    private workflowResultService: WorkflowResultService
-  ) {
-  }
+  constructor(public modal: NzModalRef<any, number>, private workflowResultService: WorkflowResultService) {}
 
   ngOnChanges(): void {
     if (this.operatorId !== undefined) {
-      const resultService = this.workflowResultService.getPaginatedResultService(this.operatorId)
+      const resultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       resultService?.selectTuple(this.rowIndex, DEFAULT_PAGE_SIZE).subscribe(res => {
-        console.log(res);
         this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
-      })
+      });
     }
   }
-
 }
