@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `last_update_time`   TIMESTAMP,
     `bookmarked`      BOOLEAN DEFAULT FALSE,
     `name`				VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
+    `environment_version`    VARCHAR(128) NOT NULL,
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,

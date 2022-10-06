@@ -234,4 +234,22 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
     expect(component.formData).toEqual(expectedResultOperatorProperties);
   });
+
+  it("check operator version", () => {
+    // check result operator version
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockResultPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.operatorVersion).toEqual(mockResultPredicate.operatorVersion);
+
+    // check scan opeartor version
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.operatorVersion).toEqual(mockScanPredicate.operatorVersion);
+  });
 });

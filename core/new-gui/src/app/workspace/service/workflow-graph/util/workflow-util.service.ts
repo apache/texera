@@ -121,9 +121,12 @@ export class WorkflowUtilService {
       outputPorts.push({ portID, displayName });
     }
 
+    const operatorVersion = operatorSchema.operatorVersion;
+
     return {
       operatorID,
       operatorType,
+      operatorVersion,
       operatorProperties,
       inputPorts,
       outputPorts,

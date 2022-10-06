@@ -31,6 +31,7 @@ export interface RegisterWIdRequest
 export interface WorkflowExecuteRequest
   extends Readonly<{
     executionName: string;
+    engineVersion: string;
     logicalPlan: LogicalPlan;
   }> {}
 

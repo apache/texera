@@ -10,7 +10,6 @@ import {
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
 import { User } from "../../../../common/type/user";
-import * as _ from "lodash";
 import { createYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 
@@ -92,7 +91,11 @@ export class WorkflowGraph {
   }>();
   public readonly linkAddSubject = new Subject<OperatorLink>();
   public readonly linkDeleteSubject = new Subject<{
-    deletedLink: OperatorLink;
+    deletedLink: OperatorLink
+  }>();
+  public readonly operatorVersionChangedSubject = new Subject<{
+    operatorID: string;
+    newOperatorVersion: string;
   }>();
   public readonly operatorPropertyChangeSubject = new Subject<{
     operator: OperatorPredicate;
@@ -338,6 +341,19 @@ export class WorkflowGraph {
       return;
     }
     this.sharedModel.operatorIDMap.get(operatorID)?.set("isDisabled", false);
+  }
+
+  /**
+   * Will use string instead of Y.Text since this is not supposed to be shared-editable. Also the event stream
+   * is emitted synchronously since this does not need to be shared-edited.
+   */
+  public changeOperatorVersion(operatorID: string, newOperatorVersion: string): void {
+    const operator = this.getOperator(operatorID);
+    if (operator.operatorVersion === newOperatorVersion) {
+      return;
+    }
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("operatorVersion", newOperatorVersion as any);
+    this.operatorVersionChangedSubject.next({ operatorID, newOperatorVersion });
   }
 
   /**
@@ -740,6 +756,13 @@ export class WorkflowGraph {
     newDisplayName: string;
   }> {
     return this.operatorDisplayNameChangedSubject.asObservable();
+  }
+
+  public getOperatorVersionChangedStream(): Observable<{
+    operatorID: string;
+    newOperatorVersion: string;
+  }> {
+    return this.operatorVersionChangedSubject.asObservable();
   }
 
   /**

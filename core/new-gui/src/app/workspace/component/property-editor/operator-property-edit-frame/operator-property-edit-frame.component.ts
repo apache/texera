@@ -109,6 +109,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
   public lockGranted: boolean = true;
   public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
+  public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
   // used to tear down subscriptions that takeUntil(teardownObservable)
@@ -224,6 +225,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
+    this.workflowActionService.setOperatorVersion(operator.operatorID, currentOperatorSchema.operatorVersion);
+    this.operatorVersion = operator.operatorVersion.slice(0, 9);
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
 
@@ -363,6 +366,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
       this.fieldStyleOverride = operatorPropertyDiff[this.currentOperatorId];
+    }
+    if (this.fieldStyleOverride.has("operatorVersion")) {
+      var boundary = this.fieldStyleOverride.get("operatorVersion");
+      if (boundary) {
+        document.getElementsByClassName("operator-version")[0].setAttribute("style", boundary.toString());
+      }
     }
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.

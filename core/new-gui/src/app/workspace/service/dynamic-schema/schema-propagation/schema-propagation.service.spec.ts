@@ -284,6 +284,7 @@ describe("SchemaPropagationService", () => {
     const mockKeywordSearchOperator: OperatorPredicate = {
       operatorID: mockSchemaPropagationOperatorID,
       operatorType: mockKeywordSearchSchema.operatorType,
+      operatorVersion: "s1",
       operatorProperties: {},
       inputPorts: [],
       outputPorts: [],
@@ -339,6 +340,7 @@ describe("SchemaPropagationService", () => {
     const mockAggregationPredicate: OperatorPredicate = {
       operatorID: mockSchemaPropagationOperatorID,
       operatorType: mockAggregationSchema.operatorType,
+      operatorVersion: "a1",
       operatorProperties: {},
       inputPorts: [],
       outputPorts: [],

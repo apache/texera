@@ -56,7 +56,8 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   def insertNewExecution(
       wid: Long,
       uid: Option[UInteger],
-      executionName: String
+      executionName: String,
+      environmentVersion: String
   ): Long = {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
@@ -89,6 +90,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
 
     newExecution.setUid(uid.getOrElse(null))
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    newExecution.setEnvironmentVersion(environmentVersion)
     workflowExecutionsDao.insert(newExecution)
     newExecution.getEid.longValue()
   }

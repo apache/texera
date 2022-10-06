@@ -26,7 +26,8 @@ class WorkflowJobService(
     operatorCache: WorkflowCacheService,
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
-    errorHandler: Throwable => Unit
+    errorHandler: Throwable => Unit,
+    engineVersion: String
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -71,7 +72,8 @@ class WorkflowJobService(
       workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
         workflowContext.wId,
         workflowContext.userId,
-        request.executionName
+        request.executionName,
+        engineVersion
       )
     }
     stateStore.jobMetadataStore.updateState(jobInfo =>
