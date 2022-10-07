@@ -82,7 +82,7 @@
             nzTooltipPlacement="top"
           >
             {{column}}
-            <span *ngIf="column !== '' && column !== 'Status'">
+            <span *ngIf="column !== '' && column !== 'Status' && column !== 'Workflow Version Sample'">
               <button *ngIf="this.showORhide[i]" nz-button (click)="onHit(column, i)">
                 <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
               </button>
@@ -115,6 +115,17 @@
               [nzText]="abbreviate(row.userName || 'anonymous', false)"
               nzSize="default"
             ></nz-avatar>
+          </td>
+          <td nzEllipsis>
+            <div class="version-sample">
+              <label> version#:{{row.vId}} </label>
+              <img
+                nz-image
+                class="workflow-snapshot"
+                [nzSrc]=" 'data:image/jpeg;base64,' + workflowSnapshot.get(row.sId)"
+                alt=""
+              />
+            </div>
           </td>
           <td nzEllipsis>
             <label

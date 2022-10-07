@@ -5,7 +5,8 @@ import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+
+import scala.collection.JavaConverters._
 
 class ProjectionOpDesc extends MapOpDesc {
 
