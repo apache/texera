@@ -27,14 +27,14 @@
       </nz-form-item>
       <button nz-button class="login-form-button login-form-margin" [nzType]="'primary'">Sign in</button>
       <p *ngIf="loginErrorMessage" style="color: red">{{ loginErrorMessage }}</p>
-      <!--      <div (click)="googleLogin()" class="g-sign-in-button">-->
-      <!--        <div class="content-wrapper">-->
-      <!--          <div class="logo-wrapper">-->
-      <!--            <img alt="g-sign-in-button" src="https://developers.google.com/identity/images/g-logo.png" />-->
-      <!--          </div>-->
-      <!--          <span class="text-container"><span>Sign in with Google</span></span>-->
-      <!--        </div>-->
-      <!--      </div>-->
+      <div (click)="googleLogin()" class="g-sign-in-button">
+        <div class="content-wrapper">
+          <div class="logo-wrapper">
+            <img alt="g-sign-in-button" src="https://developers.google.com/identity/images/g-logo.png" />
+          </div>
+          <span class="text-container"><span>Sign in with Google</span></span>
+        </div>
+      </div>
     </form>
   </nz-tab>
 

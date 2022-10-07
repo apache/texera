@@ -35,7 +35,6 @@ export class UserAvatarComponent implements OnInit {
     if (!this.googleId && !this.userName) {
       throw new Error("google Id or user name should be provided");
     } else if (this.googleId) {
-      this.userName = "";
       // get the avatar of the google user
       const googlePeopleAPIUrl = `https://people.googleapis.com/v1/people/${this.googleId}?personFields=names%2Cphotos&key=${this.publicKey}`;
       this.http
