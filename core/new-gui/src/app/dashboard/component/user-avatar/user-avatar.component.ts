@@ -29,6 +29,7 @@ export class UserAvatarComponent implements OnInit {
 
   @Input() googleId?: string;
   @Input() userName?: string;
+  @Input() userColor?: string;
 
   ngOnInit(): void {
     if (!this.googleId && !this.userName) {
@@ -43,14 +44,6 @@ export class UserAvatarComponent implements OnInit {
         .subscribe(res => {
           this.googleUserAvatarSrc = res.photos[0].url;
         });
-    } else {
-      const r = Math.floor(Math.random() * 255);
-      const g = Math.floor(Math.random() * 255);
-      const b = Math.floor(Math.random() * 255);
-      const avatar = document.getElementById("texera-user-avatar");
-      if (avatar) {
-        avatar.style.backgroundColor = "rgba(" + r + "," + g + "," + b + ",0.8)";
-      }
     }
   }
 

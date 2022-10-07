@@ -21,7 +21,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
-import { WorkflowCollabService } from "../service/workflow-collab/workflow-collab.service";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
@@ -55,7 +54,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private workflowConsoleService: WorkflowConsoleService,
-    private workflowCollabService: WorkflowCollabService,
     private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
@@ -107,7 +105,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     } else {
       let wid = this.route.snapshot.params.id ?? 0;
       this.workflowWebsocketService.openWebsocket(wid);
-      this.workflowCollabService.openWebsocket(wid);
     }
 
     this.registerLoadOperatorMetadata();
@@ -116,8 +113,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
-    this.workflowCollabService.closeWebsocket();
   }
 
   registerResultPanelToggleHandler() {
@@ -143,11 +140,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (
-          this.userService.isLogin() &&
-          this.workflowPersistService.isWorkflowPersistEnabled() &&
-          this.workflowCollabService.isLockGranted()
-        ) {
+        if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
           this.workflowPersistService
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))
@@ -168,26 +161,21 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
-          // enable workspace for modification
-          this.workflowActionService.toggleLockListen(false);
+          this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           this.workflowActionService.enableWorkflowModification();
           // load the fetched workflow
           this.workflowActionService.reloadWorkflow(workflow);
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-          this.workflowActionService.toggleLockListen(true);
-          this.workflowActionService.syncLock();
         },
         () => {
+          this.workflowActionService.resetAsNewWorkflow();
           // enable workspace for modification
           this.workflowActionService.enableWorkflowModification();
-          // clear the current workflow
-          this.workflowActionService.reloadWorkflow(undefined);
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-
           this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
       );
@@ -209,12 +197,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
               .pipe(untilDestroyed(this))
               .subscribe(() => {
                 this.loadWorkflowWithId(wid);
-                this.workflowCollabService.reopenWebsocket(wid);
               });
-            this.workflowCollabService
-              .getRestoreVersionStream()
-              .pipe(untilDestroyed(this))
-              .subscribe(() => this.loadWorkflowWithId(wid));
           } else {
             // no workflow to load, pending to create a new workflow
           }
@@ -243,7 +226,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(wid => {
         this.workflowWebsocketService.reopenWebsocket(wid);
-        this.workflowCollabService.reopenWebsocket(wid);
       });
   }
 }
