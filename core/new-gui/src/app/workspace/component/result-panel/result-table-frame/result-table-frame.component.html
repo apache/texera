@@ -26,7 +26,13 @@
     </thead>
     <tbody>
       <tr *ngFor="let row of basicTable.data; let i = index">
-        <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row" nzEllipsis ngClass="data-size">
+        <td
+          (click)="open(i, row)"
+          *ngFor="let column of currentColumns"
+          class="table-row"
+          nzEllipsis
+          ngClass="data-size"
+        >
           {{ column.getCell(row) }}
         </td>
       </tr>
