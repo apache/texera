@@ -284,7 +284,7 @@
               <div class="workflow-item-meta-title">
                 <a
                   *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowTitle "
-                  [href]="ROUTER_WORKFLOW_BASE_URL + '/' + dashboardWorkflowEntry.workflow.wid"
+                  [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + dashboardWorkflowEntry.workflow.wid"
                   class="workflow-name"
                   >{{ dashboardWorkflowEntry.workflow.name }}</a>
                 <ng-template #customWorkflowTitle>
@@ -378,7 +378,7 @@
                 class="project-label-name"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                [href]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid"
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid"
               >
                 {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
               </a>
