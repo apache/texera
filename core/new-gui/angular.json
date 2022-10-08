@@ -42,6 +42,9 @@
               "src/styles.scss",
               "node_modules/monaco-editor/min/vs/editor/editor.main.css"
             ],
+            "scripts": [
+              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"
+            ],
             "allowedCommonJsDependencies": [
               "deep-map",
               "c3",

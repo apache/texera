@@ -40,6 +40,6 @@ sleep 0.2 # wait for 200ms to get the pid
 echo "${green}TexeraRunWorker launched at $(pgrep -f TexeraRunWorker)${reset}"
 
 echo "${green}Starting shared editing server...${reset}"
-setsid nohup npx y-websocket >/dev/null 2>&1 &
+setsid nohup ./scripts/shared-editing-server.sh >/dev/null 2>&1 &
 sleep 2
-echo "${green}y-websocket-server launched at $(pgrep -f y-websocket-server)${reset}"
+echo "${green}Shared Editing Server launched at $(pgrep -f y-websocket)${reset}"
