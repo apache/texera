@@ -137,8 +137,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public downloadListWorkflow = new Map<number, string>();
   public zip = new JSZip();
 
-  public ROUTER_WORKFLOW_BASE_URL = ROUTER_WORKFLOW_BASE_URL
-  public ROUTER_USER_PROJECT_BASE_URL = ROUTER_USER_PROJECT_BASE_URL
+  public ROUTER_WORKFLOW_BASE_URL = ROUTER_WORKFLOW_BASE_URL;
+  public ROUTER_USER_PROJECT_BASE_URL = ROUTER_USER_PROJECT_BASE_URL;
 
   constructor(
     private http: HttpClient,

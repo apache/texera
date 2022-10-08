@@ -286,7 +286,8 @@
                   *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowTitle "
                   [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + dashboardWorkflowEntry.workflow.wid"
                   class="workflow-name"
-                  >{{ dashboardWorkflowEntry.workflow.name }}</a>
+                  >{{ dashboardWorkflowEntry.workflow.name }}</a
+                >
                 <ng-template #customWorkflowTitle>
                   <input
                     #customName
