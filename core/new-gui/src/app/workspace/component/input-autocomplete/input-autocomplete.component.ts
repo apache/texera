@@ -1,8 +1,8 @@
-import {Component, OnInit} from "@angular/core";
-import {FieldType} from "@ngx-formly/core";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {UserFileService} from "src/app/dashboard/service/user-file/user-file.service";
-import { FormControl } from '@angular/forms';
+import { Component, OnInit } from "@angular/core";
+import { FieldType } from "@ngx-formly/core";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UserFileService } from "src/app/dashboard/service/user-file/user-file.service";
+import { FormControl } from "@angular/forms";
 
 @UntilDestroy()
 @Component({
@@ -12,27 +12,24 @@ import { FormControl } from '@angular/forms';
 })
 
 /* *
-* The FieldType<any> is a workaround for the issue of not assignable FormControl.
-* details https://github.com/ngx-formly/ngx-formly/issues/2842#issuecomment-1066116865
-* need to upgrade formly to v6 to properly fix this issue.
-*/
+ * The FieldType<any> is a workaround for the issue of not assignable FormControl.
+ * details https://github.com/ngx-formly/ngx-formly/issues/2842#issuecomment-1066116865
+ * need to upgrade formly to v6 to properly fix this issue.
+ */
 export class InputAutoCompleteComponent extends FieldType<any> implements OnInit {
   inputValue?: string = "";
   title?: string;
   // the autocomplete selection list
   public selections: string[] = [];
 
-  constructor(
-    public userFileService: UserFileService,
-  ) {
+  constructor(public userFileService: UserFileService) {
     super();
   }
 
   // TODO: write this function because formcontrol is a nonnullable and read-only field. This is used to fit the test.
   getControl() {
-    if (this.field == undefined)
-      return new FormControl({})
-    return this.formControl
+    if (this.field == undefined) return new FormControl({});
+    return this.formControl;
   }
 
   ngOnInit() {
@@ -49,7 +46,9 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
     if (value.length > 0) {
       // used to get the selection list
       // TODO: currently it's a hard-code userfile service autocomplete
-      this.userFileService.getAutoCompleteUserFileAccessList(value).pipe(untilDestroyed(this))
+      this.userFileService
+        .getAutoCompleteUserFileAccessList(value)
+        .pipe(untilDestroyed(this))
         .subscribe(autocompleteList => {
           this.selections = value ? autocompleteList.concat() : [];
         });

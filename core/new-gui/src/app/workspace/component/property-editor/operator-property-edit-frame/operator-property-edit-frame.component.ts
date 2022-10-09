@@ -418,7 +418,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mapSource.hideExpectedValue
         );
       }
-      
+
       // if the title is fileName, then change it to custom autocomplete input template
       if (mappedField.key == "fileName") {
         mappedField.type = "inputautocomplete";
