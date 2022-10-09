@@ -143,12 +143,16 @@ class UserFileResource {
       @Auth sessionUser: SessionUser,
       @PathParam("query") query: String
   ): util.List[String] = {
+    // get the user files
+    // select the filenames that applies the input
     val user = sessionUser.getUser
     val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
     val filenames = ArrayBuffer[String]()
+    // get all the filename list
     for (i <- fileList) {
       filenames += i.file.getName
     }
+    // select the filenames that apply
     val selectedFile = ArrayBuffer[String]()
     for (e <- filenames) {
       if (e.startsWith(query))

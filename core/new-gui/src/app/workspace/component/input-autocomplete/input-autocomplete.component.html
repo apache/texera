@@ -1,11 +1,10 @@
 <mat-form-field>
   <mat-label>
-    File
+    {{ title }}
   </mat-label>
   <input
-    placeholder="File"
     (input)="onAutocomplete()"
-    [formControl]="formControl"
+    [formControl]="getControl()"
     [(ngModel)]="inputValue"
     matInput
     required
