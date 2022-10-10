@@ -540,13 +540,6 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.downloadListWorkflow.get(index)).toEqual("workflow-2.json");
   });
 
-  it("editing a workflow name triggers a POST request on the backend", () => {
-    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
-    let testWorkflowEntry = component.dashboardWorkflowEntries[0];
-    component.confirmUpdateWorkflowCustomName(testWorkflowEntry, "Edited Workflow Name", 0);
-    httpTestingController.expectOne(request => request.method === "POST");
-  });
-
   it(
     "adding a workflow description adds a description to the workflow",
     waitForAsync(() => {
