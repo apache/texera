@@ -1,0 +1,11 @@
+.user-icon {
+  margin-right: 80px;
+}
+
+.caret-off::before {
+  display: none;
+}
+
+.caret-off::after {
+  display: none;
+}
