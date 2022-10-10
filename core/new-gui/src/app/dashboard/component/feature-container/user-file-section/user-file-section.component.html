@@ -163,7 +163,19 @@
                 >
                   <i nz-icon nzTheme="outline" nzType="edit"></i>
                 </button>
+                <button
+                  (click)="isEditingDescription.push(indexOfElement)"
+                  nz-button
+                  nz-tooltip="Add Description"
+                  nzSize="small"
+                  nzTooltipPlacement="bottom"
+                  nzType="text"
+                  class="add-description-btn"
+                >
+                  <i nz-icon nzTheme="outline" nzType="plus-square"></i>
+                </button>
                 <i
+                  class="file-is-owner-icon"
                   *ngIf="dashboardUserFileEntry.isOwner"
                   ngbTooltip="You are the OWNER"
                   nz-icon
@@ -181,6 +193,30 @@
                 ></i>
               </div>
             </nz-list-item-meta-title>
+
+            <!-- editable description of files -->
+            <nz-list-item-meta-description>
+              <div class="file-item-meta-description">
+                <label
+                  *ngIf="(isEditingDescription.indexOf(indexOfElement) === -1); else customFileDescription "
+                  (click)="isEditingDescription.push(indexOfElement)"
+                  class="file-description-label"
+                >
+                  {{ dashboardUserFileEntry.file.description }}
+                </label>
+                <ng-template #customFileDescription>
+                  <input
+                    #customFileDescription
+                    class="file-editable-description-input"
+                    (focusout)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
+                    (keyup.enter)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
+                    value="{{ dashboardUserFileEntry.file.description }}"
+                    maxlength="500"
+                  />
+                </ng-template>
+              </div>
+            </nz-list-item-meta-description>
+
             <nz-list-item-meta-description class="metadata-container">
               <span>Size: {{ addFileSizeUnit(dashboardUserFileEntry.file.size) }}</span>
               <span>Upload Time: {{ dashboardUserFileEntry.file.uploadTime | date: "yyyy-MM-dd HH:mm" }}</span>

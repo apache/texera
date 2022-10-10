@@ -38,6 +38,7 @@ export class UserFileSectionComponent {
   // variables for file editing / search / sort
   public dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   public isEditingName: number[] = [];
+  public isEditingDescription: number[] = [];
   public userFileSearchValue: string = "";
   public filteredFilenames: Array<string> = new Array();
   public isTyping: boolean = false;
@@ -179,6 +180,30 @@ export class UserFileSectionComponent {
         }
       )
       .add(() => (this.isEditingName = this.isEditingName.filter(fileIsEditing => fileIsEditing != index)));
+  }
+
+  public confirmUpdateFileCustomDescription(
+    dashboardUserFileEntry: DashboardUserFileEntry,
+    description: string,
+    index: number
+  ): void {
+    const {
+      file: { fid },
+    } = dashboardUserFileEntry;
+    this.userFileService
+      .updateFileDescription(fid, description)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        () => this.refreshDashboardFileEntries(),
+        (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+          this.refreshDashboardFileEntries();
+        }
+      )
+      .add(
+        () => (this.isEditingDescription = this.isEditingDescription.filter(fileIsEditing => fileIsEditing != index))
+      );
   }
 
   public toggleSearchMode(): void {

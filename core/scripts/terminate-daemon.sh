@@ -2,7 +2,7 @@ red=`tput setaf 1`
 green=`tput setaf 2`
 reset=`tput sgr0`
 
-echo "${red}Terminating y-websocket-server at $(pgrep -f y-websocket-server)...${reset}"
+echo "${red}Terminating Shared Editing Server at $(pgrep -f y-websocket)...${reset}"
 kill -9 $(pgrep -f y-websocket-server)
 echo "${green}Terminated.${reset}"
 
