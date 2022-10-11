@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class RegexOpExec(val opDesc: RegexOpDesc) extends FilterOpExec {
-  val pattern: Pattern =
+  lazy val pattern: Pattern =
     if (opDesc.caseInsensitive) Pattern.compile(opDesc.regex, Pattern.CASE_INSENSITIVE)
     else Pattern.compile(opDesc.regex)
   this.setFilterFunc(this.matchRegex)
