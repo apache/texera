@@ -100,7 +100,7 @@ class UDFTableOperator(TableOperator):
         pandas.DataFrame.
 
         :param table: Table, a table to be processed.
-        :param input_: int, input index of the current Table.
+        :param port: int, input index of the current Table.
         :return: Iterator[Optional[TableLike]], producing one TableLike object at a
             time, or None.
         """
