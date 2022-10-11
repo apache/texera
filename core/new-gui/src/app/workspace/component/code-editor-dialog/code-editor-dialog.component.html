@@ -1,11 +1,9 @@
-<button mat-icon-button class="close-button" [mat-dialog-close]="true">
+<ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+  <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
+</ng-container>
+
+<button [mat-dialog-close]="true" class="close-button" mat-icon-button>
   <mat-icon class="close-icon" color="white">close</mat-icon>
 </button>
 <h1 mat-dialog-title>Python Script</h1>
-<ngx-monaco-editor
-  (ngModelChange)="onCodeChange($event)"
-  [ngModel]="code"
-  [options]="editorOptions"
-  class="code-editor"
->
-</ngx-monaco-editor>
+<div #editor class="code-editor"></div>

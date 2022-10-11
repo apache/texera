@@ -34,6 +34,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const testWorkflowExecution1: WorkflowExecutionsEntry = {
     eId: 1,
     vId: 1,
+    sId: 1,
     userName: "texera",
     name: "execution1",
     startingTime: 1657777975000, // 07/13/2022 22:52:55 GMT-7
@@ -46,6 +47,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const testWorkflowExecution2: WorkflowExecutionsEntry = {
     eId: 2,
     vId: 2,
+    sId: 2,
     userName: "Peter",
     name: "twitter1",
     startingTime: 1657787975000, // 7/14/2022, 1:39:35 GMT-7
@@ -58,6 +60,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const testWorkflowExecution3: WorkflowExecutionsEntry = {
     eId: 3,
     vId: 3,
+    sId: 3,
     userName: "Amy",
     name: "healthcare",
     startingTime: 1557787975000, // 5/13/2019, 15:52:55 GMT-7
@@ -70,6 +73,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const testWorkflowExecution4: WorkflowExecutionsEntry = {
     eId: 4,
     vId: 4,
+    sId: 4,
     userName: "sarahchen",
     name: "123",
     startingTime: 1617797970000, // 4/7/2021, 5:19:30 GMT-7
@@ -82,6 +86,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const testWorkflowExecution5: WorkflowExecutionsEntry = {
     eId: 5,
     vId: 5,
+    sId: 5,
     userName: "edison",
     name: "covid",
     startingTime: 1623957560000, // 6/17/2021, 12:19:20 GMT-7
@@ -94,6 +99,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const testWorkflowExecution6: WorkflowExecutionsEntry = {
     eId: 6,
     vId: 6,
+    sId: 6,
     userName: "johnny270",
     name: "cancer",
     startingTime: 1695673070000, // 9/25/2023, 13:17:50 GMT-7
@@ -106,6 +112,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   const testWorkflowExecution7: WorkflowExecutionsEntry = {
     eId: 7,
     vId: 7,
+    sId: 7,
     userName: "texera",
     name: "Untitled Execution",
     startingTime: 1665673070000, // 10/13/2022, 7:57:50 GMT-7
