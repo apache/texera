@@ -97,4 +97,8 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
   public updateFileName(fid: number, name: string): Observable<void> {
     return of();
   }
+
+  public updateFileDescription(fid: number, description: string): Observable<void> {
+    return of();
+  }
 }
