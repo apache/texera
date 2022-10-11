@@ -59,16 +59,15 @@ export class SharedModelChangeHandler {
       event.changes.keys.forEach((change, key) => {
         if (change.action === "add") {
           const newOperator = this.texeraGraph.sharedModel.operatorIDMap.get(key) as YType<OperatorPredicate>;
-          // Also find its position
+          // Also find its position or set to default if not found.
+          let newPos: Point = { x: 0, y: 0 };
           if (this.texeraGraph.sharedModel.elementPositionMap?.has(key)) {
-            const newPos = this.texeraGraph.sharedModel.elementPositionMap?.get(key) as Point;
-            // Add the operator into joint graph
-            const jointOperator = this.jointUIService.getJointOperatorElement(newOperator.toJSON(), newPos);
-            jointElementsToAdd.push(jointOperator);
-            newOpIDs.push(key);
-          } else {
-            throw new Error(`operator with key ${key} does not exist in position map`);
+            newPos = this.texeraGraph.sharedModel.elementPositionMap?.get(key) as Point;
           }
+          // Add the operator into joint graph
+          const jointOperator = this.jointUIService.getJointOperatorElement(newOperator.toJSON(), newPos);
+          jointElementsToAdd.push(jointOperator);
+          newOpIDs.push(key);
         }
         if (change.action === "delete") {
           // Disables JointGraph -> TexeraGraph sync temporarily
