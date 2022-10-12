@@ -1,0 +1,7 @@
+::ng-deep .ql-editor {
+  min-height: 30px;
+}
+
+::ng-deep .ql-clipboard {
+  max-height: 0;
+}

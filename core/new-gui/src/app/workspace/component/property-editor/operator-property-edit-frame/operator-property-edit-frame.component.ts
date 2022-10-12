@@ -40,6 +40,7 @@ import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
+import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -430,6 +431,19 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorId
         );
       }
+
+      if (
+        this.currentOperatorId !== undefined &&
+        mappedField.type === "string" &&
+        !mappedField.wrappers?.includes("preset-wrapper")
+      ) {
+        CollabWrapperComponent.setupFieldConfig(
+          mappedField,
+          this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
+          this.currentOperatorId
+        );
+      }
+
       return mappedField;
     };
 
