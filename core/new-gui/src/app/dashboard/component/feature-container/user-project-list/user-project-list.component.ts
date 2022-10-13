@@ -7,7 +7,6 @@ import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
 import { from } from "rxjs";
-export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
 @Component({
@@ -27,6 +26,8 @@ export class UserProjectListComponent implements OnInit {
   public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
   public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
+
+  public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
   constructor(
     private userProjectService: UserProjectService,
@@ -61,13 +62,6 @@ export class UserProjectListComponent implements OnInit {
           index++;
         }
       });
-  }
-
-  /**
-   * navigate to individual project page
-   */
-  public jumpToProject({ pid }: UserProject): void {
-    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
 
   public removeEditStatus(pid: number): void {

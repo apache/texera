@@ -20,6 +20,7 @@
         <i nz-icon nzTheme="outline" nzType="arrow-left"></i>
       </button>
       <label>
+        <nz-avatar *ngIf="workflowIdChanged | async as wid" [nzText]="wid?.toString() || ''"></nz-avatar>
         <input
           *ngIf="!displayParticularWorkflowVersion"
           (change)="onWorkflowNameChange()"
@@ -76,9 +77,11 @@
 
     <div class="texera-navigation-dashboard" *ngIf="!displayParticularWorkflowVersion">
       <nz-button-group nzSize="large">
-        <button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'" nz-button title="dashboard">
-          <i nz-icon nzTheme="outline" nzType="profile"></i>
-        </button>
+        <a [routerLink]="'/dashboard/workflow'">
+          <button *ngIf="userSystemEnabled" nz-button title="dashboard">
+            <i nz-icon nzTheme="outline" nzType="profile"></i>
+          </button>
+        </a>
         <button (click)="onClickCreateNewWorkflow()" *ngIf="userSystemEnabled" nz-button title="create new">
           <i nz-icon nzTheme="outline" nzType="form"></i>
         </button>

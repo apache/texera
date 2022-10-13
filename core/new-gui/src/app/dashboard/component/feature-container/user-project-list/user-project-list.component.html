@@ -70,8 +70,8 @@
             <ng-container
               *ngIf="userProjectEntriesIsEditingName.indexOf(dashboardUserProjectEntry.pid) === -1;else editingProject"
             >
-              <span class="project-name" (click)="jumpToProject(dashboardUserProjectEntry)"
-                >{{dashboardUserProjectEntry.name}}</span
+              <a class="project-name" [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + dashboardUserProjectEntry.pid">
+                {{dashboardUserProjectEntry.name}}</a
               >
               <button
                 (click)="userProjectEntriesIsEditingName.push(dashboardUserProjectEntry.pid)"

@@ -282,11 +282,11 @@
             <!-- editable name of saved workflow -->
             <nz-list-item-meta-title class="meta-title-container">
               <div class="workflow-item-meta-title">
-                <label
+                <a
                   *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowTitle "
-                  (click)="jumpToWorkflow(dashboardWorkflowEntry)"
+                  [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + dashboardWorkflowEntry.workflow.wid"
                   class="workflow-name"
-                  >{{ dashboardWorkflowEntry.workflow.name }}</label
+                  >{{ dashboardWorkflowEntry.workflow.name }}</a
                 >
                 <ng-template #customWorkflowTitle>
                   <input
@@ -372,22 +372,22 @@
 
           <div *ngIf="userProjectsLoaded" class="project-label-container">
             <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="project-label">
-              <div
+              <a
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
                 nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
                 nzTooltipPlacement="bottom"
-                class="left-div"
+                class="project-label-name"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                (click)="jumpToProject(userProjectsMap.get(projectID)!)"
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid"
               >
                 {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
-              </div>
+              </a>
               <div
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
-                class="right-div"
+                class="project-label-remove"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
                 (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"

@@ -225,17 +225,17 @@
 
           <div *ngIf="userProjectsLoaded" class="project-label-container">
             <div *ngFor="let pid of dashboardUserFileEntry.projectIDs" class="project-label">
-              <div
+              <a
                 *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
                 nz-tooltip="{{userProjectsMap.get(pid)!.name}}"
                 nzTooltipPlacement="bottom"
                 class="left-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
-                (click)="jumpToProject(userProjectsMap.get(pid)!)"
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(pid)?.pid"
               >
                 {{userProjectsMap.get(pid)!.name}}
-              </div>
+              </a>
               <div
                 *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
                 nz-tooltip="Remove from project"
