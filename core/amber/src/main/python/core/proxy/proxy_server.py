@@ -4,9 +4,10 @@ from functools import wraps
 from inspect import signature
 from typing import Callable, Dict, Iterator, Optional, Tuple
 
+import pyarrow
 from loguru import logger
 from overrides import overrides
-from pyarrow import Table, py_buffer
+from pyarrow import Table, py_buffer, Buffer
 from pyarrow.flight import (
     Action,
     FlightDescriptor,
@@ -137,7 +138,7 @@ class ProxyServer(FlightServerBase):
         context: ServerCallContext,
         descriptor: FlightDescriptor,
         reader: MetadataRecordBatchReader,
-        writer: RecordBatchStreamWriter,
+        writer,
     ):
         """
         Put a data table into the server, the data will be handled by the
@@ -152,8 +153,17 @@ class ProxyServer(FlightServerBase):
 
         data: Table = reader.read_all()
         command: bytes = descriptor.command
-        logger.debug(f"getting a data batch {data}")
+        logger.info(f"getting a data batch {data}")
+        logger.info("before write back")
+
+
+        buf = pyarrow.py_buffer(b'hello')
+
+
+        writer.write(buf)
+        logger.info("before process")
         self.process_data(command, data)
+        logger.info("after process")
 
     ###############################
     # Actions related methods #

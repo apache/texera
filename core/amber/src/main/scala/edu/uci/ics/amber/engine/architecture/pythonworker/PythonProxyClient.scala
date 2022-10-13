@@ -1,29 +1,23 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ControlElement,
-  ControlElementV2,
-  DataElement
-}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2, DataElement}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 
 class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
-    extends Runnable
+  extends Runnable
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
@@ -90,9 +84,9 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   def sendControlV2(
-      from: ActorVirtualIdentity,
-      payload: ControlPayloadV2
-  ): Result = {
+                     from: ActorVirtualIdentity,
+                     payload: ControlPayloadV2
+                   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
     logger.debug(s"sending control $controlMessage")
@@ -111,10 +105,10 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   private def writeArrowStream(
-      tuples: mutable.Queue[Tuple],
-      from: ActorVirtualIdentity,
-      isEnd: Boolean
-  ): Unit = {
+                                tuples: mutable.Queue[Tuple],
+                                from: ActorVirtualIdentity,
+                                isEnd: Boolean
+                              ): Unit = {
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
@@ -129,9 +123,18 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
       ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
     }
     writer.putNext()
+
+    //    flightListener.onNext(PutResult.empty())
+    //    println("res: ", flightListener.getResult())
     schemaRoot.clear()
+
     writer.completed()
-    flightListener.getResult()
+    //    println("listener read:", flightListener.read())
+    val buf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    println("pollres:",buf.getLong(0))
+    buf.close()
+
+
     flightListener.close()
 
   }
