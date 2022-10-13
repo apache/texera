@@ -14,6 +14,11 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
   WorkflowInfo
 }
+import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonUDFOpDescV2
+}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -191,6 +196,47 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         ),
         OperatorLink(
           OperatorPort(hashJoin2.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    assert(pipelinedRegions.vertexSet().size == 2)
+  }
+
+  "Pipelined Regions" should "correctly find regions in csv->split->training-infer workflow" in {
+    val csv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val split = new SplitOpDesc()
+    val training = new PythonUDFOpDescV2()
+    val inference = new DualInputPortsPythonUDFOpDescV2()
+    val sink = TestOperators.sinkOpDesc()
+    val workflow = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](
+        csv,
+        split,
+        training,
+        inference,
+        sink
+      ),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(csv.operatorID, 0),
+          OperatorPort(split.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(split.operatorID, 0),
+          OperatorPort(training.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(training.operatorID, 0),
+          OperatorPort(inference.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(split.operatorID, 1),
+          OperatorPort(inference.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(inference.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
       )
