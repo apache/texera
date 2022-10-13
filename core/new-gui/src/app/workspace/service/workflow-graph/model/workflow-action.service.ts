@@ -216,6 +216,8 @@ export class WorkflowActionService {
       linksToDelete.forEach((linkLayer, link) => this.deleteLinkWithID(link.linkID));
       this.texeraGraph.assertOperatorExists(operatorID);
       this.texeraGraph.deleteOperator(operatorID);
+      if (this.texeraGraph.sharedModel.elementPositionMap.has(operatorID))
+        this.texeraGraph.sharedModel.elementPositionMap.delete(operatorID);
     });
   }
 
@@ -705,7 +707,7 @@ export class WorkflowActionService {
    */
   public setTempWorkflow(workflow: Workflow): void {
     if (this.texeraGraph.sharedModel.wsProvider.shouldConnect) {
-      this.destroySharedModel();
+      this.texeraGraph.sharedModel.wsProvider.disconnect();
     }
     this.tempWorkflow = workflow;
   }

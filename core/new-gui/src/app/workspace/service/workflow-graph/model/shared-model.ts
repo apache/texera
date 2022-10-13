@@ -96,15 +96,7 @@ export class SharedModel {
    * @param callback Put whatever need to be atomically done within this callback function.
    */
   public transact(callback: Function) {
-    try {
-      if (this.wsProvider.shouldConnect) {
-        this.yDoc.transact(() => callback());
-      } else {
-        callback();
-      }
-    } catch (e) {
-      throw e;
-    }
+    this.yDoc.transact(() => callback());
   }
 
   /**
