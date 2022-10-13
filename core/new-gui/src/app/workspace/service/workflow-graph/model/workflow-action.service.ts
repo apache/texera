@@ -51,7 +51,7 @@ import { SharedModelChangeHandler } from "./shared-model-change-handler";
   providedIn: "root",
 })
 export class WorkflowActionService {
-  private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
+  public static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
   private static readonly DEFAULT_WORKFLOW = {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
     description: undefined,
@@ -73,7 +73,7 @@ export class WorkflowActionService {
   private enableModificationStream = new BehaviorSubject<boolean>(true);
 
   private workflowMetadata: WorkflowMetadata;
-  private workflowMetadataChangeSubject: Subject<void> = new Subject<void>();
+  private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -624,7 +624,7 @@ export class WorkflowActionService {
     );
   }
 
-  public workflowMetaDataChanged(): Observable<void> {
+  public workflowMetaDataChanged(): Observable<WorkflowMetadata> {
     return this.workflowMetadataChangeSubject.asObservable();
   }
 
@@ -637,8 +637,9 @@ export class WorkflowActionService {
       return;
     }
 
-    this.workflowMetadata = workflowMetaData === undefined ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
-    this.workflowMetadataChangeSubject.next();
+    const newMetadata = workflowMetaData === undefined ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
+    this.workflowMetadata = newMetadata;
+    this.workflowMetadataChangeSubject.next(newMetadata);
   }
 
   public getWorkflowMetadata(): WorkflowMetadata {
@@ -728,8 +729,8 @@ export class WorkflowActionService {
    * @param name
    */
   public setWorkflowName(name: string): void {
-    this.workflowMetadata.name = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
-    this.workflowMetadataChangeSubject.next();
+    const newName = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
+    this.setWorkflowMetadata({ ...this.workflowMetadata, name: newName });
   }
 
   /**
