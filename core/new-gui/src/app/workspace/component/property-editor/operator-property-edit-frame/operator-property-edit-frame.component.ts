@@ -247,7 +247,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
-    
+
     if (
       this.workflowActionService
         .getTexeraGraph()

@@ -36,11 +36,11 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
     if (this.field) {
       this.inputValue = this.field.formControl.value;
       this.userFileService
-      .getAutoCompleteUserFileAccessList("")
-      .pipe(untilDestroyed(this))
-      .subscribe(autocompleteList => {
-        this.selections = autocompleteList.concat();
-      });
+        .getAutoCompleteUserFileAccessList(this.field.formControl.value)
+        .pipe(untilDestroyed(this))
+        .subscribe(autocompleteList => {
+          this.selections = autocompleteList.concat();
+        });
       this.title = this.field.templateOptions.label;
     }
   }
