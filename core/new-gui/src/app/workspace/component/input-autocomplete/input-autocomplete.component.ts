@@ -35,6 +35,12 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
   ngOnInit() {
     if (this.field) {
       this.inputValue = this.field.formControl.value;
+      this.userFileService
+      .getAutoCompleteUserFileAccessList("")
+      .pipe(untilDestroyed(this))
+      .subscribe(autocompleteList => {
+        this.selections = autocompleteList.concat();
+      });
       this.title = this.field.templateOptions.label;
     }
   }
@@ -43,15 +49,13 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
     this.selections = [];
     // copy the input value
     const value = JSON.parse(JSON.stringify(this.inputValue));
-    if (value.length > 0) {
-      // used to get the selection list
-      // TODO: currently it's a hard-code userfile service autocomplete
-      this.userFileService
-        .getAutoCompleteUserFileAccessList(value)
-        .pipe(untilDestroyed(this))
-        .subscribe(autocompleteList => {
-          this.selections = value ? autocompleteList.concat() : [];
-        });
-    }
+    // used to get the selection list
+    // TODO: currently it's a hard-code userfile service autocomplete
+    this.userFileService
+      .getAutoCompleteUserFileAccessList(value)
+      .pipe(untilDestroyed(this))
+      .subscribe(autocompleteList => {
+        this.selections = autocompleteList.concat();
+      });
   }
 }

@@ -138,7 +138,7 @@ class UserFileResource {
   }
 
   @GET
-  @Path("/autocomplete/{query}")
+  @Path("/autocomplete/{query:.*}")
   def autocompleteUserFiles(
       @Auth sessionUser: SessionUser,
       @PathParam("query") query: String
@@ -148,17 +148,22 @@ class UserFileResource {
     val user = sessionUser.getUser
     val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
     val filenames = ArrayBuffer[String]()
+    val username = user.getName
     // get all the filename list
     for (i <- fileList) {
       filenames += i.file.getName
     }
     // select the filenames that apply
-    val selectedFile = ArrayBuffer[String]()
+    val selectedByFile = ArrayBuffer[String]()
+    val selectedByUsername = ArrayBuffer[String]()
     for (e <- filenames) {
-      if (e.startsWith(query))
-        selectedFile += e
+      if (e.contains(query) || query.isEmpty)
+        selectedByFile += (username + "/" + e)
+      else if (username.contains(query))
+        selectedByUsername += (username + "/" + e)
     }
-    selectedFile.toList.asJava
+    print(selectedByFile ++ selectedByUsername)
+    (selectedByFile ++ selectedByUsername).toList.asJava
   }
 
   private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
