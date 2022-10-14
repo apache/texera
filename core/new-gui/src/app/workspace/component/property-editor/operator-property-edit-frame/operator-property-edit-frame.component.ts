@@ -210,6 +210,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           .subscribe();
       });
     }
+
     this.sourceFormChangeEventStream.next(event);
   }
 
@@ -246,6 +247,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
+    
     if (
       this.workflowActionService
         .getTexeraGraph()
@@ -288,13 +290,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (this.currentOperatorId === undefined) {
       return false;
     }
-
     // check if the operator still exists, it might be deleted during debounce time
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     if (!operator) {
       return false;
     }
-
     // only emit change event if the form data actually changes
     return !isEqual(formData, operator.operatorProperties);
   }
@@ -421,7 +421,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mappedField.type = "codearea";
         }
       }
-
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
         environment.userSystemEnabled &&
