@@ -137,6 +137,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public downloadListWorkflow = new Map<number, string>();
   public zip = new JSZip();
 
+  public ROUTER_WORKFLOW_BASE_URL = ROUTER_WORKFLOW_BASE_URL;
+  public ROUTER_USER_PROJECT_BASE_URL = ROUTER_USER_PROJECT_BASE_URL;
+
   constructor(
     private http: HttpClient,
     private userService: UserService,
@@ -861,20 +864,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             );
         }
       });
-  }
-
-  /**
-   * jump to the target workflow canvas
-   */
-  public jumpToWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    window.open(`${ROUTER_WORKFLOW_BASE_URL}/${wid}`);
-  }
-
-  /**
-   * navigate to individual project page
-   */
-  public jumpToProject({ pid }: UserProject): void {
-    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
 
   private registerDashboardWorkflowEntriesRefresh(): void {
