@@ -37,6 +37,7 @@ export interface OperatorSchema
     operatorType: string;
     jsonSchema: Readonly<CustomJSONSchema7>;
     additionalMetadata: OperatorAdditionalMetadata;
+    operatorVersion: string;
   }> {}
 
 export interface GroupInfo
