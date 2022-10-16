@@ -29,7 +29,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "const", message: constValidationMessage },
   ],
   types: [
-    { name: "string", extends: "input" },
+    { name: "string", extends: "input", defaultOptions: { defaultValue: "" } },
     {
       name: "number",
       extends: "input",

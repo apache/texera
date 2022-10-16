@@ -314,7 +314,6 @@ export class SharedModelChangeHandler {
    */
   private onOperatorPropertyChanged(operatorID: string, isLocal: boolean) {
     const operator = this.texeraGraph.getOperator(operatorID);
-    console.log(operator.operatorProperties);
     this.texeraGraph.operatorPropertyChangeSubject.next({ operator: operator });
     if (isLocal) {
       // emit operator property changed here

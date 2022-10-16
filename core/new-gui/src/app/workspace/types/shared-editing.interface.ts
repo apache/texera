@@ -75,7 +75,7 @@ export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
  * @param newObj The new normal object, must be the same template type as the <code>YType</code> to be updated.
  */
 export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newObj: T): boolean {
-  if (newObj === null || newObj === undefined || oldYObj === undefined) return false;
+  if (newObj === null || newObj === undefined || oldYObj === null || oldYObj === undefined) return false;
   const originalNewObjType = typeof newObj;
   switch (originalNewObjType) {
     case "bigint":
@@ -85,8 +85,7 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
     case "undefined":
     case "function":
       return false;
-    case "string":
-    {
+    case "string": {
       const yText = oldYObj as unknown as Y.Text;
       if (yText.toJSON() !== (newObj as unknown as string)) {
         // Inplace update.
@@ -115,36 +114,44 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
     const newArrLen = newObjAsArr.length;
     const oldObjAsArr = oldYObjAsYArray.toJSON();
     const oldArrLen = oldObjAsArr.length;
-    for (let i = 0; i < newArrLen; i++) {
-      if (i >= oldArrLen) {
-        const res = createYTypeFromObject(newObjAsArr[i]);
-        if (res === undefined) oldYObjAsYArray.push([null]);
-        else oldYObjAsYArray.push([createYTypeFromObject(newObjAsArr[i])]);
-      } else {
+    // TODO: in-place update, assuming only one update at a time can happen.
+    if (newArrLen < oldArrLen) {
+      let i = 0;
+      for (i; i < newArrLen; i++) {
+        if (!_.isEqual(oldObjAsArr[i], newObjAsArr[i])) break;
+      }
+      oldYObjAsYArray.delete(i);
+    } else if (newArrLen > oldArrLen) {
+      let i = 0;
+      for (i; i < newArrLen; i++) {
+        if (!_.isEqual(oldObjAsArr[i], newObjAsArr[i])) break;
+      }
+      oldYObjAsYArray.insert(i, [createYTypeFromObject(newObjAsArr[i])]);
+    } else {
+      for (let i = 0; i < newArrLen; i++) {
         if (!_.isEqual(oldObjAsArr[i], newObjAsArr[i])) {
-          if(!updateYTypeFromObject(oldYObjAsYArray.get(i), newObjAsArr[i])) {
-            oldYObjAsYArray.delete(i, 1);
-            const res = createYTypeFromObject(newObjAsArr[i]);
-            if (res === undefined) oldYObjAsYArray.insert(i, [null]);
-            else oldYObjAsYArray.insert(i, [res]);
+          if (!updateYTypeFromObject(oldYObjAsYArray.get(i), newObjAsArr[i])) {
+            if (newObjAsArr[i] !== undefined) {
+              oldYObjAsYArray.delete(i, 1);
+              const res = createYTypeFromObject(newObjAsArr[i]);
+              if (res === undefined) oldYObjAsYArray.insert(i, [null]);
+              else oldYObjAsYArray.insert(i, [res]);
+            }
           }
         }
-      }
-    }
-    // Delete extra items
-    if (oldYObjAsYArray.length > newObjAsArr.length) {
-      while (oldYObjAsYArray.length !== newObjAsArr.length) {
-        oldYObjAsYArray.delete(oldObjAsArr.length - 1);
       }
     }
   } else if (newObjType === "Object") {
     const oldYObjAsYMap = oldYObj as unknown as Y.Map<any>;
     const oldObj = oldYObjAsYMap.toJSON() as T;
-    Object.keys(newObj).forEach((k: string) => {
+    const keySet = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+    keySet.forEach((k: string) => {
       const newValue = newObj[k as keyof T] as any;
       if (!_.isEqual(oldObj[k as keyof T], newValue)) {
-        if(!updateYTypeFromObject(oldYObjAsYMap.get(k), newValue)) {
-          oldYObjAsYMap.set(k, createYTypeFromObject(newValue));
+        if (!updateYTypeFromObject(oldYObjAsYMap.get(k), newValue)) {
+          if (newValue !== undefined) {
+            oldYObjAsYMap.set(k, createYTypeFromObject(newValue));
+          }
         }
       }
     });

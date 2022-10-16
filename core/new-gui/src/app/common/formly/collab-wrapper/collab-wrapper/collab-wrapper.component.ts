@@ -1,4 +1,9 @@
-import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
+import {
+  AfterContentInit,
+  Component,
+  ElementRef,
+  ViewChild,
+} from "@angular/core";
 import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { merge } from "lodash";
@@ -6,7 +11,6 @@ import Quill from "quill";
 import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
 import QuillCursors from "quill-cursors";
-import { YText } from "yjs/dist/src/types/YText";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -14,7 +18,7 @@ Quill.register("modules/cursors", QuillCursors);
   templateUrl: "./collab-wrapper.component.html",
   styleUrls: ["./collab-wrapper.component.css"],
 })
-export class CollabWrapperComponent extends FieldWrapper implements OnInit {
+export class CollabWrapperComponent extends FieldWrapper implements AfterContentInit {
   private quill?: Quill;
   private currentOperatorId: string = "";
   private operatorType: string = "";
@@ -27,50 +31,81 @@ export class CollabWrapperComponent extends FieldWrapper implements OnInit {
     super();
   }
 
-  ngOnInit(): void {
-    if (this.field.key === undefined || this.field.templateOptions === undefined) {
-      throw Error(
-        `form collab-wrapper field ${this.field} doesn't contain necessary .key and .templateOptions.presetKey attributes`
-      );
-    } else {
-      this.currentOperatorId = this.field.templateOptions.currentOperatorId;
-      this.operatorType = this.field.templateOptions.operatorType;
-      let parents = [this.field.key];
-      let parent = this.field.parent;
-      while (parent?.key !== undefined) {
-        parents.push(parent.key);
-        parent = parent.parent;
+  ngAfterContentInit(): void {
+    this.setUpYTextEditor();
+    this.formControl.valueChanges.subscribe(value => {
+      if (this.sharedText !== undefined && value !== this.sharedText.toJSON()) {
+        this.setUpYTextEditor();
       }
-      let structure: any = this.workflowActionService
-        .getTexeraGraph()
-        .getSharedOperatorPropertyType(this.currentOperatorId);
-      let parentStructure: any = structure;
-      let key: any;
-      // console.log(parents);
-      while (parents.length > 0) {
-        parentStructure = structure;
-        key = parents.pop();
-        if (structure.constructor.name === "YArray") key = parseInt(key);
-        structure = structure.get(key);
-      }
-      if (structure === undefined && parentStructure !== undefined) {
-        if (parentStructure.constructor.name === "YArray") {
-          (parentStructure as Y.Array<any>).push([new Y.Text()]);
-        } else {
-          parentStructure.set(key as string, new Y.Text());
-        }
-        structure = parentStructure.get(key as string);
-      }
-      this.sharedText = structure;
-      this.registerQuillBinding();
-      if (this.currentOperatorId && this.sharedText) {
-        this.quillBinding = new QuillBinding(
-          this.sharedText,
-          this.quill,
-          this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+    });
+  }
+
+  private setUpYTextEditor() {
+    setTimeout(() => {
+      if (this.field.key === undefined || this.field.templateOptions === undefined) {
+        throw Error(
+          `form collab-wrapper field ${this.field} doesn't contain necessary .key and .templateOptions.presetKey attributes`
         );
+      } else {
+        this.currentOperatorId = this.field.templateOptions.currentOperatorId;
+        this.operatorType = this.field.templateOptions.operatorType;
+        let parents = [this.field.key];
+        let parent = this.field.parent;
+        while (parent?.key !== undefined) {
+          parents.push(parent.key);
+          parent = parent.parent;
+        }
+        let parentStructure: any = this.workflowActionService
+          .getTexeraGraph()
+          .getSharedOperatorPropertyType(this.currentOperatorId);
+        let structure: any = undefined;
+        let key: any;
+        this.workflowActionService.getTexeraGraph().bundleActions(() => {
+          while (parents.length > 0 && parentStructure !== undefined && parentStructure !== null) {
+            key = parents.pop();
+            structure = parentStructure.get(key);
+            if (structure === undefined || structure === null) {
+              if (parents.length > 0) {
+                if (parentStructure.constructor.name === "YArray") {
+                  const yArray = parentStructure as Y.Array<any>;
+                  if (yArray.length > parseInt(key)) {
+                    yArray.delete(parseInt(key), 1);
+                    yArray.insert(parseInt(key), [new Y.Map<any>()]);
+                  } else {
+                    yArray.push([new Y.Map<any>()]);
+                  }
+                } else {
+                  parentStructure.set(key as string, new Y.Map<any>());
+                }
+              } else {
+                if (parentStructure.constructor.name === "YArray") {
+                  const yArray = parentStructure as Y.Array<any>;
+                  if (yArray.length > parseInt(key)) {
+                    yArray.delete(parseInt(key), 1);
+                    yArray.insert(parseInt(key), [new Y.Text("")]);
+                  } else {
+                    yArray.push([new Y.Text("")]);
+                  }
+                } else {
+                  parentStructure.set(key as string, new Y.Text());
+                }
+              }
+              structure = parentStructure.get(key);
+            }
+            parentStructure = structure;
+          }
+        });
+        this.sharedText = structure;
+        this.registerQuillBinding();
+        if (this.currentOperatorId && this.sharedText) {
+          this.quillBinding = new QuillBinding(
+            this.sharedText,
+            this.quill,
+            this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+          );
+        }
       }
-    }
+    }, 100);
   }
 
   private registerQuillBinding() {
