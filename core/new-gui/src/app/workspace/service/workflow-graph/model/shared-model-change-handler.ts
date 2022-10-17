@@ -309,7 +309,7 @@ export class SharedModelChangeHandler {
           } else if (event.path[event.path.length - 1] === "outputPorts") {
             const outputPort = event.delta[1].insert;
             if (outputPort) {
-              this.onOperatorPortChanged(operatorID, true, outputPort as PortDescription)
+              this.onOperatorPortChanged(operatorID, false, outputPort as PortDescription)
             }
           } else if (event.path.includes("operatorProperties")) {
             this.onOperatorPropertyChanged(operatorID, event.transaction.local);
