@@ -13,7 +13,7 @@ import { SharedModel } from "./shared-model";
 import { User, CoeditorState } from "../../../../common/type/user";
 import { createYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
-import { Array as YArray } from "yjs";
+import * as Y from "yjs";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -109,8 +109,6 @@ export class WorkflowGraph {
     linkID: string;
   }>();
   public readonly operatorPortChangedSubject = new Subject<{
-    // operatorID: string;
-    // oldOperator: OperatorPredicate;
     newOperator: OperatorPredicate;
   }>();
   public readonly commentBoxAddSubject = new Subject<CommentBox>();
@@ -522,19 +520,13 @@ export class WorkflowGraph {
 
   public addPort(operatorID: string, port: PortDescription, isInput: boolean): void {
     this.assertOperatorExists(operatorID);
-    const oldOperator = this.getOperator(operatorID);
-    // let newOperator: OperatorPredicate;
     if (isInput) {
-      const newInputPorts: PortDescription[] = [...oldOperator.inputPorts, port];
-      this.sharedModel.operatorIDMap.get(operatorID)?.set("inputPorts", YArray.from(newInputPorts))
-      // newOperator = {...oldOperator, inputPorts: newInputPorts};
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<YType<PortDescription>>;
+      inputPorts.push([createYTypeFromObject<PortDescription>(port)]);
     } else {
-      const newOutputPorts: PortDescription[] = [...oldOperator.outputPorts, port];
-      this.sharedModel.operatorIDMap.get(operatorID)?.set("outputPorts", YArray.from(newOutputPorts))
-      // newOperator = {...oldOperator, outputPorts: newOutputPorts};
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<YType<PortDescription>>;
+      outputPorts.push([createYTypeFromObject<PortDescription>(port)]);
     }
-    // this.sharedModel.operatorIDMap.set(operatorID, createYTypeFromObject(newOperator));
-    // this.operatorPortChangedSubject.next({operatorID, oldOperator, newOperator});
   }
 
   public removePort(operatorID: string, portID: string, isInput: boolean): void {
@@ -543,11 +535,11 @@ export class WorkflowGraph {
     // let newOperator: OperatorPredicate;
     if (isInput) {
       const newInputPorts: PortDescription[] = oldOperator.inputPorts.filter(p => p.portID !== portID);
-      this.sharedModel.operatorIDMap.get(operatorID)?.set("inputPorts", YArray.from(newInputPorts))
+      const ports = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<any>;
       // newOperator = {...oldOperator, inputPorts: newInputPorts};
     } else {
       const newOutputPorts: PortDescription[] = oldOperator.outputPorts.filter(p => p.portID !== portID);
-      this.sharedModel.operatorIDMap.get(operatorID)?.set("outputPorts", YArray.from(newOutputPorts))
+      this.sharedModel.operatorIDMap.get(operatorID)?.set("outputPorts", createYTypeFromObject(newOutputPorts) as unknown as Y.Array<any>)
       // newOperator = {...oldOperator, outputPorts: newOutputPorts};
     }
     // this.sharedModel.operatorIDMap.set(operatorID, createYTypeFromObject(newOperator));

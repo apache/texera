@@ -260,18 +260,6 @@ export class WorkflowActionService {
       // add port to the operator
       this.texeraGraph.assertOperatorExists(operatorID);
       this.texeraGraph.addPort(operatorID, port, isInput);
-
-      const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
-      const portGroup = isInput ? "in" : "out";
-      operatorJointElement.addPort({
-        group: portGroup,
-        id: port.portID,
-        attrs: {
-          ".port-label": {
-            text: port.displayName ?? "",
-          },
-        },
-      });
     });
   }
 

@@ -18,7 +18,10 @@ export interface OperatorPort
   }> {}
 
 export interface PortDescription extends Readonly<{
-  portID: string; displayName?: string; allowMultiInputs?: boolean; isDynamicPort?: boolean;
+  portID: string;
+  displayName?: string;
+  allowMultiInputs?: boolean;
+  isDynamicPort?: boolean;
 }> {}
 
 export interface OperatorPredicate
