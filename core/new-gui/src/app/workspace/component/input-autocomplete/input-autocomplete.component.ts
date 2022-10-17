@@ -17,10 +17,11 @@ import { FormControl } from "@angular/forms";
  * need to upgrade formly to v6 to properly fix this issue.
  */
 export class InputAutoCompleteComponent extends FieldType<any> implements OnInit {
-  inputValue?: string = "";
+  inputValue: string = "";
   title?: string;
   // the autocomplete selection list
   public selections: string[] = [];
+  fullList: string[] = [];
 
   constructor(public userFileService: UserFileService) {
     super();
@@ -35,12 +36,23 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
   ngOnInit() {
     if (this.field) {
       this.inputValue = this.field.formControl.value;
-      this.userFileService
-        .getAutoCompleteUserFileAccessList(this.field.formControl.value)
-        .pipe(untilDestroyed(this))
-        .subscribe(autocompleteList => {
-          this.selections = autocompleteList.concat();
-        });
+      if (this.inputValue?.length > 0)
+        this.userFileService
+          .getAutoCompleteUserFileAccessList(encodeURIComponent(this.inputValue))
+          .pipe(untilDestroyed(this))
+          .subscribe(autocompleteList => {
+            this.selections = autocompleteList.concat();
+          });
+      else
+        this.userFileService
+          .retrieveDashboardUserFileEntryList()
+          .pipe(untilDestroyed(this))
+          .subscribe(list => {
+            list.forEach(x => {
+              this.fullList.push(x.ownerName + "/" + x.file.name);
+            });
+            this.selections = JSON.parse(JSON.stringify(this.fullList));
+          });
       this.title = this.field.templateOptions.label;
     }
   }
@@ -51,8 +63,9 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
     const value = JSON.parse(JSON.stringify(this.inputValue));
     // used to get the selection list
     // TODO: currently it's a hard-code userfile service autocomplete
+    console.log(encodeURIComponent(value));
     this.userFileService
-      .getAutoCompleteUserFileAccessList(value)
+      .getAutoCompleteUserFileAccessList(encodeURIComponent(value))
       .pipe(untilDestroyed(this))
       .subscribe(autocompleteList => {
         this.selections = autocompleteList.concat();
