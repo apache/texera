@@ -22,7 +22,6 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
   private quill?: Quill;
   private currentOperatorId: string = "";
   private operatorType: string = "";
-  public propertyKey: string = "";
   private quillBinding?: QuillBinding;
   private sharedText?: Y.Text;
   @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
@@ -120,9 +119,24 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
           // from remote users
           userOnly: true,
         },
+        // Disable newline on enter and instead quit editing
+        keyboard: {
+          bindings: {
+            enter: {
+              key: 13,
+              handler: () => {},
+            },
+            shift_enter: {
+              key: 13,
+              shiftKey: true,
+              handler: () => {},
+            },
+          },
+        },
       },
+      formats: [],
       placeholder: "Start collaborating...",
-      theme: "bubble",
+      theme: "snow",
     });
   }
 

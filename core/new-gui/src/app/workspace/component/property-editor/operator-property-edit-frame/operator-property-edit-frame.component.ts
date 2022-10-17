@@ -434,7 +434,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       if (
         this.currentOperatorId !== undefined &&
-        mappedField.type === "string" &&
+        ["string", "textarea"].includes(mappedField.type as string) &&
         !mappedField.wrappers?.includes("preset-wrapper")
       ) {
         CollabWrapperComponent.setupFieldConfig(
