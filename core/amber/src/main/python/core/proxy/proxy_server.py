@@ -156,10 +156,8 @@ class ProxyServer(FlightServerBase):
         logger.info(f"getting a data batch {data}")
         logger.info("before write back")
 
-
-        buf = pyarrow.py_buffer(b'hello')
-
-
+        test_credits = 100
+        buf = pyarrow.py_buffer(test_credits.to_bytes(8, "little"))
         writer.write(buf)
         logger.info("before process")
         self.process_data(command, data)
