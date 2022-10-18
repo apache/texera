@@ -31,7 +31,6 @@ object WorkflowExecutionsResource {
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
-      sId: UInteger,
       userName: String,
       startingTime: Timestamp,
       completionTime: Timestamp,
