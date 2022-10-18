@@ -117,17 +117,6 @@
             ></nz-avatar>
           </td>
           <td nzEllipsis>
-            <div class="version-sample">
-              <label> version#:{{row.vId}} </label>
-              <img
-                nz-image
-                class="workflow-snapshot"
-                [nzSrc]=" 'data:image/jpeg;base64,' + workflowSnapshot.get(row.sId)"
-                alt=""
-              />
-            </div>
-          </td>
-          <td nzEllipsis>
             <label
               class="execution-description"
               *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow "

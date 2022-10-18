@@ -26,13 +26,6 @@ export class VersionsListDisplayComponent implements OnInit {
 
   public versionTableHeaders: string[] = ["", "Version#", "Timestamp"];
 
-  // Pagination attributes
-  public currentPageIndex: number = 1;
-  public pageSize: number = 10;
-  public pageSizeOptions: number[] = [5, 10, 20, 30, 40];
-  public numOfVersion: number = 0;
-  public currentVersionsList: WorkflowVersionCollapsableEntry[] | undefined;
-
   constructor(
     private http: HttpClient,
     private workflowActionService: WorkflowActionService,
@@ -84,8 +77,6 @@ export class VersionsListDisplayComponent implements OnInit {
           importance: version.importance,
           expand: false,
         }));
-        this.numOfVersion = versionsList.length;
-        this.changePaginatedVersions();
       });
   }
 
@@ -108,31 +99,5 @@ export class VersionsListDisplayComponent implements OnInit {
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
-  }
-
-  /* Pagination handler */
-  /* Assign new page index and change current list */
-  onPageIndexChange(pageIndex: number): void {
-    this.currentPageIndex = pageIndex;
-    this.changePaginatedVersions();
-  }
-
-  /* Assign new page size and change current list */
-  onPageSizeChange(pageSize: number): void {
-    this.pageSize = pageSize;
-    this.changePaginatedVersions();
-  }
-
-  /**
-   * Change current page list everytime the page change
-   */
-  changePaginatedVersions() {
-    if (this.versionsList === undefined) {
-      return;
-    }
-    this.currentVersionsList = this.versionsList.slice(
-      (this.currentPageIndex - 1) * this.pageSize,
-      this.currentPageIndex * this.pageSize
-    );
   }
 }
