@@ -543,6 +543,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleHighlightMouseDBClickInput();
     this.handleHighlightMouseInput();
     this.handleElementHightlightEvent();
+    this.handleCommentBoxHighlightMouseClickInput();
   }
 
   private handleDisableOperator(): void {
@@ -574,6 +575,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleHighlightMouseDBClickInput(): void {
+    // on user mouse double-clicks a comment box, open that comment box
     fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
@@ -585,7 +587,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
           const elementID = event[0].model.id.toString();
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
+            this.openCommentBox(elementID);
           }
         }
       });
@@ -679,6 +681,40 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  private handleCommentBoxHighlightMouseClickInput(): void{
+    // on user mouse clicks an operator/group cell, highlight that comment box
+    merge(
+      fromJointPaperEvent(this.getJointPaper(), "cell:pointerdown"),
+      fromJointPaperEvent(this.getJointPaper(), "cell:contextmenu")
+    )
+      .pipe(
+        filter(event => event[0].model.isElement()),
+        filter(event =>
+            this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString())
+        )
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        const elementID = event[0].model.id.toString();
+        if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+          this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
+        }
+      });
+
+    // on user mouse clicks on blank area, unhighlight comment box
+    merge(
+      fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown"),
+      fromJointPaperEvent(this.getJointPaper(), "blank:contextmenu")
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const highlightedCommentBoxesIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
+        this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(...highlightedCommentBoxesIDs);
+      });
+  }
+
   private handleElementHightlightEvent(): void {
     // handle logical operator and group highlight / unhighlight events to let JointJS
     //  use our own custom highlighter
@@ -692,10 +728,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       },
     };
 
-    // highlight on OperatorHighlightStream or GroupHighlightStream
+    // highlight on OperatorHighlightStream or GroupHighlightStream or CommentBoxHighLightStream
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream()
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
@@ -704,10 +741,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         })
       );
 
-    // unhighlight on OperatorUnhighlightStream or GroupUnhighlightStream
+    // unhighlight on OperatorUnhighlightStream or GroupUnhighlightStream or CommentBoxUnhighlightStream
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
@@ -718,14 +756,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
         })
       );
-
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getJointCommentBoxHighlightStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(commentBoxIDs => {
-        this.openCommentBox(commentBoxIDs[0]);
-      });
   }
 
   private openCommentBox(commentBoxID: string): void {
