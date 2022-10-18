@@ -136,7 +136,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
       },
       formats: [],
       placeholder: "Start collaborating...",
-      theme: "snow",
+      theme: "bubble",
     });
   }
 
