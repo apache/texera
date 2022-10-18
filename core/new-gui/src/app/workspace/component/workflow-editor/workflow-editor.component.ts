@@ -584,9 +584,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           clickedCommentBox.isElement() &&
           this.workflowActionService.getTexeraGraph().hasCommentBox(clickedCommentBox.id.toString())
         ) {
-          this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
+          //this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
           const elementID = event[0].model.id.toString();
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
             this.openCommentBox(elementID);
           }
         }
@@ -754,6 +755,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
         })
       );
+
   }
 
   private openCommentBox(commentBoxID: string): void {
