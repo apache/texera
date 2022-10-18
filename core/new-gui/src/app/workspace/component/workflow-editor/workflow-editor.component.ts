@@ -681,7 +681,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  private handleCommentBoxHighlightMouseClickInput(): void{
+  private handleCommentBoxHighlightMouseClickInput(): void {
     // on user mouse clicks an operator/group cell, highlight that comment box
     merge(
       fromJointPaperEvent(this.getJointPaper(), "cell:pointerdown"),
@@ -689,9 +689,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     )
       .pipe(
         filter(event => event[0].model.isElement()),
-        filter(event =>
-            this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString())
-        )
+        filter(event => this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString()))
       )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
