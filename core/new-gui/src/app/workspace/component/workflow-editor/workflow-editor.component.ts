@@ -682,7 +682,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleCommentBoxHighlightMouseClickInput(): void {
-    // on user mouse clicks an operator/group cell, highlight that comment box
+    // on user mouse clicks a comment box, highlight that comment box
     merge(
       fromJointPaperEvent(this.getJointPaper(), "cell:pointerdown"),
       fromJointPaperEvent(this.getJointPaper(), "cell:contextmenu")
@@ -726,7 +726,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       },
     };
 
-    // highlight on OperatorHighlightStream or GroupHighlightStream or CommentBoxHighLightStream
+    // highlight on OperatorHighlightStream or GroupHighlightStream or CommentBoxHighlightStream
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
