@@ -34,5 +34,6 @@ module.exports = function (config) {
     captureTimeout: 60000,
     browserDisconnectTimeout : 10000,
     browserDisconnectTolerance : 3,
+    browserNoActivityTimeout : 60000,
   });
 };
