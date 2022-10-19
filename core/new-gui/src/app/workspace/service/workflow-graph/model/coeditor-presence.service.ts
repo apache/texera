@@ -87,8 +87,7 @@ export class CoeditorPresenceService {
 
     // first time logic
     const currentStates = this.getCoeditorStatesArray().filter(
-      userState =>
-        userState.user && userState.user.clientId && userState.user.clientId !== this.getLocalClientId()
+      userState => userState.user && userState.user.clientId && userState.user.clientId !== this.getLocalClientId()
     );
     for (const state of currentStates) {
       this.addCoeditor(state);
@@ -99,15 +98,12 @@ export class CoeditorPresenceService {
       (change: { added: number[]; updated: number[]; removed: number[] }) => {
         this.getCoeditorStatesArray().filter(
           userState =>
-            userState.user.clientId &&
-            this.getLocalClientId() &&
-            userState.user.clientId !== this.getLocalClientId()
+            userState.user.clientId && this.getLocalClientId() && userState.user.clientId !== this.getLocalClientId()
         );
 
         for (const clientId of change.added) {
           const coeditorState = this.getCoeditorStatesMap().get(clientId);
-          if (coeditorState && coeditorState.user.clientId !== this.getLocalClientId())
-            this.addCoeditor(coeditorState);
+          if (coeditorState && coeditorState.user.clientId !== this.getLocalClientId()) this.addCoeditor(coeditorState);
         }
 
         for (const clientId of change.removed) {

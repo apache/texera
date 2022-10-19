@@ -1,9 +1,4 @@
-import {
-  AfterContentInit,
-  Component,
-  ElementRef,
-  ViewChild,
-} from "@angular/core";
+import { AfterContentInit, Component, ElementRef, ViewChild } from "@angular/core";
 import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { merge } from "lodash";
@@ -95,7 +90,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
           }
         });
         this.sharedText = structure;
-        this.registerQuillBinding();
+        this.initializeQuillEditor();
         if (this.currentOperatorId && this.sharedText) {
           this.quillBinding = new QuillBinding(
             this.sharedText,
@@ -107,7 +102,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
     }, 100);
   }
 
-  private registerQuillBinding() {
+  private initializeQuillEditor() {
     // Operator name editor
     const element = this.divEditor as ElementRef;
     this.quill = new Quill(element.nativeElement, {
@@ -120,19 +115,22 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
           userOnly: true,
         },
         // Disable newline on enter and instead quit editing
-        keyboard: {
-          bindings: {
-            enter: {
-              key: 13,
-              handler: () => {},
-            },
-            shift_enter: {
-              key: 13,
-              shiftKey: true,
-              handler: () => {},
-            },
-          },
-        },
+        keyboard:
+          this.field.type === "textarea"
+            ? {}
+            : {
+                bindings: {
+                  enter: {
+                    key: 13,
+                    handler: () => {},
+                  },
+                  shift_enter: {
+                    key: 13,
+                    shiftKey: true,
+                    handler: () => {},
+                  },
+                },
+              },
       },
       formats: [],
       placeholder: "Start collaborating...",
