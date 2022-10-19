@@ -32,5 +32,7 @@ module.exports = function (config) {
     browsers: ["Chrome"],
     singleRun: false,
     captureTimeout: 60000,
+    browserDisconnectTimeout : 10000,
+    browserDisconnectTolerance : 3,
   });
 };
