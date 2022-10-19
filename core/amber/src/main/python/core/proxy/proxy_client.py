@@ -51,14 +51,13 @@ class ProxyClient(FlightClient):
     def send_data(self, command: bytes, table: Optional[Table]) -> None:
         """
         Send a data batch to the server.
-        :param command: a command to in a descriptor to pass along, user should take
+        :param command: a command to in descriptor to pass along, user should take
             the responsibility to deserialize it.
         :param table: a PyArrow.Table of column-stored records.
         """
         descriptor = FlightDescriptor.for_command(command)
         table = Table.from_arrays([]) if table is None else table
-        writer, x = self.do_put(descriptor, table.schema)
-
+        writer, _ = self.do_put(descriptor, table.schema)
         writer: FlightStreamWriter
         with writer:
             writer.write_table(table)

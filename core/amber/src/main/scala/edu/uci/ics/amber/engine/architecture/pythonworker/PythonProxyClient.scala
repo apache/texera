@@ -125,7 +125,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     writer.putNext()
 
     //    flightListener.onNext(PutResult.empty())
-    //    println("res: ", flightListener.getResult())
+//        println("res: ", flightListener.getResult())
     schemaRoot.clear()
 
     writer.completed()
