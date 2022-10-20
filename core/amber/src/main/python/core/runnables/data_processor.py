@@ -352,6 +352,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         import pickle
 
         for field_name in output_tuple.get_field_names():
+            # convert NaN to None to support null value conversion
+            if pyarrow.compute.is_nan(output_tuple[field_name]):
+                output_tuple[field_name] = None
             field_value = output_tuple[field_name]
             field = schema.field(field_name)
             field_type = None if field is None else field.type
