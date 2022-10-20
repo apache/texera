@@ -6,6 +6,7 @@ import pyarrow
 from loguru import logger
 from overrides import overrides
 from pampy import match
+from pandas._libs.missing import checknull
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
@@ -353,7 +354,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         for field_name in output_tuple.get_field_names():
             # convert NaN to None to support null value conversion
-            if pyarrow.compute.is_nan(output_tuple[field_name]):
+            if checknull(output_tuple[field_name]):
                 output_tuple[field_name] = None
             field_value = output_tuple[field_name]
             field = schema.field(field_name)
