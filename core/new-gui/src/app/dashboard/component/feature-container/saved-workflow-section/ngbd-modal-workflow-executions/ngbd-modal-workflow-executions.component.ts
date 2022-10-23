@@ -9,7 +9,6 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { WorkflowSnapshotService } from "src/app/dashboard/service/workflow-snapshot/workflow-snapshot.service";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -32,7 +31,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     "",
     "",
     "Username",
-    "Workflow Version Sample",
     "Name",
     "Starting Time",
     "Last Status Updated Time",
@@ -75,7 +73,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   });
 
   // Pagination attributes
-  public isAscSort: boolean = true;
   public currentPageIndex: number = 1;
   public pageSize: number = 10;
   public pageSizeOptions: number[] = [5, 10, 20, 30, 40];
@@ -94,7 +91,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     ["completed", 3],
     ["aborted", 4],
   ]);
-  public workflowSnapshot: Map<number, Blob> = new Map<number, Blob>();
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
 
@@ -102,8 +98,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NgbModal,
-    private notificationService: NotificationService,
-    private workflowSnapshotService: WorkflowSnapshotService
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -127,7 +122,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         this.paginatedExecutionEntries = this.changePaginatedExecutions();
         this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
         this.fuse.setCollection(this.paginatedExecutionEntries);
-        this.getWorkflowSnapshot();
       });
   }
 
@@ -458,19 +452,5 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       (this.currentPageIndex - 1) * this.pageSize,
       this.currentPageIndex * this.pageSize
     );
-  }
-
-  /**
-   * Retrieve snapshot for each execution
-   */
-  getWorkflowSnapshot(): void {
-    this.workflowExecutionsDisplayedList?.forEach(execution => {
-      this.workflowSnapshotService
-        .retrieveWorkflowSnapshot(execution.sId)
-        .pipe(untilDestroyed(this))
-        .subscribe(workflowSnapshot => {
-          this.workflowSnapshot.set(execution.sId, workflowSnapshot.snapshot);
-        });
-    });
   }
 }

@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row11;
+import org.jooq.Row10;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = -648359568;
+    private static final long serialVersionUID = 685424661;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -59,6 +59,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.vid</code>.
      */
     public final TableField<WorkflowExecutionsRecord, UInteger> VID = createField(DSL.name("vid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.uid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.status</code>.
@@ -89,16 +94,6 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.name</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false).defaultValue(org.jooq.impl.DSL.inline("Untitled Execution", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
-
-    /**
-     * The column <code>texera_db.workflow_executions.uid</code>.
-     */
-    public final TableField<WorkflowExecutionsRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
-
-    /**
-     * The column <code>texera_db.workflow_executions.sid</code>.
-     */
-    public final TableField<WorkflowExecutionsRecord, UInteger> SID = createField(DSL.name("sid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.environment_version</code>.
@@ -145,7 +140,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_VID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID);
     }
 
     @Override
@@ -165,11 +160,15 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
     }
 
     public WorkflowVersion workflowVersion() {
-        return new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        return new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS_IBFK_1);
+    }
+
+    public User user() {
+        return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
     }
 
     @Override
@@ -199,11 +198,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row11 type methods
+    // Row10 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row11<UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, UInteger, UInteger, String> fieldsRow() {
-        return (Row11) super.fieldsRow();
+    public Row10<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String> fieldsRow() {
+        return (Row10) super.fieldsRow();
     }
 }
