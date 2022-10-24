@@ -131,6 +131,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
     this.handleViewAddPort();
+    this.handleViewRemovePort();
     this.handlePaperPan();
     this.handleGroupResize();
     this.handleViewMouseoverOperator();
@@ -871,6 +872,33 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .subscribe(elementView => {
         if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
           this.workflowActionService.addPort(elementView.model.id.toString(), false);
+        }
+      });
+
+  }
+
+  private handleViewRemovePort(): void {
+    // bind the delete button event to call the delete operator function in joint model action
+    fromJointPaperEvent(this.getJointPaper(), "element:remove-input-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.removePort(elementView.model.id.toString(), true);
+        }
+      });
+    fromJointPaperEvent(this.getJointPaper(), "element:remove-output-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.removePort(elementView.model.id.toString(), false);
         }
       });
 

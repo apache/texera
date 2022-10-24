@@ -44,11 +44,23 @@ export const addPortButtonPath = `
 M 15.3 9.9 L 11.7 9.9 L 11.7 6.3 L 9.9 6.3 L 9.9 9.9 L 6.3 9.9 L 6.3 11.7 L 9.9 11.7 L 9.9 15.3 L 11.7 15.3 L 11.7 11.7 L 15.3 11.7 z M 10.8 1.8 C 5.823 1.8 1.8 5.823 1.8 10.8 s 4.023 9 9 9 s 9 -4.023 9 -9 S 15.777 1.8 10.8 1.8 z m 0 16.2 c -3.969 0 -7.2 -3.231 -7.2 -7.2 s 3.231 -7.2 7.2 -7.2 s 7.2 3.231 7.2 7.2 s -3.231 7.2 -7.2 7.2 z
 `;
 
+export const removePortButtonPath = `
+M 15.3 9.9 L 11.7 9.9 L 11.7 6.3 L 9.9 6.3 L 9.9 9.9 L 6.3 9.9 L 6.3 11.7 L 9.9 11.7 L 9.9 15.3 L 11.7 15.3 L 11.7 11.7 L 15.3 11.7 z M 10.8 1.8 C 5.823 1.8 1.8 5.823 1.8 10.8 s 4.023 9 9 9 s 9 -4.023 9 -9 S 15.777 1.8 10.8 1.8 z m 0 16.2 c -3.969 0 -7.2 -3.231 -7.2 -7.2 s 3.231 -7.2 7.2 -7.2 s 7.2 3.231 7.2 7.2 s -3.231 7.2 -7.2 7.2 z
+`;
+
 export const addInputPortButtonSVG = `
   <svg class="add-input-port-button" height="20" width="20">
     <path d="M0 0h20v20H0z" fill="none" pointer-events="visible" />
     <path d="${addPortButtonPath}"/>
     <title>add port</title>
+  </svg>
+`;
+
+export const removeInputPortButtonSVG = `
+  <svg class="remove-input-port-button" height="20" width="20">
+    <path d="M0 0h20v20H0z" fill="none" pointer-events="visible" />
+    <path d="${removePortButtonPath}"/>
+    <title>remove port</title>
   </svg>
 `;
 
@@ -58,6 +70,14 @@ export const addOutputPortButtonSVG = `
     <path d="M0 0h20v20H0z" fill="none" pointer-events="visible" />
     <path d="${addPortButtonPath}"/>
     <title>add port</title>
+  </svg>
+`;
+
+export const removeOutputPortButtonSVG = `
+  <svg class="remove-output-port-button" height="20" width="20">
+    <path d="M0 0h20v20H0z" fill="none" pointer-events="visible" />
+    <path d="${removePortButtonPath}"/>
+    <title>remove port</title>
   </svg>
 `;
 
@@ -158,7 +178,9 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <path class="right-boundary"></path>
       ${deleteButtonSVG}
       ${dynamicInputPorts ? addInputPortButtonSVG : ""}
+      ${dynamicInputPorts ? removeInputPortButtonSVG : ""}
       ${dynamicOutputPorts ? addOutputPortButtonSVG : ""}
+      ${dynamicOutputPorts ? removeOutputPortButtonSVG : ""}
     </g>
     `
   }
@@ -356,6 +378,8 @@ export class JointUIService {
       ".delete-button": { visibility: "hidden" },
       ".add-input-port-button": { visibility: "hidden" },
       ".add-output-port-button": { visibility: "hidden" },
+      ".remove-input-port-button": { visibility: "hidden" },
+      ".remove-output-port-button": { visibility: "hidden" },
     });
   }
 
@@ -372,6 +396,8 @@ export class JointUIService {
       ".delete-button": { visibility: "visible" },
       ".add-input-port-button": { visibility: "visible" },
       ".add-output-port-button": { visibility: "visible" },
+      ".remove-input-port-button": { visibility: "visible" },
+      ".remove-output-port-button": { visibility: "visible" },
     });
   }
 
@@ -955,12 +981,28 @@ export class JointUIService {
         event: "element:add-input-port",
         visibility: "hidden",
       },
+      ".remove-input-port-button": {
+        x: -20,
+        y: 3,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:remove-input-port",
+        visibility: "hidden",
+      },
       ".add-output-port-button": {
         x: 60,
         y: 40,
         cursor: "pointer",
         fill: "#565656",
         event: "element:add-output-port",
+        visibility: "hidden",
+      },
+      ".remove-output-port-button": {
+        x: 60,
+        y: 3,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:remove-output-port",
         visibility: "hidden",
       },
       ".texera-operator-icon": {

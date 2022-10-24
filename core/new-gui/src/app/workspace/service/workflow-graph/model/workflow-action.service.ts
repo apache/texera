@@ -263,52 +263,12 @@ export class WorkflowActionService {
     });
   }
 
-  public removePort(operatorID: string, portID: string): void {
-    const operator = this.texeraGraph.getOperator(operatorID);
-    const inputPort = operator.inputPorts.find(p => p.portID === portID);
-    const outputPort = operator.outputPorts.find(p => p.portID === portID);
-    const port = inputPort !== undefined ? inputPort : outputPort;
-    if (port === undefined) {
-      throw new Error(`cannot find port ${portID} of operator ${operatorID}`);
-    }
-    if (port.isDynamicPort) {
-      throw new Error(`cannot remove a static port ${portID} of operator ${operatorID}`);
-    }
-    const isInput = inputPort !== undefined;
-
+  public removePort(operatorID: string, isInput: boolean): void {
     this.texeraGraph.bundleActions(() => {
       this.texeraGraph.assertOperatorExists(operatorID);
-      this.texeraGraph.removePort(operatorID, portID, isInput);
-
-      const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
-      operatorJointElement.removePort(portID);
+      this.texeraGraph.removePort(operatorID, isInput);
     });
   }
-  //
-  // private addPortInternal(operatorID: string, port: PortDescription, isInput: boolean): void {
-  //   this.texeraGraph.assertOperatorExists(operatorID);
-  //   const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
-  //   this.texeraGraph.addPort(operatorID, port, isInput);
-  //
-  //   const portGroup = isInput ? "in" : "out";
-  //   operatorJointElement.addPort({
-  //     group: portGroup,
-  //     id: port.portID,
-  //     attrs: {
-  //       ".port-label": {
-  //         text: port.displayName ?? "",
-  //       },
-  //     },
-  //   });
-  // }
-  //
-  // private removePortInternal(operatorID: string, portID: string, isInput: boolean): void {
-  //   this.texeraGraph.assertOperatorExists(operatorID);
-  //   const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
-  //
-  //   this.texeraGraph.removePort(operatorID,  portID, isInput);
-  //   operatorJointElement.removePort(portID);
-  // }
 
   /**
    * Unhighlight currently selected elements and adds a comment box.

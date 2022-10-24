@@ -529,22 +529,15 @@ export class WorkflowGraph {
     }
   }
 
-  public removePort(operatorID: string, portID: string, isInput: boolean): void {
+  public removePort(operatorID: string, isInput: boolean): void {
     this.assertOperatorExists(operatorID);
-    const oldOperator = this.getOperator(operatorID);
-    // let newOperator: OperatorPredicate;
     if (isInput) {
-      const newInputPorts: PortDescription[] = oldOperator.inputPorts.filter(p => p.portID !== portID);
-      const ports = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<any>;
-      // newOperator = {...oldOperator, inputPorts: newInputPorts};
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<YType<PortDescription>>;
+      inputPorts.delete(inputPorts.length - 1, 1);
     } else {
-      const newOutputPorts: PortDescription[] = oldOperator.outputPorts.filter(p => p.portID !== portID);
-      this.sharedModel.operatorIDMap.get(operatorID)?.set("outputPorts", createYTypeFromObject(newOutputPorts) as unknown as Y.Array<any>)
-      // newOperator = {...oldOperator, outputPorts: newOutputPorts};
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<YType<PortDescription>>;
+      outputPorts.delete(outputPorts.length - 1, 1);
     }
-    // this.sharedModel.operatorIDMap.set(operatorID, createYTypeFromObject(newOperator));
-    // this.operatorPortChangedSubject.next({ newOperator = });
-
   }
 
   /**
@@ -846,8 +839,6 @@ export class WorkflowGraph {
   }
 
   public getOperatorPortChangeStream(): Observable<{
-    // operatorID: string;
-    // oldOperator: OperatorPredicate;
     newOperator: OperatorPredicate;
   }> {
     return this.operatorPortChangedSubject.asObservable();
