@@ -1,4 +1,4 @@
-import { Injectable } from "@angular/core";
+import { ComponentFactoryResolver, Injectable } from "@angular/core";
 import {
   OperatorInputSchema,
   SchemaAttribute,
@@ -47,6 +47,8 @@ export class AttributeChangePropagationService {
     oldInputSchema: OperatorInputSchema,
     newInputSchema: OperatorInputSchema
   ): void {
+    console.log(operatorID, oldInputSchema, newInputSchema)
+
     const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (!dynamicSchema.jsonSchema.properties) return;
     if (!oldInputSchema) return;

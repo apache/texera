@@ -63,17 +63,14 @@ export class SchemaPropagationService {
       )
       .subscribe(response => {
         // Find out which input schema changed
-        // console.log("response.result", response.result)
         for (const operatorID in response.result) {
-          if (isEqual(this.operatorInputSchemaMap[operatorID], response.result[operatorID])) continue;
-          // console.log("----inputSchemaStream Changed!----");
-          // console.log("oldInputSchema", this.operatorInputSchemaMap[operatorID]);
-          // console.log("newInputSchema", response.result[operatorID]);
-          this.operatorInputSchemaChangedStream.next({
-            operatorID: operatorID,
-            oldInputSchema: this.operatorInputSchemaMap[operatorID],
-            newInputSchema: response.result[operatorID],
-          });
+          if (!isEqual(this.operatorInputSchemaMap[operatorID], response.result[operatorID])) {
+            this.operatorInputSchemaChangedStream.next({
+              operatorID: operatorID,
+              oldInputSchema: this.operatorInputSchemaMap[operatorID],
+              newInputSchema: response.result[operatorID],
+            });
+          };
         }
 
         this.operatorInputSchemaMap = response.result;

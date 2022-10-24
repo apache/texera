@@ -38,7 +38,9 @@ export class DynamicSchemaService {
   private initialSchemaTransformers: SchemaTransformer[] = [];
 
   // this stream is used to capture the event when the dynamic schema of an existing operator is changed
-  private operatorDynamicSchemaChangedStream = new Subject<DynamicSchemaChange>();
+  private operatorDynamicSchemaChangedStream = new Subject<{
+    operatorID: string;
+  }>();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -79,7 +81,7 @@ export class DynamicSchemaService {
   /**
    * Returns the observable which outputs the operatorID of which the dynamic schema has changed.
    */
-  public getOperatorDynamicSchemaChangedStream(): Observable<DynamicSchemaChange> {
+  public getOperatorDynamicSchemaChangedStream(): Observable<{ operatorID: string }> {
     return this.operatorDynamicSchemaChangedStream.asObservable();
   }
 
@@ -146,7 +148,6 @@ export class DynamicSchemaService {
       console.log("dynamic schema changed!");
       this.operatorDynamicSchemaChangedStream.next({
         operatorID: operatorID,
-        dynamicSchema: dynamicSchema,
       });
     }
   }
@@ -225,9 +226,4 @@ export class DynamicSchemaService {
 
     return jsonSchemaCopy;
   }
-}
-
-export interface DynamicSchemaChange {
-  operatorID: string;
-  dynamicSchema: OperatorSchema;
 }

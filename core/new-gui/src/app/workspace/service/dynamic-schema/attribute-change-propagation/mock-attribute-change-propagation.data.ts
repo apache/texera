@@ -6,7 +6,6 @@ import { SchemaPropagationResponse } from "../schema-propagation/schema-propagat
  * Export constants related to the source table names present at the server
  */
 
-
 export const mockEmptySchemaPropagationResponse: Readonly<SchemaPropagationResponse> = {
   code: 0,
   result: {},
@@ -22,7 +21,7 @@ export const mockSentimentOperatorA: OperatorPredicate = {
   operatorType: mockNlpSentimentSchema.operatorType,
   operatorProperties: {},
   inputPorts: [],
-  outputPorts: [{portID: "7", displayName: "7"}],
+  outputPorts: [{ portID: "7", displayName: "7" }],
   showAdvanced: true,
   isDisabled: false,
 };
@@ -31,26 +30,25 @@ export const mockSentimentOperatorB: OperatorPredicate = {
   operatorID: "3",
   operatorType: mockNlpSentimentSchema.operatorType,
   operatorProperties: {
-    attribute: "user_screen_name"
+    attribute: "user_screen_name",
   },
-  inputPorts: [{portID: "8", displayName: "8"}],
-  outputPorts: [{portID: "9", displayName: "9"}],
+  inputPorts: [{ portID: "8", displayName: "8" }],
+  outputPorts: [{ portID: "9", displayName: "9" }],
   showAdvanced: true,
   isDisabled: false,
 };
 
 export const mockSentimentOperatorC: OperatorPredicate = {
-  operatorID: '4',
+  operatorID: "4",
   operatorType: mockNlpSentimentSchema.operatorType,
   operatorProperties: {
-    attribute: "user_screen_name"
+    attribute: "user_screen_name",
   },
-  inputPorts: [{portID: "10", displayName: "10"}],
+  inputPorts: [{ portID: "10", displayName: "10" }],
   outputPorts: [],
   showAdvanced: true,
   isDisabled: false,
 };
-
 
 export const mockLinkAtoB: OperatorLink = {
   linkID: "link-A-to-B",
