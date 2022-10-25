@@ -41,7 +41,6 @@ class NetworkReceiver(Runnable, Stoppable):
         # register the control handler to deserialize control messages.
         @logger.catch(reraise=True)
         def control_handler(message: bytes):
-            print("received", message)
             python_control_message = PythonControlMessage().parse(message)
             shared_queue.put(
                 ControlElement(

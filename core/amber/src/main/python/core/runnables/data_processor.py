@@ -6,6 +6,7 @@ import pyarrow
 from loguru import logger
 from overrides import overrides
 from pampy import match
+from pandas._libs.missing import checknull
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
@@ -191,7 +192,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         input_ = self._input_link_map[link]
 
         return map(
-            lambda t: Tuple(t) if t is not None else None,
+            lambda t: None if t is None else Tuple(t),
             self._operator.process_tuple(tuple_, input_)
             if isinstance(tuple_, Tuple)
             else self._operator.on_finish(input_),
@@ -352,8 +353,11 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         import pickle
 
         for field_name in output_tuple.get_field_names():
+            # convert NaN to None to support null value conversion
+            if checknull(output_tuple[field_name]):
+                output_tuple[field_name] = None
             field_value = output_tuple[field_name]
             field = schema.field(field_name)
-            field_type = field.type if field is not None else None
+            field_type = None if field is None else field.type
             if field_type == pyarrow.binary():
                 output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)
