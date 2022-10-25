@@ -57,7 +57,6 @@ class ProxyClient(FlightClient):
         """
         descriptor = FlightDescriptor.for_command(command)
         table = Table.from_arrays([]) if table is None else table
-        print("sending table")
         writer, _ = self.do_put(descriptor, table.schema)
         writer: FlightStreamWriter
         with writer:
