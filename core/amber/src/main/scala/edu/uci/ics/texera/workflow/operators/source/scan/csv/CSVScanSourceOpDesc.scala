@@ -69,6 +69,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     csvSetting.setMaxCharsPerColumn(-1)
     csvSetting.setFormat(csvFormat)
     csvSetting.setHeaderExtractionEnabled(hasHeader)
+    csvSetting.setNullValue("")
     val parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
 
