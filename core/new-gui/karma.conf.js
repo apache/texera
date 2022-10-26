@@ -23,13 +23,18 @@ module.exports = function (config) {
       reports: ["html", "lcovonly"],
       fixWebpackSourcePaths: true,
     },
-
+    customLaunchers: {
+      ChromeHeadlessDocker: {
+        base: 'ChromeHeadless',
+        flags: ['--no-sandbox'],
+      },
+    },
     reporters: ["progress", "kjhtml"],
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
     autoWatch: true,
-    browsers: ["Chrome"],
+    browsers: ['ChromeHeadlessDocker'],
     singleRun: false,
     captureTimeout: 60000,
     browserDisconnectTimeout : 10000,
