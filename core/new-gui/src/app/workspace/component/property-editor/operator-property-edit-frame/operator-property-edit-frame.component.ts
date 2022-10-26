@@ -432,17 +432,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
-      if (
-        this.currentOperatorId !== undefined &&
-        ["string", "textarea"].includes(mappedField.type as string) &&
-        !mappedField.wrappers?.includes("preset-wrapper")
-      ) {
+      if (this.currentOperatorId !== undefined && ["string", "textarea"].includes(mappedField.type as string)) {
         CollabWrapperComponent.setupFieldConfig(
           mappedField,
           this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
-          this.currentOperatorId
+          this.currentOperatorId,
+          mappedField.wrappers?.includes("preset-wrapper")
         );
       }
+      console.log(mappedField.wrappers);
 
       return mappedField;
     };

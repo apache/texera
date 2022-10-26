@@ -138,9 +138,16 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
     });
   }
 
-  static setupFieldConfig(mappedField: FormlyFieldConfig, operatorType: string, currentOperatorId: string) {
+  static setupFieldConfig(
+    mappedField: FormlyFieldConfig,
+    operatorType: string,
+    currentOperatorId: string,
+    includePresetWrapper: boolean = false
+  ) {
     const fieldConfig: FormlyFieldConfig = {
-      wrappers: ["form-field", "collab-wrapper"],
+      wrappers: includePresetWrapper
+        ? ["form-field", "preset-wrapper", "collab-wrapper"]
+        : ["form-field", "collab-wrapper"],
       templateOptions: {
         operatorType: operatorType,
         currentOperatorId: currentOperatorId,
