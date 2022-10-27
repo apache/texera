@@ -440,7 +440,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mappedField.wrappers?.includes("preset-wrapper")
         );
       }
-      console.log(mappedField.wrappers);
 
       return mappedField;
     };

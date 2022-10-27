@@ -7,6 +7,8 @@ import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
 import QuillCursors from "quill-cursors";
 
+export const COLLAB_DEBOUNCE_TIME_MS = 10;
+
 Quill.register("modules/cursors", QuillCursors);
 
 @Component({
