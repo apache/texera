@@ -6,11 +6,34 @@ import Quill from "quill";
 import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
 import QuillCursors from "quill-cursors";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 export const COLLAB_DEBOUNCE_TIME_MS = 10;
+const Clipboard = Quill.import("modules/clipboard");
+const Delta = Quill.import("delta");
 
+class PlainClipboard extends Clipboard {
+  onPaste(e: { preventDefault: () => void; clipboardData: { getData: (arg0: string) => any } }) {
+    e.preventDefault();
+    const range = this.quill.getSelection();
+    const text = e.clipboardData.getData("text/plain");
+    const delta = new Delta().retain(range.index).delete(range.length).insert(text);
+    const index = text.length + range.index;
+    const length = 0;
+    this.quill.updateContents(delta, "silent");
+    this.quill.setSelection(index, length, "silent");
+    this.quill.scrollIntoView();
+  }
+}
+Quill.register(
+  {
+    "modules/clipboard": PlainClipboard,
+  },
+  true
+);
 Quill.register("modules/cursors", QuillCursors);
 
+@UntilDestroy()
 @Component({
   templateUrl: "./collab-wrapper.component.html",
   styleUrls: ["./collab-wrapper.component.css"],
@@ -34,6 +57,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
         this.setUpYTextEditor();
       }
     });
+    this.registerDisableEditorInteractivityHandler();
   }
 
   private setUpYTextEditor() {
@@ -101,7 +125,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
           );
         }
       }
-    }, 100);
+    }, COLLAB_DEBOUNCE_TIME_MS);
   }
 
   private initializeQuillEditor() {
@@ -137,6 +161,21 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
       formats: [],
       placeholder: "Start collaborating...",
       theme: "bubble",
+    });
+    this.quill.enable(this.evaluateInteractivity());
+  }
+
+  private evaluateInteractivity(): boolean {
+    return this.formControl.enabled;
+  }
+
+  private setInteractivity(interactive: boolean) {
+    if (interactive !== this.quill?.isEnabled()) this.quill?.enable(interactive);
+  }
+
+  private registerDisableEditorInteractivityHandler(): void {
+    this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
+      this.setInteractivity(this.evaluateInteractivity());
     });
   }
 

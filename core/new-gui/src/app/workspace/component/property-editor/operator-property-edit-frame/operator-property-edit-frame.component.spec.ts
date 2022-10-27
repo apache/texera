@@ -126,7 +126,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
     });
     fixture.detectChanges();
-    tick(COLLAB_DEBOUNCE_TIME_MS + 100);
+    tick(COLLAB_DEBOUNCE_TIME_MS);
 
     // stimulate a form change by the user
     const formChangeValue = { tableName: "twitter_sample" };
