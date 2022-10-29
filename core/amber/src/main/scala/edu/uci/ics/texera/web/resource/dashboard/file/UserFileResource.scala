@@ -147,7 +147,6 @@ class UserFileResource {
     // get the user files
     // select the filenames that applies the input
     val query = URLDecoder.decode(q, "UTF-8")
-    println("quert ! " + query)
     val user = sessionUser.getUser
     val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
     val filenames = ArrayBuffer[String]()

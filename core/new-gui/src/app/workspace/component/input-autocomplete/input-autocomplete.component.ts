@@ -3,6 +3,7 @@ import { FieldType } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserFileService } from "src/app/dashboard/service/user-file/user-file.service";
 import { FormControl } from "@angular/forms";
+import { cloneDeep } from "lodash-es";
 
 @UntilDestroy()
 @Component({
@@ -20,8 +21,8 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
   inputValue: string = "";
   title?: string;
   // the autocomplete selection list
-  public selections: string[] = [];
-  fullList: string[] = [];
+  public suggestions: string[] = [];
+  private userAccessableFileList: string[] = [];
 
   constructor(public userFileService: UserFileService) {
     super();
@@ -41,7 +42,7 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
           .getAutoCompleteUserFileAccessList(encodeURIComponent(this.inputValue))
           .pipe(untilDestroyed(this))
           .subscribe(autocompleteList => {
-            this.selections = autocompleteList.concat();
+            this.suggestions = [...autocompleteList];
           });
       else
         this.userFileService
@@ -49,26 +50,25 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
           .pipe(untilDestroyed(this))
           .subscribe(list => {
             list.forEach(x => {
-              this.fullList.push(x.ownerName + "/" + x.file.name);
+              this.userAccessableFileList.push(x.ownerName + "/" + x.file.name);
             });
-            this.selections = JSON.parse(JSON.stringify(this.fullList));
+            this.suggestions = [...this.userAccessableFileList];
           });
       this.title = this.field.templateOptions.label;
     }
   }
 
   onAutocomplete(): void {
-    this.selections = [];
+    this.suggestions = [];
     // copy the input value
-    const value = JSON.parse(JSON.stringify(this.inputValue));
+    const value = cloneDeep(this.inputValue);
     // used to get the selection list
     // TODO: currently it's a hard-code userfile service autocomplete
-    console.log(encodeURIComponent(value));
     this.userFileService
       .getAutoCompleteUserFileAccessList(encodeURIComponent(value))
       .pipe(untilDestroyed(this))
       .subscribe(autocompleteList => {
-        this.selections = autocompleteList.concat();
+        this.suggestions = [...autocompleteList];
       });
   }
 }
