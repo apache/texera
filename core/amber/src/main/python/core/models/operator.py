@@ -110,7 +110,11 @@ class TableOperator(TupleOperatorV2):
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         self.__table_data[port].append(tuple_)
-        yield
+        if len(self.__table_data[port]) >= self.size:
+            yield from self.on_finish(port)
+            self.__table_data[port] = []
+        else:
+            yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
         table = Table(
