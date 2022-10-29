@@ -304,7 +304,7 @@ export class SharedModelChangeHandler {
           } else if (event.path[event.path.length - 1] === "inputPorts") {
             const addedInputPort = (event.delta[1]?.insert) ? event.delta[1]?.insert : event.delta[0]?.insert;
             if (addedInputPort) {
-              this.onOperatorPortAdded(operatorID, true, addedInputPort as PortDescription)
+              this.onOperatorPortAdded(operatorID, true, (addedInputPort as Y.Map<any>[])[0].toJSON() as PortDescription)
             }
             if (event.delta[0]?.delete || event.delta[1]?.delete) {
               this.onOperatorPortRemoved(operatorID, true)
@@ -312,7 +312,7 @@ export class SharedModelChangeHandler {
           } else if (event.path[event.path.length - 1] === "outputPorts") {
             const addedOutputPort = (event.delta[1]?.insert) ? event.delta[1]?.insert : event.delta[0]?.insert
             if (addedOutputPort) {
-              this.onOperatorPortAdded(operatorID, false, addedOutputPort as PortDescription)
+              this.onOperatorPortAdded(operatorID, false, (addedOutputPort as Y.Map<any>[])[0].toJSON() as PortDescription)
             }
             if (event.delta[0]?.delete || event.delta[1]?.delete) {
               this.onOperatorPortRemoved(operatorID, false)
@@ -348,6 +348,7 @@ export class SharedModelChangeHandler {
   private onOperatorPortAdded(operatorID: string, isInput: boolean, port: PortDescription) {
     const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
     const portGroup = isInput ? "in" : "out";
+    console.log(port.portID);
     operatorJointElement.addPort({
       group: portGroup,
       id: port.portID,

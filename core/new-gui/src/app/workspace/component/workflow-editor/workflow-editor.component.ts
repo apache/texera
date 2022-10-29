@@ -860,7 +860,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
         if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
-          this.workflowActionService.addPort(elementView.model.id.toString(), true, true);
+          this.workflowActionService.addPort(elementView.model.id.toString(), true, false);
         }
       });
     fromJointPaperEvent(this.getJointPaper(), "element:add-output-port")
@@ -1121,7 +1121,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       if (portIndex >= 0) {
         const portInfo =
           this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
-        allowMultiInput = portInfo.allowMultiInputs ?? false;
+        allowMultiInput = portInfo?.allowMultiInputs ?? false;
       }
     }
 
