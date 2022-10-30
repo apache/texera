@@ -116,7 +116,7 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "8.0.0"
+val arrowVersion = "9.0.0"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -242,3 +242,7 @@ libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 // https://mvnrepository.com/artifact/org.jasypt/jasypt
 libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
+
+// Jgit library for tracking operator version
+// https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
+libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"

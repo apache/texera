@@ -28,6 +28,13 @@ export interface RegisterWIdRequest
     wId: number;
   }> {}
 
+export interface WorkflowExecuteRequest
+  extends Readonly<{
+    executionName: string;
+    engineVersion: string;
+    logicalPlan: LogicalPlan;
+  }> {}
+
 export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
 
 export interface TexeraConstraintViolation
@@ -147,7 +154,7 @@ export type TexeraWebsocketRequestTypeMap = {
   ResultPaginationRequest: PaginationRequest;
   RetryRequest: {};
   SkipTupleRequest: SkipTuple;
-  WorkflowExecuteRequest: LogicalPlan;
+  WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
   WorkflowResumeRequest: {};

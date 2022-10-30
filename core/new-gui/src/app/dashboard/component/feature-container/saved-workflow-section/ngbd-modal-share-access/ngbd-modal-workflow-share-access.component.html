@@ -8,8 +8,23 @@
   <form (ngSubmit)="onClickShareWorkflow(workflow)" [formGroup]="shareForm">
     <div class="form-group">
       <label for="username"> Username of the target user to share </label>
-      <input class="form-control" formControlName="username" id="username" type="text" />
-
+      <input
+        [(ngModel)]="ownerSearchValue"
+        nz-input
+        nzBackdrop="false"
+        class="form-control"
+        formControlName="username"
+        id="username"
+        type="text"
+        (ngModelChange)="onChange($event)"
+        [nzAutocomplete]="auto"
+      />
+      <nz-autocomplete
+        [nzDefaultActiveFirstOption]="false"
+        [nzDataSource]="filteredOwners"
+        nzBackfill
+        #auto
+      ></nz-autocomplete>
       <br />
       <label for="accessLevel"> Access Level </label>
       <div id="accessLevel">

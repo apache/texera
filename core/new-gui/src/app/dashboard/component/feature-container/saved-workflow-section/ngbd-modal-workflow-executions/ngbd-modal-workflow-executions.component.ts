@@ -50,6 +50,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public customColumnWidth: Record<string, string> = {
     "": "70px",
     Name: "230px",
+    "Workflow Version Sample": "220px",
     Username: "150px",
     "Starting Time": "250px",
     "Last Status Updated Time": "250px",
@@ -72,7 +73,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   });
 
   // Pagination attributes
-  public isAscSort: boolean = true;
   public currentPageIndex: number = 1;
   public pageSize: number = 10;
   public pageSizeOptions: number[] = [5, 10, 20, 30, 40];

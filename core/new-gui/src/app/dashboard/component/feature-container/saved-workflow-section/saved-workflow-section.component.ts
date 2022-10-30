@@ -99,6 +99,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   // see https://github.com/angular/components/issues/14635
   public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
+  public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
@@ -116,7 +117,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     ["owner", ["ownerName"]],
   ]);
   public workflowSearchValue: string = "";
-  private defaultWorkflowName: string = "Untitled Workflow";
+  private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
 
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
@@ -135,6 +136,9 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public downloadListWorkflow = new Map<number, string>();
   public zip = new JSZip();
+
+  public ROUTER_WORKFLOW_BASE_URL = ROUTER_WORKFLOW_BASE_URL;
+  public ROUTER_USER_PROJECT_BASE_URL = ROUTER_USER_PROJECT_BASE_URL;
 
   constructor(
     private http: HttpClient,
@@ -172,6 +176,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
+    modalRef.componentInstance.allOwners = this.owners.map(owner => owner.userName);
     this.workflowPersistService
       .retrieveWorkflow(<number>workflow.wid)
       .pipe(untilDestroyed(this))
@@ -259,24 +264,27 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
    */
   private searchParameterBackendSetup() {
-    this.operatorMetadataService.getOperatorMetadata().subscribe(opdata => {
-      opdata.groups.forEach(group => {
-        this.operators.set(
-          group.groupName,
-          opdata.operators
-            .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
-            .map(operator => {
-              return {
-                userFriendlyName: operator.additionalMetadata.userFriendlyName,
-                operatorType: operator.operatorType,
-                operatorGroup: operator.additionalMetadata.operatorGroupName,
-                checked: false,
-              };
-            })
-        );
+    this.operatorMetadataService
+      .getOperatorMetadata()
+      .pipe(untilDestroyed(this))
+      .subscribe(opdata => {
+        opdata.groups.forEach(group => {
+          this.operators.set(
+            group.groupName,
+            opdata.operators
+              .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
+              .map(operator => {
+                return {
+                  userFriendlyName: operator.additionalMetadata.userFriendlyName,
+                  operatorType: operator.operatorType,
+                  operatorGroup: operator.additionalMetadata.operatorGroupName,
+                  checked: false,
+                };
+              })
+          );
+        });
+        this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
-      this.operatorGroups = opdata.groups.map(group => group.groupName);
-    });
     this.retrieveOwners()
       .pipe(untilDestroyed(this))
       .subscribe(list_of_owners => (this.owners = list_of_owners));
@@ -858,20 +866,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       });
   }
 
-  /**
-   * jump to the target workflow canvas
-   */
-  public jumpToWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    window.open(`${ROUTER_WORKFLOW_BASE_URL}/${wid}`);
-  }
-
-  /**
-   * navigate to individual project page
-   */
-  public jumpToProject({ pid }: UserProject): void {
-    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
-  }
-
   private registerDashboardWorkflowEntriesRefresh(): void {
     this.userService
       .userChanged()
@@ -1034,6 +1028,30 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       })
       .add(() => {
         this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
+      });
+  }
+
+  public confirmUpdateWorkflowCustomDescription(
+    dashboardWorkflowEntry: DashboardWorkflowEntry,
+    description: string,
+    index: number
+  ): void {
+    const { workflow } = dashboardWorkflowEntry;
+    this.workflowPersistService
+      .updateWorkflowDescription(workflow.wid, description)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
+        updatedDashboardWorkFlowEntry.workflow.description = description;
+        const newEntries = this.dashboardWorkflowEntries.slice();
+        newEntries[index] = updatedDashboardWorkFlowEntry;
+        this.dashboardWorkflowEntries = newEntries;
+      })
+      .add(() => {
+        this.dashboardWorkflowEntriesIsEditingDescription = this.dashboardWorkflowEntriesIsEditingDescription.filter(
           entryIsEditingIndex => entryIsEditingIndex != index
         );
       });

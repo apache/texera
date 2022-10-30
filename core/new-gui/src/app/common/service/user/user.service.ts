@@ -22,6 +22,10 @@ export class UserService {
     }
   }
 
+  public getCurrentUser(): User | undefined {
+    return this.currentUser;
+  }
+
   public login(username: string, password: string): Observable<void> {
     // validate the credentials with backend
     return this.authService
@@ -56,7 +60,14 @@ export class UserService {
    * @param user
    */
   private changeUser(user: User | undefined): void {
-    this.currentUser = user;
+    if (user) {
+      const r = Math.floor(Math.random() * 155);
+      const g = Math.floor(Math.random() * 155);
+      const b = Math.floor(Math.random() * 155);
+      this.currentUser = { ...user, color: "rgba(" + r + "," + g + "," + b + ",0.8)" };
+    } else {
+      this.currentUser = user;
+    }
     this.userChangeSubject.next(this.currentUser);
   }
 
