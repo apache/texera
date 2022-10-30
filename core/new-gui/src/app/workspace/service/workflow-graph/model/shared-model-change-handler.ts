@@ -6,13 +6,14 @@ import {
   CommentBox,
   OperatorLink,
   OperatorPredicate,
-  Point, PortDescription,
+  Point,
+  PortDescription,
 } from "../../../types/workflow-common.interface";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
-import {insert} from "@nrwl/workspace";
+import { insert } from "@nrwl/workspace";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -251,7 +252,7 @@ export class SharedModelChangeHandler {
    */
   private handleOperatorDeep(): void {
     this.texeraGraph.sharedModel.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
-      console.log(events)
+      console.log(events);
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.operatorIDMap) {
           const operatorID = event.path[0] as string;
@@ -302,28 +303,35 @@ export class SharedModelChangeHandler {
               newDisplayName: newName.toJSON(),
             });
           } else if (event.path[event.path.length - 1] === "inputPorts") {
-            const addedInputPort = (event.delta[1]?.insert) ? event.delta[1]?.insert : event.delta[0]?.insert;
+            const addedInputPort = event.delta[1]?.insert ? event.delta[1]?.insert : event.delta[0]?.insert;
             if (addedInputPort) {
-              this.onOperatorPortAdded(operatorID, true, (addedInputPort as Y.Map<any>[])[0].toJSON() as PortDescription)
+              this.onOperatorPortAdded(
+                operatorID,
+                true,
+                (addedInputPort as Y.Map<any>[])[0].toJSON() as PortDescription
+              );
             }
             if (event.delta[0]?.delete || event.delta[1]?.delete) {
-              this.onOperatorPortRemoved(operatorID, true)
+              this.onOperatorPortRemoved(operatorID, true);
             }
           } else if (event.path[event.path.length - 1] === "outputPorts") {
-            const addedOutputPort = (event.delta[1]?.insert) ? event.delta[1]?.insert : event.delta[0]?.insert
+            const addedOutputPort = event.delta[1]?.insert ? event.delta[1]?.insert : event.delta[0]?.insert;
             if (addedOutputPort) {
-              this.onOperatorPortAdded(operatorID, false, (addedOutputPort as Y.Map<any>[])[0].toJSON() as PortDescription)
+              this.onOperatorPortAdded(
+                operatorID,
+                false,
+                (addedOutputPort as Y.Map<any>[])[0].toJSON() as PortDescription
+              );
             }
             if (event.delta[0]?.delete || event.delta[1]?.delete) {
-              this.onOperatorPortRemoved(operatorID, false)
+              this.onOperatorPortRemoved(operatorID, false);
             }
           } else if (event.path.includes("operatorProperties")) {
             this.onOperatorPropertyChanged(operatorID, event.transaction.local);
           }
-
         }
       });
-    })
+    });
   }
 
   /**
@@ -364,10 +372,10 @@ export class SharedModelChangeHandler {
   }
 
   private onOperatorPortRemoved(operatorID: string, isInput: boolean) {
-    console.log("in operator port removed function, isInput:", isInput)
+    console.log("in operator port removed function, isInput:", isInput);
     const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
     const portGroup = isInput ? "in" : "out";
-    const originalPorts = operatorJointElement.getPorts().filter((port) => port.group === portGroup);
+    const originalPorts = operatorJointElement.getPorts().filter(port => port.group === portGroup);
     let lastPort;
     for (let p of operatorJointElement.getPorts()) {
       if (p.group === portGroup) {
@@ -375,7 +383,7 @@ export class SharedModelChangeHandler {
       }
     }
     if (lastPort) {
-      operatorJointElement.removePort(lastPort)
+      operatorJointElement.removePort(lastPort);
     }
 
     const operator = this.texeraGraph.getOperator(operatorID);

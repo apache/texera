@@ -521,10 +521,14 @@ export class WorkflowGraph {
   public addPort(operatorID: string, port: PortDescription, isInput: boolean): void {
     this.assertOperatorExists(operatorID);
     if (isInput) {
-      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<YType<PortDescription>>;
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
       inputPorts.push([createYTypeFromObject<PortDescription>(port)]);
     } else {
-      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<YType<PortDescription>>;
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
       outputPorts.push([createYTypeFromObject<PortDescription>(port)]);
     }
   }
@@ -532,10 +536,14 @@ export class WorkflowGraph {
   public removePort(operatorID: string, isInput: boolean): void {
     this.assertOperatorExists(operatorID);
     if (isInput) {
-      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<YType<PortDescription>>;
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
       inputPorts.delete(inputPorts.length - 1, 1);
     } else {
-      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<YType<PortDescription>>;
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
       outputPorts.delete(outputPorts.length - 1, 1);
     }
   }

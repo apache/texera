@@ -137,7 +137,7 @@ export class WorkflowUtilService {
       isDisabled,
       customDisplayName,
       dynamicInputPorts,
-      dynamicOutputPorts
+      dynamicOutputPorts,
     };
   }
 

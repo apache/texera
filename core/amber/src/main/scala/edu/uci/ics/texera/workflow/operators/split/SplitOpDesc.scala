@@ -37,7 +37,7 @@ class SplitOpDesc extends OperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort("training"), OutputPort("testing")),
       dynamicInputPorts = true,
-      dynamicOutputPorts = true,
+      dynamicOutputPorts = true
     )
   }
 

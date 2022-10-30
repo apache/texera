@@ -167,9 +167,15 @@ export class ValidationWorkflowService {
     });
 
     // capture the port change event and validate the operator of this port
-    this.workflowActionService.getTexeraGraph().getOperatorPortChangeStream().subscribe(portChange => {
-      this.updateValidationState(portChange.newOperator.operatorID, this.validateOperator(portChange.newOperator.operatorID));
-    });
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorPortChangeStream()
+      .subscribe(portChange => {
+        this.updateValidationState(
+          portChange.newOperator.operatorID,
+          this.validateOperator(portChange.newOperator.operatorID)
+        );
+      });
 
     // Capture the operator property change event and validate the current operator being changed
     this.workflowActionService
@@ -266,9 +272,7 @@ export class ValidationWorkflowService {
       if (port.allowMultiInputs) {
         if (portNumInputs < 1) {
           satisfyInput = false;
-          inputPortsViolationMessage += `${
-            port.displayName ?? ""
-          } requires at least 1 inputs, has ${portNumInputs}`;
+          inputPortsViolationMessage += `${port.displayName ?? ""} requires at least 1 inputs, has ${portNumInputs}`;
         }
       } else {
         if (portNumInputs !== 1) {

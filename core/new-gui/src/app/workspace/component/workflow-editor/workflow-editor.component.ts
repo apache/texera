@@ -591,22 +591,22 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
         }
       });
-      // fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
-      // .pipe(untilDestroyed(this))
-      // .subscribe(event => console.log(event));
+    // fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
+    // .pipe(untilDestroyed(this))
+    // .subscribe(event => console.log(event));
 
+    const inputPortClickStream = fromJointPaperEvent(this.getJointPaper(), "input-port-label:pointerdown");
 
-      const inputPortClickStream = fromJointPaperEvent(this.getJointPaper(), "input-port-label:pointerdown")
-
-
-      inputPortClickStream.pipe(
+    inputPortClickStream
+      .pipe(
         buffer(inputPortClickStream.pipe(debounceTime(250))),
         filter(x => x.length === 2),
         untilDestroyed(this)
-      ).subscribe(e => {
-        console.log('doubleclick');
+      )
+      .subscribe(e => {
+        console.log("doubleclick");
         console.log(e);
-      })
+      });
   }
   /**
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator or group.
@@ -874,7 +874,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.workflowActionService.addPort(elementView.model.id.toString(), false);
         }
       });
-
   }
 
   private handleViewRemovePort(): void {
@@ -901,7 +900,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.workflowActionService.removePort(elementView.model.id.toString(), false);
         }
       });
-
   }
 
   private handleViewMouseoverOperator(): void {

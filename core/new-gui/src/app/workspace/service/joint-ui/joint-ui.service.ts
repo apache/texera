@@ -39,7 +39,6 @@ export const deleteButtonSVG = `
     <title>delete operator</title>
   </svg>`;
 
-
 export const addPortButtonPath = `
 <path d="M215.037,36.846c-49.129-49.128-129.063-49.128-178.191,0c-49.127,49.127-49.127,129.063,0,178.19
 c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,165.909,264.164,85.973,215.037,36.846z
@@ -55,7 +54,7 @@ c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,16
  M49.574,202.309c-42.109-42.109-42.109-110.626,0-152.735c21.055-21.054,48.711-31.582,76.367-31.582s55.313,10.527,76.367,31.582
 c42.109,42.109,42.109,110.626,0,152.735C160.199,244.417,91.683,244.417,49.574,202.309z"/>
 <path d="M194.823,116.941H57.059c-4.971,0-9,4.029-9,9s4.029,9,9,9h137.764c4.971,0,9-4.029,9-9S199.794,116.941,194.823,116.941z"
-/>`
+/>`;
 
 export const addInputPortButtonSVG = `
   <svg class="add-input-port-button">
@@ -70,7 +69,6 @@ export const removeInputPortButtonSVG = `
     <title>remove port</title>
   </svg>
 `;
-
 
 export const addOutputPortButtonSVG = `
   <svg class="add-output-port-button">
@@ -156,7 +154,6 @@ export const linkPathStrokeColor = "#919191";
  *   which will show a red delete button on the top right corner
  */
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
-
   static getMarkup(dynamicInputPorts: boolean, dynamicOutputPorts: boolean): string {
     return `
     <g class="element-node">
@@ -187,7 +184,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       ${dynamicOutputPorts ? addOutputPortButtonSVG : ""}
       ${dynamicOutputPorts ? removeOutputPortButtonSVG : ""}
     </g>
-    `
+    `;
   }
 }
 
@@ -291,7 +288,10 @@ export class JointUIService {
           out: { attrs: JointUIService.getCustomPortStyleAttrs() },
         },
       },
-      markup: TexeraCustomJointElement.getMarkup(operator.dynamicInputPorts ?? false, operator.dynamicOutputPorts ?? false)
+      markup: TexeraCustomJointElement.getMarkup(
+        operator.dynamicInputPorts ?? false,
+        operator.dynamicOutputPorts ?? false
+      ),
     });
 
     // set operator element ID to be operator ID
@@ -720,8 +720,7 @@ export class JointUIService {
       ".port-label": {
         event: "input-label:evt",
         dblclick: "input-label:dbclick",
-        pointerdblclick: "input-label:pointerdblclick"
-
+        pointerdblclick: "input-label:pointerdblclick",
       },
     };
     return portStyleAttrs;
@@ -773,7 +772,7 @@ export class JointUIService {
   public static getCustomOperatorStyleAttrs(
     operator: OperatorPredicate,
     operatorDisplayName: string,
-    operatorType: string,
+    operatorType: string
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       ".texera-operator-coeditor-editing-background": {
