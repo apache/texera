@@ -28,11 +28,11 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
 
   class MongoDBSinkStorageWriter(bufferSize: Int) extends SinkStorageWriter {
     var client: MongoClient = _
-    var uncommittedInsertions: mutable.HashSet[Tuple] = _
+    var uncommittedInsertions: mutable.ArrayBuffer[Tuple] = _
     var collection: MongoCollection[Document] = _
 
     override def open(): Unit = {
-      uncommittedInsertions = new mutable.HashSet[Tuple]()
+      uncommittedInsertions = new mutable.ArrayBuffer[Tuple]()
       client = MongoClients.create(url)
       val database: MongoDatabase = client.getDatabase(databaseName)
       collection = database.getCollection(id)
@@ -47,7 +47,7 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
     }
 
     override def putOne(tuple: Tuple): Unit = {
-      uncommittedInsertions.add(tuple)
+      uncommittedInsertions.append(tuple)
       if (uncommittedInsertions.size == bufferSize) {
         collection.insertMany(uncommittedInsertions.map(_.asDocument()).toList.asJava)
         uncommittedInsertions.clear()
@@ -55,8 +55,9 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
     }
 
     override def removeOne(tuple: Tuple): Unit = {
-      if (uncommittedInsertions.contains(tuple)) {
-        uncommittedInsertions.remove(tuple)
+      val index = uncommittedInsertions.indexOf(tuple)
+      if (index != -1) {
+        uncommittedInsertions.remove(index)
       } else {
         collection.findOneAndDelete(tuple.asDocument())
       }
