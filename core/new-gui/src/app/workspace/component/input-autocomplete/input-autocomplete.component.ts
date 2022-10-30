@@ -60,7 +60,7 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
     }
   }
 
-  equalsIgnoreOrder(a:string[], b:string[]): boolean {
+  equalsIgnoreOrder(a: string[], b: string[]): boolean {
     if (a.length !== b.length) return false;
     const uniqueValues = new Set([...a, ...b]);
     for (const v of uniqueValues) {
