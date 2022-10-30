@@ -4,6 +4,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserFileService } from "src/app/dashboard/service/user-file/user-file.service";
 import { FormControl } from "@angular/forms";
 import { cloneDeep } from "lodash-es";
+import { debounceTime } from "rxjs/operators";
+import { isEqual } from "lodash";
 
 @UntilDestroy()
 @Component({
@@ -58,17 +60,29 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
     }
   }
 
+  equalsIgnoreOrder(a:string[], b:string[]): boolean {
+    if (a.length !== b.length) return false;
+    const uniqueValues = new Set([...a, ...b]);
+    for (const v of uniqueValues) {
+      const aCount = a.filter(e => e === v).length;
+      const bCount = b.filter(e => e === v).length;
+      if (aCount !== bCount) return false;
+    }
+    return true;
+  }
+
   onAutocomplete(): void {
-    this.suggestions = [];
     // copy the input value
     const value = cloneDeep(this.inputValue);
     // used to get the selection list
     // TODO: currently it's a hard-code userfile service autocomplete
     this.userFileService
       .getAutoCompleteUserFileAccessList(encodeURIComponent(value))
+      .pipe(debounceTime(300))
       .pipe(untilDestroyed(this))
       .subscribe(autocompleteList => {
-        this.suggestions = [...autocompleteList];
+        if (!this.equalsIgnoreOrder(this.suggestions, autocompleteList.concat()))
+          this.suggestions = [...autocompleteList];
       });
   }
 }
