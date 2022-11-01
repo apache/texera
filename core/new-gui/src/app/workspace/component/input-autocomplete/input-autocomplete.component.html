@@ -1,9 +1,10 @@
 <mat-form-field>
-  <mat-label> {{ title }} </mat-label>
+  <mat-label> {{ this.field?.templateOptions?.label }} </mat-label>
   <input
-    (input)="onAutocomplete()"
+    (input)="autocomplete()"
+    (focus)="autocomplete()"
     [formControl]="getControl()"
-    [(ngModel)]="inputValue"
+    [(ngModel)]="field?.formControl.value"
     matInput
     required
     [nzAutocomplete]="auto"

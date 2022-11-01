@@ -1,11 +1,10 @@
-import { Component, OnInit } from "@angular/core";
-import { FieldType } from "@ngx-formly/core";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { UserFileService } from "src/app/dashboard/service/user-file/user-file.service";
-import { FormControl } from "@angular/forms";
-import { cloneDeep } from "lodash-es";
-import { debounceTime } from "rxjs/operators";
-import { isEqual } from "lodash";
+import {Component} from "@angular/core";
+import {FieldType} from "@ngx-formly/core";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {UserFileService} from "src/app/dashboard/service/user-file/user-file.service";
+import {FormControl} from "@angular/forms";
+import {debounceTime} from "rxjs/operators";
+import {map} from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -19,48 +18,23 @@ import { isEqual } from "lodash";
  * details https://github.com/ngx-formly/ngx-formly/issues/2842#issuecomment-1066116865
  * need to upgrade formly to v6 to properly fix this issue.
  */
-export class InputAutoCompleteComponent extends FieldType<any> implements OnInit {
-  inputValue: string = "";
-  title?: string;
+export class InputAutoCompleteComponent extends FieldType<any> {
+
   // the autocomplete selection list
   public suggestions: string[] = [];
-  private userAccessableFileList: string[] = [];
 
   constructor(public userFileService: UserFileService) {
     super();
   }
 
-  // TODO: write this function because formcontrol is a nonnullable and read-only field. This is used to fit the test.
+  // FormControl is a non-nullable and read-only field.
+  // This function is used to fit the test cases.
   getControl() {
     if (this.field == undefined) return new FormControl({});
     return this.formControl;
   }
 
-  ngOnInit() {
-    if (this.field) {
-      this.inputValue = this.field.formControl.value;
-      if (this.inputValue?.length > 0)
-        this.userFileService
-          .getAutoCompleteUserFileAccessList(encodeURIComponent(this.inputValue))
-          .pipe(untilDestroyed(this))
-          .subscribe(autocompleteList => {
-            this.suggestions = [...autocompleteList];
-          });
-      else
-        this.userFileService
-          .retrieveDashboardUserFileEntryList()
-          .pipe(untilDestroyed(this))
-          .subscribe(list => {
-            list.forEach(x => {
-              this.userAccessableFileList.push(x.ownerName + "/" + x.file.name);
-            });
-            this.suggestions = [...this.userAccessableFileList];
-          });
-      this.title = this.field.templateOptions.label;
-    }
-  }
-
-  equalsIgnoreOrder(a: string[], b: string[]): boolean {
+  equalsIgnoreOrder(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
     if (a.length !== b.length) return false;
     const uniqueValues = new Set([...a, ...b]);
     for (const v of uniqueValues) {
@@ -71,18 +45,29 @@ export class InputAutoCompleteComponent extends FieldType<any> implements OnInit
     return true;
   }
 
-  onAutocomplete(): void {
-    // copy the input value
-    const value = cloneDeep(this.inputValue);
-    // used to get the selection list
-    // TODO: currently it's a hard-code userfile service autocomplete
-    this.userFileService
-      .getAutoCompleteUserFileAccessList(encodeURIComponent(value))
-      .pipe(debounceTime(300))
-      .pipe(untilDestroyed(this))
-      .subscribe(autocompleteList => {
-        if (!this.equalsIgnoreOrder(this.suggestions, autocompleteList.concat()))
-          this.suggestions = [...autocompleteList];
-      });
+  autocomplete(): void {
+    // currently it's a hard-code UserFileService autocomplete
+    // TODO: generalize this callback function with a formly hook.
+    const value = this.field.formControl.value.trim();
+    if (value.length > 0) {
+      // perform auto-complete based on the current input
+      this.userFileService
+        .getAutoCompleteUserFileAccessList(value)
+        .pipe(debounceTime(300))
+        .pipe(untilDestroyed(this))
+        .subscribe(suggestedFiles => {
+          if (!this.equalsIgnoreOrder(this.suggestions, suggestedFiles))
+            this.suggestions = [...suggestedFiles];
+        });
+    } else {
+      // no valid input, perform full scan
+      this.userFileService
+        .retrieveDashboardUserFileEntryList()
+        .pipe(
+          map(list => list.map(x => x.ownerName + "/" + x.file.name))
+        ).pipe(untilDestroyed(this)).subscribe(
+        allAccessibleFiles => this.suggestions = allAccessibleFiles
+      );
+    }
   }
 }
