@@ -223,18 +223,7 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
     });
 
-    // it("should highlight the commentBox when user double clicks on a commentBox", () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //   const highlightCommentBoxFunctionSpy = spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
-    //   workflowActionService.addCommentBox(mockCommentBox);
-    //   jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
-    //   const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
-    //   jointCellView.$el.trigger("dblclick");
-    //   fixture.detectChanges();
-    //   expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
-    // });
-
-    it("should highlight the commentBox when user double clicks on a commentBox", () => {
+    it("should highlight the commentBox when user clicks on a commentBox", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const highlightCommentBoxFunctionSpy = spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
       workflowActionService.addCommentBox(mockCommentBox);
@@ -245,7 +234,7 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
     });
 
-    it("should open commentBox as NzModal", () => {
+    it("should open commentBox as NzModal when user double clicks on a commentBox", () => {
       // const modalRef:NzModalRef = nzModalService.create({
       //   nzTitle: "CommentBox",
       //   nzContent: NzModalCommentBoxComponent,
