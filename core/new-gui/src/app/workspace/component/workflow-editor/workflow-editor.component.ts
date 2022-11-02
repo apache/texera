@@ -543,7 +543,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleHighlightMouseDBClickInput();
     this.handleHighlightMouseInput();
     this.handleElementHightlightEvent();
-    this.handleCommentBoxHighlightMouseClickInput();
   }
 
   private handleDisableOperator(): void {
@@ -611,6 +610,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         filter(
           event =>
             this.workflowActionService.getTexeraGraph().hasOperator(event[0].model.id.toString()) ||
+            this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString()) ||
             this.workflowActionService.getOperatorGroup().hasGroup(event[0].model.id.toString())
         )
       )
@@ -661,6 +661,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
+          } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
           }
         }
       });
@@ -675,37 +677,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
+        const highlightedCommentBoxIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
         const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         this.workflowActionService.unhighlightOperators(...highlightedOperatorIDs);
         this.workflowActionService.unhighlightLinks(...highlightedLinkIDs);
-      });
-  }
-
-  private handleCommentBoxHighlightMouseClickInput(): void {
-    // on user mouse clicks a comment box, highlight that comment box
-    fromJointPaperEvent(this.getJointPaper(), "cell:pointerdown")
-      //fromJointPaperEvent(this.getJointPaper(), "cell:contextmenu")
-      .pipe(
-        filter(event => event[0].model.isElement()),
-        filter(event => this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString()))
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const elementID = event[0].model.id.toString();
-        if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
-          this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
-        }
-      });
-
-    // on user mouse clicks on blank area, unhighlight comment box
-    fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown")
-      //fromJointPaperEvent(this.getJointPaper(), "blank:contextmenu"
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        const highlightedCommentBoxesIDs = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedCommentBoxIDs();
-        this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(...highlightedCommentBoxesIDs);
+        this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(...highlightedCommentBoxIDs);
       });
   }
 
