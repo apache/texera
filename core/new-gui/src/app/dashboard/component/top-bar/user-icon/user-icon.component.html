@@ -1,13 +1,6 @@
 <div class="user-icon">
 
-  <div (click)="googleLogin()" class="g-sign-in-button">
-    <div class="content-wrapper">
-      <div class="logo-wrapper">
-        <img alt="g-sign-in-button" src="https://developers.google.com/identity/images/g-logo.png" />
-      </div>
-      <span class="text-container"><span>Sign in with Google</span></span>
-    </div>
-  </div>
+  <button *ngIf="!user" class="login-with-google-btn" (click)="googleLogin()">Sign in with Google</button>
 
   <div *ngIf="user">
     <texera-user-avatar
