@@ -33,17 +33,6 @@ export class InputAutoCompleteComponent extends FieldType<any> {
     return this.formControl;
   }
 
-  equalsIgnoreOrder(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
-    if (a.length !== b.length) return false;
-    const uniqueValues = new Set([...a, ...b]);
-    for (const v of uniqueValues) {
-      const aCount = a.filter(e => e === v).length;
-      const bCount = b.filter(e => e === v).length;
-      if (aCount !== bCount) return false;
-    }
-    return true;
-  }
-
   autocomplete(): void {
     // currently it's a hard-code UserFileService autocomplete
     // TODO: generalize this callback function with a formly hook.
@@ -55,7 +44,12 @@ export class InputAutoCompleteComponent extends FieldType<any> {
         .pipe(debounceTime(300))
         .pipe(untilDestroyed(this))
         .subscribe(suggestedFiles => {
-          if (!this.equalsIgnoreOrder(this.suggestions, suggestedFiles)) this.suggestions = [...suggestedFiles];
+          var is_same =
+            this.suggestions.length == suggestedFiles.length &&
+            this.suggestions.every(function (e, i) {
+              return e === suggestedFiles[i];
+            });
+          if (!is_same) this.suggestions = [...suggestedFiles];
         });
     } else {
       // no valid input, perform full scan
