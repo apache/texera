@@ -146,7 +146,7 @@ class WorkflowScheduler(
         workerLayer.build(
           prev.map(pair => (workflow.getOperator(pair._1), pair._2)),
           availableNodes,
-          networkCommunicationActor.ref,
+          networkCommunicationActor,
           ctx,
           workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
@@ -164,7 +164,7 @@ class WorkflowScheduler(
         workerLayer.build(
           prev.map(pair => (workflow.getOperator(pair._1), pair._2)),
           availableNodes,
-          networkCommunicationActor.ref,
+          networkCommunicationActor,
           ctx,
           workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
@@ -177,7 +177,7 @@ class WorkflowScheduler(
           layer.build(
             operatorInLinks(layer).map(y => (null, y)).toArray,
             availableNodes,
-            networkCommunicationActor.ref,
+            networkCommunicationActor,
             ctx,
             workflow.getInlinksIdsToWorkerLayer(layer.id),
             workflow.workerToLayer,

@@ -11,7 +11,6 @@ object OpenOperatorHandler {
 
 trait OpenOperatorHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
-
   registerHandler { (openOperator: OpenOperator, sender) =>
     operator.open()
   }

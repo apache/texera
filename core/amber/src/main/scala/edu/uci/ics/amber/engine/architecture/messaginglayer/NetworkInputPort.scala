@@ -40,6 +40,14 @@ class NetworkInputPort[T](
     }
   }
 
+  def overwriteFIFOState(fifoState: Map[ActorVirtualIdentity, Long]): Unit = {
+    fifoState.foreach {
+      case (identity, l) =>
+        val entry = idToOrderingEnforcers.getOrElseUpdate(identity, new OrderingEnforcer[T]())
+        entry.setCurrent(l)
+    }
+  }
+
   def getStashedMessageCount(): Long = {
     if (idToOrderingEnforcers.size == 0) { return 0 }
     idToOrderingEnforcers.values.map(ordEnforcer => ordEnforcer.ofoMap.size).sum

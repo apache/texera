@@ -69,6 +69,7 @@ class PauseSpec
     Thread.sleep(4000)
     Await.result(client.sendAsync(ResumeWorkflow()))
     Await.result(completion)
+    client.shutdown()
   }
 
   "Engine" should "be able to pause csv->sink workflow" in {

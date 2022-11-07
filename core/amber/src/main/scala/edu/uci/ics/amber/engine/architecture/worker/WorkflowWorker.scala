@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerEx
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef,
   SendRequest
 }
@@ -18,6 +19,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputPort,
   TupleToBatchConverter
 }
+import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
@@ -47,7 +49,7 @@ object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       op: IOperatorExecutor,
-      parentNetworkCommunicationActorRef: ActorRef,
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
       allUpstreamLinkIds: Set[LinkIdentity]
   ): Props =
     Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
@@ -56,7 +58,7 @@ object WorkflowWorker {
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
-    parentNetworkCommunicationActorRef: ActorRef,
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
     allUpstreamLinkIds: Set[LinkIdentity]
 ) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef) {
   lazy val pauseManager: PauseManager = wire[PauseManager]
@@ -80,11 +82,8 @@ class WorkflowWorker(
   var isCompleted = false
 
   if (parentNetworkCommunicationActorRef != null) {
-    parentNetworkCommunicationActorRef ! RegisterActorRef(this.actorId, self)
+    parentNetworkCommunicationActorRef.waitUntil(RegisterActorRef(this.actorId, self))
   }
-
-  workerStateManager.assertState(UNINITIALIZED)
-  workerStateManager.transitTo(READY)
 
   override def getLogName: String = actorId.name.replace("Worker:", "")
 
@@ -92,7 +91,12 @@ class WorkflowWorker(
     tupleProducer.getSenderCredits(sender)
   }
 
-  override def receive: Receive = receiveAndProcessMessages
+  override def receive: Receive = {
+    val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
+    val fifoState = fifoStateRecoveryManager.getFIFOState
+    controlInputPort.overwriteFIFOState(fifoState)
+    receiveAndProcessMessages
+  }
 
   def receiveAndProcessMessages: Receive =
     try {
@@ -131,13 +135,6 @@ class WorkflowWorker(
     }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-    if (workerStateManager.getCurrentState == READY) {
-      workerStateManager.transitTo(RUNNING)
-      asyncRPCClient.send(
-        WorkerStateUpdated(workerStateManager.getCurrentState),
-        CONTROLLER
-      )
-    }
     tupleProducer.processDataPayload(from, dataPayload)
   }
 
@@ -161,15 +158,17 @@ class WorkflowWorker(
       payload: DataPayload
   ): Unit = {
     val msg = WorkflowDataMessage(self, seqNum, payload)
-    logManager.sendDirectlyOrCommitted(SendRequest(to, msg))
+    logManager.sendCommitted(SendRequest(to, msg))
   }
 
   override def postStop(): Unit = {
     // shutdown dp thread by sending a command
+    val shutdown = ShutdownDPThread()
     dataProcessor.enqueueCommand(
-      ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
+      ControlInvocation(AsyncRPCClient.IgnoreReply, shutdown),
       SELF
     )
+    shutdown.completed.get()
     logger.info("stopped!")
   }
 

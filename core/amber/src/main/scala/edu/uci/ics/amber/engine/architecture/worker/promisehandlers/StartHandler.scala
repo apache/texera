@@ -17,8 +17,8 @@ trait StartHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: StartWorker, sender) =>
-    stateManager.assertState(READY)
     if (operator.isInstanceOf[ISourceOperatorExecutor]) {
+      stateManager.assertState(READY)
       stateManager.transitTo(RUNNING)
       dataProcessor.appendElement(EndMarker)
       dataProcessor.appendElement(EndOfAllMarker)

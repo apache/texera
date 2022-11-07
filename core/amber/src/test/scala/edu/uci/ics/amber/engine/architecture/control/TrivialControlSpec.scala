@@ -1,7 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.control
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.pattern.ask
 import akka.testkit.{TestKit, TestProbe}
+import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
 import edu.uci.ics.amber.engine.architecture.control.utils.ErrorHandler.ErrorCommand
@@ -14,6 +16,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   GetActorRef,
   NetworkAck,
   NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.common.Constants
@@ -26,6 +29,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import scala.collection.mutable
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class TrivialControlSpec
@@ -42,7 +46,7 @@ class TrivialControlSpec
     val (events, expectedValues) = eventPairs.unzip
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
-    probe.receiveWhile(5.minutes, 5.seconds) {
+    probe.receiveWhile(5.minutes, 10.seconds) {
       case GetActorRef(id, replyTo) =>
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
@@ -63,6 +67,9 @@ class TrivialControlSpec
     if (flag != expectedValues.length) {
       throw new AssertionError()
     }
+    idMap.foreach { x =>
+      x._2 ! PoisonPill
+    }
   }
 
   def setUp(
@@ -73,7 +80,8 @@ class TrivialControlSpec
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
     for (i <- 0 until numActors) {
       val id = ActorVirtualIdentity(s"$i")
-      val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
+      val ref =
+        probe.childActorOf(Props(new TrivialControlTester(id, NetworkSenderActorRef(probe.ref))))
       idMap(id) = ref
     }
     idMap(CONTROLLER) = probe.ref

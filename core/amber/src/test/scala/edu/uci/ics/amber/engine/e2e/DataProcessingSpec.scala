@@ -76,6 +76,7 @@ class DataProcessingSpec
       })
     Await.result(client.sendAsync(StartWorkflow()))
     Await.result(completion)
+    client.shutdown()
     results
   }
 
