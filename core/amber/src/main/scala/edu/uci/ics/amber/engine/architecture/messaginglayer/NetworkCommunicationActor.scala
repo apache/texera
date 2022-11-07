@@ -327,7 +327,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
         queriedActorVirtualIdentities.add(actorID)
       } catch {
         case e: Exception =>
-          logger.warn("Failed to fetch actorRef for " + actorID + " parentRef = " + parentRef)
+          logger.error("Failed to fetch actorRef for " + actorID + " parentRef = " + parentRef)
       }
     }
   }

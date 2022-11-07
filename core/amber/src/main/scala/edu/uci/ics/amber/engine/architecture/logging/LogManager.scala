@@ -39,7 +39,7 @@ abstract class LogManager {
 
   def getDeterminantLogger: DeterminantLogger
 
-  def sendDirectlyOrCommitted(sendRequest: SendRequest): Unit
+  def sendCommitted(sendRequest: SendRequest): Unit
 
   def terminate(): Unit
 

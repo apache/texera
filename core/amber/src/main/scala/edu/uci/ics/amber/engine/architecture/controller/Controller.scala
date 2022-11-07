@@ -170,7 +170,7 @@ class Controller(
             logManager.setupWriter(logStorage.getWriter(false))
             context.become(running)
           } else {
-            val inMemDeterminant = recoveryManager.getDeterminant()
+            val inMemDeterminant = recoveryManager.popDeterminant()
             self ! inMemDeterminant
           }
         case otherDeterminant =>
@@ -187,7 +187,7 @@ class Controller(
       val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
       val fifoState = fifoStateRecoveryManager.getFIFOState
       controlInputPort.overwriteFIFOState(fifoState)
-      val inMemDeterminant = recoveryManager.getDeterminant()
+      val inMemDeterminant = recoveryManager.popDeterminant()
       self ! inMemDeterminant
       recovering
     } else {

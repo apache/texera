@@ -19,7 +19,7 @@ class LogManagerImpl(
 
   def getDeterminantLogger: DeterminantLogger = determinantLogger
 
-  def sendDirectlyOrCommitted(sendRequest: SendRequest): Unit = {
+  def sendCommitted(sendRequest: SendRequest): Unit = {
     writer.putDeterminants(determinantLogger.drainCurrentLogRecords())
     writer.putOutput(sendRequest)
   }

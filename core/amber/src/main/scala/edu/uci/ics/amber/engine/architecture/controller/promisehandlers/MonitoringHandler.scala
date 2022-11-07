@@ -23,8 +23,8 @@ trait MonitoringHandler {
 
   def updateWorkloadSamples(
       collectedAt: ActorVirtualIdentity,
-      allDownstreamWorkerToNewSamples: Array[
-        Map[ActorVirtualIdentity, Array[Long]]
+      allDownstreamWorkerToNewSamples: List[
+        Map[ActorVirtualIdentity, List[Long]]
       ]
   ): Unit = {
     if (allDownstreamWorkerToNewSamples.isEmpty) {

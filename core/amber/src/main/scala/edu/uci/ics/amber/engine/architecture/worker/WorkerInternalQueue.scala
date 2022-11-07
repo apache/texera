@@ -86,7 +86,7 @@ trait WorkerInternalQueue {
     if (recoveryManager.replayCompleted()) {
       dataQueue.add(elem)
     } else {
-      recoveryManager.accept(elem)
+      recoveryManager.add(elem)
     }
     lock.unlock()
   }
@@ -96,7 +96,7 @@ trait WorkerInternalQueue {
     if (recoveryManager.replayCompleted()) {
       controlQueue.add(ControlElement(payload, from))
     } else {
-      recoveryManager.accept(ControlElement(payload, from))
+      recoveryManager.add(ControlElement(payload, from))
     }
     lock.unlock()
   }
