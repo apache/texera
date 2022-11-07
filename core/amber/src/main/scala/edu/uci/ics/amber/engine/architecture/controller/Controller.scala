@@ -11,12 +11,19 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
+import edu.uci.ics.amber.engine.architecture.logging.{
+  DeterminantLogger,
+  InMemDeterminant,
+  ProcessControlMessage
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   WorkflowPipelinedRegionsBuilder,
   WorkflowScheduler
@@ -57,7 +64,7 @@ object Controller {
   def props(
       workflow: Workflow,
       controllerConfig: ControllerConfig = ControllerConfig.default,
-      parentNetworkCommunicationActorRef: ActorRef = null
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef = NetworkSenderActorRef()
   ): Props =
     Props(
       new Controller(
@@ -71,13 +78,16 @@ object Controller {
 class Controller(
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
-    parentNetworkCommunicationActorRef: ActorRef
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   var statusUpdateAskHandle: Cancellable = _
+
+  override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
+  val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   def availableNodes: Array[Address] =
     Await
@@ -98,8 +108,8 @@ class Controller(
     wire[ControllerAsyncRPCHandlerInitializer]
 
   // register controller itself and client
-  networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
-  networkCommunicationActor ! RegisterActorRef(CLIENT, context.parent)
+  networkCommunicationActor.waitUntil(RegisterActorRef(CONTROLLER, self))
+  networkCommunicationActor.waitUntil(RegisterActorRef(CLIENT, context.parent))
 
   def running: Receive = {
     acceptDirectInvocations orElse {
@@ -126,6 +136,7 @@ class Controller(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
+    determinantLogger.logDeterminant(ProcessControlMessage(controlPayload, from))
     try {
       controlPayload match {
         // use control input port to pass control messages
@@ -148,11 +159,49 @@ class Controller(
     }
   }
 
-  override def receive: Receive = running
+  def recovering: Receive = {
+    case d: InMemDeterminant =>
+      d match {
+        case ProcessControlMessage(controlPayload, from) =>
+          handleControlPayloadWithTryCatch(from, controlPayload)
+          if (recoveryManager.replayCompleted()) {
+            logManager.terminate()
+            logStorage.swapTempLog()
+            logManager.setupWriter(logStorage.getWriter(false))
+            context.become(running)
+          } else {
+            val inMemDeterminant = recoveryManager.popDeterminant()
+            self ! inMemDeterminant
+          }
+        case otherDeterminant =>
+          throw new RuntimeException(
+            "Controller cannot handle " + otherDeterminant + " during recovery!"
+          )
+      }
+    case other =>
+      logger.info("Ignore during recovery: " + other)
+  }
+
+  override def receive: Receive = {
+    if (!recoveryManager.replayCompleted()) {
+      val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
+      val fifoState = fifoStateRecoveryManager.getFIFOState
+      controlInputPort.overwriteFIFOState(fifoState)
+      val inMemDeterminant = recoveryManager.popDeterminant()
+      self ! inMemDeterminant
+      recovering
+    } else {
+      running
+    }
+  }
 
   override def postStop(): Unit = {
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
+    }
+    logManager.terminate()
+    if (workflow.isCompleted) {
+      logStorage.deleteLog()
     }
     logger.info("stopped!")
   }
