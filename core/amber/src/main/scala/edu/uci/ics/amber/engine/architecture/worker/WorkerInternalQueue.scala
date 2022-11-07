@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LogManager}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   CONTROL_QUEUE,
   ControlElement,
@@ -51,6 +52,15 @@ trait WorkerInternalQueue {
   private val dataQueue = lbmq.getSubQueue(DATA_QUEUE)
 
   private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
+
+  // logging related variables:
+  def logManager: LogManager // require dp thread to have log manager
+  protected val determinantLogger: DeterminantLogger =
+    if (logManager != null) {
+      logManager.getDeterminantLogger
+    } else {
+      null
+    }
 
   // the values in below maps are in tuples (not batches)
   private var inputTuplesPutInQueue =
@@ -112,6 +122,11 @@ trait WorkerInternalQueue {
 
   def getControlQueueLength: Int = controlQueue.size()
 
-  def isControlQueueEmpty: Boolean = controlQueue.isEmpty
+  def isControlQueueEmpty: Boolean = {
+    if (determinantLogger != null) {
+      determinantLogger.stepIncrement()
+    }
+    controlQueue.isEmpty
+  }
 
 }

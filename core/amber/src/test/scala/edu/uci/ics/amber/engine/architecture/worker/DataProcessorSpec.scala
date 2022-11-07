@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.ActorContext
 import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.engine.architecture.logging.LogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   NetworkInputPort,
@@ -122,6 +123,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "process data messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
+    val logManager = mock[LogManager]
+    (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     inAnyOrder {
@@ -153,6 +156,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "prioritize control messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
+    val logManager = mock[LogManager]
+    (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -195,6 +200,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "process control command without inputting data" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
+    val logManager = mock[LogManager]
+    (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -221,6 +228,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (operator.open _).expects().once()
     val ctx: ActorContext = null
     val batchToTupleConverter = mock[BatchToTupleConverter]
+    val logManager = mock[LogManager]
+    (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     (asyncRPCClient.send _).expects(*, *).anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
@@ -275,6 +284,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "reduce credits" in {
     Constants.flowControlEnabled = true
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val logManager = mock[LogManager]
+    (logManager.getDeterminantLogger _).expects().anyNumberOfTimes()
     val operator = new IOperatorExecutor {
       override def open(): Unit = {}
 
