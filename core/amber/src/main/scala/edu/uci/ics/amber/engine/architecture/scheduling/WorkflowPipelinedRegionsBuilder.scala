@@ -153,31 +153,33 @@ class WorkflowPipelinedRegionsBuilder(
   private def addMaterializationToLink(linkId: LinkIdentity): Unit = {
     val fromOpId = toOperatorIdentity(linkId.from)
     val toOpId = toOperatorIdentity(linkId.to)
-    val materializationWriter = new ProgressiveSinkOpDesc()
-    materializationWriter.setContext(workflowContext)
+    val fromPortIndex = operatorToOpExecConfig(fromOpId).outputToOrdinalMapping(linkId)._1
+
+    val matWriter = new ProgressiveSinkOpDesc()
+    matWriter.setContext(workflowContext)
     val fromOpIdInputSchema: Array[Schema] =
       if (!operatorIdToDesc(fromOpId.operator).isInstanceOf[SourceOperatorDescriptor])
         inputSchemaMap(operatorIdToDesc(fromOpId.operator)).map(s => s.get).toArray
       else Array()
-    val matWriterInputSchemas = operatorIdToDesc(fromOpId.operator).getOutputSchemas(
+    val matWriterInputSchema = operatorIdToDesc(fromOpId.operator).getOutputSchemas(
       fromOpIdInputSchema
-    )
-    val matWriterOutputSchemas = materializationWriter.getOutputSchemas(matWriterInputSchemas)
-    materializationWriter.setStorage(
-      opResultStorage.create(materializationWriter.operatorID, matWriterOutputSchemas(0))
+    )(fromPortIndex)
+    val matWriterOutputSchema = matWriter.getOutputSchemas(Array(matWriterInputSchema))(0)
+    matWriter.setStorage(
+      opResultStorage.create(matWriter.operatorID, matWriterOutputSchema)
     )
     val matWriterOpExecConfig =
-      materializationWriter.operatorExecutor(
-        OperatorSchemaInfo(matWriterInputSchemas, matWriterOutputSchemas)
+      matWriter.operatorExecutor(
+        OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
       )
     operatorToOpExecConfig.put(matWriterOpExecConfig.id, matWriterOpExecConfig)
 
     val materializationReader = new CacheSourceOpDesc(
-      materializationWriter.operatorID,
+      matWriter.operatorID,
       opResultStorage: OpResultStorage
     )
     materializationReader.setContext(workflowContext)
-    materializationReader.schema = materializationWriter.getStorage.getSchema
+    materializationReader.schema = matWriter.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOpExecConfig: OpExecConfig =
       materializationReader.operatorExecutor(

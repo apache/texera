@@ -8,8 +8,8 @@ import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/
 import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
-import { jitOnlyGuardedExpression } from "@angular/compiler/src/render3/util";
-import { fromEvent, fromEventPattern, Observable } from "rxjs";
+import { fromEventPattern, Observable } from "rxjs";
+import { Coeditor, User } from "../../../common/type/user";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -88,6 +88,10 @@ export const operatorOutputCountBGClass = "texera-operator-output-count-backgrou
 export const operatorOutputCountClass = "texera-operator-output-count";
 export const operatorAbbreviatedCountBGClass = "texera-operator-abbreviated-count-background";
 export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
+export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
+export const operatorCoeditorEditingBGClass = "texera-operator-coeditor-editing-background";
+export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
+export const operatorCoeditorChangedPropertyBGClass = "texera-operator-coeditor-changed-property-background";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
@@ -115,6 +119,10 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorStateBGClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorCacheTextClass}"></text>
+      <text class="${operatorCoeditorEditingBGClass}"></text>
+      <text class="${operatorCoeditorEditingClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyBGClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
@@ -277,6 +285,26 @@ export class JointUIService {
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
       [`.${operatorAbbreviatedCountBGClass}`]: { text: abbreviatedText },
     });
+  }
+
+  public changeOperatorEditingStatus(jointPaper: joint.dia.Paper, operatorID: string, users?: User[]): void {
+    console.log(operatorID);
+    if (users) {
+      const statusText = users[0].name + " is editing properties...";
+      const color = users[0].color;
+      jointPaper.getModelById(operatorID).attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: statusText,
+          fillColor: color,
+        },
+      });
+    } else {
+      jointPaper.getModelById(operatorID).attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: "",
+        },
+      });
+    }
   }
 
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
@@ -495,10 +523,11 @@ export class JointUIService {
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
     const basic = new joint.shapes.standard.Rectangle();
-    basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    if (commentBox.commentBoxPosition) basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    else basic.position(0, 0);
     basic.resize(120, 50);
     const commentElement = new TexeraCustomCommentElement({
-      position: commentBox.commentBoxPosition,
+      position: commentBox.commentBoxPosition || { x: 0, y: 0 },
       size: {
         width: JointUIService.DEFAULT_COMMENT_WIDTH,
         height: JointUIService.DEFAULT_COMMENT_HEIGHT,
@@ -671,6 +700,54 @@ export class JointUIService {
     operatorType: string
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
+      ".texera-operator-coeditor-editing-background": {
+        text: "",
+        "font-size": "14px",
+        "font-weight": "bold",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
+        visibility: "hidden",
+        "ref-x": -50,
+        "ref-y": 100,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "start",
+      },
+      ".texera-operator-coeditor-editing": {
+        text: "",
+        "font-size": "14px",
+        "font-weight": "bold",
+        visibility: "hidden",
+        "ref-x": -50,
+        "ref-y": 100,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "start",
+      },
+      ".texera-operator-coeditor-changed-property-background": {
+        text: "",
+        "font-size": "14px",
+        "font-weight": "bold",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 120,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-coeditor-changed-property": {
+        text: "",
+        "font-weight": "bold",
+        "font-size": "14px",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 120,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
       ".texera-operator-state-background": {
         text: "",
         "font-size": "14px",
@@ -971,6 +1048,27 @@ export class JointUIService {
       },
     };
     return commentStyleAttrs;
+  }
+
+  public static getJointUserPointerCell(coeditor: Coeditor, position: Point, color: string): joint.dia.Element {
+    const userCursor = new joint.shapes.standard.Circle({
+      id: this.getJointUserPointerName(coeditor),
+    });
+    userCursor.resize(15, 15);
+    userCursor.position(position.x, position.y);
+    userCursor.attr("body/fill", color);
+    userCursor.attr("body/stroke", color);
+    userCursor.attr("text", {
+      text: coeditor.name,
+      "ref-x": 15,
+      "ref-y": 20,
+      stroke: coeditor.color,
+    });
+    return userCursor;
+  }
+
+  public static getJointUserPointerName(coeditor: Coeditor) {
+    return "pointer_" + coeditor.clientId;
   }
 }
 
