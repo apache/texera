@@ -66,7 +66,7 @@ class DataProcessor( // dependencies:
             // operator.context = new OperatorContext(new TimeService(logManager))
             stateManager.transitTo(READY)
             if (!recoveryManager.replayCompleted()) {
-              recoveryManager.onStart()
+              recoveryManager.Start()
               recoveryManager.registerOnEnd(() => {
                 logger.info("recovery complete! restoring stashed inputs...")
                 logManager.terminate()

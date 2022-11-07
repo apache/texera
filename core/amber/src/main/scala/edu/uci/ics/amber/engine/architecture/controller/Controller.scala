@@ -1,6 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorRef, Address, Cancellable, PoisonPill, Props}
+import akka.actor.SupervisorStrategy.{Escalate, Restart, Resume, Stop}
+import akka.actor.{
+  ActorRef,
+  Address,
+  Cancellable,
+  OneForOneStrategy,
+  PoisonPill,
+  Props,
+  SupervisorStrategy
+}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
@@ -93,7 +102,7 @@ class Controller(
       controllerConfig.supportFaultTolerance
     ) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   var statusUpdateAskHandle: Cancellable = _
@@ -134,6 +143,13 @@ class Controller(
   networkCommunicationActor.waitUntil(RegisterActorRef(CONTROLLER, self))
   networkCommunicationActor.waitUntil(RegisterActorRef(CLIENT, context.parent))
 
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    super.preRestart(reason, message)
+    logger.error(s"Encountered fatal error, controller is shutting done.", reason)
+    // report error to frontend
+    asyncRPCClient.sendToClient(FatalError(reason))
+  }
+
   def running: Receive = {
     acceptRecoveryMessages orElse acceptDirectInvocations orElse {
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
@@ -152,7 +168,7 @@ class Controller(
 
   def acceptDirectInvocations: Receive = {
     case invocation: ControlInvocation =>
-      this.handleControlPayloadWithTryCatch(CLIENT, invocation)
+      this.handleControlPayload(CLIENT, invocation)
   }
 
   def acceptRecoveryMessages: Receive = {
@@ -164,75 +180,60 @@ class Controller(
         case ResendOutputTo(vid, ref) =>
           logger.warn(s"controller should not resend output to " + vid)
         case NotifyFailedNode(addr) =>
-          if (controllerConfig.supportFaultTolerance) {
-            val deployNodes = availableNodes.filter(_ != self.path.address)
-            if (deployNodes.nonEmpty) {
-              logger.info(
-                "Global Recovery: move all worker from " + addr + " to " + deployNodes.head
-              )
-              val infoIter = workflow.getAllWorkerInfoOfAddress(addr)
-              logger.info("Global Recovery: sent kill signal to workers on failed node")
-              infoIter.foreach { info =>
-                info.ref ! PoisonPill // in case we can still access the worker
-              }
-              logger.info("Global Recovery: triggering worker respawn")
-              infoIter.foreach { info =>
-                val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
-                logger.info("Global Recovery: respawn " + info.id)
-                val vidSet = infoIter.map(_.id).toSet
-                // wait for some secs to re-send output
-                context.system.scheduler.scheduleOnce(10.seconds) {
-                  logger.info("Global Recovery: triggering upstream resend for " + info.id)
-                  workflow
-                    .getDirectUpstreamWorkers(info.id)
-                    .filter(x => !vidSet.contains(x))
-                    .foreach { vid =>
-                      logger.info("Global Recovery: trigger resend from " + vid + " to " + info.id)
-                      workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
-                    }
-                }
-              }
-            } else {
-              val error = new RuntimeException(
-                "Cannot recover failed workers! No available worker machines!"
-              )
-              asyncRPCClient.sendToClient(FatalError(error))
-              throw error
-            }
-          } else {
+          if (!controllerConfig.supportFaultTolerance) {
             // do not support recovery
-            val error = new RuntimeException("Recovery not supported, abort.")
+            throw new RuntimeException("Recovery not supported, abort.")
+          }
+          val deployNodes = availableNodes.filter(_ != self.path.address)
+          if (deployNodes.isEmpty) {
+            val error = new RuntimeException(
+              "Cannot recover failed workers! No available worker machines!"
+            )
             asyncRPCClient.sendToClient(FatalError(error))
-            // re-throw the error to fail the actor
             throw error
+          }
+          logger.info(
+            "Global Recovery: move all worker from " + addr + " to " + deployNodes.head
+          )
+          val infoIter = workflow.getAllWorkerInfoOfAddress(addr)
+          logger.info("Global Recovery: sent kill signal to workers on failed node")
+          infoIter.foreach { info =>
+            info.ref ! PoisonPill // in case we can still access the worker
+          }
+          logger.info("Global Recovery: triggering worker respawn")
+          infoIter.foreach { info =>
+            val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+            logger.info("Global Recovery: respawn " + info.id)
+            val vidSet = infoIter.map(_.id).toSet
+            // wait for some secs to re-send output
+            logger.info("Global Recovery: triggering upstream resend for " + info.id)
+            workflow
+              .getDirectUpstreamWorkers(info.id)
+              .filter(x => !vidSet.contains(x))
+              .foreach { vid =>
+                logger.info("Global Recovery: trigger resend from " + vid + " to " + info.id)
+                workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
+              }
           }
       }
   }
 
-  def handleControlPayloadWithTryCatch(
+  def handleControlPayload(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
     determinantLogger.logDeterminant(ProcessControlMessage(controlPayload, from))
-    try {
-      controlPayload match {
-        // use control input port to pass control messages
-        case invocation: ControlInvocation =>
-          assert(from.isInstanceOf[ActorVirtualIdentity])
-          asyncRPCServer.logControlInvocation(invocation, from)
-          asyncRPCServer.receive(invocation, from)
-        case ret: ReturnInvocation =>
-          asyncRPCClient.logControlReply(ret, from)
-          asyncRPCClient.fulfillPromise(ret)
-        case other =>
-          throw new WorkflowRuntimeException(s"unhandled control message: $other")
-      }
-    } catch safely {
-      case err =>
-        // report error to frontend
-        asyncRPCClient.sendToClient(FatalError(err))
-        // re-throw the error to fail the actor
-        throw err
+    controlPayload match {
+      // use control input port to pass control messages
+      case invocation: ControlInvocation =>
+        assert(from.isInstanceOf[ActorVirtualIdentity])
+        asyncRPCServer.logControlInvocation(invocation, from)
+        asyncRPCServer.receive(invocation, from)
+      case ret: ReturnInvocation =>
+        asyncRPCClient.logControlReply(ret, from)
+        asyncRPCClient.fulfillPromise(ret)
+      case other =>
+        throw new WorkflowRuntimeException(s"unhandled control message: $other")
     }
   }
 
@@ -240,7 +241,7 @@ class Controller(
     case d: InMemDeterminant =>
       d match {
         case ProcessControlMessage(controlPayload, from) =>
-          handleControlPayloadWithTryCatch(from, controlPayload)
+          handleControlPayload(from, controlPayload)
           if (recoveryManager.replayCompleted()) {
             logManager.terminate()
             logStorage.cleanPartiallyWrittenLogFile()
@@ -253,11 +254,9 @@ class Controller(
             self ! inMemDeterminant
           }
         case otherDeterminant =>
-          val err = new RuntimeException(
+          throw new RuntimeException(
             "Controller cannot handle " + otherDeterminant + " during recovery!"
           )
-          asyncRPCClient.sendToClient(FatalError(err))
-          throw err
       }
     case NetworkMessage(
           _,

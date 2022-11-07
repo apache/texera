@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import akka.pattern.ask
@@ -109,6 +110,15 @@ class WorkflowWorker(
     tupleProducer.getSenderCredits(sender)
   }
 
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    super.preRestart(reason, message)
+    logger.error(s"Encountered fatal error, worker is shutting done.", reason)
+    asyncRPCClient.send(
+      FatalError(reason),
+      CONTROLLER
+    )
+  }
+
   override def receive: Receive = {
     if (!recoveryManager.replayCompleted()) {
       recoveryManager.registerOnStart(() =>
@@ -130,44 +140,35 @@ class WorkflowWorker(
       networkCommunicationActor ! resend
     case ResendFeasibility(status) =>
       if (!status) {
+        // this exception will be caught by the catch in receiveAndProcessMessages
         throw new WorkflowRuntimeException(s"network sender cannot resend message!")
       }
   }
 
   def receiveAndProcessMessages: Receive =
-    try {
-      forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
-        case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
-          dataInputPort.handleMessage(
-            this.sender(),
-            getSenderCredits(from),
-            id,
-            from,
-            seqNum,
-            payload
-          )
-        case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-          controlInputPort.handleMessage(
-            this.sender(),
-            getSenderCredits(from),
-            id,
-            from,
-            seqNum,
-            payload
-          )
-        case NetworkMessage(id, CreditRequest(from, _)) =>
-          sender ! NetworkAck(id, Some(getSenderCredits(from)))
-        case other =>
-          throw new WorkflowRuntimeException(s"unhandled message: $other")
-      }
-    } catch {
-      case err: WorkflowRuntimeException =>
-        logger.error(s"Encountered fatal error, worker is shutting done.", err)
-        asyncRPCClient.send(
-          FatalError(err),
-          CONTROLLER
+    forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
+      case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
+        dataInputPort.handleMessage(
+          this.sender(),
+          getSenderCredits(from),
+          id,
+          from,
+          seqNum,
+          payload
         )
-        throw err;
+      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
+        controlInputPort.handleMessage(
+          this.sender(),
+          getSenderCredits(from),
+          id,
+          from,
+          seqNum,
+          payload
+        )
+      case NetworkMessage(id, CreditRequest(from, _)) =>
+        sender ! NetworkAck(id, Some(getSenderCredits(from)))
+      case other =>
+        throw new WorkflowRuntimeException(s"unhandled message: $other")
     }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {

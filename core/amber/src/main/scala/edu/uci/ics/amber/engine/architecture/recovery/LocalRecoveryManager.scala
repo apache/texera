@@ -49,11 +49,11 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     callbacksOnEnd.append(callback)
   }
 
-  def onStart(): Unit = {
+  def Start(): Unit = {
     callbacksOnStart.foreach(callback => callback())
   }
 
-  private def onEnd(): Unit = {
+  private def End(): Unit = {
     callbacksOnEnd.foreach(callback => callback())
   }
 
@@ -85,7 +85,7 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     val res = records.isEmpty
     if (res && !endCallbackTriggered) {
       endCallbackTriggered = true
-      onEnd()
+      End()
     }
     res
   }
