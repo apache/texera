@@ -86,6 +86,8 @@ class WorkflowWorker(
   workerStateManager.assertState(UNINITIALIZED)
   workerStateManager.transitTo(READY)
 
+  override def getLogName: String = actorId.name.replace("Worker:", "")
+
   def getSenderCredits(sender: ActorVirtualIdentity) = {
     tupleProducer.getSenderCredits(sender)
   }
@@ -159,7 +161,7 @@ class WorkflowWorker(
       payload: DataPayload
   ): Unit = {
     val msg = WorkflowDataMessage(self, seqNum, payload)
-    networkCommunicationActor ! SendRequest(to, msg)
+    logManager.sendDirectlyOrCommitted(SendRequest(to, msg))
   }
 
   override def postStop(): Unit = {
@@ -168,7 +170,6 @@ class WorkflowWorker(
       ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
       SELF
     )
-
     logger.info("stopped!")
   }
 

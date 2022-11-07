@@ -4,6 +4,12 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
+import edu.uci.ics.amber.engine.architecture.logging.{
+  LogManager,
+  ProcessControlMessage,
+  SenderChange
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -19,9 +25,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
+import edu.uci.ics.texera.workflow.common.operators.OperatorContext
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
-import scala.collection.mutable
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
@@ -31,6 +37,7 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
+    val logManager: LogManager,
     val actorId: ActorVirtualIdentity
 ) extends WorkerInternalQueue
     with AmberLogging {
@@ -39,9 +46,13 @@ class DataProcessor( // dependencies:
   private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
+        // TODO: setup context
+        // operator.context = new OperatorContext(new TimeService(logManager))
         runDPThreadMainLogic()
       } catch safely {
         case _: InterruptedException =>
+          // dp thread will stop here
+          logManager.terminate()
           logger.info("DP Thread exits")
         case err: Exception =>
           logger.error("DP Thread exists unexpectedly", err)
@@ -49,7 +60,6 @@ class DataProcessor( // dependencies:
             FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
             CONTROLLER
           )
-        // dp thread will stop here
       }
     }
   })
@@ -59,6 +69,7 @@ class DataProcessor( // dependencies:
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
   private var currentInputLink: LinkIdentity = _
+  private var currentInputActor: ActorVirtualIdentity = _
   private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
   private var isCompleted = false
 
@@ -156,6 +167,12 @@ class DataProcessor( // dependencies:
       // take the next data element from internal queue, blocks if not available.
       getElement match {
         case InputTuple(from, tuple) =>
+          if (currentInputActor != from) {
+            if (determinantLogger != null) {
+              determinantLogger.logDeterminant(SenderChange(from))
+            }
+            currentInputActor = from
+          }
           currentInputTuple = Left(tuple)
           handleInputTuple()
         case SenderChangeMarker(link) =>
@@ -262,6 +279,9 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
+    if (determinantLogger != null) {
+      determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
+    }
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)

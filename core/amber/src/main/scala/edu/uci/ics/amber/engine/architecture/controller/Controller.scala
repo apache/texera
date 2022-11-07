@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, ProcessControlMessage}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
   RegisterActorRef
@@ -79,6 +80,9 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   var statusUpdateAskHandle: Cancellable = _
 
+  override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
+  val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
+
   def availableNodes: Array[Address] =
     Await
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
@@ -126,6 +130,9 @@ class Controller(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
+    if (determinantLogger != null) {
+      determinantLogger.logDeterminant(ProcessControlMessage(controlPayload, from))
+    }
     try {
       controlPayload match {
         // use control input port to pass control messages
@@ -154,6 +161,7 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
+    logManager.terminate()
     logger.info("stopped!")
   }
 }

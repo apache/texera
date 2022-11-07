@@ -171,7 +171,6 @@ class DataProcessingSpec
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
       assert(schema.getAttributes.size() == 9)
     }
-
   }
 
   "Engine" should "execute mediumFlattenJsonl->sink workflow normally" in {
