@@ -20,8 +20,8 @@ import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable
 
 object WorkerInternalQueue {
-  final val CONTROL_QUEUE = 0
   final val DATA_QUEUE = 1
+  final val CONTROL_QUEUE = 0
 
   // 4 kinds of elements can be accepted by internal queue
   sealed trait InternalQueueElement
@@ -86,7 +86,7 @@ trait WorkerInternalQueue {
     if (recoveryManager.replayCompleted()) {
       dataQueue.add(elem)
     } else {
-      recoveryManager.accept(elem)
+      recoveryManager.add(elem)
     }
     lock.unlock()
   }
@@ -96,7 +96,7 @@ trait WorkerInternalQueue {
     if (recoveryManager.replayCompleted()) {
       controlQueue.add(ControlElement(payload, from))
     } else {
-      recoveryManager.accept(ControlElement(payload, from))
+      recoveryManager.add(ControlElement(payload, from))
     }
     lock.unlock()
   }

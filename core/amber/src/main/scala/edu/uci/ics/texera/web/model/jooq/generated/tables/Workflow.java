@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row5;
+import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = -18598487;
+    private static final long serialVersionUID = 860337939;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -54,6 +54,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
      * The column <code>texera_db.workflow.name</code>.
      */
     public final TableField<WorkflowRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.workflow.description</code>.
+     */
+    public final TableField<WorkflowRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
 
     /**
      * The column <code>texera_db.workflow.wid</code>.
@@ -160,11 +165,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row5 type methods
+    // Row6 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
-        return (Row5) super.fieldsRow();
+    public Row6<String, String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
+        return (Row6) super.fieldsRow();
     }
 }

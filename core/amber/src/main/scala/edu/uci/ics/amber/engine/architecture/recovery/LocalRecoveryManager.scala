@@ -57,7 +57,7 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     callbacksOnEnd.foreach(callback => callback())
   }
 
-  def accept(elem: InternalQueueElement): Unit = {
+  def add(elem: InternalQueueElement): Unit = {
     elem match {
       case tuple: InputTuple =>
         currentInputSender = tuple.from
@@ -126,7 +126,7 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
     step == 0
   }
 
-  def getDeterminant(): InMemDeterminant = {
+  def popDeterminant(): InMemDeterminant = {
     val determinant = records.peek()
     records.readNext()
     determinant

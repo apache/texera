@@ -74,7 +74,7 @@ abstract class WorkflowActor(
       payload: ControlPayload
   ): Unit = {
     val msg = WorkflowControlMessage(self, seqNum, payload)
-    logManager.sendDirectlyOrCommitted(SendRequest(to, msg))
+    logManager.sendCommitted(SendRequest(to, msg))
   }
 
   def disallowActorRefRelatedMessages: Receive = {

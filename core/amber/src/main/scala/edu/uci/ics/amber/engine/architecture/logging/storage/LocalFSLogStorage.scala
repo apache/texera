@@ -49,6 +49,9 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
         override protected val inputStream = new DataInputStream(Files.newInputStream(path))
       }
     } else {
+      // we do not throw exception here because every worker
+      // will try to read log during startup.
+      // TODO: We need a way to distinguish between 1)trying to recover 2)need to recover but no log file
       new EmptyLogStorage().getReader
     }
   }

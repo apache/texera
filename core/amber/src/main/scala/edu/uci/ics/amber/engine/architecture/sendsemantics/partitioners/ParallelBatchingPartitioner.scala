@@ -128,7 +128,7 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
   /**
     * Used to return the workload samples to the controller.
     */
-  def getWorkloadHistory(): Map[ActorVirtualIdentity, Array[Long]] = {
+  def getWorkloadHistory(): Map[ActorVirtualIdentity, List[Long]] = {
     if (Constants.reshapeSkewHandlingEnabled) {
       val collectedTillNow = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
       receiverToWorkloadSamples.keys.foreach(rec => {
@@ -142,9 +142,9 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
       for (i <- 0 until numBuckets) {
         receiverToWorkloadSamples(receivers(i)) = ArrayBuffer[Long](0)
       }
-      collectedTillNow.mapValues(_.toArray).toMap
+      collectedTillNow.mapValues(_.toList).toMap
     } else {
-      Map[ActorVirtualIdentity, Array[Long]]()
+      Map[ActorVirtualIdentity, List[Long]]()
     }
   }
 

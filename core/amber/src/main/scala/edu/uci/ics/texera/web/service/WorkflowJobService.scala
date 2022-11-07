@@ -32,7 +32,8 @@ class WorkflowJobService(
     operatorCache: WorkflowCacheService,
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
-    errorHandler: Throwable => Unit
+    errorHandler: Throwable => Unit,
+    engineVersion: String
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -90,7 +91,9 @@ class WorkflowJobService(
     if (WorkflowService.userSystemEnabled) {
       workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
         workflowContext.wId,
-        workflowContext.userId
+        workflowContext.userId,
+        request.executionName,
+        engineVersion
       )
     }
     stateStore.jobMetadataStore.updateState(jobInfo =>
@@ -103,11 +106,15 @@ class WorkflowJobService(
   }
 
   private[this] def createWorkflowInfo(): WorkflowInfo = {
-    var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
+    var workflowInfo = WorkflowInfo(
+      request.logicalPlan.operators,
+      request.logicalPlan.links,
+      request.logicalPlan.breakpoints
+    )
     if (WorkflowCacheService.isAvailable) {
-      workflowInfo.cachedOperatorIds = request.cachedOperatorIds
+      workflowInfo.cachedOperatorIds = request.logicalPlan.cachedOperatorIds
       logger.debug(
-        s"Cached operators: ${operatorCache.cachedOperators} with ${request.cachedOperatorIds}"
+        s"Cached operators: ${operatorCache.cachedOperators} with ${request.logicalPlan.cachedOperatorIds}"
       )
       val workflowRewriter = new WorkflowRewriter(
         workflowInfo,
