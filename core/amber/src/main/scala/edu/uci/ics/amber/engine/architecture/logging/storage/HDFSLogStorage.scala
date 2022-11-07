@@ -1,11 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
-import com.esotericsoftware.kryo.io.Output
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
+  DeterminantLogReader,
+  DeterminantLogWriter
+}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
-import java.io.InputStream
+import java.io.{DataInputStream, InputStream}
 import java.net.URI
 
 class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage {
@@ -22,25 +24,53 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   if (!hdfs.exists(recoveryLogFolder)) {
     hdfs.mkdirs(recoveryLogFolder)
   }
-  private val recoveryLogPath: Path = new Path("/recovery-logs/" + name + ".logfile")
-  if (!hdfs.exists(recoveryLogPath)) {
-    hdfs.createNewFile(recoveryLogPath)
+
+  private def getLogPath(isTempLog: Boolean): Path = {
+    new Path("/recovery-logs/" + name + ".logfile" + (if (isTempLog) {
+                                                        ".tmp"
+                                                      } else { "" }))
   }
 
-  override def getWriter: DeterminantLogWriter = {
+  override def getWriter(isTempLog: Boolean): DeterminantLogWriter = {
     new DeterminantLogWriter {
-      val output = new Output(hdfs.append(recoveryLogPath))
-      override def writeLogRecord(obj: AnyRef): Unit = ser.writeObject(output, obj)
+      override lazy protected val outputStream = {
+        hdfs.append(getLogPath(isTempLog))
+      }
+    }
+  }
 
-      override def flush(): Unit = output.flush()
-
-      override def close(): Unit = output.close()
+  override def getReader: DeterminantLogReader = {
+    val path = getLogPath(false)
+    if (hdfs.exists(path)) {
+      new DeterminantLogReader {
+        override protected val inputStream = hdfs.open(path)
+      }
+    } else {
+      new EmptyLogStorage().getReader
     }
   }
 
   override def deleteLog(): Unit = {
-    if (hdfs.exists(recoveryLogPath)) {
-      hdfs.delete(recoveryLogPath, false)
+    // delete temp log if exists
+    val tempLogPath = getLogPath(true)
+    if (hdfs.exists(tempLogPath)) {
+      hdfs.delete(tempLogPath, false)
+    }
+    // delete log if exists
+    val path = getLogPath(false)
+    if (hdfs.exists(path)) {
+      hdfs.delete(path, false)
+    }
+  }
+
+  override def swapTempLog(): Unit = {
+    val tempLogPath = getLogPath(true)
+    val path = getLogPath(false)
+    if (hdfs.exists(path)) {
+      hdfs.delete(path, false)
+    }
+    if (hdfs.exists(tempLogPath)) {
+      hdfs.rename(tempLogPath, path)
     }
   }
 }

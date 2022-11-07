@@ -4,18 +4,29 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.logging.{
+  DeterminantLogger,
+  LinkChange,
   LogManager,
   ProcessControlMessage,
-  SenderChange
+  SenderActorChange
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
+import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  PAUSED,
+  READY,
+  RUNNING,
+  UNINITIALIZED
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
@@ -37,7 +48,9 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
+    val logStorage: DeterminantLogStorage,
     val logManager: LogManager,
+    val recoveryManager: LocalRecoveryManager,
     val actorId: ActorVirtualIdentity
 ) extends WorkerInternalQueue
     with AmberLogging {
@@ -47,12 +60,19 @@ class DataProcessor( // dependencies:
     def run(): Unit = {
       try {
         // TODO: setup context
+        stateManager.assertState(UNINITIALIZED)
         // operator.context = new OperatorContext(new TimeService(logManager))
+        stateManager.transitTo(READY)
+        if (!recoveryManager.replayCompleted()) {
+          runDPThreadRecovery()
+          logManager.terminate()
+          logStorage.swapTempLog()
+          logger.info("Recovery Completed!")
+        }
         runDPThreadMainLogic()
       } catch safely {
         case _: InterruptedException =>
           // dp thread will stop here
-          logManager.terminate()
           logger.info("DP Thread exits")
         case err: Exception =>
           logger.error("DP Thread exists unexpectedly", err)
@@ -156,6 +176,53 @@ class DataProcessor( // dependencies:
     }
   }
 
+  private[this] def runDPThreadRecovery(): Unit = {
+    while (!recoveryManager.replayCompleted()) {
+      recoveryManager.stepDecrement()
+      determinantLogger.stepIncrement()
+      val elem = recoveryManager.get()
+      logger.info("Recovery: replaying " + elem)
+      internalQueueElementHandler(elem)
+    }
+    restoreInputs()
+  }
+
+  private[this] def internalQueueElementHandler(
+      internalQueueElement: InternalQueueElement
+  ): Unit = {
+    internalQueueElement match {
+      case InputTuple(from, tuple) =>
+        if (stateManager.getCurrentState == READY) {
+          stateManager.transitTo(RUNNING)
+          asyncRPCClient.send(
+            WorkerStateUpdated(stateManager.getCurrentState),
+            CONTROLLER
+          )
+        }
+        if (currentInputActor != from) {
+          determinantLogger.logDeterminant(SenderActorChange(from))
+          currentInputActor = from
+        }
+        currentInputTuple = Left(tuple)
+        handleInputTuple()
+      case SenderChangeMarker(link) =>
+        determinantLogger.logDeterminant(LinkChange(link))
+        currentInputLink = link
+      case EndMarker =>
+        currentInputTuple = Right(InputExhausted())
+        handleInputTuple()
+        if (currentInputLink != null) {
+          asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
+        }
+      case EndOfAllMarker =>
+        // end of processing, break DP loop
+        isCompleted = true
+        batchProducer.emitEndOfUpstream()
+      case ControlElement(payload, from) =>
+        processControlCommand(payload, from)
+    }
+  }
+
   /** Provide main functionality of data processing
     *
     * @throws Exception (from engine code only)
@@ -165,31 +232,7 @@ class DataProcessor( // dependencies:
     // main DP loop
     while (!isCompleted) {
       // take the next data element from internal queue, blocks if not available.
-      getElement match {
-        case InputTuple(from, tuple) =>
-          if (currentInputActor != from) {
-            if (determinantLogger != null) {
-              determinantLogger.logDeterminant(SenderChange(from))
-            }
-            currentInputActor = from
-          }
-          currentInputTuple = Left(tuple)
-          handleInputTuple()
-        case SenderChangeMarker(link) =>
-          currentInputLink = link
-        case EndMarker =>
-          currentInputTuple = Right(InputExhausted())
-          handleInputTuple()
-          if (currentInputLink != null) {
-            asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
-          }
-        case EndOfAllMarker =>
-          // end of processing, break DP loop
-          isCompleted = true
-          batchProducer.emitEndOfUpstream()
-        case ControlElement(payload, from) =>
-          processControlCommand(payload, from)
-      }
+      internalQueueElementHandler(getElement)
     }
     // Send Completed signal to worker actor.
     logger.info(s"$operator completed")
@@ -259,19 +302,38 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    while (!isControlQueueEmpty || pauseManager.isPaused()) {
-      takeOneControlCommandAndProcess()
+    if (recoveryManager.replayCompleted()) {
+      while (!isControlQueueEmpty || pauseManager.isPaused()) {
+        takeOneControlCommandAndProcess()
+      }
+    } else {
+      determinantLogger.stepIncrement()
+      recoveryManager.stepDecrement()
+      if (recoveryManager.isReadyToEmitNextControl) {
+        takeOneControlCommandAndProcess()
+      }
     }
   }
 
   private[this] def processControlCommandsAfterCompletion(): Unit = {
-    while (true) {
-      takeOneControlCommandAndProcess()
+    if (recoveryManager.replayCompleted()) {
+      while (true) {
+        takeOneControlCommandAndProcess()
+      }
+    } else {
+      recoveryManager.stepDecrement()
+      if (recoveryManager.isReadyToEmitNextControl) {
+        takeOneControlCommandAndProcess()
+      }
     }
   }
 
   private[this] def takeOneControlCommandAndProcess(): Unit = {
-    val control = getElement.asInstanceOf[ControlElement]
+    val control = if (recoveryManager.replayCompleted()) {
+      getElement.asInstanceOf[ControlElement]
+    } else {
+      recoveryManager.get().asInstanceOf[ControlElement]
+    }
     processControlCommand(control.payload, control.from)
   }
 
@@ -279,9 +341,7 @@ class DataProcessor( // dependencies:
       payload: ControlPayload,
       from: ActorVirtualIdentity
   ): Unit = {
-    if (determinantLogger != null) {
-      determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
-    }
+    determinantLogger.logDeterminant(ProcessControlMessage(payload, from))
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)

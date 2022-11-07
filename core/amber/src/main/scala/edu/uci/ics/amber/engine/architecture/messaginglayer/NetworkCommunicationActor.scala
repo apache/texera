@@ -1,9 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import akka.pattern.ask
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
-import edu.uci.ics.amber.engine.common
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.{
   CreditRequest,
@@ -16,6 +17,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
 import scala.collection.mutable
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 object NetworkCommunicationActor {
@@ -29,9 +31,17 @@ object NetworkCommunicationActor {
     *
     * @param ref
     */
-  case class NetworkSenderActorRef(ref: ActorRef) {
+  case class NetworkSenderActorRef(ref: ActorRef = null) {
     def !(message: Any)(implicit sender: ActorRef = Actor.noSender): Unit = {
-      ref ! message
+      if (ref != null) {
+        ref ! message
+      }
+    }
+    def waitUntil(message: Any)(implicit sender: ActorRef = Actor.noSender): Unit = {
+      implicit val timeout: Timeout = 3.seconds
+      if (ref != null) {
+        Await.result(ref ? message, 5.seconds)
+      }
     }
   }
 
@@ -182,6 +192,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
+      sender ! NetworkAck
   }
 
   /** This method forward a message by using tell pattern
@@ -311,8 +322,13 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   @inline
   private[this] def fetchActorRefMappingFromParent(actorID: ActorVirtualIdentity): Unit = {
     if (!queriedActorVirtualIdentities.contains(actorID)) {
-      parentRef ! GetActorRef(actorID, Set(self))
-      queriedActorVirtualIdentities.add(actorID)
+      try {
+        parentRef ! GetActorRef(actorID, Set(self))
+        queriedActorVirtualIdentities.add(actorID)
+      } catch {
+        case e: Exception =>
+          logger.error("Failed to fetch actorRef for " + actorID + " parentRef = " + parentRef)
+      }
     }
   }
 }
