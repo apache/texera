@@ -5,6 +5,7 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import Ajv from "ajv";
 import { filter, map } from "rxjs/operators";
+import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 
 export type ValidationError = {
   isValid: false;
@@ -56,7 +57,8 @@ export class ValidationWorkflowService {
    */
   constructor(
     private operatorMetadataService: OperatorMetadataService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private dynamicSchemaService: DynamicSchemaService
   ) {
     // fetch operator schema list
     this.operatorMetadataService
@@ -104,7 +106,8 @@ export class ValidationWorkflowService {
     }
     const jsonSchemaValidation = this.validateJsonSchema(operatorID);
     const operatorConnectionValidation = this.validateOperatorConnection(operatorID);
-    return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation);
+    const propertyValidation = this.validatePropertyAgainstDynamicSchema(operatorID);
+    return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation, propertyValidation);
   }
 
   private updateValidationState(operatorID: string, validation: Validation) {
@@ -174,6 +177,14 @@ export class ValidationWorkflowService {
         this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID))
       );
 
+    this.dynamicSchemaService
+      .getOperatorDynamicSchemaChangedStream()
+      .subscribe(
+        value => {
+          this.updateValidationState(value.operatorID, this.validateOperator(value.operatorID))
+        }
+      )
+
     // on enable / disable operator - re-validate the changed operators
     this.workflowActionService
       .getTexeraGraph()
@@ -197,6 +208,24 @@ export class ValidationWorkflowService {
 
         operatorsToRevalidate.forEach(op => this.updateValidationState(op, this.validateOperator(op)));
       });
+  }
+  
+  private validatePropertyAgainstDynamicSchema(operatorID: string): Validation {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+    const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+    const isValid = this.ajv.validate(dynamicSchema.jsonSchema, operator.operatorProperties);
+    console.log("validate:", dynamicSchema, operator.operatorProperties)
+    console.log("ajv", isValid, this.ajv.errors);
+    if (isValid) {
+      return { isValid: true };
+    }
+
+    const errors = this.ajv.errors;
+    const validationError: Record<string, string> = {};
+    if (errors) {
+      errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));
+    }
+    return { isValid: false, messages: validationError };
   }
 
   /**
