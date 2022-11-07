@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = -1623419866;
+    private static final long serialVersionUID = 685424661;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -54,11 +54,6 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.eid</code>.
      */
     public final TableField<WorkflowExecutionsRecord, UInteger> EID = createField(DSL.name("eid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
-
-    /**
-     * The column <code>texera_db.workflow_executions.wid</code>.
-     */
-    public final TableField<WorkflowExecutionsRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.vid</code>.
@@ -86,9 +81,9 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     public final TableField<WorkflowExecutionsRecord, Timestamp> STARTING_TIME = createField(DSL.name("starting_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
-     * The column <code>texera_db.workflow_executions.completion_time</code>.
+     * The column <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, Timestamp> COMPLETION_TIME = createField(DSL.name("completion_time"), org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
+    public final TableField<WorkflowExecutionsRecord, Timestamp> LAST_UPDATE_TIME = createField(DSL.name("last_update_time"), org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.bookmarked</code>.
@@ -99,6 +94,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.name</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false).defaultValue(org.jooq.impl.DSL.inline("Untitled Execution", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.environment_version</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, String> ENVIRONMENT_VERSION = createField(DSL.name("environment_version"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -140,7 +140,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID, Indexes.WORKFLOW_EXECUTIONS_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID);
     }
 
     @Override
@@ -160,19 +160,15 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
-    }
-
-    public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_EXECUTIONS_IBFK_1);
+        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
     }
 
     public WorkflowVersion workflowVersion() {
-        return new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        return new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS_IBFK_1);
     }
 
     public User user() {
-        return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
+        return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
     }
 
     @Override
@@ -206,7 +202,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row10<UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String> fieldsRow() {
+    public Row10<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String> fieldsRow() {
         return (Row10) super.fieldsRow();
     }
 }

@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.specializedFilter
+package edu.uci.ics.texera.workflow.operators.filter
 
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple

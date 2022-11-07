@@ -14,8 +14,6 @@ import Fuse from "fuse.js";
 import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
 import { from } from "rxjs";
 
-export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
-
 @UntilDestroy()
 @Component({
   selector: "texera-user-file-section",
@@ -38,6 +36,7 @@ export class UserFileSectionComponent {
   // variables for file editing / search / sort
   public dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   public isEditingName: number[] = [];
+  public isEditingDescription: number[] = [];
   public userFileSearchValue: string = "";
   public filteredFilenames: Array<string> = new Array();
   public isTyping: boolean = false;
@@ -60,6 +59,8 @@ export class UserFileSectionComponent {
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
+
+  public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
   public openFileAddComponent() {
     const modalRef = this.modalService.open(NgbdModalFileAddComponent);
@@ -181,6 +182,30 @@ export class UserFileSectionComponent {
       .add(() => (this.isEditingName = this.isEditingName.filter(fileIsEditing => fileIsEditing != index)));
   }
 
+  public confirmUpdateFileCustomDescription(
+    dashboardUserFileEntry: DashboardUserFileEntry,
+    description: string,
+    index: number
+  ): void {
+    const {
+      file: { fid },
+    } = dashboardUserFileEntry;
+    this.userFileService
+      .updateFileDescription(fid, description)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        () => this.refreshDashboardFileEntries(),
+        (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+          this.refreshDashboardFileEntries();
+        }
+      )
+      .add(
+        () => (this.isEditingDescription = this.isEditingDescription.filter(fileIsEditing => fileIsEditing != index))
+      );
+  }
+
   public toggleSearchMode(): void {
     this.isSearchByProject = !this.isSearchByProject;
 
@@ -188,13 +213,6 @@ export class UserFileSectionComponent {
     // if (this.isSearchByProject) {
     // } else {
     // }
-  }
-
-  /**
-   * navigate to individual project page
-   */
-  public jumpToProject({ pid }: UserProject): void {
-    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
 
   public removeFileFromProject(pid: number, fid: number): void {

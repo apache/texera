@@ -337,4 +337,32 @@ class UserFileResource {
     }
   }
 
+  /**
+    * This method updates the description of a given userFile
+    *
+    * @param file the to be updated file
+    * @return the updated userFile
+    */
+  @POST
+  @Path("/update/description")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def changeUserFileDescription(file: File, @Auth sessionUser: SessionUser): Unit = {
+    val userId = sessionUser.getUser.getUid
+    val fid = file.getFid
+    val newFileDescription = file.getDescription
+
+    val hasWriteAccess = context
+      .select(USER_FILE_ACCESS.WRITE_ACCESS)
+      .from(USER_FILE_ACCESS)
+      .where(USER_FILE_ACCESS.UID.eq(userId).and(USER_FILE_ACCESS.FID.eq(fid)))
+      .fetch()
+      .getValue(0, 0)
+    if (hasWriteAccess == false) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+    val userFile = fileDao.fetchOneByFid(fid)
+    userFile.setDescription(newFileDescription)
+    fileDao.update(userFile)
+  }
 }

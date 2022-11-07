@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
@@ -53,7 +54,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.Scatterpl
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
-import java.util.UUID
+import java.util.{UUID}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
@@ -124,6 +125,8 @@ abstract class OperatorDescriptor extends Serializable {
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   var operatorID: String = UUID.randomUUID.toString
 
+  @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
+  var operatorVersion: String = getOperatorVersion()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
   def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
@@ -131,6 +134,12 @@ abstract class OperatorDescriptor extends Serializable {
   def operatorInfo: OperatorInfo
 
   def getOutputSchema(schemas: Array[Schema]): Schema
+
+  def getOperatorVersion(): String = {
+    val path = "core/amber/src/main/scala/"
+    val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")
+    OPversion.getVersion(this.getClass.getSimpleName, operatorPath)
+  }
 
   // override if the operator has multiple output ports, schema must be specified for each port
   def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {

@@ -2,7 +2,11 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_EXECUTIONS,
+  WORKFLOW_VERSION
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
@@ -35,6 +39,24 @@ object WorkflowExecutionsResource {
       bookmarked: Boolean,
       name: String
   )
+
+  /**
+    * This function retrieves the latest execution id of a workflow
+    * @param wid
+    * @return UInteger
+    */
+  def getLatestExecutionID(wid: UInteger): Option[UInteger] = {
+    val executions = context
+      .select(WORKFLOW_EXECUTIONS.EID)
+      .from(WORKFLOW_EXECUTIONS)
+      .fetchInto(classOf[UInteger])
+      .toList
+    if (executions.isEmpty) {
+      None
+    } else {
+      Some(executions.max)
+    }
+  }
 
 }
 
@@ -77,16 +99,19 @@ class WorkflowExecutionsResource {
               .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
           ),
           WORKFLOW_EXECUTIONS.STARTING_TIME,
-          WORKFLOW_EXECUTIONS.COMPLETION_TIME,
+          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
           WORKFLOW_EXECUTIONS.STATUS,
           WORKFLOW_EXECUTIONS.RESULT,
           WORKFLOW_EXECUTIONS.BOOKMARKED,
           WORKFLOW_EXECUTIONS.NAME
         )
         .from(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.WID.eq(wid))
+        .join(WORKFLOW_VERSION)
+        .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+        .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[WorkflowExecutionEntry])
         .toList
+        .reverse
     }
   }
 
@@ -142,4 +167,5 @@ class WorkflowExecutionsResource {
     execution.setName(request.executionName)
     executionsDao.update(execution)
   }
+
 }
