@@ -13,7 +13,6 @@ sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) exten
   def isPausing: _root_.scala.Boolean = false
   def isPaused: _root_.scala.Boolean = false
   def isResuming: _root_.scala.Boolean = false
-  def isRecovering: _root_.scala.Boolean = false
   def isCompleted: _root_.scala.Boolean = false
   def isAborted: _root_.scala.Boolean = false
   def isUnknown: _root_.scala.Boolean = false
@@ -67,29 +66,22 @@ object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[Wor
   }
   
   @SerialVersionUID(0L)
-  case object RECOVERING extends WorkflowAggregatedState(6) with WorkflowAggregatedState.Recognized {
+  case object COMPLETED extends WorkflowAggregatedState(6) with WorkflowAggregatedState.Recognized {
     val index = 6
-    val name = "RECOVERING"
-    override def isRecovering: _root_.scala.Boolean = true
-  }
-  
-  @SerialVersionUID(0L)
-  case object COMPLETED extends WorkflowAggregatedState(7) with WorkflowAggregatedState.Recognized {
-    val index = 7
     val name = "COMPLETED"
     override def isCompleted: _root_.scala.Boolean = true
   }
   
   @SerialVersionUID(0L)
-  case object ABORTED extends WorkflowAggregatedState(8) with WorkflowAggregatedState.Recognized {
-    val index = 8
+  case object ABORTED extends WorkflowAggregatedState(7) with WorkflowAggregatedState.Recognized {
+    val index = 7
     val name = "ABORTED"
     override def isAborted: _root_.scala.Boolean = true
   }
   
   @SerialVersionUID(0L)
-  case object UNKNOWN extends WorkflowAggregatedState(9) with WorkflowAggregatedState.Recognized {
-    val index = 9
+  case object UNKNOWN extends WorkflowAggregatedState(8) with WorkflowAggregatedState.Recognized {
+    val index = 8
     val name = "UNKNOWN"
     override def isUnknown: _root_.scala.Boolean = true
   }
@@ -97,7 +89,7 @@ object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[Wor
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends WorkflowAggregatedState(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
   
-  lazy val values = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSING, PAUSED, RESUMING, RECOVERING, COMPLETED, ABORTED, UNKNOWN)
+  lazy val values = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSING, PAUSED, RESUMING, COMPLETED, ABORTED, UNKNOWN)
   def fromValue(__value: _root_.scala.Int): WorkflowAggregatedState = __value match {
     case 0 => UNINITIALIZED
     case 1 => READY
@@ -105,10 +97,9 @@ object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[Wor
     case 3 => PAUSING
     case 4 => PAUSED
     case 5 => RESUMING
-    case 6 => RECOVERING
-    case 7 => COMPLETED
-    case 8 => ABORTED
-    case 9 => UNKNOWN
+    case 6 => COMPLETED
+    case 7 => ABORTED
+    case 8 => UNKNOWN
     case __other => Unrecognized(__other)
   }
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = WorkflowruntimestateProto.javaDescriptor.getEnumTypes().get(0)

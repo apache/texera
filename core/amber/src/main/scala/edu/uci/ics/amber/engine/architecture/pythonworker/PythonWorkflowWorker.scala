@@ -39,7 +39,8 @@ class PythonWorkflowWorker(
       actorId,
       operator,
       parentNetworkCommunicationActorRef,
-      allUpstreamLinkIds
+      allUpstreamLinkIds,
+      false
     ) {
 
   // Input/Output port used in between Python and Java processes.

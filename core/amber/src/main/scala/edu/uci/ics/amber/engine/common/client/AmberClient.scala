@@ -1,11 +1,12 @@
 package edu.uci.ics.amber.engine.common.client
 
-import akka.actor.{ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorSystem, Address, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.FutureBijection._
+import edu.uci.ics.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
 import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ClosureRequest,
   CommandRequest,
@@ -13,6 +14,8 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ObservableRequest
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.{PublishSubject, Subject}
@@ -71,6 +74,14 @@ class AmberClient(
       throw new RuntimeException("amber runtime environment is not active")
     } else {
       clientActor ! controlCommand
+    }
+  }
+
+  def notifyNodeFailure(address: Address): Future[Any] = {
+    if (!isActive) {
+      Future[Any]()
+    } else {
+      (clientActor ? WorkflowRecoveryMessage(CLIENT, NotifyFailedNode(address))).asTwitter()
     }
   }
 

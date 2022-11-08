@@ -21,7 +21,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  ResendOutputTo,
+  WorkflowControlMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -31,7 +35,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 abstract class WorkflowActor(
     val actorId: ActorVirtualIdentity,
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
+    supportFaultTolerance: Boolean
 ) extends Actor
     with Stash
     with AmberLogging {
@@ -45,16 +50,22 @@ abstract class WorkflowActor(
       NetworkCommunicationActor.props(parentNetworkCommunicationActorRef.ref, actorId)
     )
   )
-  val logStorage: DeterminantLogStorage = DeterminantLogStorage.getLogStorage(getLogName)
+  val logStorage: DeterminantLogStorage =
+    DeterminantLogStorage.getLogStorage(supportFaultTolerance, getLogName)
   val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
-  lazy val logManager: LogManager = LogManager.getLogManager(networkCommunicationActor)
-  logManager.setupWriter(logStorage.getWriter(!recoveryManager.replayCompleted()))
+  val logManager: LogManager =
+    LogManager.getLogManager(supportFaultTolerance, networkCommunicationActor)
+  if (recoveryManager.replayCompleted()) {
+    logManager.setupWriter(logStorage.getWriter)
+  } else {
+    logManager.setupWriter(new EmptyLogStorage().getWriter)
+  }
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
 
   // Get log file name
-  def getLogName: String = ""
+  def getLogName: String = "worker-actor"
 
   def outputControlPayload(
       to: ActorVirtualIdentity,

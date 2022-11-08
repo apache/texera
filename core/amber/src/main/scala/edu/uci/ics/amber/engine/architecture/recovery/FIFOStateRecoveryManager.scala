@@ -10,11 +10,15 @@ class FIFOStateRecoveryManager(logReader: DeterminantLogReader) {
   private val records = new RecordIterator(logReader)
 
   def getFIFOState: Map[ActorVirtualIdentity, Long] = {
-    val fifoState = new mutable.AnyRefMap[ActorVirtualIdentity, Long]().withDefaultValue(0L)
+    val fifoState = new mutable.AnyRefMap[ActorVirtualIdentity, Long]()
     while (!records.isEmpty) {
       records.peek() match {
         case ProcessControlMessage(controlPayload, from) =>
-          fifoState(from) += 1
+          if (fifoState.contains(from)) {
+            fifoState(from) += 1
+          } else {
+            fifoState(from) = 1
+          }
         case other => //skip
       }
       records.readNext()

@@ -24,17 +24,16 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
     Files.createDirectory(recoveryLogFolder)
   }
 
-  private def getLogPath(isTempLog: Boolean): Path = {
-    recoveryLogFolder.resolve(name + ".logfile" + (if (isTempLog) { ".tmp" }
-                                                   else { "" }))
+  private def getLogPath: Path = {
+    recoveryLogFolder.resolve(name + ".logfile")
   }
 
-  override def getWriter(isTempLog: Boolean): DeterminantLogWriter = {
+  override def getWriter: DeterminantLogWriter = {
     new DeterminantLogWriter {
       override lazy protected val outputStream = {
         new DataOutputStream(
           Files.newOutputStream(
-            getLogPath(isTempLog),
+            getLogPath,
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND
           )
@@ -44,7 +43,7 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
   }
 
   override def getReader: DeterminantLogReader = {
-    val path = getLogPath(false)
+    val path = getLogPath
     if (Files.exists(path)) {
       new DeterminantLogReader {
         override protected val inputStream = new DataInputStream(Files.newInputStream(path))
@@ -58,27 +57,30 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
   }
 
   override def deleteLog(): Unit = {
-    // delete temp log if exists
-    val tempLogPath = getLogPath(true)
-    if (Files.exists(tempLogPath)) {
-      Files.delete(tempLogPath)
-    }
-    val path = getLogPath(false)
+    val path = getLogPath
     if (Files.exists(path)) {
       Files.delete(path)
     }
   }
 
-  override def swapTempLog(): Unit = {
-    val tempLogPath = getLogPath(true)
-    val path = getLogPath(false)
-    if (Files.exists(tempLogPath)) {
-      Files.move(
-        tempLogPath,
-        path,
-        StandardCopyOption.REPLACE_EXISTING,
-        StandardCopyOption.ATOMIC_MOVE
-      )
-    }
+  override def cleanPartiallyWrittenLogFile(): Unit = {
+    var tmpPath = getLogPath
+    tmpPath = tmpPath.resolveSibling(tmpPath.getFileName + ".tmp")
+    copyReadableLogRecords(new DeterminantLogWriter {
+      override lazy protected val outputStream = {
+        new DataOutputStream(
+          Files.newOutputStream(
+            tmpPath,
+            StandardOpenOption.CREATE
+          )
+        )
+      }
+    })
+    Files.move(
+      tmpPath,
+      getLogPath,
+      StandardCopyOption.REPLACE_EXISTING,
+      StandardCopyOption.ATOMIC_MOVE
+    )
   }
 }

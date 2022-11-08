@@ -19,6 +19,12 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowInfo,
   WorkflowRewriter
 }
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonUDFOpDescV2,
+  PythonUDFOpExecV2
+}
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
@@ -38,12 +44,26 @@ class WorkflowJobService(
     WorkflowIdentity(workflowContext.jobId),
     resultService.opResultStorage
   )
+  private val controllerConfig = {
+    val conf = ControllerConfig.default
+    if (
+      workflowInfo.operators.exists {
+        case x: DualInputPortsPythonUDFOpDescV2 => true
+        case x: PythonUDFOpDescV2               => true
+        case x: PythonUDFSourceOpDescV2         => true
+        case other                              => false
+      }
+    ) {
+      conf.supportFaultTolerance = false
+    }
+    conf
+  }
 
   // Runtime starts from here:
   var client: AmberClient =
     TexeraWebApplication.createAmberRuntime(
       workflow,
-      ControllerConfig.default,
+      controllerConfig,
       errorHandler
     )
   val jobBreakpointService = new JobBreakpointService(client, stateStore)

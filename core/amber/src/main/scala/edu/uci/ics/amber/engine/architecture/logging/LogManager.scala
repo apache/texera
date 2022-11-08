@@ -19,13 +19,13 @@ case class StepDelta(steps: Long) extends InMemDeterminant
 case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirtualIdentity)
     extends InMemDeterminant
 case class TimeStamp(value: Long) extends InMemDeterminant
+case object TerminateSignal extends InMemDeterminant
 
 object LogManager {
   def getLogManager(
+      enabledLogging: Boolean,
       networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
   ): LogManager = {
-    val enabledLogging: Boolean =
-      AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
     if (enabledLogging) {
       new LogManagerImpl(networkCommunicationActor)
     } else {

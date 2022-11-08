@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   ProcessControlMessage,
   StepDelta
 }
+import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
@@ -69,7 +70,7 @@ class RecoverySpec
     val workerName = "Test"
     val logStorage = new LocalFSLogStorage(workerName)
     logStorage.deleteLog()
-    val writer = logStorage.getWriter(false)
+    val writer = logStorage.getWriter
     val determinants: Array[InMemDeterminant] = Array(
       ProcessControlMessage(
         ReturnInvocation(16, WorkerStatistics(COMPLETED, 6, 2)),
@@ -117,7 +118,6 @@ class RecoverySpec
   }
 
   "Logreader" should "not read anything from empty log" in {
-    val workerName = "Test"
     val logStorage = new EmptyLogStorage()
     assert(DeterminantLogStorage.fetchAllLogRecords(logStorage).isEmpty)
   }

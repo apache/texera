@@ -36,7 +36,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.texera.workflow.common.operators.OperatorContext
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
 
@@ -56,33 +55,43 @@ class DataProcessor( // dependencies:
     with AmberLogging {
   // initialize dp thread upon construction
   private val dpThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
-  private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
-    def run(): Unit = {
-      try {
-        // TODO: setup context
-        stateManager.assertState(UNINITIALIZED)
-        // operator.context = new OperatorContext(new TimeService(logManager))
-        stateManager.transitTo(READY)
-        if (!recoveryManager.replayCompleted()) {
-          runDPThreadRecovery()
-          logManager.terminate()
-          logStorage.swapTempLog()
-          logger.info("Recovery Completed!")
+  private var dpThread: Future[_] = _
+  def start(): Unit = {
+    if (dpThread == null) {
+      dpThread = dpThreadExecutor.submit(new Runnable() {
+        def run(): Unit = {
+          try {
+            // TODO: setup context
+            stateManager.assertState(UNINITIALIZED)
+            // operator.context = new OperatorContext(new TimeService(logManager))
+            stateManager.transitTo(READY)
+            if (!recoveryManager.replayCompleted()) {
+              recoveryManager.Start()
+              recoveryManager.registerOnEnd(() => {
+                logger.info("recovery complete! restoring stashed inputs...")
+                logManager.terminate()
+                logStorage.cleanPartiallyWrittenLogFile()
+                logManager.setupWriter(logStorage.getWriter)
+                restoreInputs()
+                logger.info("stashed inputs restored!")
+              })
+            }
+            runDPThreadMainLogic()
+          } catch safely {
+            case _: InterruptedException =>
+              // dp thread will stop here
+              logger.info("DP Thread exits")
+            case err: Exception =>
+              logger.error("DP Thread exists unexpectedly", err)
+              asyncRPCClient.send(
+                FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
+                CONTROLLER
+              )
+          }
         }
-        runDPThreadMainLogic()
-      } catch safely {
-        case _: InterruptedException =>
-          // dp thread will stop here
-          logger.info("DP Thread exits")
-        case err: Exception =>
-          logger.error("DP Thread exists unexpectedly", err)
-          asyncRPCClient.send(
-            FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
-            CONTROLLER
-          )
-      }
+      })
     }
-  })
+  }
   // dp thread stats:
   // TODO: add another variable for recovery index instead of using the counts below.
   private var inputTupleCount = 0L
@@ -91,7 +100,6 @@ class DataProcessor( // dependencies:
   private var currentInputLink: LinkIdentity = _
   private var currentInputActor: ActorVirtualIdentity = _
   private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
-  private var isCompleted = false
 
   def getOperatorExecutor(): IOperatorExecutor = operator
 
@@ -176,17 +184,6 @@ class DataProcessor( // dependencies:
     }
   }
 
-  private[this] def runDPThreadRecovery(): Unit = {
-    while (!recoveryManager.replayCompleted()) {
-      recoveryManager.stepDecrement()
-      determinantLogger.stepIncrement()
-      val elem = recoveryManager.get()
-      logger.info("Recovery: replaying " + elem)
-      internalQueueElementHandler(elem)
-    }
-    restoreInputs()
-  }
-
   private[this] def internalQueueElementHandler(
       internalQueueElement: InternalQueueElement
   ): Unit = {
@@ -215,9 +212,14 @@ class DataProcessor( // dependencies:
           asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
         }
       case EndOfAllMarker =>
-        // end of processing, break DP loop
-        isCompleted = true
+        processControlCommandsDuringExecution() // necessary for trigger correct recovery
         batchProducer.emitEndOfUpstream()
+        // Send Completed signal to worker actor.
+        logger.info(s"$operator completed")
+        disableDataQueue()
+        operator.close() // close operator
+        asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
+        stateManager.transitTo(COMPLETED)
       case ControlElement(payload, from) =>
         processControlCommand(payload, from)
     }
@@ -230,17 +232,15 @@ class DataProcessor( // dependencies:
   @throws[Exception]
   private[this] def runDPThreadMainLogic(): Unit = {
     // main DP loop
-    while (!isCompleted) {
+    while (true) {
       // take the next data element from internal queue, blocks if not available.
-      internalQueueElementHandler(getElement)
+      val elem = if (recoveryManager.replayCompleted()) {
+        getElement
+      } else {
+        recoveryManager.get()
+      }
+      internalQueueElementHandler(elem)
     }
-    // Send Completed signal to worker actor.
-    logger.info(s"$operator completed")
-    disableDataQueue()
-    operator.close() // close operator
-    asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
-    stateManager.transitTo(COMPLETED)
-    processControlCommandsAfterCompletion()
   }
 
   private[this] def handleOperatorException(e: Throwable): Unit = {
@@ -307,22 +307,7 @@ class DataProcessor( // dependencies:
         takeOneControlCommandAndProcess()
       }
     } else {
-      determinantLogger.stepIncrement()
-      recoveryManager.stepDecrement()
-      if (recoveryManager.isReadyToEmitNextControl) {
-        takeOneControlCommandAndProcess()
-      }
-    }
-  }
-
-  private[this] def processControlCommandsAfterCompletion(): Unit = {
-    if (recoveryManager.replayCompleted()) {
-      while (true) {
-        takeOneControlCommandAndProcess()
-      }
-    } else {
-      recoveryManager.stepDecrement()
-      if (recoveryManager.isReadyToEmitNextControl) {
+      while (recoveryManager.isReadyToEmitNextControl) {
         takeOneControlCommandAndProcess()
       }
     }

@@ -104,7 +104,6 @@ object Utils {
       case WorkflowAggregatedState.PAUSING       => "Pausing"
       case WorkflowAggregatedState.PAUSED        => "Paused"
       case WorkflowAggregatedState.RESUMING      => "Resuming"
-      case WorkflowAggregatedState.RECOVERING    => "Recovering"
       case WorkflowAggregatedState.COMPLETED     => "Completed"
       case WorkflowAggregatedState.ABORTED       => "Aborted"
       case WorkflowAggregatedState.UNKNOWN       => "Unknown"

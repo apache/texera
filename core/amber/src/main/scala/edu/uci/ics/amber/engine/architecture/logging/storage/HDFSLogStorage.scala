@@ -4,10 +4,10 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
   DeterminantLogReader,
   DeterminantLogWriter
 }
+import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
-import java.io.{DataInputStream, InputStream}
 import java.net.URI
 
 class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage {
@@ -25,22 +25,20 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
     hdfs.mkdirs(recoveryLogFolder)
   }
 
-  private def getLogPath(isTempLog: Boolean): Path = {
-    new Path("/recovery-logs/" + name + ".logfile" + (if (isTempLog) {
-                                                        ".tmp"
-                                                      } else { "" }))
+  private def getLogPath: Path = {
+    new Path("/recovery-logs/" + name + ".logfile")
   }
 
-  override def getWriter(isTempLog: Boolean): DeterminantLogWriter = {
+  override def getWriter: DeterminantLogWriter = {
     new DeterminantLogWriter {
       override lazy protected val outputStream = {
-        hdfs.append(getLogPath(isTempLog))
+        hdfs.append(getLogPath)
       }
     }
   }
 
   override def getReader: DeterminantLogReader = {
-    val path = getLogPath(false)
+    val path = getLogPath
     if (hdfs.exists(path)) {
       new DeterminantLogReader {
         override protected val inputStream = hdfs.open(path)
@@ -51,26 +49,24 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   }
 
   override def deleteLog(): Unit = {
-    // delete temp log if exists
-    val tempLogPath = getLogPath(true)
-    if (hdfs.exists(tempLogPath)) {
-      hdfs.delete(tempLogPath, false)
-    }
     // delete log if exists
-    val path = getLogPath(false)
+    val path = getLogPath
     if (hdfs.exists(path)) {
       hdfs.delete(path, false)
     }
   }
 
-  override def swapTempLog(): Unit = {
-    val tempLogPath = getLogPath(true)
-    val path = getLogPath(false)
-    if (hdfs.exists(path)) {
-      hdfs.delete(path, false)
+  override def cleanPartiallyWrittenLogFile(): Unit = {
+    var tmpPath = getLogPath
+    tmpPath = tmpPath.suffix(".tmp")
+    copyReadableLogRecords(new DeterminantLogWriter {
+      override lazy protected val outputStream = {
+        hdfs.create(tmpPath)
+      }
+    })
+    if (hdfs.exists(getLogPath)) {
+      hdfs.delete(getLogPath, false)
     }
-    if (hdfs.exists(tempLogPath)) {
-      hdfs.rename(tempLogPath, path)
-    }
+    hdfs.rename(tmpPath, getLogPath)
   }
 }

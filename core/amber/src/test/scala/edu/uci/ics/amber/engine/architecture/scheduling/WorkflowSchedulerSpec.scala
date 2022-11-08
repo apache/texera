@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerInfo
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -68,7 +68,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
     workflow
       .getOperator(headerlessCsvOpDesc.operatorID)
       .topology
@@ -79,7 +79,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Scan worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -93,7 +94,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"Keyword worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Keyword worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -107,7 +109,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -170,7 +173,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
 
     workflow
       .getOperator(buildCsv.operatorID)
@@ -182,7 +185,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"Build Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Build Scan worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -196,7 +200,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"Probe Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Probe Scan worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -210,7 +215,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"HashJoin1 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin1 worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -224,7 +230,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"HashJoin2 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin2 worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -238,7 +245,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })

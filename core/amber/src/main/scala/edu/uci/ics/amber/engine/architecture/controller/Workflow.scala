@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorContext, Address}
+import akka.actor.{ActorContext, ActorRef, Address}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
@@ -153,11 +153,28 @@ class Workflow(
     allOperatorsInRegion.map(opId => operatorToOpExecConfig(opId).getAllWorkers.toList).flatten
   }
 
+  def getAllWorkerInfoOfAddress(address: Address): Iterable[WorkerInfo] = {
+    getAllLayers.flatMap(_.workers.values).filter(info => info.ref.path.address == address)
+  }
+
   def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
 
   def getAllOperatorIds: Iterable[OperatorIdentity] = operatorToOpExecConfig.keys
 
   def getWorkflowId(): WorkflowIdentity = workflowId
+
+  def getDirectUpstreamWorkers(vid: ActorVirtualIdentity): Iterable[ActorVirtualIdentity] = {
+    val workerLayer = getWorkerLayer(vid)
+    val upstreamLinks = idToLink.values.filter(_.to.id == workerLayer.id)
+    val upstreamWorkers = mutable.HashSet[ActorVirtualIdentity]()
+    upstreamLinks.flatMap(_.getPartitioning).foreach {
+      case (sender, _, _, receivers) =>
+        if (receivers.contains(vid)) {
+          upstreamWorkers.add(sender)
+        }
+    }
+    upstreamWorkers
+  }
 
   def getSources(operator: OperatorIdentity): Set[OperatorIdentity] = {
     var result = Set[OperatorIdentity]()

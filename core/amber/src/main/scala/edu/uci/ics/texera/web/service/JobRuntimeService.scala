@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowPaused
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
@@ -37,11 +38,16 @@ class JobRuntimeService(
     stateStore.jobMetadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
-      if (newState.state != oldState.state) {
+      if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
         if (WorkflowService.userSystemEnabled) {
           ExecutionsMetadataPersistService.tryUpdateExistingExecution(newState.eid, newState.state)
         }
-        outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+        // Check if is recovering
+        if (newState.isRecovering && newState.state != COMPLETED) {
+          outputEvts.append(WorkflowStateEvent("Recovering"))
+        } else {
+          outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+        }
       }
       // Check if new error occurred
       if (newState.error != oldState.error && newState.error != null) {
@@ -56,13 +62,15 @@ class JobRuntimeService(
     throw new RuntimeException("skipping tuple is temporarily disabled")
   }))
 
+  // Receive Paused from Amber
+  addSubscription(client.registerCallback[WorkflowPaused]((evt: WorkflowPaused) => {
+    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSED))
+  }))
+
   // Receive Pause
   addSubscription(wsInput.subscribe((req: WorkflowPauseRequest, uidOpt) => {
     stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSING))
-    client.sendAsyncWithCallback[Unit](
-      PauseWorkflow(),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSED))
-    )
+    client.sendAsync(PauseWorkflow())
   }))
 
   // Receive Resume
