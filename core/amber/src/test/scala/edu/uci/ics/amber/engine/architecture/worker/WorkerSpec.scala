@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   GetActorRef,
   NetworkAck,
   NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
@@ -78,11 +79,19 @@ class WorkerSpec
     val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
     val worker =
-      TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref, Set(mockTag)) {
-        override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
-        override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
-          mockControlOutputPort
-      })
+      TestActorRef(
+        new WorkflowWorker(
+          identifier1,
+          mockOpExecutor,
+          NetworkSenderActorRef(null),
+          Set(mockTag),
+          false
+        ) {
+          override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
+          override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
+            mockControlOutputPort
+        }
+      )
     (mockTupleToBatchConverter.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
     (mockHandler.apply _).expects(*, *, *, *).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
@@ -112,7 +121,15 @@ class WorkerSpec
       ): Iterator[(ITuple, Option[LinkIdentity])] = { return Iterator() }
     }
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, probe.ref, Set()))
+    val worker = TestActorRef(
+      new WorkflowWorker(
+        identifier1,
+        mockOpExecutor,
+        NetworkSenderActorRef(probe.ref),
+        Set(),
+        false
+      )
+    )
 
     idMap(identifier1) = worker
     idMap(CONTROLLER) = probe.ref

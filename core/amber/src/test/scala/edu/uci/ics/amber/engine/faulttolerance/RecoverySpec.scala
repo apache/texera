@@ -3,10 +3,29 @@ package edu.uci.ics.amber.engine.faulttolerance
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
+import com.twitter.chill.{KryoPool, KryoSerializer, ScalaKryoInstantiator}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.logging.storage.{
+  DeterminantLogStorage,
+  EmptyLogStorage,
+  LocalFSLogStorage
+}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  InMemDeterminant,
+  ProcessControlMessage,
+  StepDelta
+}
+import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ReturnInvocation
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
@@ -19,6 +38,12 @@ class RecoverySpec
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
+  private val kryoPool = {
+    val r = KryoSerializer.registerAll
+    val ki = (new ScalaKryoInstantiator).withRegistrar(r)
+    KryoPool.withByteArrayOutputStream(Runtime.getRuntime.availableProcessors * 2, ki)
+  }
+
   override def beforeAll: Unit = {
     system.actorOf(Props[SingleNodeListener], "cluster-info")
   }
@@ -26,72 +51,75 @@ class RecoverySpec
     TestKit.shutdownActorSystem(system)
   }
 
-//  private val logicalPlan1 =
-//    """{
-//      |"operators":[
-//      |{"tableName":"D:\\large_input.csv","operatorID":"Scan","operatorType":"LocalScanSource","delimiter":","},
-//      |{"attributeName":0,"keyword":"123123","operatorID":"KeywordSearch","operatorType":"KeywordMatcher"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
-//      |"links":[
-//      |{"origin":"Scan","destination":"KeywordSearch"},
-//      |{"origin":"KeywordSearch","destination":"Sink"}]
-//      |}""".stripMargin
-//
-//  private val logicalPlan3 =
-//    """{
-//      |"operators":[
-//      |{"tableName":"D:\\test.txt","operatorID":"Scan1","operatorType":"LocalScanSource","delimiter":"|"},
-//      |{"tableName":"D:\\test.txt","operatorID":"Scan2","operatorType":"LocalScanSource","delimiter":"|"},
-//      |{"attributeName":15,"keyword":"package","operatorID":"KeywordSearch","operatorType":"KeywordMatcher"},
-//      |{"operatorID":"Join","operatorType":"HashJoin","innerTableIndex":0,"outerTableIndex":0},
-//      |{"operatorID":"GroupBy1","operatorType":"GroupBy","groupByField":1,"aggregateField":0,"aggregationType":"Count"},
-//      |{"operatorID":"GroupBy2","operatorType":"GroupBy","groupByField":1,"aggregateField":0,"aggregationType":"Count"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
-//      |"links":[
-//      |{"origin":"Scan1","destination":"KeywordSearch"},
-//      |{"origin":"Scan2","destination":"Join"},
-//      |{"origin":"KeywordSearch","destination":"Join"},
-//      |{"origin":"Join","destination":"GroupBy1"},
-//      |{"origin":"GroupBy1","destination":"GroupBy2"},
-//      |{"origin":"GroupBy2","destination":"Sink"}]
-//      |}""".stripMargin
-//
-//  "A controller" should "pause, stop and restart, then pause the execution of the workflow1" in {
-//    val parent = TestProbe()
-//    val context = new WorkflowContext
-//    context.jobID = "workflow-test"
-//    val objectMapper = Utils.objectMapper
-//    val request =
-//      objectMapper.readValue(
-//        WorkflowJSONExamples.csvToKeywordToSink,
-//        classOf[WorkflowExecuteRequest]
-//      )
-//    val texeraWorkflowCompiler = new WorkflowCompiler(
-//      WorkflowInfo(request.operators, request.links, request.breakpoints),
-//      context
-//    )
-//    texeraWorkflowCompiler.init()
-//    val workflow = texeraWorkflowCompiler.amberWorkflow
-//    val workflowTag = WorkflowTag.apply("workflow-test")
-//
-//    val controller = parent.childActorOf(
-//      CONTROLLER.props(workflowTag, workflow, false, ControllerEventListener(), 100)
-//    )
-//    controller ! AckedControllerInitialization
-//    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
-//    controller ! Start
-//    parent.expectMsg(ReportState(ControllerState.Running))
-//    Thread.sleep(100)
-//    controller ! Pause
-//    parent.expectMsg(ReportState(ControllerState.Pausing))
-//    parent.expectMsg(ReportState(ControllerState.Paused))
-//    controller ! KillAndRecover
-//    parent.expectMsg(5.minutes, ReportState(ControllerState.Paused))
-//    controller ! Resume
-//    parent.expectMsg(5.minutes, ReportState(ControllerState.Resuming))
-//    parent.expectMsg(5.minutes, ReportState(ControllerState.Running))
-//    parent.expectMsg(5.minutes, ReportState(ControllerState.Completed))
-//    parent.ref ! PoisonPill
-//  }
+  "Kryo" should "serialize nested determinant correctly" in {
+    val selfworkload = SelfWorkloadMetrics(1, 1, 1, 1)
+    val buffer = ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+    val m = mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
+    m(ActorVirtualIdentity("1")) = ArrayBuffer[Long](1, 2, 3, 4)
+    buffer.append(m)
+    val a = ProcessControlMessage(
+      ReturnInvocation(1, (selfworkload, buffer)),
+      ActorVirtualIdentity("test")
+    )
+    val bytes = kryoPool.toBytesWithClass(a)
+    val obj = kryoPool.fromBytes(bytes)
+    assert(a == obj)
+  }
+
+  "Logreader" should "W/R content in the log" in {
+    val workerName = "Test"
+    val logStorage = new LocalFSLogStorage(workerName)
+    logStorage.deleteLog()
+    val writer = logStorage.getWriter
+    val determinants: Array[InMemDeterminant] = Array(
+      ProcessControlMessage(
+        ReturnInvocation(16, WorkerStatistics(COMPLETED, 6, 2)),
+        ActorVirtualIdentity(
+          "WF-KeywordSearch-operator-44478988-0d44-43c0-ab0d-f52fd5885ba4-main-0"
+        )
+      ),
+      ProcessControlMessage(
+        ReturnInvocation(4, ()),
+        ActorVirtualIdentity("WF-SimpleSink-operator-06d5e7e6-dbd1-40e4-87d6-133d33559aa8-main-0")
+      ),
+      StepDelta(1),
+      StepDelta(29),
+      ProcessControlMessage(
+        ReturnInvocation(9, (1, 2, 3, 4)),
+        ActorVirtualIdentity("WF-SimpleSink-operator-06d5e7e6-dbd1-40e4-87d6-133d33559aa8-main-0")
+      )
+    )
+    determinants.foreach(writer.writeLogRecord)
+    writer.flush()
+    writer.close()
+    val expected: Array[AnyRef] = Array(
+      ProcessControlMessage(
+        ReturnInvocation(16, WorkerStatistics(COMPLETED, 6, 2)),
+        ActorVirtualIdentity(
+          "WF-KeywordSearch-operator-44478988-0d44-43c0-ab0d-f52fd5885ba4-main-0"
+        )
+      ),
+      ProcessControlMessage(
+        ReturnInvocation(4, ()),
+        ActorVirtualIdentity("WF-SimpleSink-operator-06d5e7e6-dbd1-40e4-87d6-133d33559aa8-main-0")
+      ),
+      StepDelta(30),
+      ProcessControlMessage(
+        ReturnInvocation(9, (1, 2, 3, 4)),
+        ActorVirtualIdentity("WF-SimpleSink-operator-06d5e7e6-dbd1-40e4-87d6-133d33559aa8-main-0")
+      )
+    )
+    var idx = 0
+    DeterminantLogStorage.fetchAllLogRecords(logStorage).foreach { x =>
+      assert(x == expected(idx))
+      idx += 1
+    }
+    logStorage.deleteLog()
+  }
+
+  "Logreader" should "not read anything from empty log" in {
+    val logStorage = new EmptyLogStorage()
+    assert(DeterminantLogStorage.fetchAllLogRecords(logStorage).isEmpty)
+  }
 
 }
