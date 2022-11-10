@@ -1,15 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
+import akka.pattern.ask
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef,
+  ResendFeasibility,
   SendRequest
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
@@ -18,6 +22,8 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputPort,
   TupleToBatchConverter
 }
+import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
@@ -30,8 +36,11 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   CreditRequest,
   DataPayload,
+  ResendOutputTo,
+  UpdateRecoveryStatus,
   WorkflowControlMessage,
-  WorkflowDataMessage
+  WorkflowDataMessage,
+  WorkflowRecoveryMessage
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
@@ -40,25 +49,37 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       op: IOperatorExecutor,
-      parentNetworkCommunicationActorRef: ActorRef,
-      allUpstreamLinkIds: Set[LinkIdentity]
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
+      allUpstreamLinkIds: Set[LinkIdentity],
+      supportFaultTolerance: Boolean
   ): Props =
-    Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
+    Props(
+      new WorkflowWorker(
+        id,
+        op,
+        parentNetworkCommunicationActorRef,
+        allUpstreamLinkIds,
+        supportFaultTolerance
+      )
+    )
+
+  def getWorkerLogName(id: ActorVirtualIdentity): String = id.name.replace("Worker:", "")
 }
 
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
-    parentNetworkCommunicationActorRef: ActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity]
-) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef) {
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
+    allUpstreamLinkIds: Set[LinkIdentity],
+    supportFaultTolerance: Boolean
+) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
@@ -80,62 +101,77 @@ class WorkflowWorker(
   var isCompleted = false
 
   if (parentNetworkCommunicationActorRef != null) {
-    parentNetworkCommunicationActorRef ! RegisterActorRef(this.actorId, self)
+    parentNetworkCommunicationActorRef.waitUntil(RegisterActorRef(this.actorId, self))
   }
 
-  workerStateManager.assertState(UNINITIALIZED)
-  workerStateManager.transitTo(READY)
+  override def getLogName: String = getWorkerLogName(actorId)
 
   def getSenderCredits(sender: ActorVirtualIdentity) = {
     tupleProducer.getSenderCredits(sender)
   }
 
-  override def receive: Receive = receiveAndProcessMessages
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    super.preRestart(reason, message)
+    logger.error(s"Encountered fatal error, worker is shutting done.", reason)
+    asyncRPCClient.send(
+      FatalError(reason),
+      CONTROLLER
+    )
+  }
+
+  override def receive: Receive = {
+    if (!recoveryManager.replayCompleted()) {
+      recoveryManager.registerOnStart(() =>
+        context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(true))
+      )
+      recoveryManager.registerOnEnd(() =>
+        context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(false))
+      )
+      val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
+      val fifoState = fifoStateRecoveryManager.getFIFOState
+      controlInputPort.overwriteFIFOState(fifoState)
+    }
+    dataProcessor.start()
+    receiveAndProcessMessages
+  }
+
+  def forwardResendRequest: Receive = {
+    case resend: ResendOutputTo =>
+      networkCommunicationActor ! resend
+    case ResendFeasibility(status) =>
+      if (!status) {
+        // this exception will be caught by the catch in receiveAndProcessMessages
+        throw new WorkflowRuntimeException(s"network sender cannot resend message!")
+      }
+  }
 
   def receiveAndProcessMessages: Receive =
-    try {
-      disallowActorRefRelatedMessages orElse {
-        case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
-          dataInputPort.handleMessage(
-            this.sender(),
-            getSenderCredits(from),
-            id,
-            from,
-            seqNum,
-            payload
-          )
-        case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-          controlInputPort.handleMessage(
-            this.sender(),
-            getSenderCredits(from),
-            id,
-            from,
-            seqNum,
-            payload
-          )
-        case NetworkMessage(id, CreditRequest(from, _)) =>
-          sender ! NetworkAck(id, Some(getSenderCredits(from)))
-        case other =>
-          throw new WorkflowRuntimeException(s"unhandled message: $other")
-      }
-    } catch {
-      case err: WorkflowRuntimeException =>
-        logger.error(s"Encountered fatal error, worker is shutting done.", err)
-        asyncRPCClient.send(
-          FatalError(err),
-          CONTROLLER
+    forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
+      case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
+        dataInputPort.handleMessage(
+          this.sender(),
+          getSenderCredits(from),
+          id,
+          from,
+          seqNum,
+          payload
         )
-        throw err;
+      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
+        controlInputPort.handleMessage(
+          this.sender(),
+          getSenderCredits(from),
+          id,
+          from,
+          seqNum,
+          payload
+        )
+      case NetworkMessage(id, CreditRequest(from, _)) =>
+        sender ! NetworkAck(id, Some(getSenderCredits(from)))
+      case other =>
+        throw new WorkflowRuntimeException(s"unhandled message: $other")
     }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-    if (workerStateManager.getCurrentState == READY) {
-      workerStateManager.transitTo(RUNNING)
-      asyncRPCClient.send(
-        WorkerStateUpdated(workerStateManager.getCurrentState),
-        CONTROLLER
-      )
-    }
     tupleProducer.processDataPayload(from, dataPayload)
   }
 
@@ -159,16 +195,17 @@ class WorkflowWorker(
       payload: DataPayload
   ): Unit = {
     val msg = WorkflowDataMessage(self, seqNum, payload)
-    networkCommunicationActor ! SendRequest(to, msg)
+    logManager.sendCommitted(SendRequest(to, msg))
   }
 
   override def postStop(): Unit = {
     // shutdown dp thread by sending a command
+    val shutdown = ShutdownDPThread()
     dataProcessor.enqueueCommand(
-      ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
+      ControlInvocation(AsyncRPCClient.IgnoreReply, shutdown),
       SELF
     )
-
+    shutdown.completed.get()
     logger.info("stopped!")
   }
 

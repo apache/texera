@@ -76,6 +76,7 @@ class DataProcessingSpec
       })
     Await.result(client.sendAsync(StartWorkflow()))
     Await.result(completion)
+    client.shutdown()
     results
   }
 
@@ -171,7 +172,6 @@ class DataProcessingSpec
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
       assert(schema.getAttributes.size() == 9)
     }
-
   }
 
   "Engine" should "execute mediumFlattenJsonl->sink workflow normally" in {

@@ -14,7 +14,7 @@ object MonitoringHandler {
   // for the workers of the next operator
   final case class QuerySelfWorkloadMetrics()
       extends ControlCommand[
-        (SelfWorkloadMetrics, ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]])
+        (SelfWorkloadMetrics, List[Map[ActorVirtualIdentity, List[Long]]])
       ]
 }
 
@@ -39,7 +39,7 @@ trait MonitoringHandler {
       case exception: Exception =>
         (
           SelfWorkloadMetrics(-1, -1, -1, -1),
-          new ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+          List[Map[ActorVirtualIdentity, List[Long]]]()
         )
     }
   }
