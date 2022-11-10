@@ -8,15 +8,19 @@ import { QuillBinding } from "y-quill";
 import QuillCursors from "quill-cursors";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+// Quill related definitions
 export const COLLAB_DEBOUNCE_TIME_MS = 10;
 const Clipboard = Quill.import("modules/clipboard");
 const Delta = Quill.import("delta");
 
+/**
+ * Custom clipboard module that removes rich text formats and newline characters
+ */
 class PlainClipboard extends Clipboard {
   onPaste(e: { preventDefault: () => void; clipboardData: { getData: (arg0: string) => any } }) {
     e.preventDefault();
     const range = this.quill.getSelection();
-    const text = e.clipboardData.getData("text/plain");
+    const text = (e.clipboardData.getData("text/plain") as string).replace(/\n/g, "");
     const delta = new Delta().retain(range.index).delete(range.length).insert(text);
     const index = text.length + range.index;
     const length = 0;
@@ -25,14 +29,21 @@ class PlainClipboard extends Clipboard {
     this.quill.scrollIntoView();
   }
 }
+
 Quill.register(
   {
     "modules/clipboard": PlainClipboard,
   },
   true
 );
+
 Quill.register("modules/cursors", QuillCursors);
 
+
+/**
+ * CollabWrapperComponent is a custom field wrapper that connects a string/textfield typed form field to a collaborative
+ * text editor based on Yjs and Quill.
+ */
 @UntilDestroy()
 @Component({
   templateUrl: "./collab-wrapper.component.html",

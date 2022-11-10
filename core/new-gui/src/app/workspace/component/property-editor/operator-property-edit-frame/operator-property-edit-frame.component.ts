@@ -432,7 +432,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
-      if (this.currentOperatorId !== undefined && ["string", "textarea"].includes(mappedField.type as string)) {
+      if (
+        this.currentOperatorId !== undefined &&
+        ["string", "textarea"].includes(mappedField.type as string) &&
+        (mappedField.key as string) !== "password"
+      ) {
         CollabWrapperComponent.setupFieldConfig(
           mappedField,
           this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
