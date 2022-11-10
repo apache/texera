@@ -6,14 +6,12 @@ import org.bson.Document
 
 import java.util
 
-class MongoDatabaseManager() {
-
+object MongoDatabaseManager {
 
   val url: String = AmberUtils.amberConfig.getString("storage.mongodb.url")
   val databaseName: String = AmberUtils.amberConfig.getString("storage.mongodb.database")
   val client: MongoClient = MongoClients.create(url)
   val database: MongoDatabase = client.getDatabase(databaseName)
-
 
   def dropCollection(collectionName: String): Unit = {
     database.getCollection(collectionName).drop()
@@ -25,8 +23,7 @@ class MongoDatabaseManager() {
   }
 
   def isCollectionExist(collectionName: String): Boolean = {
-    database.listCollectionNames().into(new util.ArrayList()).contains(collectionName)
+    database.listCollectionNames().into(new util.ArrayList[String]()).contains(collectionName)
   }
 
 }
-
