@@ -62,6 +62,7 @@ import { UserFileSectionComponent } from "./dashboard/component/feature-containe
 import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
 import { UserIconComponent } from "./dashboard/component/top-bar/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
+import { UserLoginModalComponent } from "./dashboard/component/top-bar/user-icon/user-login/user-login-modal.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
@@ -135,6 +136,7 @@ registerLocaleData(en);
     FeatureContainerComponent,
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
+    UserLoginModalComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
     RowModalComponent,
