@@ -40,9 +40,9 @@ class CongestionControl {
     toBeSent.enqueue(data)
   }
 
-  def ack(id: Long): Unit = {
-    if (!inTransit.contains(id)) return
-    inTransit.remove(id)
+  def ack(id: Long): Option[NetworkMessage] = {
+    if (!inTransit.contains(id)) return None
+    val message = inTransit.remove(id)
     if (System.currentTimeMillis() - sentTime(id) < ackTimeLimit) {
       if (windowSize < ssThreshold) {
         windowSize = Math.min(windowSize * 2, ssThreshold)
@@ -57,6 +57,7 @@ class CongestionControl {
       windowSize = ssThreshold
     }
     sentTime.remove(id)
+    message
   }
 
   def getBufferedMessagesToSend: Array[NetworkMessage] = {
@@ -84,6 +85,12 @@ class CongestionControl {
 
   def getInTransitMessages: Iterable[NetworkMessage] = {
     inTransit.values
+  }
+
+  def getAllMessages: Iterable[NetworkMessage] = {
+    val intransitMsg = inTransit.values
+    val toBeSentMsg = toBeSent
+    intransitMsg.toSet.union(toBeSentMsg.toSet)
   }
 
   def getStatusReport: String = {

@@ -2,12 +2,14 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.pattern.ask
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.pattern.StatusReply.Ack
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
-import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
+import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.{
   CreditRequest,
+  ResendOutputTo,
   WorkflowControlMessage,
   WorkflowMessage
 }
@@ -72,6 +74,8 @@ object NetworkCommunicationActor {
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
   final case class PollForCredit(to: ActorVirtualIdentity)
+
+  final case class ResendFeasibility(isOk: Boolean)
 }
 
 /** This actor handles the transformation from identifier to actorRef
@@ -87,6 +91,9 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   val queriedActorVirtualIdentities = new mutable.HashSet[ActorVirtualIdentity]()
   val messageStash = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
+  var sentMessages = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
+  val resendForRecoveryQueueLimit: Long =
+    AmberUtils.amberConfig.getLong("fault-tolerance.max-supported-resend-queue-length")
   // register timer for resending messages
   val resendHandle: Cancellable = context.system.scheduler.scheduleWithFixedDelay(
     30.seconds,
@@ -192,7 +199,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
-      sender ! NetworkAck
+      sender ! Ack
   }
 
   /** This method forward a message by using tell pattern
@@ -251,22 +258,32 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       informParentAboutBackpressure(id) // enable backpressure if necessary
     case NetworkAck(id, credits) =>
       if (messageIDToIdentity.contains(id)) {
-        val actorID = messageIDToIdentity.remove(id).get
+        val receiverId = messageIDToIdentity.remove(id).get
         if (credits.nonEmpty) {
-          flowControl.updateCredits(actorID, credits.get)
-          informParentAboutBackpressure(actorID) // enables/disables backpressure if necessary
-          togglePollForCredits(actorID, credits.get <= 0)
+          flowControl.updateCredits(receiverId, credits.get)
+          informParentAboutBackpressure(receiverId) // enables/disables backpressure if necessary
+          togglePollForCredits(receiverId, credits.get <= 0)
           flowControl
-            .getMessagesToForward(actorID)
-            .foreach(msg => forwardMessageFromFlowControl(actorID, msg))
+            .getMessagesToForward(receiverId)
+            .foreach(msg => forwardMessageFromFlowControl(receiverId, msg))
         }
-        if (idToCongestionControls.contains(actorID)) {
-          val congestionControl = idToCongestionControls(actorID)
-          congestionControl.ack(id)
+        if (idToCongestionControls.contains(receiverId)) {
+          val congestionControl = idToCongestionControls(receiverId)
+          val msgSent = congestionControl.ack(id)
+          if (msgSent.isDefined) {
+            if (sentMessages != null) {
+              sentMessages
+                .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
+                .enqueue(msgSent.get.internalMessage)
+              if (sentMessages(receiverId).size == resendForRecoveryQueueLimit) {
+                sentMessages = null //invalidate recovery
+              }
+            }
+          }
           congestionControl.getBufferedMessagesToSend
             .foreach { msg =>
               congestionControl.markMessageInTransit(msg)
-              sendOrGetActorRef(actorID, msg)
+              sendOrGetActorRef(receiverId, msg)
             }
         }
       }
@@ -282,24 +299,56 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
             sendOrGetActorRef(actorID, msg)
           }
       }
+    case ResendOutputTo(dest, ref) =>
+      logger.info("received resend request to " + dest)
+      sender ! ResendFeasibility(sentMessages != null)
+      // if the output can be resent
+      if (sentMessages != null) {
+        // reset actor mapping
+        queriedActorVirtualIdentities.remove(dest)
+        idToActorRefs(dest) = ref
+        // temporally block main actor
+        sendBackpressureMessageToParent(true)
+        // resend previous output, make sure every message is received
+        if (sentMessages.contains(dest)) {
+          sentMessages(dest).foreach { message =>
+            ref ! NetworkMessage(-1, message)
+          }
+        }
+        // resend message in congestion control
+        if (idToCongestionControls.contains(dest)) {
+          idToCongestionControls(dest).getInTransitMessages.foreach { message =>
+            ref ! message
+          }
+        }
+        // unblock main actor
+        sendBackpressureMessageToParent(false)
+      }
     case MessageBecomesDeadLetter(msg) =>
       // only remove the mapping from id to actorRef
       // to trigger discover mechanism
-      val actorID = messageIDToIdentity(msg.messageId)
-      logger.warn(s"actor for $actorID might have crashed or failed")
-      idToActorRefs.remove(actorID)
-      if (parentRef != null) {
-        fetchActorRefMappingFromParent(actorID)
+      if (messageIDToIdentity.contains(msg.messageId)) {
+        val actorID = messageIDToIdentity(msg.messageId)
+        logger.warn(s"actor for $actorID might have crashed or failed")
+        if (parentRef != null) {
+          fetchActorRefMappingFromParent(actorID)
+        }
+      } else {
+        logger.warn("message: " + msg + " get lost but we don't know where it is sent to.")
       }
     case PollForCredit(to) =>
-      val req = NetworkMessage(networkMessageID, CreditRequest(actorId))
-      messageIDToIdentity(networkMessageID) = to
-      idToActorRefs(to) ! req
-      networkMessageID += 1
+      if (idToActorRefs.contains(to)) {
+        val req = NetworkMessage(networkMessageID, CreditRequest(actorId))
+        messageIDToIdentity(networkMessageID) = to
+        idToActorRefs(to) ! req
+        networkMessageID += 1
+      }
   }
 
   override def receive: Receive = {
-    sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity
+    sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity orElse {
+      case other => //skip
+    }
   }
 
   override def postStop(): Unit = {
@@ -326,7 +375,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
         parentRef ! GetActorRef(actorID, Set(self))
         queriedActorVirtualIdentities.add(actorID)
       } catch {
-        case e: Exception =>
+        case e: Throwable =>
           logger.error("Failed to fetch actorRef for " + actorID + " parentRef = " + parentRef)
       }
     }

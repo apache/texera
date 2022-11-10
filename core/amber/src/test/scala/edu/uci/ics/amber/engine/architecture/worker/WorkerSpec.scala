@@ -84,7 +84,8 @@ class WorkerSpec
           identifier1,
           mockOpExecutor,
           NetworkSenderActorRef(null),
-          Set(mockTag)
+          Set(mockTag),
+          false
         ) {
           override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
           override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
@@ -121,7 +122,13 @@ class WorkerSpec
     }
 
     val worker = TestActorRef(
-      new WorkflowWorker(identifier1, mockOpExecutor, NetworkSenderActorRef(probe.ref), Set())
+      new WorkflowWorker(
+        identifier1,
+        mockOpExecutor,
+        NetworkSenderActorRef(probe.ref),
+        Set(),
+        false
+      )
     )
 
     idMap(identifier1) = worker

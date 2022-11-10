@@ -90,9 +90,7 @@ object DeterminantLogStorage {
     }
   }
 
-  def getLogStorage(name: String): DeterminantLogStorage = {
-    val enabledLogging: Boolean =
-      AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")
+  def getLogStorage(enabledLogging: Boolean, name: String): DeterminantLogStorage = {
     val storageType: String =
       AmberUtils.amberConfig.getString("fault-tolerance.log-storage-type")
     if (enabledLogging) {
@@ -113,12 +111,21 @@ object DeterminantLogStorage {
 
 abstract class DeterminantLogStorage {
 
-  def getWriter(isTempLog: Boolean): DeterminantLogWriter
+  def getWriter: DeterminantLogWriter
 
   def getReader: DeterminantLogReader
 
   def deleteLog(): Unit
 
-  def swapTempLog(): Unit
+  def cleanPartiallyWrittenLogFile(): Unit
+
+  protected def copyReadableLogRecords(writer: DeterminantLogWriter): Unit = {
+    val recordIterator = new RecordIterator(getReader)
+    while (!recordIterator.isEmpty) {
+      writer.writeLogRecord(recordIterator.peek())
+      recordIterator.readNext()
+    }
+    writer.close()
+  }
 
 }
