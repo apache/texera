@@ -87,8 +87,7 @@ export class CoeditorPresenceService {
 
     // first time logic
     const currentStates = this.getCoeditorStatesArray().filter(
-      userState =>
-        userState.coeditor && userState.coeditor.clientId && userState.coeditor.clientId !== this.getLocalClientId()
+      userState => userState.user && userState.user.clientId && userState.user.clientId !== this.getLocalClientId()
     );
     for (const state of currentStates) {
       this.addCoeditor(state);
@@ -99,15 +98,12 @@ export class CoeditorPresenceService {
       (change: { added: number[]; updated: number[]; removed: number[] }) => {
         this.getCoeditorStatesArray().filter(
           userState =>
-            userState.coeditor.clientId &&
-            this.getLocalClientId() &&
-            userState.coeditor.clientId !== this.getLocalClientId()
+            userState.user.clientId && this.getLocalClientId() && userState.user.clientId !== this.getLocalClientId()
         );
 
         for (const clientId of change.added) {
           const coeditorState = this.getCoeditorStatesMap().get(clientId);
-          if (coeditorState && coeditorState.coeditor.clientId !== this.getLocalClientId())
-            this.addCoeditor(coeditorState);
+          if (coeditorState && coeditorState.user.clientId !== this.getLocalClientId()) this.addCoeditor(coeditorState);
         }
 
         for (const clientId of change.removed) {
@@ -141,7 +137,7 @@ export class CoeditorPresenceService {
    * @param coeditorState
    */
   private addCoeditor(coeditorState: CoeditorState): void {
-    const coeditor = coeditorState.coeditor;
+    const coeditor = coeditorState.user;
     if (!this.hasCoeditor(coeditor.clientId) && coeditor.clientId) {
       this.coeditors.push(coeditor);
       this.coeditorStates.set(coeditor.clientId, coeditorState);
@@ -158,7 +154,7 @@ export class CoeditorPresenceService {
       const coeditor = this.coeditors[i];
       if (coeditor.clientId === clientId) {
         this.updateCoeditorState(clientId, {
-          coeditor: coeditor,
+          user: coeditor,
           userCursor: { x: 0, y: 0 },
           currentlyEditing: undefined,
           isActive: false,
@@ -196,16 +192,16 @@ export class CoeditorPresenceService {
   private updateCoeditorCursor(coeditorState: CoeditorState) {
     // Update pointers
     const existingPointer: joint.dia.Cell | undefined = this.jointGraph.getCell(
-      JointUIService.getJointUserPointerName(coeditorState.coeditor)
+      JointUIService.getJointUserPointerName(coeditorState.user)
     );
-    const userColor = coeditorState.coeditor.color;
+    const userColor = coeditorState.user.color;
     if (existingPointer) {
       if (coeditorState.isActive) {
         if (coeditorState.userCursor !== existingPointer.position()) {
           existingPointer.remove();
           if (userColor) {
             const newPoint = JointUIService.getJointUserPointerCell(
-              coeditorState.coeditor,
+              coeditorState.user,
               coeditorState.userCursor,
               userColor
             );
@@ -217,7 +213,7 @@ export class CoeditorPresenceService {
       if (coeditorState.isActive && userColor) {
         // create new user point (directly updating the point would cause unknown errors)
         const newPoint = JointUIService.getJointUserPointerCell(
-          coeditorState.coeditor,
+          coeditorState.user,
           coeditorState.userCursor,
           userColor
         );
@@ -234,7 +230,7 @@ export class CoeditorPresenceService {
       if (previousHighlighted) {
         for (const operatorId of previousHighlighted) {
           if (!currentHighlighted || !currentHighlighted.includes(operatorId)) {
-            this.jointGraphWrapper.deleteCoeditorOperatorHighlight(coeditorState.coeditor, operatorId);
+            this.jointGraphWrapper.deleteCoeditorOperatorHighlight(coeditorState.user, operatorId);
           }
         }
       }
@@ -242,7 +238,7 @@ export class CoeditorPresenceService {
       if (currentHighlighted) {
         for (const operatorId of currentHighlighted) {
           if (!previousHighlighted || !previousHighlighted.includes(operatorId)) {
-            this.jointGraphWrapper.addCoeditorOperatorHighlight(coeditorState.coeditor, operatorId);
+            this.jointGraphWrapper.addCoeditorOperatorHighlight(coeditorState.user, operatorId);
           }
         }
         this.coeditorOperatorHighlights.set(clientId, currentHighlighted);
@@ -263,18 +259,18 @@ export class CoeditorPresenceService {
         previousIntervalId &&
         this.workflowActionService.getTexeraGraph().hasOperator(previousEditing)
       ) {
-        this.jointGraphWrapper.removeCurrentEditing(coeditorState.coeditor, previousEditing, previousIntervalId);
+        this.jointGraphWrapper.removeCurrentEditing(coeditorState.user, previousEditing, previousIntervalId);
         this.coeditorCurrentlyEditing.delete(clientId);
         this.currentlyEditingTimers.delete(clientId);
-        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.coeditor.clientId) {
+        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
           this.workflowActionService.unhighlightOperators(previousEditing);
         }
       }
       if (currentEditing && this.workflowActionService.getTexeraGraph().hasOperator(currentEditing)) {
-        const intervalId = this.jointGraphWrapper.setCurrentEditing(coeditorState.coeditor, currentEditing);
+        const intervalId = this.jointGraphWrapper.setCurrentEditing(coeditorState.user, currentEditing);
         this.coeditorCurrentlyEditing.set(clientId, currentEditing);
         this.currentlyEditingTimers.set(clientId, intervalId);
-        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.coeditor.clientId) {
+        if (this.shadowingModeEnabled && this.shadowingCoeditor?.clientId === coeditorState.user.clientId) {
           this.workflowActionService.highlightOperators(false, currentEditing);
         }
       }
@@ -289,10 +285,10 @@ export class CoeditorPresenceService {
       if (currentChanged) {
         this.coeditorOperatorPropertyChanged.set(clientId, currentChanged);
         // Set for 3 seconds
-        this.jointGraphWrapper.setPropertyChanged(coeditorState.coeditor, currentChanged);
+        this.jointGraphWrapper.setPropertyChanged(coeditorState.user, currentChanged);
         setTimeout(() => {
           this.coeditorOperatorPropertyChanged.delete(clientId);
-          this.jointGraphWrapper.removePropertyChanged(coeditorState.coeditor, currentChanged);
+          this.jointGraphWrapper.removePropertyChanged(coeditorState.user, currentChanged);
         }, 2000);
       }
     }

@@ -24,7 +24,7 @@ export interface Coeditor extends User {
  * This interface is for user-presence information in shared-editing.
  */
 export interface CoeditorState {
-  coeditor: Coeditor;
+  user: Coeditor;
   isActive: boolean;
   userCursor: Point;
   highlighted?: readonly string[];
