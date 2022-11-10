@@ -4,6 +4,8 @@ import { User } from "../../../../common/type/user";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
 
+
+
 @UntilDestroy()
 @Component({
   selector: "texera-user-icon",
@@ -27,12 +29,16 @@ export class UserIconComponent {
     this.userService.logout();
   }
 
+
   /**
    * this method will retrieve a usable Google OAuth Instance first,
    * with that available instance, get googleUsername and authorization code respectively,
    * then sending the code to the backend
    */
   public googleLogin(): void {
-    this.userService.googleLogin().pipe(untilDestroyed(this)).subscribe();
+    this.userService
+      .googleLogin()
+      .pipe(untilDestroyed(this))
+      .subscribe();
   }
 }
