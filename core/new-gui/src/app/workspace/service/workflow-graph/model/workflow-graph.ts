@@ -11,7 +11,7 @@ import {
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
 import { User, CoeditorState } from "../../../../common/type/user";
-import { createYTypeFromObject, YType } from "../../../types/shared-editing.interface";
+import { createYTypeFromObject, YType, updateYTypeFromObject } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
@@ -49,6 +49,7 @@ type restrictedMethods =
  *  are omitted from this type.
  */
 export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
+type OperatorPropertiesType = Readonly<{ [key: string]: any }>;
 
 export const PYTHON_UDF_V2_OP_TYPE = "PythonUDFV2";
 export const PYTHON_UDF_SOURCE_V2_OP_TYPE = "PythonUDFSourceV2";
@@ -159,6 +160,10 @@ export class WorkflowGraph {
   public getSharedOperatorType(operatorID: string): YType<OperatorPredicate> {
     this.assertOperatorExists(operatorID);
     return this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
+  }
+
+  public getSharedOperatorPropertyType(operatorID: string): YType<OperatorPropertiesType> {
+    return this.getSharedOperatorType(operatorID).get("operatorProperties") as YType<OperatorPropertiesType>;
   }
 
   /**
@@ -695,8 +700,11 @@ export class WorkflowGraph {
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
+    const previousProperty = this.getSharedOperatorType(operatorID).get(
+      "operatorProperties"
+    ) as YType<OperatorPropertiesType>;
     // set the new copy back to the operator ID map
-    this.sharedModel.operatorIDMap.get(operatorID)?.set("operatorProperties", createYTypeFromObject(newProperty));
+    updateYTypeFromObject(previousProperty, newProperty);
   }
 
   /**
