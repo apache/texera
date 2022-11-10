@@ -1,15 +1,9 @@
 package edu.uci.ics.texera.web.storage
 
-import java.util
-import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.{IndexOptions, Indexes}
 import com.mongodb.client.{MongoCollection, MongoCursor}
 import org.bson.Document
-import com.mongodb.client.model.Indexes
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.document2Tuple
-
-import scala.collection.mutable
-import collection.JavaConverters._
+import java.util.concurrent.TimeUnit
 
 class MongoCollectionManager(collection: MongoCollection[Document]) {
 
@@ -42,10 +36,10 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
     }
   }
 
-  def createIndex(columnName: String, ascendingFlag: Boolean, timeToLive: Option[]): Unit = {
+  def createIndex(columnName: String, ascendingFlag: Boolean, timeToLiveInMinutes: Option[Int]): Unit = {
     collection.createIndex(
-      Indexes.ascending("created_at"),
-      new IndexOptions().expireAfter(timeToLive, TimeUnit.MINUTES)
+      Indexes.ascending(columnName),
+      new IndexOptions().expireAfter(timeToLiveInMinutes.get, TimeUnit.MINUTES))
   }
 }
 

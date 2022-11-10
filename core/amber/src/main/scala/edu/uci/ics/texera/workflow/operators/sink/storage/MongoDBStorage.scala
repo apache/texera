@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.sink.storage
 
-import java.util
-
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoCursor, MongoDatabase}
 import edu.uci.ics.amber.engine.common.AmberUtils
