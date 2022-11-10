@@ -39,7 +39,6 @@ Quill.register(
 
 Quill.register("modules/cursors", QuillCursors);
 
-
 /**
  * CollabWrapperComponent is a custom field wrapper that connects a string/textfield typed form field to a collaborative
  * text editor based on Yjs and Quill.
