@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, Address}
 import com.twitter.util.Future
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
@@ -37,7 +37,8 @@ class WorkflowScheduler(
     ctx: ActorContext,
     asyncRPCClient: AsyncRPCClient,
     logger: Logger,
-    workflow: Workflow
+    workflow: Workflow,
+    controllerConf: ControllerConfig
 ) {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(Constants.schedulingPolicyName, workflow, ctx)
@@ -146,11 +147,12 @@ class WorkflowScheduler(
         workerLayer.build(
           prev.map(pair => (workflow.getOperator(pair._1), pair._2)),
           availableNodes,
-          networkCommunicationActor.ref,
+          networkCommunicationActor,
           ctx,
           workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
-          workflow.workerToOperatorExec
+          workflow.workerToOperatorExec,
+          controllerConf.supportFaultTolerance
         )
       })
     } else {
@@ -164,11 +166,12 @@ class WorkflowScheduler(
         workerLayer.build(
           prev.map(pair => (workflow.getOperator(pair._1), pair._2)),
           availableNodes,
-          networkCommunicationActor.ref,
+          networkCommunicationActor,
           ctx,
           workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
           workflow.workerToLayer,
-          workflow.workerToOperatorExec
+          workflow.workerToOperatorExec,
+          controllerConf.supportFaultTolerance
         )
       })
       layers = operatorInLinks.filter(x => x._2.forall(_.isBuilt)).keys
@@ -177,11 +180,12 @@ class WorkflowScheduler(
           layer.build(
             operatorInLinks(layer).map(y => (null, y)).toArray,
             availableNodes,
-            networkCommunicationActor.ref,
+            networkCommunicationActor,
             ctx,
             workflow.getInlinksIdsToWorkerLayer(layer.id),
             workflow.workerToLayer,
-            workflow.workerToOperatorExec
+            workflow.workerToOperatorExec,
+            controllerConf.supportFaultTolerance
           )
         })
         layers = operatorInLinks.filter(x => !x._1.isBuilt && x._2.forall(_.isBuilt)).keys
@@ -245,7 +249,7 @@ class WorkflowScheduler(
         })
         .map { link: LinkStrategy =>
           asyncRPCClient
-            .send(LinkWorkers(link), CONTROLLER)
+            .send(LinkWorkers(link.id), CONTROLLER)
             .onSuccess(_ => activatedLink.add(link.id))
         }
         .toSeq

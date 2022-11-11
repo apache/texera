@@ -13,6 +13,8 @@ scalacOptions += "-feature"
 // to check deprecation warnings
 scalacOptions += "-deprecation"
 
+conflictManager := ConflictManager.latestRevision
+
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
@@ -103,6 +105,15 @@ val luceneDependencies = Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
+// Hadoop related
+val hadoopVersion = "3.3.3"
+val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
+val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
+val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
+val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
+val hadoopDependencies = Seq(
+  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty)
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Google Service related
@@ -140,6 +151,7 @@ libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 libraryDependencies ++= mongoDbDependencies
+libraryDependencies ++= hadoopDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
