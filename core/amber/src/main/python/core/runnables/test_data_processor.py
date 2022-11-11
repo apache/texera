@@ -259,9 +259,7 @@ class TestDataProcessor:
                 )
             ),
         )
-        assert output_queue.get() == DataElement(
-            tag=mock_receiver_actor, payload=EndOfUpstream()
-        )
+
 
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
         assert output_queue.get() == ControlElement(
@@ -274,6 +272,10 @@ class TestDataProcessor:
                     ),
                 )
             ),
+        )
+
+        assert output_queue.get() == DataElement(
+            tag=mock_receiver_actor, payload=EndOfUpstream()
         )
 
         # can process ReturnInvocation

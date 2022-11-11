@@ -1,5 +1,5 @@
 from threading import RLock, Condition
-from typing import List, Optional, Generic, TypeVar, Dict, Tuple
+from typing import List, Optional, Generic, TypeVar, Dict, Tuple, Union
 
 from core.util import IQueue
 from core.util.thread.atomic import AtomicInteger
@@ -227,6 +227,27 @@ class DefaultSubQueueSelection(Generic[T]):
 
 
 class LinkedBlockingMultiQueue(IQueue):
+
+    def __init__(self, subtypes: Dict[Union[type, Tuple[type]], Tuple[str, int]]):
+        self.take_lock = RLock()
+        self.not_empty = Condition(self.take_lock)
+        self.sub_queues = dict()  # thread-safe in CPython
+        self.total_count = AtomicInteger()
+        self.priority_groups = list()  # thread-safe in CPython
+
+        self.sub_queue_selection = DefaultSubQueueSelection(self.priority_groups)
+
+        self.subtypes = dict()
+        for type_, (key, _) in subtypes.items():
+            if isinstance(type_, tuple):
+                for t in type_:
+                    self.subtypes[t] = key
+            else:
+                self.subtypes[type_] = key
+
+        for _, (key, priority) in subtypes.items():
+            self.add_sub_queue(key, priority)
+
     def is_empty(self, key=None) -> bool:
         if key is not None:
             return self.get_sub_queue(key).is_empty()
@@ -238,20 +259,16 @@ class LinkedBlockingMultiQueue(IQueue):
 
     def put(self, item: T) -> None:
         t = type(item)
-        key, _ = self.subtypes.get(t)
+        key = self.subtypes[t]
+        if key is None:
+            for type_, k in self.subtypes.items():
+                if isinstance(item, type_):
+                    key = k
+                    break
+            if key is None:
+                raise KeyError("this type of element is not supported: " + str(t))
+
         self.get_sub_queue(key).put(item)
-
-    def __init__(self, subtypes: Dict[type, Tuple[str, int]]):
-        self.take_lock = RLock()
-        self.not_empty = Condition(self.take_lock)
-        self.sub_queues = dict()  # thread-safe in CPython
-        self.total_count = AtomicInteger()
-        self.priority_groups = list()  # thread-safe in CPython
-
-        self.sub_queue_selection = DefaultSubQueueSelection(self.priority_groups)
-        self.subtypes = subtypes
-        for _, (key, priority) in subtypes.items():
-            self.add_sub_queue(key, priority)
 
     def add_sub_queue(self, key: str, priority: int) -> SubQueue:
         sub_queue = SubQueue(key, self)
@@ -265,7 +282,6 @@ class LinkedBlockingMultiQueue(IQueue):
                 added = False
                 for pg in self.priority_groups:
                     if pg.priority == priority:
-
                         pg.add_queue(sub_queue)
                         added = True
                         break
@@ -364,12 +380,11 @@ if __name__ == "__main__":
     control.put("one")
     print("size:", l.total_size())
     control.enable()
-    data = l.get_sub_queue("data")
-    data.put(2)
+    l.put(2)
     print("size:", l.total_size())
-    data.put(3)
+    l.put(3)
     print("size:", l.total_size())
-    data.put(4)
+    l.put(4)
     print("size:", l.total_size())
     assert not control.is_empty()
     print("-----------")
