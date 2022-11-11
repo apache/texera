@@ -1,0 +1,420 @@
+from threading import RLock, Condition
+from typing import List, Optional, Generic, TypeVar, Dict, Tuple
+
+from core.util import IQueue
+from core.util.thread.atomic import AtomicInteger
+
+T = TypeVar('T')
+
+
+class Node(Generic[T]):
+    def __init__(self, item: T):
+        self.item = item
+        self.next: Optional[Node] = None
+
+
+class SubQueue(Generic[T]):
+    def __init__(self, key: str, capacity: int, outer_self):
+        self.outer_self = outer_self
+        self.key: str = key
+        self.capacity: int = capacity
+        self.priority_group: Optional[PriorityGroup] = None
+        self.put_lock = RLock()
+        self.not_full = Condition(self.put_lock)
+        self.count = AtomicInteger()
+        self.enabled: bool = True
+        self.head: Node[T] = Node(None)
+        self.last: Optional[Node[T]] = self.head
+
+    def remaining_capacity(self) -> int:
+        return self.capacity - self.count.value
+
+    def clear(self) -> None:
+        raise NotImplemented()
+
+    def enable(self, status: bool) -> None:
+        self.fully_lock()
+        try:
+            not_changed = status == self.enabled
+            if not_changed:
+                return None
+            self.enabled = status
+            if status:
+                # potentially unlock waiting polls
+                c = self.count.value
+                if c > 0:
+                    self.outer_self.total_count.inc(c)
+                    self.outer_self.not_empty.notify()
+            else:
+                self.outer_self.total_count.dec(self.count.value)
+
+        finally:
+            self.fully_unlock()
+
+    def is_enabled(self) -> bool:
+        self.outer_self.take_lock.acquire()
+        try:
+            return self.enabled
+        finally:
+            self.outer_self.take_lock.release()
+
+    def signal_not_full(self) -> None:
+        self.put_lock.acquire()
+        try:
+            self.not_full.notify()
+        finally:
+            self.put_lock.release()
+
+    def enqueue(self, node) -> None:
+        self.last.next = node
+        self.last = node
+
+    def __str__(self):
+        res = ""
+        h = self.head
+        while h.next is not None:
+            res += h.next.item
+            res += " -> "
+            h = h.next
+        return res
+
+    def size(self) -> int:
+        return self.count.value
+
+    def is_empty(self) -> bool:
+        return self.size() == 0
+
+    def put(self, e) -> None:
+        old_size = -1
+        node = Node(e)
+        self.put_lock.acquire()
+        try:
+
+            while self.count.value == self.capacity:
+                self.not_full.wait()
+
+            self.enqueue(node)
+            if self.count.get_and_inc() + 1 < self.capacity:
+                # queue not full after adding, notify next offerer
+                self.not_full.notify()
+            if self.enabled:
+                old_size = self.outer_self.total_count.get_and_inc()
+
+        finally:
+            self.put_lock.release()
+
+        if old_size == 0:
+            self.outer_self.signal_not_empty()
+
+    def offer(self, e) -> bool:
+        old_size = -1
+        if self.count.value == self.capacity:
+            return False
+
+        self.put_lock.acquire()
+        try:
+            if self.count.value == self.capacity:
+                return False
+            self.enqueue(Node(e))
+            if self.count.get_and_inc() + 1 < self.capacity:
+                # queue not full after adding, notify next offerer
+                self.not_full.notify()
+            if self.enabled:
+                old_size = self.outer_self.total_count.get_and_inc()
+        finally:
+            self.put_lock.release()
+
+        if old_size == 0:
+            self.outer_self.signal_not_empty()
+        return True
+
+    def remove(self, obj: T) -> bool:
+        self.fully_lock()
+        try:
+            trail = self.head
+            while trail.next is not None:
+                if trail.item == obj:
+                    self.unlink(trail, trail.next)
+                    return True
+                trail = trail.next
+            return False
+        finally:
+            self.fully_unlock()
+
+    def unlink(self, trail: Node, next_: Node) -> None:
+        trail.item = None
+        trail.next = next_.next
+        if self.last == next_:
+            self.last = trail
+        if self.count.get_and_dec() == self.capacity:
+            self.not_full.notify()
+        if self.enabled:
+            self.outer_self.total_count.get_and_dec()
+
+    def fully_lock(self) -> None:
+        self.put_lock.acquire()
+        self.outer_self.take_lock.acquire()
+
+    def fully_unlock(self) -> None:
+        self.put_lock.release()
+        self.outer_self.take_lock.release()
+
+    def dequeue(self) -> T:
+        assert self.size() > 0
+        h = self.head
+        first = h.next
+        h.next = h
+        self.head = first
+        x = first.item
+        first.item = None
+        return x
+
+
+class PriorityGroup(Generic[T]):
+    def __init__(self, priority=0):
+        self.priority = priority
+        self.queues: List[SubQueue[T]] = list()
+        self.next_idx = 0
+
+    def add_queue(self, sub_queue: SubQueue[T]) -> None:
+        self.queues.append(sub_queue)
+        sub_queue.priority_group = self
+
+    def remove_queue(self, sub_queue) -> None:
+        raise NotImplemented("Explicitly do not support remove queue.")
+
+    def get_next_sub_queue(self) -> Optional[SubQueue[T]]:
+        start_idx = self.next_idx
+        queues = [q for q in self.queues]
+        while True:
+            child = queues[self.next_idx]
+            self.next_idx += 1
+            if self.next_idx == len(queues):
+                self.next_idx = 0
+            if child.enabled and child.size() > 0:
+                return child
+            if self.next_idx == start_idx:
+                break
+        return None
+
+    def drain_to(self, c, max_eles) -> None:
+        drained = 0
+        empty_queues = 0
+        while True:
+            child = self.queues[self.next_idx]
+            self.next_idx += 1
+            if self.next_idx == len(self.queues):
+                self.next_idx = 0
+            if child.enabled and child.size() > 0:
+                empty_queues = 0
+                c.add(child.dequeue())
+                drained += 1
+                old_size = child.count.get_and_dec()
+                if old_size == child.capacity:
+                    child.signal_not_full()
+
+            else:
+                empty_queues += 1
+
+            if drained < max_eles and empty_queues < len(self.queues):
+                break
+
+    def peek(self) -> Optional[T]:
+        start_idx = self.next_idx
+        while True:
+            child = self.queues[self.next_idx]
+            if child.enabled and child.size() > 0:
+                return child.head.next.item
+            else:
+                self.next_idx += 1
+                if self.next_idx == len(self.queues):
+                    self.next_idx = 0
+            if self.next_idx == start_idx:
+                break
+        return None
+
+
+class DefaultSubQueueSelection(Generic[T]):
+    def __init__(self, priority_groups: List[PriorityGroup]):
+        self.priority_groups: List[PriorityGroup] = priority_groups
+
+    def get_next(self) -> Optional[SubQueue]:
+        for pg in self.priority_groups:
+            sub_queue = pg.get_next_sub_queue()
+            if sub_queue is not None:
+                return sub_queue
+        return None
+
+    def peek(self) -> Optional[T]:
+        for pg in self.priority_groups:
+            deque = pg.peek()
+            if deque is not None:
+                return deque
+        return None
+
+    def set_priority_groups(self, priority_groups):
+        self.priority_groups = priority_groups
+
+
+class LinkedBlockingMultiQueue(IQueue):
+
+    def empty(self, key=None) -> bool:
+        if key is not None:
+            return self.get_sub_queue(key).is_empty()
+        else:
+            return self.total_size() == 0
+
+    def get(self) -> T:
+        return self.take()
+
+    def put(self, item: T) -> None:
+        t = type(item)
+        key, _ = self.subtypes.get(t)
+        self.get_sub_queue(key).put(item)
+
+    def __init__(self, subtypes: Dict[type, Tuple[str, int]]):
+        self.take_lock = RLock()
+        self.not_empty = Condition(self.take_lock)
+        self.sub_queues = dict()  # thread-safe in CPython
+        self.total_count = AtomicInteger()
+        self.priority_groups = list()  # thread-safe in CPython
+
+        self.sub_queue_selection = DefaultSubQueueSelection(self.priority_groups)
+        self.subtypes = subtypes
+        for _, (key, priority) in subtypes.items():
+            self.add_sub_queue(key, priority)
+
+    def add_sub_queue(self, key: str, priority: int, capacity: int = 999999999) -> \
+            SubQueue:
+        sub_queue = SubQueue(key, capacity, self)
+        self.take_lock.acquire()
+
+        try:
+            old_queue = self.sub_queues.get(key)
+            self.sub_queues[key] = sub_queue
+            if old_queue is None:
+                i = 0
+                added = False
+                for pg in self.priority_groups:
+                    if pg.priority == priority:
+
+                        pg.add_queue(sub_queue)
+                        added = True
+                        break
+                    elif pg.priority > priority:
+                        new_pg = PriorityGroup(priority)
+                        new_pg.add_queue(sub_queue)
+                        self.priority_groups.append(new_pg)
+                        added = True
+                        break
+
+                    i += 1
+                if not added:
+                    new_pg = PriorityGroup(priority)
+                    new_pg.add_queue(sub_queue)
+                    self.priority_groups.append(new_pg)
+
+            return old_queue
+        finally:
+            self.take_lock.release()
+
+    def get_sub_queue(self, key) -> SubQueue:
+        return self.sub_queues.get(key)
+
+    def signal_not_empty(self) -> None:
+        self.take_lock.acquire()
+        try:
+            self.not_empty.notify()
+        finally:
+            self.take_lock.release()
+
+    def take(self) -> T:
+        self.take_lock.acquire()
+        try:
+            while self.total_count.value == 0:
+                self.not_empty.wait()
+
+            # at this point we know there is an element
+            sub_queue = self.sub_queue_selection.get_next()
+            ele = sub_queue.dequeue()
+            old_size = sub_queue.count.get_and_dec()
+            if self.total_count.get_and_dec() > 1:
+                # sub queue still has element
+                self.not_empty.notify()
+        finally:
+            self.take_lock.release()
+        if old_size == sub_queue.capacity:
+            # we just took an element from a full queue, notify any blocked offers
+            sub_queue.signal_not_full()
+
+        return ele
+
+    def peek(self) -> Optional[T]:
+        self.take_lock.acquire()
+        try:
+            if self.total_count.value == 0:
+                return None
+            else:
+                return self.sub_queue_selection.peek()
+        finally:
+            self.take_lock.release()
+
+    def total_size(self):
+        return self.total_count.value
+
+    def drain_to(self, c, max_ele=999999):
+        assert c is not None
+        if max_ele <= 0:
+            return 0
+        self.take_lock.acquire()
+        try:
+            n = min(max_ele, self.total_count.value)
+            drained = 0
+            i = 0
+            while True:
+                if i >= len(self.priority_groups) or drained >= n:
+                    break
+                drained += self.priority_groups[i].drain_to(c, n - drained)
+
+                self.total_count.get_and_dec(drained)
+                return drained
+        finally:
+            self.take_lock.release()
+
+    def get_priority_groups_count(self):
+        return len(self.priority_groups)
+
+    def enable(self, key):
+        self.get_sub_queue(key).enable(True)
+
+    def disable(self, key):
+        self.get_sub_queue(key).enable(False)
+
+
+if __name__ == '__main__':
+    l = LinkedBlockingMultiQueue()
+    print(l.total_size())
+    l.add_sub_queue("control", 0)
+    l.add_sub_queue("data", 1)
+    assert l.empty()
+    control = l.get_sub_queue("control")
+    control.offer("one")
+    print("size:", l.total_size())
+    control.enable(False)
+    data = l.get_sub_queue("data")
+    data.offer("2")
+    print("size:", l.total_size())
+    data.offer("3")
+    print("size:", l.total_size())
+    data.offer("4")
+    print("size:", l.total_size())
+    assert not control.is_empty()
+    print("-----------")
+    print("size:", l.total_size())
+    print(l.take())
+    print("size:", l.total_size())
+    print(l.take())
+    print("size:", l.total_size())
+    print(l.take())
+    print("size:", l.total_size())
+    print(l.take())
