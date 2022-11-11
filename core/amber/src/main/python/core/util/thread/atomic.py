@@ -1,7 +1,7 @@
 import threading
 
 
-class AtomicInteger():
+class AtomicInteger:
     def __init__(self, value=0):
         self._value = int(value)
         self._lock = threading.Lock()

@@ -4,8 +4,9 @@ from threading import Thread
 
 import pytest
 
-from core.util.customized_queue.linked_blocking_multi_queue import \
-    LinkedBlockingMultiQueue
+from core.util.customized_queue.linked_blocking_multi_queue import (
+    LinkedBlockingMultiQueue,
+)
 
 
 class TestLinkedBlockingMultiQueue:
@@ -168,7 +169,6 @@ class TestLinkedBlockingMultiQueue:
         assert res == target
 
         reraise()
-
 
     @pytest.mark.timeout(2)
     def test_common_single_producer_single_consumer(self, queue, reraise):

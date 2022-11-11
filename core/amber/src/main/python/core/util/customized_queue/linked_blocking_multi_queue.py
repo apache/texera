@@ -4,7 +4,7 @@ from typing import List, Optional, Generic, TypeVar, Dict, Tuple
 from core.util import IQueue
 from core.util.thread.atomic import AtomicInteger
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class Node(Generic[T]):
@@ -257,7 +257,6 @@ class DefaultSubQueueSelection(Generic[T]):
 
 
 class LinkedBlockingMultiQueue(IQueue):
-
     def empty(self, key=None) -> bool:
         if key is not None:
             return self.get_sub_queue(key).is_empty()
@@ -284,8 +283,9 @@ class LinkedBlockingMultiQueue(IQueue):
         for _, (key, priority) in subtypes.items():
             self.add_sub_queue(key, priority)
 
-    def add_sub_queue(self, key: str, priority: int, capacity: int = 999999999) -> \
-            SubQueue:
+    def add_sub_queue(
+        self, key: str, priority: int, capacity: int = 999999999
+    ) -> SubQueue:
         sub_queue = SubQueue(key, capacity, self)
         self.take_lock.acquire()
 
@@ -391,7 +391,7 @@ class LinkedBlockingMultiQueue(IQueue):
         self.get_sub_queue(key).enable(False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     l = LinkedBlockingMultiQueue()
     print(l.total_size())
     l.add_sub_queue("control", 0)
