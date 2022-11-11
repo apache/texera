@@ -260,7 +260,6 @@ class TestDataProcessor:
             ),
         )
 
-
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
         assert output_queue.get() == ControlElement(
             tag=mock_controller,

@@ -92,8 +92,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         processing a DataElement.
         """
         while (
-            not self._input_queue.is_empty("control") or
-            self.context.pause_manager.is_paused()
+            not self._input_queue.is_empty("control")
+            or self.context.pause_manager.is_paused()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)

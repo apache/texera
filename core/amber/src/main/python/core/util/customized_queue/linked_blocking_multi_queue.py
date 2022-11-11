@@ -227,7 +227,6 @@ class DefaultSubQueueSelection(Generic[T]):
 
 
 class LinkedBlockingMultiQueue(IQueue):
-
     def __init__(self, subtypes: Dict[Union[type, Tuple[type]], Tuple[str, int]]):
         self.take_lock = RLock()
         self.not_empty = Condition(self.take_lock)
