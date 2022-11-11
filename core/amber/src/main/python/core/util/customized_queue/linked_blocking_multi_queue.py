@@ -14,10 +14,9 @@ class Node(Generic[T]):
 
 
 class SubQueue(Generic[T]):
-    def __init__(self, key: str, capacity: int, outer_self):
+    def __init__(self, key: str, outer_self):
         self.outer_self = outer_self
         self.key: str = key
-        self.capacity: int = capacity
         self.priority_group: Optional[PriorityGroup] = None
         self.put_lock = RLock()
         self.not_full = Condition(self.put_lock)
@@ -25,9 +24,6 @@ class SubQueue(Generic[T]):
         self.enabled: bool = True
         self.head: Node[T] = Node(None)
         self.last: Optional[Node[T]] = self.head
-
-    def remaining_capacity(self) -> int:
-        return self.capacity - self.count.value
 
     def clear(self) -> None:
         raise NotImplemented()
@@ -96,17 +92,10 @@ class SubQueue(Generic[T]):
         node = Node(e)
         self.put_lock.acquire()
         try:
-
-            while self.count.value == self.capacity:
-                self.not_full.wait()
-
             self.enqueue(node)
-            if self.count.get_and_inc() + 1 < self.capacity:
-                # queue not full after adding, notify next offerer
-                self.not_full.notify()
+            self.count.inc()
             if self.enabled:
                 old_size = self.outer_self.total_count.get_and_inc()
-
         finally:
             self.put_lock.release()
 
@@ -131,8 +120,6 @@ class SubQueue(Generic[T]):
         trail.next = next_.next
         if self.last == next_:
             self.last = trail
-        if self.count.get_and_dec() == self.capacity:
-            self.not_full.notify()
         if self.enabled:
             self.outer_self.total_count.get_and_dec()
 
@@ -194,9 +181,7 @@ class PriorityGroup(Generic[T]):
                 empty_queues = 0
                 c.add(child.dequeue())
                 drained += 1
-                old_size = child.count.get_and_dec()
-                if old_size == child.capacity:
-                    child.signal_not_full()
+                child.count.dec()
 
             else:
                 empty_queues += 1
@@ -268,9 +253,8 @@ class LinkedBlockingMultiQueue(IQueue):
         for _, (key, priority) in subtypes.items():
             self.add_sub_queue(key, priority)
 
-    def add_sub_queue(self, key: str, priority: int,
-                      capacity: int = 999999999) -> SubQueue:
-        sub_queue = SubQueue(key, capacity, self)
+    def add_sub_queue(self, key: str, priority: int) -> SubQueue:
+        sub_queue = SubQueue(key, self)
         self.take_lock.acquire()
 
         try:
@@ -321,15 +305,12 @@ class LinkedBlockingMultiQueue(IQueue):
             # at this point we know there is an element
             sub_queue = self.sub_queue_selection.get_next()
             ele = sub_queue.dequeue()
-            old_size = sub_queue.count.get_and_dec()
+            sub_queue.count.dec()
             if self.total_count.get_and_dec() > 1:
                 # sub queue still has element
                 self.not_empty.notify()
         finally:
             self.take_lock.release()
-        if old_size == sub_queue.capacity:
-            # we just took an element from a full queue, notify any blocked offers
-            sub_queue.signal_not_full()
 
         return ele
 
@@ -376,21 +357,19 @@ class LinkedBlockingMultiQueue(IQueue):
 
 
 if __name__ == "__main__":
-    l = LinkedBlockingMultiQueue()
+    l = LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 2)})
     print(l.total_size())
-    l.add_sub_queue("control", 0)
-    l.add_sub_queue("data", 1)
     assert l.empty()
     control = l.get_sub_queue("control")
-    control.offer("one")
+    control.put("one")
     print("size:", l.total_size())
-    control.enable(False)
+    control.enable()
     data = l.get_sub_queue("data")
-    data.offer("2")
+    data.put(2)
     print("size:", l.total_size())
-    data.offer("3")
+    data.put(3)
     print("size:", l.total_size())
-    data.offer("4")
+    data.put(4)
     print("size:", l.total_size())
     assert not control.is_empty()
     print("-----------")
