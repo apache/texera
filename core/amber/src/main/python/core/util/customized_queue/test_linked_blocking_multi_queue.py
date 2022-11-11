@@ -56,7 +56,7 @@ class TestLinkedBlockingMultiQueue:
         assert res == ["s1", "s2", "s3", "s4", 1, 99, 3]
 
     def test_can_disable_sub(self, queue):
-        queue.get_sub_queue("data").enable(False)
+        queue.disable("data")
         queue.put(1)
         queue.put("s1")
         queue.put(99)

@@ -32,21 +32,28 @@ class SubQueue(Generic[T]):
     def clear(self) -> None:
         raise NotImplemented()
 
-    def enable(self, status: bool) -> None:
+    def disable(self):
         self.fully_lock()
         try:
-            not_changed = status == self.enabled
-            if not_changed:
+            if not self.enabled:
                 return None
-            self.enabled = status
-            if status:
-                # potentially unlock waiting polls
-                c = self.count.value
-                if c > 0:
-                    self.outer_self.total_count.inc(c)
-                    self.outer_self.not_empty.notify()
-            else:
-                self.outer_self.total_count.dec(self.count.value)
+            self.outer_self.total_count.dec(self.count.value)
+            self.enabled = False
+        finally:
+            self.fully_unlock()
+
+    def enable(self) -> None:
+        self.fully_lock()
+        try:
+            if self.enabled:
+                return None
+            self.enabled = True
+
+            # potentially unlock waiting polls
+            c = self.count.value
+            if c > 0:
+                self.outer_self.total_count.inc(c)
+                self.outer_self.not_empty.notify()
 
         finally:
             self.fully_unlock()
@@ -105,28 +112,6 @@ class SubQueue(Generic[T]):
 
         if old_size == 0:
             self.outer_self.signal_not_empty()
-
-    def offer(self, e) -> bool:
-        old_size = -1
-        if self.count.value == self.capacity:
-            return False
-
-        self.put_lock.acquire()
-        try:
-            if self.count.value == self.capacity:
-                return False
-            self.enqueue(Node(e))
-            if self.count.get_and_inc() + 1 < self.capacity:
-                # queue not full after adding, notify next offerer
-                self.not_full.notify()
-            if self.enabled:
-                old_size = self.outer_self.total_count.get_and_inc()
-        finally:
-            self.put_lock.release()
-
-        if old_size == 0:
-            self.outer_self.signal_not_empty()
-        return True
 
     def remove(self, obj: T) -> bool:
         self.fully_lock()
@@ -283,9 +268,8 @@ class LinkedBlockingMultiQueue(IQueue):
         for _, (key, priority) in subtypes.items():
             self.add_sub_queue(key, priority)
 
-    def add_sub_queue(
-        self, key: str, priority: int, capacity: int = 999999999
-    ) -> SubQueue:
+    def add_sub_queue(self, key: str, priority: int,
+                      capacity: int = 999999999) -> SubQueue:
         sub_queue = SubQueue(key, capacity, self)
         self.take_lock.acquire()
 
@@ -385,10 +369,10 @@ class LinkedBlockingMultiQueue(IQueue):
         return len(self.priority_groups)
 
     def enable(self, key):
-        self.get_sub_queue(key).enable(True)
+        self.get_sub_queue(key).enable()
 
     def disable(self, key):
-        self.get_sub_queue(key).enable(False)
+        self.get_sub_queue(key).disable()
 
 
 if __name__ == "__main__":
