@@ -15,31 +15,31 @@ class TestLinkedBlockingMultiQueue:
         return LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 9)})
 
     def test_sub_can_emit(self, queue):
-        assert queue.empty()
+        assert queue.is_empty()
         queue.put(1)
-        assert not queue.empty()
-        assert queue.empty("control")
+        assert not queue.is_empty()
+        assert queue.is_empty("control")
         assert queue.get() == 1
-        assert queue.empty()
-        assert queue.empty("control")
+        assert queue.is_empty()
+        assert queue.is_empty("control")
 
     def test_main_can_emit(self, queue):
-        assert queue.empty()
+        assert queue.is_empty()
         queue.put("main")
-        assert not queue.empty()
+        assert not queue.is_empty()
         assert queue.get() == "main"
-        assert queue.empty()
+        assert queue.is_empty()
 
     def test_main_can_emit_before_sub(self, queue):
-        assert queue.empty()
+        assert queue.is_empty()
         queue.put(1)
         queue.put("s")
-        assert not queue.empty()
+        assert not queue.is_empty()
         assert queue.get() == "s"
-        assert queue.empty("control")
-        assert not queue.empty()
+        assert queue.is_empty("control")
+        assert not queue.is_empty()
         assert queue.get() == 1
-        assert queue.empty()
+        assert queue.is_empty()
 
     def test_can_maintain_order_respectively(self, queue):
         queue.put(1)
@@ -50,7 +50,7 @@ class TestLinkedBlockingMultiQueue:
         queue.put(3)
         queue.put("s4")
         res = list()
-        while not queue.empty():
+        while not queue.is_empty():
             res.append(queue.get())
 
         assert res == ["s1", "s2", "s3", "s4", 1, 99, 3]
@@ -65,19 +65,19 @@ class TestLinkedBlockingMultiQueue:
         queue.put(3)
         queue.put("s4")
         res = list()
-        while not queue.empty():
+        while not queue.is_empty():
             res.append(queue.get())
 
         assert res == ["s1", "s2", "s3", "s4"]
-        assert queue.empty()
+        assert queue.is_empty()
         queue.enable("data")
-        assert not queue.empty()
+        assert not queue.is_empty()
         res = list()
-        while not queue.empty():
+        while not queue.is_empty():
             res.append(queue.get())
 
         assert res == [1, 99, 3]
-        assert queue.empty()
+        assert queue.is_empty()
 
     @pytest.mark.timeout(2)
     def test_producer_first_insert_sub(self, queue, reraise):
@@ -97,7 +97,7 @@ class TestLinkedBlockingMultiQueue:
         def consumer():
             with reraise:
                 assert queue.get() == 1
-                assert queue.empty()
+                assert queue.is_empty()
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
@@ -124,7 +124,7 @@ class TestLinkedBlockingMultiQueue:
         def consumer():
             with reraise:
                 assert queue.get() == "s"
-                assert queue.empty()
+                assert queue.is_empty()
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
@@ -189,16 +189,16 @@ class TestLinkedBlockingMultiQueue:
             queue.enable("data")
             queue.enable("data")
             t = queue.get()
-            queue.empty("control")
+            queue.is_empty("control")
 
             if isinstance(t, int):
                 total += t
             else:
                 assert t == "s"
-            queue.empty()
+            queue.is_empty()
             queue.disable("data")
             queue.disable("data")
-            queue.empty()
+            queue.is_empty()
             queue.disable("data")
             if t == 10:
                 break

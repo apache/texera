@@ -227,7 +227,7 @@ class DefaultSubQueueSelection(Generic[T]):
 
 
 class LinkedBlockingMultiQueue(IQueue):
-    def empty(self, key=None) -> bool:
+    def is_empty(self, key=None) -> bool:
         if key is not None:
             return self.get_sub_queue(key).is_empty()
         else:
@@ -359,7 +359,7 @@ class LinkedBlockingMultiQueue(IQueue):
 if __name__ == "__main__":
     l = LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 2)})
     print(l.total_size())
-    assert l.empty()
+    assert l.is_empty()
     control = l.get_sub_queue("control")
     control.put("one")
     print("size:", l.total_size())

@@ -35,7 +35,7 @@ class DoubleBlockingQueue(IQueue):
         self._sub_enabled = True
 
     @overrides
-    def empty(self) -> bool:
+    def is_empty(self) -> bool:
         """
         Invoked by the consumer only, checks if the queue is empty.
         :return: True if the main queue is empty, and the enabled sub queue is empty

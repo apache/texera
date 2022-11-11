@@ -14,7 +14,7 @@ class IQueue(Protocol):
         msg: str
 
     @abstractmethod
-    def empty(self) -> bool:
+    def is_empty(self) -> bool:
         pass
 
     @abstractmethod
