@@ -1,7 +1,7 @@
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, Dict, Tuple, Union
 
-from core.util import IQueue
+from core.util.customized_queue.queue_base import IQueue
 from core.util.thread.atomic import AtomicInteger
 
 T = TypeVar("T")
