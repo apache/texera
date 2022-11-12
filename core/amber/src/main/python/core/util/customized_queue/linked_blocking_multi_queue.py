@@ -26,7 +26,7 @@ class SubQueue(Generic[T]):
         self.last: Optional[Node[T]] = self.head
 
     def clear(self) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def disable(self):
         self.fully_lock()
@@ -153,7 +153,7 @@ class PriorityGroup(Generic[T]):
         sub_queue.priority_group = self
 
     def remove_queue(self, sub_queue) -> None:
-        raise NotImplemented("Explicitly do not support remove queue.")
+        raise NotImplementedError("Explicitly do not support remove queue.")
 
     def get_next_sub_queue(self) -> Optional[SubQueue[T]]:
         start_idx = self.next_idx
@@ -372,26 +372,26 @@ class LinkedBlockingMultiQueue(IQueue):
 
 
 if __name__ == "__main__":
-    l = LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 2)})
-    print(l.total_size())
-    assert l.is_empty()
-    control = l.get_sub_queue("control")
+    lbmq = LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 2)})
+    print(lbmq.total_size())
+    assert lbmq.is_empty()
+    control = lbmq.get_sub_queue("control")
     control.put("one")
-    print("size:", l.total_size())
+    print("size:", lbmq.total_size())
     control.enable()
-    l.put(2)
-    print("size:", l.total_size())
-    l.put(3)
-    print("size:", l.total_size())
-    l.put(4)
-    print("size:", l.total_size())
+    lbmq.put(2)
+    print("size:", lbmq.total_size())
+    lbmq.put(3)
+    print("size:", lbmq.total_size())
+    lbmq.put(4)
+    print("size:", lbmq.total_size())
     assert not control.is_empty()
     print("-----------")
-    print("size:", l.total_size())
-    print(l.take())
-    print("size:", l.total_size())
-    print(l.take())
-    print("size:", l.total_size())
-    print(l.take())
-    print("size:", l.total_size())
-    print(l.take())
+    print("size:", lbmq.total_size())
+    print(lbmq.take())
+    print("size:", lbmq.total_size())
+    print(lbmq.take())
+    print("size:", lbmq.total_size())
+    print(lbmq.take())
+    print("size:", lbmq.total_size())
+    print(lbmq.take())
