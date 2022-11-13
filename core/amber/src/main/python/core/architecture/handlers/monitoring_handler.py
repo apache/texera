@@ -13,8 +13,8 @@ class MonitoringHandler(Handler):
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
         return SelfWorkloadReturn(
             SelfWorkloadMetrics(
-                context.input_queue.sub_size(),
-                context.input_queue.main_size(),
+                context.input_queue.size("data"),
+                context.input_queue.size("control"),
                 -1,  # TODO: dataInputPort.getStashedMessageCount()
                 -1,  # TODO: controlInputPort.getStashedMessageCount()
             ),

@@ -316,13 +316,13 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self.context.pause_manager.record_request(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, True
             )
-            self._input_queue.disable_sub()
+            self._input_queue.disable("data")
         else:
             self.context.pause_manager.record_request(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, False
             )
             if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_sub()
+                self.context.input_queue.enable("data")
 
     def _pause(self) -> None:
         """
@@ -334,7 +334,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         ):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
-            self._input_queue.disable_sub()
+            self._input_queue.disable("data")
 
     def _resume(self) -> None:
         """
@@ -343,7 +343,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
             if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_sub()
+                self.context.input_queue.enable("data")
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
     @staticmethod

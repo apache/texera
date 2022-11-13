@@ -213,17 +213,16 @@ class LinkedBlockingMultiQueue(IQueue):
         for _, (key, priority) in subtypes.items():
             self._add_sub_queue(key, priority)
 
-        # self.subtypes are in form of {type : (key, priority)}, which is different
-        # from the input subtypes.
-        # could have multiple types mapped to the same (key, priority) pairs: they
+        # self.type_to_key_mapping are in form of {type : key}
+        # could have multiple types mapped to the same key, meaning that they
         # share the same SubQueue.
-        self.subtypes = dict()
+        self.type_to_key_mapping = dict()
         for type_, (key, _) in subtypes.items():
             if isinstance(type_, tuple):
                 for t in type_:
-                    self.subtypes[t] = key
+                    self.type_to_key_mapping[t] = key
             else:
-                self.subtypes[type_] = key
+                self.type_to_key_mapping[type_] = key
 
     def put(self, item: T) -> None:
         """
@@ -235,9 +234,9 @@ class LinkedBlockingMultiQueue(IQueue):
         :return: None
         """
         t = type(item)
-        key = self.subtypes[t]
+        key = self.type_to_key_mapping[t]
         if key is None:
-            for type_, k in self.subtypes.items():
+            for type_, k in self.type_to_key_mapping.items():
                 if isinstance(item, type_):
                     key = k
                     break
@@ -401,16 +400,16 @@ class LinkedBlockingMultiQueue(IQueue):
 
 
 if __name__ == "__main__":
-    lbmq = LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 2)})
+    lbmq = LinkedBlockingMultiQueue({str: ("control", 0), (float,int): ("data", 2)})
     print(lbmq.size())
     assert lbmq.is_empty()
     control = lbmq._get_sub_queue("control")
     control.put("one")
     print("size:", lbmq.size())
-    control.enable()
+    lbmq.disable("data")
     lbmq.put(2)
     print("size:", lbmq.size())
-    lbmq.put(3)
+    lbmq.put(3.2)
     print("size:", lbmq.size())
     lbmq.put(4)
     print("size:", lbmq.size())
