@@ -100,7 +100,7 @@ class SubQueue(Generic[T]):
             self.put_lock.release()
 
         if old_size == 0:
-            self.outer_self.signal_not_empty()
+            self.outer_self._signal_not_empty()
 
     def remove(self, obj: T) -> bool:
         self.fully_lock()
@@ -169,26 +169,6 @@ class PriorityGroup(Generic[T]):
                 break
         return None
 
-    def drain_to(self, c, max_eles) -> None:
-        drained = 0
-        empty_queues = 0
-        while True:
-            child = self.queues[self.next_idx]
-            self.next_idx += 1
-            if self.next_idx == len(self.queues):
-                self.next_idx = 0
-            if child.enabled and child.size() > 0:
-                empty_queues = 0
-                c.add(child.dequeue())
-                drained += 1
-                child.count.dec()
-
-            else:
-                empty_queues += 1
-
-            if drained < max_eles and empty_queues < len(self.queues):
-                break
-
     def peek(self) -> Optional[T]:
         start_idx = self.next_idx
         while True:
@@ -245,16 +225,7 @@ class LinkedBlockingMultiQueue(IQueue):
                 self.subtypes[type_] = key
 
         for _, (key, priority) in subtypes.items():
-            self.add_sub_queue(key, priority)
-
-    def is_empty(self, key=None) -> bool:
-        if key is not None:
-            return self.get_sub_queue(key).is_empty()
-        else:
-            return self.total_size() == 0
-
-    def get(self) -> T:
-        return self.take()
+            self._add_sub_queue(key, priority)
 
     def put(self, item: T) -> None:
         t = type(item)
@@ -267,9 +238,52 @@ class LinkedBlockingMultiQueue(IQueue):
             if key is None:
                 raise KeyError("this type of element is not supported: " + str(t))
 
-        self.get_sub_queue(key).put(item)
+        self._get_sub_queue(key).put(item)
 
-    def add_sub_queue(self, key: str, priority: int) -> SubQueue:
+    def get(self) -> T:
+        self.take_lock.acquire()
+        try:
+            while self.total_count.value == 0:
+                self.not_empty.wait()
+
+            # at this point we know there is an element
+            sub_queue = self.sub_queue_selection.get_next()
+            ele = sub_queue.dequeue()
+            sub_queue.count.dec()
+            if self.total_count.get_and_dec() > 1:
+                # sub queue still has element
+                self.not_empty.notify()
+        finally:
+            self.take_lock.release()
+
+        return ele
+
+    def peek(self) -> Optional[T]:
+        self.take_lock.acquire()
+        try:
+            if self.total_count.value == 0:
+                return None
+            else:
+                return self.sub_queue_selection.peek()
+        finally:
+            self.take_lock.release()
+
+    def enable(self, key):
+        self._get_sub_queue(key).enable()
+
+    def disable(self, key):
+        self._get_sub_queue(key).disable()
+
+    def size(self, key=None):
+        if key is not None:
+            return self._get_sub_queue(key).size()
+        else:
+            return self.total_count.value
+
+    def is_empty(self, key=None) -> bool:
+        return self.size(key) == 0
+
+    def _add_sub_queue(self, key: str, priority: int) -> SubQueue:
         sub_queue = SubQueue(key, self)
         self.take_lock.acquire()
 
@@ -301,97 +315,38 @@ class LinkedBlockingMultiQueue(IQueue):
         finally:
             self.take_lock.release()
 
-    def get_sub_queue(self, key) -> SubQueue:
+    def _get_sub_queue(self, key) -> SubQueue:
         return self.sub_queues.get(key)
 
-    def signal_not_empty(self) -> None:
+    def _signal_not_empty(self) -> None:
         self.take_lock.acquire()
         try:
             self.not_empty.notify()
         finally:
             self.take_lock.release()
 
-    def take(self) -> T:
-        self.take_lock.acquire()
-        try:
-            while self.total_count.value == 0:
-                self.not_empty.wait()
-
-            # at this point we know there is an element
-            sub_queue = self.sub_queue_selection.get_next()
-            ele = sub_queue.dequeue()
-            sub_queue.count.dec()
-            if self.total_count.get_and_dec() > 1:
-                # sub queue still has element
-                self.not_empty.notify()
-        finally:
-            self.take_lock.release()
-
-        return ele
-
-    def peek(self) -> Optional[T]:
-        self.take_lock.acquire()
-        try:
-            if self.total_count.value == 0:
-                return None
-            else:
-                return self.sub_queue_selection.peek()
-        finally:
-            self.take_lock.release()
-
-    def total_size(self):
-        return self.total_count.value
-
-    def drain_to(self, c, max_ele=999999):
-        assert c is not None
-        if max_ele <= 0:
-            return 0
-        self.take_lock.acquire()
-        try:
-            n = min(max_ele, self.total_count.value)
-            drained = 0
-            i = 0
-            while True:
-                if i >= len(self.priority_groups) or drained >= n:
-                    break
-                drained += self.priority_groups[i].drain_to(c, n - drained)
-
-                self.total_count.get_and_dec(drained)
-                return drained
-        finally:
-            self.take_lock.release()
-
-    def get_priority_groups_count(self):
-        return len(self.priority_groups)
-
-    def enable(self, key):
-        self.get_sub_queue(key).enable()
-
-    def disable(self, key):
-        self.get_sub_queue(key).disable()
-
 
 if __name__ == "__main__":
     lbmq = LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 2)})
-    print(lbmq.total_size())
+    print(lbmq.size())
     assert lbmq.is_empty()
-    control = lbmq.get_sub_queue("control")
+    control = lbmq._get_sub_queue("control")
     control.put("one")
-    print("size:", lbmq.total_size())
+    print("size:", lbmq.size())
     control.enable()
     lbmq.put(2)
-    print("size:", lbmq.total_size())
+    print("size:", lbmq.size())
     lbmq.put(3)
-    print("size:", lbmq.total_size())
+    print("size:", lbmq.size())
     lbmq.put(4)
-    print("size:", lbmq.total_size())
+    print("size:", lbmq.size())
     assert not control.is_empty()
     print("-----------")
-    print("size:", lbmq.total_size())
-    print(lbmq.take())
-    print("size:", lbmq.total_size())
-    print(lbmq.take())
-    print("size:", lbmq.total_size())
-    print(lbmq.take())
-    print("size:", lbmq.total_size())
-    print(lbmq.take())
+    print("size:", lbmq.size())
+    print(lbmq.get())
+    print("size:", lbmq.size())
+    print(lbmq.get())
+    print("size:", lbmq.size())
+    print(lbmq.get())
+    print("size:", lbmq.size())
+    print(lbmq.get())
