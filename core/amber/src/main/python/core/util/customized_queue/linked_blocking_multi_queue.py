@@ -205,9 +205,18 @@ class LinkedBlockingMultiQueue(IQueue):
         self.sub_queues = dict()  # thread-safe in CPython
         self.total_count = AtomicInteger()
         self.priority_groups = list()  # thread-safe in CPython
-
         self.sub_queue_selection = DefaultSubQueueSelection(self.priority_groups)
 
+        # create SubQueue for each priority. Note that here could have multiple
+        # types mapped to the same (key, priority) pair, in this case, only create one
+        # SubQueue and share it for all types.
+        for _, (key, priority) in subtypes.items():
+            self._add_sub_queue(key, priority)
+
+        # self.subtypes are in form of {type : (key, priority)}, which is different
+        # from the input subtypes.
+        # could have multiple types mapped to the same (key, priority) pairs: they
+        # share the same SubQueue.
         self.subtypes = dict()
         for type_, (key, _) in subtypes.items():
             if isinstance(type_, tuple):
@@ -216,10 +225,15 @@ class LinkedBlockingMultiQueue(IQueue):
             else:
                 self.subtypes[type_] = key
 
-        for _, (key, priority) in subtypes.items():
-            self._add_sub_queue(key, priority)
-
     def put(self, item: T) -> None:
+        """
+        Put one item into the queue. Depending on the type, it will be put to the
+        corresponding SubQueue.
+
+        :param item: Any acceptable instance.
+        :raises KeyError for unsupported type of item.
+        :return: None
+        """
         t = type(item)
         key = self.subtypes[t]
         if key is None:
@@ -228,11 +242,19 @@ class LinkedBlockingMultiQueue(IQueue):
                     key = k
                     break
             if key is None:
-                raise KeyError("this type of element is not supported: " + str(t))
+                raise KeyError("this type of item is not supported: " + str(t))
 
         self._get_sub_queue(key).put(item)
 
     def get(self) -> T:
+        """
+        Blocking get the next available item from the queue.
+        - Disabled SubQueues are considered empty and will not be fetched.
+        - When multiple SubQueues are enabled and have items, it selects the SubQueue
+        by the order specified by the self.sub_queue_selection strategy.
+
+        :return: T, Any item that is available to the fetched.
+        """
         self.take_lock.acquire()
         try:
             while self.total_count.value == 0:
@@ -240,7 +262,7 @@ class LinkedBlockingMultiQueue(IQueue):
 
             # at this point we know there is an element
             sub_queue = self.sub_queue_selection.get_next()
-            ele = sub_queue.dequeue()
+            item = sub_queue.dequeue()
             sub_queue.count.dec()
             if self.total_count.get_and_dec() > 1:
                 # sub queue still has element
@@ -248,9 +270,17 @@ class LinkedBlockingMultiQueue(IQueue):
         finally:
             self.take_lock.release()
 
-        return ele
+        return item
 
     def peek(self) -> Optional[T]:
+        """
+        Peek the next available item from the queue.
+        - When no item is available, it returns None.
+        - Otherwise, it acts the same as LinkedBlockingMultiQueue.get() but
+        without actually taking the item out from the queue.
+
+        :return: Optional[T], could be the available item or None.
+        """
         self.take_lock.acquire()
         try:
             if self.total_count.value == 0:
@@ -260,22 +290,61 @@ class LinkedBlockingMultiQueue(IQueue):
         finally:
             self.take_lock.release()
 
-    def enable(self, key):
+    def enable(self, key: str) -> None:
+        """
+        Enables a SubQueue, specified by key. This action acquires all locks.
+
+        :param key: the key of the target SubQueue.
+        :raises KeyError for unseen keys.
+        :return: None
+        """
         self._get_sub_queue(key).enable()
 
-    def disable(self, key):
+    def disable(self, key: str) -> None:
+        """
+        Disables a SubQueue, specified by key. This action acquires all locks.
+
+        :param key: the key of the target SubQueue.
+        :raises KeyError for unseen keys.
+        :return: None
+        """
         self._get_sub_queue(key).disable()
 
-    def size(self, key=None):
+    def size(self, key: Optional[str] = None) -> int:
+        """
+        Get the current number of elements of the queue, or a specific SubQueue if
+        key is provided. This action acquires NO locks.
+
+        :param key: optional SubQueue key.
+        :raises KeyError for unseen keys.
+        :return: Integer for size.
+        """
         if key is not None:
             return self._get_sub_queue(key).size()
         else:
             return self.total_count.value
 
-    def is_empty(self, key=None) -> bool:
+    def is_empty(self, key: Optional[str] = None) -> bool:
+        """
+        Check if the queue is empty, or check a specific SubQueue if
+        key is provided. This action acquires NO locks.
+
+        :param key: optional SubQueue key.
+        :raises KeyError for unseen keys.
+        :return: Boolean representing empty or not.
+        """
         return self.size(key) == 0
 
-    def _add_sub_queue(self, key: str, priority: int) -> SubQueue:
+    def _add_sub_queue(self, key: str, priority: int) -> Optional[SubQueue]:
+        """
+        Create a new SubQueue if absent, with the key and priority.
+
+        :param key: SubQueue key for future reference.
+        :param priority: int value of priority, the lower number means the higher
+        priority.
+        :return: returns None if the key is new, or returns the previous SubQueue
+        mapped by the key if key is repeated.
+        """
         sub_queue = SubQueue(key, self)
         self.take_lock.acquire()
 
@@ -307,10 +376,23 @@ class LinkedBlockingMultiQueue(IQueue):
         finally:
             self.take_lock.release()
 
-    def _get_sub_queue(self, key) -> SubQueue:
-        return self.sub_queues.get(key)
+    def _get_sub_queue(self, key: str) -> SubQueue:
+        """
+        Get the SubQueue specified by the key.
+
+        :param key: SubQueue identification.
+        :raises KeyError for unseen keys.
+        :return: the SubQueue.
+        """
+        return self.sub_queues[key]
 
     def _signal_not_empty(self) -> None:
+        """
+        Notifies a (the next) consumer that the queue is not empty.
+        Should only be invoked by the producer.
+
+        :return: None
+        """
         self.take_lock.acquire()
         try:
             self.not_empty.notify()
