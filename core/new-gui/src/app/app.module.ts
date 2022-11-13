@@ -115,6 +115,7 @@ import { ContextMenuComponent } from "./workspace/component/workflow-editor/cont
 import { NzImageModule } from "ng-zorro-antd/image";
 import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
+import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 
 registerLocaleData(en);
 
@@ -177,6 +178,7 @@ registerLocaleData(en);
     ContextMenuComponent,
     CoeditorUserIconComponent,
     InputAutoCompleteComponent,
+    CollabWrapperComponent,
   ],
   imports: [
     BrowserModule,

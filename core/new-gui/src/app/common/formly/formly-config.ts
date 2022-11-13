@@ -6,6 +6,7 @@ import { FormlyFieldConfig } from "@ngx-formly/core";
 import { CodeareaCustomTemplateComponent } from "../../workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { InputAutoCompleteComponent } from "../../workspace/component/input-autocomplete/input-autocomplete.component";
+import { CollabWrapperComponent } from "./collab-wrapper/collab-wrapper/collab-wrapper.component";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -29,7 +30,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "const", message: constValidationMessage },
   ],
   types: [
-    { name: "string", extends: "input" },
+    { name: "string", extends: "input", defaultOptions: { defaultValue: "" } },
     {
       name: "number",
       extends: "input",
@@ -57,7 +58,10 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: InputAutoCompleteComponent },
   ],
-  wrappers: [{ name: "preset-wrapper", component: PresetWrapperComponent }],
+  wrappers: [
+    { name: "preset-wrapper", component: PresetWrapperComponent },
+    { name: "collab-wrapper", component: CollabWrapperComponent },
+  ],
 };
 
 export function minItemsValidationMessage(err: any, field: FormlyFieldConfig) {
