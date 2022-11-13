@@ -19,14 +19,13 @@ class SubQueue(Generic[T]):
         self.key: str = key
         self.priority_group: Optional[PriorityGroup] = None
         self.put_lock = RLock()
-        self.not_full = Condition(self.put_lock)
         self.count = AtomicInteger()
         self.enabled: bool = True
         self.head: Node[T] = Node(None)
         self.last: Optional[Node[T]] = self.head
 
     def clear(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError("Intentionally do not support clear SubQueue.")
 
     def disable(self):
         self.fully_lock()
@@ -60,13 +59,6 @@ class SubQueue(Generic[T]):
             return self.enabled
         finally:
             self.outer_self.take_lock.release()
-
-    def signal_not_full(self) -> None:
-        self.put_lock.acquire()
-        try:
-            self.not_full.notify()
-        finally:
-            self.put_lock.release()
 
     def enqueue(self, node) -> None:
         self.last.next = node
@@ -153,7 +145,7 @@ class PriorityGroup(Generic[T]):
         sub_queue.priority_group = self
 
     def remove_queue(self, sub_queue) -> None:
-        raise NotImplementedError("Explicitly do not support remove queue.")
+        raise NotImplementedError("Intentionally do not support remove queue.")
 
     def get_next_sub_queue(self) -> Optional[SubQueue[T]]:
         start_idx = self.next_idx
