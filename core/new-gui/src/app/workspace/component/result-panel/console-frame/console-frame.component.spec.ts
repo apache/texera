@@ -9,20 +9,18 @@ describe("ConsoleFrameComponent", () => {
   let component: ConsoleFrameComponent;
   let fixture: ComponentFixture<ConsoleFrameComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [HttpClientTestingModule],
-        declarations: [ConsoleFrameComponent],
-        providers: [
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      declarations: [ConsoleFrameComponent],
+      providers: [
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ConsoleFrameComponent);

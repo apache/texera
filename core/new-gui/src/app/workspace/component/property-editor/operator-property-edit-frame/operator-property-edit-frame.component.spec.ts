@@ -36,32 +36,30 @@ describe("OperatorPropertyEditFrameComponent", () => {
   let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [OperatorPropertyEditFrameComponent],
-        providers: [
-          WorkflowActionService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          DatePipe,
-        ],
-        imports: [
-          BrowserAnimationsModule,
-          FormsModule,
-          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-          // formly ng zorro module has a bug that doesn't display field description,
-          // FormlyNgZorroAntdModule,
-          // use formly material module instead
-          FormlyMaterialModule,
-          ReactiveFormsModule,
-          HttpClientTestingModule,
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [OperatorPropertyEditFrameComponent],
+      providers: [
+        WorkflowActionService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        DatePipe,
+      ],
+      imports: [
+        BrowserAnimationsModule,
+        FormsModule,
+        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+        // formly ng zorro module has a bug that doesn't display field description,
+        // FormlyNgZorroAntdModule,
+        // use formly material module instead
+        FormlyMaterialModule,
+        ReactiveFormsModule,
+        HttpClientTestingModule,
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
