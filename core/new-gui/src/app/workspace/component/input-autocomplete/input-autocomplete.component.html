@@ -1,0 +1,13 @@
+<mat-form-field>
+  <mat-label> {{ this.field?.templateOptions?.label }} </mat-label>
+  <input
+    (input)="autocomplete()"
+    (focus)="autocomplete()"
+    [formControl]="getControl()"
+    [(ngModel)]="field?.formControl.value"
+    matInput
+    required
+    [nzAutocomplete]="auto"
+  />
+  <nz-autocomplete [nzDataSource]="suggestions" nzBackfill #auto> </nz-autocomplete>
+</mat-form-field>

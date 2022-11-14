@@ -7,6 +7,7 @@ import { AccessEntry } from "../../type/access.interface";
 
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
+export const USER_AUTOCOMPLETE_FILE_LIST_URL = `${USER_FILE_BASE_URL}/autocomplete`;
 export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 export const USER_FILE_DOWNLOAD_URL = `${USER_FILE_BASE_URL}/download`;
 export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
@@ -111,6 +112,10 @@ export class UserFileService {
 
   public retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
     return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(`${USER_FILE_LIST_URL}`);
+  }
+
+  public getAutoCompleteUserFileAccessList(query: String): Observable<ReadonlyArray<string>> {
+    return this.http.get<ReadonlyArray<string>>(`${USER_AUTOCOMPLETE_FILE_LIST_URL}/${query}`);
   }
 
   /**
