@@ -118,11 +118,11 @@ class BatchOperator(TupleOperatorV2):
             yield from self._process_batch(port)
 
     def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
-        table = Table(
+        batch = Table(
             pandas.DataFrame([self.__table_data[port].pop(0).as_series() for _ in
                               range(min(len(self.__table_data[port]), self.BATCH_SIZE))])
         )
-        for output_table in self.process_batch(table, port):
+        for output_table in self.process_batch(batch, port):
             if output_table is not None:
                 if isinstance(output_table, pandas.DataFrame):
                     for _, output_tuple in output_table.iterrows():
