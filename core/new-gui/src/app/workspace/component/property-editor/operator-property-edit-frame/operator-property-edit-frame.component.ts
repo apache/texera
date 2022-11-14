@@ -449,6 +449,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorId,
           mappedField.wrappers?.includes("preset-wrapper")
         );
+      }
+
       if (isDefined(mapSource.enum)) {
         mappedField.validators = {
           inEnum: {
