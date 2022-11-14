@@ -47,12 +47,10 @@ export class InputAutoCompleteComponent extends FieldType<any> {
         .pipe(debounceTime(300))
         .pipe(untilDestroyed(this))
         .subscribe(suggestedFiles => {
-          var is_same =
-            this.suggestions.length == suggestedFiles.length &&
-            this.suggestions.every(function (e, i) {
-              return e === suggestedFiles[i];
-            });
-          if (!is_same) this.suggestions = [...suggestedFiles];
+          const updated =
+            this.suggestions.length != suggestedFiles.length ||
+            this.suggestions.some((e, i) => e !== suggestedFiles[i]);
+          if (updated) this.suggestions = [...suggestedFiles];
         });
     } else {
       // no valid input, perform full scan
