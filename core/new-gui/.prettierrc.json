@@ -10,6 +10,7 @@
   "bracketSpacing": true,
   "arrowParens": "avoid",
   "endOfLine": "lf",
+  "singleAttributePerLine": true,
   "overrides": [
     {
       "files": "*.component.html",

@@ -1,6 +1,10 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Files</h4>
-  <button (click)="activeModal.dismiss('close')" aria-label="Close" class="close" type="button">
+  <button
+    (click)="activeModal.dismiss('close')"
+    aria-label="Close"
+    class="close"
+    type="button">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
@@ -15,11 +19,18 @@
     ng2FileDrop>
     Drop Files Here
     <div id="hide">
-      <input #clickUpload (change)="handleClickUploadFile($event)" accept=".txt" multiple type="file" />
+      <input
+        #clickUpload
+        (change)="handleClickUploadFile($event)"
+        accept=".txt"
+        multiple
+        type="file" />
     </div>
   </div>
   <div *ngIf="getFileArrayLength()">
-    <li *ngFor="let fileUploadItem of getFileArray()" class="file-queue-item">
+    <li
+      *ngFor="let fileUploadItem of getFileArray()"
+      class="file-queue-item">
       <span>
         <label>{{ fileUploadItem.name }}</label>
       </span>
@@ -27,7 +38,9 @@
         (click)="deleteFile(fileUploadItem)"
         [disabled]="fileUploadItem.isUploadingFlag"
         class="queue-delete-button">
-        <i aria-hidden="true" class="fa fa-trash"></i>
+        <i
+          aria-hidden="true"
+          class="fa fa-trash"></i>
       </button>
     </li>
   </div>
@@ -41,5 +54,9 @@
       upload
     </button>
   </div>
-  <button (click)="activeModal.dismiss('close')" class="btn btn-outline-dark bottom-size">Close</button>
+  <button
+    (click)="activeModal.dismiss('close')"
+    class="btn btn-outline-dark bottom-size">
+    Close
+  </button>
 </div>
