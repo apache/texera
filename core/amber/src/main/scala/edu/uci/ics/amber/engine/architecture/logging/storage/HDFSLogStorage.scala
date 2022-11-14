@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
   DeterminantLogReader,
   DeterminantLogWriter
 }
-import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -30,19 +29,13 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   }
 
   override def getWriter: DeterminantLogWriter = {
-    new DeterminantLogWriter {
-      override lazy protected val outputStream = {
-        hdfs.append(getLogPath)
-      }
-    }
+    new DeterminantLogWriter(hdfs.append(getLogPath))
   }
 
   override def getReader: DeterminantLogReader = {
     val path = getLogPath
     if (hdfs.exists(path)) {
-      new DeterminantLogReader {
-        override protected val inputStream = hdfs.open(path)
-      }
+      new DeterminantLogReader(() => hdfs.open(path))
     } else {
       new EmptyLogStorage().getReader
     }
@@ -59,11 +52,7 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   override def cleanPartiallyWrittenLogFile(): Unit = {
     var tmpPath = getLogPath
     tmpPath = tmpPath.suffix(".tmp")
-    copyReadableLogRecords(new DeterminantLogWriter {
-      override lazy protected val outputStream = {
-        hdfs.create(tmpPath)
-      }
-    })
+    copyReadableLogRecords(new DeterminantLogWriter(hdfs.create(tmpPath)))
     if (hdfs.exists(getLogPath)) {
       hdfs.delete(getLogPath, false)
     }

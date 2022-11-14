@@ -15,7 +15,6 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   ProcessControlMessage,
   StepDelta
 }
-import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics

@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   SenderActorChange
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
@@ -50,6 +50,7 @@ class DataProcessor( // dependencies:
     val logStorage: DeterminantLogStorage,
     val logManager: LogManager,
     val recoveryManager: LocalRecoveryManager,
+    val recoveryQueue: RecoveryQueue,
     val actorId: ActorVirtualIdentity
 ) extends WorkerInternalQueue
     with AmberLogging {
@@ -65,7 +66,7 @@ class DataProcessor( // dependencies:
             stateManager.assertState(UNINITIALIZED)
             // operator.context = new OperatorContext(new TimeService(logManager))
             stateManager.transitTo(READY)
-            if (!recoveryManager.replayCompleted()) {
+            if (!recoveryQueue.isReplayCompleted) {
               recoveryManager.Start()
               recoveryManager.registerOnEnd(() => {
                 logger.info("recovery complete! restoring stashed inputs...")
@@ -234,12 +235,7 @@ class DataProcessor( // dependencies:
     // main DP loop
     while (true) {
       // take the next data element from internal queue, blocks if not available.
-      val elem = if (recoveryManager.replayCompleted()) {
-        getElement
-      } else {
-        recoveryManager.get()
-      }
-      internalQueueElementHandler(elem)
+      internalQueueElementHandler(getElement)
     }
   }
 
@@ -302,23 +298,13 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    if (recoveryManager.replayCompleted()) {
-      while (!isControlQueueEmpty || pauseManager.isPaused()) {
-        takeOneControlCommandAndProcess()
-      }
-    } else {
-      while (recoveryManager.isReadyToEmitNextControl) {
-        takeOneControlCommandAndProcess()
-      }
+    while (!isControlQueueEmpty || pauseManager.isPaused()) {
+      takeOneControlCommandAndProcess()
     }
   }
 
   private[this] def takeOneControlCommandAndProcess(): Unit = {
-    val control = if (recoveryManager.replayCompleted()) {
-      getElement.asInstanceOf[ControlElement]
-    } else {
-      recoveryManager.get().asInstanceOf[ControlElement]
-    }
+    val control = getElement.asInstanceOf[ControlElement]
     processControlCommand(control.payload, control.from)
   }
 

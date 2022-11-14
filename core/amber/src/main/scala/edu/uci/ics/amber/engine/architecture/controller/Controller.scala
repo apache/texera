@@ -30,10 +30,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.recovery.{
-  FIFOStateRecoveryManager,
-  GlobalRecoveryManager
-}
+import edu.uci.ics.amber.engine.architecture.recovery.GlobalRecoveryManager
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   WorkflowPipelinedRegionsBuilder,
   WorkflowScheduler
@@ -242,7 +239,7 @@ class Controller(
       d match {
         case ProcessControlMessage(controlPayload, from) =>
           handleControlPayload(from, controlPayload)
-          if (recoveryManager.replayCompleted()) {
+          if (recoveryQueue.isReplayCompleted) {
             logManager.terminate()
             logStorage.cleanPartiallyWrittenLogFile()
             logManager.setupWriter(logStorage.getWriter)
@@ -250,7 +247,7 @@ class Controller(
             unstashAll()
             context.become(running)
           } else {
-            val inMemDeterminant = recoveryManager.popDeterminant()
+            val inMemDeterminant = recoveryQueue.popDeterminant()
             self ! inMemDeterminant
           }
         case otherDeterminant =>
@@ -275,12 +272,11 @@ class Controller(
   }
 
   override def receive: Receive = {
-    if (!recoveryManager.replayCompleted()) {
+    if (recoveryQueue.isReplayCompleted) {
       globalRecoveryManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
-      val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
-      val fifoState = fifoStateRecoveryManager.getFIFOState
+      val fifoState = recoveryManager.getFIFOState(logStorage.getReader)
       controlInputPort.overwriteFIFOState(fifoState)
-      val inMemDeterminant = recoveryManager.popDeterminant()
+      val inMemDeterminant = recoveryQueue.popDeterminant()
       self ! inMemDeterminant
       acceptRecoveryMessages orElse recovering
     } else {

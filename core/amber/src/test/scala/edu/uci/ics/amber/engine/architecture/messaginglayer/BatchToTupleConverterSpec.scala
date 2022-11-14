@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   LogManager
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
-import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   EndMarker,
@@ -32,9 +32,8 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
 
   class TestWorkerInternalQueue extends WorkerInternalQueue {
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
-    val recoveryManager: LocalRecoveryManager = new LocalRecoveryManager(
-      new EmptyLogStorage().getReader
-    )
+    val recoveryQueue = new RecoveryQueue(new EmptyLogStorage().getReader)
+    val recoveryManager: LocalRecoveryManager = new LocalRecoveryManager(recoveryQueue)
   }
 
   private val mockInternalQueue = mock[TestWorkerInternalQueue]

@@ -22,14 +22,8 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputPort,
   TupleToBatchConverter
 }
-import edu.uci.ics.amber.engine.architecture.recovery.FIFOStateRecoveryManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  READY,
-  RUNNING,
-  UNINITIALIZED
-}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
@@ -120,15 +114,14 @@ class WorkflowWorker(
   }
 
   override def receive: Receive = {
-    if (!recoveryManager.replayCompleted()) {
+    if (!recoveryQueue.isReplayCompleted) {
       recoveryManager.registerOnStart(() =>
         context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(true))
       )
       recoveryManager.registerOnEnd(() =>
         context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(false))
       )
-      val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
-      val fifoState = fifoStateRecoveryManager.getFIFOState
+      val fifoState = recoveryManager.getFIFOState(logStorage.getReader)
       controlInputPort.overwriteFIFOState(fifoState)
     }
     dataProcessor.start()

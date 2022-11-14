@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkCommunicationActor,
   NetworkOutputPort
 }
-import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
@@ -50,12 +50,14 @@ abstract class WorkflowActor(
       NetworkCommunicationActor.props(parentNetworkCommunicationActorRef.ref, actorId)
     )
   )
-  val logStorage: DeterminantLogStorage =
+  val logStorage: DeterminantLogStorage = {
     DeterminantLogStorage.getLogStorage(supportFaultTolerance, getLogName)
-  val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+  }
+  val recoveryQueue = new RecoveryQueue(logStorage.getReader)
+  val recoveryManager = new LocalRecoveryManager(recoveryQueue)
   val logManager: LogManager =
     LogManager.getLogManager(supportFaultTolerance, networkCommunicationActor)
-  if (recoveryManager.replayCompleted()) {
+  if (recoveryQueue.isReplayCompleted) {
     logManager.setupWriter(logStorage.getWriter)
   } else {
     logManager.setupWriter(new EmptyLogStorage().getWriter)

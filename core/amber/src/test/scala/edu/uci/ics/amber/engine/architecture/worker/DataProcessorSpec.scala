@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputPort,
   TupleToBatchConverter
 }
-import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -136,7 +136,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val operator = mock[OperatorExecutor]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
-    val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+    val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
+    val recoveryManager = new LocalRecoveryManager(recoveryQueue)
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     inAnyOrder {
@@ -171,7 +172,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val operator = mock[OperatorExecutor]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
-    val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+    val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
+    val recoveryManager = new LocalRecoveryManager(recoveryQueue)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -217,7 +219,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val operator = mock[OperatorExecutor]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
-    val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+    val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
+    val recoveryManager = new LocalRecoveryManager(recoveryQueue)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -244,7 +247,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val operator = mock[OperatorExecutor]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
-    val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+    val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
+    val recoveryManager = new LocalRecoveryManager(recoveryQueue)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -274,7 +278,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val batchToTupleConverter = mock[BatchToTupleConverter]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
-    val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+    val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
+    val recoveryManager = new LocalRecoveryManager(recoveryQueue)
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     (asyncRPCClient.send _).expects(*, *).anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
@@ -332,7 +337,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
-    val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+    val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
+    val recoveryManager = new LocalRecoveryManager(recoveryQueue)
     val operator = new IOperatorExecutor {
       override def open(): Unit = {}
 

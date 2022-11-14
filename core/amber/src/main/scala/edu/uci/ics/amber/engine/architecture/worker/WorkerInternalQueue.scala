@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LogManager}
-import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   CONTROL_QUEUE,
   ControlElement,
@@ -56,7 +56,7 @@ trait WorkerInternalQueue {
 
   // logging related variables:
   def logManager: LogManager // require dp thread to have log manager
-  def recoveryManager: LocalRecoveryManager // require dp thread to have recovery manager
+  def recoveryQueue: RecoveryQueue // require dp thread to have recovery queue
   protected lazy val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   // the values in below maps are in tuples (not batches)
@@ -82,37 +82,43 @@ trait WorkerInternalQueue {
         // do nothing
       }
     }
-    lock.lock()
-    if (recoveryManager.replayCompleted()) {
+    if (recoveryQueue.isReplayCompleted) {
+      // may have race condition with restoreInput which happens inside DP thread.
+      lock.lock()
       dataQueue.add(elem)
+      lock.unlock()
     } else {
-      recoveryManager.add(elem)
+      recoveryQueue.add(elem)
     }
-    lock.unlock()
   }
 
   def enqueueCommand(payload: ControlPayload, from: ActorVirtualIdentity): Unit = {
-    lock.lock()
-    if (recoveryManager.replayCompleted()) {
+    if (recoveryQueue.isReplayCompleted) {
+      // may have race condition with restoreInput which happens inside DP thread.
+      lock.lock()
       controlQueue.add(ControlElement(payload, from))
+      lock.unlock()
     } else {
-      recoveryManager.add(ControlElement(payload, from))
+      recoveryQueue.add(ControlElement(payload, from))
     }
-    lock.unlock()
   }
 
   def getElement: InternalQueueElement = {
-    val elem = lbmq.take()
-    if (Constants.flowControlEnabled) {
-      elem match {
-        case InputTuple(from, _) =>
-          inputTuplesTakenOutOfQueue(from) =
-            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + 1
-        case _ =>
-        // do nothing
+    if (recoveryQueue.isReplayCompleted) {
+      val elem = lbmq.take()
+      if (Constants.flowControlEnabled) {
+        elem match {
+          case InputTuple(from, _) =>
+            inputTuplesTakenOutOfQueue(from) =
+              inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + 1
+          case _ =>
+          // do nothing
+        }
       }
+      elem
+    } else {
+      recoveryQueue.get()
     }
-    elem
   }
 
   def disableDataQueue(): Unit = {
@@ -133,13 +139,17 @@ trait WorkerInternalQueue {
 
   def restoreInputs(): Unit = {
     lock.lock()
-    recoveryManager.drainAllStashedElements(dataQueue, controlQueue)
+    recoveryQueue.drainAllStashedElements(dataQueue, controlQueue)
     lock.unlock()
   }
 
   def isControlQueueEmpty: Boolean = {
-    determinantLogger.stepIncrement()
-    controlQueue.isEmpty
+    if (recoveryQueue.isReplayCompleted) {
+      determinantLogger.stepIncrement()
+      controlQueue.isEmpty
+    } else {
+      recoveryQueue.isReadyToEmitNextControl
+    }
   }
 
 }
