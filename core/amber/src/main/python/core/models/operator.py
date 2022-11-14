@@ -7,8 +7,9 @@ import pandas
 from pyarrow.lib import Schema
 from deprecated import deprecated
 
-from . import InputExhausted, Table, TableLike, Tuple, TupleLike
+from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from ..util.arrow_utils import to_arrow_schema
+import timeit
 
 
 class Operator(ABC):
@@ -45,7 +46,7 @@ class Operator(ABC):
     @output_schema.setter
     @overrides.final
     def output_schema(
-        self, raw_output_schema: Union[Schema, Mapping[str, str]]
+            self, raw_output_schema: Union[Schema, Mapping[str, str]]
     ) -> None:
         self.__internal_output_schema = (
             raw_output_schema
@@ -96,6 +97,57 @@ class TupleOperatorV2(Operator):
         yield
 
 
+class BatchOperator(TupleOperatorV2):
+    """
+    Base class for batch-oriented operators. A concrete implementation must
+    be provided upon using.
+    """
+    BATCH_SIZE: Optional[int] = None  # must be a positive integer
+
+    def __init__(self):
+        super().__init__()
+        self.__internal_is_source: bool = False
+        self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
+        # must be a positive integer
+        assert self.BATCH_SIZE is None or (isinstance(self.BATCH_SIZE, int) and self.BATCH_SIZE > 0)
+
+    @overrides.final
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        self.__table_data[port].append(tuple_)
+        if self.BATCH_SIZE is not None and len(self.__table_data[port]) >= self.BATCH_SIZE:
+            yield from self._process_batch(port)
+
+    def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
+        table = Table(
+            pandas.DataFrame([self.__table_data[port].pop(0).as_series() for _ in
+                              range(min(len(self.__table_data[port]), self.BATCH_SIZE))])
+        )
+        for output_table in self.process_batch(table, port):
+            if output_table is not None:
+                if isinstance(output_table, pandas.DataFrame):
+                    for _, output_tuple in output_table.iterrows():
+                        yield output_tuple
+                else:
+                    yield output_table
+
+    def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
+        while len(self.__table_data[port]) != 0:
+            yield from self._process_batch(port)
+
+    @abstractmethod
+    def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
+        """
+        Process an input Batch from the given link. The Batch is represented as a
+        pandas.DataFrame.
+
+        :param batch: Batch, a batch to be processed.
+        :param port: int, input port index of the current Tuple.
+        :return: Iterator[Optional[BatchLike]], producing one BatchLike object at a
+            time, or None.
+        """
+        yield
+
+
 class TableOperator(TupleOperatorV2):
     """
     Base class for table-oriented operators. A concrete implementation must
@@ -110,15 +162,12 @@ class TableOperator(TupleOperatorV2):
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         self.__table_data[port].append(tuple_)
-        if len(self.__table_data[port]) >= self.size:
-            yield from self.on_finish(port)
-            self.__table_data[port] = []
-        else:
-            yield
+        yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
         table = Table(
-            pandas.DataFrame([i.as_series() for i in self.__table_data[port]])
+            pandas.DataFrame([self.__table_data[port].pop(0).as_series() for _ in
+                              range(len(self.__table_data[port]))])
         )
         for output_table in self.process_table(table, port):
             if output_table is not None:
@@ -151,7 +200,7 @@ class TupleOperator(Operator):
 
     @abstractmethod
     def process_tuple(
-        self, tuple_: Union[Tuple, InputExhausted], input_: int
+            self, tuple_: Union[Tuple, InputExhausted], input_: int
     ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.

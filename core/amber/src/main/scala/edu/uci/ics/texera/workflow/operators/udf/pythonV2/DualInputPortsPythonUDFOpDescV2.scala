@@ -38,7 +38,14 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
         "# \n" +
         "#     @overrides\n" +
         "#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n" +
-        "#         yield table\n"
+        "#         yield table\n" +
+        "# \n" +
+                    "# class ProcessBatchOperator(UDFBatchOperator):\n" +
+                    "# \n" +
+                    "#     BATCH_SIZE = 10 # must be a positive integer\n" +
+                    "#     @overrides\n" +
+                    "#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:\n" +
+                    "#         yield batch\n"
   )
   @JsonSchemaTitle("Python script")
   @JsonPropertyDescription("Input your code here")
