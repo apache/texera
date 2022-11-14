@@ -34,7 +34,7 @@ export class InputAutoCompleteComponent extends FieldType<any> {
   }
 
   autocomplete(): void {
-    if (this.field.formControl.value === null){
+    if (this.field.formControl.value === null) {
       this.field.formControl.value = "";
     }
     // currently it's a hard-code UserFileService autocomplete
