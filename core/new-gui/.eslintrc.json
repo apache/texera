@@ -70,7 +70,7 @@
             "alias": ["untilDestroyed"],
             "checkComplete": true,
             "checkDecorators": ["Component"],
-            "checkDestroy": false
+            "checkDestroy": true
           }
         ],
         "rxjs/no-unsafe-takeuntil": [
