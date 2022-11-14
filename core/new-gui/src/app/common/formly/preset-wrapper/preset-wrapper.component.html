@@ -7,8 +7,7 @@
   [nzOverlayClassName]="searchResults.length === 0 ? 'preset-dropdown no-results' : 'preset-dropdown'"
   (nzVisibleChange)="onDropdownVisibilityEvent($event)"
   [nzVisible]="presetMenuVisible"
-  nzClickHide="true"
->
+  nzClickHide="true">
   <span class="formly-field" autocomplete="off">
     <ng-container #fieldComponent></ng-container>
   </span>
@@ -20,8 +19,7 @@
     nzType="primary"
     nzSize="small"
     nzShape="circle"
-    (click)="savePreset()"
-  >
+    (click)="savePreset()">
     <i nz-icon nzType="save" nzTheme="outline"></i>
   </button>
 </div>
@@ -41,8 +39,7 @@
           nzType="primary"
           nzSize="small"
           nzShape="circle"
-          (click)="$event.stopPropagation(); deletePreset(preset)"
-        >
+          (click)="$event.stopPropagation(); deletePreset(preset)">
           <i nz-icon nzType="close"></i>
         </button>
       </div>

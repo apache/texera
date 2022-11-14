@@ -11,29 +11,25 @@
   <li
     nz-menu-item
     *ngIf="operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
-    (click)="operatorMenu.disableHighlightedOperators()"
-  >
+    (click)="operatorMenu.disableHighlightedOperators()">
     <span nz-icon nzType="stop" nzTheme="outline"></span>disable
   </li>
   <li
     nz-menu-item
     *ngIf="!operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
-    (click)="operatorMenu.disableHighlightedOperators()"
-  >
+    (click)="operatorMenu.disableHighlightedOperators()">
     <span nz-icon nzType="stop" nzTheme="twotone"></span>enable
   </li>
   <li
     nz-menu-item
     *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()"
-  >
+    (click)="operatorMenu.cacheHighlightedOperators()">
     <span nz-icon nzType="database" nzTheme="outline"></span>cache output
   </li>
   <li
     nz-menu-item
     *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()"
-  >
+    (click)="operatorMenu.cacheHighlightedOperators()">
     <span nz-icon nzType="database" nzTheme="twotone"></span>remove cache
   </li>
   <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length > 0" (click)="onDelete()">

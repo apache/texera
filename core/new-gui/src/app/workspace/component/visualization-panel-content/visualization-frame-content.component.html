@@ -6,8 +6,7 @@
     <nz-select
       (ngModelChange)="updateWordCloudScale($event)"
       [ngModel]="wordCloudControls.scale"
-      [nzDropdownMatchSelectWidth]="false"
-    >
+      [nzDropdownMatchSelectWidth]="false">
       <nz-option *ngFor="let option of wordCloudScaleOptions" [nzLabel]="option" [nzValue]="option"></nz-option>
     </nz-select>
   </nz-space>

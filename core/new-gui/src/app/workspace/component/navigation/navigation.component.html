@@ -4,8 +4,7 @@
       [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
       alt="Texera"
       class="texera-navigation-title"
-      src="assets/logos/full_logo_small.png?v=1"
-    />
+      src="assets/logos/full_logo_small.png?v=1" />
 
     <!-- workflow metadata display -->
     <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-metadata">
@@ -15,8 +14,7 @@
         nz-button
         nzType="text"
         title="back"
-        class="particular-version-metadata"
-      >
+        class="particular-version-metadata">
         <i nz-icon nzTheme="outline" nzType="arrow-left"></i>
       </button>
       <label>
@@ -26,8 +24,7 @@
           (change)="onWorkflowNameChange()"
           [(ngModel)]="currentWorkflowName"
           class="workflow-name"
-          placeholder="Untitled Workflow"
-        />
+          placeholder="Untitled Workflow" />
         <span *ngIf="displayParticularWorkflowVersion" class="particular-version-metadata" spellcheck="false">
           {{particularVersionDate}}
         </span>
@@ -42,8 +39,7 @@
         title="Open version history"
         class="save-state"
         spellcheck="false"
-        (click)="onClickGetAllVersions()"
-      >
+        (click)="onClickGetAllVersions()">
         {{autoSaveState}}
       </button>
     </div>
@@ -56,8 +52,7 @@
 
     <div
       *ngIf="userSystemEnabled && this.coeditorPresenceService.shadowingModeEnabled"
-      class="texera-navigation-shadowing-status"
-    >
+      class="texera-navigation-shadowing-status">
       <button
         *ngIf="this.coeditorPresenceService.shadowingModeEnabled"
         nz-button
@@ -65,8 +60,7 @@
         class="stop-shadowing"
         [ngStyle]="{ 'color': this.coeditorPresenceService.shadowingCoeditor?.color }"
         spellcheck="false"
-        (click)="this.coeditorPresenceService.stopShadowing()"
-      >
+        (click)="this.coeditorPresenceService.stopShadowing()">
         <b>Shadowing {{this.coeditorPresenceService.shadowingCoeditor?.name}}, click to stop</b>
       </button>
     </div>
@@ -90,8 +84,7 @@
           *ngIf="userSystemEnabled"
           [disabled]="!userService.isLogin() || isSaving"
           nz-button
-          title="save"
-        >
+          title="save">
           <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
           <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
         </button>
@@ -138,8 +131,7 @@
           id="downloadExcelOptions"
           nz-button
           nz-dropdown
-          title="export execution result"
-        >
+          title="export execution result">
           <i nz-icon nzTheme="outline" nzType="cloud-download"></i>
         </button>
         <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -161,8 +153,7 @@
           *ngIf="operatorMenu.isDisableOperator || !operatorMenu.isDisableOperatorClickable"
           [disabled]="!operatorMenu.isDisableOperatorClickable"
           nz-button
-          title="disable operators"
-        >
+          title="disable operators">
           <i nz-icon nzTheme="outline" nzType="stop"></i>
         </button>
         <button
@@ -170,8 +161,7 @@
           *ngIf="!operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
           [disabled]="!operatorMenu.isDisableOperatorClickable"
           nz-button
-          title="operators disabled, click to re-enable"
-        >
+          title="operators disabled, click to re-enable">
           <i nz-icon nzTheme="twotone" nzType="stop"></i>
         </button>
         <button
@@ -179,8 +169,7 @@
           [disabled]="! operatorMenu.isCacheOperatorClickable"
           (click)="operatorMenu.cacheHighlightedOperators()"
           nz-button
-          title="cache operators"
-        >
+          title="cache operators">
           <i nz-icon nzType="database" nzTheme="outline"></i>
         </button>
         <button
@@ -188,8 +177,7 @@
           [disabled]="! operatorMenu.isCacheOperatorClickable"
           (click)="operatorMenu.cacheHighlightedOperators()"
           nz-button
-          title="operators cached, click to remove cache"
-        >
+          title="operators cached, click to remove cache">
           <i nz-icon nzType="database" nzTheme="twotone"></i>
         </button>
       </nz-button-group>
@@ -202,8 +190,7 @@
 					executionState !== ExecutionState.Uninitialized &&
 					executionState !== ExecutionState.Completed &&
 					executionState !== ExecutionState.Aborted
-			}"
-    >
+			}">
       <label class="execution-name">
         <input [(ngModel)]="currentExecutionName" placeholder="Untitled Execution" />
       </label>
@@ -213,8 +200,7 @@
           [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
           class="animate-to-reveal-stop-button"
           nz-button
-          nzType="default"
-        >
+          nzType="default">
           <i nz-icon nzTheme="outline" nzType="undo"></i>
         </button>
         <button
@@ -222,8 +208,7 @@
           [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"
           class="animate-to-reveal-stop-button"
           nz-button
-          nzType="default"
-        >
+          nzType="default">
           <i nz-icon nzTheme="outline" nzType="redo"></i>
         </button>
         <button
@@ -238,8 +223,7 @@
           nz-button
           nzDanger
           nzType="primary"
-          title="Force Stop"
-        >
+          title="Force Stop">
           <i nz-icon nzTheme="outline" nzType="exclamation-circle"></i>
         </button>
         <button
@@ -247,8 +231,7 @@
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           class="texera-navigation-run-button animate-to-reveal-stop-button"
           nz-button
-          nzType="primary"
-        >
+          nzType="primary">
           <i class="texera-navigation-run-button-icon" nz-icon nzTheme="outline" nzType="{{ runIcon }}"></i>
           <span> {{ runButtonText }} </span>
         </button>
@@ -257,14 +240,12 @@
             *ngIf="workflowWebsocketService.isConnected"
             nz-tooltip="connected"
             nzStatus="success"
-            nzTooltipPlacement="bottom"
-          ></nz-badge>
+            nzTooltipPlacement="bottom"></nz-badge>
           <nz-badge
             *ngIf="!workflowWebsocketService.isConnected"
             nz-tooltip="disconnected"
             nzStatus="error"
-            nzTooltipPlacement="bottom"
-          ></nz-badge>
+            nzTooltipPlacement="bottom"></nz-badge>
         </div>
       </nz-button-group>
     </div>

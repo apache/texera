@@ -12,8 +12,7 @@
     [ngClass]="{ 'have-file-over': haveDropZoneOver }"
     [uploader]="uploader"
     class="drag-file-area"
-    ng2FileDrop
-  >
+    ng2FileDrop>
     Drop Files Here
     <div id="hide">
       <input #clickUpload (change)="handleClickUploadFile($event)" accept=".txt" multiple type="file" />
@@ -27,8 +26,7 @@
       <button
         (click)="deleteFile(fileUploadItem)"
         [disabled]="fileUploadItem.isUploadingFlag"
-        class="queue-delete-button"
-      >
+        class="queue-delete-button">
         <i aria-hidden="true" class="fa fa-trash"></i>
       </button>
     </li>
@@ -39,8 +37,7 @@
     <button
       (click)="uploadAllFiles()"
       [disabled]="isUploadAllButtonDisabled()"
-      class="btn btn-primary btn-xs bottom-upload bottom-size"
-    >
+      class="btn btn-primary btn-xs bottom-upload bottom-size">
       upload
     </button>
   </div>

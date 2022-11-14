@@ -28,8 +28,7 @@
         nz-button
         nz-tooltip="Create a new workflow"
         nzTooltipPlacement="bottom"
-        type="button"
-      >
+        type="button">
         <i nz-icon nzTheme="outline" nzType="file-add"></i>
       </button>
       <button
@@ -38,8 +37,7 @@
         nz-button
         nz-tooltip="Download added workflow as a ZIP file"
         nzTooltipPlacement="bottom"
-        type="button"
-      >
+        type="button">
         <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
       </button>
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
@@ -54,8 +52,7 @@
         nz-button
         nz-tooltip="Add workflow(s) to project"
         nzTooltipPlacement="bottom"
-        type="button"
-      >
+        type="button">
         <i nz-icon nzTheme="outline" nzType="plus-square"></i>
       </button>
       <button
@@ -64,8 +61,7 @@
         nz-button
         nz-tooltip="Remove workflow(s) from project"
         nzTooltipPlacement="bottom"
-        type="button"
-      >
+        type="button">
         <i nz-icon nzTheme="outline" nzType="minus-square"></i>
       </button>
     </nz-button-group>
@@ -76,8 +72,7 @@
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'border-style': 'double'}"
-        class="modification-time-button"
-      >
+        class="modification-time-button">
         <button id="mtimeSort" ngbDropdownToggle nz-button>
           <i nz-icon nzType="form" nzTheme="outline" nz-tooltip="Modification Time"></i>
         </button>
@@ -88,8 +83,7 @@
           nzInline
           [(ngModel)]="selectedMtime"
           (ngModelChange)="calendarValueChange($event)"
-          ngDefaultControl
-        ></nz-range-picker>
+          ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
@@ -97,8 +91,7 @@
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'border-style': 'double'}"
-        class="search-creation-time-button"
-      >
+        class="search-creation-time-button">
         <button id="ctimeSort" ngbDropdownToggle nz-button>
           <i nz-icon nzType="calendar" nzTheme="outline" nz-tooltip="Creation Time"></i>
         </button>
@@ -108,8 +101,7 @@
           nzInline
           [(ngModel)]="selectedCtime"
           (ngModelChange)="calendarValueChange($event)"
-          ngDefaultControl
-        ></nz-range-picker>
+          ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
@@ -117,8 +109,7 @@
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-        class="search-owners-button"
-      >
+        class="search-owners-button">
         <button id="sortOwner" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="user" nz-tooltip="Owner"></i>
         </button>
@@ -138,8 +129,7 @@
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-        class="search-wids-button"
-      >
+        class="search-wids-button">
         <button id="sortID" ngbDropdownToggle nz-button>
           <i nz-icon nzTheme="outline" nzType="ordered-list" nz-tooltip="Workflow ID"></i>
         </button>
@@ -159,8 +149,7 @@
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'border-style': 'double'}"
-        class="search-operators-button"
-      >
+        class="search-operators-button">
         <button id="sortOperator" ngbDropdownToggle nz-button>
           <i nz-icon nzType="appstore" nzTheme="outline" nz-tooltip="Operators"></i>
         </button>
@@ -188,8 +177,7 @@
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-        class="search-projects-button"
-      >
+        class="search-projects-button">
         <button id="sortProject" ngbDropdownToggle nz-button>
           <i nz-icon nzType="file" nzTheme="outline" nz-tooltip="Projects"></i>
         </button>
@@ -214,8 +202,7 @@
       nzPopoverTitle="Filter Instructions"
       nzType="question-circle"
       nzTheme="outline"
-      [nzPopoverContent]="filterPopContent"
-    ></i>
+      [nzPopoverContent]="filterPopContent"></i>
     <nz-select
       class="search-input-box"
       nzMode="tags"
@@ -225,8 +212,7 @@
       ngDefaultControl
       [(ngModel)]="masterFilterList"
       [nzAllowClear]="true"
-      (ngModelChange)="updateDropdownMenus($event)"
-    >
+      (ngModelChange)="updateDropdownMenus($event)">
     </nz-select>
     <ng-template #filterPopContent>
       We support the following search criteria:
@@ -260,23 +246,20 @@
       <nz-list>
         <nz-list-item
           *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
-          class="workflow-list-item"
-        >
+          class="workflow-list-item">
           <nz-list-item-meta>
             <nz-list-item-meta-avatar>
               <label
                 nz-checkbox
                 class="workflow-item-checkbox"
                 id="{{dashboardWorkflowEntry.workflow.wid}}"
-                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
-              ></label>
+                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"></label>
               <nz-avatar
                 [ngStyle]="{ 'background-color': 'grey' }"
                 [nzGap]="4"
                 [nzText]="'' + dashboardWorkflowEntry.workflow.wid"
                 nzSize="default"
-                style="vertical-align: middle"
-              ></nz-avatar>
+                style="vertical-align: middle"></nz-avatar>
             </nz-list-item-meta-avatar>
 
             <!-- editable name of saved workflow -->
@@ -294,8 +277,7 @@
                     (focusout)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
                     (keyup.enter)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
                     placeholder="{{ dashboardWorkflowEntry.workflow.name }}"
-                    value="{{ dashboardWorkflowEntry.workflow.name }}"
-                  />
+                    value="{{ dashboardWorkflowEntry.workflow.name }}" />
                 </ng-template>
                 <button
                   (click)="dashboardWorkflowEntriesIsEditingName.push(indexOfElement)"
@@ -303,8 +285,7 @@
                   nz-tooltip="Customize Workflow Name"
                   nzSize="small"
                   nzTooltipPlacement="bottom"
-                  nzType="text"
-                >
+                  nzType="text">
                   <i nz-icon nzTheme="outline" nzType="edit"></i>
                 </button>
                 <button
@@ -314,8 +295,7 @@
                   nzSize="small"
                   nzTooltipPlacement="bottom"
                   nzType="text"
-                  class="add-description-btn"
-                >
+                  class="add-description-btn">
                   <i nz-icon nzTheme="outline" nzType="plus-square"></i>
                 </button>
                 <i
@@ -324,8 +304,7 @@
                   ngbTooltip="You are the owner"
                   nz-icon
                   nzTheme="outline"
-                  nzType="user"
-                ></i>
+                  nzType="user"></i>
                 <i
                   *ngIf="!dashboardWorkflowEntry.isOwner"
                   ngbTooltip="{{
@@ -333,8 +312,7 @@
 								}} access shared by {{ dashboardWorkflowEntry.ownerName }}"
                   nz-icon
                   nzTheme="outline"
-                  nzType="team"
-                ></i>
+                  nzType="team"></i>
               </div>
             </nz-list-item-meta-title>
 
@@ -344,8 +322,7 @@
                 <label
                   *ngIf="(dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1); else customWorkflowDescription "
                   (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
-                  class="workflow-description"
-                >
+                  class="workflow-description">
                   {{ dashboardWorkflowEntry.workflow.description }}
                 </label>
                 <ng-template #customWorkflowDescription>
@@ -355,8 +332,7 @@
                     (keyup.enter)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
                     class="workflow-editable-description"
                     value="{{ dashboardWorkflowEntry.workflow.description }}"
-                    maxlength="500"
-                  />
+                    maxlength="500" />
                 </ng-template>
               </div>
             </nz-list-item-meta-description>
@@ -379,8 +355,7 @@
                 class="project-label-name"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid"
-              >
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid">
                 {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
               </a>
               <div
@@ -390,8 +365,7 @@
                 class="project-label-remove"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"
-              >
+                (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)">
                 x
               </div>
             </div>
@@ -407,8 +381,7 @@
 								dashboardWorkflowEntry.workflow.name
 							}} to others"
                 nzTooltipPlacement="bottom"
-                type="button"
-              >
+                type="button">
                 <i nz-icon nzTheme="outline" nzType="share-alt"></i>
               </button>
             </nz-list-item-action>
@@ -421,8 +394,7 @@
 								dashboardWorkflowEntry.workflow.name
 							}}"
                 nzTooltipPlacement="bottom"
-                type="button"
-              >
+                type="button">
                 <i nz-icon nzTheme="outline" nzType="copy"></i>
               </button>
             </nz-list-item-action>
@@ -434,8 +406,7 @@
 								dashboardWorkflowEntry.workflow.name
 							}}"
                 nzTooltipPlacement="bottom"
-                type="button"
-              >
+                type="button">
                 <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
               </button>
             </nz-list-item-action>
@@ -450,8 +421,7 @@
                 nz-tooltip="Delete the workflow {{
 								dashboardWorkflowEntry.workflow.name
 							}}"
-                nzTooltipPlacement="bottom"
-              >
+                nzTooltipPlacement="bottom">
                 <i nz-icon nzTheme="outline" nzType="delete"></i>
               </button>
             </nz-list-item-action>
@@ -463,8 +433,7 @@
 								dashboardWorkflowEntry.workflow.name
 							}}"
                 nzTooltipPlacement="bottom"
-                type="button"
-              >
+                type="button">
                 <i nz-icon nzTheme="outline" nzType="history"></i>
               </button>
             </nz-list-item-action>

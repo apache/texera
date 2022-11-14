@@ -7,8 +7,7 @@
     <nz-input-group
       [nzPrefix]="prefixPopoverButton"
       [nzSuffix]="suffixIconSearch"
-      class="texera-dashboard-saved-workflow-search-box-input"
-    >
+      class="texera-dashboard-saved-workflow-search-box-input">
       <input
         [(ngModel)]="executionSearchValue"
         autocomplete="on"
@@ -17,8 +16,7 @@
         (ngModelChange)="searchInputOnChange($event)"
         type="text"
         [nzAutocomplete]="auto"
-        (keyup.enter)="searchExecution()"
-      />
+        (keyup.enter)="searchExecution()" />
       <ng-template #suffixIconSearch>
         <i nz-icon nzType="search"></i>
       </ng-template>
@@ -46,15 +44,13 @@
           nzPopoverTitle="Search Instructions"
           [nzPopoverContent]="popContent"
           nzType="question-circle"
-          nzTheme="outline"
-        ></i>
+          nzTheme="outline"></i>
       </ng-template>
       <nz-autocomplete
         [nzDefaultActiveFirstOption]="false"
         [nzDataSource]="filteredExecutionInfo"
         nzBackfill
-        #auto
-      ></nz-autocomplete>
+        #auto></nz-autocomplete>
     </nz-input-group>
   </nz-card>
   <div class="modal-body table-responsive">
@@ -70,8 +66,7 @@
       [nzFrontPagination]="false"
       (nzPageSizeChange)="onPageSizeChange($event)"
       (nzPageIndexChange)="onPageIndexChange($event)"
-      [nzScroll]="{ x: '1000px' }"
-    >
+      [nzScroll]="{ x: '1000px' }">
       <thead>
         <tr>
           <th
@@ -79,8 +74,7 @@
             *ngFor="let column of executionsTableHeaders; let i=index"
             nz-tooltip
             [nzTooltipTitle]="executionTooltip[column]"
-            nzTooltipPlacement="top"
-          >
+            nzTooltipPlacement="top">
             {{column}}
             <span *ngIf="column !== '' && column !== 'Status' && column !== 'Workflow Version Sample'">
               <button *ngIf="this.showORhide[i]" nz-button (click)="onHit(column, i)">
@@ -105,16 +99,14 @@
               nzType="star"
               class="bookmark-icon"
               [nzTheme]="(row.bookmarked || currentlyHoveredExecution === row) ? 'fill' : 'outline'"
-              (click)="onBookmarkToggle(row)"
-            ></i>
+              (click)="onBookmarkToggle(row)"></i>
           </td>
           <td nzEllipsis>
             <nz-avatar
               [ngStyle]="{ 'background-color': setAvatarColor(row.userName) }"
               [nzGap]="1"
               [nzText]="abbreviate(row.userName || 'anonymous', false)"
-              nzSize="default"
-            ></nz-avatar>
+              nzSize="default"></nz-avatar>
           </td>
           <td nzEllipsis>
             <label
@@ -129,24 +121,21 @@
                 (focusout)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
                 (keyup.enter)="confirmUpdateWorkflowExecutionsCustomName(row, customName.value, i)"
                 placeholder="{{ row.name }}"
-                value="{{ row.name }}"
-              />
+                value="{{ row.name }}" />
             </ng-template>
             <button
               (click)="workflowExecutionsIsEditingName.push(i)"
               nz-button
               nzSize="small"
               nzType="text"
-              class="rename-icon"
-            >
+              class="rename-icon">
               <i
                 nz-icon
                 nzTheme="outline"
                 nz-tooltip
                 nzTooltipTitle='Rename Execution "{{row.name}}"'
                 nzTooltipPlacement="top"
-                nzType="edit"
-              ></i>
+                nzType="edit"></i>
             </button>
           </td>
           <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
@@ -160,8 +149,7 @@
               nzTooltipPlacement="top"
               [nzType]="getExecutionStatus(row.status)[1]"
               [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
-              class="status-icon"
-            ></i>
+              class="status-icon"></i>
           </td>
           <td nzEllipsis>
             <i
@@ -171,8 +159,7 @@
               nzTooltipTitle='Delete the Execution "{{row.name}}"'
               nzTooltipPlacement="top"
               class="trash-icon"
-              (click)="onDelete(row)"
-            ></i>
+              (click)="onDelete(row)"></i>
           </td>
         </tr>
       </tbody>

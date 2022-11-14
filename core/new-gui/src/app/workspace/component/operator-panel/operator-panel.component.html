@@ -5,20 +5,17 @@
       nz-input
       [(ngModel)]="searchInputValue"
       (input)="onInput($event)"
-      [nzAutocomplete]="autocomplete"
-    />
+      [nzAutocomplete]="autocomplete" />
     <nz-autocomplete #autocomplete [nzBackfill]="false" (selectionChange)="onSelectionChange($event)">
       <nz-auto-option
         *ngFor="let option of autocompleteOptions"
         [nzValue]="option"
         [nzLabel]="option.additionalMetadata.userFriendlyName"
-        [nzDisabled]="! canModify"
-      >
+        [nzDisabled]="! canModify">
         <texera-operator-label
           [fromSearchBox]="true"
           [operator]="option"
-          class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"
-        ></texera-operator-label>
+          class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"></texera-operator-label>
       </nz-auto-option>
     </nz-autocomplete>
   </div>
@@ -26,8 +23,7 @@
     <nz-collapse-panel
       *ngFor="let groupName of groupNamesOrdered"
       [nzHeader]="groupName"
-      class="texera-workspace-operator-panel-subgroup"
-    >
+      class="texera-workspace-operator-panel-subgroup">
       <ul class="texera-workspace-operator-panel-subgroup-menu" nz-menu nzSelectable="false">
         <li *ngFor="let operatorSchema of operatorGroupMap.get(groupName)" class="texera-operator-label" nz-menu-item>
           <texera-operator-label [fromSearchBox]="false" [operator]="operatorSchema"></texera-operator-label>

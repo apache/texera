@@ -15,8 +15,7 @@
     [nzSize]="'small'"
     [nzTableLayout]="'fixed'"
     [nzTotal]="totalNumTuples"
-    nzBordered="true"
-  >
+    nzBordered="true">
     <thead>
       <tr>
         <th *ngFor="let column of currentColumns; let i = index" ngClass="header-size" style="text-align: center">
@@ -31,8 +30,7 @@
           *ngFor="let column of currentColumns"
           class="table-row"
           nzEllipsis
-          ngClass="data-size"
-        >
+          ngClass="data-size">
           {{ column.getCell(row) }}
         </td>
       </tr>
