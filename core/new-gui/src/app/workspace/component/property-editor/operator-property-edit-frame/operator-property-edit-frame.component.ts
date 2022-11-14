@@ -453,7 +453,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.validators = {
           inEnum: {
             expression: (c: AbstractControl) => (mapSource.enum as JSONSchema7Type[]).includes(c.value),
-            message: (error: any, field: FormlyFieldConfig) => `"${field.formControl?.value}" is not a valid option`,
+            message: (error: any, field: FormlyFieldConfig) => `"${field.formControl?.value}" is no longer a valid option`,
           }
         }
         mappedField.validation = {
