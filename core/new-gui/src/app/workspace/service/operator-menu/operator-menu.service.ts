@@ -3,7 +3,7 @@ import { environment } from "src/environments/environment";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
-import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { Breakpoint, OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
 import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -28,7 +28,7 @@ type SerializedString = {
   links: OperatorLink[];
   groups: [];
   breakpoints: BreakpointWithLinkID;
-  commentBoxes: [];
+  commentBoxes: CommentBox[];
 };
 
 /**
@@ -67,7 +67,9 @@ export class OperatorMenuService {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     ).subscribe(() => {
       this.effectivelyHighlightedOperators.next(this.getEffectivelyHighlightedOperators());
     });
@@ -78,6 +80,7 @@ export class OperatorMenuService {
    */
   public getEffectivelyHighlightedOperators(): readonly string[] {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const highlightedCommentBoxes = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
     const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
 
     const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
@@ -86,6 +89,7 @@ export class OperatorMenuService {
 
     const effectiveHighlightedOperators = new Set<string>();
     highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
+    highlightedCommentBoxes.forEach(op => effectiveHighlightedOperators.add(op));
     operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
     return Array.from(effectiveHighlightedOperators);
   }
@@ -165,7 +169,7 @@ export class OperatorMenuService {
       links: [],
       groups: [],
       breakpoints: {},
-      commentBoxes: [],
+      commentBoxes: []
     };
 
     // define the copies that will be put in the serialized json string when copying
@@ -173,6 +177,7 @@ export class OperatorMenuService {
     const operatorPositionsCopy: OperatorPositions = {};
     const linksCopy: OperatorLink[] = [];
     const breakpointsCopy: BreakpointWithLinkID = {};
+    const commentBoxesCopy: CommentBox[] = [];
 
     // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
     highlightedOperatorIDs.forEach(operatorID => {
@@ -212,6 +217,18 @@ export class OperatorMenuService {
 
     serializedString.links = linksCopy;
     serializedString.breakpoints = breakpointsCopy;
+
+    //get all the highlighted comment boxes, and sort them by their layers
+    const highlightedCommentBoxIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
+    highlightedCommentBoxIDs.forEach(commentBoxID => {
+      commentBoxesCopy.push(this.workflowActionService.getTexeraGraph().getCommentBox(commentBoxID));
+    });
+    commentBoxesCopy.sort(
+      (first, second) =>
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(first.commentBoxID) -
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(second.commentBoxID)
+    );
+    serializedString.commentBoxes = commentBoxesCopy;
 
     // store the stringified copied operators into the clipboard
     navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
@@ -262,6 +279,7 @@ export class OperatorMenuService {
 
       // get all the breakpoints for later when adding the breakpoints for the pasted new links
       let breakpointsInClipboard: BreakpointWithLinkID = elementsInClipboard.get("breakpoints") as BreakpointWithLinkID;
+
 
       let linksCopy: LinkWithID = {};
       copiedOps.forEach(copiedOperator => {
@@ -328,6 +346,18 @@ export class OperatorMenuService {
       for (let oldLinkID in linksCopy) {
         this.workflowActionService.setLinkBreakpoint(linksCopy[oldLinkID].linkID, breakpointsInClipboard[oldLinkID]);
       }
+
+      //
+      let commentBoxesCopy: CommentBox[] = elementsInClipboard.get("commentBoxes") as CommentBox[];
+      commentBoxesCopy.forEach(commentBoxCopy => {
+        const commentBoxPosition: Point = commentBoxCopy.commentBoxPosition as Point;
+        const newCommentBoxPosition = this.calcOperatorPosition(commentBoxPosition, positions);
+        positions.push(newCommentBoxPosition);
+        const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
+        const newCommentBoxComment = commentBoxCopy.comments;
+        const newCommentBox: CommentBox = {commentBoxID: newCommentBoxID, comments: newCommentBoxComment, commentBoxPosition: newCommentBoxPosition};
+        this.workflowActionService.addCommentBox(newCommentBox);
+      });
     });
   }
 
