@@ -4,7 +4,7 @@ import { User } from "../../../../common/type/user";
 import { UserLoginModalComponent } from "./user-login/user-login-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
-
+import { environment } from "../../../../../environments/environment";
 /**
  * UserIconComponent is used to control user system on the top right corner
  * It includes the button for login/registration/logout
@@ -18,7 +18,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 })
 export class UserIconComponent {
   public user: User | undefined;
-
+  localLogin = environment.localLogin;
   constructor(private modalService: NzModalService, private userService: UserService) {
     this.userService
       .userChanged()
@@ -47,5 +47,13 @@ export class UserIconComponent {
    */
   private openLoginComponent(): void {
     this.modalService.create({ nzContent: UserLoginModalComponent, nzOkText: null });
+  }
+  /**
+   * this method will retrieve a usable Google OAuth Instance first,
+   * with that available instance, get googleUsername and authorization code respectively,
+   * then sending the code to the backend
+   */
+  public googleLogin(): void {
+    this.userService.googleLogin().pipe(untilDestroyed(this)).subscribe();
   }
 }

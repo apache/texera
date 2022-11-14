@@ -40,6 +40,7 @@ import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
+import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -410,6 +411,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
+      // if the title is fileName, then change it to custom autocomplete input template
+      if (mappedField.key == "fileName") {
+        mappedField.type = "inputautocomplete";
+      }
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
@@ -430,6 +436,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorId
         );
       }
+
+      if (
+        this.currentOperatorId !== undefined &&
+        ["string", "textarea"].includes(mappedField.type as string) &&
+        (mappedField.key as string) !== "password"
+      ) {
+        CollabWrapperComponent.setupFieldConfig(
+          mappedField,
+          this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
+          this.currentOperatorId,
+          mappedField.wrappers?.includes("preset-wrapper")
+        );
+      }
+
       return mappedField;
     };
 
