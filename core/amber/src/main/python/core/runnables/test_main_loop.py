@@ -4,7 +4,6 @@ import pandas
 import pyarrow
 import pytest
 from loguru import logger
-from option import Some
 
 from core.models import (
     ControlElement,
