@@ -106,7 +106,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ]);
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
-  public averageProcessingTimeDivider: number = 5;
+  public averageProcessingTimeDivider: number = 10;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -623,24 +623,5 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       eIdToNumber++;
     });
     return processTimeData;
-  }
-
-  switchColumnNumber(columnNumber: number) {
-    this.averageProcessingTimeDivider = columnNumber;
-    // generate an average processing time bar chart
-    const processTimeData: Array<[string, ...c3.PrimitiveArray]> = [["processing time"]];
-    const processTimeCategory: string[] = [];
-    Object.entries(this.getBarChartProcessTimeData(this.allExecutionEntries)).forEach(([eId, processTime]) => {
-      processTimeData[0].push(processTime);
-      processTimeCategory.push(eId);
-    });
-    this.generateBarChart(
-      processTimeData,
-      processTimeCategory,
-      "Execution Numbers",
-      "Average Processing Time (m)",
-      "Execution performance",
-      NgbdModalWorkflowExecutionsComponent.PROCESS_TIME_BAR_CHART
-    );
   }
 }

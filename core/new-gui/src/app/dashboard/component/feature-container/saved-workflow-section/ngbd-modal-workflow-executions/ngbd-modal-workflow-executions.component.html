@@ -192,21 +192,6 @@
         <div nz-row nzJustify="center">
           <div nz-col>
             <div id="execution-average-process-time-bar-chart"></div>
-            <div>
-              Select the number of Columns to show:
-              <button nz-button nz-dropdown [nzDropdownMenu]="averageProcessTimeDropDownMenu">
-                {{averageProcessingTimeDivider}}
-                <span nz-icon nzType="down"></span>
-              </button>
-              <nz-dropdown-menu #averageProcessTimeDropDownMenu="nzDropdownMenu">
-                <ul nz-menu>
-                  <li nz-menu-item (click)="switchColumnNumber(5)">Show 5 Columns</li>
-                  <li nz-menu-item (click)="switchColumnNumber(10)">Show 10 Columns</li>
-                  <li nz-menu-item (click)="switchColumnNumber(20)">Show 20 Columns</li>
-                  <li nz-menu-item (click)="switchColumnNumber(40)">Show 40 Columns</li>
-                </ul>
-              </nz-dropdown-menu>
-            </div>
           </div>
         </div>
       </nz-tab>
