@@ -355,8 +355,11 @@ export class OperatorMenuService {
         positions.push(newCommentBoxPosition);
         const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
         const newCommentBoxComment = commentBoxCopy.comments;
-        const newCommentBox: CommentBox = {commentBoxID: newCommentBoxID, comments: newCommentBoxComment, commentBoxPosition: newCommentBoxPosition};
+        const newCommentBox: CommentBox = {commentBoxID: newCommentBoxID, comments: [], commentBoxPosition: newCommentBoxPosition};
         this.workflowActionService.addCommentBox(newCommentBox);
+        for (const comment of newCommentBoxComment) {
+          this.workflowActionService.addComment(comment, newCommentBoxID);
+        }
       });
     });
   }
