@@ -247,7 +247,7 @@ describe("SchemaPropagationService", () => {
 
     // change operator property to trigger invoking schema propagation API
     workflowActionService.setOperatorProperty(mockOperator.operatorID, {
-      testAttr: "test",
+      testAttr: "test2",
     });
 
     tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);

@@ -114,6 +114,8 @@ import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delet
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { NzImageModule } from "ng-zorro-antd/image";
 import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
+import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
+import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 
 registerLocaleData(en);
 
@@ -175,6 +177,8 @@ registerLocaleData(en);
     DeletePromptComponent,
     ContextMenuComponent,
     CoeditorUserIconComponent,
+    InputAutoCompleteComponent,
+    CollabWrapperComponent,
   ],
   imports: [
     BrowserModule,

@@ -1,6 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -15,6 +19,15 @@ import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
 class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
+
+  @JsonProperty()
+  @JsonSchemaTitle("Keywords to Search")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
+  @JsonPropertyDescription(
+    "E.g. 'sore & throat' for AND; 'sore', 'throat' for OR. See official postgres documents for details."
+  )
+  override def getKeywords: Option[String] = super.getKeywords
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     new SQLSourceOpExecConfig(
