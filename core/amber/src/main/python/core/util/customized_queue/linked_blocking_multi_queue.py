@@ -135,10 +135,11 @@ class SubQueue(Generic[T]):
 
 
 class PriorityGroup(Generic[T]):
-    def __init__(self, priority=0):
-        self.priority = priority
+    def __init__(self, priority: int = 0):
+        # non-negative number, the smaller number means higher priority.
+        self.priority: int = priority
         self.queues: List[SubQueue[T]] = list()
-        self.next_idx = 0
+        self.next_idx: int = 0
 
     def add_queue(self, sub_queue: SubQueue[T]) -> None:
         self.queues.append(sub_queue)
@@ -400,7 +401,7 @@ class LinkedBlockingMultiQueue(IQueue):
 
 
 if __name__ == "__main__":
-    lbmq = LinkedBlockingMultiQueue({str: ("control", 0), (float,int): ("data", 2)})
+    lbmq = LinkedBlockingMultiQueue({str: ("control", 0), (float, int): ("data", 2)})
     print(lbmq.size())
     assert lbmq.is_empty()
     control = lbmq._get_sub_queue("control")

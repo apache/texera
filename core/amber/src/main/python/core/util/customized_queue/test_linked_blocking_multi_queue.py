@@ -16,8 +16,10 @@ class TestLinkedBlockingMultiQueue:
 
     @pytest.fixture
     def multi_type_queue(self):
-        return LinkedBlockingMultiQueue({str: ("control", 0), (int, float): ("data",
-                                                                             9)})
+        return LinkedBlockingMultiQueue(
+            {str: ("control", 0), (int, float): ("data", 9)}
+        )
+
     def test_sub_can_emit(self, queue):
         assert queue.is_empty()
         queue.put(1)
@@ -181,7 +183,6 @@ class TestLinkedBlockingMultiQueue:
         multi_type_queue.disable("data")
         assert multi_type_queue.get() == "s"
         assert multi_type_queue.is_empty()
-
 
     @pytest.mark.timeout(2)
     def test_common_single_producer_single_consumer(self, queue, reraise):
