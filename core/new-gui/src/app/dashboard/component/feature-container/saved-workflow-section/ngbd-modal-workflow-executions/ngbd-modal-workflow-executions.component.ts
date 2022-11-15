@@ -42,7 +42,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
     "",
-    "",
     "Username",
     "Name",
     "Starting Time",
