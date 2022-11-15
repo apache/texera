@@ -32,7 +32,6 @@ import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dro
 import MouseMoveEvent = JQuery.MouseMoveEvent;
 import MouseLeaveEvent = JQuery.MouseLeaveEvent;
 import MouseEnterEvent = JQuery.MouseEnterEvent;
-import { until } from "protractor";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
