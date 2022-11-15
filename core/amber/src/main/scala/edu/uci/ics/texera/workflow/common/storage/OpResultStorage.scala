@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MemoryStorage,
-  MongoDBStorage,
+  MongoDBSinkStorage,
   SinkStorageReader
 }
 
@@ -33,7 +33,7 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
         new MemoryStorage(schema)
       } else {
         try {
-          new MongoDBStorage(key, schema)
+          new MongoDBSinkStorage(key, schema)
         } catch {
           case t: Throwable =>
             t.printStackTrace()

@@ -52,7 +52,7 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
     )
   }
 
-  def getAll: FindIterable[Document] = {
+  def accessDocuments: FindIterable[Document] = {
     collection.find()
   }
 }

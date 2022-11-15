@@ -12,7 +12,7 @@ import org.bson.Document
 import scala.collection.mutable
 import collection.JavaConverters._
 
-class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
+class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
 
   val commitBatchSize: Int = AmberUtils.amberConfig.getInt("storage.mongodb.commit-batch-size")
   MongoDatabaseManager.dropCollection(id)
@@ -60,7 +60,7 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
   }
 
   override def getAll: Iterable[Tuple] = {
-    val cursor = collectionMgr.getAll.sort(Sorts.ascending("_id")).cursor()
+    val cursor = collectionMgr.accessDocuments.sort(Sorts.ascending("_id")).cursor()
     mkTupleIterable(cursor)
   }
 
@@ -73,7 +73,7 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
 
   override def getRange(from: Int, to: Int): Iterable[Tuple] = {
     val cursor =
-      collectionMgr.getAll.sort(Sorts.ascending("_id")).limit(to - from).skip(from).cursor()
+      collectionMgr.accessDocuments.sort(Sorts.ascending("_id")).limit(to - from).skip(from).cursor()
     mkTupleIterable(cursor)
   }
 
@@ -82,7 +82,7 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
   }
 
   override def getAllAfter(offset: Int): Iterable[Tuple] = {
-    val cursor = collectionMgr.getAll.sort(Sorts.ascending("_id")).skip(offset).cursor()
+    val cursor = collectionMgr.accessDocuments.sort(Sorts.ascending("_id")).skip(offset).cursor()
     mkTupleIterable(cursor)
   }
 
