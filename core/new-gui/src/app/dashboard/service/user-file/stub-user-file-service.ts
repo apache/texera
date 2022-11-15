@@ -94,7 +94,15 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
     return of();
   }
 
+  public getAutoCompleteUserFileAccessList(): Observable<ReadonlyArray<string>> {
+    return of();
+  }
+
   public updateFileName(fid: number, name: string): Observable<void> {
+    return of();
+  }
+
+  public updateFileDescription(fid: number, description: string): Observable<void> {
     return of();
   }
 }

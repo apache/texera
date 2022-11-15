@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerInfo
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -68,18 +68,19 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
     workflow
       .getOperator(headerlessCsvOpDesc.operatorID)
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Scan worker $i")) = l
           ActorVirtualIdentity(s"Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Scan worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -88,12 +89,13 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Keyword worker $i")) = l
           ActorVirtualIdentity(s"Keyword worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Keyword worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -102,12 +104,13 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Sink worker $i")) = l
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -122,10 +125,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           })
         })
     })
-    scheduler.runningRegions.add(scheduler.getNextRegionToConstructAndPrepare())
-    val isRegionCompleted = scheduler.recordWorkerCompletion(ActorVirtualIdentity("Scan worker 0"))
-    assert(isRegionCompleted == true)
-    assert(scheduler.getNextRegionToConstructAndPrepare() == null)
+    scheduler.schedulingPolicy.addToRunningRegions(scheduler.schedulingPolicy.startWorkflow())
+    val nextRegions =
+      scheduler.schedulingPolicy.onWorkerCompletion(ActorVirtualIdentity("Scan worker 0"))
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 1)
   }
 
   "Scheduler" should "correctly schedule regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
@@ -169,19 +173,20 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       LoggerFactory.getLogger(s"WorkflowSchedulerTest")
     )
     val scheduler =
-      new WorkflowScheduler(Array(), null, null, null, logger, workflow)
+      new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
 
     workflow
       .getOperator(buildCsv.operatorID)
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Build Scan worker $i")) = l
           ActorVirtualIdentity(s"Build Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Build Scan worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -190,12 +195,13 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Probe Scan worker $i")) = l
           ActorVirtualIdentity(s"Probe Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Probe Scan worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -204,12 +210,13 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"HashJoin1 worker $i")) = l
           ActorVirtualIdentity(s"HashJoin1 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin1 worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -218,12 +225,13 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"HashJoin2 worker $i")) = l
           ActorVirtualIdentity(s"HashJoin2 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin2 worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
@@ -232,17 +240,18 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       .topology
       .layers
       .foreach(l => {
-        l.workers = ListMap((0 until l.numWorkers).map { i =>
+        l.workers = ListMap((0 until 1).map { i =>
           workflow.workerToLayer(ActorVirtualIdentity(s"Sink worker $i")) = l
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
             UNINITIALIZED,
-            WorkerStatistics(UNINITIALIZED, 0, 0)
+            WorkerStatistics(UNINITIALIZED, 0, 0),
+            null
           )
         }: _*)
       })
 
-    scheduler.runningRegions.add(scheduler.getNextRegionToConstructAndPrepare())
+    scheduler.schedulingPolicy.addToRunningRegions(scheduler.schedulingPolicy.startWorkflow())
     Set(buildCsv.operatorID).foreach(opID => {
       workflow
         .getOperator(opID)
@@ -254,25 +263,27 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           })
         })
     })
-    var isRegionCompleted =
-      scheduler.recordWorkerCompletion(ActorVirtualIdentity("Build Scan worker 0"))
 
-    assert(isRegionCompleted == false)
-    isRegionCompleted = scheduler.recordLinkCompletion(
+    var nextRegions =
+      scheduler.schedulingPolicy.onWorkerCompletion(ActorVirtualIdentity("Build Scan worker 0"))
+    assert(nextRegions.isEmpty)
+
+    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
         workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
         workflow.getOperator(hashJoin1.operatorID).topology.layers.head.id
       )
     )
-    assert(isRegionCompleted == false)
-    isRegionCompleted = scheduler.recordLinkCompletion(
+    assert(nextRegions.isEmpty)
+    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
         workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
         workflow.getOperator(hashJoin2.operatorID).topology.layers.head.id
       )
     )
-    assert(isRegionCompleted == true)
-    scheduler.runningRegions.add(scheduler.getNextRegionToConstructAndPrepare())
+    assert(nextRegions.nonEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 1)
+    scheduler.schedulingPolicy.addToRunningRegions(nextRegions)
     Set(probeCsv.operatorID, hashJoin1.operatorID, hashJoin2.operatorID, sink.operatorID).foreach(
       opID => {
         workflow
@@ -286,10 +297,10 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           })
       }
     )
-    isRegionCompleted =
-      scheduler.recordWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
-    assert(isRegionCompleted == true)
-    assert(scheduler.getNextRegionToConstructAndPrepare() == null)
+    nextRegions =
+      scheduler.schedulingPolicy.onWorkerCompletion(ActorVirtualIdentity("Probe Scan worker 0"))
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 2)
   }
 
 }

@@ -26,6 +26,11 @@
                 "glob": "**/*",
                 "input": "node_modules/ngx-monaco-editor/assets/monaco",
                 "output": "./assets/monaco/"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/monaco-editor",
+                "output": "assets/monaco-editor"
               }
             ],
             "styles": [
@@ -34,7 +39,8 @@
               "node_modules/jointjs/css/themes/material.css",
               "node_modules/jointjs/css/themes/default.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
-              "src/styles.scss"
+              "src/styles.scss",
+              "node_modules/monaco-editor/min/vs/editor/editor.main.css"
             ],
             "scripts": [
               "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"

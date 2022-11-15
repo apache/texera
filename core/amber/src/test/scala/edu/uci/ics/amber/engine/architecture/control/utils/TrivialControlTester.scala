@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 import akka.actor.ActorRef
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkMessage,
+  NetworkSenderActorRef
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
@@ -12,8 +15,10 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.ErrorUtils.safely
 
-class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationActorRef: ActorRef)
-    extends WorkflowActor(id, parentNetworkCommunicationActorRef) {
+class TrivialControlTester(
+    id: ActorVirtualIdentity,
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef
+) extends WorkflowActor(id, parentNetworkCommunicationActorRef, false) {
 
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](id, this.handleControlPayloadWithTryCatch)
@@ -38,6 +43,11 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
       case other =>
         logger.info(s"unhandled message: $other")
     }
+  }
+
+  override def postStop(): Unit = {
+    logManager.terminate()
+    logStorage.deleteLog()
   }
 
   def handleControlPayloadWithTryCatch(

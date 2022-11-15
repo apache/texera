@@ -1,8 +1,6 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
-import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
-import { assertType } from "../../../../common/util/assert";
 import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
@@ -12,6 +10,9 @@ import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+
+export const TABLE_COLUMN_TEXT_LIMIT = 100;
+export const PRETTY_JSON_TEXT_LIMIT = 50000;
 
 /**
  * The Component will display the result in an excel table format,
@@ -47,9 +48,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = DEFAULT_PAGE_SIZE;
-
-  private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
-  private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -123,25 +121,21 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    *  pretty json format when clicked. User can view the details
    *  in a larger, expanded format.
    *
-   * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
-  open(rowData: Record<string, unknown>): void {
-    let selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
-
-    // generate a new row data that shortens the column text to limit rendering time for pretty json
-    const rowDataCopy = trimDisplayJsonData(rowData as IndexableObject, this.PRETTY_JSON_TEXT_LIMIT);
+  open(indexInPage: number, rowData: IndexableObject): void {
+    const currentRowIndex = indexInPage + (this.currentPageIndex - 1) * this.pageSize;
 
     // open the modal component
-    const modalRef: NzModalRef = this.modalService.create({
+    const modalRef: NzModalRef<RowModalComponent> = this.modalService.create({
       // modal title
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
       // set component @Input attributes
       nzComponentParams: {
-        // set the currentDisplayRowData of the modal to be the data of clicked row
-        currentDisplayRowData: rowDataCopy,
         // set the index value and page size to the modal for navigation
-        currentDisplayRowIndex: selectedRowIndex,
+        operatorId: this.operatorId,
+        rowIndex: currentRowIndex,
+        currentDisplayRowData: trimDisplayJsonData(rowData, PRETTY_JSON_TEXT_LIMIT),
       },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
@@ -150,20 +144,26 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         {
           label: "<",
           onClick: () => {
-            selectedRowIndex -= 1;
-            assertType<RowModalComponent>(modalRef.componentInstance);
-            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
+            const component = modalRef.componentInstance;
+            if (component) {
+              component.rowIndex -= 1;
+              this.currentPageIndex = Math.floor(component.rowIndex / this.pageSize) + 1;
+              component.ngOnChanges();
+            }
           },
-          disabled: () => selectedRowIndex === 0,
+          disabled: () => modalRef.componentInstance?.rowIndex === 0,
         },
         {
           label: ">",
           onClick: () => {
-            selectedRowIndex += 1;
-            assertType<RowModalComponent>(modalRef.componentInstance);
-            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
+            const component = modalRef.componentInstance;
+            if (component) {
+              component.rowIndex += 1;
+              this.currentPageIndex = Math.floor(component.rowIndex / this.pageSize) + 1;
+              component.ngOnChanges();
+            }
           },
-          disabled: () => selectedRowIndex === this.currentResult.length - 1,
+          disabled: () => modalRef.componentInstance?.rowIndex === this.totalNumTuples - 1,
         },
         {
           label: "OK",
@@ -255,8 +255,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   trimTableCell(cellContent: string): string {
-    if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
-      return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
+    if (cellContent.length > TABLE_COLUMN_TEXT_LIMIT) {
+      return cellContent.substring(0, TABLE_COLUMN_TEXT_LIMIT) + "...";
     }
     return cellContent;
   }

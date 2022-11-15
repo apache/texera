@@ -10,6 +10,7 @@ import {
   WorkflowVersionService,
 } from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
+import { filter } from "rxjs/operators";
 
 export type PropertyEditFrameComponent =
   | OperatorPropertyEditFrameComponent
@@ -73,7 +74,10 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
       this.workflowVersionService.workflowVersionsDisplayObservable()
     )
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(() => this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()),
+        untilDestroyed(this)
+      )
       .subscribe(event => {
         const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERIONS_EVENT;
 
@@ -102,6 +106,7 @@ export class PropertyEditorComponent implements OnInit {
           });
         } else {
           this.switchFrameComponent(undefined);
+          this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
         this.changeDetectorRef.detectChanges();
       });

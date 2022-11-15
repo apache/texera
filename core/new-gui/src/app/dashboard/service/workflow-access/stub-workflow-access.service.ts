@@ -9,6 +9,7 @@ import { AccessEntry } from "../../type/access.interface";
 export const MOCK_WORKFLOW: Workflow = {
   wid: 1,
   name: "project 1",
+  description: "dummy description",
   content: jsonCast<WorkflowContent>(
     " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
   ),

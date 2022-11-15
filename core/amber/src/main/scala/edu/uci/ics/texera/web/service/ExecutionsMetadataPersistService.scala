@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource._
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jooq.types.UInteger
 
@@ -35,7 +35,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       case WorkflowAggregatedState.PAUSING                         => ???
       case WorkflowAggregatedState.PAUSED                          => 2
       case WorkflowAggregatedState.RESUMING                        => ???
-      case WorkflowAggregatedState.RECOVERING                      => ???
       case WorkflowAggregatedState.COMPLETED                       => 3
       case WorkflowAggregatedState.ABORTED                         => 4
       case WorkflowAggregatedState.UNKNOWN                         => ???
@@ -53,16 +52,21 @@ object ExecutionsMetadataPersistService extends LazyLogging {
 
   def insertNewExecution(
       wid: Long,
-      uid: Option[UInteger]
+      uid: Option[UInteger],
+      executionName: String,
+      environmentVersion: String
   ): Long = {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
-    val vid = WorkflowVersionResource.getLatestVersion(uint)
+    val vid = getLatestVersion(uint)
     val newExecution = new WorkflowExecutions()
-    newExecution.setWid(uint)
+    if (executionName != "") {
+      newExecution.setName(executionName)
+    }
     newExecution.setVid(vid)
     newExecution.setUid(uid.getOrElse(null))
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    newExecution.setEnvironmentVersion(environmentVersion)
     workflowExecutionsDao.insert(newExecution)
     newExecution.getEid.longValue()
   }
@@ -72,7 +76,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       val code = maptoStatusCode(state)
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
       execution.setStatus(code)
-      execution.setCompletionTime(new Timestamp(System.currentTimeMillis()))
+      execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
       workflowExecutionsDao.update(execution)
     } catch {
       case t: Throwable =>
