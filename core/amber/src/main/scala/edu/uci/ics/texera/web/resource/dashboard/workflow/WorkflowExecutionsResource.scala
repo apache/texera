@@ -11,8 +11,9 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecution
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL.field
+import org.jooq.impl.DSL._
 import org.jooq.types.UInteger
+import org.jooq._
 
 import java.sql.Timestamp
 import javax.annotation.security.PermitAll
@@ -60,8 +61,12 @@ object WorkflowExecutionsResource {
 
 }
 
-case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: Boolean)
-case class ExecutionDeleteRequest(wid: UInteger, eId: UInteger)
+case class ExecutionGroupBookmarkRequest(
+    wid: UInteger,
+    eIds: Array[UInteger],
+    isBookmarked: Boolean
+)
+case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @PermitAll
@@ -115,18 +120,32 @@ class WorkflowExecutionsResource {
     }
   }
 
-  /** Sets a single execution's bookmark to the payload passed in the body. */
+  /** Sets a group of executions' bookmarks to the payload passed in the body. */
   @PUT
-  @Path("/set_execution_bookmark")
+  @Path("/set_execution_bookmarks")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def setExecutionIsBookmarked(
-      request: ExecutionBookmarkRequest,
+  def setExecutionAreBookmarked(
+      request: ExecutionGroupBookmarkRequest,
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    val execution: WorkflowExecutions = getExecutionById(request.eId)
-    execution.setBookmarked((if (request.isBookmarked) 1 else 0).toByte)
-    executionsDao.update(execution)
+    if (request.isBookmarked) {
+      val eIdArray = request.eIds.mkString("(", ",", ")")
+      val sqlString = "update texera_db.workflow_executions " +
+        "set texera_db.workflow_executions.bookmarked = 0 " +
+        s"where texera_db.workflow_executions.eid in ${eIdArray}"
+      context
+        .query(sqlString)
+        .execute();
+    } else {
+      val eIdArray = request.eIds.mkString("(", ",", ")")
+      val sqlString = "UPDATE texera_db.workflow_executions " +
+        "SET texera_db.workflow_executions.bookmarked = 1 " +
+        s"WHERE texera_db.workflow_executions.eid IN ${eIdArray}"
+      context
+        .query(sqlString)
+        .execute();
+    }
   }
 
   /** Determine if user is authorized to access the workflow, if not raise 401 */
@@ -138,19 +157,21 @@ class WorkflowExecutionsResource {
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
   }
 
-  /** Delete a single execution */
+  /** Delete a group of executions */
   @PUT
-  @Path("/delete_execution")
+  @Path("/delete_executions")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def deleteExecutionsOfWorkflow(
-      request: ExecutionDeleteRequest,
+  def groupDeleteExecutionsOfWorkflow(
+      request: ExecutionGroupDeleteRequest,
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     /* delete the execution in sql */
+    val eIdArray = request.eIds.mkString("(", ",", ")")
+    val sqlString: String = "DELETE FROM texera_db.workflow_executions " +
+      s"WHERE texera_db.workflow_executions.eid IN ${eIdArray}"
     context
-      .delete(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.EID.eq(request.eId))
+      .query(sqlString)
       .execute();
   }
 

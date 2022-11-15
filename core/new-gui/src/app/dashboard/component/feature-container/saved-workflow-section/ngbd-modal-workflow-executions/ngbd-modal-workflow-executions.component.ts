@@ -42,7 +42,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
     "",
-    "",
     "Username",
     "Name",
     "Starting Time",
@@ -57,6 +56,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
+    "Group Bookmarking": "Mark or Unmark the Selected Entries",
+    "Group Deletion": "Delete the Selected Entries",
   };
 
   /*custom column width*/
@@ -106,6 +107,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ]);
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
+  public checked: boolean = false;
+  public setOfEid = new Set<number>();
+  public setOfExecution = new Set<WorkflowExecutionsEntry>();
   public averageProcessingTimeDivider: number = 10;
 
   constructor(
@@ -299,11 +303,29 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
 
     // Update on the server.
     this.workflowExecutionsService
-      .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
+      .groupSetIsBookmarked(this.workflow.wid, [row.eId], wasPreviouslyBookmarked)
       .pipe(untilDestroyed(this))
       .subscribe({
         error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
       });
+  }
+
+  setBookmarked(): void {
+    if (this.workflow.wid === undefined) return;
+    if (this.setOfExecution !== undefined) {
+      // isBookmarked: true if all the execution are bookmarked, false if there is one that is unbookmarked
+      const isBookmarked = !Array.from(this.setOfExecution).some(execution => {
+        return execution.bookmarked === null || execution.bookmarked === false;
+      });
+      // update the bookmark locally
+      this.setOfExecution.forEach(execution => {
+        execution.bookmarked = isBookmarked ? false : true;
+      });
+      this.workflowExecutionsService
+        .groupSetIsBookmarked(this.workflow.wid, Array.from(this.setOfEid), isBookmarked)
+        .pipe(untilDestroyed(this))
+        .subscribe({});
+    }
   }
 
   /* delete a single execution */
@@ -318,13 +340,42 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && this.workflow.wid !== undefined) {
           this.workflowExecutionsService
-            .deleteWorkflowExecutions(this.workflow.wid, row.eId)
+            .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
             .pipe(untilDestroyed(this))
             .subscribe({
               complete: () => {
                 this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
                 this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
                 this.fuse.setCollection(this.paginatedExecutionEntries);
+              },
+            });
+        }
+      });
+  }
+
+  onGroupDelete() {
+    const modalRef = this.modalService.open(DeletePromptComponent);
+    let deletionName = `the ${this.setOfEid.size} executions`;
+    modalRef.componentInstance.deletionName = deletionName;
+    from(modalRef.result)
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmToDelete: boolean) => {
+        if (confirmToDelete && this.workflow.wid !== undefined) {
+          this.workflowExecutionsService
+            .groupDeleteWorkflowExecutions(this.workflow.wid, Array.from(this.setOfEid))
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              complete: () => {
+                this.allExecutionEntries = this.allExecutionEntries?.filter(
+                  execution => !Array.from(this.setOfExecution).includes(execution)
+                );
+                this.paginatedExecutionEntries = this.paginatedExecutionEntries?.filter(
+                  execution => !Array.from(this.setOfExecution).includes(execution)
+                );
+                this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+                this.fuse.setCollection(this.paginatedExecutionEntries);
+                this.setOfEid.clear();
+                this.setOfExecution.clear();
               },
             });
         }
@@ -459,6 +510,66 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     const g = Math.floor(Math.random() * MAX_RGB);
     const b = Math.floor(Math.random() * MAX_RGB);
     return "rgba(" + r + "," + g + "," + b + ",0.8)";
+  }
+
+  /**
+   * Update the eId set to keep track of the status of the checkbox
+   * @param eId
+   * @param checked true if checked false if unchecked
+   */
+  updateEidSet(eId: number, checked: boolean): void {
+    if (checked) {
+      this.setOfEid.add(eId);
+    } else {
+      this.setOfEid.delete(eId);
+    }
+  }
+
+  /**
+   * Update the row set to keep track of the status of the checkbox
+   * @param row
+   * @param checked true if checked false if unchecked
+   */
+  updateRowSet(row: WorkflowExecutionsEntry, checked: boolean): void {
+    if (checked) {
+      this.setOfExecution.add(row);
+    } else {
+      this.setOfExecution.delete(row);
+    }
+  }
+
+  /**
+   * Mark all the checkboxes checked and check the status of the all check
+   * @param value true if we need to check all false if we need to uncheck all
+   */
+  onAllChecked(value: boolean): void {
+    if (this.paginatedExecutionEntries !== undefined) {
+      for (let execution of this.paginatedExecutionEntries) {
+        this.updateEidSet(execution.eId, value);
+        this.updateRowSet(execution, value);
+      }
+    }
+    this.refreshCheckedStatus();
+  }
+
+  /**
+   * Update the eId and row set, and check the status of the all check
+   * @param eId
+   * @param checked true if checked false if unchecked
+   */
+  onItemChecked(row: WorkflowExecutionsEntry, checked: boolean) {
+    this.updateEidSet(row.eId, checked);
+    this.updateRowSet(row, checked);
+    this.refreshCheckedStatus();
+  }
+
+  /**
+   * Check the status of the all check
+   */
+  refreshCheckedStatus(): void {
+    if (this.paginatedExecutionEntries !== undefined) {
+      this.checked = this.paginatedExecutionEntries.length === this.setOfEid.size;
+    }
   }
 
   public searchInputOnChange(value: string): void {

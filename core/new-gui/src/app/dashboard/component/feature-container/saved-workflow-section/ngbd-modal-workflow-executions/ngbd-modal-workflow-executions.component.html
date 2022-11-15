@@ -1,5 +1,5 @@
 <div class="saved-execution-container subsection-grid-container">
-  <nz-card class="workflow-section-title subsection-grid-container">
+  <nz-card class="workflow-section-title subsection-grid-container" [nzActions]="[actionstar, actionDelete]">
     <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
       <span aria-hidden="true"> × </span>
     </button>
@@ -57,6 +57,27 @@
       ></nz-autocomplete>
     </nz-input-group>
   </nz-card>
+  <ng-template #actionstar>
+    <i
+      nz-tooltip
+      [nzTooltipTitle]="executionTooltip['Group Bookmarking']"
+      *ngIf="setOfEid.size !== 0"
+      nz-icon
+      nzType="star"
+      (click)="setBookmarked()"
+    ></i>
+  </ng-template>
+  <ng-template #actionDelete>
+    <i
+      nz-tooltip
+      [nzTooltipTitle]="executionTooltip['Group Deletion']"
+      *ngIf="setOfEid.size !== 0"
+      nz-icon
+      nzType="delete"
+      (click)="onGroupDelete()"
+    ></i>
+  </ng-template>
+
   <div class="modal-body table-responsive">
     <nz-tabset nzCentered>
       <nz-tab nzTitle="Executions Details">
@@ -76,6 +97,11 @@
         >
           <thead>
             <tr>
+              <th
+                [ngStyle]="{'width': customColumnWidth['']}"
+                [(nzChecked)]="checked"
+                (nzCheckedChange)="onAllChecked($event)"
+              ></th>
               <th
                 [ngStyle]="{'width': customColumnWidth[column]}"
                 *ngFor="let column of executionsTableHeaders; let i=index"
@@ -98,9 +124,7 @@
 
           <tbody>
             <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
-              <td nzEllipsis>
-                <input type="checkbox" />
-              </td>
+              <td nzEllipsis [nzChecked]="setOfEid.has(row.eId)" (nzCheckedChange)="onItemChecked(row, $event)"></td>
               <td nzEllipsis>
                 <i
                   nz-icon
