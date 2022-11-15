@@ -13,7 +13,7 @@
     "lint": "ng lint",
     "eslint:fix": "yarn eslint --fix ./src",
     "format:fix": "yarn prettier-eslint --write \"src/**/*.{ts,js,html,scss,less,json}\"",
-    "format:ci": "yarn prettier-eslint --list-different \"src/**/*.{ts,js,html,scss,less,json}\"",
+    "format:ci": "yarn prettier-eslint --list-different \"src/**/*.{ts,js,html,scss,less,json}\" && yarn eslint ./src",
     "e2e": "ng e2e",
     "preinstall": "cd multi-target && yarn install && yarn run build",
     "multi-target-updater": "cd multi-target && yarn run build && cd .. && yarn install ./multi-target -D",
