@@ -1,0 +1,17 @@
+:host ::ng-deep .ant-table-pagination.ant-pagination {
+  margin: 10px;
+}
+
+// make the pagination button to the left
+:host ::ng-deep .ant-table-pagination-right {
+  justify-content: left;
+}
+
+td.data-size {
+  font-size: 12px;
+}
+
+th.header-size {
+  font-size: 14px;
+  padding: 2px;
+}

@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.service
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.Utils.objectMapper
+import scala.collection.JavaConverters._
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
@@ -26,16 +26,18 @@ import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.{BehaviorSubject, Subject}
 import org.jooq.types.UInteger
+import play.api.libs.json.Json
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
   final val userSystemEnabled: Boolean = AmberUtils.amberConfig.getBoolean("user-sys.enabled")
   val cleanUpDeadlineInSeconds: Int =
     AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
+
+  def getAllWorkflowService: Iterable[WorkflowService] = wIdToWorkflowState.values().asScala
 
   def mkWorkflowStateId(wId: Int): String = {
     wId.toString
@@ -141,10 +143,10 @@ class WorkflowService(
     if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
         CacheStatusUpdateRequest(
-          request.operators,
-          request.links,
-          request.breakpoints,
-          request.cachedOperatorIds
+          request.logicalPlan.operators,
+          request.logicalPlan.links,
+          request.logicalPlan.breakpoints,
+          request.logicalPlan.cachedOperatorIds
         )
       )
     }
@@ -156,17 +158,26 @@ class WorkflowService(
       //unsubscribe all
       jobService.getValue.unsubscribeAll()
     }
+
     val job = new WorkflowJobService(
       createWorkflowContext(req, uidOpt),
       wsInput,
       operatorCache,
       resultService,
       req,
-      errorHandler
+      errorHandler,
+      convertToJson(req.engineVersion)
     )
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
     jobService.onNext(job)
     job.startWorkflow()
+  }
+
+  def convertToJson(frontendVersion: String): String = {
+    val environmentVersionMap = Map(
+      "engine_version" -> Json.toJson(frontendVersion)
+    )
+    Json.stringify(Json.toJson(environmentVersionMap))
   }
 
   override def unsubscribeAll(): Unit = {

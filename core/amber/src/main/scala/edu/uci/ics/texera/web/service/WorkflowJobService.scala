@@ -19,6 +19,12 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowInfo,
   WorkflowRewriter
 }
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonUDFOpDescV2,
+  PythonUDFOpExecV2
+}
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
@@ -26,7 +32,8 @@ class WorkflowJobService(
     operatorCache: WorkflowCacheService,
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
-    errorHandler: Throwable => Unit
+    errorHandler: Throwable => Unit,
+    engineVersion: String
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -37,12 +44,26 @@ class WorkflowJobService(
     WorkflowIdentity(workflowContext.jobId),
     resultService.opResultStorage
   )
+  private val controllerConfig = {
+    val conf = ControllerConfig.default
+    if (
+      workflowInfo.operators.exists {
+        case x: DualInputPortsPythonUDFOpDescV2 => true
+        case x: PythonUDFOpDescV2               => true
+        case x: PythonUDFSourceOpDescV2         => true
+        case other                              => false
+      }
+    ) {
+      conf.supportFaultTolerance = false
+    }
+    conf
+  }
 
   // Runtime starts from here:
   var client: AmberClient =
     TexeraWebApplication.createAmberRuntime(
       workflow,
-      ControllerConfig.default,
+      controllerConfig,
       errorHandler
     )
   val jobBreakpointService = new JobBreakpointService(client, stateStore)
@@ -70,7 +91,9 @@ class WorkflowJobService(
     if (WorkflowService.userSystemEnabled) {
       workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
         workflowContext.wId,
-        workflowContext.userId
+        workflowContext.userId,
+        request.executionName,
+        engineVersion
       )
     }
     stateStore.jobMetadataStore.updateState(jobInfo =>
@@ -83,11 +106,15 @@ class WorkflowJobService(
   }
 
   private[this] def createWorkflowInfo(): WorkflowInfo = {
-    var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
+    var workflowInfo = WorkflowInfo(
+      request.logicalPlan.operators,
+      request.logicalPlan.links,
+      request.logicalPlan.breakpoints
+    )
     if (WorkflowCacheService.isAvailable) {
-      workflowInfo.cachedOperatorIds = request.cachedOperatorIds
+      workflowInfo.cachedOperatorIds = request.logicalPlan.cachedOperatorIds
       logger.debug(
-        s"Cached operators: ${operatorCache.cachedOperators} with ${request.cachedOperatorIds}"
+        s"Cached operators: ${operatorCache.cachedOperators} with ${request.logicalPlan.cachedOperatorIds}"
       )
       val workflowRewriter = new WorkflowRewriter(
         workflowInfo,

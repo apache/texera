@@ -14,19 +14,19 @@ import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-grap
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { merge } from "rxjs";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime } from "rxjs/operators";
+import { debounceTime, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -58,6 +58,7 @@ export class NavigationComponent implements OnInit {
   @Input() private pid: number = 0;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
+  @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
 
@@ -68,22 +69,11 @@ export class NavigationComponent implements OnInit {
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
-  public workflowCollabEnabled: boolean = environment.workflowCollabEnabled;
-  public lockGranted: boolean = true;
-  public workflowReadonly: boolean = false;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
-  // whether the disable-operator-button should be enabled
-  public isDisableOperatorClickable: boolean = false;
-  public isDisableOperator: boolean = true;
-
-  public operatorCacheEnabled: boolean = environment.operatorCacheEnabled;
-  public isCacheOperatorClickable: boolean = false;
-  public isCacheOperator: boolean = true;
-
-  public static readonly COLLAB_RELOAD_WAIT_TIME = 500;
+  public workflowIdChanged = this.workflowActionService.workflowMetaDataChanged().pipe(map(metadata => metadata.wid));
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -97,11 +87,12 @@ export class NavigationComponent implements OnInit {
     public userService: UserService,
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
-    public workflowCollabService: WorkflowCollabService,
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
-    public changeDetectionRef: ChangeDetectorRef
+    public operatorMenu: OperatorMenuService,
+    public changeDetectionRef: ChangeDetectorRef,
+    public coeditorPresenceService: CoeditorPresenceService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -134,10 +125,6 @@ export class NavigationComponent implements OnInit {
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
-    this.handleDisableOperatorStatusChange();
-    this.handleCacheOperatorStatusChange();
-    this.handleLockChange();
-    this.handleWorkflowAccessChange();
   }
 
   // apply a behavior to the run button via bound variables
@@ -173,7 +160,7 @@ export class NavigationComponent implements OnInit {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => this.executeWorkflowService.executeWorkflow(),
+          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName),
         };
       case ExecutionState.Initializing:
         return {
@@ -359,21 +346,18 @@ export class NavigationComponent implements OnInit {
         const workflow: Workflow = {
           content: workflowContent,
           name: workflowName,
+          description: undefined,
           wid: undefined,
           creationTime: undefined,
           lastModifiedTime: undefined,
         };
 
-        // enable workspace for modification
-        this.workflowActionService.toggleLockListen(false);
         this.workflowActionService.enableWorkflowModification();
         // load the fetched workflow
         this.workflowActionService.reloadWorkflow(workflow, true);
         // clear stack
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
-        this.workflowActionService.toggleLockListen(true);
-        this.workflowActionService.syncLock();
       } catch (error) {
         this.notificationService.error(
           "An error occurred when importing the workflow. Please import a workflow json file."
@@ -398,114 +382,44 @@ export class NavigationComponent implements OnInit {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
 
-  /**
-   * Groups highlighted operators on the graph.
-   */
-  public onClickGroupOperators(): void {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (this.highlightedElementsGroupable()) {
-      const group = this.workflowActionService.getOperatorGroup().getNewGroup(highlightedOperators);
-      this.workflowActionService.addGroups(group);
-    }
-  }
-
-  /**
-   * Returns true if currently highlighted elements are all operators
-   * and if they are groupable.
-   */
-  public highlightedElementsGroupable(): boolean {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    return (
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length === 0 &&
-      this.workflowActionService.getOperatorGroup().operatorsGroupable(highlightedOperators)
-    );
-  }
-
-  /**
-   * Ungroups highlighted groups on the graph.
-   */
-  public onClickUngroupOperators(): void {
-    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-    if (this.highlightedElementsUngroupable()) {
-      this.workflowActionService.unGroupGroups(...highlightedGroups);
-    }
-  }
-
-  /**
-   * callback function when user clicks the "disable operator" icon:
-   * this.isDisableOperator indicates whether the operators should be disabled or enabled
-   */
-  public onClickDisableOperators(): void {
-    if (this.isDisableOperator) {
-      this.workflowActionService.disableOperators(this.effectivelyHighlightedOperators());
-    } else {
-      this.workflowActionService.enableOperators(this.effectivelyHighlightedOperators());
-    }
-  }
-
-  public onClickCacheOperators(): void {
-    const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-    const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
-      op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
-    );
-
-    if (this.isCacheOperator) {
-      this.workflowActionService.cacheOperators(effectiveHighlightedOperatorsExcludeSink);
-    } else {
-      this.workflowActionService.unCacheOperators(effectiveHighlightedOperatorsExcludeSink);
-    }
-  }
-
-  /**
-   * Returns true if currently highlighted elements are all groups.
-   */
-  public highlightedElementsUngroupable(): boolean {
-    return (
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length > 0 &&
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 0
-    );
-  }
-
   public persistWorkflow(): void {
-    if (this.workflowCollabService.isLockGranted()) {
-      this.isSaving = true;
-      if (this.pid === 0) {
-        this.workflowPersistService
-          .persistWorkflow(this.workflowActionService.getWorkflow())
-          .pipe(untilDestroyed(this))
-          .subscribe(
-            (updatedWorkflow: Workflow) => {
-              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-              this.isSaving = false;
-            },
-            (error: unknown) => {
-              alert(error);
-              this.isSaving = false;
-            }
-          );
-      } else {
-        // add workflow to project, backend will create new mapping if not already added
-        this.workflowPersistService
-          .persistWorkflow(this.workflowActionService.getWorkflow())
-          .pipe(
-            concatMap((updatedWorkflow: Workflow) => {
-              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-              this.isSaving = false;
-              return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
-            }),
-            catchError((err: unknown) => {
-              throw err;
-            }),
-            untilDestroyed(this)
-          )
-          .subscribe(
-            () => {},
-            (error: unknown) => {
-              alert(error);
-              this.isSaving = false;
-            }
-          );
-      }
+    this.isSaving = true;
+    if (this.pid === 0) {
+      this.workflowPersistService
+        .persistWorkflow(this.workflowActionService.getWorkflow())
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          (updatedWorkflow: Workflow) => {
+            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            this.isSaving = false;
+          },
+          (error: unknown) => {
+            alert(error);
+            this.isSaving = false;
+          }
+        );
+    } else {
+      // add workflow to project, backend will create new mapping if not already added
+      this.workflowPersistService
+        .persistWorkflow(this.workflowActionService.getWorkflow())
+        .pipe(
+          concatMap((updatedWorkflow: Workflow) => {
+            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            this.isSaving = false;
+            return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
+          }),
+          catchError((err: unknown) => {
+            throw err;
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(
+          () => {},
+          (error: unknown) => {
+            alert(error);
+            this.isSaving = false;
+          }
+        );
     }
   }
 
@@ -522,10 +436,6 @@ export class NavigationComponent implements OnInit {
   onClickCreateNewWorkflow() {
     this.workflowActionService.resetAsNewWorkflow();
     this.location.go("/");
-  }
-
-  onClickAcquireLock() {
-    this.workflowCollabService.acquireLock();
   }
 
   registerWorkflowMetadataDisplayRefresh() {
@@ -579,93 +489,5 @@ export class NavigationComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
-    setTimeout(() => {
-      this.workflowCollabService.requestOthersToReload();
-    }, NavigationComponent.COLLAB_RELOAD_WAIT_TIME);
-  }
-
-  /**
-   * Updates the status of the disable operator icon:
-   * If all selected operators are disabled, then click it will re-enable the operators
-   * If any of the selected operator is not disabled, then click will disable all selected operators
-   */
-  handleDisableOperatorStatusChange() {
-    merge(
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
-      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
-    )
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-        const allDisabled = this.effectivelyHighlightedOperators().every(op =>
-          this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
-        );
-
-        this.isDisableOperator = !allDisabled;
-        this.isDisableOperatorClickable = effectiveHighlightedOperators.length !== 0;
-      });
-  }
-
-  handleCacheOperatorStatusChange() {
-    merge(
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
-      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream()
-    )
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-        const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
-          op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
-        );
-
-        const allCached = effectiveHighlightedOperatorsExcludeSink.every(op =>
-          this.workflowActionService.getTexeraGraph().isOperatorCached(op)
-        );
-
-        this.isCacheOperator = !allCached;
-        this.isCacheOperatorClickable = effectiveHighlightedOperatorsExcludeSink.length !== 0;
-      });
-  }
-
-  private handleLockChange(): void {
-    this.workflowCollabService
-      .getLockStatusStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((lockGranted: boolean) => {
-        this.lockGranted = lockGranted;
-        this.changeDetectionRef.detectChanges();
-      });
-  }
-
-  private handleWorkflowAccessChange(): void {
-    this.workflowCollabService
-      .getWorkflowAccessStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((workflowReadonly: boolean) => {
-        this.workflowReadonly = workflowReadonly;
-      });
-  }
-
-  /**
-   * Gets all highlighted operators, and all operators in the highlighted groups
-   */
-  effectivelyHighlightedOperators(): readonly string[] {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
-    const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
-      Array.from(this.workflowActionService.getOperatorGroup().getGroup(g).operators.keys())
-    );
-
-    const effectiveHighlightedOperators = new Set<string>();
-    highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
-    operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
-    return Array.from(effectiveHighlightedOperators);
   }
 }

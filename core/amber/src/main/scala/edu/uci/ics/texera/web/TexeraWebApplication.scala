@@ -21,7 +21,8 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
   WorkflowResource,
-  WorkflowVersionResource
+  WorkflowVersionResource,
+  WorkflowSnapshotResource
 }
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource
 import edu.uci.ics.texera.web.resource._
@@ -37,9 +38,6 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.time.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
-import java.time.Duration
-
-import edu.uci.ics.amber.engine.common.client.AmberClient
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import scala.annotation.tailrec
@@ -100,6 +98,7 @@ object TexeraWebApplication {
         .resolve("web-config.yml")
         .toString
     )
+
   }
 }
 
@@ -180,6 +179,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])
+    environment.jersey.register(classOf[WorkflowSnapshotResource])
   }
 
 }

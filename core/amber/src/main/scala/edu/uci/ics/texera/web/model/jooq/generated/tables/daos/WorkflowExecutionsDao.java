@@ -62,20 +62,6 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfWid(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.WID, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>wid IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByWid(UInteger... values) {
-        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.WID, values);
-    }
-
-    /**
      * Fetch records that have <code>vid BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfVid(UInteger lowerInclusive, UInteger upperInclusive) {
@@ -146,17 +132,17 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>completion_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>last_update_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfCompletionTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
-        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.COMPLETION_TIME, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLastUpdateTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>completion_time IN (values)</code>
+     * Fetch records that have <code>last_update_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByCompletionTime(Timestamp... values) {
-        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.COMPLETION_TIME, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByLastUpdateTime(Timestamp... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME, values);
     }
 
     /**
@@ -185,5 +171,19 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByName(String... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.NAME, values);
+    }
+
+    /**
+     * Fetch records that have <code>environment_version BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfEnvironmentVersion(String lowerInclusive, String upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>environment_version IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByEnvironmentVersion(String... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION, values);
     }
 }

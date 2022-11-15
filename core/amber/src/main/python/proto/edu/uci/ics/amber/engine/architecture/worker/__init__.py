@@ -64,6 +64,11 @@ class ResumeWorkerV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class SchedulerTimeSlotEventV2(betterproto.Message):
+    time_slot_expired: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class OpenOperatorV2(betterproto.Message):
     pass
 
@@ -164,6 +169,9 @@ class ControlCommandV2(betterproto.Message):
     open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
     link_completed: "LinkCompletedV2" = betterproto.message_field(
         10, group="sealed_value"
+    )
+    scheduler_time_slot_event: "SchedulerTimeSlotEventV2" = betterproto.message_field(
+        11, group="sealed_value"
     )
     initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
         21, group="sealed_value"
