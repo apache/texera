@@ -80,7 +80,9 @@ export class OperatorMenuService {
    */
   public getEffectivelyHighlightedOperators(): readonly string[] {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedCommentBoxes = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
+    const highlightedCommentBoxes = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedCommentBoxIDs();
     const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
 
     const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
@@ -169,7 +171,7 @@ export class OperatorMenuService {
       links: [],
       groups: [],
       breakpoints: {},
-      commentBoxes: []
+      commentBoxes: [],
     };
 
     // define the copies that will be put in the serialized json string when copying
@@ -219,7 +221,9 @@ export class OperatorMenuService {
     serializedString.breakpoints = breakpointsCopy;
 
     //get all the highlighted comment boxes, and sort them by their layers
-    const highlightedCommentBoxIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
+    const highlightedCommentBoxIDs = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedCommentBoxIDs();
     highlightedCommentBoxIDs.forEach(commentBoxID => {
       commentBoxesCopy.push(this.workflowActionService.getTexeraGraph().getCommentBox(commentBoxID));
     });
@@ -279,7 +283,6 @@ export class OperatorMenuService {
 
       // get all the breakpoints for later when adding the breakpoints for the pasted new links
       let breakpointsInClipboard: BreakpointWithLinkID = elementsInClipboard.get("breakpoints") as BreakpointWithLinkID;
-
 
       let linksCopy: LinkWithID = {};
       copiedOps.forEach(copiedOperator => {
@@ -355,11 +358,12 @@ export class OperatorMenuService {
         positions.push(newCommentBoxPosition);
         const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
         const newCommentBoxComment = commentBoxCopy.comments;
-        const newCommentBox: CommentBox = {commentBoxID: newCommentBoxID, comments: [], commentBoxPosition: newCommentBoxPosition};
+        const newCommentBox: CommentBox = {
+          commentBoxID: newCommentBoxID,
+          comments: commentBoxCopy.comments,
+          commentBoxPosition: newCommentBoxPosition,
+        };
         this.workflowActionService.addCommentBox(newCommentBox);
-        for (const comment of newCommentBoxComment) {
-          this.workflowActionService.addComment(comment, newCommentBoxID);
-        }
       });
     });
   }

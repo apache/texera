@@ -229,7 +229,12 @@ export class WorkflowActionService {
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(false);
-    this.texeraGraph.addCommentBox(commentBox);
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.addCommentBox({ ...commentBox, comments: [] });
+      for (const comment of commentBox.comments) {
+        this.addComment(comment, commentBox.commentBoxID);
+      }
+    });
   }
 
   /**
