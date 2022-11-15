@@ -40,7 +40,7 @@
             <div class="project-avatar-container">
               <nz-avatar
                 nzSize="default"
-                [ngStyle]="{ 'background-color': dashboardUserProjectEntry.color == null ? 'grey' : '#' + dashboardUserProjectEntry.color, 'color' : colorBrightnessMap.get(dashboardUserProjectEntry.pid) ? 'black' : 'white'}"
+                [ngStyle]="{ 'background-color': dashboardUserProjectEntry.color === null ? 'grey' : '#' + dashboardUserProjectEntry.color, 'color' : colorBrightnessMap.get(dashboardUserProjectEntry.pid) ? 'black' : 'white'}"
                 [nzGap]="4"
                 [nzText]="'' + dashboardUserProjectEntry.pid"
                 [(cpToggle)]="colorInputToggleArray[i]"
@@ -53,7 +53,7 @@
               <ng-template #colorMenuTemplate>
                 <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
                   <button
-                    [disabled]="dashboardUserProjectEntry.color == null"
+                    [disabled]="dashboardUserProjectEntry.color === null"
                     (click)="removeProjectColor(dashboardUserProjectEntry, i)"
                     class="btn btn-outline-danger btn-xs"
                   >
