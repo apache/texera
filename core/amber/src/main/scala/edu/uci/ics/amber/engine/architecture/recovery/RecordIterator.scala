@@ -29,18 +29,22 @@ class RecordIterator(logReader: DeterminantLogReader) {
       temp = null
     } else {
       current = logReader.readLogRecord()
-    }
-    if (current == null) {
-      stop = true
-    } else if (current != null && current.isInstanceOf[StepDelta]) {
-      temp = logReader.readLogRecord()
-      while (temp != null && temp.isInstanceOf[StepDelta]) {
-        current = StepDelta(
-          current.asInstanceOf[StepDelta].steps + temp.asInstanceOf[StepDelta].steps
-        )
+      if (current == null) {
+        stop = true
+      } else if (current != null && current.isInstanceOf[StepDelta]) {
         temp = logReader.readLogRecord()
+        while (temp != null && temp.isInstanceOf[StepDelta]) {
+          current = StepDelta(
+            current.asInstanceOf[StepDelta].steps + temp.asInstanceOf[StepDelta].steps
+          )
+          temp = logReader.readLogRecord()
+        }
       }
     }
+//    current = logReader.readLogRecord()
+//    if (current == null) {
+//      stop = true
+//    }
   }
 
 }

@@ -158,6 +158,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
 
     val dp = wire[DataProcessor]
+    dp.start()
     operator.open()
     Await.result(sendDataToDP(ActorVirtualIdentity("sender"), dp, tuples), 3.seconds)
     waitForDataProcessing(workerStateManager)
@@ -201,6 +202,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       }
     }
     val dp: DataProcessor = wire[DataProcessor]
+    dp.start()
     operator.open()
     val f1 = sendDataToDP(ActorVirtualIdentity("sender"), dp, tuples, 2)
     val f2 = sendControlToDP(dp, (0 until 100).map(_ => ControlInvocation(0, DummyControl())), 3)
@@ -226,6 +228,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.close _).expects().once()
     }
     val dp: DataProcessor = wire[DataProcessor]
+    dp.start()
     operator.open()
     Await.result(
       sendControlToDP(dp, (0 until 3).map(_ => ControlInvocation(0, DummyControl()))),
@@ -252,6 +255,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.close _).expects().once()
     }
     val dp: DataProcessor = wire[DataProcessor]
+    dp.start()
     operator.open()
     Await.result(
       sendControlToDP(dp, (0 until 3).map(_ => ControlInvocation(0, DummyControl()))),
@@ -276,6 +280,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val dp: DataProcessor = wire[DataProcessor]
+    dp.start()
     val handlerInitializer = wire[WorkerAsyncRPCHandlerInitializer]
     inSequence {
       (operator.processTuple _).expects(*, *, *, *).once()
@@ -354,6 +359,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
 
     val dp = wire[DataProcessor]
+    dp.start()
     operator.open()
     val senderWorker = ActorVirtualIdentity("sender")
     assert(dp.getSenderCredits(senderWorker) == Constants.unprocessedBatchesCreditLimitPerSender)
