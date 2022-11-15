@@ -1,4 +1,5 @@
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
+from .tuple_processing_manager import TupleProcessingManager
 from .operator_manager import OperatorManager
 from .pause_manager import PauseManager
 from .state_manager import StateManager
@@ -20,6 +21,7 @@ class Context:
         self.main_loop = main_loop
         self.input_queue = main_loop._input_queue
         self.operator_manager = OperatorManager()
+        self.tuple_processing_manager = TupleProcessingManager()
         self.state_manager = StateManager(
             {
                 WorkerState.UNINITIALIZED: {WorkerState.READY},

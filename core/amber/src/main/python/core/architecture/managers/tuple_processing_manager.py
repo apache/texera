@@ -1,0 +1,11 @@
+from typing import Optional, Union, Tuple, Iterator
+
+from core.models import InputExhausted
+from proto.edu.uci.ics.amber.engine.common import LinkIdentity
+
+
+class TupleProcessingManager:
+    def __init__(self):
+        self.current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
+        self.current_input_link: Optional[LinkIdentity] = None
+        self.current_input_tuple_iter: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
