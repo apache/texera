@@ -1,16 +1,14 @@
-import { Component, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 
 @Component({
-  selector: "context-menu",
+  selector: "texera-context-menu",
   templateUrl: "./context-menu.component.html",
   styleUrls: ["./context-menu.component.scss"],
 })
-export class ContextMenuComponent implements OnInit {
+export class ContextMenuComponent {
   constructor(public workflowActionService: WorkflowActionService, public operatorMenu: OperatorMenuService) {}
-
-  ngOnInit(): void {}
 
   public onCopy(): void {
     this.operatorMenu.saveHighlightedElements();

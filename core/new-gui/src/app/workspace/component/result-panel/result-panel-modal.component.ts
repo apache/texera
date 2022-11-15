@@ -3,6 +3,7 @@ import { NzModalRef } from "ng-zorro-antd/modal";
 import { trimDisplayJsonData } from "src/app/common/util/json";
 import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
+import { untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  *
@@ -37,9 +38,12 @@ export class RowModalComponent implements OnChanges {
   ngOnChanges(): void {
     if (this.operatorId !== undefined) {
       const resultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
-      resultService?.selectTuple(this.rowIndex, DEFAULT_PAGE_SIZE).subscribe(res => {
-        this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
-      });
+      resultService
+        ?.selectTuple(this.rowIndex, DEFAULT_PAGE_SIZE)
+        .pipe(untilDestroyed(this))
+        .subscribe(res => {
+          this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
+        });
     }
   }
 }

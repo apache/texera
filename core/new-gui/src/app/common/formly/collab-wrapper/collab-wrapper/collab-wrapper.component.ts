@@ -62,7 +62,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
 
   ngAfterContentInit(): void {
     this.setUpYTextEditor();
-    this.formControl.valueChanges.subscribe(value => {
+    this.formControl.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
       if (this.sharedText !== undefined && value !== this.sharedText.toJSON()) {
         this.setUpYTextEditor();
       }

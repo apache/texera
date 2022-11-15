@@ -4,7 +4,7 @@
     <nz-card-meta nzDescription="Created: {{creationTime | date: 'yyyy-MM-dd HH:mm'}}"></nz-card-meta>
 
     <div
-      *ngIf="color != null"
+      *ngIf="color !== null"
       id="left-div"
       [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
       [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}"
@@ -12,7 +12,7 @@
       color
     </div>
     <div
-      *ngIf="color != null"
+      *ngIf="color !== null"
       nz-tooltip="Remove project color"
       nzTooltipPlacement="bottom"
       (click)="removeProjectColor()"
@@ -45,7 +45,7 @@
     </button>
     <ng-template #colorMenuTemplate>
       <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
-        <button [disabled]="color == null" (click)="removeProjectColor()" class="btn btn-outline-danger btn-xs">
+        <button [disabled]="color === null" (click)="removeProjectColor()" class="btn btn-outline-danger btn-xs">
           Delete
         </button>
         <button (click)="updateProjectColor(inputColor)" class="btn btn-primary btn-xs">Save</button>
@@ -127,7 +127,7 @@
         <div *ngIf="projectDataIsLoaded" class="file-project-label-container">
           <div *ngFor="let projectID of file.projectIDs" class="file-project-label">
             <div
-              *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
+              *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
               nz-tooltip="Go to project page"
               nzTooltipPlacement="bottom"
               id="left-div"
@@ -138,7 +138,7 @@
               {{userProjectsMap.get(projectID)!.name}}
             </div>
             <div
-              *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color != null && projectID != pid"
+              *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
               nz-tooltip="Remove from project"
               nzTooltipPlacement="bottom"
               id="right-div"
