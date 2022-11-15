@@ -18,10 +18,9 @@ enum WorkflowAggregatedState {
   PAUSING = 3;
   PAUSED = 4;
   RESUMING = 5;
-  RECOVERING = 6;
-  COMPLETED = 7;
-  ABORTED = 8;
-  UNKNOWN = 9;
+  COMPLETED = 6;
+  ABORTED = 7;
+  UNKNOWN = 8;
 }
 
 
@@ -73,4 +72,5 @@ message JobMetadataStore{
   WorkflowAggregatedState state = 1;
   string error = 2;
   int64 eid = 3;
+  bool is_recovering = 4;
 }

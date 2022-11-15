@@ -1,6 +1,10 @@
 <div class="user-icon">
-  <button *ngIf="!user" nz-button nzType="primary" nzGhost nzSize="large" (click)="onClickLogin()">Sign In</button>
-
+  <div *ngIf="!user">
+    <button *ngIf="localLogin" nz-button nzType="primary" nzGhost nzSize="large" (click)="onClickLogin()">
+      Sign In
+    </button>
+    <button *ngIf="!localLogin" class="login-with-google-btn" (click)="googleLogin()">Sign in with Google</button>
+  </div>
   <div *ngIf="user">
     <texera-user-avatar
       class="user-avatar caret-off"
