@@ -4,6 +4,7 @@ import pandas
 import pyarrow
 import pytest
 from loguru import logger
+from option import Some
 
 from core.models import (
     ControlElement,
@@ -148,11 +149,11 @@ class TestMainLoop:
     def main_loop(self, input_queue, output_queue, mock_udf, mock_link):
         main_loop = MainLoop(input_queue, output_queue)
         # mock the operator binding
-        main_loop._operator.set(mock_udf)
+        main_loop.context.operator_manager.operator= mock_udf
         main_loop.context.batch_to_tuple_converter.update_all_upstream_link_ids(
             {mock_link}
         )
-        main_loop._operator.get().output_schema = {
+        main_loop.context.operator_manager.operator.output_schema = {
             "test-1": "string",
             "test-2": "integer",
         }

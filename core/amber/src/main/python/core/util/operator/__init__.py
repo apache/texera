@@ -1,6 +1,8 @@
 import importlib.util
 import inspect
 
+from typing import Iterable, Iterator, Any
+
 from core.models import Operator
 
 operators_module_spec = importlib.util.spec_from_loader("operators", loader=None)
@@ -26,19 +28,6 @@ def is_concrete_operator(cls: type) -> bool:
     :param cls: a target class to be evaluated
     :return: bool
     """
-    return (
-        inspect.isclass(cls)
-        and issubclass(cls, Operator)
-        and not inspect.isabstract(cls)
-    )
-
-
-class Option:
-    def __init__(self, val=None):
-        self.set(val)
-
-    def set(self, val):
-        self.val = val
-
-    def get(self):
-        return self.val
+    return (inspect.isclass(cls) and issubclass(cls,
+                                                Operator) and not inspect.isabstract(
+        cls))

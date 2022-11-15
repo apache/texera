@@ -15,7 +15,7 @@ class ReplayCurrentTupleHandler(Handler):
         if not context.state_manager.confirm_state(WorkerState.COMPLETED):
             # chain the current input tuple back on top of the current iterator to
             # be processed once more
-            context.dp._current_input_tuple_iter = itertools.chain(
-                [context.dp._current_input_tuple], context.dp._current_input_tuple_iter
+            context.main_loop._current_input_tuple_iter = itertools.chain(
+                [context.main_loop._current_input_tuple], context.main_loop._current_input_tuple_iter
             )
         return None

@@ -14,7 +14,6 @@ class DataProcessor(Runnable):
     ):
         self._input_queue = input_queue
         self._output_queue = output_queue
-        self._operator = context.dp._operator
         self._dp_condition = dp_condition
         self._finished_current = Event()
         self._running = Event()
@@ -34,7 +33,7 @@ class DataProcessor(Runnable):
     def process_tuple(self, tuple_: Tuple, port: int):
         while not self._finished_current.is_set():
             try:
-                operator = self._operator.get()
+                operator = self._context.operator_manager.operator
                 output_iterator = (
                     operator.process_tuple(tuple_, port)
                     if isinstance(tuple_, Tuple)
@@ -49,8 +48,8 @@ class DataProcessor(Runnable):
 
             except Exception as err:
                 logger.exception(err)
-                self._context.dp.report_exception()
-                self._context.dp._pause()
+                self._context.main_loop.report_exception()
+                self._context.main_loop._pause()
                 self.context_switch()
 
     def context_switch(self):
