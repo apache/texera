@@ -1,5 +1,5 @@
 import sys
-from threading import Event, Condition
+from threading import Event
 
 from loguru import logger
 
@@ -10,14 +10,13 @@ from core.util.runnable.runnable import Runnable
 
 
 class DataProcessor(Runnable, Stoppable):
-    def __init__(self, dp_condition: Condition, context: Context):
-        self._dp_condition = dp_condition
+    def __init__(self, context: Context):
         self._running = Event()
         self._context = context
 
     def run(self) -> None:
-        with self._dp_condition:
-            self._dp_condition.wait()
+        with self._context.tuple_processing_manager.context_switch_condition:
+            self._context.tuple_processing_manager.context_switch_condition.wait()
         self._running.set()
         self._switch_context()
         while self._running.is_set():
@@ -62,9 +61,9 @@ class DataProcessor(Runnable, Stoppable):
                 self._switch_context()
 
     def _switch_context(self):
-        with self._dp_condition:
-            self._dp_condition.notify()
-            self._dp_condition.wait()
+        with self._context.tuple_processing_manager.context_switch_condition:
+            self._context.tuple_processing_manager.context_switch_condition.notify()
+            self._context.tuple_processing_manager.context_switch_condition.wait()
 
     def stop(self):
         self._running.clear()

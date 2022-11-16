@@ -1,8 +1,7 @@
 import threading
 import traceback
 import typing
-from queue import Queue
-from typing import Iterator, List, MutableMapping, Optional, Union
+from typing import Iterator, Optional, Union
 
 import pyarrow
 from loguru import logger
@@ -39,7 +38,6 @@ from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
     ControlInvocationV2,
     ControlPayloadV2,
-    LinkIdentity,
     ReturnInvocationV2,
 )
 
@@ -62,8 +60,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
         logger.add(self._print_log_handler, level="PRINT", filter="operators")
 
-        self._dp_process_condition = threading.Condition()
-        self.data_processor = DataProcessor(self._dp_process_condition, self.context)
+        self.data_processor = DataProcessor(self.context)
         threading.Thread(target=self.data_processor.run, daemon=True).start()
 
     def complete(self) -> None:
@@ -354,9 +351,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)
 
     def _switch_context(self):
-        with self._dp_process_condition:
-            self._dp_process_condition.notify()
-            self._dp_process_condition.wait()
+        with self.context.tuple_processing_manager.context_switch_condition:
+            self.context.tuple_processing_manager.context_switch_condition.notify()
+            self.context.tuple_processing_manager.context_switch_condition.wait()
 
     def _check_and_report_exception(self):
         if self.context.exception_manager.has_exception():
