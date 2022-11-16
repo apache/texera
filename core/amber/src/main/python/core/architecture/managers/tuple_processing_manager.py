@@ -10,7 +10,8 @@ class TupleProcessingManager:
         self.current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self.current_input_link: Optional[LinkIdentity] = None
         self.current_input_tuple_iter: Optional[
-            Iterator[Union[Tuple, InputExhausted]]] = None
+            Iterator[Union[Tuple, InputExhausted]]
+        ] = None
         self.input_links: List[LinkIdentity] = list()
         self.input_link_map: MutableMapping[LinkIdentity, int] = dict()
         self.finished_current = Event()

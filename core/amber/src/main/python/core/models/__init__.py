@@ -13,10 +13,13 @@ from .table import Table, TableLike
 from .operator import Operator, TupleOperator, TableOperator, TupleOperatorV2
 from .payload import InputDataFrame, OutputDataFrame, DataPayload, EndOfUpstream
 
+
 class ExceptionInfo(NamedTuple):
     exc: type
     value: Exception
     tb: Traceback
+
+
 __all__ = [
     "ControlElement",
     "DataElement",

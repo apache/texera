@@ -15,8 +15,15 @@ from core.architecture.managers.pause_manager import PauseType
 from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
-from core.models import (ControlElement, DataElement, InputExhausted, InternalQueue,
-                         SenderChangeMarker, Tuple, ExceptionInfo, )
+from core.models import (
+    ControlElement,
+    DataElement,
+    InputExhausted,
+    InternalQueue,
+    SenderChangeMarker,
+    Tuple,
+    ExceptionInfo,
+)
 from core.runnables.data_processor import DataProcessor
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
