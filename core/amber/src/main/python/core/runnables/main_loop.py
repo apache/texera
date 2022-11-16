@@ -15,14 +15,8 @@ from core.architecture.managers.pause_manager import PauseType
 from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
-from core.models import (
-    ControlElement,
-    DataElement,
-    InputExhausted,
-    InternalQueue,
-    SenderChangeMarker,
-    Tuple,
-)
+from core.models import (ControlElement, DataElement, InputExhausted, InternalQueue,
+                         SenderChangeMarker, Tuple, ExceptionInfo, )
 from core.runnables.data_processor import DataProcessor
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
@@ -191,12 +185,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._switch_context()
             self._check_and_report_exception()
 
-    def report_exception(self, exception: Exception) -> None:
+    def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
         Report the traceback of current stack when an exception occurs.
         """
         self._print_log_handler.flush()
-        message: str = "\n".join(traceback.format_tb(exception.__traceback__))
+        message: str = "\n".join(traceback.format_exception(*exc_info))
         control_command = set_one_of(
             ControlCommandV2, LocalOperatorExceptionV2(message=message)
         )
@@ -370,5 +364,5 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _check_and_report_exception(self):
         if self.context.exception_manager.has_exception():
-            self.report_exception(self.context.exception_manager.get_exception())
+            self.report_exception(self.context.exception_manager.get_exc_info())
             self._pause()

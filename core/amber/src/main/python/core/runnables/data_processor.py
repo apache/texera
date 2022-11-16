@@ -1,3 +1,4 @@
+import sys
 from queue import Queue
 from threading import Event, Condition
 
@@ -57,7 +58,7 @@ class DataProcessor(Runnable):
 
             except Exception as err:
                 logger.exception(err)
-                self._context.exception_manager.set_exception(err)
+                self._context.exception_manager.set_exception_info(sys.exc_info())
                 self._switch_context()
 
     def _switch_context(self):
