@@ -9,9 +9,8 @@ from core.util.runnable.runnable import Runnable
 
 
 class DataProcessor(Runnable):
-    def __init__(self, input_queue: Queue, output_queue: Queue, dp_condition: Condition,
-                 context: Context):
-        self._input_queue = input_queue
+    def __init__(self, output_queue: Queue, dp_condition: Condition, context: Context):
+
         self._output_queue = output_queue
         self._dp_condition = dp_condition
         self._finished_current = Event()
@@ -22,24 +21,35 @@ class DataProcessor(Runnable):
         with self._dp_condition:
             self._dp_condition.wait()
         self._running.set()
-        self.context_switch()
+        self._switch_context()
 
         while self._running.is_set():
-            tuple_, port = self._input_queue.get()
-            self.process_tuple(tuple_, port)
-            self.context_switch()
+            self.process_tuple()
+            self._switch_context()
 
-    def process_tuple(self, tuple_: Tuple, port: int):
+    def process_tuple(self):
         while not self._finished_current.is_set():
+
             try:
                 operator = self._context.operator_manager.operator
+                tuple_ = self._context.tuple_processing_manager.current_input_tuple
+                link = self._context.tuple_processing_manager.current_input_link
+
+                # bind link with input index
+                # TODO: correct this with the actual port information.
+                if link not in self._context.tuple_processing_manager.input_link_map:
+                    self._context.tuple_processing_manager.input_links.append(link)
+                    index = len(self._context.tuple_processing_manager.input_links) - 1
+                    self._context.tuple_processing_manager.input_link_map[link] = index
+                port = self._context.tuple_processing_manager.input_link_map[link]
+
                 output_iterator = (
                     operator.process_tuple(tuple_, port) if isinstance(tuple_,
                                                                        Tuple) else operator.on_finish(
                         port))
                 for output in output_iterator:
                     self._output_queue.put(None if output is None else Tuple(output))
-                    self.context_switch()
+                    self._switch_context()
 
                 # current tuple finished successfully
                 self._finished_current.set()
@@ -48,9 +58,9 @@ class DataProcessor(Runnable):
                 logger.exception(err)
                 self._context.main_loop.report_exception()
                 self._context.main_loop._pause()
-                self.context_switch()
+                self._switch_context()
 
-    def context_switch(self):
+    def _switch_context(self):
         with self._dp_condition:
             self._dp_condition.notify()
             self._dp_condition.wait()

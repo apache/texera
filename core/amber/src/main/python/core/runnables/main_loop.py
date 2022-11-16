@@ -39,9 +39,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
 
-        self._input_links: List[LinkIdentity] = list()
-        self._input_link_map: MutableMapping[LinkIdentity, int] = dict()
-
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
@@ -51,10 +48,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 set_one_of(ControlCommandV2, PythonPrintV2(message=msg)), ))
         logger.add(self._print_log_handler, level="PRINT", filter="operators")
 
-        self._data_input_queue = Queue()
         self._data_output_queue = Queue()
         self._dp_process_condition = threading.Condition()
-        self.data_processor = DataProcessor(self._data_input_queue,
+        self.data_processor = DataProcessor(
                                             self._data_output_queue,
                                             self._dp_process_condition, self.context, )
         threading.Thread(target=self.data_processor.run, daemon=True).start()
@@ -141,8 +137,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     schema = self.context.operator_manager.operator.output_schema
                     self.cast_tuple_to_match_schema(output_tuple, schema)
                     self.context.statistics_manager.increase_output_tuple_count()
-                    for (
-                    to, batch,) in self.context.tuple_to_batch_converter.tuple_to_batch(
+                    for (to,
+                         batch,) in self.context.tuple_to_batch_converter.tuple_to_batch(
                         output_tuple):
                         batch.schema = (
                             self.context.operator_manager.operator.output_schema)
@@ -163,18 +159,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param link: LinkIdentity, the current link.
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
-
-        # bind link with input index
-        if link not in self._input_link_map:
-            self._input_links.append(link)
-            index = len(self._input_links) - 1
-            self._input_link_map[link] = index
-        input_ = self._input_link_map[link]
-
-        self._data_input_queue.put((tuple_, input_))
-
         self.data_processor._finished_current.clear()
-        self._context_switch()
+        self._switch_context()
 
         while not self.data_processor._finished_current.is_set():
             self.check_and_process_control()
@@ -185,7 +171,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self.check_and_process_control()
                     yield self._data_output_queue.get()
 
-            self._context_switch()
+            self._switch_context()
 
     def report_exception(self) -> None:
         """
@@ -270,7 +256,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # in while-loop. For now we keep it this way to support versions below
             # 3.8.
             try:
-                element = next(self.context.tuple_processing_manager.current_input_tuple_iter)
+                element = next(
+                    self.context.tuple_processing_manager.current_input_tuple_iter)
             except StopIteration:
                 # StopIteration is the standard way for an iterator to end, we handle
                 # it and terminate the loop.
@@ -307,7 +294,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
             self._input_queue.disable_sub()
-            print("paused")
 
     def _resume(self) -> None:
         """
@@ -318,7 +304,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_sub()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
-            print("resumed")
 
     @staticmethod
     def cast_tuple_to_match_schema(output_tuple, schema):
@@ -337,7 +322,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if field_type == pyarrow.binary():
                 output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)
 
-    def _context_switch(self):
+    def _switch_context(self):
         with self._dp_process_condition:
             self._dp_process_condition.notify()
             self._dp_process_condition.wait()
