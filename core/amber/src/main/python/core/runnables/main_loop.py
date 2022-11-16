@@ -62,13 +62,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
         logger.add(self._print_log_handler, level="PRINT", filter="operators")
 
-        self._data_output_queue = Queue()
         self._dp_process_condition = threading.Condition()
-        self.data_processor = DataProcessor(
-            self._data_output_queue,
-            self._dp_process_condition,
-            self.context,
-        )
+        self.data_processor = DataProcessor(self._dp_process_condition, self.context)
         threading.Thread(target=self.data_processor.run, daemon=True).start()
 
     def complete(self) -> None:
@@ -182,13 +177,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         while not finished_current.is_set():
             self.check_and_process_control()
-
-            num_outputs = self._data_output_queue.qsize()
-            if num_outputs:
-                for _ in range(num_outputs):
-                    self.check_and_process_control()
-                    yield self._data_output_queue.get()
-
+            yield self.context.tuple_processing_manager.current_output_tuple
             self._switch_context()
             self._check_and_report_exception()
 

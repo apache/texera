@@ -1,7 +1,7 @@
 from threading import Event
 from typing import Optional, Union, Tuple, Iterator, List, MutableMapping
 
-from core.models import InputExhausted
+from core.models import InputExhausted, TupleLike
 from proto.edu.uci.ics.amber.engine.common import LinkIdentity
 
 
@@ -12,6 +12,7 @@ class TupleProcessingManager:
         self.current_input_tuple_iter: Optional[
             Iterator[Union[Tuple, InputExhausted]]
         ] = None
+        self.current_output_tuple: Optional[Tuple] = None
         self.input_links: List[LinkIdentity] = list()
         self.input_link_map: MutableMapping[LinkIdentity, int] = dict()
         self.finished_current = Event()

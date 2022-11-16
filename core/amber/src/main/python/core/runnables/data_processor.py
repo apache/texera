@@ -1,5 +1,4 @@
 import sys
-from queue import Queue
 from threading import Event, Condition
 
 from loguru import logger
@@ -10,9 +9,7 @@ from core.util.runnable.runnable import Runnable
 
 
 class DataProcessor(Runnable):
-    def __init__(self, output_queue: Queue, dp_condition: Condition, context: Context):
-
-        self._output_queue = output_queue
+    def __init__(self, dp_condition: Condition, context: Context):
         self._dp_condition = dp_condition
         self._running = Event()
         self._context = context
@@ -22,7 +19,6 @@ class DataProcessor(Runnable):
             self._dp_condition.wait()
         self._running.set()
         self._switch_context()
-
         while self._running.is_set():
             self.process_tuple()
             self._switch_context()
@@ -50,7 +46,9 @@ class DataProcessor(Runnable):
                     else operator.on_finish(port)
                 )
                 for output in output_iterator:
-                    self._output_queue.put(None if output is None else Tuple(output))
+                    self._context.tuple_processing_manager.current_output_tuple = (
+                        None if output is None else Tuple(output)
+                    )
                     self._switch_context()
 
                 # current tuple finished successfully
@@ -59,6 +57,7 @@ class DataProcessor(Runnable):
             except Exception as err:
                 logger.exception(err)
                 self._context.exception_manager.set_exception_info(sys.exc_info())
+            finally:
                 self._switch_context()
 
     def _switch_context(self):
