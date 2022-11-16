@@ -44,9 +44,10 @@ class DataProcessor(Runnable):
                 port = self._context.tuple_processing_manager.input_link_map[link]
 
                 output_iterator = (
-                    operator.process_tuple(tuple_, port) if isinstance(tuple_,
-                                                                       Tuple) else operator.on_finish(
-                        port))
+                    operator.process_tuple(tuple_, port)
+                    if isinstance(tuple_, Tuple)
+                    else operator.on_finish(port)
+                )
                 for output in output_iterator:
                     self._output_queue.put(None if output is None else Tuple(output))
                     self._switch_context()

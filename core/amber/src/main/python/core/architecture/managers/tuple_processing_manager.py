@@ -8,6 +8,8 @@ class TupleProcessingManager:
     def __init__(self):
         self.current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self.current_input_link: Optional[LinkIdentity] = None
-        self.current_input_tuple_iter: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
+        self.current_input_tuple_iter: Optional[
+            Iterator[Union[Tuple, InputExhausted]]
+        ] = None
         self.input_links: List[LinkIdentity] = list()
         self.input_link_map: MutableMapping[LinkIdentity, int] = dict()

@@ -25,11 +25,15 @@ class Context:
         self.tuple_processing_manager = TupleProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
-            {WorkerState.UNINITIALIZED: {WorkerState.READY},
+            {
+                WorkerState.UNINITIALIZED: {WorkerState.READY},
                 WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
                 WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
                 WorkerState.PAUSED: {WorkerState.RUNNING},
-                WorkerState.COMPLETED: set(), }, WorkerState.UNINITIALIZED, )
+                WorkerState.COMPLETED: set(),
+            },
+            WorkerState.UNINITIALIZED,
+        )
 
         self.statistics_manager = StatisticsManager()
         self.pause_manager = PauseManager()
