@@ -5,10 +5,11 @@ from loguru import logger
 
 from core.architecture.managers import Context
 from core.models import Tuple
+from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
 
 
-class DataProcessor(Runnable):
+class DataProcessor(Runnable, Stoppable):
     def __init__(self, dp_condition: Condition, context: Context):
         self._dp_condition = dp_condition
         self._running = Event()
