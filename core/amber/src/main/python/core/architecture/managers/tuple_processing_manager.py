@@ -15,4 +15,4 @@ class TupleProcessingManager:
         self.current_output_tuple: Optional[Tuple] = None
         self.input_links: List[LinkIdentity] = list()
         self.input_link_map: MutableMapping[LinkIdentity, int] = dict()
-        self.finished_current = Event()
+        self.finished_current: Event = Event()
