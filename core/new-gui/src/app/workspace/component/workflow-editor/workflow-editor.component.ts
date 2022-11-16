@@ -623,12 +623,20 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
+        const highlightedCommentBoxIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
             this.workflowActionService.unhighlightOperators(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
+          }
+          if (highlightedCommentBoxIDs.includes(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(elementID);
+          } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
           }
           // if in the multiselect mode, also highlight the links in between two highlighted operators
           const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
@@ -1110,12 +1118,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getOperatorGroup()
           .getAllGroups()
           .map(group => group.groupID);
+        const allCommentBoxes = this.workflowActionService
+          .getTexeraGraph()
+          .getAllCommentBoxes()
+          .map(CommentBox => CommentBox.commentBoxID);
         this.workflowActionService
           .getJointGraphWrapper()
-          .setMultiSelectMode(allOperators.length + allGroups.length > 1);
+          .setMultiSelectMode(allOperators.length + allGroups.length + allCommentBoxes.length > 1);
         this.workflowActionService.highlightLinks(allLinks.length > 1, ...allLinks);
         this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
+        this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(...allCommentBoxes);
       });
   }
 
