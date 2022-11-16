@@ -78,4 +78,12 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
       StandardCopyOption.ATOMIC_MOVE
     )
   }
+
+  override def isLogAvailableForRead: Boolean = {
+    if (Files.exists(getLogPath)) {
+      Files.isReadable(getLogPath) && Files.size(getLogPath) > 0
+    } else {
+      false
+    }
+  }
 }

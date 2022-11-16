@@ -58,4 +58,13 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
     }
     hdfs.rename(tmpPath, getLogPath)
   }
+
+  override def isLogAvailableForRead: Boolean = {
+    if (hdfs.exists(getLogPath)) {
+      val stats = hdfs.getFileStatus(getLogPath)
+      stats.isFile && stats.getLen > 0
+    } else {
+      false
+    }
+  }
 }

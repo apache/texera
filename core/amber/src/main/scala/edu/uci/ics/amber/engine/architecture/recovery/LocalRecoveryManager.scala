@@ -25,24 +25,28 @@ import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class LocalRecoveryManager(recoveryQueue: RecoveryQueue) {
+class LocalRecoveryManager {
 
   private val callbacksOnStart = new ArrayBuffer[() => Unit]()
+  private val callbacksOnEnd = new ArrayBuffer[() => Unit]()
 
   def registerOnStart(callback: () => Unit): Unit = {
     callbacksOnStart.append(callback)
   }
 
   def registerOnEnd(callback: () => Unit): Unit = {
-    recoveryQueue.registerOnEnd(callback)
+    callbacksOnEnd.append(callback)
   }
 
   def Start(): Unit = {
     callbacksOnStart.foreach(callback => callback())
   }
 
-  def getFIFOState(reader: DeterminantLogReader): Map[ActorVirtualIdentity, Long] = {
-    val iter = reader.mkLogRecordIterator()
+  def End(): Unit = {
+    callbacksOnEnd.foreach(callback => callback())
+  }
+
+  def getFIFOState(iter: Iterator[InMemDeterminant]): Map[ActorVirtualIdentity, Long] = {
     val fifoState = new mutable.AnyRefMap[ActorVirtualIdentity, Long]()
     while (iter.hasNext) {
       iter.next() match {

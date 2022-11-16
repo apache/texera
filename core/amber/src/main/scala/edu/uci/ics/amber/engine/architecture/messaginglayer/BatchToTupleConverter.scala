@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, End
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class BatchToTupleConverter(
     workerInternalQueue: WorkerInternalQueue,
@@ -39,9 +40,20 @@ class BatchToTupleConverter(
     new mutable.HashMap[LinkIdentity, mutable.HashSet[ActorVirtualIdentity]]
   private val completedLinkIds = new mutable.HashSet[LinkIdentity]()
 
+  // This buffer handles data comes before the UpdateInputLinking control message.
+  // During normal processing, this should not happen. But it may happen during worker recovery.
+  // TODO: remove this buffer once we move the upstream map to DP.
+  private val dataBufferForUnRegisteredInput =
+    mutable.HashMap[ActorVirtualIdentity, mutable.ArrayBuffer[DataPayload]]()
+
   def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
     upstreamMap.getOrElseUpdate(input, new mutable.HashSet[ActorVirtualIdentity]()).add(identifier)
     inputMap(identifier) = input
+    if (dataBufferForUnRegisteredInput.contains(identifier)) {
+      dataBufferForUnRegisteredInput(identifier).foreach(payload =>
+        processDataPayload(identifier, payload)
+      )
+    }
   }
 
   /** This method handles various data payloads and put different
@@ -57,6 +69,12 @@ class BatchToTupleConverter(
     * @param dataPayload
     */
   def processDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
+    if (!inputMap.contains(from)) {
+      dataBufferForUnRegisteredInput
+        .getOrElseUpdate(from, new ArrayBuffer[DataPayload]())
+        .append(dataPayload)
+      return
+    }
     val link = inputMap(from)
     if (currentLink == null || currentLink != link) {
       workerInternalQueue.appendElement(SenderChangeMarker(link))

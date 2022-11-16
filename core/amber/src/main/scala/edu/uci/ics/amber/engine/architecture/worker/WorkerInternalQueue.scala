@@ -54,6 +54,7 @@ trait WorkerInternalQueue {
 
   private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
 
+  def pauseManager: PauseManager
   // logging related variables:
   def logManager: LogManager // require dp thread to have log manager
   def recoveryQueue: RecoveryQueue // require dp thread to have recovery queue
@@ -143,10 +144,10 @@ trait WorkerInternalQueue {
     lock.unlock()
   }
 
-  def isControlQueueEmpty: Boolean = {
+  def isControlQueueNonEmptyOrPaused: Boolean = {
     if (recoveryQueue.isReplayCompleted) {
       determinantLogger.stepIncrement()
-      controlQueue.isEmpty
+      !controlQueue.isEmpty || pauseManager.isPaused()
     } else {
       recoveryQueue.isReadyToEmitNextControl
     }

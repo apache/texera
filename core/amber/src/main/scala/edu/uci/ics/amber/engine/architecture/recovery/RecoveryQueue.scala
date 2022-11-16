@@ -22,6 +22,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
 
 import java.util.concurrent.LinkedBlockingQueue
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -37,6 +38,12 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
   private var cleaned = false
   private val callbacksOnEnd = new ArrayBuffer[() => Unit]()
   private var endCallbackTriggered = false
+  private var nextRecordToEmit: InternalQueueElement = _
+
+  // calling it first to get nextRecordToEmit ready
+  // we assume the log has the following structure:
+  // Ctrl -> [StepDelta] -> Ctrl -> [StepDelta] -> EOF|Ctrl
+  processInternalEventsTillNextControl()
 
   def registerOnEnd(callback: () => Unit): Unit = {
     callbacksOnEnd.append(callback)
@@ -111,44 +118,36 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
     step == 0
   }
 
-  def popDeterminant(): InMemDeterminant = {
-    records.next()
-  }
-
-  def processInternalEvents(): InMemDeterminant = {
-    var res: InMemDeterminant = null
-    while (res == null) {
-      records.next() match {
-        case StepDelta(steps) =>
-          step += steps
-        case SenderActorChange(actorVirtualIdentity) =>
-          targetVId = actorVirtualIdentity
-        case other =>
-          res = other
-      }
+  @tailrec
+  private def processInternalEventsTillNextControl(): Unit = {
+    if (!records.hasNext) {
+      return
     }
-    res
+    records.next() match {
+      case StepDelta(steps) =>
+        step += steps
+        processInternalEventsTillNextControl()
+      case SenderActorChange(actorVirtualIdentity) =>
+        targetVId = actorVirtualIdentity
+        processInternalEventsTillNextControl()
+      case LinkChange(linkIdentity) =>
+        nextRecordToEmit = SenderChangeMarker(linkIdentity)
+      case ProcessControlMessage(controlPayload, from) =>
+        nextRecordToEmit = ControlElement(controlPayload, from)
+      case TimeStamp(value) => ???
+    }
   }
 
   def get(): InternalQueueElement = {
     if (step > 0) {
       //wait until input[targetVId] available
-      val res = inputMapping
+      inputMapping
         .getOrElseUpdate(targetVId, new LinkedBlockingQueue[InternalQueueElement]())
         .take()
-      res
     } else {
-      processInternalEvents() match {
-        case SenderActorChange(actorVirtualIdentity) =>
-          throw new RuntimeException("cannot handle sender actor change here!")
-        case LinkChange(linkIdentity) =>
-          SenderChangeMarker(linkIdentity)
-        case StepDelta(steps) =>
-          throw new RuntimeException("cannot handle step delta here!")
-        case ProcessControlMessage(controlPayload, from) =>
-          ControlElement(controlPayload, from)
-        case TimeStamp(value) => ???
-      }
+      val res = nextRecordToEmit
+      processInternalEventsTillNextControl()
+      res
     }
   }
 }

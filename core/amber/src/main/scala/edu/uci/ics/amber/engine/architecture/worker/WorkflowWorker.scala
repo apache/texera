@@ -22,6 +22,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputPort,
   TupleToBatchConverter
 }
+import edu.uci.ics.amber.engine.architecture.recovery.RecoveryQueue
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
@@ -74,6 +75,7 @@ class WorkflowWorker(
     allUpstreamLinkIds: Set[LinkIdentity],
     supportFaultTolerance: Boolean
 ) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {
+  lazy val recoveryQueue = new RecoveryQueue(logStorage.getReader)
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
@@ -90,9 +92,6 @@ class WorkflowWorker(
   val workerStateManager: WorkerStateManager = new WorkerStateManager()
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[WorkerAsyncRPCHandlerInitializer]
-
-  val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
-  var isCompleted = false
 
   if (parentNetworkCommunicationActorRef != null) {
     parentNetworkCommunicationActorRef.waitUntil(RegisterActorRef(this.actorId, self))
@@ -121,21 +120,11 @@ class WorkflowWorker(
       recoveryManager.registerOnEnd(() =>
         context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(false))
       )
-      val fifoState = recoveryManager.getFIFOState(logStorage.getReader)
+      val fifoState = recoveryManager.getFIFOState(logStorage.getReader.mkLogRecordIterator())
       controlInputPort.overwriteFIFOState(fifoState)
     }
     dataProcessor.start()
     receiveAndProcessMessages
-  }
-
-  def forwardResendRequest: Receive = {
-    case resend: ResendOutputTo =>
-      networkCommunicationActor ! resend
-    case ResendFeasibility(status) =>
-      if (!status) {
-        // this exception will be caught by the catch in receiveAndProcessMessages
-        throw new WorkflowRuntimeException(s"network sender cannot resend message!")
-      }
   }
 
   def receiveAndProcessMessages: Receive =

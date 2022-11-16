@@ -33,4 +33,6 @@ class EmptyLogStorage extends DeterminantLogStorage {
   override def cleanPartiallyWrittenLogFile(): Unit = {
     // empty
   }
+
+  override def isLogAvailableForRead: Boolean = false
 }

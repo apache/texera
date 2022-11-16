@@ -106,6 +106,8 @@ class Controller(
 
   override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
+  val controlMessagesToRecover: Iterator[InMemDeterminant] =
+    logStorage.getReader.mkLogRecordIterator()
   val globalRecoveryManager: GlobalRecoveryManager = new GlobalRecoveryManager(
     () => {
       logger.info("Start global recovery")
@@ -148,7 +150,7 @@ class Controller(
   }
 
   def running: Receive = {
-    acceptRecoveryMessages orElse acceptDirectInvocations orElse {
+    forwardResendRequest orElse acceptRecoveryMessages orElse acceptDirectInvocations orElse {
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(
           this.sender(),
@@ -211,6 +213,8 @@ class Controller(
                 logger.info("Global Recovery: trigger resend from " + vid + " to " + info.id)
                 workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
               }
+            // let controller resend control messages immediately
+            networkCommunicationActor ! ResendOutputTo(info.id, ref)
           }
       }
   }
@@ -239,7 +243,7 @@ class Controller(
       d match {
         case ProcessControlMessage(controlPayload, from) =>
           handleControlPayload(from, controlPayload)
-          if (recoveryQueue.isReplayCompleted) {
+          if (!controlMessagesToRecover.hasNext) {
             logManager.terminate()
             logStorage.cleanPartiallyWrittenLogFile()
             logManager.setupWriter(logStorage.getWriter)
@@ -247,8 +251,7 @@ class Controller(
             unstashAll()
             context.become(running)
           } else {
-            val inMemDeterminant = recoveryQueue.popDeterminant()
-            self ! inMemDeterminant
+            self ! controlMessagesToRecover.next()
           }
         case otherDeterminant =>
           throw new RuntimeException(
@@ -272,13 +275,12 @@ class Controller(
   }
 
   override def receive: Receive = {
-    if (recoveryQueue.isReplayCompleted) {
+    if (controlMessagesToRecover.hasNext) {
       globalRecoveryManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
-      val fifoState = recoveryManager.getFIFOState(logStorage.getReader)
+      val fifoState = recoveryManager.getFIFOState(logStorage.getReader.mkLogRecordIterator())
       controlInputPort.overwriteFIFOState(fifoState)
-      val inMemDeterminant = recoveryQueue.popDeterminant()
-      self ! inMemDeterminant
-      acceptRecoveryMessages orElse recovering
+      self ! controlMessagesToRecover.next()
+      forwardResendRequest orElse acceptRecoveryMessages orElse recovering
     } else {
       running
     }

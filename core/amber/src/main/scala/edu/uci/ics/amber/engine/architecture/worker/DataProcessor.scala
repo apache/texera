@@ -43,7 +43,7 @@ class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
     asyncRPCClient: AsyncRPCClient, // to send controls
     batchProducer: TupleToBatchConverter, // to send output tuples
-    pauseManager: PauseManager, // to pause/resume
+    val pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
@@ -67,6 +67,7 @@ class DataProcessor( // dependencies:
             // operator.context = new OperatorContext(new TimeService(logManager))
             stateManager.transitTo(READY)
             if (!recoveryQueue.isReplayCompleted) {
+              recoveryQueue.registerOnEnd(() => recoveryManager.End())
               recoveryManager.Start()
               recoveryManager.registerOnEnd(() => {
                 logger.info("recovery complete! restoring stashed inputs...")
@@ -298,7 +299,7 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    while (!isControlQueueEmpty || pauseManager.isPaused()) {
+    while (isControlQueueNonEmptyOrPaused) {
       takeOneControlCommandAndProcess()
     }
   }

@@ -120,6 +120,8 @@ abstract class DeterminantLogStorage {
 
   def getReader: DeterminantLogReader
 
+  def isLogAvailableForRead: Boolean
+
   def deleteLog(): Unit
 
   def cleanPartiallyWrittenLogFile(): Unit
