@@ -13,7 +13,6 @@ class DataProcessor(Runnable):
 
         self._output_queue = output_queue
         self._dp_condition = dp_condition
-        self._finished_current = Event()
         self._running = Event()
         self._context = context
 
@@ -28,7 +27,8 @@ class DataProcessor(Runnable):
             self._switch_context()
 
     def process_tuple(self):
-        while not self._finished_current.is_set():
+        finished_current = self._context.tuple_processing_manager.finished_current
+        while not finished_current.is_set():
 
             try:
                 operator = self._context.operator_manager.operator
@@ -53,7 +53,7 @@ class DataProcessor(Runnable):
                     self._switch_context()
 
                 # current tuple finished successfully
-                self._finished_current.set()
+                finished_current.set()
 
             except Exception as err:
                 logger.exception(err)

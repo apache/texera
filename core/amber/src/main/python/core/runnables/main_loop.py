@@ -175,10 +175,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
-        self.data_processor._finished_current.clear()
+        finished_current = self.context.tuple_processing_manager.finished_current
+        finished_current.clear()
         self._switch_context()
 
-        while not self.data_processor._finished_current.is_set():
+        while not finished_current.is_set():
             self.check_and_process_control()
 
             num_outputs = self._data_output_queue.qsize()
