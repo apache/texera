@@ -1,4 +1,5 @@
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
+from .exception_manager import ExceptionManager
 from .tuple_processing_manager import TupleProcessingManager
 from .operator_manager import OperatorManager
 from .pause_manager import PauseManager
@@ -22,16 +23,13 @@ class Context:
         self.input_queue = main_loop._input_queue
         self.operator_manager = OperatorManager()
         self.tuple_processing_manager = TupleProcessingManager()
+        self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
-            {
-                WorkerState.UNINITIALIZED: {WorkerState.READY},
+            {WorkerState.UNINITIALIZED: {WorkerState.READY},
                 WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
                 WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
                 WorkerState.PAUSED: {WorkerState.RUNNING},
-                WorkerState.COMPLETED: set(),
-            },
-            WorkerState.UNINITIALIZED,
-        )
+                WorkerState.COMPLETED: set(), }, WorkerState.UNINITIALIZED, )
 
         self.statistics_manager = StatisticsManager()
         self.pause_manager = PauseManager()

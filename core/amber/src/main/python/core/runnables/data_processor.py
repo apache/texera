@@ -56,8 +56,7 @@ class DataProcessor(Runnable):
 
             except Exception as err:
                 logger.exception(err)
-                self._context.main_loop.report_exception()
-                self._context.main_loop._pause()
+                self._context.exception_manager.set_exception(err)
                 self._switch_context()
 
     def _switch_context(self):

@@ -50,8 +50,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         self._data_output_queue = Queue()
         self._dp_process_condition = threading.Condition()
-        self.data_processor = DataProcessor(
-                                            self._data_output_queue,
+        self.data_processor = DataProcessor(self._data_output_queue,
                                             self._dp_process_condition, self.context, )
         threading.Thread(target=self.data_processor.run, daemon=True).start()
 
@@ -128,35 +127,26 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         if isinstance(self.context.tuple_processing_manager.current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
-        try:
-            for output_tuple in self.process_tuple_with_udf(
-                    self.context.tuple_processing_manager.current_input_tuple,
-                    self.context.tuple_processing_manager.current_input_link):
-                self.check_and_process_control()
-                if output_tuple is not None:
-                    schema = self.context.operator_manager.operator.output_schema
-                    self.cast_tuple_to_match_schema(output_tuple, schema)
-                    self.context.statistics_manager.increase_output_tuple_count()
-                    for (to,
-                         batch,) in self.context.tuple_to_batch_converter.tuple_to_batch(
-                        output_tuple):
-                        batch.schema = (
-                            self.context.operator_manager.operator.output_schema)
-                        self._output_queue.put(DataElement(tag=to, payload=batch))
-        except Exception as err:
-            logger.exception(err)
-            self.report_exception()
-            self._pause()
 
-    def process_tuple_with_udf(self, tuple_: Union[Tuple, InputExhausted],
-                               link: LinkIdentity) -> Iterator[Optional[Tuple]]:
+        for output_tuple in self.process_tuple_with_udf():
+            self.check_and_process_control()
+            if output_tuple is not None:
+                schema = self.context.operator_manager.operator.output_schema
+                self.cast_tuple_to_match_schema(output_tuple, schema)
+                self.context.statistics_manager.increase_output_tuple_count()
+                for (
+                to, batch,) in self.context.tuple_to_batch_converter.tuple_to_batch(
+                    output_tuple):
+                    batch.schema = (
+                        self.context.operator_manager.operator.output_schema)
+                    self._output_queue.put(DataElement(tag=to, payload=batch))
+
+    def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
         Process the Tuple/InputExhausted with the current link.
 
         This is a wrapper to invoke processing of the operator.
 
-        :param tuple_: Union[Tuple, InputExhausted], the current tuple.
-        :param link: LinkIdentity, the current link.
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
         self.data_processor._finished_current.clear()
@@ -172,13 +162,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     yield self._data_output_queue.get()
 
             self._switch_context()
+            self._check_and_report_exception()
 
-    def report_exception(self) -> None:
+    def report_exception(self, exception: Exception) -> None:
         """
         Report the traceback of current stack when an exception occurs.
         """
         self._print_log_handler.flush()
-        message: str = traceback.format_exc(limit=-1)
+        message: str = '\n'.join(traceback.format_tb(exception.__traceback__))
         control_command = set_one_of(ControlCommandV2,
                                      LocalOperatorExceptionV2(message=message))
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"),
@@ -326,3 +317,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         with self._dp_process_condition:
             self._dp_process_condition.notify()
             self._dp_process_condition.wait()
+
+    def _check_and_report_exception(self):
+        if self.context.exception_manager.has_exception():
+            self.report_exception(self.context.exception_manager.get_exception())
+            self._pause()
