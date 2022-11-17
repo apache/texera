@@ -12,17 +12,15 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 class TestLinkedBlockingMultiQueue:
     @pytest.fixture
     def queue(self):
-        return LinkedBlockingMultiQueue({str: ("control", 0), int: ("data", 9)})
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq._add_sub_queue("control", 0)
+        lbmq._add_sub_queue("data", 1)
+        return lbmq
 
-    @pytest.fixture
-    def multi_type_queue(self):
-        return LinkedBlockingMultiQueue(
-            {str: ("control", 0), (int, float): ("data", 9)}
-        )
 
     def test_sub_can_emit(self, queue):
         assert queue.is_empty()
-        queue.put(1)
+        queue.put("data",1)
         assert not queue.is_empty()
         assert queue.is_empty("control")
         assert queue.get() == 1
@@ -31,15 +29,15 @@ class TestLinkedBlockingMultiQueue:
 
     def test_main_can_emit(self, queue):
         assert queue.is_empty()
-        queue.put("main")
+        queue.put("control", "s")
         assert not queue.is_empty()
-        assert queue.get() == "main"
+        assert queue.get() == "s"
         assert queue.is_empty()
 
     def test_main_can_emit_before_sub(self, queue):
         assert queue.is_empty()
-        queue.put(1)
-        queue.put("s")
+        queue.put("data", 1)
+        queue.put("control", "s")
         assert not queue.is_empty()
         assert queue.get() == "s"
         assert queue.is_empty("control")
@@ -48,13 +46,13 @@ class TestLinkedBlockingMultiQueue:
         assert queue.is_empty()
 
     def test_can_maintain_order_respectively(self, queue):
-        queue.put(1)
-        queue.put("s1")
-        queue.put(99)
-        queue.put("s2")
-        queue.put("s3")
-        queue.put(3)
-        queue.put("s4")
+        queue.put("data",1)
+        queue.put("control", "s1")
+        queue.put("data",99)
+        queue.put("control", "s2")
+        queue.put("control", "s3")
+        queue.put("data",3)
+        queue.put("control", "s4")
         res = list()
         while not queue.is_empty():
             res.append(queue.get())
@@ -63,13 +61,13 @@ class TestLinkedBlockingMultiQueue:
 
     def test_can_disable_sub(self, queue):
         queue.disable("data")
-        queue.put(1)
-        queue.put("s1")
-        queue.put(99)
-        queue.put("s2")
-        queue.put("s3")
-        queue.put(3)
-        queue.put("s4")
+        queue.put("data",1)
+        queue.put("control", "s1")
+        queue.put("data",99)
+        queue.put("control", "s2")
+        queue.put("control", "s3")
+        queue.put("data",3)
+        queue.put("control", "s4")
         res = list()
         while not queue.is_empty():
             res.append(queue.get())
@@ -90,7 +88,7 @@ class TestLinkedBlockingMultiQueue:
         def producer():
             with reraise:
                 time.sleep(0.2)
-                queue.put(1)
+                queue.put("data", 1)
 
         producer_thread = Thread(target=producer)
         producer_thread.start()
@@ -108,7 +106,7 @@ class TestLinkedBlockingMultiQueue:
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
         time.sleep(0.2)
-        queue.put(1)
+        queue.put("data",1)
         consumer_thread.join()
         reraise()
 
@@ -117,7 +115,7 @@ class TestLinkedBlockingMultiQueue:
         def producer():
             with reraise:
                 time.sleep(0.2)
-                queue.put("s")
+                queue.put("control","s")
 
         producer_thread = Thread(target=producer)
         producer_thread.start()
@@ -135,7 +133,7 @@ class TestLinkedBlockingMultiQueue:
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
         time.sleep(0.2)
-        queue.put("s")
+        queue.put("control", "s")
         consumer_thread.join()
         reraise()
 
@@ -145,9 +143,9 @@ class TestLinkedBlockingMultiQueue:
             with reraise:
                 if isinstance(k, int):
                     for i in range(k):
-                        queue.put(i)
+                        queue.put("data", i)
                 else:
-                    queue.put(k)
+                    queue.put("data", k)
 
         threads = []
         target = set()
@@ -176,13 +174,13 @@ class TestLinkedBlockingMultiQueue:
 
         reraise()
 
-    def test_multi_types(self, multi_type_queue, reraise):
-        multi_type_queue.put(1)
-        multi_type_queue.put(1.1)
-        multi_type_queue.put("s")
-        multi_type_queue.disable("data")
-        assert multi_type_queue.get() == "s"
-        assert multi_type_queue.is_empty()
+    def test_multi_types(self, queue, ):
+        queue.put("data",1)
+        queue.put("data",1.1)
+        queue.put("control", "s")
+        queue.disable("data")
+        assert queue.get() == "s"
+        assert queue.is_empty()
 
     @pytest.mark.timeout(2)
     def test_common_single_producer_single_consumer(self, queue, reraise):
@@ -190,9 +188,9 @@ class TestLinkedBlockingMultiQueue:
             with reraise:
                 for i in range(11):
                     if i % 3 == 0:
-                        queue.put("s")
+                        queue.put("control", "s")
                     else:
-                        queue.put(i)
+                        queue.put("data", i)
 
         producer_thread = Thread(target=producer)
         producer_thread.start()

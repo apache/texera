@@ -1,231 +1,281 @@
+from __future__ import annotations
+
+import inspect
+import weakref
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, Dict, Tuple, Union
 
+import six
+
+from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IQueue
 from core.util.thread.atomic import AtomicInteger
 
 T = TypeVar("T")
 
-
-class Node(Generic[T]):
-    def __init__(self, item: T):
-        self.item = item
-        self.next: Optional[Node] = None
+# helper method from `peewee` project to add metaclass
+_METACLASS_ = '_metaclass_helper_'
 
 
-class SubQueue(Generic[T]):
-    def __init__(self, key: str, outer_self):
-        self.outer_self = outer_self
-        self.key: str = key
-        self.priority_group: Optional[PriorityGroup] = None
-        self.put_lock = RLock()
-        self.count = AtomicInteger()
-        self.enabled: bool = True
-        self.head: Node[T] = Node(None)
-        self.last: Optional[Node[T]] = self.head
+def with_metaclass(meta, base=object):
+    return meta(_METACLASS_, (base,), {})
 
-    def clear(self) -> None:
-        raise NotImplementedError("Intentionally do not support clear SubQueue.")
 
-    def disable(self):
-        self.fully_lock()
-        try:
-            if not self.enabled:
-                return None
-            self.outer_self.total_count.dec(self.count.value)
-            self.enabled = False
-        finally:
-            self.fully_unlock()
+class OuterMeta(type):
+    def __new__(mcs, name, parents, dct):
+        cls = super(OuterMeta, mcs).__new__(mcs, name, parents, dct)
+        for klass in dct.values():
+            if inspect.isclass(klass):
+                print("Setting outer of '%s' to '%s'" % (klass, cls))
+                klass.owner = cls
 
-    def enable(self) -> None:
-        self.fully_lock()
-        try:
+        return cls
+
+
+class innerclass(object):
+    """Descriptor for making inner classes.
+
+    Adds a property 'owner' to the inner class, pointing to the outer
+    owner instance.
+    """
+
+    # Use a weakref dict to memoise previous results so that
+    # instance.Inner() always returns the same inner classobj.
+    #
+    def __init__(self, inner):
+        self.inner = inner
+        self.instances = weakref.WeakKeyDictionary()
+
+    # Not thread-safe - consider adding a lock.
+    #
+    def __get__(self, instance, _):
+        if instance is None:
+            return self.inner
+        if instance not in self.instances:
+            self.instances[instance] = type(self.inner.__name__, (self.inner,),
+                                            {'owner': instance})
+        return self.instances[instance]
+
+
+class LinkedBlockingMultiQueue:
+    @inner
+    class Node(Generic[T]):
+        def __init__(self, item: T):
+            self.item = item
+            self.next: Optional[LinkedBlockingMultiQueue.Node] = None
+
+    @inner
+    class SubQueue(Generic[T]):
+        def __init__(self, key: str):
+            self.key: str = key
+            self.priority_group: Optional[LinkedBlockingMultiQueue.PriorityGroup] = None
+            self.put_lock = RLock()
+            self.count = AtomicInteger()
+            self.enabled: bool = True
+            self.head: LinkedBlockingMultiQueue.Node[T] = LinkedBlockingMultiQueue.Node(
+                None)
+            self.last: Optional[LinkedBlockingMultiQueue.Node[T]] = self.head
+
+        def clear(self) -> None:
+            raise NotImplementedError("Intentionally do not support clear SubQueue.")
+
+        def disable(self):
+            self.fully_lock()
+            try:
+                if not self.enabled:
+                    return None
+                self.owner.total_count.dec(self.count.value)
+                self.enabled = False
+            finally:
+                self.fully_unlock()
+
+        def enable(self) -> None:
+            self.fully_lock()
+            try:
+                if self.enabled:
+                    return None
+                self.enabled = True
+
+                # potentially unlock waiting polls
+                c = self.count.value
+                if c > 0:
+                    self.owner.total_count.inc(c)
+                    self.owner.not_empty.notify()
+
+            finally:
+                self.fully_unlock()
+
+        def is_enabled(self) -> bool:
+            self.owner.take_lock.acquire()
+            try:
+                return self.enabled
+            finally:
+                self.owner.take_lock.release()
+
+        def enqueue(self, node) -> None:
+            self.last.next = node
+            self.last = node
+
+        def __str__(self):
+            res = ""
+            h = self.head
+            while h.next is not None:
+                res += h.next.item
+                res += " -> "
+                h = h.next
+            return res
+
+        def size(self) -> int:
+            return self.count.value
+
+        def is_empty(self) -> bool:
+            return self.size() == 0
+
+        def put(self, e) -> None:
+            old_size = -1
+            node = LinkedBlockingMultiQueue.Node(e)
+            self.put_lock.acquire()
+            try:
+                self.enqueue(node)
+                self.count.inc()
+                if self.enabled:
+                    old_size = self.owner.total_count.get_and_inc()
+            finally:
+                self.put_lock.release()
+
+            if old_size == 0:
+                self.owner._signal_not_empty()
+
+        def remove(self, obj: T) -> bool:
+            self.fully_lock()
+            try:
+                trail = self.head
+                while trail.next is not None:
+                    if trail.item == obj:
+                        self.unlink(trail, trail.next)
+                        return True
+                    trail = trail.next
+                return False
+            finally:
+                self.fully_unlock()
+
+        def unlink(self, trail: LinkedBlockingMultiQueue.Node,
+                   next_: LinkedBlockingMultiQueue.Node) -> None:
+            trail.item = None
+            trail.next = next_.next
+            if self.last == next_:
+                self.last = trail
             if self.enabled:
-                return None
-            self.enabled = True
+                self.owner.total_count.get_and_dec()
 
-            # potentially unlock waiting polls
-            c = self.count.value
-            if c > 0:
-                self.outer_self.total_count.inc(c)
-                self.outer_self.not_empty.notify()
+        def fully_lock(self) -> None:
+            self.put_lock.acquire()
+            self.owner.take_lock.acquire()
 
-        finally:
-            self.fully_unlock()
-
-    def is_enabled(self) -> bool:
-        self.outer_self.take_lock.acquire()
-        try:
-            return self.enabled
-        finally:
-            self.outer_self.take_lock.release()
-
-    def enqueue(self, node) -> None:
-        self.last.next = node
-        self.last = node
-
-    def __str__(self):
-        res = ""
-        h = self.head
-        while h.next is not None:
-            res += h.next.item
-            res += " -> "
-            h = h.next
-        return res
-
-    def size(self) -> int:
-        return self.count.value
-
-    def is_empty(self) -> bool:
-        return self.size() == 0
-
-    def put(self, e) -> None:
-        old_size = -1
-        node = Node(e)
-        self.put_lock.acquire()
-        try:
-            self.enqueue(node)
-            self.count.inc()
-            if self.enabled:
-                old_size = self.outer_self.total_count.get_and_inc()
-        finally:
+        def fully_unlock(self) -> None:
             self.put_lock.release()
+            self.owner.take_lock.release()
 
-        if old_size == 0:
-            self.outer_self._signal_not_empty()
+        def dequeue(self) -> T:
+            assert self.size() > 0
+            h = self.head
+            first = h.next
+            h.next = h
+            self.head = first
+            x = first.item
+            first.item = None
+            return x
 
-    def remove(self, obj: T) -> bool:
-        self.fully_lock()
-        try:
-            trail = self.head
-            while trail.next is not None:
-                if trail.item == obj:
-                    self.unlink(trail, trail.next)
-                    return True
-                trail = trail.next
-            return False
-        finally:
-            self.fully_unlock()
+    @inner
+    class PriorityGroup(Generic[T]):
+        def __init__(self, priority: int = 0):
+            # non-negative number, the smaller number means higher priority.
+            self.priority: int = priority
+            self.queues: List[LinkedBlockingMultiQueue.SubQueue[T]] = list()
+            self.next_idx: int = 0
 
-    def unlink(self, trail: Node, next_: Node) -> None:
-        trail.item = None
-        trail.next = next_.next
-        if self.last == next_:
-            self.last = trail
-        if self.enabled:
-            self.outer_self.total_count.get_and_dec()
+        def add_queue(self, to_add: LinkedBlockingMultiQueue.SubQueue[T]) -> None:
+            self.queues.append(to_add)
+            to_add.priority_group = self
 
-    def fully_lock(self) -> None:
-        self.put_lock.acquire()
-        self.outer_self.take_lock.acquire()
+        def remove_queue(self, to_remove: LinkedBlockingMultiQueue.SubQueue[T]) -> None:
 
-    def fully_unlock(self) -> None:
-        self.put_lock.release()
-        self.outer_self.take_lock.release()
+            for queue in self.queues:
+                if queue.key == to_remove.key:
+                    to_remove.put_lock.acquire()
+                    try:
+                        self.queues[:] = [q for q in self.queues if q != queue]
+                        if self.next_idx == len(self.queues):
+                            self.next_idx = 0
+                        if queue.enabled:
+                            self.owner.total_count.get_and_dec(to_remove.size())
 
-    def dequeue(self) -> T:
-        assert self.size() > 0
-        h = self.head
-        first = h.next
-        h.next = h
-        self.head = first
-        x = first.item
-        first.item = None
-        return x
+                    finally:
+                        to_remove.put_lock.release()
 
-
-class PriorityGroup(Generic[T]):
-    def __init__(self, priority: int = 0):
-        # non-negative number, the smaller number means higher priority.
-        self.priority: int = priority
-        self.queues: List[SubQueue[T]] = list()
-        self.next_idx: int = 0
-
-    def add_queue(self, sub_queue: SubQueue[T]) -> None:
-        self.queues.append(sub_queue)
-        sub_queue.priority_group = self
-
-    def remove_queue(self, sub_queue) -> None:
-        raise NotImplementedError("Intentionally do not support remove queue.")
-
-    def get_next_sub_queue(self) -> Optional[SubQueue[T]]:
-        start_idx = self.next_idx
-        queues = [q for q in self.queues]
-        while True:
-            child = queues[self.next_idx]
-            self.next_idx += 1
-            if self.next_idx == len(queues):
-                self.next_idx = 0
-            if child.enabled and child.size() > 0:
-                return child
-            if self.next_idx == start_idx:
-                break
-        return None
-
-    def peek(self) -> Optional[T]:
-        start_idx = self.next_idx
-        while True:
-            child = self.queues[self.next_idx]
-            if child.enabled and child.size() > 0:
-                return child.head.next.item
-            else:
+        def get_next_sub_queue(self) -> Optional[LinkedBlockingMultiQueue.SubQueue[T]]:
+            start_idx = self.next_idx
+            queues = [q for q in self.queues]
+            while True:
+                child = queues[self.next_idx]
                 self.next_idx += 1
-                if self.next_idx == len(self.queues):
+                if self.next_idx == len(queues):
                     self.next_idx = 0
-            if self.next_idx == start_idx:
-                break
-        return None
+                if child.enabled and child.size() > 0:
+                    return child
+                if self.next_idx == start_idx:
+                    break
+            return None
 
+        def peek(self) -> Optional[T]:
+            start_idx = self.next_idx
+            while True:
+                child = self.queues[self.next_idx]
+                if child.enabled and child.size() > 0:
+                    return child.head.next.item
+                else:
+                    self.next_idx += 1
+                    if self.next_idx == len(self.queues):
+                        self.next_idx = 0
+                if self.next_idx == start_idx:
+                    break
+            return None
 
-class DefaultSubQueueSelection(Generic[T]):
-    def __init__(self, priority_groups: List[PriorityGroup]):
-        self.priority_groups: List[PriorityGroup] = priority_groups
+    @inner
+    class DefaultSubQueueSelection(Generic[T]):
+        def __init__(self,
+                     priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup]):
+            self.priority_groups: List[
+                LinkedBlockingMultiQueue.PriorityGroup[T]] = priority_groups
 
-    def get_next(self) -> Optional[SubQueue]:
-        for pg in self.priority_groups:
-            sub_queue = pg.get_next_sub_queue()
-            if sub_queue is not None:
-                return sub_queue
-        return None
+        def get_next(self) -> Optional[LinkedBlockingMultiQueue.SubQueue]:
+            for pg in self.priority_groups:
+                sub_queue = pg.get_next_sub_queue()
+                if sub_queue is not None:
+                    return sub_queue
+            return None
 
-    def peek(self) -> Optional[T]:
-        for pg in self.priority_groups:
-            deque = pg.peek()
-            if deque is not None:
-                return deque
-        return None
+        def peek(self) -> Optional[T]:
+            for pg in self.priority_groups:
+                deque = pg.peek()
+                if deque is not None:
+                    return deque
+            return None
 
-    def set_priority_groups(self, priority_groups):
-        self.priority_groups = priority_groups
+        def set_priority_groups(self, priority_groups):
+            self.priority_groups = priority_groups
 
-
-class LinkedBlockingMultiQueue(IQueue):
-    def __init__(self, subtypes: Dict[Union[type, Tuple[type]], Tuple[str, int]]):
+    def __init__(self, ):
         self.take_lock = RLock()
         self.not_empty = Condition(self.take_lock)
         self.sub_queues = dict()  # thread-safe in CPython
         self.total_count = AtomicInteger()
-        self.priority_groups = list()  # thread-safe in CPython
-        self.sub_queue_selection = DefaultSubQueueSelection(self.priority_groups)
+        self.priority_groups: List[
+            LinkedBlockingMultiQueue.PriorityGroup] = list()  # thread-safe in CPython
+        self.sub_queue_selection = LinkedBlockingMultiQueue.DefaultSubQueueSelection(
+            self.priority_groups)
 
-        # create SubQueue for each priority. Note that here could have multiple
-        # types mapped to the same (key, priority) pair, in this case, only create one
-        # SubQueue and share it for all types.
-        for _, (key, priority) in subtypes.items():
-            self._add_sub_queue(key, priority)
-
-        # self.type_to_key_mapping are in form of {type : key}
-        # could have multiple types mapped to the same key, meaning that they
-        # share the same SubQueue.
-        self.type_to_key_mapping = dict()
-        for type_, (key, _) in subtypes.items():
-            if isinstance(type_, tuple):
-                for t in type_:
-                    self.type_to_key_mapping[t] = key
-            else:
-                self.type_to_key_mapping[type_] = key
-
-    def put(self, item: T) -> None:
+    def put(self, key: str, item: T) -> None:
         """
         Put one item into the queue. Depending on the type, it will be put to the
         corresponding SubQueue.
@@ -234,16 +284,6 @@ class LinkedBlockingMultiQueue(IQueue):
         :raises KeyError for unsupported type of item.
         :return: None
         """
-        t = type(item)
-        key = self.type_to_key_mapping[t]
-        if key is None:
-            for type_, k in self.type_to_key_mapping.items():
-                if isinstance(item, type_):
-                    key = k
-                    break
-            if key is None:
-                raise KeyError("this type of item is not supported: " + str(t))
-
         self._get_sub_queue(key).put(item)
 
     def get(self) -> T:
@@ -345,7 +385,7 @@ class LinkedBlockingMultiQueue(IQueue):
         :return: returns None if the key is new, or returns the previous SubQueue
         mapped by the key if key is repeated.
         """
-        sub_queue = SubQueue(key, self)
+        sub_queue = self.SubQueue(key)
         self.take_lock.acquire()
 
         try:
@@ -360,7 +400,7 @@ class LinkedBlockingMultiQueue(IQueue):
                         added = True
                         break
                     elif pg.priority > priority:
-                        new_pg = PriorityGroup(priority)
+                        new_pg = LinkedBlockingMultiQueue.PriorityGroup(priority)
                         new_pg.add_queue(sub_queue)
                         self.priority_groups.append(new_pg)
                         added = True
@@ -368,7 +408,7 @@ class LinkedBlockingMultiQueue(IQueue):
 
                     i += 1
                 if not added:
-                    new_pg = PriorityGroup(priority)
+                    new_pg = LinkedBlockingMultiQueue.PriorityGroup(priority)
                     new_pg.add_queue(sub_queue)
                     self.priority_groups.append(new_pg)
 
@@ -401,26 +441,44 @@ class LinkedBlockingMultiQueue(IQueue):
 
 
 if __name__ == "__main__":
-    lbmq = LinkedBlockingMultiQueue({str: ("control", 0), (float, int): ("data", 2)})
-    print(lbmq.size())
-    assert lbmq.is_empty()
-    control = lbmq._get_sub_queue("control")
-    control.put("one")
-    print("size:", lbmq.size())
-    lbmq.disable("data")
-    lbmq.put(2)
-    print("size:", lbmq.size())
-    lbmq.put(3.2)
-    print("size:", lbmq.size())
-    lbmq.put(4)
-    print("size:", lbmq.size())
-    assert not control.is_empty()
-    print("-----------")
-    print("size:", lbmq.size())
-    print(lbmq.get())
-    print("size:", lbmq.size())
-    print(lbmq.get())
-    print("size:", lbmq.size())
-    print(lbmq.get())
-    print("size:", lbmq.size())
-    print(lbmq.get())
+    # class A:
+    #     @innerclass
+    #     class B:
+    #         def __repr__(self):
+    #             return str(self.owner)
+    #         def f(self):
+    #             print(self.owner)
+    #
+    #     def __init__(self):
+    #         self.b = A.B()
+    #
+    #
+    # a = A()
+    # print(a.b.__repr__())
+    # a.b.f()
+    class Outer(object):
+        @inner
+        class Inner(object):
+            def print(self):
+                print(self.owner)
+        def __init__(self):
+            self.i = None
+
+        def add_i(self):
+            self.i = self.Inner()
+
+            # print(self.i.__repr__())
+        def print(self):
+            print(self.i)
+            self.i.print()
+
+    o1 = Outer()
+    o1.add_i()
+    o1.Inner().print()
+    o1.i.print()
+    # o1.print()
+    # print(o1)
+    # # i1 = o1.Inner()
+    # # print(i1)
+    # print(o1.i)
+    # print(o1.i.owner)
