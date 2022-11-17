@@ -145,7 +145,7 @@ class TestLinkedBlockingMultiQueue:
                     for i in range(k):
                         queue.put("data", i)
                 else:
-                    queue.put("data", k)
+                    queue.put("control", k)
 
         threads = []
         target = set()

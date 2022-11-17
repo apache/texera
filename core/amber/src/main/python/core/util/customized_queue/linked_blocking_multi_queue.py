@@ -3,12 +3,9 @@ from __future__ import annotations
 import inspect
 import weakref
 from threading import RLock, Condition
-from typing import List, Optional, Generic, TypeVar, Dict, Tuple, Union
-
-import six
+from typing import List, Optional, Generic, TypeVar
 
 from core.util.customized_queue.inner import inner
-from core.util.customized_queue.queue_base import IQueue
 from core.util.thread.atomic import AtomicInteger
 
 T = TypeVar("T")
