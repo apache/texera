@@ -3,8 +3,8 @@ from functools import update_wrapper
 
 def raw_inner(x):
     """do nothing decorator for future backward compatibility :
-      this will preserve current behavior for inner-class if a future version
-      of the language change the default semantic for inner classes"""
+    this will preserve current behavior for inner-class if a future version
+    of the language change the default semantic for inner classes"""
     return x
 
 
@@ -25,7 +25,7 @@ class class_inner(static_inner):
     """decorator for outer attribute, inner derivation and carried inheritance"""
 
     def __init__(self, cls):
-        for method in ('__get__', '__set__', '__del__'):
+        for method in ("__get__", "__set__", "__del__"):
             if hasattr(cls, method):
                 raise ValueError("descriptors can't be used as inner class")
         static_inner.__init__(self, cls)
@@ -54,7 +54,9 @@ class class_inner(static_inner):
             if selfbases != (object,):
                 bases = selfbases + bases
             self.icls = type(self.icls)(
-                self.icls.__name__, bases, dict(self.icls.__dict__),
+                self.icls.__name__,
+                bases,
+                dict(self.icls.__dict__),
             )
         assert "outer" not in self.icls.__dict__
         self.icls.owner = owner
@@ -85,7 +87,7 @@ class class_inner(static_inner):
 
 class inner(class_inner):
     """decorator for outer object attribute, inner derivation, carried inheritance
-       and instance"""
+    and instance"""
 
     is_property = False
     is_cached = False

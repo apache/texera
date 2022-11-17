@@ -11,7 +11,7 @@ from core.util.thread.atomic import AtomicInteger
 T = TypeVar("T")
 
 # helper method from `peewee` project to add metaclass
-_METACLASS_ = '_metaclass_helper_'
+_METACLASS_ = "_metaclass_helper_"
 
 
 def with_metaclass(meta, base=object):
@@ -49,8 +49,9 @@ class innerclass(object):
         if instance is None:
             return self.inner
         if instance not in self.instances:
-            self.instances[instance] = type(self.inner.__name__, (self.inner,),
-                                            {'owner': instance})
+            self.instances[instance] = type(
+                self.inner.__name__, (self.inner,), {"owner": instance}
+            )
         return self.instances[instance]
 
 
@@ -70,7 +71,8 @@ class LinkedBlockingMultiQueue:
             self.count = AtomicInteger()
             self.enabled: bool = True
             self.head: LinkedBlockingMultiQueue.Node[T] = LinkedBlockingMultiQueue.Node(
-                None)
+                None
+            )
             self.last: Optional[LinkedBlockingMultiQueue.Node[T]] = self.head
 
         def clear(self) -> None:
@@ -156,8 +158,11 @@ class LinkedBlockingMultiQueue:
             finally:
                 self.fully_unlock()
 
-        def unlink(self, trail: LinkedBlockingMultiQueue.Node,
-                   next_: LinkedBlockingMultiQueue.Node) -> None:
+        def unlink(
+            self,
+            trail: LinkedBlockingMultiQueue.Node,
+            next_: LinkedBlockingMultiQueue.Node,
+        ) -> None:
             trail.item = None
             trail.next = next_.next
             if self.last == next_:
@@ -240,10 +245,12 @@ class LinkedBlockingMultiQueue:
 
     @inner
     class DefaultSubQueueSelection(Generic[T]):
-        def __init__(self,
-                     priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup]):
+        def __init__(
+            self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup]
+        ):
             self.priority_groups: List[
-                LinkedBlockingMultiQueue.PriorityGroup[T]] = priority_groups
+                LinkedBlockingMultiQueue.PriorityGroup[T]
+            ] = priority_groups
 
         def get_next(self) -> Optional[LinkedBlockingMultiQueue.SubQueue]:
             for pg in self.priority_groups:
@@ -262,15 +269,19 @@ class LinkedBlockingMultiQueue:
         def set_priority_groups(self, priority_groups):
             self.priority_groups = priority_groups
 
-    def __init__(self, ):
+    def __init__(
+        self,
+    ):
         self.take_lock = RLock()
         self.not_empty = Condition(self.take_lock)
         self.sub_queues = dict()  # thread-safe in CPython
         self.total_count = AtomicInteger()
         self.priority_groups: List[
-            LinkedBlockingMultiQueue.PriorityGroup] = list()  # thread-safe in CPython
+            LinkedBlockingMultiQueue.PriorityGroup
+        ] = list()  # thread-safe in CPython
         self.sub_queue_selection = LinkedBlockingMultiQueue.DefaultSubQueueSelection(
-            self.priority_groups)
+            self.priority_groups
+        )
 
     def put(self, key: str, item: T) -> None:
         """
@@ -458,6 +469,7 @@ if __name__ == "__main__":
         class Inner(object):
             def print(self):
                 print(self.owner)
+
         def __init__(self):
             self.i = None
 
@@ -465,6 +477,7 @@ if __name__ == "__main__":
             self.i = self.Inner()
 
             # print(self.i.__repr__())
+
         def print(self):
             print(self.i)
             self.i.print()

@@ -17,10 +17,9 @@ class TestLinkedBlockingMultiQueue:
         lbmq._add_sub_queue("data", 1)
         return lbmq
 
-
     def test_sub_can_emit(self, queue):
         assert queue.is_empty()
-        queue.put("data",1)
+        queue.put("data", 1)
         assert not queue.is_empty()
         assert queue.is_empty("control")
         assert queue.get() == 1
@@ -46,12 +45,12 @@ class TestLinkedBlockingMultiQueue:
         assert queue.is_empty()
 
     def test_can_maintain_order_respectively(self, queue):
-        queue.put("data",1)
+        queue.put("data", 1)
         queue.put("control", "s1")
-        queue.put("data",99)
+        queue.put("data", 99)
         queue.put("control", "s2")
         queue.put("control", "s3")
-        queue.put("data",3)
+        queue.put("data", 3)
         queue.put("control", "s4")
         res = list()
         while not queue.is_empty():
@@ -61,12 +60,12 @@ class TestLinkedBlockingMultiQueue:
 
     def test_can_disable_sub(self, queue):
         queue.disable("data")
-        queue.put("data",1)
+        queue.put("data", 1)
         queue.put("control", "s1")
-        queue.put("data",99)
+        queue.put("data", 99)
         queue.put("control", "s2")
         queue.put("control", "s3")
-        queue.put("data",3)
+        queue.put("data", 3)
         queue.put("control", "s4")
         res = list()
         while not queue.is_empty():
@@ -106,7 +105,7 @@ class TestLinkedBlockingMultiQueue:
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
         time.sleep(0.2)
-        queue.put("data",1)
+        queue.put("data", 1)
         consumer_thread.join()
         reraise()
 
@@ -115,7 +114,7 @@ class TestLinkedBlockingMultiQueue:
         def producer():
             with reraise:
                 time.sleep(0.2)
-                queue.put("control","s")
+                queue.put("control", "s")
 
         producer_thread = Thread(target=producer)
         producer_thread.start()
@@ -174,9 +173,12 @@ class TestLinkedBlockingMultiQueue:
 
         reraise()
 
-    def test_multi_types(self, queue, ):
-        queue.put("data",1)
-        queue.put("data",1.1)
+    def test_multi_types(
+        self,
+        queue,
+    ):
+        queue.put("data", 1)
+        queue.put("data", 1.1)
         queue.put("control", "s")
         queue.disable("data")
         assert queue.get() == "s"
