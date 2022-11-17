@@ -26,7 +26,7 @@ class InternalQueue(IQueue):
         return self._queue.get()
 
     def put(self, item):
-        if isinstance(item, DataElement):
+        if isinstance(item, (DataElement, Marker)):
             self._queue.put("data", item)
         elif isinstance(item, ControlElement):
             self._queue.put("control", item)

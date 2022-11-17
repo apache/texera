@@ -1,6 +1,11 @@
+"""
+This class is taken from https://github.com/sebkeim/inner-class at commit sha
+0856be1feee38710005a7ef27ae998af95dedbf8.
+"""
 from functools import update_wrapper
 
 
+# TODO: re-arrange to another module
 def raw_inner(x):
     """do nothing decorator for future backward compatibility :
     this will preserve current behavior for inner-class if a future version
@@ -75,7 +80,8 @@ class class_inner(static_inner):
                     "owner": outercls,
                     "__qualname__": outercls.__name__ + "." + self.name,
                     "__module__": cls.__module__,
-                    "__doc__": cls.__doc__,  #'__annotations__':cls.__annotations__
+                    "__doc__": cls.__doc__,
+                    # '__annotations__':cls.__annotations__
                 },
             )
 
@@ -118,6 +124,7 @@ class inner(class_inner):
             if self.is_cached:
                 setattr(outerobj, self.name, innerobj)
             return innerobj
+
         # constructor
         def ctor(*args, **kw):
             innerobj = icls.__new__(icls, *args, **kw)

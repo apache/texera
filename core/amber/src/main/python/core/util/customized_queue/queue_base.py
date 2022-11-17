@@ -1,7 +1,10 @@
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import TypeVar
 
-from typing_extensions import Protocol, T
+from typing_extensions import Protocol
+
+T = TypeVar("T")
 
 
 class IQueue(Protocol):
@@ -14,13 +17,13 @@ class IQueue(Protocol):
         msg: str
 
     @abstractmethod
-    def is_empty(self) -> bool:
+    def is_empty(self, *args, **kwargs) -> bool:
         pass
 
     @abstractmethod
-    def get(self) -> T:
+    def get(self, *args, **kwargs) -> T:
         pass
 
     @abstractmethod
-    def put(self, item: T) -> None:
+    def put(self, item: T, *args, **kwargs) -> None:
         pass
