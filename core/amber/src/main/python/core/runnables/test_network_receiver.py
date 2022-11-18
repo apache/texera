@@ -4,7 +4,7 @@ import pandas
 import pytest
 
 from core.models import Tuple
-from core.models.internal_queue import ControlElement, DataElement, InternalQueue
+from core.models.internal_queue import InternalQueue
 from core.models.payload import OutputDataFrame, EndOfUpstream
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
@@ -64,8 +64,8 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=data_payload))
-        element: DataElement = output_queue.get()
+        input_queue.put(InternalQueue.DataElement(tag=worker_id, payload=data_payload))
+        element: InternalQueue.DataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
         assert element.tag == worker_id
 
@@ -80,8 +80,10 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=EndOfUpstream()))
-        element: DataElement = output_queue.get()
+        input_queue.put(
+            InternalQueue.DataElement(tag=worker_id, payload=EndOfUpstream())
+        )
+        element: InternalQueue.DataElement = output_queue.get()
         assert element.payload == EndOfUpstream()
         assert element.tag == worker_id
 
@@ -96,8 +98,10 @@ class TestNetworkReceiver:
     ):
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
-        input_queue.put(ControlElement(tag=worker_id, payload=control_payload))
+        input_queue.put(
+            InternalQueue.ControlElement(tag=worker_id, payload=control_payload)
+        )
         network_sender_thread.start()
-        element: ControlElement = output_queue.get()
+        element: InternalQueue.ControlElement = output_queue.get()
         assert element.payload == control_payload
         assert element.tag == worker_id

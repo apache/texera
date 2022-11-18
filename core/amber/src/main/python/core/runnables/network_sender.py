@@ -2,15 +2,7 @@ from loguru import logger
 from overrides import overrides
 from pyarrow import Table
 
-from core.models import (
-    ControlElement,
-    DataElement,
-    OutputDataFrame,
-    DataPayload,
-    EndOfUpstream,
-    InternalQueue,
-    InternalQueueElement,
-)
+from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.common import (
@@ -31,10 +23,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         self._proxy_client = ProxyClient(host=host, port=port)
 
     @overrides(check_signature=False)
-    def receive(self, next_entry: InternalQueueElement):
-        if isinstance(next_entry, DataElement):
+    def receive(self, next_entry: InternalQueue.InternalQueueElement):
+        if isinstance(next_entry, InternalQueue.DataElement):
             self._send_data(next_entry.tag, next_entry.payload)
-        elif isinstance(next_entry, ControlElement):
+        elif isinstance(next_entry, InternalQueue.ControlElement):
             self._send_control(next_entry.tag, next_entry.payload)
         else:
             raise TypeError(f"Unexpected entry {next_entry}")

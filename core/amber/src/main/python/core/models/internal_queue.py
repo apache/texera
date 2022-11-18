@@ -9,10 +9,22 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 from core.util.customized_queue.queue_base import IQueue
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2
 
-T = TypeVar("T")
-
 
 class InternalQueue(IQueue):
+    @dataclass
+    class InternalQueueElement(IQueue.QueueElement):
+        pass
+
+    @dataclass
+    class DataElement(InternalQueueElement):
+        tag: ActorVirtualIdentity
+        payload: DataPayload
+
+    @dataclass
+    class ControlElement(InternalQueueElement):
+        tag: ActorVirtualIdentity
+        payload: ControlPayloadV2
+
     def __init__(self):
         self._queue = LinkedBlockingMultiQueue()
         self._queue.add_sub_queue("system", 0)
@@ -22,30 +34,13 @@ class InternalQueue(IQueue):
     def is_empty(self, key=None) -> bool:
         return self._queue.is_empty(key)
 
-    def get(self) -> T:
+    def get(self) -> InternalQueueElement:
         return self._queue.get()
 
-    def put(self, item: T) -> None:
-        if isinstance(item, (DataElement, Marker)):
+    def put(self, item: InternalQueueElement) -> None:
+        if isinstance(item, (InternalQueue.DataElement, Marker)):
             self._queue.put("data", item)
-        elif isinstance(item, ControlElement):
+        elif isinstance(item, InternalQueue.ControlElement):
             self._queue.put("control", item)
         else:
             self._queue.put("system", item)
-
-
-@dataclass
-class InternalQueueElement(IQueue.QueueElement):
-    pass
-
-
-@dataclass
-class DataElement(InternalQueueElement):
-    tag: ActorVirtualIdentity
-    payload: DataPayload
-
-
-@dataclass
-class ControlElement(InternalQueueElement):
-    tag: ActorVirtualIdentity
-    payload: ControlPayloadV2

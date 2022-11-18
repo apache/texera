@@ -14,8 +14,6 @@ from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
-    ControlElement,
-    DataElement,
     InputExhausted,
     InternalQueue,
     Operator,
@@ -115,9 +113,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         match(
             next_entry,
-            DataElement,
+            InternalQueue.DataElement,
             self._process_data_element,
-            ControlElement,
+            InternalQueue.ControlElement,
             self._process_control_element,
         )
 
@@ -166,7 +164,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                         output_tuple
                     ):
                         batch.schema = self._operator.output_schema
-                        self._output_queue.put(DataElement(tag=to, payload=batch))
+                        self._output_queue.put(
+                            InternalQueue.DataElement(tag=to, payload=batch)
+                        )
         except Exception as err:
             logger.exception(err)
             self.report_exception()
@@ -212,7 +212,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             ActorVirtualIdentity(name="CONTROLLER"), control_command
         )
 
-    def _process_control_element(self, control_element: ControlElement) -> None:
+    def _process_control_element(
+        self, control_element: InternalQueue.ControlElement
+    ) -> None:
         """
         Upon receipt of a ControlElement, unpack it into tag and payload to be handled.
 
@@ -257,11 +259,11 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         for to, batch in self.context.tuple_to_batch_converter.emit_end_of_upstream():
             batch.schema = self._operator.output_schema
-            self._output_queue.put(DataElement(tag=to, payload=batch))
+            self._output_queue.put(InternalQueue.DataElement(tag=to, payload=batch))
             self.check_and_process_control()
         self.complete()
 
-    def _process_data_element(self, data_element: DataElement) -> None:
+    def _process_data_element(self, data_element: InternalQueue.DataElement) -> None:
         """
         Upon receipt of a DataElement, unpack it into Tuples and Markers,
         and process them one by one.
