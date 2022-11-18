@@ -9,10 +9,21 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
-import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, InMemDeterminant, ProcessControlMessage}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, NetworkSenderActorRef, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  DeterminantLogger,
+  InMemDeterminant,
+  ProcessControlMessage
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkMessage,
+  NetworkSenderActorRef,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.recovery.{FIFOStateRecoveryManager, GlobalRecoveryManager}
+import edu.uci.ics.amber.engine.architecture.recovery.{
+  FIFOStateRecoveryManager,
+  GlobalRecoveryManager
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowScheduler
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
@@ -37,19 +48,19 @@ object ControllerConfig {
 }
 
 final case class ControllerConfig(
-                                   monitoringIntervalMs: Option[Long],
-                                   skewDetectionIntervalMs: Option[Long],
-                                   statusUpdateIntervalMs: Option[Long],
-                                   var supportFaultTolerance: Boolean
-                                 )
+    monitoringIntervalMs: Option[Long],
+    skewDetectionIntervalMs: Option[Long],
+    statusUpdateIntervalMs: Option[Long],
+    var supportFaultTolerance: Boolean
+)
 
 object Controller {
 
   def props(
-             workflow: Workflow,
-             controllerConfig: ControllerConfig = ControllerConfig.default,
-             parentNetworkCommunicationActorRef: NetworkSenderActorRef = NetworkSenderActorRef()
-           ): Props =
+      workflow: Workflow,
+      controllerConfig: ControllerConfig = ControllerConfig.default,
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef = NetworkSenderActorRef()
+  ): Props =
     Props(
       new Controller(
         workflow,
@@ -60,14 +71,14 @@ object Controller {
 }
 
 class Controller(
-                  val workflow: Workflow,
-                  val controllerConfig: ControllerConfig,
-                  parentNetworkCommunicationActorRef: NetworkSenderActorRef
-                ) extends WorkflowActor(
-  CONTROLLER,
-  parentNetworkCommunicationActorRef,
-  controllerConfig.supportFaultTolerance
-) {
+    val workflow: Workflow,
+    val controllerConfig: ControllerConfig,
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef
+) extends WorkflowActor(
+      CONTROLLER,
+      parentNetworkCommunicationActorRef,
+      controllerConfig.supportFaultTolerance
+    ) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
   implicit val ec: ExecutionContext = context.dispatcher
@@ -187,9 +198,9 @@ class Controller(
   }
 
   def handleControlPayload(
-                            from: ActorVirtualIdentity,
-                            controlPayload: ControlPayload
-                          ): Unit = {
+      from: ActorVirtualIdentity,
+      controlPayload: ControlPayload
+  ): Unit = {
     determinantLogger.logDeterminant(ProcessControlMessage(controlPayload, from))
     controlPayload match {
       // use control input port to pass control messages
@@ -227,9 +238,9 @@ class Controller(
           )
       }
     case NetworkMessage(
-    _,
-    WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err)))
-    ) =>
+          _,
+          WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err)))
+        ) =>
       // fatal error during recovery, fail
       asyncRPCClient.sendToClient(FatalError(err))
       // re-throw the error to fail the actor

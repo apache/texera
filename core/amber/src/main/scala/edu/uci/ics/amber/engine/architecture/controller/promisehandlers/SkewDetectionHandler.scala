@@ -254,7 +254,8 @@ object SkewDetectionHandler {
         workflow
           .getUpStreamConnectedWorkerLayers(opId)
           .values
-          .toList.head
+          .toList
+          .head
     }
   }
 

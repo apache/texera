@@ -13,4 +13,3 @@ final case class ResendOutputTo(vid: ActorVirtualIdentity, ref: ActorRef) extend
 
 // Notify controller when the machine fails and triggers recovery
 final case class NotifyFailedNode(addr: Address) extends RecoveryPayload
-

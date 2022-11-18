@@ -1,9 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.recovery
 
-import edu.uci.ics.amber.engine.architecture.logging.{InMemDeterminant, LinkChange, ProcessControlMessage, SenderActorChange, StepDelta, TerminateSignal, TimeStamp}
+import edu.uci.ics.amber.engine.architecture.logging.{
+  InMemDeterminant,
+  LinkChange,
+  ProcessControlMessage,
+  SenderActorChange,
+  StepDelta,
+  TerminateSignal,
+  TimeStamp
+}
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogReader
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{ControlElement, EndMarker, EndOfAllMarker, InputTuple, InternalQueueElement, SenderChangeMarker}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  ControlElement,
+  EndMarker,
+  EndOfAllMarker,
+  InputTuple,
+  InternalQueueElement,
+  SenderChangeMarker
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
 
@@ -77,9 +92,9 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
   }
 
   def drainAllStashedElements(
-                               dataQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue,
-                               controlQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue
-                             ): Unit = {
+      dataQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue,
+      controlQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue
+  ): Unit = {
     if (!cleaned) {
       getAllStashedInputs.foreach(dataQueue.add)
       getAllStashedControls.foreach(controlQueue.add)
@@ -156,7 +171,7 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
         case ProcessControlMessage(controlPayload, from) =>
           ControlElement(controlPayload, from)
         case TimeStamp(value) => ???
-        case TerminateSignal => throw new RuntimeException("TerminateSignal cannot be handled!")
+        case TerminateSignal  => throw new RuntimeException("TerminateSignal cannot be handled!")
       }
     }
   }

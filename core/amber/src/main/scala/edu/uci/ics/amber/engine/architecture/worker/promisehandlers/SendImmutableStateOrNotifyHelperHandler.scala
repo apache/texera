@@ -27,8 +27,8 @@ import scala.collection.mutable.ArrayBuffer
   */
 object SendImmutableStateOrNotifyHelperHandler {
   final case class SendImmutableStateOrNotifyHelper(
-                                                     helperReceiverId: ActorVirtualIdentity
-                                                   ) extends ControlCommand[Boolean]
+      helperReceiverId: ActorVirtualIdentity
+  ) extends ControlCommand[Boolean]
 }
 
 trait SendImmutableStateOrNotifyHelperHandler {
@@ -68,10 +68,8 @@ trait SendImmutableStateOrNotifyHelperHandler {
             Future.False
         }
       case exec: SortPartitionOpExec =>
-        exec
-          .waitingForTuplesFromHelper = true
-        exec.helperWorkerIdentity =
-          cmd.helperReceiverId
+        exec.waitingForTuplesFromHelper = true
+        exec.helperWorkerIdentity = cmd.helperReceiverId
         send(SaveSkewedWorkerInfo(actorId), cmd.helperReceiverId).map(response => response)
       case _ =>
         Future.False
