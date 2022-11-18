@@ -15,9 +15,9 @@ T = TypeVar("T")
 class InternalQueue(IQueue):
     def __init__(self):
         self._queue = LinkedBlockingMultiQueue()
-        self._queue._add_sub_queue("system", 0)
-        self._queue._add_sub_queue("control", 1)
-        self._queue._add_sub_queue("data", 2)
+        self._queue.add_sub_queue("system", 0)
+        self._queue.add_sub_queue("control", 1)
+        self._queue.add_sub_queue("data", 2)
 
     def is_empty(self, key=None) -> bool:
         return self._queue.is_empty(key)
@@ -25,7 +25,7 @@ class InternalQueue(IQueue):
     def get(self) -> T:
         return self._queue.get()
 
-    def put(self, item):
+    def put(self, item: T) -> None:
         if isinstance(item, (DataElement, Marker)):
             self._queue.put("data", item)
         elif isinstance(item, ControlElement):

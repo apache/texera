@@ -25,5 +25,5 @@ class IQueue(Protocol):
         pass
 
     @abstractmethod
-    def put(self, item: T, *args, **kwargs) -> None:
+    def put(self, *args, **kwargs) -> None:
         pass

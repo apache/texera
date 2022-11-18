@@ -13,8 +13,8 @@ class TestLinkedBlockingMultiQueue:
     @pytest.fixture
     def queue(self):
         lbmq = LinkedBlockingMultiQueue()
-        lbmq._add_sub_queue("control", 0)
-        lbmq._add_sub_queue("data", 1)
+        lbmq.add_sub_queue("control", 0)
+        lbmq.add_sub_queue("data", 1)
         return lbmq
 
     def test_sub_can_emit(self, queue):

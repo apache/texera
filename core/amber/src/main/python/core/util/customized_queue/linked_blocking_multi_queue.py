@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import inspect
-import weakref
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar
 
@@ -9,50 +7,6 @@ from core.util.customized_queue.inner import inner
 from core.util.thread.atomic import AtomicInteger
 
 T = TypeVar("T")
-
-# helper method from `peewee` project to add metaclass
-_METACLASS_ = "_metaclass_helper_"
-
-
-def with_metaclass(meta, base=object):
-    return meta(_METACLASS_, (base,), {})
-
-
-class OuterMeta(type):
-    def __new__(mcs, name, parents, dct):
-        cls = super(OuterMeta, mcs).__new__(mcs, name, parents, dct)
-        for klass in dct.values():
-            if inspect.isclass(klass):
-                print("Setting outer of '%s' to '%s'" % (klass, cls))
-                klass.owner = cls
-
-        return cls
-
-
-class innerclass(object):
-    """Descriptor for making inner classes.
-
-    Adds a property 'owner' to the inner class, pointing to the outer
-    owner instance.
-    """
-
-    # Use a weakref dict to memoise previous results so that
-    # instance.Inner() always returns the same inner classobj.
-    #
-    def __init__(self, inner):
-        self.inner = inner
-        self.instances = weakref.WeakKeyDictionary()
-
-    # Not thread-safe - consider adding a lock.
-    #
-    def __get__(self, instance, _):
-        if instance is None:
-            return self.inner
-        if instance not in self.instances:
-            self.instances[instance] = type(
-                self.inner.__name__, (self.inner,), {"owner": instance}
-            )
-        return self.instances[instance]
 
 
 class LinkedBlockingMultiQueue:
@@ -285,11 +239,11 @@ class LinkedBlockingMultiQueue:
 
     def put(self, key: str, item: T) -> None:
         """
-        Put one item into the queue. Depending on the type, it will be put to the
-        corresponding SubQueue.
+        Put one item into the SubQueue specified by the key.
 
-        :param item: Any acceptable instance.
-        :raises KeyError for unsupported type of item.
+        :param key: the identifier of a SubQueue.
+        :param item: Any instance.
+        :raises KeyError for non-existing keys.
         :return: None
         """
         self._get_sub_queue(key).put(item)
@@ -342,8 +296,8 @@ class LinkedBlockingMultiQueue:
         """
         Enables a SubQueue, specified by key. This action acquires all locks.
 
-        :param key: the key of the target SubQueue.
-        :raises KeyError for unseen keys.
+        :param key: the identifier of the SubQueue.
+        :raises KeyError for non-existing keys.
         :return: None
         """
         self._get_sub_queue(key).enable()
@@ -352,8 +306,8 @@ class LinkedBlockingMultiQueue:
         """
         Disables a SubQueue, specified by key. This action acquires all locks.
 
-        :param key: the key of the target SubQueue.
-        :raises KeyError for unseen keys.
+        :param key: the identifier of the SubQueue.
+        :raises KeyError for non-existing keys.
         :return: None
         """
         self._get_sub_queue(key).disable()
@@ -361,10 +315,10 @@ class LinkedBlockingMultiQueue:
     def size(self, key: Optional[str] = None) -> int:
         """
         Get the current number of elements of the queue, or a specific SubQueue if
-        key is provided. This action acquires NO locks.
+        a key is provided. This action acquires NO locks.
 
-        :param key: optional SubQueue key.
-        :raises KeyError for unseen keys.
+        :param key: optional identifier of a SubQueue.
+        :raises KeyError for non-existing keys.
         :return: Integer for size.
         """
         if key is not None:
@@ -377,17 +331,17 @@ class LinkedBlockingMultiQueue:
         Check if the queue is empty, or check a specific SubQueue if
         key is provided. This action acquires NO locks.
 
-        :param key: optional SubQueue key.
-        :raises KeyError for unseen keys.
+        :param key: optional identifier of a SubQueue.
+        :raises KeyError for non-existing keys.
         :return: Boolean representing empty or not.
         """
         return self.size(key) == 0
 
-    def _add_sub_queue(self, key: str, priority: int) -> Optional[SubQueue]:
+    def add_sub_queue(self, key: str, priority: int) -> Optional[SubQueue]:
         """
         Create a new SubQueue if absent, with the key and priority.
 
-        :param key: SubQueue key for future reference.
+        :param key: SubQueue identifier for future reference.
         :param priority: int value of priority, the lower number means the higher
         priority.
         :return: returns None if the key is new, or returns the previous SubQueue
@@ -428,8 +382,8 @@ class LinkedBlockingMultiQueue:
         """
         Get the SubQueue specified by the key.
 
-        :param key: SubQueue identification.
-        :raises KeyError for unseen keys.
+        :param key: the identifier of a SubQueue.
+        :raises KeyError for non-existing keys.
         :return: the SubQueue.
         """
         return self.sub_queues[key]
@@ -446,49 +400,3 @@ class LinkedBlockingMultiQueue:
             self.not_empty.notify()
         finally:
             self.take_lock.release()
-
-
-if __name__ == "__main__":
-    # class A:
-    #     @innerclass
-    #     class B:
-    #         def __repr__(self):
-    #             return str(self.owner)
-    #         def f(self):
-    #             print(self.owner)
-    #
-    #     def __init__(self):
-    #         self.b = A.B()
-    #
-    #
-    # a = A()
-    # print(a.b.__repr__())
-    # a.b.f()
-    class Outer(object):
-        @inner
-        class Inner(object):
-            def print(self):
-                print(self.owner)
-
-        def __init__(self):
-            self.i = None
-
-        def add_i(self):
-            self.i = self.Inner()
-
-            # print(self.i.__repr__())
-
-        def print(self):
-            print(self.i)
-            self.i.print()
-
-    o1 = Outer()
-    o1.add_i()
-    o1.Inner().print()
-    o1.i.print()
-    # o1.print()
-    # print(o1)
-    # # i1 = o1.Inner()
-    # # print(i1)
-    # print(o1.i)
-    # print(o1.i.owner)
