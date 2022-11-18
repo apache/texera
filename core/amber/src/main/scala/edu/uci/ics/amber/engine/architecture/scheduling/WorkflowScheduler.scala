@@ -314,7 +314,6 @@ class WorkflowScheduler(
         schedulingPolicy.addToRunningRegions(Set(region))
         startedRegions.add(region.getId())
       })
-      .unit
   }
 
   private def resumeRegion(region: PipelinedRegion): Future[Unit] = {
