@@ -27,6 +27,7 @@ class ClusterListener extends Actor with ActorLogging {
       classOf[MemberEvent]
     )
   }
+
   override def postStop(): Unit = cluster.unsubscribe(self)
 
   def receive: Receive = {
@@ -53,9 +54,7 @@ class ClusterListener extends Actor with ActorLogging {
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (jobService != null && !jobService.workflow.isCompleted) {
-            try {
-              futures.append(jobService.client.notifyNodeFailure(member.address))
-            }
+            futures.append(jobService.client.notifyNodeFailure(member.address))
           }
         }
         Await.all(futures: _*)
