@@ -1087,7 +1087,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+        const highlightedCommentBoxesIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
         this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+        highlightedCommentBoxesIDs.forEach( highlightedCommentBoxesID =>
+          this.workflowActionService.deleteCommentBox(highlightedCommentBoxesID));
       });
   }
 
@@ -1168,9 +1173,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             .getJointGraphWrapper()
             .getCurrentHighlightedOperatorIDs();
           const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
+          const highlightedCommentBoxesIDs = this.workflowActionService
+            .getJointGraphWrapper()
+            .getCurrentHighlightedCommentBoxIDs();
           this.operatorMenu.saveHighlightedElements();
           this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+          highlightedCommentBoxesIDs.forEach( highlightedCommentBoxID =>
+            this.workflowActionService.deleteCommentBox(highlightedCommentBoxID));
         }
       });
   }
