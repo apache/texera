@@ -114,7 +114,7 @@ class UDFTableOperator(TableOperator):
 
 class UDFBatchOperator(BatchOperator):
     """
-    Base class for table-oriented user-defined operators. A concrete implementation must
+    Base class for batch-oriented user-defined operators. A concrete implementation must
     be provided upon using.
     """
 
@@ -131,9 +131,9 @@ class UDFBatchOperator(BatchOperator):
         Process an input Table from the given link. The Table is represented as
         pandas.DataFrame.
 
-        :param table: Table, a table to be processed.
-        :param port: int, input index of the current Table.
-        :return: Iterator[Optional[TableLike]], producing one TableLike object at a
+        :param batch: Batch, a batch to be processed.
+        :param port: int, input index of the current Batch.
+        :return: Iterator[Optional[BatchLike]], producing one BatchLike object at a
             time, or None.
         """
         yield

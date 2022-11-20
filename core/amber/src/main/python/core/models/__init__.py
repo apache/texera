@@ -25,6 +25,7 @@ __all__ = [
     "ArrowTableTupleProvider",
     "Table",
     "TableLike",
+    "Batch",
     "BatchLike",
     "Operator",
     "TupleOperator",
