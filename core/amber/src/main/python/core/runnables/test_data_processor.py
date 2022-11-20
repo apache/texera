@@ -12,6 +12,7 @@ from core.models import (
     InternalQueue,
     Tuple,
 )
+from core.models.internal_queue import DataElement, ControlElement
 from core.runnables import DataProcessor
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -76,7 +77,7 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_data_element(self, mock_tuple, mock_sender_actor):
-        return InternalQueue.DataElement(
+        return DataElement(
             tag=mock_sender_actor,
             payload=InputDataFrame(
                 frame=pyarrow.Table.from_pandas(
@@ -87,7 +88,7 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
-        return InternalQueue.DataElement(tag=mock_sender_actor, payload=EndOfUpstream())
+        return DataElement(tag=mock_sender_actor, payload=EndOfUpstream())
 
     @pytest.fixture
     def input_queue(self):
@@ -109,7 +110,7 @@ class TestDataProcessor:
             ControlPayloadV2,
             ControlInvocationV2(command_id=command_sequence, command=command),
         )
-        return InternalQueue.ControlElement(tag=mock_controller, payload=payload)
+        return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
     def mock_add_partitioning(
@@ -129,7 +130,7 @@ class TestDataProcessor:
             ControlPayloadV2,
             ControlInvocationV2(command_id=command_sequence, command=command),
         )
-        return InternalQueue.ControlElement(tag=mock_controller, payload=payload)
+        return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
     def mock_query_statistics(
@@ -140,7 +141,7 @@ class TestDataProcessor:
             ControlPayloadV2,
             ControlInvocationV2(command_id=command_sequence, command=command),
         )
-        return InternalQueue.ControlElement(tag=mock_controller, payload=payload)
+        return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
     def data_processor(self, input_queue, output_queue, mock_udf, mock_link):
@@ -194,7 +195,7 @@ class TestDataProcessor:
         # can process UpdateInputLinking
         input_queue.put(mock_update_input_linking)
 
-        assert output_queue.get() == InternalQueue.ControlElement(
+        assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
@@ -206,7 +207,7 @@ class TestDataProcessor:
 
         # can process AddPartitioning
         input_queue.put(mock_add_partitioning)
-        assert output_queue.get() == InternalQueue.ControlElement(
+        assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
@@ -219,7 +220,7 @@ class TestDataProcessor:
         # can process a InputDataFrame
         input_queue.put(mock_data_element)
 
-        output_data_element: InternalQueue.DataElement = output_queue.get()
+        output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_receiver_actor
         assert isinstance(output_data_element.payload, OutputDataFrame)
         data_frame: OutputDataFrame = output_data_element.payload
@@ -228,7 +229,7 @@ class TestDataProcessor:
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
-        assert output_queue.get() == InternalQueue.ControlElement(
+        assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
@@ -246,7 +247,7 @@ class TestDataProcessor:
 
         # can process EndOfUpstream
         input_queue.put(mock_end_of_upstream)
-        assert output_queue.get() == InternalQueue.ControlElement(
+        assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 control_invocation=ControlInvocationV2(
@@ -259,7 +260,7 @@ class TestDataProcessor:
         )
 
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
-        assert output_queue.get() == InternalQueue.ControlElement(
+        assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 control_invocation=ControlInvocationV2(
@@ -271,13 +272,13 @@ class TestDataProcessor:
             ),
         )
 
-        assert output_queue.get() == InternalQueue.DataElement(
+        assert output_queue.get() == DataElement(
             tag=mock_receiver_actor, payload=EndOfUpstream()
         )
 
         # can process ReturnInvocation
         input_queue.put(
-            InternalQueue.ControlElement(
+            ControlElement(
                 tag=mock_controller,
                 payload=set_one_of(
                     ControlPayloadV2,

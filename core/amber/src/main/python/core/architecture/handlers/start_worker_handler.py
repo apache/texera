@@ -6,6 +6,7 @@ from .handler_base import Handler
 from ..managers.context import Context
 from ..packaging.batch_to_tuple_converter import BatchToTupleConverter
 from ...models import InternalQueue
+from ...models.internal_queue import DataElement
 
 
 class StartWorkerHandler(Handler):
@@ -15,9 +16,7 @@ class StartWorkerHandler(Handler):
         if context.dp._operator.is_source:
             context.state_manager.transit_to(WorkerState.RUNNING)
             context.input_queue.put(
-                InternalQueue.DataElement(
-                    tag=BatchToTupleConverter.SOURCE_STARTER, payload=None
-                )
+                DataElement(tag=BatchToTupleConverter.SOURCE_STARTER, payload=None)
             )
         state = context.state_manager.get_current_state()
         return state

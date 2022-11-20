@@ -3,6 +3,7 @@ from overrides import overrides
 from pyarrow import Table
 
 from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
+from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.common import (
@@ -23,10 +24,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         self._proxy_client = ProxyClient(host=host, port=port)
 
     @overrides(check_signature=False)
-    def receive(self, next_entry: InternalQueue.InternalQueueElement):
-        if isinstance(next_entry, InternalQueue.DataElement):
+    def receive(self, next_entry: InternalQueueElement):
+        if isinstance(next_entry, DataElement):
             self._send_data(next_entry.tag, next_entry.payload)
-        elif isinstance(next_entry, InternalQueue.ControlElement):
+        elif isinstance(next_entry, ControlElement):
             self._send_control(next_entry.tag, next_entry.payload)
         else:
             raise TypeError(f"Unexpected entry {next_entry}")

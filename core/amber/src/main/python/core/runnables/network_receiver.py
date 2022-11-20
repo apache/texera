@@ -7,6 +7,7 @@ from core.models import (
     EndOfUpstream,
     InternalQueue,
 )
+from core.models.internal_queue import DataElement, ControlElement
 from core.proxy import ProxyServer
 from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
@@ -27,15 +28,11 @@ class NetworkReceiver(Runnable, Stoppable):
             data_header = PythonDataHeader().parse(command)
             if not data_header.is_end:
                 shared_queue.put(
-                    InternalQueue.DataElement(
-                        tag=data_header.tag, payload=InputDataFrame(table)
-                    )
+                    DataElement(tag=data_header.tag, payload=InputDataFrame(table))
                 )
             else:
                 shared_queue.put(
-                    InternalQueue.DataElement(
-                        tag=data_header.tag, payload=EndOfUpstream()
-                    )
+                    DataElement(tag=data_header.tag, payload=EndOfUpstream())
                 )
 
         self._proxy_server.register_data_handler(data_handler)
@@ -45,7 +42,7 @@ class NetworkReceiver(Runnable, Stoppable):
         def control_handler(message: bytes):
             python_control_message = PythonControlMessage().parse(message)
             shared_queue.put(
-                InternalQueue.ControlElement(
+                ControlElement(
                     tag=python_control_message.tag,
                     payload=python_control_message.payload,
                 )

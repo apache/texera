@@ -5,7 +5,7 @@ from typing import Dict
 from loguru import logger
 
 from core.architecture.managers.context import Context
-from core.models.internal_queue import InternalQueue
+from core.models.internal_queue import InternalQueue, ControlElement
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
@@ -39,7 +39,7 @@ class AsyncRPCClient:
             ControlPayloadV2,
             ControlInvocationV2(self._send_sequences[to], command=control_command),
         )
-        self._output_queue.put(InternalQueue.ControlElement(tag=to, payload=payload))
+        self._output_queue.put(ControlElement(tag=to, payload=payload))
         return self._create_future(to)
 
     def _create_future(self, to: ActorVirtualIdentity) -> Future:

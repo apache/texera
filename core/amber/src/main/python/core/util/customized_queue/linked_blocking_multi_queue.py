@@ -4,12 +4,13 @@ from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar
 
 from core.util.customized_queue.inner import inner
+from core.util.customized_queue.queue_base import IKeyedQueue
 from core.util.thread.atomic import AtomicInteger
 
 T = TypeVar("T")
 
 
-class LinkedBlockingMultiQueue:
+class LinkedBlockingMultiQueue(IKeyedQueue):
     @inner
     class Node(Generic[T]):
         def __init__(self, item: T):
@@ -325,6 +326,9 @@ class LinkedBlockingMultiQueue:
             return self._get_sub_queue(key).size()
         else:
             return self.total_count.value
+
+    def __len__(self) -> int:
+        return self.size()
 
     def is_empty(self, key: Optional[str] = None) -> bool:
         """

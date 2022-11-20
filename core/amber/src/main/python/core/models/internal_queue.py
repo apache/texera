@@ -1,30 +1,39 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Type
 
 from core.models.marker import Marker
 from core.models.payload import DataPayload
+
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )
-from core.util.customized_queue.queue_base import IQueue
+from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2
 
 
+@dataclass
+class InternalQueueElement(QueueElement):
+    pass
+
+
+@dataclass
+class DataElement(InternalQueueElement):
+    tag: ActorVirtualIdentity
+    payload: DataPayload
+
+
+@dataclass
+class ControlElement(InternalQueueElement):
+    tag: ActorVirtualIdentity
+    payload: ControlPayloadV2
+
+
+T = TypeVar("T", bound=InternalQueueElement)
+
+
 class InternalQueue(IQueue):
-    @dataclass
-    class InternalQueueElement(IQueue.QueueElement):
-        pass
-
-    @dataclass
-    class DataElement(InternalQueueElement):
-        tag: ActorVirtualIdentity
-        payload: DataPayload
-
-    @dataclass
-    class ControlElement(InternalQueueElement):
-        tag: ActorVirtualIdentity
-        payload: ControlPayloadV2
-
     def __init__(self):
         self._queue = LinkedBlockingMultiQueue()
         self._queue.add_sub_queue("system", 0)
@@ -34,13 +43,16 @@ class InternalQueue(IQueue):
     def is_empty(self, key=None) -> bool:
         return self._queue.is_empty(key)
 
-    def get(self) -> InternalQueueElement:
+    def get(self) -> T:
         return self._queue.get()
 
-    def put(self, item: InternalQueueElement) -> None:
-        if isinstance(item, (InternalQueue.DataElement, Marker)):
+    def put(self, item: T) -> None:
+        if isinstance(item, (DataElement, Marker)):
             self._queue.put("data", item)
-        elif isinstance(item, InternalQueue.ControlElement):
+        elif isinstance(item, ControlElement):
             self._queue.put("control", item)
         else:
             self._queue.put("system", item)
+
+    def __len__(self) -> int:
+        return self._queue.size()
