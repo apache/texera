@@ -108,4 +108,18 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByGoogleId(String value) {
         return fetchOne(User.USER.GOOGLE_ID, value);
     }
+
+    /**
+     * Fetch records that have <code>permission BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfPermission(Integer lowerInclusive, Integer upperInclusive) {
+        return fetchRange(User.USER.PERMISSION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>permission IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByPermission(Integer... values) {
+        return fetch(User.USER.PERMISSION, values);
+    }
 }
