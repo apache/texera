@@ -78,6 +78,7 @@ object GoogleAuthResource {
           user.setEmail(googleEmail)
           user.setName(googleName)
           user.setGoogleId(googleId)
+          user.setPermission(0)
           userDao.insert(user)
           user
       }
@@ -117,7 +118,8 @@ class GoogleAuthResource {
   def login(request: GoogleUserLoginRequest): TokenIssueResponse = {
     retrieveUserByGoogleAuthCode(request.authCode) match {
       case Success(user) =>
-        TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
+        if (user.getPermission == 0) throw new NotAuthorizedException("Account pending approval.")
+        else TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case Failure(_) => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
   }

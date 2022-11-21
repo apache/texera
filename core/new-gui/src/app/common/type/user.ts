@@ -11,6 +11,7 @@ export interface User
     uid: number;
     googleId?: string;
     color?: string;
+    permission: number;
   }> {}
 
 /**
