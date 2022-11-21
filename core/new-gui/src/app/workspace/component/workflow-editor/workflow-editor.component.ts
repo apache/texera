@@ -1178,7 +1178,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    */
   private handleElementCopy(): void {
     fromEvent<ClipboardEvent>(document, "copy")
-      .pipe(filter(event => document.activeElement === document.body))
+      .pipe(
+        filter(event => document.activeElement === document.body),
+        untilDestroyed(this)
+      )
       .subscribe(() => {
         if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
           this.operatorMenu.saveHighlightedElements();
@@ -1195,7 +1198,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromEvent<ClipboardEvent>(document, "cut")
       .pipe(
         filter(event => document.activeElement === document.body),
-        filter(event => this.interactive)
+        filter(event => this.interactive),
+        untilDestroyed(this)
       )
       .subscribe(() => {
         if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
@@ -1219,7 +1223,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromEvent<ClipboardEvent>(document, "paste")
       .pipe(
         filter(event => document.activeElement === document.body),
-        filter(event => this.interactive)
+        filter(event => this.interactive),
+        untilDestroyed(this)
       )
       .subscribe(() => this.operatorMenu.performPasteOperation());
   }
