@@ -1091,8 +1091,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
         this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
-        highlightedCommentBoxesIDs.forEach( highlightedCommentBoxesID =>
-          this.workflowActionService.deleteCommentBox(highlightedCommentBoxesID));
+        highlightedCommentBoxesIDs.forEach(highlightedCommentBoxesID =>
+          this.workflowActionService.deleteCommentBox(highlightedCommentBoxesID)
+        );
       });
   }
 
@@ -1149,7 +1150,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         untilDestroyed(this)
       )
       .subscribe(() => {
-        if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
+        if (
+          this.operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
+          this.operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0
+        ) {
           this.operatorMenu.saveHighlightedElements();
         }
       });
@@ -1168,7 +1172,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         untilDestroyed(this)
       )
       .subscribe(() => {
-        if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
+        if (
+          this.operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
+          this.operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0
+        ) {
           const highlightedOperatorIDs = this.workflowActionService
             .getJointGraphWrapper()
             .getCurrentHighlightedOperatorIDs();
@@ -1178,8 +1185,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             .getCurrentHighlightedCommentBoxIDs();
           this.operatorMenu.saveHighlightedElements();
           this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
-          highlightedCommentBoxesIDs.forEach( highlightedCommentBoxID =>
-            this.workflowActionService.deleteCommentBox(highlightedCommentBoxID));
+          highlightedCommentBoxesIDs.forEach(highlightedCommentBoxID =>
+            this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
+          );
         }
       });
   }

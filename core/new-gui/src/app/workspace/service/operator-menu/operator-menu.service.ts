@@ -43,6 +43,7 @@ type SerializedString = {
 })
 export class OperatorMenuService {
   public effectivelyHighlightedOperators = new BehaviorSubject([] as readonly string[]);
+  public effectivelyHighlightedCommentBoxes = new BehaviorSubject([] as readonly string[]);
 
   // whether the disable-operator-button should be enabled
   public isDisableOperatorClickable: boolean = false;
@@ -67,11 +68,16 @@ export class OperatorMenuService {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
+    ).subscribe(() => {
+      this.effectivelyHighlightedOperators.next(this.getEffectivelyHighlightedOperators());
+    });
+
+    merge(
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     ).subscribe(() => {
-      this.effectivelyHighlightedOperators.next(this.getEffectivelyHighlightedOperators());
+      this.effectivelyHighlightedCommentBoxes.next(this.getEffectivelyHighlightedCommentBoxes());
     });
   }
 
@@ -80,9 +86,6 @@ export class OperatorMenuService {
    */
   public getEffectivelyHighlightedOperators(): readonly string[] {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedCommentBoxes = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedCommentBoxIDs();
     const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
 
     const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
@@ -91,9 +94,15 @@ export class OperatorMenuService {
 
     const effectiveHighlightedOperators = new Set<string>();
     highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
-    highlightedCommentBoxes.forEach(op => effectiveHighlightedOperators.add(op));
     operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
     return Array.from(effectiveHighlightedOperators);
+  }
+
+  public getEffectivelyHighlightedCommentBoxes(): readonly string[] {
+    const highlightedCommentBoxes = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedCommentBoxIDs();
+    return highlightedCommentBoxes;
   }
 
   /**
