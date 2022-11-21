@@ -636,7 +636,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           if (highlightedCommentBoxIDs.includes(elementID)) {
             this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
+            this.workflowActionService.highlightCommentBoxes(<boolean>event[1].shiftKey, elementID);
           }
           // if in the multiselect mode, also highlight the links in between two highlighted operators
           const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
@@ -1134,7 +1134,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService.highlightLinks(allLinks.length > 1, ...allLinks);
         this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
-        this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(...allCommentBoxes);
+        this.workflowActionService.highlightCommentBoxes(allCommentBoxes.length > 1, ...allCommentBoxes);
       });
   }
 
