@@ -592,22 +592,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
         }
       });
-    // fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
-    // .pipe(untilDestroyed(this))
-    // .subscribe(event => console.log(event));
-
-    const inputPortClickStream = fromJointPaperEvent(this.getJointPaper(), "input-port-label:pointerdown");
-
-    inputPortClickStream
-      .pipe(
-        buffer(inputPortClickStream.pipe(debounceTime(250))),
-        filter(x => x.length === 2),
-        untilDestroyed(this)
-      )
-      .subscribe(e => {
-        console.log("doubleclick");
-        console.log(e);
-      });
   }
   /**
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator or group.
@@ -853,7 +837,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleViewAddPort(): void {
-    // bind the delete button event to call the delete operator function in joint model action
     fromJointPaperEvent(this.getJointPaper(), "element:add-input-port")
       .pipe(
         filter(value => this.interactive),
@@ -879,7 +862,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleViewRemovePort(): void {
-    // bind the delete button event to call the delete operator function in joint model action
     fromJointPaperEvent(this.getJointPaper(), "element:remove-input-port")
       .pipe(
         filter(value => this.interactive),

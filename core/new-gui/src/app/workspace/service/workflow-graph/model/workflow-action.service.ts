@@ -31,16 +31,6 @@ import { assert } from "src/app/common/util/assert";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 
-type OperatorPosition = {
-  position: Point;
-  layer: number;
-};
-
-type GroupInfo = {
-  group: Group;
-  layer: number;
-};
-
 /**
  *
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of Texera,
