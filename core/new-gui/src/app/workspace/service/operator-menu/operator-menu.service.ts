@@ -334,6 +334,7 @@ export class OperatorMenuService {
         }
 
         const position: Point = operatorPositionsInClipboard[copiedOperator.operatorID] as Point;
+        positions.push(position);
         // calculate the new positions for the pasted operators
         const newOperatorPosition = this.calcOperatorPosition(position, positions);
         operatorsAndPositions.push({
@@ -363,6 +364,7 @@ export class OperatorMenuService {
       let commentBoxesCopy: CommentBox[] = elementsInClipboard.get("commentBoxes") as CommentBox[];
       commentBoxesCopy.forEach(commentBoxCopy => {
         const commentBoxPosition: Point = commentBoxCopy.commentBoxPosition as Point;
+        positions.push(commentBoxPosition);
         const newCommentBoxPosition = this.calcOperatorPosition(commentBoxPosition, positions);
         positions.push(newCommentBoxPosition);
         const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
@@ -422,7 +424,11 @@ export class OperatorMenuService {
       this.workflowActionService
         .getOperatorGroup()
         .getAllGroups()
-        .map(group => this.workflowActionService.getJointGraphWrapper().getElementPosition(group.groupID))
+        .map(group => this.workflowActionService.getJointGraphWrapper().getElementPosition(group.groupID)),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getAllCommentBoxes()
+        .map(CommentBox => CommentBox.commentBoxPosition)
     );
     do {
       for (const operatorPosition of operatorPositions) {

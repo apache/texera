@@ -208,6 +208,7 @@ export class SharedModelChangeHandler {
           const commentBox = this.texeraGraph.sharedModel.commentBoxMap.get(key) as YType<CommentBox>;
           const commentElement = this.jointUIService.getCommentElement(commentBox.toJSON());
           this.jointGraph.addCell(commentElement);
+          this.jointGraphWrapper.setAbsolutePosition(key, commentBox.toJSON().commentBoxPosition.x, commentBox.toJSON().commentBoxPosition.y);
           this.texeraGraph.commentBoxAddSubject.next(commentBox.toJSON());
         }
         if (change.action === "delete") {
