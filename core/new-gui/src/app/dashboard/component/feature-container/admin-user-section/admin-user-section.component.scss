@@ -5,18 +5,13 @@
   * css specifically for each file item in the list (not shared by workflow items)
   **/
 
-.ant-select-item-option-content{
-  text-align:right;
-}
-
-.left-padding{
-  margin-left:15.5px;
+.extra-width{
+  width:110px;
 }
 
 .permission{
   border-radius: 50px;
   color:white;
-  margin-right: 0;
 }
 
 .c0{
@@ -32,19 +27,4 @@
 .c2{
   background-color:red;
   padding: 2px 21.68px;
-}
-
-.file-list-item {
-  margin-bottom: 10px;
-  min-height: 70px;
-  padding: 5px 0 5px 0;
-
-  .file-item-meta-title {
-    display: flex;
-    align-items: center;
-  }
-}
-
-.email{
-  font-size: 18px;
 }
