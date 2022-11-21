@@ -1,12 +1,12 @@
-export interface DashboardUserEntry
+export interface DashboardAdminUserEntry
   extends Readonly<{
     uid: number;
-    email: string;
+    name: string;
     accessLevel: number;
   }> {}
 
 /**
- * This enum type helps indicate the method in which DashboardUserEntry[] is sorted
+ * This enum type helps indicate the method in which DashboardAdminUserEntry[] is sorted
  */
 export enum SortMethod {
   NameAsc,

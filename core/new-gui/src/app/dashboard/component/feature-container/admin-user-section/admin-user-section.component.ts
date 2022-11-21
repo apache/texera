@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { DashboardUserEntry, SortMethod } from "../../../type/dashboard-user-entry";
+import { DashboardAdminUserEntry, SortMethod } from "../../../type/dashboard-admin-user-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { AdminUserService } from "../../../service/admin-user/admin-user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -25,12 +25,12 @@ export class AdminUserSectionComponent implements OnInit {
     this.registerDashboardFileEntriesRefresh();
   }
   // variables for file editing / search / sort
-  public dashboardUserEntries: ReadonlyArray<DashboardUserEntry> = [];
+  public dashboardUserEntries: ReadonlyArray<DashboardAdminUserEntry> = [];
   public isEditingName: number[] = [];
   public userFileSearchValue: string = "";
   public filteredFilenames: Array<string> = new Array();
   public isTyping: boolean = false;
-  public fuse = new Fuse([] as ReadonlyArray<DashboardUserEntry>, {
+  public fuse = new Fuse([] as ReadonlyArray<DashboardAdminUserEntry>, {
     shouldSort: true,
     threshold: 0.2,
     location: 0,
@@ -45,7 +45,7 @@ export class AdminUserSectionComponent implements OnInit {
   }
 
 
-  public getFileArray(): ReadonlyArray<DashboardUserEntry> {
+  public getUserArray(): ReadonlyArray<DashboardAdminUserEntry> {
     this.sortFileEntries(); // default sorting
     const userArray = this.dashboardUserEntries;
     if (!userArray) {
@@ -56,7 +56,9 @@ export class AdminUserSectionComponent implements OnInit {
         return item.item;
       });
     }
+    console.log(userArray);
     return userArray;
+
   }
 
   public disableAddButton(): boolean {
@@ -143,7 +145,7 @@ export class AdminUserSectionComponent implements OnInit {
     this.dashboardUserEntries = this.dashboardUserEntries
       .slice()
       .sort((t1, t2) =>
-        t1.email.toLowerCase().localeCompare(t2.email.toLowerCase())
+        t1.name.toLowerCase().localeCompare(t2.name.toLowerCase())
       );
   }
 
@@ -155,7 +157,7 @@ export class AdminUserSectionComponent implements OnInit {
     this.dashboardUserEntries = this.dashboardUserEntries
       .slice()
       .sort((t1, t2) =>
-        t2.email.toLowerCase().localeCompare(t1.email.toLowerCase())
+        t2.name.toLowerCase().localeCompare(t1.name.toLowerCase())
       );
   }
 
