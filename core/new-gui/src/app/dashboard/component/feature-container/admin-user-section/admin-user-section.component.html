@@ -42,6 +42,11 @@
           <nz-list-item-meta class="file-item-meta">
             <nz-list-item-meta-title>
               <div class="file-item-meta-title">
+                <nz-select class="role" nzBorderless>
+                  <nz-option nzValue="0" nzLabel="Admin"></nz-option>
+                  <nz-option nzValue="1" nzLabel="Regular"></nz-option>
+                  <nz-option nzValue="2" nzLabel="Disallow"></nz-option>
+                </nz-select>
                 <h4 class="file-name">
                   {{ UserEntry.name }}
                 </h4>

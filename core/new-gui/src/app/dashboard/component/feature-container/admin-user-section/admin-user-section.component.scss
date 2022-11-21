@@ -4,6 +4,11 @@
 /**
   * css specifically for each file item in the list (not shared by workflow items)
   **/
+
+.role{
+  border-radius: 25px;
+}
+
 .file-list-item {
   margin-bottom: 10px;
   min-height: 70px;
