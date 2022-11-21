@@ -18,7 +18,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row5;
+import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 879911962;
+    private static final long serialVersionUID = -1564222946;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -50,14 +50,19 @@ public class User extends TableImpl<UserRecord> {
     }
 
     /**
-     * The column <code>texera_db.user.name</code>.
+     * The column <code>texera_db.user.email</code>.
      */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
+    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user.uid</code>.
      */
     public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
+    /**
+     * The column <code>texera_db.user.name</code>.
+     */
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.password</code>.
@@ -159,11 +164,11 @@ public class User extends TableImpl<UserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row5 type methods
+    // Row6 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<String, UInteger, String, String, Integer> fieldsRow() {
-        return (Row5) super.fieldsRow();
+    public Row6<String, UInteger, String, String, String, Integer> fieldsRow() {
+        return (Row6) super.fieldsRow();
     }
 }

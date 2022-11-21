@@ -16,14 +16,14 @@ import org.jooq.types.UInteger;
 public interface IUser extends Serializable {
 
     /**
-     * Setter for <code>texera_db.user.name</code>.
+     * Setter for <code>texera_db.user.email</code>.
      */
-    public void setName(String value);
+    public void setEmail(String value);
 
     /**
-     * Getter for <code>texera_db.user.name</code>.
+     * Getter for <code>texera_db.user.email</code>.
      */
-    public String getName();
+    public String getEmail();
 
     /**
      * Setter for <code>texera_db.user.uid</code>.
@@ -34,6 +34,16 @@ public interface IUser extends Serializable {
      * Getter for <code>texera_db.user.uid</code>.
      */
     public UInteger getUid();
+
+    /**
+     * Setter for <code>texera_db.user.name</code>.
+     */
+    public void setName(String value);
+
+    /**
+     * Getter for <code>texera_db.user.name</code>.
+     */
+    public String getName();
 
     /**
      * Setter for <code>texera_db.user.password</code>.

@@ -33,7 +33,7 @@ import edu.uci.ics.texera.web.auth.SessionRole.GUEST
       scheme: String
   ): Boolean = {
 
-    val principal = Optional.of(new SessionUser(new User("guest", null, null, null, 0), Set(GUEST)))
+    val principal = Optional.of(new SessionUser(new User("guest", null, null, null,null, 0), Set(GUEST)))
     val securityContext = requestContext.getSecurityContext
     val secure = securityContext != null && securityContext.isSecure
     requestContext.setSecurityContext(new SecurityContext() {
