@@ -3,7 +3,7 @@
 // import { AppSettings } from "src/app/common/app-setting";
 // import { UserConfigService, UserConfig } from "./user-config.service";
 // import { UserService } from "../user.service";
-// import { StubUserService } from "../stub-user.service";
+// import { StubAdminUserService } from "../stub-user.service";
 
 // describe("DictionaryService", () => {
 //   let dictionaryService: UserConfigService;
@@ -11,7 +11,7 @@
 
 //   beforeEach(() => {
 //     TestBed.configureTestingModule({
-//       providers: [{ provide: UserService, useClass: StubUserService }, UserConfigService],
+//       providers: [{ provide: UserService, useClass: StubAdminUserService }, UserConfigService],
 //       imports: [HttpClientTestingModule],
 //     });
 

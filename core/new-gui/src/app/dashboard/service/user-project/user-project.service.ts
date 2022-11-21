@@ -86,7 +86,7 @@ export class UserProjectService {
   }
 
   /**
-   * same as UserFileService"s deleteDashboardUserFileEntry method, except
+   * same as UserService"s deleteDashboardUserFileEntry method, except
    * it is modified to refresh the project"s list of files
    */
   public deleteDashboardUserFileEntry(pid: number, targetUserFileEntry: DashboardUserFileEntry): void {

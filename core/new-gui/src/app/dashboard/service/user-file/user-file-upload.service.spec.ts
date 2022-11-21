@@ -4,8 +4,8 @@
 
 // import { UserService } from '../user.service';
 // import { UserFileUploadService, USER_FILE_UPLOAD_URL, USER_FILE_VALIDATE_URL } from './user-file-upload.service';
-// import { UserFileService } from './user-file.service';
-// import { StubUserService } from '../stub-user.service';
+// import { UserService } from './user-file.service';
+// import { StubAdminUserService } from '../stub-user.service';
 // import { AppSettings } from '../../../app-setting';
 
 // const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
@@ -20,8 +20,8 @@
 //   beforeEach(() => {
 //     TestBed.configureTestingModule({
 //       providers: [
-//         { provide: UserService, useClass: StubUserService },
-//         UserFileService,
+//         { provide: UserService, useClass: StubAdminUserService },
+//         UserService,
 //         UserFileUploadService
 //       ],
 //       imports: [
@@ -64,7 +64,7 @@
 //     service.addFileToUploadArray(testFile);
 //     expect(service.getFilesToBeUploaded().length).toBe(1);
 
-//     const userFileService = TestBed.get(UserFileService);
+//     const userFileService = TestBed.get(UserService);
 //     const spy = spyOn(userFileService, 'refreshFiles');
 
 //     service.uploadAllFiles();

@@ -17,7 +17,7 @@ export const MOCK_INVALID_TOKEN = {
 };
 
 /**
- * This StubUserService is to test other service's functionality that depends on UserService
+ * This StubAdminUserService is to test other service's functionality that depends on UserService
  * It will correctly emit UserChangedEvent as the normal UserService do.
  */
 @Injectable()

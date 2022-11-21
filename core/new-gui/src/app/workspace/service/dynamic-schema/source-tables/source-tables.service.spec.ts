@@ -1,5 +1,5 @@
 // import { UserService } from './../../../../common/service/user/user.service';
-// import { UserFileService, USER_FILE_LIST_URL } from './../../../../common/service/user/user-file/user-file.service';
+// import { UserService, USER_FILE_LIST_URL } from './../../../../common/service/user/user-file/user-file.service';
 // import { AppSettings } from './../../../../common/app-setting';
 // import { TestBed, inject } from '@angular/core/testing';
 // import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -21,7 +21,7 @@
 // import { environment } from '../../../../../environments/environment';
 // import { Subject } from 'rxjs';
 // import { UserFile } from 'src/app/common/type/user-file';
-// import { StubUserService } from 'src/app/common/service/user/stub-user.service';
+// import { StubAdminUserService } from 'src/app/common/service/user/stub-user.service';
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 // describe('SourceTablesService', () => {
@@ -34,13 +34,13 @@
 //       imports: [HttpClientTestingModule],
 //       providers: [
 //         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-//         { provide: UserService, useClass: StubUserService },
+//         { provide: UserService, useClass: StubAdminUserService },
 //         JointUIService,
 //         WorkflowActionService,
 //         UndoRedoService,
 //         DynamicSchemaService,
 //         SourceTablesService,
-//         UserFileService,
+//         UserService,
 //       ]
 //     });
 
@@ -110,7 +110,7 @@
 //     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
 //     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
 
-//     const userFileService: UserFileService = TestBed.inject(UserFileService);
+//     const userFileService: UserService = TestBed.inject(UserService);
 //     const userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined>();
 //     spyOn(userFileService, 'getUserFilesChangedEvent').and.returnValue(userFilesChanged.asObservable());
 //     const sourceTablesService = TestBed.inject(SourceTablesService);

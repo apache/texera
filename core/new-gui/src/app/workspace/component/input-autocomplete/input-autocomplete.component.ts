@@ -37,7 +37,7 @@ export class InputAutoCompleteComponent extends FieldType<any> {
     if (this.field.formControl.value === null) {
       this.field.formControl.value = "";
     }
-    // currently it's a hard-code UserFileService autocomplete
+    // currently it's a hard-code UserService autocomplete
     // TODO: generalize this callback function with a formly hook.
     const value = this.field.formControl.value.trim();
     if (value.length > 0) {
