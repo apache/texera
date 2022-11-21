@@ -359,7 +359,7 @@ export class OperatorMenuService {
         this.workflowActionService.setLinkBreakpoint(linksCopy[oldLinkID].linkID, breakpointsInClipboard[oldLinkID]);
       }
 
-      //
+      //add copied comment boxes and calculate new positions for the pasted comment boxes
       let commentBoxesCopy: CommentBox[] = elementsInClipboard.get("commentBoxes") as CommentBox[];
       commentBoxesCopy.forEach(commentBoxCopy => {
         const commentBoxPosition: Point = commentBoxCopy.commentBoxPosition as Point;
