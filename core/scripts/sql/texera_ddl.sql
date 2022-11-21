@@ -19,8 +19,9 @@ SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
 CREATE TABLE IF NOT EXISTS user
 (
-    `name`      VARCHAR(32)                 NOT NULL,
-    `uid`       INT UNSIGNED AUTO_INCREMENT NOT NULL,
+	`uid`       INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `email`      VARCHAR(256)               NOT NULL,
+    `name`      VARCHAR(256),
     `password`  VARCHAR(256),
     `google_id` VARCHAR(256) UNIQUE,
     `permission`INT NOT NULL DEFAULT 0,
