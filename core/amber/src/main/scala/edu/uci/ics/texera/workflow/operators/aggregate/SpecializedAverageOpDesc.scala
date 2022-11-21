@@ -56,7 +56,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       operatorSchemaInfo: OperatorSchemaInfo
   ): AggregateOpExecConfig[_] = {
     this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
-    this.finalAggValueSchema = getFinalAggValueSchema
+    this.finalAggValueSchema = getFinalAggValueSchema(operatorSchemaInfo.inputSchemas(0))
 
     aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg(operatorSchemaInfo)
@@ -228,17 +228,15 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       .build()
   }
 
-  private def getFinalAggValueSchema: Schema = {
-    if (this.aggFunction.equals(AggregationFunction.COUNT)) {
-      Schema
-        .newBuilder()
-        .add(resultAttribute, AttributeType.INTEGER)
-        .build()
-    } else {
-      Schema
-        .newBuilder()
-        .add(resultAttribute, AttributeType.DOUBLE)
-        .build()
+  private def getFinalAggValueSchema(schema: Schema): Schema = {
+    this.aggFunction match {
+      case AggregationFunction.SUM | AggregationFunction.MIN | AggregationFunction.MAX =>
+        Schema.newBuilder().add(resultAttribute, schema.getAttribute(attribute).getType).build()
+      case AggregationFunction.COUNT =>
+        Schema.newBuilder().add(resultAttribute, AttributeType.INTEGER).build()
+      case AggregationFunction.AVERAGE =>
+        Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
+      case _ => throw new RuntimeException(f"aggregate function ${this.aggFunction} not supported")
     }
   }
 
@@ -258,7 +256,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     Schema
       .newBuilder()
       .add(getGroupByKeysSchema(schemas).getAttributes)
-      .add(getFinalAggValueSchema.getAttributes)
+      .add(getFinalAggValueSchema(schemas(0)).getAttributes)
       .build()
   }
 
