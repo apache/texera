@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
@@ -20,7 +20,7 @@ import { from } from "rxjs";
   templateUrl: "./user-file-section.component.html",
   styleUrls: ["./user-file-section.component.scss"],
 })
-export class UserFileSectionComponent {
+export class UserFileSectionComponent implements OnInit {
   constructor(
     private modalService: NgbModal,
     private userProjectService: UserProjectService,
@@ -115,13 +115,15 @@ export class UserFileSectionComponent {
       .pipe(untilDestroyed(this))
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && userFileEntry.file.fid !== undefined) {
-          this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe(
-            () => this.refreshDashboardFileEntries(),
-            (err: unknown) => {
-              // @ts-ignore // TODO: fix this with notification component
-              (err: unknown) => alert("Can't delete the file entry: " + err.error);
-            }
-          );
+          this.userFileService
+            .deleteDashboardUserFileEntry(userFileEntry)
+            .pipe(untilDestroyed(this))
+            .subscribe(
+              () => this.refreshDashboardFileEntries(),
+              (err: unknown) => {
+                alert("Can't delete the file entry: " + err);
+              }
+            );
         }
       });
   }
