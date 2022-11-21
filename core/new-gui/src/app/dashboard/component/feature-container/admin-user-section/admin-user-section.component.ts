@@ -5,7 +5,6 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { AdminUserService } from "../../../service/admin-user/admin-user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import Fuse from "fuse.js";
-import {DashboardUserFileEntry} from "../../../type/dashboard-user-file-entry";
 
 @UntilDestroy()
 @Component({
@@ -56,9 +55,7 @@ export class AdminUserSectionComponent implements OnInit {
         return item.item;
       });
     }
-    console.log(userArray);
     return userArray;
-
   }
 
   public disableAddButton(): boolean {
@@ -66,26 +63,9 @@ export class AdminUserSectionComponent implements OnInit {
   }
 
 
-  public confirmUpdateFileCustomName(
-    dashboardUserFileEntry: DashboardUserFileEntry,
-    name: string,
-    index: number
-  ): void {
-    const {
-      file: { fid },
-    } = dashboardUserFileEntry;
-    this.adminUserService
-      .updateFileName(fid, name)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.refreshDashboardFileEntries(),
-        (err: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
-          this.notificationService.error(err.error.message);
-          this.refreshDashboardFileEntries();
-        }
-      )
-      .add(() => (this.isEditingName = this.isEditingName.filter(fileIsEditing => fileIsEditing != index)));
+  public updatePermission(uid: number, permission: number): void {
+    console.log(permission);
+    this.adminUserService.updatePermission(uid,permission).pipe(untilDestroyed(this)).subscribe();
   }
 
 
@@ -95,14 +75,14 @@ export class AdminUserSectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.userService.isLogin()) {
-          this.refreshDashboardFileEntries();
+          this.refreshDashboardUserEntries();
         } else {
-          this.clearDashboardFileEntries();
+          this.clearDashboardUserEntries();
         }
       });
   }
 
-  private refreshDashboardFileEntries(): void {
+  private refreshDashboardUserEntries(): void {
     this.adminUserService
       .retrieveDashboardUserFileEntryList()
       .pipe(untilDestroyed(this))
@@ -112,7 +92,7 @@ export class AdminUserSectionComponent implements OnInit {
       });
   }
 
-  private clearDashboardFileEntries(): void {
+  private clearDashboardUserEntries(): void {
     this.dashboardUserEntries = [];
     this.adminUserService.updateUserFilesChangedEvent();
   }

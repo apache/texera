@@ -3,6 +3,7 @@ export interface DashboardAdminUserEntry
     uid: number;
     name: string;
     accessLevel: number;
+    permission: number;
   }> {}
 
 /**

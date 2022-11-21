@@ -1,9 +1,14 @@
 package edu.uci.ics.texera.web.resource.dashboard.user
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_FILE_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.context
 import edu.uci.ics.texera.web.resource.dashboard.user.UserResource.{context, userDao}
+import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
+
 import java.util
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
@@ -41,5 +46,15 @@ class UserResource {
   @Path("/list")
   def listUsers(): util.List[User] = {
     userDao.fetchRangeOfUid(UInteger.MIN,UInteger.MAX)
+  }
+
+  @POST
+  @Path("/update")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def changeUserFileDescription(user: User): Unit = {
+    val updatedUser = userDao.fetchOneByUid(user.getUid)
+    updatedUser.setPermission(user.getPermission)
+    userDao.update(updatedUser)
   }
 }
