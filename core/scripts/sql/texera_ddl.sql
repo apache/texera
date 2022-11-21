@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS user
     `uid`       INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `password`  VARCHAR(256),
     `google_id` VARCHAR(256) UNIQUE,
-    `permission`TINYINT NOT NULL DEFAULT 0,
+    `permission`INT NOT NULL DEFAULT 0,
     PRIMARY KEY (`uid`),
     CONSTRAINT CK_nulltest
         CHECK (`password` IS NOT NULL OR `google_id` IS NOT NULL)
