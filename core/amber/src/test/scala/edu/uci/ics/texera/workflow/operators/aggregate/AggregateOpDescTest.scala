@@ -4,11 +4,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-class AggregateOpDescTest extends AnyFlatSpec with BeforeAndAfter  {
+class AggregateOpDescTest extends AnyFlatSpec with BeforeAndAfter {
 
-  val testIntInputSchema = Schema.newBuilder()
+  val testIntInputSchema = Schema
+    .newBuilder()
     .add("group", AttributeType.STRING)
-    .add("num", AttributeType.INTEGER).build()
+    .add("num", AttributeType.INTEGER)
+    .build()
 
   it should "infer correct SUM output schema" in {
     val aggOp = new SpecializedAverageOpDesc()
