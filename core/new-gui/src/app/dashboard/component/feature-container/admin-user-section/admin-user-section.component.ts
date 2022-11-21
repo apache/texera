@@ -21,7 +21,7 @@ export class AdminUserSectionComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.registerDashboardFileEntriesRefresh();
+    this.registerRefresh();
   }
   // variables for file editing / search / sort
   public dashboardUserEntries: ReadonlyArray<DashboardAdminUserEntry> = [];
@@ -69,7 +69,7 @@ export class AdminUserSectionComponent implements OnInit {
   }
 
 
-  private registerDashboardFileEntriesRefresh(): void {
+  private registerRefresh(): void {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
@@ -84,7 +84,7 @@ export class AdminUserSectionComponent implements OnInit {
 
   private refreshDashboardUserEntries(): void {
     this.adminUserService
-      .retrieveDashboardUserFileEntryList()
+      .retrieveUserList()
       .pipe(untilDestroyed(this))
       .subscribe(dashboardUserEntries => {
         this.dashboardUserEntries = dashboardUserEntries;

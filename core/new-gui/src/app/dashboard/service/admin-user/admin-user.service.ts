@@ -20,7 +20,7 @@ export class AdminUserService {
     this.dashboardUserFileEntryChanged.next();
   }
 
-  public retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardAdminUserEntry>> {
+  public retrieveUserList(): Observable<ReadonlyArray<DashboardAdminUserEntry>> {
     return this.http.get<ReadonlyArray<DashboardAdminUserEntry>>(`${USER_LIST_URL}`);
   }
 
