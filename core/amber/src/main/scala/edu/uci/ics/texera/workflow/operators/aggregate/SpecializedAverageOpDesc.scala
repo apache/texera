@@ -29,7 +29,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Aggregation Function")
-  @JsonPropertyDescription("sum, count, average, min, or max")
+  @JsonPropertyDescription("sum, count, average, min, max, or concat")
   var aggFunction: AggregationFunction = _
 
   @JsonProperty(value = "attribute", required = true)
@@ -109,6 +109,36 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       groupByFunc()
     )
     new AggregateOpExecConfig[Integer](
+      operatorIdentifier,
+      aggregation,
+      operatorSchemaInfo
+    )
+  }
+
+  def concatAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+    val aggregation = new DistributedAggregation[String](
+      () => "",
+      (partial, tuple) => {
+        partial + (if (tuple.getField(attribute) != null) "," + tuple.getField(attribute) else "")
+      },
+      (partial1, partial2) => {
+        if (partial1 != null && partial2 != null) {
+          partial1 + "," + partial2
+        } else if (partial1 == null) {
+          partial2
+        } else {
+          partial1
+        }
+      },
+      partial => {
+        Tuple
+          .newBuilder(finalAggValueSchema)
+          .add(resultAttribute, AttributeType.STRING, partial)
+          .build
+      },
+      groupByFunc()
+    )
+    new AggregateOpExecConfig[String](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo
