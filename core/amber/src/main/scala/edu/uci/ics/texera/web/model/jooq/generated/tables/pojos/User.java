@@ -15,42 +15,46 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = -1659266357;
+    private static final long serialVersionUID = 1558943297;
 
-    private String   name;
+    private String   email;
     private UInteger uid;
     private String   password;
     private String   googleId;
+    private Integer  permission;
 
     public User() {}
 
     public User(IUser value) {
-        this.name = value.getName();
+        this.email = value.getEmail();
         this.uid = value.getUid();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
+        this.permission = value.getPermission();
     }
 
     public User(
-        String   name,
+        String   email,
         UInteger uid,
         String   password,
-        String   googleId
+        String   googleId,
+        Integer  permission
     ) {
-        this.name = name;
+        this.email = email;
         this.uid = uid;
         this.password = password;
         this.googleId = googleId;
+        this.permission = permission;
     }
 
     @Override
-    public String getName() {
-        return this.name;
+    public String getEmail() {
+        return this.email;
     }
 
     @Override
-    public void setName(String name) {
-        this.name = name;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     @Override
@@ -84,13 +88,24 @@ public class User implements IUser {
     }
 
     @Override
+    public Integer getPermission() {
+        return this.permission;
+    }
+
+    @Override
+    public void setPermission(Integer permission) {
+        this.permission = permission;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("User (");
 
-        sb.append(name);
+        sb.append(email);
         sb.append(", ").append(uid);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
+        sb.append(", ").append(permission);
 
         sb.append(")");
         return sb.toString();
@@ -102,10 +117,11 @@ public class User implements IUser {
 
     @Override
     public void from(IUser from) {
-        setName(from.getName());
+        setEmail(from.getEmail());
         setUid(from.getUid());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
+        setPermission(from.getPermission());
     }
 
     @Override
