@@ -1134,7 +1134,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService.highlightLinks(allLinks.length > 1, ...allLinks);
         this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
-        this.workflowActionService.highlightCommentBoxes(allCommentBoxes.length > 1, ...allCommentBoxes);
+        this.workflowActionService.highlightCommentBoxes(
+          allOperators.length + allCommentBoxes.length > 1,
+          ...allCommentBoxes
+        );
       });
   }
 
