@@ -15,10 +15,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = 1558943297;
+    private static final long serialVersionUID = -1774029550;
 
     private String   email;
     private UInteger uid;
+    private String   name;
     private String   password;
     private String   googleId;
     private Integer  permission;
@@ -28,6 +29,7 @@ public class User implements IUser {
     public User(IUser value) {
         this.email = value.getEmail();
         this.uid = value.getUid();
+        this.name = value.getName();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
         this.permission = value.getPermission();
@@ -36,12 +38,14 @@ public class User implements IUser {
     public User(
         String   email,
         UInteger uid,
+        String   name,
         String   password,
         String   googleId,
         Integer  permission
     ) {
         this.email = email;
         this.uid = uid;
+        this.name = name;
         this.password = password;
         this.googleId = googleId;
         this.permission = permission;
@@ -65,6 +69,16 @@ public class User implements IUser {
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
+    }
+
+    @Override
+    public String getName() {
+        return this.name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
     }
 
     @Override
@@ -103,6 +117,7 @@ public class User implements IUser {
 
         sb.append(email);
         sb.append(", ").append(uid);
+        sb.append(", ").append(name);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
         sb.append(", ").append(permission);
@@ -119,6 +134,7 @@ public class User implements IUser {
     public void from(IUser from) {
         setEmail(from.getEmail());
         setUid(from.getUid());
+        setName(from.getName());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
         setPermission(from.getPermission());

@@ -36,6 +36,16 @@ public interface IUser extends Serializable {
     public UInteger getUid();
 
     /**
+     * Setter for <code>texera_db.user.name</code>.
+     */
+    public void setName(String value);
+
+    /**
+     * Getter for <code>texera_db.user.name</code>.
+     */
+    public String getName();
+
+    /**
      * Setter for <code>texera_db.user.password</code>.
      */
     public void setPassword(String value);

@@ -54,13 +54,6 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     }
 
     /**
-     * Fetch a unique record that has <code>email = value</code>
-     */
-    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByEmail(String value) {
-        return fetchOne(User.USER.EMAIL, value);
-    }
-
-    /**
      * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfUid(UInteger lowerInclusive, UInteger upperInclusive) {
@@ -79,6 +72,20 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
      */
     public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByUid(UInteger value) {
         return fetchOne(User.USER.UID, value);
+    }
+
+    /**
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
+        return fetchRange(User.USER.NAME, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>name IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByName(String... values) {
+        return fetch(User.USER.NAME, values);
     }
 
     /**
