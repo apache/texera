@@ -19,16 +19,20 @@ SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
 CREATE TABLE IF NOT EXISTS user
 (
-    `name`      VARCHAR(32)                 NOT NULL,
-    `uid`       INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `password`  VARCHAR(256),
-    `google_id` VARCHAR(256) UNIQUE,
-    PRIMARY KEY (`uid`),
+    `email` varchar(256) NOT NULL,
+	`uid` int unsigned NOT NULL AUTO_INCREMENT,
+	`password` varchar(256) DEFAULT NULL,
+	`google_id` varchar(256) DEFAULT NULL,
+	`permission` int NOT NULL DEFAULT '0',
+	PRIMARY KEY (`uid`),
+	UNIQUE KEY `email_UNIQUE` (`email`),
+	UNIQUE KEY `google_id` (`google_id`),
     CONSTRAINT CK_nulltest
         CHECK (`password` IS NOT NULL OR `google_id` IS NOT NULL)
 ) ENGINE = INNODB,
 -- start auto increment userID from 1 because userID 0 means user not exists
   AUTO_INCREMENT = 1;
+  
 
 CREATE TABLE IF NOT EXISTS user_config
 (
