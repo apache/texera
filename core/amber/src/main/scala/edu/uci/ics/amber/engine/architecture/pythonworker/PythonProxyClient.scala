@@ -32,7 +32,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-  private val MAX_TRY_COUNT: Int = 6
+  private val MAX_TRY_COUNT: Int = 5
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
   private var running: Boolean = true
@@ -61,7 +61,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
           flightClient.close()
           Thread.sleep(retryWaitTimeInMs)
           tryCount += 1
-          if (tryCount >= MAX_TRY_COUNT)
+          if (tryCount > MAX_TRY_COUNT)
             throw new WorkflowRuntimeException(
               s"Exceeded try limit of $MAX_TRY_COUNT when connecting to Flight Server!"
             )
