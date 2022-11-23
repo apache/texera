@@ -32,6 +32,8 @@ import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import javax.ws.rs.{WebApplicationException, _}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import java.net.URLDecoder
 
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
@@ -134,7 +136,39 @@ class UserFileResource {
   def listUserFiles(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
     val user = sessionUser.getUser
     getUserFileRecord(user)
+  }
 
+  @GET
+  @Path("/autocomplete/{query:.*}")
+  def autocompleteUserFiles(
+      @Auth sessionUser: SessionUser,
+      @PathParam("query") q: String
+  ): util.List[String] = {
+    // get the user files
+    // select the filenames that applies the input
+    val query = URLDecoder.decode(q, "UTF-8")
+    val user = sessionUser.getUser
+    val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
+    val filenames = ArrayBuffer[String]()
+    val username = user.getName
+    // get all the filename list
+    for (i <- fileList) {
+      filenames += i.file.getName
+    }
+    // select the filenames that apply
+    val selectedByFile = ArrayBuffer[String]()
+    val selectedByUsername = ArrayBuffer[String]()
+    val selectedByFullPath = ArrayBuffer[String]()
+    for (e <- filenames) {
+      val fullPath = username + "/" + e
+      if (e.contains(query) || query.isEmpty)
+        selectedByFile += (username + "/" + e)
+      else if (username.contains(query))
+        selectedByUsername += (username + "/" + e)
+      else if (fullPath.contains(query))
+        selectedByFullPath += (username + "/" + e)
+    }
+    (selectedByFile ++ selectedByUsername ++ selectedByFullPath).toList.asJava
   }
 
   private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {

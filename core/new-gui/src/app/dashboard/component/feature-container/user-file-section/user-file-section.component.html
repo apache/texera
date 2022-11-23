@@ -62,7 +62,7 @@
       >
         <nz-option-group nzLabel="Colored Projects">
           <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color != null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+            <nz-option *ngIf="project.color !== null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
               <nz-tag
                 [nzColor]="'#' + project.color"
                 [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}"
@@ -74,7 +74,7 @@
         </nz-option-group>
         <nz-option-group nzLabel="Colorless Projects">
           <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color == null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+            <nz-option *ngIf="project.color === null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
               <nz-tag [nzColor]="'#595959'">{{project.pid}}</nz-tag>
               {{project.name}}
             </nz-option>
@@ -128,7 +128,7 @@
   </div>
 
   <nz-card class="section-list-container">
-    <!-- itemSize: the height (px) of each list item, 
+    <!-- itemSize: the height (px) of each list item,
       this MUST be approximately the same as list item size set in CSS,
       .file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
@@ -226,7 +226,7 @@
           <div *ngIf="userProjectsLoaded" class="project-label-container">
             <div *ngFor="let pid of dashboardUserFileEntry.projectIDs" class="project-label">
               <a
-                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color !== null"
                 nz-tooltip="{{userProjectsMap.get(pid)!.name}}"
                 nzTooltipPlacement="bottom"
                 class="left-div"
@@ -237,7 +237,7 @@
                 {{userProjectsMap.get(pid)!.name}}
               </a>
               <div
-                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color !== null"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
                 class="right-div"

@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.texera.workflow.common.operators.OperatorContext
 
 case class InputExhausted()
 
