@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeVar, Type
+from typing import TypeVar
 
 from core.models.marker import Marker
 from core.models.payload import DataPayload
-
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )

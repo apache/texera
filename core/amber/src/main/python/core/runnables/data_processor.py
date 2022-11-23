@@ -21,7 +21,7 @@ from core.models import (
     Tuple,
 )
 from core.models.internal_queue import ControlElement, DataElement
-from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import (

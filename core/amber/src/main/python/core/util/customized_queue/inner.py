@@ -115,7 +115,7 @@ class inner(class_inner):
 
     def __get__(self, outerobj, outercls):
         icls = class_inner.__get__(self, outerobj, outercls)
-        if outerobj == None:
+        if outerobj is None:
             return icls
         # properties
         if self.is_property:

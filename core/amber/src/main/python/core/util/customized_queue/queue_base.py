@@ -1,6 +1,6 @@
-from abc import abstractmethod, ABC, ABCMeta
+from abc import abstractmethod, ABCMeta
 from dataclasses import dataclass
-from typing import TypeVar, Generic, Sized, Optional
+from typing import TypeVar, Sized, Optional
 
 from typing_extensions import Protocol
 
