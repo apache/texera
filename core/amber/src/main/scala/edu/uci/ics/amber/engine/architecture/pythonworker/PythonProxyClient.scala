@@ -53,7 +53,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
           throw new RuntimeException("heartbeat failed")
       } catch {
         case e: RuntimeException =>
-          logger.warn("Not connected to the server in this try, retrying", e)
+          logger.warn("Not connected to the server in this try, retrying... remaining attempts: " +(MAX_TRY_COUNT - tryCount))
           flightClient.close()
           Thread.sleep(WAIT_TIME_MS)
           tryCount += 1
