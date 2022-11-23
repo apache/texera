@@ -4,8 +4,9 @@ import akka.actor.{Actor, ActorLogging, Address, ExtendedActorSystem}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member}
 import com.twitter.util.{Await, Future}
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.texera.web.service.WorkflowService
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.ABORTED
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -15,7 +16,7 @@ object ClusterListener {
   final case class GetAvailableNodeAddresses()
 }
 
-class ClusterListener extends Actor with ActorLogging {
+class ClusterListener extends Actor with AmberLogging {
 
   val cluster: Cluster = Cluster(context.system)
 
@@ -49,12 +50,23 @@ class ClusterListener extends Actor with ActorLogging {
   private def updateClusterStatus(evt: MemberEvent): Unit = {
     evt match {
       case MemberRemoved(member, previousStatus) =>
-        log.info("Cluster node " + member + " is down! Trigger recovery process.")
+        logger.info("Cluster node " + member + " is down! Trigger recovery process.")
         val futures = new ArrayBuffer[Future[Any]]
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (jobService != null && !jobService.workflow.isCompleted) {
-            futures.append(jobService.client.notifyNodeFailure(member.address))
+            try {
+              futures.append(jobService.client.notifyNodeFailure(member.address))
+            } catch {
+              case t: Throwable =>
+                logger.warn(
+                  s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
+                )
+                jobService.client.shutdown()
+                jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
+                  jobInfo.withState(ABORTED).withError(t.getLocalizedMessage)
+                }
+            }
           }
         }
         Await.all(futures: _*)
