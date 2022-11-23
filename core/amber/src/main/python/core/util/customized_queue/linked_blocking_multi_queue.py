@@ -26,7 +26,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.count: AtomicInteger = AtomicInteger()
             self.enabled: bool = True
             self.head: LinkedBlockingMultiQueue.Node = LinkedBlockingMultiQueue.Node(
-                None)
+                None
+            )
             self.last: Optional[LinkedBlockingMultiQueue.Node[T]] = self.head
 
         def clear(self) -> None:
@@ -126,8 +127,11 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             finally:
                 self.fully_unlock()
 
-        def unlink(self, trail: LinkedBlockingMultiQueue.Node,
-                   next_: LinkedBlockingMultiQueue.Node, ) -> None:
+        def unlink(
+            self,
+            trail: LinkedBlockingMultiQueue.Node,
+            next_: LinkedBlockingMultiQueue.Node,
+        ) -> None:
             trail.item = None
             trail.next = next_.next
             if self.last == next_:
@@ -208,10 +212,12 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
 
     @inner
     class DefaultSubQueueSelection(Generic[T]):
-        def __init__(self,
-                     priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]):
+        def __init__(
+            self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]
+        ):
             self.priority_groups: List[
-                LinkedBlockingMultiQueue.PriorityGroup[T]] = priority_groups
+                LinkedBlockingMultiQueue.PriorityGroup[T]
+            ] = priority_groups
 
         def get_next(self) -> Optional[LinkedBlockingMultiQueue.SubQueue[T]]:
             for pg in self.priority_groups:
@@ -227,8 +233,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                     return deque
             return None
 
-        def set_priority_groups(self, priority_groups: List[
-            LinkedBlockingMultiQueue.PriorityGroup[T]]) -> None:
+        def set_priority_groups(
+            self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]
+        ) -> None:
             self.priority_groups = priority_groups
 
     def __init__(self):
@@ -243,7 +250,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         # thread-safe in CPython
         self.priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup] = list()
         self.sub_queue_selection = LinkedBlockingMultiQueue.DefaultSubQueueSelection(
-            self.priority_groups)
+            self.priority_groups
+        )
 
     def put(self, key: str, item: T) -> None:
         """
@@ -393,7 +401,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         self.take_lock.acquire()
         try:
             removed: Optional[LinkedBlockingMultiQueue.SubQueue] = self.sub_queues.get(
-                key)
+                key
+            )
             if removed is not None:
                 del self.sub_queues[key]
                 removed.priority_group.remove_queue(removed)
