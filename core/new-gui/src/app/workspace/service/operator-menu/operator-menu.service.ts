@@ -3,7 +3,7 @@ import { environment } from "src/environments/environment";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
-import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { Breakpoint, OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
 import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -28,7 +28,7 @@ type SerializedString = {
   links: OperatorLink[];
   groups: [];
   breakpoints: BreakpointWithLinkID;
-  commentBoxes: [];
+  commentBoxes: CommentBox[];
 };
 
 /**
@@ -43,6 +43,7 @@ type SerializedString = {
 })
 export class OperatorMenuService {
   public effectivelyHighlightedOperators = new BehaviorSubject([] as readonly string[]);
+  public effectivelyHighlightedCommentBoxes = new BehaviorSubject([] as readonly string[]);
 
   // whether the disable-operator-button should be enabled
   public isDisableOperatorClickable: boolean = false;
@@ -71,6 +72,13 @@ export class OperatorMenuService {
     ).subscribe(() => {
       this.effectivelyHighlightedOperators.next(this.getEffectivelyHighlightedOperators());
     });
+
+    merge(
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
+    ).subscribe(() => {
+      this.effectivelyHighlightedCommentBoxes.next(this.getEffectivelyHighlightedCommentBoxes());
+    });
   }
 
   /**
@@ -88,6 +96,13 @@ export class OperatorMenuService {
     highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
     operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
     return Array.from(effectiveHighlightedOperators);
+  }
+
+  public getEffectivelyHighlightedCommentBoxes(): readonly string[] {
+    const highlightedCommentBoxes = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedCommentBoxIDs();
+    return highlightedCommentBoxes;
   }
 
   /**
@@ -173,6 +188,7 @@ export class OperatorMenuService {
     const operatorPositionsCopy: OperatorPositions = {};
     const linksCopy: OperatorLink[] = [];
     const breakpointsCopy: BreakpointWithLinkID = {};
+    const commentBoxesCopy: CommentBox[] = [];
 
     // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
     highlightedOperatorIDs.forEach(operatorID => {
@@ -212,6 +228,20 @@ export class OperatorMenuService {
 
     serializedString.links = linksCopy;
     serializedString.breakpoints = breakpointsCopy;
+
+    //get all the highlighted comment boxes, and sort them by their layers
+    const highlightedCommentBoxIDs = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedCommentBoxIDs();
+    highlightedCommentBoxIDs.forEach(commentBoxID => {
+      commentBoxesCopy.push(this.workflowActionService.getTexeraGraph().getCommentBox(commentBoxID));
+    });
+    commentBoxesCopy.sort(
+      (first, second) =>
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(first.commentBoxID) -
+        this.workflowActionService.getJointGraphWrapper().getCellLayer(second.commentBoxID)
+    );
+    serializedString.commentBoxes = commentBoxesCopy;
 
     // store the stringified copied operators into the clipboard
     navigator.clipboard.writeText(JSON.stringify(serializedString)).catch(() => {
@@ -304,6 +334,7 @@ export class OperatorMenuService {
         }
 
         const position: Point = operatorPositionsInClipboard[copiedOperator.operatorID] as Point;
+        positions.push(position);
         // calculate the new positions for the pasted operators
         const newOperatorPosition = this.calcOperatorPosition(position, positions);
         operatorsAndPositions.push({
@@ -328,6 +359,22 @@ export class OperatorMenuService {
       for (let oldLinkID in linksCopy) {
         this.workflowActionService.setLinkBreakpoint(linksCopy[oldLinkID].linkID, breakpointsInClipboard[oldLinkID]);
       }
+
+      //add copied comment boxes and calculate new positions for the pasted comment boxes
+      let commentBoxesCopy: CommentBox[] = elementsInClipboard.get("commentBoxes") as CommentBox[];
+      commentBoxesCopy.forEach(commentBoxCopy => {
+        const commentBoxPosition: Point = commentBoxCopy.commentBoxPosition as Point;
+        positions.push(commentBoxPosition);
+        const newCommentBoxPosition = this.calcOperatorPosition(commentBoxPosition, positions);
+        positions.push(newCommentBoxPosition);
+        const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
+        const newCommentBox: CommentBox = {
+          commentBoxID: newCommentBoxID,
+          comments: commentBoxCopy.comments,
+          commentBoxPosition: newCommentBoxPosition,
+        };
+        this.workflowActionService.addCommentBox(newCommentBox);
+      });
     });
   }
 
@@ -376,7 +423,11 @@ export class OperatorMenuService {
       this.workflowActionService
         .getOperatorGroup()
         .getAllGroups()
-        .map(group => this.workflowActionService.getJointGraphWrapper().getElementPosition(group.groupID))
+        .map(group => this.workflowActionService.getJointGraphWrapper().getElementPosition(group.groupID)),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getAllCommentBoxes()
+        .map(CommentBox => CommentBox.commentBoxPosition)
     );
     do {
       for (const operatorPosition of operatorPositions) {
