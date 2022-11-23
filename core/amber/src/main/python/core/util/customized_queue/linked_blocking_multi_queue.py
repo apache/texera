@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from threading import RLock, Condition
-from typing import List, Optional, Generic, TypeVar, Mapping, MutableMapping
+from typing import List, Optional, Generic, TypeVar, MutableMapping
 
 from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IKeyedQueue
