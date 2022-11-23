@@ -2,10 +2,15 @@ from pytexera import *
 
 
 class CountBatchOperator(UDFBatchOperator):
-    BATCH_COUNT = 0
+    count = 0
     BATCH_SIZE = 10
+
+    # def __init__(self):
+    #     self.count = 0
 
     @overrides
     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
-        self.BATCH_COUNT += 1
+        self.count += 1
+        print(self.count)
+        print(batch)
         yield batch

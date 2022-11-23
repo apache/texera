@@ -1,3 +1,4 @@
+import time
 from threading import Thread
 
 import pandas
@@ -13,10 +14,7 @@ from core.models import (
     EndOfUpstream,
     InternalQueue,
     Tuple,
-    Batch,
-    BatchLike,
-    Table,
-    TableLike
+    Batch
 )
 from core.runnables import DataProcessor
 from core.util import set_one_of
@@ -43,24 +41,20 @@ from proto.edu.uci.ics.amber.engine.common import (
     LinkIdentity,
     ReturnInvocationV2,
 )
-from pytexera.udf.examples.echo_operator import EchoOperator
-from pytexera.udf.examples.echo_table_operator import EchoTableOperator
-
-logger.level("PRINT", no=38)
+from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 
 
-class TestBatchOperator:
+# logger.level("PRINT", no=38)
+
+
+class TestBatchDataProcessor:
     @pytest.fixture
     def command_sequence(self):
         return 1
 
     @pytest.fixture
     def mock_udf(self):
-        return EchoOperator()
-
-    @pytest.fixture
-    def mock_udf_table(self):
-        return EchoTableOperator()
+        return CountBatchOperator()
 
     @pytest.fixture
     def mock_link(self):
@@ -70,22 +64,11 @@ class TestBatchOperator:
         )
 
     @pytest.fixture
-    def mock_tuple(self):
-        return Tuple({"test-1": "hello", "test-2": 10})
-
-    @pytest.fixture
-    def mock_table(self):
-        mock_data_list = []
-        for i in range(1000):
-            mock_data_list.append(["1", "test", "hello"])
-        return Table(pandas.DataFrame(mock_data_list))
-
-    @pytest.fixture
     def mock_batch(self):
-        mock_data_list = []
-        for i in range(1000):
-            mock_data_list.append(["1", "test", "hello"])
-        return Batch(pandas.DataFrame(mock_data_list))
+        batch_list = []
+        for i in range(57):
+            batch_list.append(Tuple({"test-1": "hello", "test-2": 10}))
+        return batch_list
 
     @pytest.fixture
     def mock_sender_actor(self):
@@ -100,29 +83,31 @@ class TestBatchOperator:
         return ActorVirtualIdentity("receiver")
 
     @pytest.fixture
-    def mock_data_element(self, mock_tuple, mock_sender_actor):
-        return DataElement(
-            tag=mock_sender_actor,
-            payload=InputDataFrame(
-                frame=pyarrow.Table.from_pandas(
-                    pandas.DataFrame([mock_tuple.as_dict()])
-                )
-            ),
-        )
+    def mock_data_elements(self, mock_batch, mock_sender_actor):
+
+        data_elements = []
+        for i in range(57):
+            mock_tuple = Tuple({"test-1": "hello", "test-2": 10})
+            data_elements.append(DataElement(
+                tag=mock_sender_actor,
+                payload=InputDataFrame(
+                    frame=pyarrow.Table.from_pandas(
+                        pandas.DataFrame([mock_tuple.as_dict()])
+                    )
+                )))
+
+        return data_elements
+        # return DataElement(
+        #     tag=mock_sender_actor,
+        #     payload=InputDataFrame(
+        #         frame=pyarrow.Table.from_pandas(
+        #             pandas.DataFrame.from_dict(batch_list)
+        #         )
+        #     ),
+        # )
 
     @pytest.fixture
-    def mock_data_table_element(self, mock_table, mock_sender_actor):
-        return DataElement(
-            tag=mock_sender_actor,
-            payload=InputDataFrame(
-                frame=pyarrow.Table.from_pandas(
-                    mock_table
-                )
-            ),
-        )
-
-    @pytest.fixture
-    def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
+    def mock_end_of_upstream(self, mock_batch, mock_sender_actor):
         return DataElement(tag=mock_sender_actor, payload=EndOfUpstream())
 
     @pytest.fixture
@@ -135,7 +120,7 @@ class TestBatchOperator:
 
     @pytest.fixture
     def mock_update_input_linking(
-        self, mock_controller, mock_sender_actor, mock_link, command_sequence
+            self, mock_controller, mock_sender_actor, mock_link, command_sequence
     ):
         command = set_one_of(
             ControlCommandV2,
@@ -149,7 +134,7 @@ class TestBatchOperator:
 
     @pytest.fixture
     def mock_add_partitioning(
-        self, mock_controller, mock_receiver_actor, command_sequence
+            self, mock_controller, mock_receiver_actor, command_sequence
     ):
         command = set_one_of(
             ControlCommandV2,
@@ -169,7 +154,7 @@ class TestBatchOperator:
 
     @pytest.fixture
     def mock_query_statistics(
-        self, mock_controller, mock_sender_actor, command_sequence
+            self, mock_controller, mock_sender_actor, command_sequence
     ):
         command = set_one_of(ControlCommandV2, QueryStatisticsV2())
         payload = set_one_of(
@@ -194,62 +179,37 @@ class TestBatchOperator:
         data_processor.stop()
 
     @pytest.fixture
-    def data_processor_table(self, input_queue, output_queue, mock_udf_table, mock_link):
-        data_processor = DataProcessor(input_queue, output_queue)
-        # mock the operator binding
-        data_processor._operator = mock_udf_table
-        data_processor.context.batch_to_tuple_converter.update_all_upstream_link_ids(
-            {mock_link}
-        )
-        # data_processor._operator.output_schema = {
-        #     "test-1": "string",
-        #     "test-2": "integer",
-        # }
-        yield data_processor
-        data_processor.stop()
-
-    @pytest.fixture
     def dp_thread(self, data_processor, reraise):
         def wrapper():
             with reraise:
                 data_processor.run()
 
-        dp_thread = Thread(target=wrapper, name="dp_thread")
+        dp_thread = Thread(target=wrapper, name="dp_thread_2")
         yield dp_thread
-
-    @pytest.fixture
-    def mock_add_batch(self, mock_tuple, mock_sender_actor):
-        return DataElement(
-            tag=mock_sender_actor,
-            payload=InputDataFrame(
-                frame=pyarrow.Table.from_pandas(
-                    pandas.DataFrame([mock_tuple.as_dict()])
-                )
-            ),
-        )
 
     @pytest.mark.timeout(2)
     def test_dp_thread_can_start(self, dp_thread):
         dp_thread.start()
         assert dp_thread.is_alive()
 
-    @pytest.mark.timeout(2)
-    def test_dp_thread_can_process_messages(
-        self,
-        mock_link,
-        mock_receiver_actor,
-        mock_controller,
-        input_queue,
-        output_queue,
-        mock_data_element,
-        dp_thread,
-        mock_update_input_linking,
-        mock_add_partitioning,
-        mock_end_of_upstream,
-        mock_query_statistics,
-        mock_tuple,
-        command_sequence,
-        reraise,
+    @pytest.mark.timeout(10)
+    def test_dp_thread_can_process_batch_simple(
+            self,
+            mock_udf,
+            mock_link,
+            mock_receiver_actor,
+            mock_controller,
+            input_queue,
+            output_queue,
+            mock_data_elements,
+            dp_thread,
+            mock_update_input_linking,
+            mock_add_partitioning,
+            mock_end_of_upstream,
+            mock_query_statistics,
+            mock_batch,
+            command_sequence,
+            reraise,
     ):
         dp_thread.start()
 
@@ -279,17 +239,24 @@ class TestBatchOperator:
         )
 
         # can process a InputDataFrame
-        input_queue.put(mock_data_element)
+        for i in range(50):
+            input_queue.put(mock_data_elements[i])
+            time.sleep(0.01)
+        input_queue.put(mock_query_statistics)
+        time.sleep(1)
 
-        output_data_element: DataElement = output_queue.get()
-        assert output_data_element.tag == mock_receiver_actor
-        assert isinstance(output_data_element.payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_element.payload
+        output_data_element = []
+        for i in range(50):
+            output_data_element.append(output_queue.get())
+            # time.sleep(0.01)
+
+        assert output_data_element[0].tag == mock_receiver_actor
+        assert isinstance(output_data_element[0].payload, OutputDataFrame)
+        data_frame: OutputDataFrame = output_data_element[0].payload
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0] == mock_tuple
+        assert data_frame.frame[0] == Tuple(mock_batch[0])
 
         # can process QueryStatistics
-        input_queue.put(mock_query_statistics)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -298,16 +265,17 @@ class TestBatchOperator:
                     control_return=ControlReturnV2(
                         worker_statistics=WorkerStatistics(
                             worker_state=WorkerState.RUNNING,
-                            input_tuple_count=1,
-                            output_tuple_count=1,
+                            input_tuple_count=50,
+                            output_tuple_count=50,
                         )
                     ),
                 )
             ),
         )
 
-        # can process EndOfUpstream
         input_queue.put(mock_end_of_upstream)
+
+        time.sleep(1)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -319,6 +287,10 @@ class TestBatchOperator:
                 )
             ),
         )
+
+        assert mock_udf.count == 5
+
+        # can process EndOfUpstream
         assert output_queue.get() == DataElement(
             tag=mock_receiver_actor, payload=EndOfUpstream()
         )
@@ -351,21 +323,22 @@ class TestBatchOperator:
 
         reraise()
 
-    @pytest.mark.timeout(2)
-    def test_dp_thread_can_process_table(
+    @pytest.mark.timeout(10)
+    def test_dp_thread_can_process_batch_median(
             self,
+            mock_udf,
             mock_link,
             mock_receiver_actor,
             mock_controller,
             input_queue,
             output_queue,
-            mock_data_table_element,
+            mock_data_elements,
             dp_thread,
             mock_update_input_linking,
             mock_add_partitioning,
             mock_end_of_upstream,
             mock_query_statistics,
-            mock_table,
+            mock_batch,
             command_sequence,
             reraise,
     ):
@@ -397,18 +370,23 @@ class TestBatchOperator:
         )
 
         # can process a InputDataFrame
-        input_queue.put(mock_data_table_element)
+        for i in mock_data_elements:
+            input_queue.put(i)
+            time.sleep(0.01)
+        input_queue.put(mock_query_statistics)
 
-        output_data_element: DataElement = output_queue.get()
-        assert output_data_element.tag == mock_receiver_actor
-        assert isinstance(output_data_element.payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_element.payload
-        assert len(data_frame.frame) == 1000
-        assert data_frame.frame[0] == mock_table
+        output_data_element = []
+        for i in range(50):
+            output_data_element.append(output_queue.get())
+            # time.sleep(0.01)
+
+        assert output_data_element[0].tag == mock_receiver_actor
+        assert isinstance(output_data_element[0].payload, OutputDataFrame)
+        data_frame: OutputDataFrame = output_data_element[0].payload
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame[0] == Tuple(mock_batch[0])
 
         # can process QueryStatistics
-        input_queue.put(mock_query_statistics)
-        print(output_queue.get())
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -417,16 +395,19 @@ class TestBatchOperator:
                     control_return=ControlReturnV2(
                         worker_statistics=WorkerStatistics(
                             worker_state=WorkerState.RUNNING,
-                            input_tuple_count=1,
-                            output_tuple_count=1,
+                            input_tuple_count=57,
+                            output_tuple_count=50,
                         )
                     ),
                 )
             ),
         )
 
-        # can process EndOfUpstream
         input_queue.put(mock_end_of_upstream)
+        for i in range(7):
+            output_data_element.append(output_queue.get())
+
+        time.sleep(1)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -438,6 +419,154 @@ class TestBatchOperator:
                 )
             ),
         )
+
+        assert mock_udf.count == 6
+
+        # can process EndOfUpstream
+        assert output_queue.get() == DataElement(
+            tag=mock_receiver_actor, payload=EndOfUpstream()
+        )
+
+        # WorkerExecutionCompletedV2 should be triggered when workflow finishes
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                control_invocation=ControlInvocationV2(
+                    command_id=1,
+                    command=ControlCommandV2(
+                        worker_execution_completed=WorkerExecutionCompletedV2()
+                    ),
+                )
+            ),
+        )
+
+        # can process ReturnInvocation
+        input_queue.put(
+            ControlElement(
+                tag=mock_controller,
+                payload=set_one_of(
+                    ControlPayloadV2,
+                    ReturnInvocationV2(
+                        original_command_id=0, control_return=ControlReturnV2()
+                    ),
+                ),
+            )
+        )
+
+        reraise()
+
+    @pytest.mark.timeout(10)
+    def test_dp_thread_can_process_batch_complex(
+            self,
+            mock_udf,
+            mock_link,
+            mock_receiver_actor,
+            mock_controller,
+            input_queue,
+            output_queue,
+            mock_data_elements,
+            dp_thread,
+            mock_update_input_linking,
+            mock_add_partitioning,
+            mock_end_of_upstream,
+            mock_query_statistics,
+            mock_batch,
+            command_sequence,
+            reraise,
+    ):
+        dp_thread.start()
+
+        # can process UpdateInputLinking
+        input_queue.put(mock_update_input_linking)
+
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process AddPartitioning
+        input_queue.put(mock_add_partitioning)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process a InputDataFrame
+        mock_udf.BATCH_SIZE = 10
+        for i in range(13):
+            input_queue.put(mock_data_elements[i])
+            time.sleep(0.01)
+
+        mock_udf.BATCH_SIZE = 20
+        for i in range(28):
+            input_queue.put(mock_data_elements[i])
+            time.sleep(0.01)
+
+        mock_udf.BATCH_SIZE = 5
+        for i in range(16):
+            input_queue.put(mock_data_elements[i])
+            time.sleep(0.01)
+
+        input_queue.put(mock_query_statistics)
+
+        output_data_element = []
+        for i in range(55):
+            output_data_element.append(output_queue.get())
+            # time.sleep(0.01)
+
+        assert output_data_element[0].tag == mock_receiver_actor
+        assert isinstance(output_data_element[0].payload, OutputDataFrame)
+        data_frame: OutputDataFrame = output_data_element[0].payload
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame[0] == Tuple(mock_batch[0])
+
+        # can process QueryStatistics
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=1,
+                    control_return=ControlReturnV2(
+                        worker_statistics=WorkerStatistics(
+                            worker_state=WorkerState.RUNNING,
+                            input_tuple_count=57,
+                            output_tuple_count=55,
+                        )
+                    ),
+                )
+            ),
+        )
+
+        input_queue.put(mock_end_of_upstream)
+        for i in range(2):
+            output_data_element.append(output_queue.get())
+
+        time.sleep(1)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                control_invocation=ControlInvocationV2(
+                    command_id=0,
+                    command=ControlCommandV2(
+                        link_completed=LinkCompletedV2(link_id=mock_link)
+                    ),
+                )
+            ),
+        )
+
+        assert mock_udf.count == 8
+
+        # can process EndOfUpstream
         assert output_queue.get() == DataElement(
             tag=mock_receiver_actor, payload=EndOfUpstream()
         )
