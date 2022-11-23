@@ -1,9 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2, DataElement}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ControlElement,
+  ControlElementV2,
+  DataElement
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV2,
+  returnInvocationToV2
+}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -17,7 +24,7 @@ import scala.collection.mutable
 import scala.math.pow
 
 class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
-  extends Runnable
+    extends Runnable
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
@@ -48,7 +55,9 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
       } catch {
         case _: RuntimeException =>
           val retryWaitTimeInMs = UNIT_WAIT_TIME_MS * pow(2, tryCount).toInt
-          logger.warn(s"Not connected to the server in this try, retrying after $retryWaitTimeInMs ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}")
+          logger.warn(
+            s"Not connected to the server in this try, retrying after $retryWaitTimeInMs ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
+          )
           flightClient.close()
           Thread.sleep(retryWaitTimeInMs)
           tryCount += 1
@@ -85,9 +94,9 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   def sendControlV2(
-                     from: ActorVirtualIdentity,
-                     payload: ControlPayloadV2
-                   ): Result = {
+      from: ActorVirtualIdentity,
+      payload: ControlPayloadV2
+  ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
     logger.debug(s"sending control $controlMessage")
@@ -106,10 +115,10 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   private def writeArrowStream(
-                                tuples: mutable.Queue[Tuple],
-                                from: ActorVirtualIdentity,
-                                isEnd: Boolean
-                              ): Unit = {
+      tuples: mutable.Queue[Tuple],
+      from: ActorVirtualIdentity,
+      isEnd: Boolean
+  ): Unit = {
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
