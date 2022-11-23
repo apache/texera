@@ -470,7 +470,7 @@ export class WorkflowActionService {
   public unhighlightLinks(...links: string[]): void {
     this.getJointGraphWrapper().unhighlightLinks(...links);
   }
-  
+
   public highlightCommentBoxes(multiSelect: boolean, ...commentBoxIDs: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightCommentBoxes(...commentBoxIDs);
