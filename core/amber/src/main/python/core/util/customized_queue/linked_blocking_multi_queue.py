@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from threading import RLock, Condition
-from typing import List, Optional, Generic, TypeVar
+from typing import List, Optional, Generic, TypeVar, Mapping, MutableMapping
 
 from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IKeyedQueue
@@ -15,29 +15,42 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
     class Node(Generic[T]):
         def __init__(self, item: T):
             self.item = item
-            self.next: Optional[LinkedBlockingMultiQueue.Node] = None
+            self.next: Optional[LinkedBlockingMultiQueue.Node[T]] = None
 
     @inner
     class SubQueue(Generic[T]):
         def __init__(self, key: str):
             self.key: str = key
             self.priority_group: Optional[LinkedBlockingMultiQueue.PriorityGroup] = None
-            self.put_lock = RLock()
-            self.count = AtomicInteger()
+            self.put_lock: RLock = RLock()
+            self.count: AtomicInteger = AtomicInteger()
             self.enabled: bool = True
-            self.head: LinkedBlockingMultiQueue.Node[T] = LinkedBlockingMultiQueue.Node(
-                None
-            )
+            self.head: LinkedBlockingMultiQueue.Node = LinkedBlockingMultiQueue.Node(
+                None)
             self.last: Optional[LinkedBlockingMultiQueue.Node[T]] = self.head
 
         def clear(self) -> None:
-            raise NotImplementedError("Intentionally do not support clear SubQueue.")
+            self.fully_lock()
+            try:
+                h: LinkedBlockingMultiQueue.Node[T] = self.head
+                p: LinkedBlockingMultiQueue.Node = h.next
+                while p is not None:
+                    h.next = h
+                    p.item = None
+                    h = p
+                    p = h.next
+                self.head = self.last
+                old_count = self.count.get_and_set(0)
+                if self.enabled:
+                    self.owner.total_count.get_and_dec(old_count)
+            finally:
+                self.fully_unlock()
 
-        def disable(self):
+        def disable(self) -> None:
             self.fully_lock()
             try:
                 if not self.enabled:
-                    return None
+                    return
                 self.owner.total_count.dec(self.count.value)
                 self.enabled = False
             finally:
@@ -47,7 +60,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.fully_lock()
             try:
                 if self.enabled:
-                    return None
+                    return
                 self.enabled = True
 
                 # potentially unlock waiting polls
@@ -66,11 +79,11 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             finally:
                 self.owner.take_lock.release()
 
-        def enqueue(self, node) -> None:
+        def enqueue(self, node: LinkedBlockingMultiQueue.Node[T]) -> None:
             self.last.next = node
             self.last = node
 
-        def __str__(self):
+        def __str__(self) -> str:
             res = ""
             h = self.head
             while h.next is not None:
@@ -85,9 +98,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def is_empty(self) -> bool:
             return self.size() == 0
 
-        def put(self, e) -> None:
+        def put(self, obj: T) -> None:
             old_size = -1
-            node = LinkedBlockingMultiQueue.Node(e)
+            node = LinkedBlockingMultiQueue.Node(obj)
             self.put_lock.acquire()
             try:
                 self.enqueue(node)
@@ -113,11 +126,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             finally:
                 self.fully_unlock()
 
-        def unlink(
-            self,
-            trail: LinkedBlockingMultiQueue.Node,
-            next_: LinkedBlockingMultiQueue.Node,
-        ) -> None:
+        def unlink(self, trail: LinkedBlockingMultiQueue.Node,
+                   next_: LinkedBlockingMultiQueue.Node, ) -> None:
             trail.item = None
             trail.next = next_.next
             if self.last == next_:
@@ -156,7 +166,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             to_add.priority_group = self
 
         def remove_queue(self, to_remove: LinkedBlockingMultiQueue.SubQueue[T]) -> None:
-
             for queue in self.queues:
                 if queue.key == to_remove.key:
                     to_remove.put_lock.acquire()
@@ -166,7 +175,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                             self.next_idx = 0
                         if queue.enabled:
                             self.owner.total_count.get_and_dec(to_remove.size())
-
                     finally:
                         to_remove.put_lock.release()
 
@@ -200,14 +208,12 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
 
     @inner
     class DefaultSubQueueSelection(Generic[T]):
-        def __init__(
-            self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup]
-        ):
+        def __init__(self,
+                     priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]):
             self.priority_groups: List[
-                LinkedBlockingMultiQueue.PriorityGroup[T]
-            ] = priority_groups
+                LinkedBlockingMultiQueue.PriorityGroup[T]] = priority_groups
 
-        def get_next(self) -> Optional[LinkedBlockingMultiQueue.SubQueue]:
+        def get_next(self) -> Optional[LinkedBlockingMultiQueue.SubQueue[T]]:
             for pg in self.priority_groups:
                 sub_queue = pg.get_next_sub_queue()
                 if sub_queue is not None:
@@ -221,22 +227,23 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                     return deque
             return None
 
-        def set_priority_groups(self, priority_groups):
+        def set_priority_groups(self, priority_groups: List[
+            LinkedBlockingMultiQueue.PriorityGroup[T]]) -> None:
             self.priority_groups = priority_groups
 
-    def __init__(
-        self,
-    ):
-        self.take_lock = RLock()
-        self.not_empty = Condition(self.take_lock)
-        self.sub_queues = dict()  # thread-safe in CPython
+    def __init__(self):
+        self.take_lock: RLock = RLock()
+        self.not_empty: Condition = Condition(self.take_lock)
+
+        # thread-safe in CPython
+        self.sub_queues: MutableMapping[str, LinkedBlockingMultiQueue.SubQueue] = dict()
+
         self.total_count = AtomicInteger()
-        self.priority_groups: List[
-            LinkedBlockingMultiQueue.PriorityGroup
-        ] = list()  # thread-safe in CPython
+
+        # thread-safe in CPython
+        self.priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup] = list()
         self.sub_queue_selection = LinkedBlockingMultiQueue.DefaultSubQueueSelection(
-            self.priority_groups
-        )
+            self.priority_groups)
 
     def put(self, key: str, item: T) -> None:
         """
@@ -379,6 +386,20 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                     self.priority_groups.append(new_pg)
 
             return old_queue
+        finally:
+            self.take_lock.release()
+
+    def remove_sub_queue(self, key: str) -> SubQueue:
+        self.take_lock.acquire()
+        try:
+            removed: Optional[LinkedBlockingMultiQueue.SubQueue] = self.sub_queues.get(
+                key)
+            if removed is not None:
+                del self.sub_queues[key]
+                removed.priority_group.remove_queue(removed)
+                if len(removed.priority_group.queues) == 0:
+                    self.priority_groups.remove(removed.priority_group)
+            return removed
         finally:
             self.take_lock.release()
 
