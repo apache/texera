@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.math.pow
 
 class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
-    extends Runnable
+  extends Runnable
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
@@ -45,7 +45,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   def establishConnection(): Unit = {
     var connected = false
     var tryCount = 0
-    while (!connected && tryCount < MAX_TRY_COUNT) {
+    while (!connected && tryCount <= MAX_TRY_COUNT) {
       try {
         logger.info(s"trying to connect to $location")
         flightClient = FlightClient.builder(allocator, location).build()
@@ -56,16 +56,17 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
         case _: RuntimeException =>
           val retryWaitTimeInMs = UNIT_WAIT_TIME_MS * pow(2, tryCount).toInt
           logger.warn(
-            s"Not connected to the server in this try, retrying after $retryWaitTimeInMs ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
+            s"Failed to connect to Flight Server in this attempt, retrying after $retryWaitTimeInMs ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
           )
           flightClient.close()
           Thread.sleep(retryWaitTimeInMs)
           tryCount += 1
-          if (tryCount > MAX_TRY_COUNT)
-            throw new WorkflowRuntimeException(
-              s"Exceeded try limit of $MAX_TRY_COUNT when connecting to Flight Server!"
-            )
       }
+    }
+    if (!connected) {
+      throw new WorkflowRuntimeException(
+        s"Failed to connect to Flight Server after $MAX_TRY_COUNT attempts. Abort!"
+      )
     }
   }
 
@@ -94,9 +95,9 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   def sendControlV2(
-      from: ActorVirtualIdentity,
-      payload: ControlPayloadV2
-  ): Result = {
+                     from: ActorVirtualIdentity,
+                     payload: ControlPayloadV2
+                   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
     logger.debug(s"sending control $controlMessage")
@@ -115,10 +116,10 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   private def writeArrowStream(
-      tuples: mutable.Queue[Tuple],
-      from: ActorVirtualIdentity,
-      isEnd: Boolean
-  ): Unit = {
+                                tuples: mutable.Queue[Tuple],
+                                from: ActorVirtualIdentity,
+                                isEnd: Boolean
+                              ): Unit = {
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
