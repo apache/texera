@@ -61,3 +61,9 @@ class InternalQueue(IQueue):
 
     def __len__(self) -> int:
         return self._queue.size()
+
+    def disable(self, queue: InternalQueue.QueueID) -> None:
+        self._queue.disable(str(queue.value))
+
+    def enable(self, queue: InternalQueue.QueueID) -> None:
+        self._queue.enable(str(queue.value))
