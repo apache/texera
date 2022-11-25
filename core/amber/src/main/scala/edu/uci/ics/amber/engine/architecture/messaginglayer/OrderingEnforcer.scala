@@ -29,6 +29,10 @@ class OrderingEnforcer[T] {
   val ofoMap = new mutable.LongMap[T]
   var current = 0L
 
+  def setCurrent(value: Long): Unit = {
+    current = value
+  }
+
   def isDuplicated(sequenceNumber: Long): Boolean =
     sequenceNumber < current || ofoMap.contains(sequenceNumber)
 

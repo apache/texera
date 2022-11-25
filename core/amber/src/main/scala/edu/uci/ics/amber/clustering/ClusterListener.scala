@@ -3,9 +3,13 @@ package edu.uci.ics.amber.clustering
 import akka.actor.{Actor, ActorLogging, Address, ExtendedActorSystem}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member}
+import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.texera.web.service.WorkflowService
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.DurationInt
 
 object ClusterListener {
   final case class GetAvailableNodeAddresses()
@@ -20,8 +24,7 @@ class ClusterListener extends Actor with ActorLogging {
     cluster.subscribe(
       self,
       initialStateMode = InitialStateAsEvents,
-      classOf[MemberEvent],
-      classOf[UnreachableMember]
+      classOf[MemberEvent]
     )
   }
   override def postStop(): Unit = cluster.unsubscribe(self)
@@ -29,8 +32,9 @@ class ClusterListener extends Actor with ActorLogging {
   def receive: Receive = {
     case evt: MemberEvent =>
       log.info(s"received member event = $evt")
-      updateClusterStatus()
-    case ClusterListener.GetAvailableNodeAddresses => sender ! getAllAddressExcludingMaster.toArray
+      updateClusterStatus(evt)
+    case ClusterListener.GetAvailableNodeAddresses =>
+      sender ! getAllAddressExcludingMaster.toArray
   }
 
   private def getAllAddressExcludingMaster: Iterable[Address] = {
@@ -41,12 +45,29 @@ class ClusterListener extends Actor with ActorLogging {
       .map(_.address)
   }
 
-  private def updateClusterStatus(): Unit = {
+  private def updateClusterStatus(evt: MemberEvent): Unit = {
+    evt match {
+      case MemberRemoved(member, previousStatus) =>
+        log.info("Cluster node " + member + " is down! Trigger recovery process.")
+        val futures = new ArrayBuffer[Future[Any]]
+        WorkflowService.getAllWorkflowService.foreach { workflow =>
+          val jobService = workflow.jobService.getValue
+          if (jobService != null && !jobService.workflow.isCompleted) {
+            try {
+              futures.append(jobService.client.notifyNodeFailure(member.address))
+            }
+          }
+        }
+        Await.all(futures: _*)
+      case other => //skip
+    }
+
     val addr = getAllAddressExcludingMaster
     Constants.currentWorkerNum = addr.size * Constants.numWorkerPerNode
     log.info(
       "---------Now we have " + addr.size + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
     )
+
   }
 
 }
