@@ -44,7 +44,7 @@ from proto.edu.uci.ics.amber.engine.common import (
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 
 
-# logger.level("PRINT", no=38)
+logger.level("PRINT", no=38)
 
 
 class TestBatchDataProcessor:
@@ -192,7 +192,7 @@ class TestBatchDataProcessor:
         dp_thread.start()
         assert dp_thread.is_alive()
 
-    @pytest.mark.timeout(10)
+    @pytest.mark.timeout(5)
     def test_dp_thread_can_process_batch_simple(
             self,
             mock_udf,
@@ -320,7 +320,7 @@ class TestBatchDataProcessor:
 
         reraise()
 
-    @pytest.mark.timeout(10)
+    @pytest.mark.timeout(5)
     def test_dp_thread_can_process_batch_median(
             self,
             mock_udf,
@@ -450,7 +450,7 @@ class TestBatchDataProcessor:
 
         reraise()
 
-    @pytest.mark.timeout(10)
+    @pytest.mark.timeout(5)
     def test_dp_thread_can_process_batch_complex(
             self,
             mock_udf,
@@ -500,17 +500,16 @@ class TestBatchDataProcessor:
         mock_udf.BATCH_SIZE = 10
         for i in range(13):
             input_queue.put(mock_data_elements[i])
-        time.sleep(0.2)
+        time.sleep(0.1)
 
         mock_udf.BATCH_SIZE = 20
         for i in range(28):
             input_queue.put(mock_data_elements[i])
-        time.sleep(0.2)
+        time.sleep(0.1)
 
         mock_udf.BATCH_SIZE = 5
         for i in range(16):
             input_queue.put(mock_data_elements[i])
-        time.sleep(0.2)
 
         output_data_element = []
         for i in range(55):
@@ -544,7 +543,6 @@ class TestBatchDataProcessor:
         for i in range(2):
             output_data_element.append(output_queue.get())
 
-        time.sleep(1)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -558,6 +556,276 @@ class TestBatchDataProcessor:
         )
 
         assert mock_udf.count == 8
+
+        # can process EndOfUpstream
+        assert output_queue.get() == DataElement(
+            tag=mock_receiver_actor, payload=EndOfUpstream()
+        )
+
+        # WorkerExecutionCompletedV2 should be triggered when workflow finishes
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                control_invocation=ControlInvocationV2(
+                    command_id=1,
+                    command=ControlCommandV2(
+                        worker_execution_completed=WorkerExecutionCompletedV2()
+                    ),
+                )
+            ),
+        )
+
+        # can process ReturnInvocation
+        input_queue.put(
+            ControlElement(
+                tag=mock_controller,
+                payload=set_one_of(
+                    ControlPayloadV2,
+                    ReturnInvocationV2(
+                        original_command_id=0, control_return=ControlReturnV2()
+                    ),
+                ),
+            )
+        )
+
+        reraise()
+
+    @pytest.mark.timeout(5)
+    def test_dp_thread_can_process_batch_edge_case_string(
+            self,
+            mock_udf,
+            mock_link,
+            mock_receiver_actor,
+            mock_controller,
+            input_queue,
+            output_queue,
+            mock_data_elements,
+            dp_thread,
+            mock_update_input_linking,
+            mock_add_partitioning,
+            mock_end_of_upstream,
+            mock_query_statistics,
+            mock_batch,
+            command_sequence,
+            reraise,
+    ):
+        dp_thread.start()
+
+        # can process UpdateInputLinking
+        input_queue.put(mock_update_input_linking)
+
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process AddPartitioning
+        input_queue.put(mock_add_partitioning)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process a InputDataFrame
+        mock_udf.BATCH_SIZE = "test"
+        for i in range(50):
+            input_queue.put(mock_data_elements[i])
+        time.sleep(0.1)
+
+        mock_udf.BATCH_SIZE = 5
+        for i in range(7):
+            input_queue.put(mock_data_elements[i])
+
+        output_data_element = []
+        for i in range(55):
+            output_data_element.append(output_queue.get())
+
+        input_queue.put(mock_query_statistics)
+        assert output_data_element[0].tag == mock_receiver_actor
+        assert isinstance(output_data_element[0].payload, OutputDataFrame)
+        data_frame: OutputDataFrame = output_data_element[0].payload
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame[0] == Tuple(mock_batch[0])
+
+        # can process QueryStatistics
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=1,
+                    control_return=ControlReturnV2(
+                        worker_statistics=WorkerStatistics(
+                            worker_state=WorkerState.RUNNING,
+                            input_tuple_count=57,
+                            output_tuple_count=55,
+                        )
+                    ),
+                )
+            ),
+        )
+
+        input_queue.put(mock_end_of_upstream)
+        for i in range(2):
+            output_data_element.append(output_queue.get())
+
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                control_invocation=ControlInvocationV2(
+                    command_id=0,
+                    command=ControlCommandV2(
+                        link_completed=LinkCompletedV2(link_id=mock_link)
+                    ),
+                )
+            ),
+        )
+
+        assert mock_udf.count == 3
+
+        # can process EndOfUpstream
+        assert output_queue.get() == DataElement(
+            tag=mock_receiver_actor, payload=EndOfUpstream()
+        )
+
+        # WorkerExecutionCompletedV2 should be triggered when workflow finishes
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                control_invocation=ControlInvocationV2(
+                    command_id=1,
+                    command=ControlCommandV2(
+                        worker_execution_completed=WorkerExecutionCompletedV2()
+                    ),
+                )
+            ),
+        )
+
+        # can process ReturnInvocation
+        input_queue.put(
+            ControlElement(
+                tag=mock_controller,
+                payload=set_one_of(
+                    ControlPayloadV2,
+                    ReturnInvocationV2(
+                        original_command_id=0, control_return=ControlReturnV2()
+                    ),
+                ),
+            )
+        )
+
+        reraise()
+
+    @pytest.mark.timeout(5)
+    def test_dp_thread_can_process_batch_edge_case_non_positive(
+            self,
+            mock_udf,
+            mock_link,
+            mock_receiver_actor,
+            mock_controller,
+            input_queue,
+            output_queue,
+            mock_data_elements,
+            dp_thread,
+            mock_update_input_linking,
+            mock_add_partitioning,
+            mock_end_of_upstream,
+            mock_query_statistics,
+            mock_batch,
+            command_sequence,
+            reraise,
+    ):
+        dp_thread.start()
+
+        # can process UpdateInputLinking
+        input_queue.put(mock_update_input_linking)
+
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process AddPartitioning
+        input_queue.put(mock_add_partitioning)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process a InputDataFrame
+        mock_udf.BATCH_SIZE = 0
+        for i in range(50):
+            input_queue.put(mock_data_elements[i])
+        time.sleep(0.1)
+
+        mock_udf.BATCH_SIZE = 5
+        for i in range(7):
+            input_queue.put(mock_data_elements[i])
+
+        output_data_element = []
+        for i in range(55):
+            output_data_element.append(output_queue.get())
+
+        input_queue.put(mock_query_statistics)
+        assert output_data_element[0].tag == mock_receiver_actor
+        assert isinstance(output_data_element[0].payload, OutputDataFrame)
+        data_frame: OutputDataFrame = output_data_element[0].payload
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame[0] == Tuple(mock_batch[0])
+
+        # can process QueryStatistics
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=1,
+                    control_return=ControlReturnV2(
+                        worker_statistics=WorkerStatistics(
+                            worker_state=WorkerState.RUNNING,
+                            input_tuple_count=57,
+                            output_tuple_count=55,
+                        )
+                    ),
+                )
+            ),
+        )
+
+        input_queue.put(mock_end_of_upstream)
+        for i in range(2):
+            output_data_element.append(output_queue.get())
+
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                control_invocation=ControlInvocationV2(
+                    command_id=0,
+                    command=ControlCommandV2(
+                        link_completed=LinkCompletedV2(link_id=mock_link)
+                    ),
+                )
+            ),
+        )
+
+        assert mock_udf.count == 3
 
         # can process EndOfUpstream
         assert output_queue.get() == DataElement(

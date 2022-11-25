@@ -65,7 +65,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 set_one_of(ControlCommandV2, PythonPrintV2(message=msg)),
             )
         )
-        # logger.add(self._print_log_handler, level="PRINT", filter="operators")
+        logger.add(self._print_log_handler, level="PRINT", filter="operators")
 
     def complete(self) -> None:
         """
