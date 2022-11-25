@@ -241,15 +241,12 @@ class TestBatchDataProcessor:
         # can process a InputDataFrame
         for i in range(50):
             input_queue.put(mock_data_elements[i])
-            time.sleep(0.01)
-        input_queue.put(mock_query_statistics)
-        time.sleep(1)
 
         output_data_element = []
         for i in range(50):
             output_data_element.append(output_queue.get())
-            # time.sleep(0.01)
 
+        input_queue.put(mock_query_statistics)
         assert output_data_element[0].tag == mock_receiver_actor
         assert isinstance(output_data_element[0].payload, OutputDataFrame)
         data_frame: OutputDataFrame = output_data_element[0].payload
@@ -372,14 +369,12 @@ class TestBatchDataProcessor:
         # can process a InputDataFrame
         for i in mock_data_elements:
             input_queue.put(i)
-            time.sleep(0.01)
-        input_queue.put(mock_query_statistics)
 
         output_data_element = []
         for i in range(50):
             output_data_element.append(output_queue.get())
-            # time.sleep(0.01)
 
+        input_queue.put(mock_query_statistics)
         assert output_data_element[0].tag == mock_receiver_actor
         assert isinstance(output_data_element[0].payload, OutputDataFrame)
         data_frame: OutputDataFrame = output_data_element[0].payload
@@ -505,25 +500,23 @@ class TestBatchDataProcessor:
         mock_udf.BATCH_SIZE = 10
         for i in range(13):
             input_queue.put(mock_data_elements[i])
-            time.sleep(0.01)
+        time.sleep(0.2)
 
         mock_udf.BATCH_SIZE = 20
         for i in range(28):
             input_queue.put(mock_data_elements[i])
-            time.sleep(0.01)
+        time.sleep(0.2)
 
         mock_udf.BATCH_SIZE = 5
         for i in range(16):
             input_queue.put(mock_data_elements[i])
-            time.sleep(0.01)
-
-        input_queue.put(mock_query_statistics)
+        time.sleep(0.2)
 
         output_data_element = []
         for i in range(55):
             output_data_element.append(output_queue.get())
-            # time.sleep(0.01)
 
+        input_queue.put(mock_query_statistics)
         assert output_data_element[0].tag == mock_receiver_actor
         assert isinstance(output_data_element[0].payload, OutputDataFrame)
         data_frame: OutputDataFrame = output_data_element[0].payload

@@ -107,20 +107,20 @@ class BatchOperator(TupleOperatorV2):
     def __init__(self):
         super().__init__()
         self.__internal_is_source: bool = False
-        self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
+        self.__batch_data: Mapping[int, List[Tuple]] = defaultdict(list)
         # must be a positive integer
         assert self.BATCH_SIZE is None or (isinstance(self.BATCH_SIZE, int) and self.BATCH_SIZE > 0)
 
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        self.__table_data[port].append(tuple_)
-        if self.BATCH_SIZE is not None and len(self.__table_data[port]) >= self.BATCH_SIZE:
+        self.__batch_data[port].append(tuple_)
+        if self.BATCH_SIZE is not None and len(self.__batch_data[port]) >= self.BATCH_SIZE:
             yield from self._process_batch(port)
 
     def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
         batch = Batch(
-            pandas.DataFrame([self.__table_data[port].pop(0).as_series() for _ in
-                              range(min(len(self.__table_data[port]), self.BATCH_SIZE))])
+            pandas.DataFrame([self.__batch_data[port].pop(0).as_series() for _ in
+                              range(min(len(self.__batch_data[port]), self.BATCH_SIZE))])
         )
         for output_table in self.process_batch(batch, port):
             if output_table is not None:
@@ -131,7 +131,7 @@ class BatchOperator(TupleOperatorV2):
                     yield output_table
 
     def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
-        while len(self.__table_data[port]) != 0:
+        while len(self.__batch_data[port]) != 0:
             yield from self._process_batch(port)
 
     @abstractmethod
