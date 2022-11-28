@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, Address, ExtendedActorSystem}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member}
 import com.twitter.util.{Await, Future}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.texera.web.service.WorkflowService
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.ABORTED
@@ -18,6 +19,7 @@ object ClusterListener {
 
 class ClusterListener extends Actor with AmberLogging {
 
+  val actorId: ActorVirtualIdentity = ActorVirtualIdentity("ClusterListener")
   val cluster: Cluster = Cluster(context.system)
 
   // subscribe to cluster changes, re-subscribe when restart
@@ -33,7 +35,7 @@ class ClusterListener extends Actor with AmberLogging {
 
   def receive: Receive = {
     case evt: MemberEvent =>
-      log.info(s"received member event = $evt")
+      logger.info(s"received member event = $evt")
       updateClusterStatus(evt)
     case ClusterListener.GetAvailableNodeAddresses =>
       sender ! getAllAddressExcludingMaster.toArray
