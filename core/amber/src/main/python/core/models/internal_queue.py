@@ -59,14 +59,32 @@ class InternalQueue(IQueue):
         else:
             self._queue.put(InternalQueue.QueueID.SYSTEM.value, item)
 
-    def __len__(self) -> int:
-        return self._queue.size()
-
-    def disable(self, queue: InternalQueue.QueueID) -> None:
+    def _disable(self, queue: InternalQueue.QueueID) -> None:
         self._queue.disable(str(queue.value))
 
-    def enable(self, queue: InternalQueue.QueueID) -> None:
+    def _enable(self, queue: InternalQueue.QueueID) -> None:
         self._queue.enable(str(queue.value))
 
-    def size(self, queue: InternalQueue.QueueID) -> int:
-        return self._queue.size(str(queue.value))
+    def is_control_empty(self) -> bool:
+        return self.is_empty(InternalQueue.QueueID.CONTROL)
+
+    def is_data_empty(self) -> bool:
+        return self.is_empty(InternalQueue.QueueID.DATA)
+
+    def __len__(self) -> int:
+        return self.size()
+
+    def size(self) -> int:
+        return self._queue.size()
+
+    def size_control(self) -> int:
+        return self._queue.size(str(InternalQueue.QueueID.CONTROL))
+
+    def size_data(self) -> int:
+        return self._queue.size(str(InternalQueue.QueueID.DATA))
+
+    def enable_data(self) -> None:
+        self._enable(InternalQueue.QueueID.DATA)
+
+    def disable_data(self) -> None:
+        self._disable(InternalQueue.QueueID.DATA)
