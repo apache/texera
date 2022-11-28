@@ -267,7 +267,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
             return
         # here the self.context.processing_manager.current_input_tuple_iter
         # could be modified during iteration, thus we are using the try-while-stop_
-        # iteration way to iterate through the iterator, instead of the for-each-loop syntax sugar.
+        # iteration way to iterate through the iterator, instead of the for-each-loop
+        # syntax sugar.
         while True:
             # In Python@3.8 there is a new `:=` operator to simplify this assignment
             # in while-loop. For now we keep it this way to support versions below
@@ -303,7 +304,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.pause_manager.record_request(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, True
             )
-            self._input_queue.disable_sub()
+            self._input_queue.disable_data()
         else:
             self.context.pause_manager.record_request(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, False
@@ -321,7 +322,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         ):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
-            self._input_queue.disable_sub()
+            self._input_queue.disable_data()
 
     def _resume(self) -> None:
         """
