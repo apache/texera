@@ -464,14 +464,18 @@ describe("SavedWorkflowSectionComponent", () => {
 
       component.owners[0].checked = true; //Texera
       component.owners[1].checked = true; //Angular
-      (component.wids[0].checked = true), (component.wids[1].checked = true), (component.wids[2].checked = true); //id 1,2,3
+      component.wids[0].checked = true;
+      component.wids[1].checked = true;
+      component.wids[2].checked = true; //id 1,2,3
       component.userProjectsDropdown[0].checked = true; //Project 1
       component.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
       component.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
       component.masterFilterList.push("1");
       //add/select new search parameter here
 
-      component.updateSelectedProjects(), component.updateSelectedIDs(), component.updateSelectedOwners();
+      component.updateSelectedProjects();
+      component.updateSelectedIDs();
+      component.updateSelectedOwners();
       // if adding parameters, add its respective update function here
 
       const req = httpTestingController.match(`api/workflow/search-by-operators?operator=${operatorSelectionList}`);
