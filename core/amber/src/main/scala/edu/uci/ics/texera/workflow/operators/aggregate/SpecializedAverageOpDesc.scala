@@ -64,6 +64,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       case AggregationFunction.MAX     => maxAgg(operatorSchemaInfo)
       case AggregationFunction.MIN     => minAgg(operatorSchemaInfo)
       case AggregationFunction.SUM     => sumAgg(operatorSchemaInfo)
+      case AggregationFunction.CONCAT  => concatAgg(operatorSchemaInfo)
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
@@ -119,15 +120,17 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     val aggregation = new DistributedAggregation[String](
       () => "",
       (partial, tuple) => {
-        partial + (if (tuple.getField(attribute) != null) "," + tuple.getField(attribute) else "")
+        if (partial == "") {
+          if (tuple.getField(attribute) != null) tuple.getField(attribute).toString() else ""
+        } else {
+          partial + "," + (if (tuple.getField(attribute) != null) tuple.getField(attribute).toString() else "")
+        }
       },
       (partial1, partial2) => {
-        if (partial1 != null && partial2 != null) {
+        if (partial1 != "" && partial2 != "") {
           partial1 + "," + partial2
-        } else if (partial1 == null) {
-          partial2
         } else {
-          partial1
+          partial1 + partial2
         }
       },
       partial => {
@@ -264,7 +267,12 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         .newBuilder()
         .add(resultAttribute, AttributeType.INTEGER)
         .build()
-    } else {
+    } else if (this.aggFunction.equals(AggregationFunction.CONCAT)) {
+      Schema
+        .newBuilder()
+        .add(resultAttribute, AttributeType.STRING)
+        .build()
+    } else{
       Schema
         .newBuilder()
         .add(resultAttribute, AttributeType.DOUBLE)
