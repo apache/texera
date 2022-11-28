@@ -229,7 +229,12 @@ export class WorkflowActionService {
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
     this.jointGraphWrapper.unhighlightElements(currentHighlights);
     this.jointGraphWrapper.setMultiSelectMode(false);
-    this.texeraGraph.addCommentBox(commentBox);
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.addCommentBox({ ...commentBox, comments: [] });
+      for (const comment of commentBox.comments) {
+        this.addComment(comment, commentBox.commentBoxID);
+      }
+    });
   }
 
   /**
@@ -466,6 +471,11 @@ export class WorkflowActionService {
     this.getJointGraphWrapper().unhighlightLinks(...links);
   }
 
+  public highlightCommentBoxes(multiSelect: boolean, ...commentBoxIDs: string[]): void {
+    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
+    this.getJointGraphWrapper().highlightCommentBoxes(...commentBoxIDs);
+  }
+
   public disableOperators(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
@@ -677,12 +687,6 @@ export class WorkflowActionService {
             op.operatorID
           ) as Point)
       );
-    commentBoxes.forEach(
-      commentBox =>
-        (commentBox.commentBoxPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(
-          commentBox.commentBoxID
-        ) as Point)
-    );
     const workflowContent: WorkflowContent = {
       operators,
       operatorPositions,
@@ -765,11 +769,11 @@ export class WorkflowActionService {
         filter(() => this.jointGraphWrapper.getListenPositionChange()),
         filter(() => this.undoRedoService.listenJointCommand),
         filter(() => this.texeraGraph.getSyncTexeraGraph()),
-        filter(
-          movedElement =>
-            this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID) ||
-            movedElement.elementID.includes("commentBox")
-          // TODO: this condition is ad-hoc because highlighting for commentBox is not properly implemented.
+        filter(movedElement =>
+          this.jointGraphWrapper
+            .getCurrentHighlightedOperatorIDs()
+            .concat(this.jointGraphWrapper.getCurrentHighlightedCommentBoxIDs())
+            .includes(movedElement.elementID)
         )
       )
       .subscribe(movedElement => {
@@ -777,17 +781,12 @@ export class WorkflowActionService {
           if (
             this.texeraGraph.sharedModel.elementPositionMap.get(movedElement.elementID) !== movedElement.newPosition
           ) {
-            // The position of comment box is included in its object, so we only set it here for persistence.
-            if (movedElement.elementID.includes("commentBox")) {
-              this.texeraGraph.sharedModel.commentBoxMap
-                .get(movedElement.elementID)
-                ?.set("commentBoxPosition", movedElement.newPosition);
-            }
-
             // For syncing ops/comment boxes in shared editing
             this.texeraGraph.sharedModel.elementPositionMap.set(movedElement.elementID, movedElement.newPosition);
             // For moving all highlighted operators
-            const selectedElements = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
+            const selectedElements = this.jointGraphWrapper
+              .getCurrentHighlightedOperatorIDs()
+              .concat(this.jointGraphWrapper.getCurrentHighlightedCommentBoxIDs());
             const offsetX = movedElement.newPosition.x - movedElement.oldPosition.x;
             const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
             this.jointGraphWrapper.setListenPositionChange(false);
@@ -800,6 +799,12 @@ export class WorkflowActionService {
                   elementID,
                   this.jointGraphWrapper.getElementPosition(elementID)
                 );
+                // The position of comment box is included in its object, so we only set it here for persistence.
+                if (elementID.includes("commentBox")) {
+                  this.texeraGraph.sharedModel.commentBoxMap
+                    .get(elementID)
+                    ?.set("commentBoxPosition", this.jointGraphWrapper.getElementPosition(elementID));
+                }
               });
             this.jointGraphWrapper.setListenPositionChange(true);
             this.undoRedoService.setListenJointCommand(true);
