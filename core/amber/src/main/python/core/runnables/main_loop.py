@@ -15,13 +15,13 @@ from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
-
     InputExhausted,
     InternalQueue,
     SenderChangeMarker,
     Tuple,
     ExceptionInfo,
-)from core.models.internal_queue import DataElement, ControlElement
+)
+from core.models.internal_queue import DataElement, ControlElement
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
