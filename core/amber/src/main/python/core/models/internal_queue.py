@@ -66,10 +66,10 @@ class InternalQueue(IQueue):
         self._queue.enable(str(queue.value))
 
     def is_control_empty(self) -> bool:
-        return self.is_empty(InternalQueue.QueueID.CONTROL)
+        return self.is_empty(InternalQueue.QueueID.CONTROL.value)
 
     def is_data_empty(self) -> bool:
-        return self.is_empty(InternalQueue.QueueID.DATA)
+        return self.is_empty(InternalQueue.QueueID.DATA.value)
 
     def __len__(self) -> int:
         return self.size()
@@ -78,10 +78,10 @@ class InternalQueue(IQueue):
         return self._queue.size()
 
     def size_control(self) -> int:
-        return self._queue.size(str(InternalQueue.QueueID.CONTROL))
+        return self._queue.size(InternalQueue.QueueID.CONTROL.value)
 
     def size_data(self) -> int:
-        return self._queue.size(str(InternalQueue.QueueID.DATA))
+        return self._queue.size(InternalQueue.QueueID.DATA.value)
 
     def enable_data(self) -> None:
         self._enable(InternalQueue.QueueID.DATA)
