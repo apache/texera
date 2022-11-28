@@ -1,9 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2, DataElement}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ControlElement,
+  ControlElementV2,
+  DataElement
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV2,
+  returnInvocationToV2
+}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -17,7 +24,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 
 class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
-  extends Runnable
+    extends Runnable
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
@@ -84,13 +91,20 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   def sendControlV2(
-                     from: ActorVirtualIdentity,
-                     payload: ControlPayloadV2
-                   ): Result = {
+      from: ActorVirtualIdentity,
+      payload: ControlPayloadV2
+  ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
     logger.debug(s"sending control $controlMessage")
-    flightClient.doAction(action).next()
+
+    // extract info needed to calculate sender credits from ack
+    // ackResult contains number of batches inside Python worker internal queue
+    val ackResult: Result = flightClient.doAction(action).next()
+    val numBatchesInQueue: Long = new String(ackResult.getBody).toLong
+    // TODO : similarly for case of data messages, need to pass to FlowControl unit
+//    println("Python received control message, sent back: " + numBatchesInQueue)
+    ackResult
   }
 
   def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
@@ -105,10 +119,10 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   private def writeArrowStream(
-                                tuples: mutable.Queue[Tuple],
-                                from: ActorVirtualIdentity,
-                                isEnd: Boolean
-                              ): Unit = {
+      tuples: mutable.Queue[Tuple],
+      from: ActorVirtualIdentity,
+      isEnd: Boolean
+  ): Unit = {
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
@@ -123,17 +137,15 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
       ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
     }
     writer.putNext()
-
-    //    flightListener.onNext(PutResult.empty())
-//        println("res: ", flightListener.getResult())
     schemaRoot.clear()
-
     writer.completed()
-    //    println("listener read:", flightListener.read())
-    val buf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
-    println("pollres:",buf.getLong(0))
-    buf.close()
 
+    // for calculating sender credits - get back number of batches in Python worker queue
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    val numBatchesInQueue: Long = ackMsgBuf.getLong(0)
+    // TODO : finish calculating credits + pass to FlowControl unit after refactoring to wait for Python worker credit response
+//    println("Python received data message, sent back:", numBatchesInQueue)
+    ackMsgBuf.close()
 
     flightListener.close()
 

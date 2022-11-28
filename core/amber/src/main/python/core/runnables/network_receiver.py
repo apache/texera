@@ -25,7 +25,15 @@ class NetworkReceiver(Runnable, Stoppable):
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
-        def data_handler(command: bytes, table: Table):
+        def data_handler(command: bytes, table: Table) -> int:
+            """
+            Data handler for deserializing data messages
+
+            :param command:
+            :param table:
+            :return: number of batches in internal queue belonging to this command's sender actor.
+                this is used for calculating sender credits
+            """
             data_header = PythonDataHeader().parse(command)
             if not data_header.is_end:
                 shared_queue.put(
@@ -35,12 +43,20 @@ class NetworkReceiver(Runnable, Stoppable):
                 shared_queue.put(
                     DataElement(tag=data_header.tag, payload=EndOfUpstream())
                 )
+            return 30  # TODO : replace with actual value determined by internal_queue
 
         self._proxy_server.register_data_handler(data_handler)
 
         # register the control handler to deserialize control messages.
         @logger.catch(reraise=True)
-        def control_handler(message: bytes):
+        def control_handler(message: bytes) -> int:
+            """
+            Control handler for deserializing control messages
+
+            :param message:
+            :return: number of batches in internal queue belonging to this message's sender actor.
+                this is used for calculating sender credits
+            """
             python_control_message = PythonControlMessage().parse(message)
             shared_queue.put(
                 ControlElement(
@@ -48,6 +64,7 @@ class NetworkReceiver(Runnable, Stoppable):
                     payload=python_control_message.payload,
                 )
             )
+            return 29  # TODO : replace with actual value determined by internal_queue
 
         self._proxy_server.register_control_handler(control_handler)
 

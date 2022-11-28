@@ -66,8 +66,9 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
-  // TODO: Implement credit calculation logic in python worker
-  override def getSenderCredits(sender: ActorVirtualIdentity) = {
+  override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
+    // TODO : refactor to wait on credit response from Python Worker before returning credits
+    // credits = Constants.unprocessedBatchesCreditLimitPerSender - [num batches in queue returned from Python worker]
     Constants.unprocessedBatchesCreditLimitPerSender
   }
 
