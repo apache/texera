@@ -33,7 +33,7 @@ trait LinkCompletedHandler {
           .flatMap(_ => Future.Unit)
       } else {
         // if the link is not completed yet, do nothing
-        Future()
+        Future(())
       }
     }
   }

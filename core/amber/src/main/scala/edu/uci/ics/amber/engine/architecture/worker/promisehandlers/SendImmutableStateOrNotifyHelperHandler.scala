@@ -35,51 +35,44 @@ trait SendImmutableStateOrNotifyHelperHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (cmd: SendImmutableStateOrNotifyHelper, sender) =>
-    if (dataProcessor.getOperatorExecutor().isInstanceOf[HashJoinOpExec[Any]]) {
-      // Returns true if the build table was replicated successfully in case of HashJoin.
-      try {
-        val joinOpExec = dataProcessor.getOperatorExecutor().asInstanceOf[HashJoinOpExec[Any]]
-        if (joinOpExec.isBuildTableFinished) {
-          val immutableStates = joinOpExec.getBuildHashTableBatches()
-          val immutableStatesSendingFutures = new ArrayBuffer[Future[Boolean]]()
-          immutableStates.foreach(map => {
-            immutableStatesSendingFutures.append(
-              send(AcceptImmutableState(map), cmd.helperReceiverId)
-            )
-          })
-          Future
-            .collect(immutableStatesSendingFutures)
-            .flatMap(seq => {
-              if (!seq.contains(false)) {
-                logger.info(
-                  s"Reshape: Replication of all parts of build table done to ${cmd.helperReceiverId}"
-                )
-                Future.True
-              } else {
-                Future.False
-              }
+    dataProcessor.getOperatorExecutor() match {
+      case joinOpExec: HashJoinOpExec[_] =>
+        // Returns true if the build table was replicated successfully in case of HashJoin.
+        try {
+          if (joinOpExec.isBuildTableFinished) {
+            val immutableStates = joinOpExec.getBuildHashTableBatches()
+            val immutableStatesSendingFutures = new ArrayBuffer[Future[Boolean]]()
+            immutableStates.foreach(map => {
+              immutableStatesSendingFutures.append(
+                send(AcceptImmutableState(map), cmd.helperReceiverId)
+              )
             })
-        } else {
-          Future.False
+            Future
+              .collect(immutableStatesSendingFutures)
+              .flatMap(seq => {
+                if (!seq.contains(false)) {
+                  logger.info(
+                    s"Reshape: Replication of all parts of build table done to ${cmd.helperReceiverId}"
+                  )
+                  Future.True
+                } else {
+                  Future.False
+                }
+              })
+          } else {
+            Future.False
+          }
+        } catch {
+          case exception: Exception =>
+            logger.error("Reshape exception: ", exception)
+            Future.False
         }
-      } catch {
-        case exception: Exception =>
-          logger.error(
-            "Reshape: SendImmutableStateHandler exception" + exception
-              .getMessage() + " stacktrace " + exception.getStackTrace()
-          )
-          Future.False
-      }
-    } else if (dataProcessor.getOperatorExecutor().isInstanceOf[SortPartitionOpExec]) {
-      dataProcessor
-        .getOperatorExecutor()
-        .asInstanceOf[SortPartitionOpExec]
-        .waitingForTuplesFromHelper = true
-      dataProcessor.getOperatorExecutor().asInstanceOf[SortPartitionOpExec].helperWorkerIdentity =
-        cmd.helperReceiverId
-      send(SaveSkewedWorkerInfo(actorId), cmd.helperReceiverId).map(response => response)
-    } else {
-      Future.False
+      case exec: SortPartitionOpExec =>
+        exec.waitingForTuplesFromHelper = true
+        exec.helperWorkerIdentity = cmd.helperReceiverId
+        send(SaveSkewedWorkerInfo(actorId), cmd.helperReceiverId).map(response => response)
+      case _ =>
+        Future.False
     }
   }
 }

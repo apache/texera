@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   ProcessControlMessage,
   SenderActorChange,
   StepDelta,
+  TerminateSignal,
   TimeStamp
 }
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogReader
@@ -170,6 +171,7 @@ class LocalRecoveryManager(logReader: DeterminantLogReader) {
         case ProcessControlMessage(controlPayload, from) =>
           ControlElement(controlPayload, from)
         case TimeStamp(value) => ???
+        case TerminateSignal  => throw new RuntimeException("TerminateSignal cannot be handled!")
       }
     }
   }

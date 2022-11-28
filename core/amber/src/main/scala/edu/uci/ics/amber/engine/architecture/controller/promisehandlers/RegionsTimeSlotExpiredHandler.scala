@@ -40,7 +40,7 @@ trait RegionsTimeSlotExpiredHandler {
             "The regions' time slot expired but they are not running yet."
           )
         }
-        Future()
+        Future(())
       }
     }
   }

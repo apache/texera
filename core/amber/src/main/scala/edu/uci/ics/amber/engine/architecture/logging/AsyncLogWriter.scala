@@ -51,7 +51,7 @@ class AsyncLogWriter(
       internalStop = drainWriterQueueAndProcess()
     }
     writer.close()
-    gracefullyStopped.complete()
+    gracefullyStopped.complete(())
   }
 
   def drainWriterQueueAndProcess(): Boolean = {

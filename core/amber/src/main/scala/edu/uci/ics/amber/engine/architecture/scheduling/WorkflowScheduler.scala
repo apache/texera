@@ -304,7 +304,7 @@ class WorkflowScheduler(
 
   private def prepareAndStartRegion(region: PipelinedRegion): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-    Future()
+    Future(())
       .flatMap(_ => initializePythonOperators(region))
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
@@ -341,7 +341,7 @@ class WorkflowScheduler(
 
   private def scheduleRegion(region: PipelinedRegion): Future[Unit] = {
     if (constructingRegions.contains(region.getId())) {
-      return Future()
+      return Future(())
     }
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())
