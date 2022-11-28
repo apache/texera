@@ -21,6 +21,7 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
+import scala.math.pow
 
 class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     extends Runnable
@@ -31,8 +32,8 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-  private val MAX_TRY_COUNT: Int = 6
-  private val WAIT_TIME_MS = 500
+  private val MAX_TRY_COUNT: Int = 5
+  private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
   private var running: Boolean = true
 
@@ -44,7 +45,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   def establishConnection(): Unit = {
     var connected = false
     var tryCount = 0
-    while (!connected && tryCount < MAX_TRY_COUNT) {
+    while (!connected && tryCount <= MAX_TRY_COUNT) {
       try {
         logger.info(s"trying to connect to $location")
         flightClient = FlightClient.builder(allocator, location).build()
@@ -52,16 +53,20 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
         if (!connected)
           throw new RuntimeException("heartbeat failed")
       } catch {
-        case e: RuntimeException =>
-          logger.warn("Not connected to the server in this try, retrying", e)
+        case _: RuntimeException =>
+          val retryWaitTimeInMs = UNIT_WAIT_TIME_MS * pow(2, tryCount).toInt
+          logger.warn(
+            s"Failed to connect to Flight Server in this attempt, retrying after $retryWaitTimeInMs ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
+          )
           flightClient.close()
-          Thread.sleep(WAIT_TIME_MS)
+          Thread.sleep(retryWaitTimeInMs)
           tryCount += 1
-          if (tryCount >= MAX_TRY_COUNT)
-            throw new WorkflowRuntimeException(
-              s"Exceeded try limit of $MAX_TRY_COUNT when connecting to Flight Server!"
-            )
       }
+    }
+    if (!connected) {
+      throw new WorkflowRuntimeException(
+        s"Failed to connect to Flight Server after $MAX_TRY_COUNT attempts. Abort!"
+      )
     }
   }
 
