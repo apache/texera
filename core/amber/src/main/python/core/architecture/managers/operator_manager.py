@@ -42,13 +42,13 @@ class OperatorManager:
         operator_module = importlib.import_module(module_name)
 
         operators = list(
-            filter(self.is_concrete_operator, operator_module.__dict__.values()))
+            filter(self.is_concrete_operator, operator_module.__dict__.values())
+        )
         assert len(operators) == 1, "There should be one and only one Operator defined"
         return operators[0]
 
     def close(self):
         self.fs.close()
-
 
     def is_concrete_operator(self, cls: type) -> bool:
         """
@@ -57,18 +57,21 @@ class OperatorManager:
         :return: bool
         """
 
-        return (inspect.isclass(cls) and issubclass(cls,
-                                                    Operator) and not inspect.isabstract(
-            cls))
+        return (
+            inspect.isclass(cls)
+            and issubclass(cls, Operator)
+            and not inspect.isabstract(cls)
+        )
 
-    def initialize_operator(self, code: str, is_source: bool,
-                            output_schema: Mapping[str, str]) -> None:
+    def initialize_operator(
+        self, code: str, is_source: bool, output_schema: Mapping[str, str]
+    ) -> None:
         operator: type(Operator) = self.load_operator(code)
         self.operator = operator()
         self.operator.is_source = is_source
         self.operator.output_schema = output_schema
 
-    def update_operator(self, code, is_source: bool)-> None:
+    def update_operator(self, code, is_source: bool) -> None:
         original_internal_state = self.operator.__dict__
         operator: type(Operator) = self.load_operator(code)
         self.operator = operator()
