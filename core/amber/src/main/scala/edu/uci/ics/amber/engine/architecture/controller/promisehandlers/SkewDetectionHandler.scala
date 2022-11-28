@@ -238,24 +238,24 @@ object SkewDetectionHandler {
     * by Reshape.
     */
   def getPreviousWorkerLayer(opId: OperatorIdentity, workflow: Workflow): WorkerLayer = {
-    if (workflow.getOperator(opId).isInstanceOf[HashJoinOpExecConfig[Any]]) {
-      workflow
-        .getUpStreamConnectedWorkerLayers(opId)
-        .values
-        .find(layer =>
-          layer.id != workflow
-            .getOperator(opId)
-            .asInstanceOf[HashJoinOpExecConfig[Any]]
-            .getBuildTableLinkId()
-            .from
-        )
-        .get
-    } else {
-      // Should be sort operator
-      workflow
-        .getUpStreamConnectedWorkerLayers(opId)
-        .values
-        .toList(0)
+    workflow.getOperator(opId) match {
+      case value: HashJoinOpExecConfig[_] =>
+        workflow
+          .getUpStreamConnectedWorkerLayers(opId)
+          .values
+          .find(layer =>
+            layer.id != value
+              .getBuildTableLinkId()
+              .from
+          )
+          .get
+      case _ =>
+        // Should be sort operator
+        workflow
+          .getUpStreamConnectedWorkerLayers(opId)
+          .values
+          .toList
+          .head
     }
   }
 
