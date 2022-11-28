@@ -7,11 +7,13 @@ import {
   OperatorLink,
   OperatorPredicate,
   Point,
+  PortDescription,
 } from "../../../types/workflow-common.interface";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
+import { insert } from "@nrwl/workspace";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -243,6 +245,7 @@ export class SharedModelChangeHandler {
    * Syncs changes that are on nested-structures of operators, including changes on:
    *  - <code>customDisplayName</code>
    *  - <code>operatorProperties</code>
+   *  - <code>operatorPorts</code>
    *  - <code>isCached</code>
    *  - <code>isDisabled</code>
    * @private
@@ -298,6 +301,30 @@ export class SharedModelChangeHandler {
               operatorID: operatorID,
               newDisplayName: newName.toJSON(),
             });
+          } else if (event.path[event.path.length - 1] === "inputPorts") {
+            const addedInputPort = event.delta[1]?.insert ? event.delta[1]?.insert : event.delta[0]?.insert;
+            if (addedInputPort) {
+              this.onOperatorPortAdded(
+                operatorID,
+                true,
+                (addedInputPort as Y.Map<any>[])[0].toJSON() as PortDescription
+              );
+            }
+            if (event.delta[0]?.delete || event.delta[1]?.delete) {
+              this.onOperatorPortRemoved(operatorID, true);
+            }
+          } else if (event.path[event.path.length - 1] === "outputPorts") {
+            const addedOutputPort = event.delta[1]?.insert ? event.delta[1]?.insert : event.delta[0]?.insert;
+            if (addedOutputPort) {
+              this.onOperatorPortAdded(
+                operatorID,
+                false,
+                (addedOutputPort as Y.Map<any>[])[0].toJSON() as PortDescription
+              );
+            }
+            if (event.delta[0]?.delete || event.delta[1]?.delete) {
+              this.onOperatorPortRemoved(operatorID, false);
+            }
           } else if (event.path.includes("operatorProperties")) {
             this.onOperatorPropertyChanged(operatorID, event.transaction.local);
           }
@@ -323,6 +350,40 @@ export class SharedModelChangeHandler {
         this.texeraGraph.updateSharedModelAwareness("changed", undefined);
       }
     }
+  }
+
+  private onOperatorPortAdded(operatorID: string, isInput: boolean, port: PortDescription) {
+    const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
+    const portGroup = isInput ? "in" : "out";
+    operatorJointElement.addPort({
+      group: portGroup,
+      id: port.portID,
+      attrs: {
+        ".port-label": {
+          text: port.displayName ?? "",
+        },
+      },
+    });
+
+    const operator = this.texeraGraph.getOperator(operatorID);
+    this.texeraGraph.operatorPortChangedSubject.next({ newOperator: operator });
+  }
+
+  private onOperatorPortRemoved(operatorID: string, isInput: boolean) {
+    const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
+    const portGroup = isInput ? "in" : "out";
+    let lastPort;
+    for (let p of operatorJointElement.getPorts()) {
+      if (p.group === portGroup) {
+        lastPort = p;
+      }
+    }
+    if (lastPort) {
+      operatorJointElement.removePort(lastPort);
+    }
+
+    const operator = this.texeraGraph.getOperator(operatorID);
+    this.texeraGraph.operatorPortChangedSubject.next({ newOperator: operator });
   }
 
   /**

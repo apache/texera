@@ -78,7 +78,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 "View the result in a scatterplot",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
+                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
+                false, false);
     }
 
     @Override

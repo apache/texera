@@ -71,7 +71,9 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
       asScalaBuffer(singletonList(new InputPort("", true))).toList,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList
+      asScalaBuffer(singletonList(new OutputPort(""))).toList,
+      true,
+      true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

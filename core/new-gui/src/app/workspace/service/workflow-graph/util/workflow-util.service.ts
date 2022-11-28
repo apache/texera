@@ -109,6 +109,9 @@ export class WorkflowUtilService {
     // by default, the operator name is the user friendly name
     const customDisplayName = operatorSchema.additionalMetadata.userFriendlyName;
 
+    const dynamicInputPorts = operatorSchema.additionalMetadata.dynamicInputPorts ?? false;
+    const dynamicOutputPorts = operatorSchema.additionalMetadata.dynamicOutputPorts ?? false;
+
     for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
       const portID = "input-" + i.toString();
       const displayName = operatorSchema.additionalMetadata.inputPorts[i].displayName;
@@ -133,6 +136,8 @@ export class WorkflowUtilService {
       showAdvanced,
       isDisabled,
       customDisplayName,
+      dynamicInputPorts,
+      dynamicOutputPorts,
     };
   }
 

@@ -13,6 +13,7 @@ import {
   OperatorPort,
   OperatorPredicate,
   Point,
+  PortDescription,
 } from "../../../types/workflow-common.interface";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
@@ -26,6 +27,7 @@ import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
+import { assert } from "src/app/common/util/assert";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 
@@ -218,6 +220,43 @@ export class WorkflowActionService {
       this.texeraGraph.deleteOperator(operatorID);
       if (this.texeraGraph.sharedModel.elementPositionMap.has(operatorID))
         this.texeraGraph.sharedModel.elementPositionMap.delete(operatorID);
+    });
+  }
+
+  public addPort(operatorID: string, isInput: boolean, allowMultiInputs?: boolean): void {
+    const operator = this.texeraGraph.getOperator(operatorID);
+    const prefix = isInput ? "input-" : "output-";
+    let suffix = isInput ? operator.inputPorts.length + 1 : operator.outputPorts.length + 1;
+    let portID = prefix + suffix;
+    // make sure portID has no conflict
+    while (operator.inputPorts.find(p => p.portID === portID) !== undefined) {
+      suffix += 1;
+      portID = prefix + suffix;
+    }
+
+    const port: PortDescription = { portID, displayName: portID, allowMultiInputs, isDynamicPort: true };
+
+    if (!operator.dynamicInputPorts && isInput) {
+      throw new Error(`operator ${operatorID} does not have dynamic input ports`);
+    }
+    if (!operator.dynamicOutputPorts && !isInput) {
+      throw new Error(`operator ${operatorID} does not have dynamic output ports`);
+    }
+    if (!isInput && allowMultiInputs !== undefined) {
+      throw new Error("error: allowMultiInputs property of an output port should not be specified");
+    }
+
+    this.texeraGraph.bundleActions(() => {
+      // add port to the operator
+      this.texeraGraph.assertOperatorExists(operatorID);
+      this.texeraGraph.addPort(operatorID, port, isInput);
+    });
+  }
+
+  public removePort(operatorID: string, isInput: boolean): void {
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.assertOperatorExists(operatorID);
+      this.texeraGraph.removePort(operatorID, isInput);
     });
   }
 
@@ -615,6 +654,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorDeleteStream(),
       this.getTexeraGraph().getLinkAddStream(),
       this.getTexeraGraph().getLinkDeleteStream(),
+      this.getTexeraGraph().getOperatorPortChangeStream(),
       this.getOperatorGroup().getGroupAddStream(),
       this.getOperatorGroup().getGroupDeleteStream(),
       this.getOperatorGroup().getGroupCollapseStream(),

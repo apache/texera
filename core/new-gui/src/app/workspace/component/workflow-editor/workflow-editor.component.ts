@@ -22,8 +22,8 @@ import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, takeUntil } from "rxjs/operators";
+import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { auditTime, filter, map, buffer, debounceTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
@@ -130,6 +130,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleDisableOperator();
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
+    this.handleViewAddPort();
+    this.handleViewRemovePort();
     this.handlePaperPan();
     this.handleGroupResize();
     this.handleViewMouseoverOperator();
@@ -842,6 +844,56 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  private handleViewAddPort(): void {
+    fromJointPaperEvent(this.getJointPaper(), "element:add-input-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.addPort(elementView.model.id.toString(), true, false);
+        }
+      });
+    fromJointPaperEvent(this.getJointPaper(), "element:add-output-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.addPort(elementView.model.id.toString(), false);
+        }
+      });
+  }
+
+  private handleViewRemovePort(): void {
+    fromJointPaperEvent(this.getJointPaper(), "element:remove-input-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.removePort(elementView.model.id.toString(), true);
+        }
+      });
+    fromJointPaperEvent(this.getJointPaper(), "element:remove-output-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.removePort(elementView.model.id.toString(), false);
+        }
+      });
+  }
+
   private handleViewMouseoverOperator(): void {
     fromJointPaperEvent(this.getJointPaper(), "element:mouseenter")
       .pipe(untilDestroyed(this))
@@ -1059,7 +1111,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       if (portIndex >= 0) {
         const portInfo =
           this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
-        allowMultiInput = portInfo.allowMultiInputs ?? false;
+        allowMultiInput = portInfo?.allowMultiInputs ?? false;
       }
     }
 

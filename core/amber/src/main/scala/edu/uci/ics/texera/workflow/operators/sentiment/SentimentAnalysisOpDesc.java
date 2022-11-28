@@ -49,7 +49,8 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
                 "analysis the sentiment of a text using machine learning",
                 OperatorGroupConstants.ANALYTICS_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
+                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
+                false, false);
     }
 
     @Override

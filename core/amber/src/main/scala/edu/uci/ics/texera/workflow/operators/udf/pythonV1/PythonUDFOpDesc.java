@@ -98,7 +98,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
+                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
+                false, false);
     }
 
     @Override

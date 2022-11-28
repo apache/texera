@@ -35,7 +35,9 @@ class SplitOpDesc extends OperatorDescriptor {
       operatorDescription = "Split training and testing data to two different ports",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort("training"), OutputPort("testing"))
+      outputPorts = List(OutputPort("training"), OutputPort("testing")),
+      dynamicInputPorts = true,
+      dynamicOutputPorts = true
     )
   }
 
