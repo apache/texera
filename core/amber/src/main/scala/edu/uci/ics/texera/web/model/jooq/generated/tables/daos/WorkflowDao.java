@@ -55,6 +55,20 @@ public class WorkflowDao extends DAOImpl<WorkflowRecord, edu.uci.ics.texera.web.
     }
 
     /**
+     * Fetch records that have <code>description BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchRangeOfDescription(String lowerInclusive, String upperInclusive) {
+        return fetchRange(Workflow.WORKFLOW.DESCRIPTION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>description IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchByDescription(String... values) {
+        return fetch(Workflow.WORKFLOW.DESCRIPTION, values);
+    }
+
+    /**
      * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchRangeOfWid(UInteger lowerInclusive, UInteger upperInclusive) {

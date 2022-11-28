@@ -62,7 +62,7 @@
       >
         <nz-option-group nzLabel="Colored Projects">
           <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color != null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+            <nz-option *ngIf="project.color !== null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
               <nz-tag
                 [nzColor]="'#' + project.color"
                 [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}"
@@ -74,7 +74,7 @@
         </nz-option-group>
         <nz-option-group nzLabel="Colorless Projects">
           <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color == null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+            <nz-option *ngIf="project.color === null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
               <nz-tag [nzColor]="'#595959'">{{project.pid}}</nz-tag>
               {{project.name}}
             </nz-option>
@@ -128,7 +128,7 @@
   </div>
 
   <nz-card class="section-list-container">
-    <!-- itemSize: the height (px) of each list item, 
+    <!-- itemSize: the height (px) of each list item,
       this MUST be approximately the same as list item size set in CSS,
       .file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
@@ -163,7 +163,19 @@
                 >
                   <i nz-icon nzTheme="outline" nzType="edit"></i>
                 </button>
+                <button
+                  (click)="isEditingDescription.push(indexOfElement)"
+                  nz-button
+                  nz-tooltip="Add Description"
+                  nzSize="small"
+                  nzTooltipPlacement="bottom"
+                  nzType="text"
+                  class="add-description-btn"
+                >
+                  <i nz-icon nzTheme="outline" nzType="plus-square"></i>
+                </button>
                 <i
+                  class="file-is-owner-icon"
                   *ngIf="dashboardUserFileEntry.isOwner"
                   ngbTooltip="You are the OWNER"
                   nz-icon
@@ -181,6 +193,30 @@
                 ></i>
               </div>
             </nz-list-item-meta-title>
+
+            <!-- editable description of files -->
+            <nz-list-item-meta-description>
+              <div class="file-item-meta-description">
+                <label
+                  *ngIf="(isEditingDescription.indexOf(indexOfElement) === -1); else customFileDescription "
+                  (click)="isEditingDescription.push(indexOfElement)"
+                  class="file-description-label"
+                >
+                  {{ dashboardUserFileEntry.file.description }}
+                </label>
+                <ng-template #customFileDescription>
+                  <input
+                    #customFileDescription
+                    class="file-editable-description-input"
+                    (focusout)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
+                    (keyup.enter)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
+                    value="{{ dashboardUserFileEntry.file.description }}"
+                    maxlength="500"
+                  />
+                </ng-template>
+              </div>
+            </nz-list-item-meta-description>
+
             <nz-list-item-meta-description class="metadata-container">
               <span>Size: {{ addFileSizeUnit(dashboardUserFileEntry.file.size) }}</span>
               <span>Upload Time: {{ dashboardUserFileEntry.file.uploadTime | date: "yyyy-MM-dd HH:mm" }}</span>
@@ -189,19 +225,19 @@
 
           <div *ngIf="userProjectsLoaded" class="project-label-container">
             <div *ngFor="let pid of dashboardUserFileEntry.projectIDs" class="project-label">
-              <div
-                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+              <a
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color !== null"
                 nz-tooltip="{{userProjectsMap.get(pid)!.name}}"
                 nzTooltipPlacement="bottom"
                 class="left-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
-                (click)="jumpToProject(userProjectsMap.get(pid)!)"
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(pid)?.pid"
               >
                 {{userProjectsMap.get(pid)!.name}}
-              </div>
+              </a>
               <div
-                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color != null"
+                *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color !== null"
                 nz-tooltip="Remove from project"
                 nzTooltipPlacement="bottom"
                 class="right-div"

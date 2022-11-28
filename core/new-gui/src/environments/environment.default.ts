@@ -39,6 +39,11 @@ export const defaultEnvironment = {
   userSystemEnabled: false,
 
   /**
+   * whether local login is enabled
+   */
+  localLogin: true,
+
+  /**
    * whether user preset feature is enabled, requires user system to be enabled
    */
   userPresetEnabled: false,
@@ -83,9 +88,10 @@ export const defaultEnvironment = {
   },
 
   /**
-   * Whether workflow collab should be active
+   * Whether to connect to local or production shared editing server. Set to true if you have
+   * reverse proxy set up for y-websocket.
    */
-  workflowCollabEnabled: false,
+  productionSharedEditingServer: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;

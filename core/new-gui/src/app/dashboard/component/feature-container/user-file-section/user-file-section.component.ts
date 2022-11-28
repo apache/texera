@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
@@ -14,15 +14,13 @@ import Fuse from "fuse.js";
 import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
 import { from } from "rxjs";
 
-export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
-
 @UntilDestroy()
 @Component({
   selector: "texera-user-file-section",
   templateUrl: "./user-file-section.component.html",
   styleUrls: ["./user-file-section.component.scss"],
 })
-export class UserFileSectionComponent {
+export class UserFileSectionComponent implements OnInit {
   constructor(
     private modalService: NgbModal,
     private userProjectService: UserProjectService,
@@ -38,6 +36,7 @@ export class UserFileSectionComponent {
   // variables for file editing / search / sort
   public dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   public isEditingName: number[] = [];
+  public isEditingDescription: number[] = [];
   public userFileSearchValue: string = "";
   public filteredFilenames: Array<string> = new Array();
   public isTyping: boolean = false;
@@ -60,6 +59,8 @@ export class UserFileSectionComponent {
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
+
+  public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
   public openFileAddComponent() {
     const modalRef = this.modalService.open(NgbdModalFileAddComponent);
@@ -114,13 +115,15 @@ export class UserFileSectionComponent {
       .pipe(untilDestroyed(this))
       .subscribe((confirmToDelete: boolean) => {
         if (confirmToDelete && userFileEntry.file.fid !== undefined) {
-          this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe(
-            () => this.refreshDashboardFileEntries(),
-            (err: unknown) => {
-              // @ts-ignore // TODO: fix this with notification component
-              (err: unknown) => alert("Can't delete the file entry: " + err.error);
-            }
-          );
+          this.userFileService
+            .deleteDashboardUserFileEntry(userFileEntry)
+            .pipe(untilDestroyed(this))
+            .subscribe(
+              () => this.refreshDashboardFileEntries(),
+              (err: unknown) => {
+                alert("Can't delete the file entry: " + err);
+              }
+            );
         }
       });
   }
@@ -181,6 +184,30 @@ export class UserFileSectionComponent {
       .add(() => (this.isEditingName = this.isEditingName.filter(fileIsEditing => fileIsEditing != index)));
   }
 
+  public confirmUpdateFileCustomDescription(
+    dashboardUserFileEntry: DashboardUserFileEntry,
+    description: string,
+    index: number
+  ): void {
+    const {
+      file: { fid },
+    } = dashboardUserFileEntry;
+    this.userFileService
+      .updateFileDescription(fid, description)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        () => this.refreshDashboardFileEntries(),
+        (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+          this.refreshDashboardFileEntries();
+        }
+      )
+      .add(
+        () => (this.isEditingDescription = this.isEditingDescription.filter(fileIsEditing => fileIsEditing != index))
+      );
+  }
+
   public toggleSearchMode(): void {
     this.isSearchByProject = !this.isSearchByProject;
 
@@ -188,13 +215,6 @@ export class UserFileSectionComponent {
     // if (this.isSearchByProject) {
     // } else {
     // }
-  }
-
-  /**
-   * navigate to individual project page
-   */
-  public jumpToProject({ pid }: UserProject): void {
-    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
 
   public removeFileFromProject(pid: number, fid: number): void {

@@ -112,6 +112,10 @@ import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
+import { NzImageModule } from "ng-zorro-antd/image";
+import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
+import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
+import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 
 registerLocaleData(en);
 
@@ -172,6 +176,9 @@ registerLocaleData(en);
     NzModalCommentBoxComponent,
     DeletePromptComponent,
     ContextMenuComponent,
+    CoeditorUserIconComponent,
+    InputAutoCompleteComponent,
+    CollabWrapperComponent,
   ],
   imports: [
     BrowserModule,
@@ -208,6 +215,7 @@ registerLocaleData(en);
     NzAutocompleteModule,
     NzIconModule,
     NzFormModule,
+    NzImageModule,
     NzListModule,
     NzInputModule,
     NzPopoverModule,

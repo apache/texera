@@ -33,7 +33,6 @@ import { tap } from "rxjs/operators";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 
@@ -148,7 +147,6 @@ describe("WorkflowEditorComponent", () => {
     let nzModalService: NzModalService;
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
-    let workflowCollabService: WorkflowCollabService;
 
     beforeEach(
       waitForAsync(() => {
@@ -177,7 +175,6 @@ describe("WorkflowEditorComponent", () => {
             ExecuteWorkflowService,
             UndoRedoService,
             WorkflowVersionService,
-            WorkflowCollabService,
           ],
         }).compileComponents();
       })
@@ -194,7 +191,6 @@ describe("WorkflowEditorComponent", () => {
       nzModalService = TestBed.inject(NzModalService);
       undoRedoService = TestBed.inject(UndoRedoService);
       workflowVersionService = TestBed.inject(WorkflowVersionService);
-      workflowCollabService = TestBed.inject(WorkflowCollabService);
       fixture.detectChanges();
     });
 
@@ -227,18 +223,18 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
     });
 
-    it("should highlight the commentBox when user double clicks on a commentBox", () => {
+    it("should highlight the commentBox when user clicks on a commentBox", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const highlightCommentBoxFunctionSpy = spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
       const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
-      jointCellView.$el.trigger("dblclick");
+      jointCellView.$el.trigger("mousedown");
       fixture.detectChanges();
       expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
     });
 
-    it("should open commentBox as NzModal", () => {
+    it("should open commentBox as NzModal when user double clicks on a commentBox", () => {
       // const modalRef:NzModalRef = nzModalService.create({
       //   nzTitle: "CommentBox",
       //   nzContent: NzModalCommentBoxComponent,
@@ -260,6 +256,8 @@ describe("WorkflowEditorComponent", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+      const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
+      jointCellView.$el.trigger("dblclick");
       expect(nzModalService.create).toHaveBeenCalled();
       fixture.detectChanges();
       // modalRef.destroy();
@@ -437,6 +435,7 @@ describe("WorkflowEditorComponent", () => {
       const mockUnionPredicate: OperatorPredicate = {
         operatorID: "union-1",
         operatorType: "Union",
+        operatorVersion: "u1",
         operatorProperties: {},
         inputPorts: [{ portID: "input-0" }],
         outputPorts: [{ portID: "output-0" }],
@@ -890,7 +889,6 @@ describe("WorkflowEditorComponent", () => {
     //undo
     it("should undo action when user presses command + Z or control + Z", () => {
       spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
       spyOn(undoRedoService, "canUndo").and.returnValue(true);
       let undoSpy = spyOn(undoRedoService, "undoAction");
       fixture.detectChanges();
@@ -910,7 +908,6 @@ describe("WorkflowEditorComponent", () => {
     //redo
     it("should redo action when user presses command/control + Y or command/control + shift + Z", () => {
       spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(workflowCollabService, "isLockGranted").and.returnValue(true);
       spyOn(undoRedoService, "canRedo").and.returnValue(true);
       let redoSpy = spyOn(undoRedoService, "redoAction");
       fixture.detectChanges();

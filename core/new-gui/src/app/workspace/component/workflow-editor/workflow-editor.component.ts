@@ -26,10 +26,12 @@ import { OperatorLink, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import MouseMoveEvent = JQuery.MouseMoveEvent;
+import MouseLeaveEvent = JQuery.MouseLeaveEvent;
+import MouseEnterEvent = JQuery.MouseEnterEvent;
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -83,6 +85,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
 
+  private coeditorCurrentlyEditingMap = new Map<string, string | undefined>();
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -97,7 +101,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
-    private workflowCollabService: WorkflowCollabService,
     private operatorMenu: OperatorMenuService,
     private nzContextMenu: NzContextMenuService
   ) {}
@@ -127,8 +130,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleDisableOperator();
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
-    this.handleViewCollapseGroup();
-    this.handleViewExpandGroup();
     this.handlePaperPan();
     this.handleGroupResize();
     this.handleViewMouseoverOperator();
@@ -155,6 +156,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
     }
+
+    if (this.getJointPaper()) {
+      this.handlePointerEvents();
+    }
   }
 
   private _unregisterKeyboard() {
@@ -171,7 +176,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .getDisplayParticularVersionStream()
       .pipe(takeUntil(this._onProcessKeyboardActionObservable))
       .subscribe(displayParticularWorkflowVersion => {
-        if (!displayParticularWorkflowVersion && this.workflowCollabService.isLockGranted()) {
+        if (!displayParticularWorkflowVersion) {
           // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
           if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
             // UNDO
@@ -569,6 +574,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleHighlightMouseDBClickInput(): void {
+    // on user mouse double-clicks a comment box, open that comment box
     fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
@@ -580,7 +586,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
           const elementID = event[0].model.id.toString();
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
+            this.openCommentBox(elementID);
           }
         }
       });
@@ -604,6 +610,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         filter(
           event =>
             this.workflowActionService.getTexeraGraph().hasOperator(event[0].model.id.toString()) ||
+            this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString()) ||
             this.workflowActionService.getOperatorGroup().hasGroup(event[0].model.id.toString())
         )
       )
@@ -616,12 +623,20 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
+        const highlightedCommentBoxIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
             this.workflowActionService.unhighlightOperators(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
+          }
+          if (highlightedCommentBoxIDs.includes(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(elementID);
+          } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+            this.workflowActionService.highlightCommentBoxes(<boolean>event[1].shiftKey, elementID);
           }
           // if in the multiselect mode, also highlight the links in between two highlighted operators
           const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
@@ -654,6 +669,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
+          } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
           }
         }
       });
@@ -668,9 +685,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedOperatorIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
+        const highlightedCommentBoxIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
         const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         this.workflowActionService.unhighlightOperators(...highlightedOperatorIDs);
         this.workflowActionService.unhighlightLinks(...highlightedLinkIDs);
+        this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(...highlightedCommentBoxIDs);
       });
   }
 
@@ -687,22 +708,24 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       },
     };
 
-    // highlight on OperatorHighlightStream or GroupHighlightStream
+    // highlight on OperatorHighlightStream or GroupHighlightStream or CommentBoxHighlightStream
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream()
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
-        elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).highlight("rect.body", { highlighter: highlightOptions })
-        )
+        elementIDs.forEach(elementID => {
+          this.getJointPaper().findViewByModel(elementID).highlight("rect.body", { highlighter: highlightOptions });
+        })
       );
 
-    // unhighlight on OperatorUnhighlightStream or GroupUnhighlightStream
+    // unhighlight on OperatorUnhighlightStream or GroupUnhighlightStream or CommentBoxUnhighlightStream
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
@@ -713,18 +736,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
         })
       );
-
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getJointCommentBoxHighlightStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(commentBoxIDs => {
-        this.openCommentBox(commentBoxIDs[0]);
-      });
   }
 
   private openCommentBox(commentBoxID: string): void {
-    const commentBox = this.workflowActionService.getTexeraGraph().getCommentBox(commentBoxID);
+    const commentBox = this.workflowActionService.getTexeraGraph().getSharedCommentBoxType(commentBoxID);
     const modalRef: NzModalRef = this.nzModalService.create({
       // modal title
       nzTitle: "Comments",
@@ -860,46 +875,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
         this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
-      });
-  }
-
-  /**
-   * Handles the event where the Collapse button is clicked for a Group,
-   *  and call groupOperator to collapse the corresponding group.
-   *
-   * JointJS doesn't have collapse button built-in with a group element,
-   *  the collapse button is Texera's own customized element.
-   * Therefore JointJS doesn't come with default handler for collapse a group,
-   *  we need to handle the callback event `element:collapse`.
-   * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
-   */
-  private handleViewCollapseGroup(): void {
-    fromJointPaperEvent(this.getJointPaper(), "element:collapse")
-      .pipe(map(value => value[0]))
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        const groupID = elementView.model.id.toString();
-        this.workflowActionService.collapseGroups(groupID);
-      });
-  }
-
-  /**
-   * Handles the event where the Expand button is clicked for a Group,
-   *  and call groupOperator to expand the corresponding group.
-   *
-   * JointJS doesn't have expand button built-in with a group element,
-   *  the expand button is Texera's own customized element.
-   * Therefore JointJS doesn't come with default handler for expand a group,
-   *  we need to handle the callback event `element:expand`.
-   * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
-   */
-  private handleViewExpandGroup(): void {
-    fromJointPaperEvent(this.getJointPaper(), "element:expand")
-      .pipe(map(value => value[0]))
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        const groupID = elementView.model.id.toString();
-        this.workflowActionService.expandGroups(groupID);
       });
   }
 
@@ -1112,7 +1087,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+        const highlightedCommentBoxesIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
         this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+        highlightedCommentBoxesIDs.forEach(highlightedCommentBoxesID =>
+          this.workflowActionService.deleteCommentBox(highlightedCommentBoxesID)
+        );
       });
   }
 
@@ -1143,12 +1124,20 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getOperatorGroup()
           .getAllGroups()
           .map(group => group.groupID);
+        const allCommentBoxes = this.workflowActionService
+          .getTexeraGraph()
+          .getAllCommentBoxes()
+          .map(CommentBox => CommentBox.commentBoxID);
         this.workflowActionService
           .getJointGraphWrapper()
-          .setMultiSelectMode(allOperators.length + allGroups.length > 1);
-        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
+          .setMultiSelectMode(allOperators.length + allGroups.length + allCommentBoxes.length > 1);
         this.workflowActionService.highlightLinks(allLinks.length > 1, ...allLinks);
+        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
+        this.workflowActionService.highlightCommentBoxes(
+          allOperators.length + allCommentBoxes.length > 1,
+          ...allCommentBoxes
+        );
       });
   }
 
@@ -1159,9 +1148,15 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    */
   private handleElementCopy(): void {
     fromEvent<ClipboardEvent>(document, "copy")
-      .pipe(filter(event => document.activeElement === document.body))
+      .pipe(
+        filter(event => document.activeElement === document.body),
+        untilDestroyed(this)
+      )
       .subscribe(() => {
-        if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
+        if (
+          this.operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
+          this.operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0
+        ) {
           this.operatorMenu.saveHighlightedElements();
         }
       });
@@ -1176,17 +1171,26 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromEvent<ClipboardEvent>(document, "cut")
       .pipe(
         filter(event => document.activeElement === document.body),
-        filter(event => this.interactive)
+        filter(event => this.interactive),
+        untilDestroyed(this)
       )
       .subscribe(() => {
-        if (this.operatorMenu.effectivelyHighlightedOperators.value.length > 0) {
+        if (
+          this.operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
+          this.operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0
+        ) {
           const highlightedOperatorIDs = this.workflowActionService
             .getJointGraphWrapper()
             .getCurrentHighlightedOperatorIDs();
           const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
+          const highlightedCommentBoxesIDs = this.workflowActionService
+            .getJointGraphWrapper()
+            .getCurrentHighlightedCommentBoxIDs();
           this.operatorMenu.saveHighlightedElements();
           this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+          highlightedCommentBoxesIDs.forEach(highlightedCommentBoxID =>
+            this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
+          );
         }
       });
   }
@@ -1200,7 +1204,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromEvent<ClipboardEvent>(document, "paste")
       .pipe(
         filter(event => document.activeElement === document.body),
-        filter(event => this.interactive)
+        filter(event => this.interactive),
+        untilDestroyed(this)
       )
       .subscribe(() => this.operatorMenu.performPasteOperation());
   }
@@ -1423,6 +1428,28 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.getJointPaper().setGridSize(2);
           this.gridOn = true;
         }
+      });
+  }
+
+  /**
+   * Handles mouse events to enable shared cursor.
+   */
+  private handlePointerEvents(): void {
+    fromEvent<MouseMoveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mousemove")
+      .pipe(untilDestroyed(this))
+      .subscribe(e => {
+        const jointPoint = this.getJointPaper().clientToLocalPoint({ x: e.clientX, y: e.clientY });
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("userCursor", jointPoint);
+      });
+    fromEvent<MouseLeaveEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseleave")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", false);
+      });
+    fromEvent<MouseEnterEvent>(jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`), "mouseenter")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);
       });
   }
 }

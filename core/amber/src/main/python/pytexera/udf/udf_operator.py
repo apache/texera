@@ -94,13 +94,13 @@ class UDFTableOperator(TableOperator):
         pass
 
     @abstractmethod
-    def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
         Process an input Table from the given link. The Table is represented as
         pandas.DataFrame.
 
         :param table: Table, a table to be processed.
-        :param input_: int, input index of the current Table.
+        :param port: int, input index of the current Table.
         :return: Iterator[Optional[TableLike]], producing one TableLike object at a
             time, or None.
         """

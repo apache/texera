@@ -7,6 +7,7 @@ import { AccessEntry } from "../../type/access.interface";
 
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
+export const USER_AUTOCOMPLETE_FILE_LIST_URL = `${USER_FILE_BASE_URL}/autocomplete`;
 export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 export const USER_FILE_DOWNLOAD_URL = `${USER_FILE_BASE_URL}/download`;
 export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
@@ -14,6 +15,7 @@ export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
 export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
 export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
 export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/update/name`;
+export const USER_FILE_DESCRIPTION_UPDATE_URL = `${USER_FILE_BASE_URL}/update/description`;
 
 @Injectable({
   providedIn: "root",
@@ -112,6 +114,10 @@ export class UserFileService {
     return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(`${USER_FILE_LIST_URL}`);
   }
 
+  public getAutoCompleteUserFileAccessList(query: String): Observable<ReadonlyArray<string>> {
+    return this.http.get<ReadonlyArray<string>>(`${USER_AUTOCOMPLETE_FILE_LIST_URL}/${query}`);
+  }
+
   /**
    * updates the file name of a given userFileEntry
    */
@@ -119,6 +125,16 @@ export class UserFileService {
     return this.http.post<void>(`${USER_FILE_NAME_UPDATE_URL}`, {
       fid: fid,
       name: name,
+    });
+  }
+
+  /**
+   * updates the file description of a given userFileEntry
+   */
+  public updateFileDescription(fid: number, description: string): Observable<void> {
+    return this.http.post<void>(`${USER_FILE_DESCRIPTION_UPDATE_URL}`, {
+      fid: fid,
+      description: description,
     });
   }
 }

@@ -1,3 +1,7 @@
+nz-table th {
+  text-align: center;
+}
+
 .bookmark-icon {
   font-size: 1.5rem;
 }
@@ -57,4 +61,17 @@
   &.ant-btn-sm {
     transform: translateY(-5px);
   }
+}
+
+.version-sample {
+  flex-grow: 2;
+  text-align: center;
+}
+
+.workflow-snapshot {
+  float: left;
+  display: inline;
+  border: 1px solid #343a40;
+  width: 170px;
+  height: 95px;
 }

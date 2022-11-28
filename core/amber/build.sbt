@@ -13,6 +13,8 @@ scalacOptions += "-feature"
 // to check deprecation warnings
 scalacOptions += "-deprecation"
 
+conflictManager := ConflictManager.latestRevision
+
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
@@ -103,6 +105,15 @@ val luceneDependencies = Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
+// Hadoop related
+val hadoopVersion = "3.3.3"
+val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
+val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
+val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
+val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
+val hadoopDependencies = Seq(
+  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty)
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Google Service related
@@ -116,7 +127,7 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "8.0.0"
+val arrowVersion = "9.0.0"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -140,6 +151,7 @@ libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 libraryDependencies ++= mongoDbDependencies
+libraryDependencies ++= hadoopDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
@@ -242,3 +254,7 @@ libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 // https://mvnrepository.com/artifact/org.jasypt/jasypt
 libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
+
+// Jgit library for tracking operator version
+// https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
+libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
