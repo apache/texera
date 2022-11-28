@@ -81,7 +81,9 @@ export class DynamicSchemaService {
   /**
    * Returns the observable which outputs the operatorID of which the dynamic schema has changed.
    */
-  public getOperatorDynamicSchemaChangedStream(): Observable<{ operatorID: string }> {
+  public getOperatorDynamicSchemaChangedStream(): Observable<{
+    operatorID: string;
+  }> {
     return this.operatorDynamicSchemaChangedStream.asObservable();
   }
 
@@ -145,10 +147,7 @@ export class DynamicSchemaService {
     this.dynamicSchemaMap.set(operatorID, dynamicSchema);
     // only emit event if the old dynamic schema is not present
     if (currentDynamicSchema) {
-      console.log("dynamic schema changed!");
-      this.operatorDynamicSchemaChangedStream.next({
-        operatorID: operatorID,
-      });
+      this.operatorDynamicSchemaChangedStream.next({ operatorID });
     }
   }
 
