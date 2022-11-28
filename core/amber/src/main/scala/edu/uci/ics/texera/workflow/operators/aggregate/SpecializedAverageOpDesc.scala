@@ -123,7 +123,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         if (partial == "") {
           if (tuple.getField(attribute) != null) tuple.getField(attribute).toString() else ""
         } else {
-          partial + "," + (if (tuple.getField(attribute) != null) tuple.getField(attribute).toString() else "")
+          partial + "," + (if (tuple.getField(attribute) != null)
+                             tuple.getField(attribute).toString()
+                           else "")
         }
       },
       (partial1, partial2) => {
@@ -272,7 +274,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         .newBuilder()
         .add(resultAttribute, AttributeType.STRING)
         .build()
-    } else{
+    } else {
       Schema
         .newBuilder()
         .add(resultAttribute, AttributeType.DOUBLE)
