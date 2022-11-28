@@ -1,10 +1,11 @@
 import inspect
 import sys
 import uuid
-
-from typing import Tuple, Optional, Mapping
-
 import fs
+import importlib
+from loguru import logger
+from pathlib import Path
+from typing import Tuple, Optional, Mapping
 
 from core.models import Operator
 
@@ -15,13 +16,31 @@ def gen_uuid(prefix=""):
 
 class OperatorManager:
     def __init__(self):
+        # create a tmp fs for storing source code, which will be removed when the
+        # workflow is completed.
+        # TODO:
+        #       For various reasons when the workflow is not completed successfully,
+        #  the tmp fs could not be closed properly. This means it may leave files
+        #  in the /var/tmp folder after a partially started or failed execution.
+        #       A full-life-cycle management of tmp fs is required to consider all
+        #  possible errors happened during execution. However, the full-life-cycle
+        #  management could be hard due to errors from JAVA side which causes force
+        #  kill on the Python process.
+        #       As each python file is usually tiny in size, and the OS can
+        #  periodically clean up /var/tmp anyway, the full-life-cycle management is
+        #  not a priority to be fixed.
         self.fs = fs.open_fs("temp://")
-        self.root = self.fs.getsyspath("/")
-        sys.path.append(self.root)
+        self.root = Path(self.fs.getsyspath("/"))
+        logger.info(f"Opening a tmp directory at {self.root}.")
+        sys.path.append(str(self.root))
         self.operator: Optional[Operator] = None
 
     @staticmethod
     def gen_module_file_name() -> Tuple[str, str]:
+        """
+        Generate a UUID to be used as udf source code file.
+        :return Tuple[str, str]: the pair of module_name and file_name.
+        """
         module_name = gen_uuid("udf")
         file_name = f"{module_name}.py"
         return module_name, file_name
@@ -37,7 +56,7 @@ class OperatorManager:
 
         with self.fs.open(file_name, "w") as file:
             file.write(code)
-        import importlib
+        logger.info(f"A tmp py file is written to {self.root.with_name(file_name)}.")
 
         operator_module = importlib.import_module(module_name)
 
@@ -47,12 +66,18 @@ class OperatorManager:
         assert len(operators) == 1, "There should be one and only one Operator defined"
         return operators[0]
 
-    def close(self):
-        self.fs.close()
-
-    def is_concrete_operator(self, cls: type) -> bool:
+    def close(self) -> None:
         """
-        checks if the class is a non-abstract Operator
+        Close the tmp fs and release all resources created within it.
+        :return:
+        """
+        self.fs.close()
+        logger.info(f"Tmp directory {self.root} is closed and cleared.")
+
+    @staticmethod
+    def is_concrete_operator(cls: type) -> bool:
+        """
+        Check if the class is a non-abstract Operator.
         :param cls: a target class to be evaluated
         :return: bool
         """
@@ -66,15 +91,37 @@ class OperatorManager:
     def initialize_operator(
         self, code: str, is_source: bool, output_schema: Mapping[str, str]
     ) -> None:
+        """
+        Initialize the operator logic with the given code. The output schema is
+        decided by the user.
+
+        :param code: The string version of python code, containing one Operator
+            class declaration.
+        :param is_source: Indicating if the operator is used as a source operator.
+        :param output_schema: the raw mapping of output schema, name -> type_str.
+        :return:
+        """
         operator: type(Operator) = self.load_operator(code)
         self.operator = operator()
         self.operator.is_source = is_source
         self.operator.output_schema = output_schema
 
-    def update_operator(self, code, is_source: bool) -> None:
+    def update_operator(self, code: str, is_source: bool) -> None:
+        """
+        Update the operator logic, preserving its state in the __dict__.
+        The user is responsible to make sure the state can be used by the new logic.
+
+        :param code: The string version of python code, containing one Operator
+            class declaration.
+        :param is_source: Indicating if the operator is used as a source operator.
+        :return:
+        """
         original_internal_state = self.operator.__dict__
         operator: type(Operator) = self.load_operator(code)
         self.operator = operator()
         self.operator.is_source = is_source
         # overwrite the internal state
         self.operator.value.__dict__ = original_internal_state
+        # TODO:
+        #   it may be an interesting idea to preserve versions of code and versions
+        #   of states whenever the operator logic is being updated.
