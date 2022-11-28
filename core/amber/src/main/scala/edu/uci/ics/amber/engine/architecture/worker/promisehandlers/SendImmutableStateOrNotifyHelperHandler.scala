@@ -36,7 +36,7 @@ trait SendImmutableStateOrNotifyHelperHandler {
 
   registerHandler { (cmd: SendImmutableStateOrNotifyHelper, sender) =>
     dataProcessor.getOperatorExecutor() match {
-      case joinOpExec: HashJoinOpExec[Any] =>
+      case joinOpExec: HashJoinOpExec[_] =>
         // Returns true if the build table was replicated successfully in case of HashJoin.
         try {
           if (joinOpExec.isBuildTableFinished) {
@@ -64,7 +64,7 @@ trait SendImmutableStateOrNotifyHelperHandler {
           }
         } catch {
           case exception: Exception =>
-            logger.error("Reshape: ", exception)
+            logger.error("Reshape exception: ", exception)
             Future.False
         }
       case exec: SortPartitionOpExec =>

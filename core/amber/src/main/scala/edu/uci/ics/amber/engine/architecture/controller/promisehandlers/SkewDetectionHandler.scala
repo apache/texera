@@ -239,7 +239,7 @@ object SkewDetectionHandler {
     */
   def getPreviousWorkerLayer(opId: OperatorIdentity, workflow: Workflow): WorkerLayer = {
     workflow.getOperator(opId) match {
-      case value: HashJoinOpExecConfig[Any] =>
+      case value: HashJoinOpExecConfig[_] =>
         workflow
           .getUpStreamConnectedWorkerLayers(opId)
           .values
