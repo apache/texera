@@ -15,16 +15,16 @@ from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
-    ControlElement,
-    DataElement,
     InputExhausted,
     InternalQueue,
     SenderChangeMarker,
     Tuple,
     ExceptionInfo,
 )
+from core.models.internal_queue import DataElement, ControlElement
 from core.runnables.data_processor import DataProcessor
-from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.util.customized_queue.queue_base import QueueElement
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
@@ -90,7 +90,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         processing a DataElement.
         """
         while (
-            not self._input_queue.main_empty() or self.context.pause_manager.is_paused()
+            not self._input_queue.is_control_empty()
+            or self.context.pause_manager.is_paused()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -101,7 +102,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.state_manager.transit_to(WorkerState.READY)
 
     @overrides
-    def receive(self, next_entry: IQueue.QueueElement) -> None:
+    def receive(self, next_entry: QueueElement) -> None:
         """
         Main entry point of the DataProcessor. Upon receipt of an next_entry,
         process it respectfully.
@@ -127,7 +128,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param tag: ActorVirtualIdentity, the sender.
         :param payload: ControlPayloadV2 to be handled.
         """
-        # logger.debug(f"processing one CONTROL: {payload} from {tag}")
         match(
             (tag, get_one_of(payload)),
             typing.Tuple[ActorVirtualIdentity, ControlInvocationV2],
