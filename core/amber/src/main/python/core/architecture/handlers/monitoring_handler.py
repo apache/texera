@@ -5,7 +5,6 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 )
 from .handler_base import Handler
 from ..managers.context import Context
-from ...models import InternalQueue
 
 
 class MonitoringHandler(Handler):
