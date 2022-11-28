@@ -75,7 +75,7 @@ class ClusterListener extends Actor with AmberLogging {
 
     val addr = getAllAddressExcludingMaster
     Constants.currentWorkerNum = addr.size * Constants.numWorkerPerNode
-    log.info(
+    logger.info(
       "---------Now we have " + addr.size + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
     )
 
