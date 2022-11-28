@@ -1,11 +1,26 @@
 <ul nz-menu>
-  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length > 0" (click)="onCopy()">
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
+  operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0)"
+    (click)="onCopy()"
+  >
     <span nz-icon nzType="copy" nzTheme="outline"></span>copy
   </li>
-  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length > 0" (click)="onCut()">
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
+  operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0)"
+    (click)="onCut()"
+  >
     <span nz-icon nzType="scissor" nzTheme="outline"></span>cut
   </li>
-  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length === 0" (click)="onPaste()">
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length === 0 &&
+  operatorMenu.effectivelyHighlightedCommentBoxes.value.length === 0)"
+    (click)="onPaste()"
+  >
     <span nz-icon nzType="snippets" nzTheme="outline"></span>paste
   </li>
   <li
@@ -36,7 +51,12 @@
   >
     <span nz-icon nzType="database" nzTheme="twotone"></span>remove cache
   </li>
-  <li nz-menu-item *ngIf="operatorMenu.effectivelyHighlightedOperators.value.length > 0" (click)="onDelete()">
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
+  operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0)"
+    (click)="onDelete()"
+  >
     <span nz-icon nzType="delete" nzTheme="outline"></span>delete
   </li>
 </ul>
