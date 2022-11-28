@@ -2,6 +2,7 @@ from loguru import logger
 from overrides import overrides
 from pyarrow import Table
 
+from core.architecture.managers.flow_control_manager import FlowControlManager
 from core.models import (
     ControlElement,
     DataElement,
@@ -29,15 +30,23 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     def __init__(self, shared_queue: InternalQueue, host: str, port: int):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._proxy_client = ProxyClient(host=host, port=port)
+        self._flow_control = FlowControlManager()
 
     @overrides(check_signature=False)
     def receive(self, next_entry: InternalQueueElement):
         if isinstance(next_entry, DataElement):
-            self._send_data(next_entry.tag, next_entry.payload)
+            message_to_forward = self._flow_control.get_message_to_forward(next_entry)
+            # TODO : enable backpressure if necessary
+            if message_to_forward:
+                self._send_data(next_entry.tag, next_entry.payload)
         elif isinstance(next_entry, ControlElement):
             self._send_control(next_entry.tag, next_entry.payload)
         else:
             raise TypeError(f"Unexpected entry {next_entry}")
+
+        # TODO : enable / disable backpressure if necessary
+        # TODO : poll for credits if necessary
+        # TODO : send all remaining messages
 
     @logger.catch(reraise=True)
     def _send_data(self, to: ActorVirtualIdentity, data_payload: DataPayload) -> None:
@@ -68,11 +77,14 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         else:
             raise TypeError(f"Unexpected payload {data_payload}")
 
+        self._flow_control.update_credits(
+            to, returned_credits
+        )  # update credits in flow control manager
         # print('Python sent data message, received back: ' + repr(returned_credits))
 
     @logger.catch(reraise=True)
     def _send_control(
-        self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
+            self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used
@@ -87,5 +99,9 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             self._proxy_client.call_action("control", bytes(python_control_message)),
             byteorder="big",
         )
-
+        if to in self._flow_control.receiver_id_to_credits:
+            # only update credits for workers that we send data messages to (e.g. no credits needed for controller)
+            self._flow_control.update_credits(
+                to, returned_credits
+            )  # update credits in flow control manager
         # print('Python sent control message, received back: ' + repr(returned_credits))
