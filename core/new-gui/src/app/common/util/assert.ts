@@ -16,6 +16,12 @@ export function assertType<T>(val: T | any): asserts val is NonNullable<T> {
   }
 }
 
+export function assert(condition: boolean, message?: string): void {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
 interface Primitives {
   number: number;
   boolean: boolean;
