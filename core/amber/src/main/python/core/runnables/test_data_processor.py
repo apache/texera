@@ -6,14 +6,13 @@ import pytest
 from loguru import logger
 
 from core.models import (
-    ControlElement,
-    DataElement,
     InputDataFrame,
     OutputDataFrame,
     EndOfUpstream,
     InternalQueue,
     Tuple,
 )
+from core.models.internal_queue import DataElement, ControlElement
 from core.runnables import DataProcessor
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -259,9 +258,6 @@ class TestDataProcessor:
                 )
             ),
         )
-        assert output_queue.get() == DataElement(
-            tag=mock_receiver_actor, payload=EndOfUpstream()
-        )
 
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
         assert output_queue.get() == ControlElement(
@@ -274,6 +270,10 @@ class TestDataProcessor:
                     ),
                 )
             ),
+        )
+
+        assert output_queue.get() == DataElement(
+            tag=mock_receiver_actor, payload=EndOfUpstream()
         )
 
         # can process ReturnInvocation

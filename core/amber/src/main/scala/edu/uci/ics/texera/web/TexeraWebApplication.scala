@@ -21,8 +21,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
   WorkflowResource,
-  WorkflowVersionResource,
-  WorkflowSnapshotResource
+  WorkflowVersionResource
 }
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource
 import edu.uci.ics.texera.web.resource._
@@ -179,7 +178,6 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])
-    environment.jersey.register(classOf[WorkflowSnapshotResource])
   }
 
 }
