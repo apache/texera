@@ -68,8 +68,6 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         else:
             raise TypeError(f"Unexpected payload {data_payload}")
 
-        # print('Python sent data message, received back: ' + repr(returned_credits))
-
     @logger.catch(reraise=True)
     def _send_control(
         self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
@@ -87,5 +85,3 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             self._proxy_client.call_action("control", bytes(python_control_message)),
             byteorder="big",
         )
-
-        # print('Python sent control message, received back: ' + repr(returned_credits))

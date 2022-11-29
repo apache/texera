@@ -72,7 +72,7 @@ private class AmberProducer(
       val arrowBuf: ArrowBuf = bufferAllocator.buffer(4 * 1024)
       arrowBuf.writeLong(
         31L
-      ) // TODO : set up channel to get credits, for now overwriting with dummy credit
+      ) // TODO : replace with actual credit value
       ackStream.onNext(PutResult.metadata(arrowBuf))
       arrowBuf.close()
     } finally if (bufferAllocator != null) bufferAllocator.close()

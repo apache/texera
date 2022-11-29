@@ -107,8 +107,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     // ackResult contains number of batches inside Python worker internal queue
     val ackResult: Result = flightClient.doAction(action).next()
     val numBatchesInQueue: Long = new String(ackResult.getBody).toLong
-    // TODO : similarly for case of data messages, need to pass to FlowControl unit
-//    println("Python received control message, sent back: " + numBatchesInQueue)
+    // TODO : use in calculating credits + pass to sender worker's FlowControl unit
     ackResult
   }
 
@@ -148,8 +147,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     // for calculating sender credits - get back number of batches in Python worker queue
     val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
     val numBatchesInQueue: Long = ackMsgBuf.getLong(0)
-    // TODO : finish calculating credits + pass to FlowControl unit after refactoring to wait for Python worker credit response
-//    println("Python received data message, sent back:", numBatchesInQueue)
+    // TODO : use in calculating credits + pass to sender worker's FlowControl unit
     ackMsgBuf.close()
 
     flightListener.close()

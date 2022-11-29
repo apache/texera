@@ -67,8 +67,6 @@ class PythonWorkflowWorker(
   private var pythonServerProcess: Process = _
 
   override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    // TODO : refactor to wait on credit response from Python Worker before returning credits
-    // credits = Constants.unprocessedBatchesCreditLimitPerSender - [num batches in queue returned from Python worker]
     Constants.unprocessedBatchesCreditLimitPerSender
   }
 
