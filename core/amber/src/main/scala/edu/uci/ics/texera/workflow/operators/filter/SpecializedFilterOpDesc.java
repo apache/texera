@@ -42,6 +42,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
+                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
+                false, false);
     }
 }
