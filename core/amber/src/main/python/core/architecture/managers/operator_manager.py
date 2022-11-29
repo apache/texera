@@ -16,6 +16,9 @@ def gen_uuid(prefix=""):
 
 class OperatorManager:
     def __init__(self):
+        self.operator: Optional[Operator] = None
+        self.operator_module_name: Optional[str] = None
+
         # create a tmp fs for storing source code, which will be removed when the
         # workflow is completed.
         # TODO:
@@ -33,7 +36,6 @@ class OperatorManager:
         self.root = Path(self.fs.getsyspath("/"))
         logger.info(f"Opening a tmp directory at {self.root}.")
         sys.path.append(str(self.root))
-        self.operator: Optional[Operator] = None
 
     @staticmethod
     def gen_module_file_name() -> Tuple[str, str]:
@@ -59,6 +61,7 @@ class OperatorManager:
         logger.info(f"A tmp py file is written to {self.root.with_name(file_name)}.")
 
         operator_module = importlib.import_module(module_name)
+        self.operator_module_name = module_name
 
         operators = list(
             filter(self.is_concrete_operator, operator_module.__dict__.values())
@@ -121,7 +124,4 @@ class OperatorManager:
         self.operator = operator()
         self.operator.is_source = is_source
         # overwrite the internal state
-        self.operator.value.__dict__ = original_internal_state
-        # TODO:
-        #   it may be an interesting idea to preserve versions of code and versions
-        #   of states whenever the operator logic is being updated.
+        self.operator.value.__dict__ = original_internal_state  # TODO:  #   it may be an interesting idea to preserve versions of code and versions  #   of states whenever the operator logic is being updated.
