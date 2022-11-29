@@ -124,4 +124,7 @@ class OperatorManager:
         self.operator = operator()
         self.operator.is_source = is_source
         # overwrite the internal state
-        self.operator.value.__dict__ = original_internal_state  # TODO:  #   it may be an interesting idea to preserve versions of code and versions  #   of states whenever the operator logic is being updated.
+        self.operator.value.__dict__ = original_internal_state
+        # TODO:
+        #   it may be an interesting idea to preserve versions of code and versions
+        #   of states whenever the operator logic is being updated.
