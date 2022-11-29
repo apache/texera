@@ -1,23 +1,18 @@
+import importlib
 import inspect
 import sys
-import uuid
 import fs
-import importlib
-from loguru import logger
 from pathlib import Path
 from typing import Tuple, Optional, Mapping
-
+from loguru import logger
 from core.models import Operator
-
-
-def gen_uuid(prefix=""):
-    return f"{prefix}{'-' if prefix else ''}{uuid.uuid4().hex}"
 
 
 class OperatorManager:
     def __init__(self):
         self.operator: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
+        self.operator_version: int = 0  # incremental only
 
         # create a tmp fs for storing source code, which will be removed when the
         # workflow is completed.
@@ -37,13 +32,13 @@ class OperatorManager:
         logger.info(f"Opening a tmp directory at {self.root}.")
         sys.path.append(str(self.root))
 
-    @staticmethod
-    def gen_module_file_name() -> Tuple[str, str]:
+    def gen_module_file_name(self) -> Tuple[str, str]:
         """
         Generate a UUID to be used as udf source code file.
         :return Tuple[str, str]: the pair of module_name and file_name.
         """
-        module_name = gen_uuid("udf")
+        self.operator_version += 1
+        module_name = f"udf-v{self.operator_version}"
         file_name = f"{module_name}.py"
         return module_name, file_name
 
@@ -86,13 +81,13 @@ class OperatorManager:
         """
 
         return (
-            inspect.isclass(cls)
-            and issubclass(cls, Operator)
-            and not inspect.isabstract(cls)
+                inspect.isclass(cls)
+                and issubclass(cls, Operator)
+                and not inspect.isabstract(cls)
         )
 
     def initialize_operator(
-        self, code: str, is_source: bool, output_schema: Mapping[str, str]
+            self, code: str, is_source: bool, output_schema: Mapping[str, str]
     ) -> None:
         """
         Initialize the operator logic with the given code. The output schema is
@@ -124,7 +119,7 @@ class OperatorManager:
         self.operator = operator()
         self.operator.is_source = is_source
         # overwrite the internal state
-        self.operator.value.__dict__ = original_internal_state
+        self.operator.__dict__ = original_internal_state
         # TODO:
         #   it may be an interesting idea to preserve versions of code and versions
         #   of states whenever the operator logic is being updated.
