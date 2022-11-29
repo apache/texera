@@ -198,7 +198,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param control_element: ControlElement to be handled.
         """
-        print(control_element)
         self.process_control_payload(control_element.tag, control_element.payload)
 
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
