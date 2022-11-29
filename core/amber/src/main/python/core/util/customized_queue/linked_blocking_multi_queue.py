@@ -100,6 +100,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             return self.size() == 0
 
         def put(self, obj: T) -> None:
+            if obj is None:
+                raise ValueError("Does not support NoneType.")
             old_size = -1
             node = LinkedBlockingMultiQueue.Node(obj)
             self.put_lock.acquire()
@@ -115,6 +117,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                 self.owner._signal_not_empty()
 
         def remove(self, obj: T) -> bool:
+            if obj is None:
+                return False
             self.fully_lock()
             try:
                 trail = self.head
@@ -262,7 +266,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         :raises KeyError for non-existing keys.
         :return: None
         """
-        self._get_sub_queue(key).put(item)
+        self.get_sub_queue(key).put(item)
 
     def get(self) -> T:
         """
@@ -316,7 +320,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         :raises KeyError for non-existing keys.
         :return: None
         """
-        self._get_sub_queue(key).enable()
+        self.get_sub_queue(key).enable()
 
     def disable(self, key: str) -> None:
         """
@@ -326,19 +330,21 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         :raises KeyError for non-existing keys.
         :return: None
         """
-        self._get_sub_queue(key).disable()
+        self.get_sub_queue(key).disable()
 
     def size(self, key: Optional[str] = None) -> int:
         """
-        Get the current number of elements of the queue, or a specific SubQueue if
-        a key is provided. This action acquires NO locks.
+        Get the total number of elements of all the SubQueues, or of a specific
+        SubQueue if a key is provided. This action acquires NO locks.
 
-        :param key: optional identifier of a SubQueue.
+        :param key: an optional identifier of a SubQueue.
+                    If provided, give the size of the SubQueue.
+                    Otherwise, return the total size of all SubQueues.
         :raises KeyError for non-existing keys.
         :return: Integer for size.
         """
         if key is not None:
-            return self._get_sub_queue(key).size()
+            return self.get_sub_queue(key).size()
         else:
             return self.total_count.value
 
@@ -412,7 +418,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         finally:
             self.take_lock.release()
 
-    def _get_sub_queue(self, key: str) -> SubQueue:
+    def get_sub_queue(self, key: str) -> SubQueue:
         """
         Get the SubQueue specified by the key.
 
