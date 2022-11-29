@@ -53,10 +53,7 @@ trait AcceptMutableStateHandler {
       true
     } catch {
       case exception: Exception =>
-        logger.error(
-          "Reshape: AcceptMutableStateHandler exception" + exception
-            .getMessage() + " stacktrace " + exception.getStackTrace()
-        )
+        logger.error("Reshape: ", exception)
         false
     }
   }
