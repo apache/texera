@@ -81,13 +81,13 @@ class OperatorManager:
         """
 
         return (
-                inspect.isclass(cls)
-                and issubclass(cls, Operator)
-                and not inspect.isabstract(cls)
+            inspect.isclass(cls)
+            and issubclass(cls, Operator)
+            and not inspect.isabstract(cls)
         )
 
     def initialize_operator(
-            self, code: str, is_source: bool, output_schema: Mapping[str, str]
+        self, code: str, is_source: bool, output_schema: Mapping[str, str]
     ) -> None:
         """
         Initialize the operator logic with the given code. The output schema is
