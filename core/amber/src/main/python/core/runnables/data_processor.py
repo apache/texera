@@ -14,15 +14,15 @@ from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
-    ControlElement,
-    DataElement,
     InputExhausted,
     InternalQueue,
     Operator,
     SenderChangeMarker,
     Tuple,
 )
-from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.models.internal_queue import ControlElement, DataElement
+from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.util.customized_queue.queue_base import QueueElement
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
@@ -92,7 +92,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         processing a DataElement.
         """
         while (
-            not self._input_queue.main_empty() or self.context.pause_manager.is_paused()
+            not self._input_queue.is_control_empty()
+            or self.context.pause_manager.is_paused()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -103,7 +104,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.context.state_manager.transit_to(WorkerState.READY)
 
     @overrides
-    def receive(self, next_entry: IQueue.QueueElement) -> None:
+    def receive(self, next_entry: QueueElement) -> None:
         """
         Main entry point of the DataProcessor. Upon receipt of an next_entry,
         process it respectfully.
@@ -315,13 +316,13 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self.context.pause_manager.record_request(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, True
             )
-            self._input_queue.disable_sub()
+            self._input_queue.disable_data()
         else:
             self.context.pause_manager.record_request(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, False
             )
             if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_sub()
+                self.context.input_queue.enable_data()
 
     def _pause(self) -> None:
         """
@@ -333,7 +334,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         ):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
-            self._input_queue.disable_sub()
+            self._input_queue.disable_data()
 
     def _resume(self) -> None:
         """
@@ -342,7 +343,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
             if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_sub()
+                self.context.input_queue.enable_data()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
     @staticmethod

@@ -30,7 +30,7 @@ from core.architecture.handlers.scheduler_time_slot_event_handler import (
     SchedulerTimeSlotEventHandler,
 )
 from core.architecture.managers.context import Context
-from core.models.internal_queue import ControlElement, InternalQueue
+from core.models.internal_queue import InternalQueue, ControlElement
 from core.util import get_one_of, set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,

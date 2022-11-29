@@ -4,85 +4,90 @@ from threading import Thread
 
 import pytest
 
-from core.util.customized_queue.double_blocking_queue import DoubleBlockingQueue
+from core.util.customized_queue.linked_blocking_multi_queue import (
+    LinkedBlockingMultiQueue,
+)
 
 
-class TestDoubleBlockingQueue:
+class TestLinkedBlockingMultiQueue:
     @pytest.fixture
     def queue(self):
-        return DoubleBlockingQueue(int)
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq.add_sub_queue("control", 0)
+        lbmq.add_sub_queue("data", 1)
+        return lbmq
 
     def test_sub_can_emit(self, queue):
-        assert queue.empty()
-        queue.put(1)
-        assert not queue.empty()
-        assert queue.main_empty()
+        assert queue.is_empty()
+        queue.put("data", 1)
+        assert not queue.is_empty()
+        assert queue.is_empty("control")
         assert queue.get() == 1
-        assert queue.empty()
-        assert queue.main_empty()
+        assert queue.is_empty()
+        assert queue.is_empty("control")
 
     def test_main_can_emit(self, queue):
-        assert queue.empty()
-        queue.put("main")
-        assert not queue.empty()
-        assert queue.get() == "main"
-        assert queue.empty()
+        assert queue.is_empty()
+        queue.put("control", "s")
+        assert not queue.is_empty()
+        assert queue.get() == "s"
+        assert queue.is_empty()
 
     def test_main_can_emit_before_sub(self, queue):
-        assert queue.empty()
-        queue.put(1)
-        queue.put("s")
-        assert not queue.empty()
+        assert queue.is_empty()
+        queue.put("data", 1)
+        queue.put("control", "s")
+        assert not queue.is_empty()
         assert queue.get() == "s"
-        assert queue.main_empty()
-        assert not queue.empty()
+        assert queue.is_empty("control")
+        assert not queue.is_empty()
         assert queue.get() == 1
-        assert queue.empty()
+        assert queue.is_empty()
 
     def test_can_maintain_order_respectively(self, queue):
-        queue.put(1)
-        queue.put("s1")
-        queue.put(99)
-        queue.put("s2")
-        queue.put("s3")
-        queue.put(3)
-        queue.put("s4")
+        queue.put("data", 1)
+        queue.put("control", "s1")
+        queue.put("data", 99)
+        queue.put("control", "s2")
+        queue.put("control", "s3")
+        queue.put("data", 3)
+        queue.put("control", "s4")
         res = list()
-        while not queue.empty():
+        while not queue.is_empty():
             res.append(queue.get())
 
         assert res == ["s1", "s2", "s3", "s4", 1, 99, 3]
 
     def test_can_disable_sub(self, queue):
-        queue.disable_sub()
-        queue.put(1)
-        queue.put("s1")
-        queue.put(99)
-        queue.put("s2")
-        queue.put("s3")
-        queue.put(3)
-        queue.put("s4")
+        queue.disable("data")
+        queue.put("data", 1)
+        queue.put("control", "s1")
+        queue.put("data", 99)
+        queue.put("control", "s2")
+        queue.put("control", "s3")
+        queue.put("data", 3)
+        queue.put("control", "s4")
         res = list()
-        while not queue.empty():
+        while not queue.is_empty():
             res.append(queue.get())
 
         assert res == ["s1", "s2", "s3", "s4"]
-        assert queue.empty()
-        queue.enable_sub()
-        assert not queue.empty()
+        assert queue.is_empty()
+        queue.enable("data")
+        assert not queue.is_empty()
         res = list()
-        while not queue.empty():
+        while not queue.is_empty():
             res.append(queue.get())
 
         assert res == [1, 99, 3]
-        assert queue.empty()
+        assert queue.is_empty()
 
     @pytest.mark.timeout(2)
     def test_producer_first_insert_sub(self, queue, reraise):
         def producer():
             with reraise:
                 time.sleep(0.2)
-                queue.put(1)
+                queue.put("data", 1)
 
         producer_thread = Thread(target=producer)
         producer_thread.start()
@@ -95,12 +100,12 @@ class TestDoubleBlockingQueue:
         def consumer():
             with reraise:
                 assert queue.get() == 1
-                assert queue.empty()
+                assert queue.is_empty()
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
         time.sleep(0.2)
-        queue.put(1)
+        queue.put("data", 1)
         consumer_thread.join()
         reraise()
 
@@ -109,7 +114,7 @@ class TestDoubleBlockingQueue:
         def producer():
             with reraise:
                 time.sleep(0.2)
-                queue.put("s")
+                queue.put("control", "s")
 
         producer_thread = Thread(target=producer)
         producer_thread.start()
@@ -122,12 +127,12 @@ class TestDoubleBlockingQueue:
         def consumer():
             with reraise:
                 assert queue.get() == "s"
-                assert queue.empty()
+                assert queue.is_empty()
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
         time.sleep(0.2)
-        queue.put("s")
+        queue.put("control", "s")
         consumer_thread.join()
         reraise()
 
@@ -137,9 +142,9 @@ class TestDoubleBlockingQueue:
             with reraise:
                 if isinstance(k, int):
                     for i in range(k):
-                        queue.put(i)
+                        queue.put("data", i)
                 else:
-                    queue.put(k)
+                    queue.put("control", k)
 
         threads = []
         target = set()
@@ -154,7 +159,7 @@ class TestDoubleBlockingQueue:
 
         def consumer():
             with reraise:
-                queue.disable_sub()
+                queue.disable("data")
                 while len(res) < len(target):
                     res.add(queue.get())
 
@@ -168,22 +173,16 @@ class TestDoubleBlockingQueue:
 
         reraise()
 
-    def test_multiple_consumers_should_fail(self, queue, reraise):
-
-        queue.put(1)
-        queue.get()
-        queue.put("s")
-
-        def consumer():
-            with reraise:
-                with pytest.raises(AssertionError):
-                    queue.disable_sub()
-                    queue.get()
-
-        consumer_thread = Thread(target=consumer)
-        consumer_thread.start()
-
-        reraise()
+    def test_multi_types(
+        self,
+        queue,
+    ):
+        queue.put("data", 1)
+        queue.put("data", 1.1)
+        queue.put("control", "s")
+        queue.disable("data")
+        assert queue.get() == "s"
+        assert queue.is_empty()
 
     @pytest.mark.timeout(2)
     def test_common_single_producer_single_consumer(self, queue, reraise):
@@ -191,9 +190,9 @@ class TestDoubleBlockingQueue:
             with reraise:
                 for i in range(11):
                     if i % 3 == 0:
-                        queue.put("s")
+                        queue.put("control", "s")
                     else:
-                        queue.put(i)
+                        queue.put("data", i)
 
         producer_thread = Thread(target=producer)
         producer_thread.start()
@@ -201,20 +200,20 @@ class TestDoubleBlockingQueue:
 
         total: int = 0
         while True:
-            queue.enable_sub()
-            queue.enable_sub()
+            queue.enable("data")
+            queue.enable("data")
             t = queue.get()
-            queue.main_empty()
+            queue.is_empty("control")
 
             if isinstance(t, int):
                 total += t
             else:
                 assert t == "s"
-            queue.empty()
-            queue.disable_sub()
-            queue.disable_sub()
-            queue.empty()
-            queue.disable_sub()
+            queue.is_empty()
+            queue.disable("data")
+            queue.disable("data")
+            queue.is_empty()
+            queue.disable("data")
             if t == 10:
                 break
         assert total == sum(filter(lambda x: x % 3 != 0, range(11)))

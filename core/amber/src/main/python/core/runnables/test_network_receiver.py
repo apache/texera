@@ -4,7 +4,7 @@ import pandas
 import pytest
 
 from core.models import Tuple
-from core.models.internal_queue import ControlElement, DataElement, InternalQueue
+from core.models.internal_queue import InternalQueue, ControlElement, DataElement
 from core.models.payload import OutputDataFrame, EndOfUpstream
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender

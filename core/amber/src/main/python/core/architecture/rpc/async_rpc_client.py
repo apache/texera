@@ -5,7 +5,7 @@ from typing import Dict
 from loguru import logger
 
 from core.architecture.managers.context import Context
-from core.models.internal_queue import ControlElement, InternalQueue
+from core.models.internal_queue import InternalQueue, ControlElement
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,

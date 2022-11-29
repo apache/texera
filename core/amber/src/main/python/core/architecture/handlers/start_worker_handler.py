@@ -5,7 +5,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 from .handler_base import Handler
 from ..managers.context import Context
 from ..packaging.batch_to_tuple_converter import BatchToTupleConverter
-from ...models import DataElement
+from ...models.internal_queue import DataElement
 
 
 class StartWorkerHandler(Handler):

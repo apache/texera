@@ -1,7 +1,7 @@
 from loguru import logger
 from overrides import overrides
 
-from core.util.customized_queue.queue_base import IQueue
+from core.util.customized_queue.queue_base import IQueue, QueueControl, QueueElement
 from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
 
@@ -33,7 +33,7 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
 
     """
 
-    RUNNABLE_STOP = IQueue.QueueControl(msg="__RUNNABLE__STOP__MARKER__")
+    RUNNABLE_STOP = QueueControl(msg="__RUNNABLE__STOP__MARKER__")
 
     def __init__(self, name: str, queue: IQueue):
         self._internal_queue = queue
@@ -53,7 +53,7 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
             self.post_stop()
 
     @logger.catch(reraise=True)
-    def receive(self, next_entry: IQueue.QueueElement):
+    def receive(self, next_entry: QueueElement):
         pass
 
     @logger.catch(reraise=True)
