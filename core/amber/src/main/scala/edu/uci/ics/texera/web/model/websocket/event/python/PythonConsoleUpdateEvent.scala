@@ -17,9 +17,9 @@ object PythonConsoleUpdateEvent {
 }
 
 case class PythonConsoleUpdateEvent(
-                                     operatorId: String,
-                                     workerId: String,
-                                     timestamp: Timestamp,
-                                     level: String,
-                                     message: String
-                                   ) extends TexeraWebSocketEvent
+    operatorId: String,
+    workerId: String,
+    timestamp: Timestamp,
+    level: String,
+    message: String
+) extends TexeraWebSocketEvent

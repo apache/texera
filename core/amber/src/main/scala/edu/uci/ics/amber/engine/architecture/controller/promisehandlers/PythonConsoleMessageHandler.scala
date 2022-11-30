@@ -15,8 +15,7 @@ object PythonConsoleMessageHandler {
       msgType: String,
       source: String,
       message: String
-  ) extends ControlCommand[Unit]
-
+     ) extends ControlCommand[Unit]
 }
 
 trait PythonConsoleMessageHandler {
@@ -27,8 +26,7 @@ trait PythonConsoleMessageHandler {
       sendToClient(
         ConsoleMessageTriggered(
           workflow.getOperator(sender).id.operator,
-          ConsoleMessage(sender.name, msg.timestamp, msg.msgType, msg.source, msg.message)
-        )
+          ConsoleMessage(sender.name, msg.timestamp, msg.msgType, msg.source, msg.message))
       )
     }
   }
