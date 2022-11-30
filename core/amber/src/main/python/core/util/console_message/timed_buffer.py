@@ -2,8 +2,6 @@ from datetime import datetime
 
 from typing import Tuple, List, Iterator
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import PythonConsoleMessageV2
-
 
 class TimedBuffer:
     def __init__(self, max_message_num=10, max_flush_interval_in_ms=500):
@@ -12,16 +10,22 @@ class TimedBuffer:
         self._buffer: List[Tuple[datetime, str]]() = list()
         self._last_output_time = datetime.now()
 
-    def add(self, console_message: PythonConsoleMessageV2) -> None:
-        self._buffer.append(console_message)
+    def write(self, message: str) -> None:
+        self._buffer.append((datetime.now(), message))
 
-    def get(self, flush=False) -> Iterator[PythonConsoleMessageV2]:
+    def output(self, flush=False) -> Iterator[Tuple[datetime, str]]:
         if (
-            flush
-            or len(self._buffer) >= self._max_message_num
-            or (datetime.now() - self._last_output_time).seconds
-            >= self._max_flush_interval_in_ms / 1000
+                flush
+                or len(self._buffer) >= self._max_message_num
+                or (datetime.now() - self._last_output_time).seconds
+                >= self._max_flush_interval_in_ms / 1000
         ):
             self._last_output_time = datetime.now()
             yield from self._buffer
             self._buffer.clear()
+
+    def __len__(self):
+        return len(self._buffer)
+
+    def is_empty(self) -> bool:
+        return len(self) == 0
