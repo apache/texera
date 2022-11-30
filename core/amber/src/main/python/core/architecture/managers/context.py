@@ -39,3 +39,6 @@ class Context:
         self.pause_manager = PauseManager()
         self.tuple_to_batch_converter = TupleToBatchConverter()
         self.batch_to_tuple_converter = BatchToTupleConverter()
+
+    def close(self):
+        self.operator_manager.close()

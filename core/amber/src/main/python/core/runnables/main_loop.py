@@ -58,8 +58,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 set_one_of(ControlCommandV2, PythonPrintV2(message=msg)),
             )
         )
-        logger.add(self._print_log_handler, level="PRINT", filter="operators")
-
         self.data_processor = DataProcessor(self.context)
         threading.Thread(target=self.data_processor.run, daemon=True).start()
 
@@ -78,6 +76,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._async_rpc_client.send(
             ActorVirtualIdentity(name="CONTROLLER"), control_command
         )
+        self.context.close()
 
     def check_and_process_control(self) -> None:
         """
@@ -197,7 +196,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param control_element: ControlElement to be handled.
         """
-        print(control_element)
         self.process_control_payload(control_element.tag, control_element.payload)
 
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
@@ -310,7 +308,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, False
             )
             if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_sub()
+                self.context.input_queue.enable_data()
 
     def _pause(self) -> None:
         """
@@ -331,7 +329,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
             if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_sub()
+                self.context.input_queue.enable_data()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
     @staticmethod
