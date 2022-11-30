@@ -10,10 +10,10 @@ class TimedBuffer:
         self._buffer: List[Tuple[datetime, str]]() = list()
         self._last_output_time = datetime.now()
 
-    def write(self, message: str) -> None:
+    def add(self, message: str) -> None:
         self._buffer.append((datetime.now(), message))
 
-    def output(self, flush=False) -> Iterator[Tuple[datetime, str]]:
+    def get(self, flush=False) -> Iterator[Tuple[datetime, str]]:
         if (
             flush
             or len(self._buffer) >= self._max_message_num
@@ -23,9 +23,3 @@ class TimedBuffer:
             self._last_output_time = datetime.now()
             yield from self._buffer
             self._buffer.clear()
-
-    def __len__(self):
-        return len(self._buffer)
-
-    def is_empty(self) -> bool:
-        return len(self) == 0

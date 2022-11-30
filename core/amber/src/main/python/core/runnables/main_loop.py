@@ -366,7 +366,5 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._pause()
 
     def _check_and_report_print(self, force_flush=False):
-        for  msg in self.context.console_message_manager.get_messages(
-                force_flush
-            ):
-                self._send_console_message(msg)
+        for  msg in self.context.console_message_manager.get_messages(force_flush):
+            self._send_console_message(msg)
