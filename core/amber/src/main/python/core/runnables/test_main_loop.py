@@ -97,7 +97,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_update_input_linking(
-        self, mock_controller, mock_sender_actor, mock_link, command_sequence
+            self, mock_controller, mock_sender_actor, mock_link, command_sequence
     ):
         command = set_one_of(
             ControlCommandV2,
@@ -111,7 +111,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_add_partitioning(
-        self, mock_controller, mock_receiver_actor, command_sequence
+            self, mock_controller, mock_receiver_actor, command_sequence
     ):
         command = set_one_of(
             ControlCommandV2,
@@ -131,7 +131,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_query_statistics(
-        self, mock_controller, mock_sender_actor, command_sequence
+            self, mock_controller, mock_sender_actor, command_sequence
     ):
         command = set_one_of(ControlCommandV2, QueryStatisticsV2())
         payload = set_one_of(
@@ -171,21 +171,21 @@ class TestMainLoop:
 
     @pytest.mark.timeout(2)
     def test_main_loop_thread_can_process_messages(
-        self,
-        mock_link,
-        mock_receiver_actor,
-        mock_controller,
-        input_queue,
-        output_queue,
-        mock_data_element,
-        main_loop_thread,
-        mock_update_input_linking,
-        mock_add_partitioning,
-        mock_end_of_upstream,
-        mock_query_statistics,
-        mock_tuple,
-        command_sequence,
-        reraise,
+            self,
+            mock_link,
+            mock_receiver_actor,
+            mock_controller,
+            input_queue,
+            output_queue,
+            mock_data_element,
+            main_loop_thread,
+            mock_update_input_linking,
+            mock_add_partitioning,
+            mock_end_of_upstream,
+            mock_query_statistics,
+            mock_tuple,
+            command_sequence,
+            reraise,
     ):
         main_loop_thread.start()
 
