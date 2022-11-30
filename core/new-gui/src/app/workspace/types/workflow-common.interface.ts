@@ -17,14 +17,24 @@ export interface OperatorPort
     portID: string;
   }> {}
 
+export interface PortDescription
+  extends Readonly<{
+    portID: string;
+    displayName?: string;
+    allowMultiInputs?: boolean;
+    isDynamicPort?: boolean;
+  }> {}
+
 export interface OperatorPredicate
   extends Readonly<{
     operatorID: string;
     operatorType: string;
     operatorVersion: string;
     operatorProperties: Readonly<{ [key: string]: any }>;
-    inputPorts: { portID: string; displayName?: string }[];
-    outputPorts: { portID: string; displayName?: string }[];
+    inputPorts: PortDescription[];
+    outputPorts: PortDescription[];
+    dynamicInputPorts?: boolean;
+    dynamicOutputPorts?: boolean;
     showAdvanced: boolean;
     isDisabled?: boolean;
     isCached?: boolean;
