@@ -55,7 +55,6 @@ class replace_print(ContextManager):
                         message=complete_str,
                     )
                 )
-
         builtins.print = wrapped_print
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:

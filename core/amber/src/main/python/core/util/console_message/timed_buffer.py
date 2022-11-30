@@ -15,10 +15,10 @@ class TimedBuffer:
 
     def output(self, flush=False) -> Iterator[Tuple[datetime, str]]:
         if (
-                flush
-                or len(self._buffer) >= self._max_message_num
-                or (datetime.now() - self._last_output_time).seconds
-                >= self._max_flush_interval_in_ms / 1000
+            flush
+            or len(self._buffer) >= self._max_message_num
+            or (datetime.now() - self._last_output_time).seconds
+            >= self._max_flush_interval_in_ms / 1000
         ):
             self._last_output_time = datetime.now()
             yield from self._buffer
