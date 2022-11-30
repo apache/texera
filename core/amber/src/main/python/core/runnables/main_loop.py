@@ -350,7 +350,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             ActorVirtualIdentity(name="CONTROLLER"),
             set_one_of(
                 ControlCommandV2,
-                PythonConsoleMessageV2(timestamp=time, level=level, message=msg),
+                console_message,
             ),
         )
 

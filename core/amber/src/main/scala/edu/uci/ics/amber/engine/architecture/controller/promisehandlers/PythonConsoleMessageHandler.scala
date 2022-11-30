@@ -12,9 +12,10 @@ object PythonConsoleMessageHandler {
 
   final case class PythonConsoleMessage(
       timestamp: Timestamp,
-      msgType: String, source: String,
+      msgType: String,
+      source: String,
       message: String
-     ) extends ControlCommand[Unit]
+  ) extends ControlCommand[Unit]
 }
 
 trait PythonConsoleMessageHandler {
