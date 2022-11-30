@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
+import {Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { BreakpointTriggerInfo, ConsoleMessage } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -131,7 +131,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   displayConsoleMessages(operatorId: string): void {
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
-    console.log("got messages", this.consoleMessages);
   }
 
   submitDebugCommand(): void {
