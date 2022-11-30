@@ -4,7 +4,9 @@ import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonDebugCommandHandler.PythonDebugCommand
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
@@ -124,6 +126,47 @@ class JobPythonService(
         )
       )
     })
+    //Receive debug command
+    addSubscription(wsInput.subscribe((req: PythonDebugCommandRequest, uidOpt) => {
+      stateStore.pythonStore.updateState { jobInfo =>
+        if (!jobInfo.operatorInfo.contains(req.operatorId)) {
+          jobInfo.addOperatorInfo((req.operatorId, PythonOperatorInfo()))
+        }
+        val opInfo = jobInfo.operatorInfo.getOrElse(req.operatorId, PythonOperatorInfo())
+        if (!opInfo.workerInfo.contains(req.workerId)) {
+          opInfo.addWorkerInfo((req.workerId, PythonWorkerInfo()))
+        }
+        val workerInfo = opInfo.workerInfo.getOrElse(req.workerId, PythonWorkerInfo())
+        val newMessage =
+          new PythonConsoleMessageV2(Timestamp.defaultInstance, "COMMAND", "user", req.cmd)
+        if (workerInfo.pythonConsoleMessages.size < bufferSize) {
+          jobInfo.addOperatorInfo(
+            (
+              req.operatorId,
+              opInfo.addWorkerInfo((req.workerId, workerInfo.addPythonConsoleMessages(newMessage)))
+            )
+          )
+        } else {
+          jobInfo.addOperatorInfo(
+            (
+              req.operatorId,
+              opInfo.addWorkerInfo(
+                (
+                  req.workerId,
+                  workerInfo.withPythonConsoleMessages(
+                    workerInfo.pythonConsoleMessages.drop(1) :+ newMessage
+                  )
+                )
+              )
+            )
+          )
+        }
+      }
+
+      client.sendAsync(PythonDebugCommand(req.operatorId, req.workerId, req.cmd))
+
+    }))
+
     // TODO: remove the following hack after fixing the frontend
     // currently frontend is not prepared for re-receiving the eval-expr messages
     // so we add it to the state and remove it from the state immediately
