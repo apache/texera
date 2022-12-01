@@ -20,10 +20,9 @@ class WorkflowAggregatedState(betterproto.Enum):
     PAUSING = 3
     PAUSED = 4
     RESUMING = 5
-    RECOVERING = 6
-    COMPLETED = 7
-    ABORTED = 8
-    UNKNOWN = 9
+    COMPLETED = 6
+    ABORTED = 7
+    UNKNOWN = 8
 
 
 @dataclass(eq=False, repr=False)
@@ -31,18 +30,6 @@ class WorkflowCacheStore(betterproto.Message):
     operator_info: Dict[str, "CacheState"] = betterproto.map_field(
         1, betterproto.TYPE_STRING, betterproto.TYPE_ENUM
     )
-
-
-@dataclass(eq=False, repr=False)
-class WorkflowResultStore(betterproto.Message):
-    operator_info: Dict[str, "OperatorResultMetadata"] = betterproto.map_field(
-        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
-    )
-
-
-@dataclass(eq=False, repr=False)
-class OperatorResultMetadata(betterproto.Message):
-    tuple_count: int = betterproto.int32_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -79,8 +66,17 @@ class EvaluatedValueList(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PythonWorkerInfo(betterproto.Message):
+    python_console_message: List[
+        "__amber_engine_architecture_worker__.PythonConsoleMessageV2"
+    ] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class PythonOperatorInfo(betterproto.Message):
-    console_messages: List[str] = betterproto.string_field(1)
+    worker_info: Dict[str, "PythonWorkerInfo"] = betterproto.map_field(
+        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
+    )
     evaluate_expr_results: Dict[str, "EvaluatedValueList"] = betterproto.map_field(
         2, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
@@ -103,7 +99,7 @@ class OperatorRuntimeStats(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class JobStatsStore(betterproto.Message):
     operator_info: Dict[str, "OperatorRuntimeStats"] = betterproto.map_field(
-        3, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
+        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
 
 
@@ -112,6 +108,19 @@ class JobMetadataStore(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
     error: str = betterproto.string_field(2)
     eid: int = betterproto.int64_field(3)
+    is_recovering: bool = betterproto.bool_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class WorkflowResultStore(betterproto.Message):
+    operator_info: Dict[str, "OperatorResultMetadata"] = betterproto.map_field(
+        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
+    )
+
+
+@dataclass(eq=False, repr=False)
+class OperatorResultMetadata(betterproto.Message):
+    tuple_count: int = betterproto.int32_field(1)
 
 
 from ...amber.engine.architecture import worker as __amber_engine_architecture_worker__
