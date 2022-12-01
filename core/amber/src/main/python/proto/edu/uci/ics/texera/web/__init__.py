@@ -67,13 +67,6 @@ class EvaluatedValueList(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PythonWorkerInfo(betterproto.Message):
-    python_console_message: List[
-        "__amber_engine_architecture_worker__.PythonConsoleMessageV2"
-    ] = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class PythonWorkerInfo(betterproto.Message):
     python_console_messages: List[
         "__amber_engine_architecture_worker__.PythonConsoleMessageV2"
     ] = betterproto.message_field(1)
@@ -97,18 +90,10 @@ class JobPythonStore(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class WorkerRuntimeStats(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
 class OperatorRuntimeStats(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
     input_count: int = betterproto.int64_field(2)
     output_count: int = betterproto.int64_field(3)
-    worker_info: Dict[str, "WorkerRuntimeStats"] = betterproto.map_field(
-        4, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
-    )
 
 
 @dataclass(eq=False, repr=False)

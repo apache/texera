@@ -13,7 +13,7 @@ object PythonConsoleUpdateEvent {
     PythonConsoleUpdateEvent(
       opId,
       messages.map((m: PythonConsoleMessageV2) =>
-        PythonWorkerConsoleMessage(workerId, m.timestamp, m.level, m.source, m.message)
+        PythonWorkerConsoleMessage(workerId, m.timestamp, m.msgType, m.source, m.message)
       )
     )
   }
