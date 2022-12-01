@@ -2,6 +2,7 @@
 # sources: edu/uci/ics/texera/workflowcachestate.proto, edu/uci/ics/texera/workflowresultstate.proto, edu/uci/ics/texera/workflowruntimestate.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List
 
 import betterproto
@@ -66,17 +67,17 @@ class EvaluatedValueList(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PythonWorkerInfo(betterproto.Message):
-    python_console_messages: List[
-        "__amber_engine_architecture_worker__.PythonConsoleMessageV2"
-    ] = betterproto.message_field(1)
+class ConsoleMessage(betterproto.Message):
+    worker_id: str = betterproto.string_field(1)
+    timestamp: datetime = betterproto.message_field(2)
+    msg_type: str = betterproto.string_field(3)
+    source: str = betterproto.string_field(4)
+    message: str = betterproto.string_field(5)
 
 
 @dataclass(eq=False, repr=False)
 class PythonOperatorInfo(betterproto.Message):
-    worker_info: Dict[str, "PythonWorkerInfo"] = betterproto.map_field(
-        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
-    )
+    console_messages: List["ConsoleMessage"] = betterproto.message_field(1)
     evaluate_expr_results: Dict[str, "EvaluatedValueList"] = betterproto.map_field(
         2, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )

@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsol
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats
+import edu.uci.ics.texera.web.workflowruntimestate.{ConsoleMessage, OperatorRuntimeStats}
 
 import scala.collection.mutable
 
@@ -27,10 +27,9 @@ object ControllerEvent {
       operatorID: String = null
   ) extends ControlCommand[Unit]
 
-  case class PythonConsoleMessageTriggered(
+  case class ConsoleMessageTriggered(
       operatorId: String,
-      workerId: String,
-      consoleMessage: PythonConsoleMessageV2
+      consoleMessage: ConsoleMessage
   ) extends ControlCommand[Unit]
 
   case class ReportCurrentProcessingTuple(

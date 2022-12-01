@@ -1,24 +1,20 @@
 package edu.uci.ics.texera.web.service
 
 import com.twitter.util.{Await, Duration}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.PythonConsoleMessageTriggered
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.model.websocket.event.python.PythonConsoleUpdateEvent
+import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  EvaluatedValueList,
-  PythonOperatorInfo,
-  PythonWorkerInfo
-}
+import edu.uci.ics.texera.web.workflowruntimestate.{EvaluatedValueList, PythonOperatorInfo}
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
 import scala.collection.mutable
@@ -44,20 +40,9 @@ class JobPythonService(
         .foreach {
           case (opId, info) =>
             val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
-            if (info.workerInfo.nonEmpty) {
-              info.workerInfo.foreach({
-                case (workerId, workerInfo) =>
-                  val diff = if (oldInfo.workerInfo.contains(workerId)) {
-                    workerInfo.pythonConsoleMessages diff oldInfo
-                      .workerInfo(workerId)
-                      .pythonConsoleMessages
-                  } else {
-                    workerInfo.pythonConsoleMessages
-                  }
-                  output.append(PythonConsoleUpdateEvent(opId, workerId, diff))
-              })
+            val diff = info.consoleMessages.diff(oldInfo.consoleMessages)
+            output.append(ConsoleUpdateEvent(opId, diff))
 
-            }
             info.evaluateExprResults.keys.filterNot(oldInfo.evaluateExprResults.contains).foreach {
               key =>
                 output.append(
@@ -72,44 +57,31 @@ class JobPythonService(
   private[this] def registerCallbackOnPythonConsoleMessage(): Unit = {
     addSubscription(
       client
-        .registerCallback[PythonConsoleMessageTriggered]((evt: PythonConsoleMessageTriggered) => {
+        .registerCallback[ConsoleMessageTriggered]((evt: ConsoleMessageTriggered) => {
           stateStore.pythonStore.updateState { jobInfo =>
-            if (!jobInfo.operatorInfo.contains(evt.operatorId)) {
-              jobInfo.addOperatorInfo((evt.operatorId, PythonOperatorInfo()))
-            }
-            val opInfo = jobInfo.operatorInfo.getOrElse(evt.operatorId, PythonOperatorInfo())
-            if (!opInfo.workerInfo.contains(evt.workerId)) {
-              opInfo.addWorkerInfo((evt.workerId, PythonWorkerInfo()))
-            }
-            val workerInfo = opInfo.workerInfo.getOrElse(evt.workerId, PythonWorkerInfo())
+            {
+              if (!jobInfo.operatorInfo.contains(evt.operatorId)) {
+                jobInfo.addOperatorInfo((evt.operatorId, PythonOperatorInfo()))
+              }
+              val opInfo = jobInfo.operatorInfo.getOrElse(evt.operatorId, PythonOperatorInfo())
 
-            if (workerInfo.pythonConsoleMessages.size < bufferSize) {
-              jobInfo.addOperatorInfo(
-                (
-                  evt.operatorId,
-                  opInfo.addWorkerInfo(
-                    (evt.workerId, workerInfo.addPythonConsoleMessages(evt.consoleMessage))
+              if (opInfo.consoleMessages.size < bufferSize) {
+                jobInfo.addOperatorInfo(
+                  (
+                    evt.operatorId,
+                    opInfo.addConsoleMessages(evt.consoleMessage)
                   )
                 )
-              )
-            } else {
-              jobInfo.addOperatorInfo(
-                (
-                  evt.operatorId,
-                  opInfo.addWorkerInfo(
-                    (
-                      evt.workerId,
-                      workerInfo.withPythonConsoleMessages(
-                        workerInfo.pythonConsoleMessages.drop(1) :+ evt.consoleMessage
-                      )
-                    )
+              } else {
+                jobInfo.addOperatorInfo(
+                  (
+                    evt.operatorId,
+                    opInfo.withConsoleMessages(opInfo.consoleMessages.drop(1) :+ evt.consoleMessage)
                   )
                 )
-              )
+              }
             }
-
           }
-
         })
     )
 

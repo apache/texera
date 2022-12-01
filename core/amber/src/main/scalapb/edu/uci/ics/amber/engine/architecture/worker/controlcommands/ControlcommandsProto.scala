@@ -9,8 +9,8 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
   lazy val dependencies: Seq[_root_.scalapb.GeneratedFileObject] = Seq(
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningsProto,
     edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto,
-    scalapb.options.ScalapbProto,
-    com.google.protobuf.timestamp.TimestampProto
+    com.google.protobuf.timestamp.TimestampProto,
+    scalapb.options.ScalapbProto
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
@@ -39,7 +39,7 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
   """CkJlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3dvcmtlci9jb250cm9sY29tbWFuZHMucHJvdG8SLGVkd
   S51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyGkdlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0Z
   WN0dXJlL3NlbmRzZW1hbnRpY3MvcGFydGl0aW9uaW5ncy5wcm90bxo1ZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2NvbW1vbi92a
-  XJ0dWFsaWRlbnRpdHkucHJvdG8aFXNjYWxhcGIvc2NhbGFwYi5wcm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90b
+  XJ0dWFsaWRlbnRpdHkucHJvdG8aH2dvb2dsZS9wcm90b2J1Zi90aW1lc3RhbXAucHJvdG8aFXNjYWxhcGIvc2NhbGFwYi5wcm90b
   yIPCg1TdGFydFdvcmtlclYyIg8KDVBhdXNlV29ya2VyVjIiEAoOUmVzdW1lV29ya2VyVjIiXAoYU2NoZWR1bGVyVGltZVNsb3RFd
   mVudFYyEkAKEXRpbWVfc2xvdF9leHBpcmVkGAEgASgIQhTiPxESD3RpbWVTbG90RXhwaXJlZFIPdGltZVNsb3RFeHBpcmVkIhAKD
   k9wZW5PcGVyYXRvclYyIuIBChRVcGRhdGVJbnB1dExpbmtpbmdWMhJpCgppZGVudGlmaWVyGAEgASgLMjUuZWR1LnVjaS5pY3MuY
@@ -110,8 +110,8 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
     com.google.protobuf.Descriptors.FileDescriptor.buildFrom(javaProto, _root_.scala.Array(
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningsProto.javaDescriptor,
       edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto.javaDescriptor,
-      scalapb.options.ScalapbProto.javaDescriptor,
-      com.google.protobuf.timestamp.TimestampProto.javaDescriptor
+      com.google.protobuf.timestamp.TimestampProto.javaDescriptor,
+      scalapb.options.ScalapbProto.javaDescriptor
     ))
   }
   @deprecated("Use javaDescriptor instead. In a future version this will refer to scalaDescriptor.", "ScalaPB 0.5.47")

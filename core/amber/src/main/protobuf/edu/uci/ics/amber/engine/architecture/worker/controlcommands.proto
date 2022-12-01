@@ -4,8 +4,8 @@ package edu.uci.ics.amber.engine.architecture.worker;
 
 import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
-import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
     scope: FILE,
