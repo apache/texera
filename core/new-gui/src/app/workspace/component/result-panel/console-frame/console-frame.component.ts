@@ -174,4 +174,24 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     const tokens = workerId.split("-");
     return parseInt(tokens.at(tokens.length - 1) || "0");
   }
+
+  submitCommand() {
+    if (isDefined(this.operatorId)) {
+      let workers = [];
+      if (this.targetWorker === "All Workers") {
+        workers = [...this.workers];
+      } else {
+        workers.push(this.targetWorker);
+      }
+      for (let worker of workers) {
+        this.workflowWebsocketService.send("PythonDebugCommandRequest", {
+          operatorId: this.operatorId,
+          workerId: this.workerAbbrToLongNameMapping.get(worker),
+          cmd: this.command,
+        });
+      }
+
+      this.command = "";
+    }
+  }
 }
