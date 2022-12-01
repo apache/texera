@@ -1,21 +1,26 @@
 package edu.uci.ics.texera.web.service
 
 import com.twitter.util.{Await, Duration}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.PythonPrintTriggered
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.PythonConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
-import edu.uci.ics.texera.web.model.websocket.event.python.PythonPrintTriggeredEvent
+import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
+import edu.uci.ics.texera.web.model.websocket.event.python.PythonConsoleUpdateEvent
+import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.websocket.request.{RetryRequest, SkipTupleRequest}
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
-import edu.uci.ics.texera.web.workflowruntimestate.{EvaluatedValueList, PythonOperatorInfo}
+import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
+import edu.uci.ics.texera.web.workflowruntimestate.{
+  EvaluatedValueList,
+  PythonOperatorInfo,
+  PythonWorkerInfo
+}
+import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
 import scala.collection.mutable
 
@@ -30,7 +35,7 @@ class JobPythonService(
     wsInput: WebsocketInput,
     breakpointService: JobBreakpointService
 ) extends SubscriptionManager {
-  registerCallbackOnPythonPrint()
+  registerCallbackOnPythonConsoleMessage()
 
   addSubscription(
     stateStore.pythonStore.registerDiffHandler((oldState, newState) => {
@@ -40,15 +45,26 @@ class JobPythonService(
         .foreach {
           case (opId, info) =>
             val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
-            if (info.consoleMessages.nonEmpty) {
-              val stringBuilder = new StringBuilder()
-              val diff = info.consoleMessages.reverseIterator.takeWhile(s =>
-                oldInfo.consoleMessages.isEmpty || s != oldInfo.consoleMessages.last
-              )
-              if (diff.nonEmpty) {
-                diff.toSeq.reverse.foreach(s => stringBuilder.append(s))
-                output.append(PythonPrintTriggeredEvent(stringBuilder.toString(), opId))
-              }
+            if (info.workerInfo.nonEmpty) {
+              info.workerInfo.foreach({
+                case (workerId, workerInfo) =>
+                  val diff = if (oldInfo.workerInfo.contains(workerId)) {
+                    workerInfo.pythonConsoleMessage diff oldInfo
+                      .workerInfo(workerId)
+                      .pythonConsoleMessage
+                  } else {
+                    workerInfo.pythonConsoleMessage
+                  }
+                  if (diff.nonEmpty) {
+                    diff.foreach(s =>
+                      output.append(
+                        PythonConsoleUpdateEvent(opId, workerId, s.timestamp, s.msgType, s.message)
+                      )
+                    )
+                  }
+
+              })
+
             }
             info.evaluateExprResults.keys.filterNot(oldInfo.evaluateExprResults.contains).foreach {
               key =>
@@ -61,27 +77,54 @@ class JobPythonService(
     })
   )
 
-  private[this] def registerCallbackOnPythonPrint(): Unit = {
+  private[this] def registerCallbackOnPythonConsoleMessage(): Unit = {
     addSubscription(
       client
-        .registerCallback[PythonPrintTriggered]((evt: PythonPrintTriggered) => {
+        .registerCallback[PythonConsoleMessageTriggered]((evt: PythonConsoleMessageTriggered) => {
           stateStore.pythonStore.updateState { jobInfo =>
-            val opInfo = jobInfo.operatorInfo.getOrElse(evt.operatorID, PythonOperatorInfo())
-            if (opInfo.consoleMessages.size < bufferSize) {
-              jobInfo.addOperatorInfo((evt.operatorID, opInfo.addConsoleMessages(evt.message)))
+            if (!jobInfo.operatorInfo.contains(evt.operatorId)) {
+              jobInfo.addOperatorInfo((evt.operatorId, PythonOperatorInfo()))
+            }
+            val opInfo = jobInfo.operatorInfo.getOrElse(evt.operatorId, PythonOperatorInfo())
+            if (!opInfo.workerInfo.contains(evt.workerId)) {
+              opInfo.addWorkerInfo((evt.workerId, PythonWorkerInfo()))
+            }
+            val workerInfo = opInfo.workerInfo.getOrElse(evt.workerId, PythonWorkerInfo())
+            val newMessage = new PythonConsoleMessageV2(
+              evt.consoleMessage.timestamp,
+              evt.consoleMessage.msgType,
+              evt.consoleMessage.message
+            )
+            if (workerInfo.pythonConsoleMessage.size < bufferSize) {
+              jobInfo.addOperatorInfo(
+                (
+                  evt.operatorId,
+                  opInfo.addWorkerInfo(
+                    (evt.workerId, workerInfo.addPythonConsoleMessage(newMessage))
+                  )
+                )
+              )
             } else {
               jobInfo.addOperatorInfo(
                 (
-                  evt.operatorID,
-                  opInfo.withConsoleMessages(
-                    opInfo.consoleMessages.drop(1) :+ evt.message
+                  evt.operatorId,
+                  opInfo.addWorkerInfo(
+                    (
+                      evt.workerId,
+                      workerInfo.withPythonConsoleMessage(
+                        workerInfo.pythonConsoleMessage.drop(1) :+ newMessage
+                      )
+                    )
                   )
                 )
               )
             }
+
           }
+
         })
     )
+
   }
 
   //Receive retry request
