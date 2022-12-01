@@ -20,6 +20,6 @@ case class PythonConsoleUpdateEvent(
     operatorId: String,
     workerId: String,
     timestamp: Timestamp,
-    level: String,
+    msgType: String,
     message: String
 ) extends TexeraWebSocketEvent
