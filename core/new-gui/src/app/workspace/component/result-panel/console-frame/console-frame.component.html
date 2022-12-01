@@ -30,7 +30,7 @@
         <nz-tag *ngIf="showTimestamp">
           {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
         </nz-tag>
-        <nz-badge [nzStatus]="labelMapping.get(entry.level)"> </nz-badge>
+        <nz-badge [nzStatus]="labelMapping.get(entry.msgType)"> </nz-badge>
 
         <span class="console-message"> {{ entry.message }} </span>
       </span>

@@ -10,7 +10,7 @@ object PythonConsoleUpdateEvent {
       event.operatorId,
       event.workerId,
       event.consoleMessage.timestamp,
-      event.consoleMessage.level,
+      event.consoleMessage.msgType,
       event.consoleMessage.message
     )
   }

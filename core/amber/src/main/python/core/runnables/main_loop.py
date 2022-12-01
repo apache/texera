@@ -58,7 +58,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 set_one_of(
                     ControlCommandV2,
                     PythonConsoleMessageV2(
-                        timestamp=timed_msg[0], level="PRINT", message=timed_msg[1]
+                        timestamp=timed_msg[0], msg_type="PRINT", message=timed_msg[1]
                     ),
                 ),
             )
