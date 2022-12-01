@@ -120,13 +120,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     console.log("got messages", this.consoleMessages);
   }
 
-  workerIdToAbbr(workerId: string) {
-    const tokens = workerId.split("-");
-    const abbr = "Worker-" + tokens.at(tokens.length - 1);
-    this.workerAbbrToLongNameMapping.set(abbr, workerId);
-    return abbr;
-  }
-
   workerIdToAbbr(workerId: string): string {
     return "Worker-" + this.getWorkerIndex(workerId);
   }
