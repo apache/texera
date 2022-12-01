@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object PythonConsoleMessageHandler {
 
-  final case class PythonConsoleMessage(timestamp: Timestamp, level: String, message: String)
+  final case class PythonConsoleMessage(timestamp: Timestamp, msgType: String, message: String)
       extends ControlCommand[Unit]
 }
 

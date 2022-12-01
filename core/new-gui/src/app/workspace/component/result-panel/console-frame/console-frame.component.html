@@ -24,13 +24,11 @@
   <cdk-virtual-scroll-viewport itemSize="14" class="infinite-container">
     <nz-list-item *cdkVirtualFor="let entry of consoleMessages">
       <span *ngIf="entry.workerId">
-        <nz-tag [nzColor]="workerColorMapping.get(this.workerIdToAbbr(entry.workerId))">
-          {{this.workerIdToAbbr(entry.workerId)}}</nz-tag
-        >
+        <nz-tag [nzColor]="getWorkerColor(getWorkerIndex(entry.workerId))"> {{workerIdToAbbr(entry.workerId)}}</nz-tag>
         <nz-tag *ngIf="showTimestamp">
           {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
         </nz-tag>
-        <nz-badge [nzStatus]="labelMapping.get(entry.level)"> </nz-badge>
+        <nz-badge [nzStatus]="labelMapping.get(entry.msgType)"> </nz-badge>
 
         <span class="console-message"> {{ entry.message }} </span>
       </span>

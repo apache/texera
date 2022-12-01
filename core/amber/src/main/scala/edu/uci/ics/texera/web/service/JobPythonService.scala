@@ -58,7 +58,7 @@ class JobPythonService(
                   if (diff.nonEmpty) {
                     diff.foreach(s =>
                       output.append(
-                        PythonConsoleUpdateEvent(opId, workerId, s.timestamp, s.level, s.message)
+                        PythonConsoleUpdateEvent(opId, workerId, s.timestamp, s.msgType, s.message)
                       )
                     )
                   }
@@ -92,7 +92,7 @@ class JobPythonService(
             val workerInfo = opInfo.workerInfo.getOrElse(evt.workerId, PythonWorkerInfo())
             val newMessage = new PythonConsoleMessageV2(
               evt.consoleMessage.timestamp,
-              evt.consoleMessage.level,
+              evt.consoleMessage.msgType,
               evt.consoleMessage.message
             )
             if (workerInfo.pythonConsoleMessage.size < bufferSize) {

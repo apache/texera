@@ -10,7 +10,7 @@ object PythonConsoleUpdateEvent {
       event.operatorId,
       event.workerId,
       event.consoleMessage.timestamp,
-      event.consoleMessage.level,
+      event.consoleMessage.msgType,
       event.consoleMessage.message
     )
   }
@@ -20,6 +20,6 @@ case class PythonConsoleUpdateEvent(
     operatorId: String,
     workerId: String,
     timestamp: Timestamp,
-    level: String,
+    msgType: String,
     message: String
 ) extends TexeraWebSocketEvent
