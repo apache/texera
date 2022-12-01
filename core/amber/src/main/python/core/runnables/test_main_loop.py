@@ -3,7 +3,6 @@ from threading import Thread
 import pandas
 import pyarrow
 import pytest
-from loguru import logger
 
 from core.models import (
     InputDataFrame,
@@ -39,8 +38,6 @@ from proto.edu.uci.ics.amber.engine.common import (
     ReturnInvocationV2,
 )
 from pytexera.udf.examples.echo_operator import EchoOperator
-
-logger.level("PRINT", no=38)
 
 
 class TestMainLoop:

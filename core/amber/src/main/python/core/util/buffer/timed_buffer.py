@@ -1,18 +1,20 @@
 from datetime import datetime
-from typing import Iterator, List, Tuple
+from typing import Tuple, List, Iterator
+
+from core.util.buffer.buffer_base import IBuffer
 
 
-class SimpleBuffer:
+class TimedBuffer(IBuffer):
     def __init__(self, max_message_num=10, max_flush_interval_in_ms=500):
         self._max_message_num = max_message_num
         self._max_flush_interval_in_ms = max_flush_interval_in_ms
         self._buffer: List[Tuple[datetime, str]]() = list()
         self._last_output_time = datetime.now()
 
-    def add(self, message: str) -> None:
+    def put(self, message: str) -> None:
         self._buffer.append((datetime.now(), message))
 
-    def output(self, flush=False) -> Iterator[Tuple[datetime, str]]:
+    def get(self, flush: bool = False) -> Iterator[Tuple[datetime, str]]:
         if (
             flush
             or len(self._buffer) >= self._max_message_num
@@ -22,21 +24,3 @@ class SimpleBuffer:
             self._last_output_time = datetime.now()
             yield from self._buffer
             self._buffer.clear()
-
-    def __len__(self):
-        return len(self._buffer)
-
-
-class PrintLogHandler:
-    def __init__(self, callback):
-        self.callback = callback
-        self._buffer = SimpleBuffer()
-
-    def write(self, message: str):
-        self._buffer.add(message)
-        for msg in self._buffer.output():
-            self.callback(msg)
-
-    def flush(self):
-        for msg in self._buffer.output(flush=True):
-            self.callback(msg)

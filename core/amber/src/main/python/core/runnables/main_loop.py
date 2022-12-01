@@ -1,3 +1,4 @@
+import datetime
 import threading
 import traceback
 import typing
@@ -25,7 +26,7 @@ from core.models.internal_queue import DataElement, ControlElement
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
-from core.util.print_writer.print_log_handler import PrintLogHandler
+from core.util.console_message.replace_print import replace_print
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
     LocalOperatorExceptionV2,
@@ -52,17 +53,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
-        self._print_log_handler = PrintLogHandler(
-            lambda timed_msg: self._async_rpc_client.send(
-                ActorVirtualIdentity(name="CONTROLLER"),
-                set_one_of(
-                    ControlCommandV2,
-                    PythonConsoleMessageV2(
-                        timestamp=timed_msg[0], msg_type="PRINT", message=timed_msg[1]
-                    ),
-                ),
-            )
-        )
+
         self.data_processor = DataProcessor(self.context)
         threading.Thread(target=self.data_processor.run, daemon=True).start()
 
@@ -72,7 +63,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         controller.
         """
         # flush the buffered console prints
-        self._print_log_handler.flush()
+        self._check_and_report_print(force_flush=True)
         self.context.operator_manager.operator.close()
         # stop the data processing thread
         self.data_processor.stop()
@@ -180,13 +171,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.check_and_process_control()
             yield self.context.tuple_processing_manager.current_output_tuple
             self._switch_context()
+            self._check_and_report_print()
             self._check_and_report_exception()
 
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
         Report the traceback of current stack when an exception occurs.
         """
-        self._print_log_handler.flush()
         message: str = "\n".join(traceback.format_exception(*exc_info))
         control_command = set_one_of(
             ControlCommandV2, LocalOperatorExceptionV2(message=message)
@@ -319,7 +310,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Pause the data processing.
         """
-        self._print_log_handler.flush()
+        self._check_and_report_print(force_flush=True)
         if self.context.state_manager.confirm_state(
             WorkerState.RUNNING, WorkerState.READY
         ):
@@ -354,12 +345,26 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if field_type == pyarrow.binary():
                 output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)
 
+    def _send_console_message(self, time: datetime, msg: str, msg_type="PRINT"):
+        self._async_rpc_client.send(
+            ActorVirtualIdentity(name="CONTROLLER"),
+            set_one_of(
+                ControlCommandV2,
+                PythonConsoleMessageV2(timestamp=time, msg_type=msg_type, message=msg),
+            ),
+        )
+
     def _switch_context(self):
         with self.context.tuple_processing_manager.context_switch_condition:
-            self.context.tuple_processing_manager.context_switch_condition.notify()
-            self.context.tuple_processing_manager.context_switch_condition.wait()
+            with replace_print(self.context.console_message_manager.print_buf):
+                self.context.tuple_processing_manager.context_switch_condition.notify()
+                self.context.tuple_processing_manager.context_switch_condition.wait()
 
     def _check_and_report_exception(self):
         if self.context.exception_manager.has_exception():
             self.report_exception(self.context.exception_manager.get_exc_info())
             self._pause()
+
+    def _check_and_report_print(self, force_flush=False):
+        for time, msg in self.context.console_message_manager.get_messages(force_flush):
+            self._send_console_message(time, msg)
