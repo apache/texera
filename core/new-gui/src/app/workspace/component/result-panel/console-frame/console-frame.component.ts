@@ -122,7 +122,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   displayConsoleMessages(operatorId: string) {
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
-    console.log("got messages", this.consoleMessages);
   }
 
   workerIdToAbbr(workerId: string) {
