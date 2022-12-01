@@ -30,7 +30,7 @@ final case class JobStatsStore(
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       operatorInfo.foreach { __v =>
         val __m = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(__v)
-        _output__.writeTag(3, 2)
+        _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
@@ -41,13 +41,13 @@ final case class JobStatsStore(
     def withOperatorInfo(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]): JobStatsStore = copy(operatorInfo = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 3 => operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_)).toSeq
+        case 1 => operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_)).toSeq
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 3 => _root_.scalapb.descriptors.PRepeated(operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_).toPMessage).toVector)
+        case 1 => _root_.scalapb.descriptors.PRepeated(operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_).toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -64,7 +64,7 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
-        case 26 =>
+        case 10 =>
           __operatorInfo += edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry](_input__))
         case tag => _input__.skipField(tag)
       }
@@ -77,16 +77,16 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore(
-        operatorInfo = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toCustom(_)).toMap
+        operatorInfo = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toCustom(_)).toMap
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowruntimestateProto.javaDescriptor.getMessageTypes().get(7)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowruntimestateProto.scalaDescriptor.messages(7)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowruntimestateProto.javaDescriptor.getMessageTypes().get(8)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowruntimestateProto.scalaDescriptor.messages(8)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 3 => __out = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry
+      case 1 => __out = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry
     }
     __out
   }
@@ -236,7 +236,7 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
   implicit class JobStatsStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore](_l) {
     def operatorInfo: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]] = field(_.operatorInfo)((c_, f_) => c_.copy(operatorInfo = f_))
   }
-  final val OPERATOR_INFO_FIELD_NUMBER = 3
+  final val OPERATOR_INFO_FIELD_NUMBER = 1
   @transient
   private[workflowruntimestate] val _typemapper_operatorInfo: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats)]]
   def of(

@@ -116,6 +116,7 @@ import { NzImageModule } from "ng-zorro-antd/image";
 import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { NzSwitchModule } from "ng-zorro-antd/switch";
 
 registerLocaleData(en);
 
@@ -247,6 +248,7 @@ registerLocaleData(en);
     NzCommentModule,
     ColorPickerModule,
     NgPipesModule,
+    NzSwitchModule,
   ],
   providers: [
     DatePipe,

@@ -100,7 +100,13 @@ export type BreakpointTriggerInfo = Readonly<{
   operatorID: string;
 }>;
 
-export type PythonPrintTriggerInfo = Readonly<{
+export type PythonConsoleMessage = Readonly<{
+  operatorId: string;
+  workerId: string;
+  timestamp: {
+    nanos: number;
+    seconds: number;
+  };
+  msgType: string;
   message: Readonly<string>;
-  operatorID: string;
 }>;

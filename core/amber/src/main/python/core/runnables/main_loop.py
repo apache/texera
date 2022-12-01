@@ -29,10 +29,10 @@ from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
     LocalOperatorExceptionV2,
-    PythonPrintV2,
     WorkerExecutionCompletedV2,
     WorkerState,
     LinkCompletedV2,
+    PythonConsoleMessageV2,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -53,9 +53,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
         self._print_log_handler = PrintLogHandler(
-            lambda msg: self._async_rpc_client.send(
+            lambda timed_msg: self._async_rpc_client.send(
                 ActorVirtualIdentity(name="CONTROLLER"),
-                set_one_of(ControlCommandV2, PythonPrintV2(message=msg)),
+                set_one_of(
+                    ControlCommandV2,
+                    PythonConsoleMessageV2(
+                        timestamp=timed_msg[0], msg_type="PRINT", message=timed_msg[1]
+                    ),
+                ),
             )
         )
         self.data_processor = DataProcessor(self.context)

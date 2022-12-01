@@ -15,5 +15,6 @@ class ModifyOperatorLogicHandler(Handler):
             context.main_loop._print_log_handler,
             level="PRINT",
             filter=context.operator_manager.operator_module_name,
+            format="{message}",
         )
         return None
