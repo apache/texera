@@ -100,10 +100,6 @@ export type BreakpointTriggerInfo = Readonly<{
   operatorID: string;
 }>;
 
-/**
- * Referring to PythonConsoleMessage defined in
- * src/main/scala/edu/uci/ics/amber/engine/architecture/controller/promisehandlers/PythonConsoleMessageHandler.scala
- */
 export type PythonConsoleMessage = Readonly<{
   operatorId: string;
   workerId: string;
