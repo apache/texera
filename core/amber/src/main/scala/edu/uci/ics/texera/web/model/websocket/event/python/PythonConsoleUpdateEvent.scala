@@ -22,7 +22,7 @@ object PythonConsoleUpdateEvent {
 case class PythonWorkerConsoleMessage(
     workerId: String,
     timestamp: Timestamp,
-    level: String,
+    msgType: String,
     source: String,
     message: String
 )
