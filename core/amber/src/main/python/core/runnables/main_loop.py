@@ -345,12 +345,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if field_type == pyarrow.binary():
                 output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)
 
-    def _send_console_message(self, time: datetime, msg: str, level="PRINT"):
+    def _send_console_message(self, time: datetime, msg: str, msg_type="PRINT"):
         self._async_rpc_client.send(
             ActorVirtualIdentity(name="CONTROLLER"),
             set_one_of(
                 ControlCommandV2,
-                PythonConsoleMessageV2(timestamp=time, level=level, message=msg),
+                PythonConsoleMessageV2(timestamp=time, msg_type=msg_type, message=msg),
             ),
         )
 
