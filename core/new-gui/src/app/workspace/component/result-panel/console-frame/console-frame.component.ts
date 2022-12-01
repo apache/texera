@@ -124,11 +124,14 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   getWorkerColor(workerIndex: number): string {
     const presetPalettesSize = Object.keys(presetPalettes).length;
-    const colorKey = Object.keys(presetPalettes)[workerIndex % presetPalettesSize];
 
-    // use shade index >=0 as they are dark enough.
+    // exclude red (index 0) and volcano (index 1) as they look as warning/error.
+    // use *3 to diff colors between adjacent workers.
+    const colorKey = Object.keys(presetPalettes)[2 + ((workerIndex * 3) % (presetPalettesSize - 2))];
+
+    // use shade index >=6 as they are dark enough.
     return presetPalettes[colorKey][
-      6 + (Math.floor(workerIndex / presetPalettesSize) % (presetPalettes[colorKey].length - 6))
+      6 + ((Math.floor(workerIndex / presetPalettesSize) * 3) % (presetPalettes[colorKey].length - 6))
     ];
   }
 
