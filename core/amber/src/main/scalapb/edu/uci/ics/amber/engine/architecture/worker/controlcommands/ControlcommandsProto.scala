@@ -10,8 +10,7 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningsProto,
     edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto,
     com.google.protobuf.timestamp.TimestampProto,
-    scalapb.options.ScalapbProto,
-    com.google.protobuf.timestamp.TimestampProto
+    scalapb.options.ScalapbProto
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
@@ -115,8 +114,7 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningsProto.javaDescriptor,
       edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto.javaDescriptor,
       com.google.protobuf.timestamp.TimestampProto.javaDescriptor,
-      scalapb.options.ScalapbProto.javaDescriptor,
-      com.google.protobuf.timestamp.TimestampProto.javaDescriptor
+      scalapb.options.ScalapbProto.javaDescriptor
     ))
   }
   @deprecated("Use javaDescriptor instead. In a future version this will refer to scalaDescriptor.", "ScalaPB 0.5.47")

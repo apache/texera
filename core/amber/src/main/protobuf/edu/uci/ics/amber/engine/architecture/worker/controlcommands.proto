@@ -6,7 +6,6 @@ import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto"
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
-import "google/protobuf/timestamp.proto";
 
 option (scalapb.options) = {
     scope: FILE,
