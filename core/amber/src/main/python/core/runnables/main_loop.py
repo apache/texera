@@ -1,4 +1,3 @@
-import datetime
 import threading
 import traceback
 import typing
@@ -345,12 +344,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if field_type == pyarrow.binary():
                 output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)
 
-    def _send_console_message(self, time: datetime, msg: str, msg_type="PRINT"):
+    def _send_console_message(self, console_message: PythonConsoleMessageV2):
         self._async_rpc_client.send(
             ActorVirtualIdentity(name="CONTROLLER"),
             set_one_of(
                 ControlCommandV2,
-                PythonConsoleMessageV2(timestamp=time, msg_type=msg_type, message=msg),
+                console_message,
             ),
         )
 
@@ -366,5 +365,5 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._pause()
 
     def _check_and_report_print(self, force_flush=False):
-        for time, msg in self.context.console_message_manager.get_messages(force_flush):
-            self._send_console_message(time, msg)
+        for msg in self.context.console_message_manager.get_messages(force_flush):
+            self._send_console_message(msg)

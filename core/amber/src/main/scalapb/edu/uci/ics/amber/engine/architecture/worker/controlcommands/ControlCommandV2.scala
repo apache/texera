@@ -2027,6 +2027,7 @@ object ModifyOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.i
 final case class PythonConsoleMessageV2(
     timestamp: com.google.protobuf.timestamp.Timestamp,
     msgType: _root_.scala.Predef.String,
+    source: _root_.scala.Predef.String,
     message: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[PythonConsoleMessageV2] {
     @transient
@@ -2049,9 +2050,16 @@ final case class PythonConsoleMessageV2(
       };
       
       {
-        val __value = message
+        val __value = source
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
+        }
+      };
+      
+      {
+        val __value = message
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(4, __value)
         }
       };
       __size
@@ -2080,14 +2088,21 @@ final case class PythonConsoleMessageV2(
         }
       };
       {
-        val __v = message
+        val __v = source
         if (!__v.isEmpty) {
           _output__.writeString(3, __v)
+        }
+      };
+      {
+        val __v = message
+        if (!__v.isEmpty) {
+          _output__.writeString(4, __v)
         }
       };
     }
     def withTimestamp(__v: com.google.protobuf.timestamp.Timestamp): PythonConsoleMessageV2 = copy(timestamp = __v)
     def withMsgType(__v: _root_.scala.Predef.String): PythonConsoleMessageV2 = copy(msgType = __v)
+    def withSource(__v: _root_.scala.Predef.String): PythonConsoleMessageV2 = copy(source = __v)
     def withMessage(__v: _root_.scala.Predef.String): PythonConsoleMessageV2 = copy(message = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
@@ -2100,6 +2115,10 @@ final case class PythonConsoleMessageV2(
           if (__t != "") __t else null
         }
         case 3 => {
+          val __t = source
+          if (__t != "") __t else null
+        }
+        case 4 => {
           val __t = message
           if (__t != "") __t else null
         }
@@ -2110,7 +2129,8 @@ final case class PythonConsoleMessageV2(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => timestamp.toPMessage
         case 2 => _root_.scalapb.descriptors.PString(msgType)
-        case 3 => _root_.scalapb.descriptors.PString(message)
+        case 3 => _root_.scalapb.descriptors.PString(source)
+        case 4 => _root_.scalapb.descriptors.PString(message)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -2123,6 +2143,7 @@ object PythonConsoleMessageV2 extends scalapb.GeneratedMessageCompanion[edu.uci.
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2 = {
     var __timestamp: _root_.scala.Option[com.google.protobuf.timestamp.Timestamp] = _root_.scala.None
     var __msgType: _root_.scala.Predef.String = ""
+    var __source: _root_.scala.Predef.String = ""
     var __message: _root_.scala.Predef.String = ""
     var _done__ = false
     while (!_done__) {
@@ -2134,6 +2155,8 @@ object PythonConsoleMessageV2 extends scalapb.GeneratedMessageCompanion[edu.uci.
         case 18 =>
           __msgType = _input__.readStringRequireUtf8()
         case 26 =>
+          __source = _input__.readStringRequireUtf8()
+        case 34 =>
           __message = _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
@@ -2141,6 +2164,7 @@ object PythonConsoleMessageV2 extends scalapb.GeneratedMessageCompanion[edu.uci.
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2(
         timestamp = __timestamp.getOrElse(com.google.protobuf.timestamp.Timestamp.defaultInstance),
         msgType = __msgType,
+        source = __source,
         message = __message
     )
   }
@@ -2150,7 +2174,8 @@ object PythonConsoleMessageV2 extends scalapb.GeneratedMessageCompanion[edu.uci.
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2(
         timestamp = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[com.google.protobuf.timestamp.Timestamp]).getOrElse(com.google.protobuf.timestamp.Timestamp.defaultInstance),
         msgType = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        message = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        source = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        message = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -2168,23 +2193,28 @@ object PythonConsoleMessageV2 extends scalapb.GeneratedMessageCompanion[edu.uci.
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2(
     timestamp = com.google.protobuf.timestamp.Timestamp.defaultInstance,
     msgType = "",
+    source = "",
     message = ""
   )
   implicit class PythonConsoleMessageV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2](_l) {
     def timestamp: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.timestamp.Timestamp] = field(_.timestamp)((c_, f_) => c_.copy(timestamp = f_))
     def msgType: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.msgType)((c_, f_) => c_.copy(msgType = f_))
+    def source: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.source)((c_, f_) => c_.copy(source = f_))
     def message: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.message)((c_, f_) => c_.copy(message = f_))
   }
   final val TIMESTAMP_FIELD_NUMBER = 1
   final val MSG_TYPE_FIELD_NUMBER = 2
-  final val MESSAGE_FIELD_NUMBER = 3
+  final val SOURCE_FIELD_NUMBER = 3
+  final val MESSAGE_FIELD_NUMBER = 4
   def of(
     timestamp: com.google.protobuf.timestamp.Timestamp,
     msgType: _root_.scala.Predef.String,
+    source: _root_.scala.Predef.String,
     message: _root_.scala.Predef.String
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2(
     timestamp,
     msgType,
+    source,
     message
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.PythonConsoleMessageV2])

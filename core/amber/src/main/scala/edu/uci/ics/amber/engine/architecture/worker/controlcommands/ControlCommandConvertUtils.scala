@@ -83,8 +83,8 @@ object ControlCommandConvertUtils {
         WorkerExecutionCompleted()
       case LocalOperatorExceptionV2(message) =>
         LocalOperatorException(null, new RuntimeException(message))
-      case PythonConsoleMessageV2(timestamp, level, message) =>
-        PythonConsoleMessage(timestamp, level, message)
+      case PythonConsoleMessageV2(timestamp, msgType, source, message) =>
+        PythonConsoleMessage(timestamp, msgType, source, message)
       case LinkCompletedV2(link) => LinkCompleted(link)
       case _ =>
         throw new UnsupportedOperationException(

@@ -100,13 +100,21 @@ export type BreakpointTriggerInfo = Readonly<{
   operatorID: string;
 }>;
 
-export type PythonConsoleMessage = Readonly<{
-  operatorId: string;
+/**
+ * refer to src/main/scalapb/edu/uci/ics/texera/web/workflowruntimestate/ConsoleMessage.scala
+ */
+export type ConsoleMessage = Readonly<{
   workerId: string;
   timestamp: {
     nanos: number;
     seconds: number;
   };
   msgType: string;
-  message: Readonly<string>;
+  source: string;
+  message: string;
+}>;
+
+export type ConsoleUpdateEvent = Readonly<{
+  operatorId: string;
+  messages: ReadonlyArray<ConsoleMessage>;
 }>;
