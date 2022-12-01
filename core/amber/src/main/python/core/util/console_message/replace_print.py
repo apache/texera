@@ -2,8 +2,12 @@ import builtins
 from contextlib import redirect_stdout
 from io import StringIO
 
+from typing import ContextManager
 
-class replace_print:
+from core.util.buffer.buffer_base import IBuffer
+
+
+class replace_print(ContextManager):
     """
     A context manager to support replace builtin print function.
 
@@ -16,8 +20,7 @@ class replace_print:
     print function.
     """
 
-    def __init__(self, buf):
-
+    def __init__(self, buf: IBuffer):
         # save a reference to the original builtin.print before we replace it.
         # it will always replace back when the context manager exits, with exception
         # or not.
@@ -32,7 +35,7 @@ class replace_print:
             with StringIO() as tmp_buf, redirect_stdout(tmp_buf):
                 self.builtins_print(*args, **kwargs)
                 complete_str = tmp_buf.getvalue()
-                self.buf.add(complete_str)
+                self.buf.put(complete_str)
 
         builtins.print = wrapped_print
 

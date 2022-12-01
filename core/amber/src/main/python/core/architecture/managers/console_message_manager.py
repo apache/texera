@@ -1,4 +1,4 @@
-from core.util.console_message.timed_buffer import TimedBuffer
+from core.util.buffer.timed_buffer import TimedBuffer
 
 
 class ConsoleMessageManager:
