@@ -42,7 +42,7 @@ message OperatorBreakpoints{
 }
 
 message JobBreakpointStore{
-  map<string,OperatorBreakpoints> operator_info = 1;
+  map<string, OperatorBreakpoints> operator_info = 1;
 }
 
 message EvaluatedValueList{
@@ -50,26 +50,22 @@ message EvaluatedValueList{
 }
 
 message PythonWorkerInfo {
-  repeated amber.engine.architecture.worker.PythonConsoleMessageV2 python_console_messages= 1;
+  repeated amber.engine.architecture.worker.PythonConsoleMessageV2 python_console_messages = 1;
 }
 
 message PythonOperatorInfo{
   map<string, PythonWorkerInfo> worker_info = 1;
-  map<string,EvaluatedValueList> evaluate_expr_results = 2;
+  map<string, EvaluatedValueList> evaluate_expr_results = 2;
 }
 
 message JobPythonStore{
   map<string, PythonOperatorInfo> operator_info = 1;
 }
 
-message WorkerRuntimeStats{
-}
-
 message OperatorRuntimeStats{
   WorkflowAggregatedState state = 1;
   int64 input_count = 2;
   int64 output_count = 3;
-  map<string, WorkerRuntimeStats> worker_info = 4;
 }
 
 message JobStatsStore {

@@ -106,7 +106,7 @@ export type PythonWorkerConsoleMessage = Readonly<{
     nanos: number;
     seconds: number;
   };
-  level: string;
+  msgType: string;
   source: string;
   message: string;
 }>;

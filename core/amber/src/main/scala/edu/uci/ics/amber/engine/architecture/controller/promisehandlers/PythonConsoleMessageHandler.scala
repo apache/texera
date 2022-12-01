@@ -11,7 +11,7 @@ object PythonConsoleMessageHandler {
 
   final case class PythonConsoleMessage(
       timestamp: Timestamp,
-      level: String,
+      msgType: String,
       source: String,
       message: String
   ) extends ControlCommand[Unit]
@@ -26,7 +26,7 @@ trait PythonConsoleMessageHandler {
         PythonConsoleMessageTriggered(
           workflow.getOperator(sender).id.operator,
           sender.name,
-          PythonConsoleMessageV2(msg.timestamp, msg.level, msg.source, msg.message)
+          PythonConsoleMessageV2(msg.timestamp, msg.msgType, msg.source, msg.message)
         )
       )
     }

@@ -169,7 +169,7 @@ class ReplayCurrentTupleV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PythonConsoleMessageV2(betterproto.Message):
     timestamp: datetime = betterproto.message_field(1)
-    level: str = betterproto.string_field(2)
+    msg_type: str = betterproto.string_field(2)
     source: str = betterproto.string_field(3)
     message: str = betterproto.string_field(4)
 
