@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Protocol, TypeVar, Sized, Optional
+from typing import TypeVar, Sized, Optional
+from typing_extensions import Protocol
 
 T = TypeVar("T")
 K = TypeVar("K")
