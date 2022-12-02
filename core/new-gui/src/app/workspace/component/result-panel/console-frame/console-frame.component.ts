@@ -1,13 +1,13 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
-import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { BreakpointTriggerInfo, ConsoleMessage } from "../../../types/workflow-common.interface";
-import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
-import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
-import { presetPalettes } from "@ant-design/colors";
-import { isDefined } from "../../../../common/util/predicate";
-import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import {Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild} from "@angular/core";
+import {ExecuteWorkflowService} from "../../../service/execute-workflow/execute-workflow.service";
+import {BreakpointTriggerInfo, ConsoleMessage} from "../../../types/workflow-common.interface";
+import {ExecutionState} from "src/app/workspace/types/execute-workflow.interface";
+import {WorkflowConsoleService} from "../../../service/workflow-console/workflow-console.service";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {CdkVirtualScrollViewport} from "@angular/cdk/scrolling";
+import {presetPalettes} from "@ant-design/colors";
+import {isDefined} from "../../../../common/util/predicate";
+import {WorkflowWebsocketService} from "../../../service/workflow-websocket/workflow-websocket.service";
 
 @UntilDestroy()
 @Component({
@@ -45,7 +45,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowConsoleService: WorkflowConsoleService,
     private workflowWebsocketService: WorkflowWebsocketService
-  ) {}
+  ) {
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.operatorId = changes.operatorId?.currentValue;
@@ -166,8 +167,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
     // use shade index >=6 as they are dark enough.
     return presetPalettes[colorKey][
-      6 + ((Math.floor(workerIndex / presetPalettesSize) * 3) % (presetPalettes[colorKey].length - 6))
-    ];
+    6 + ((Math.floor(workerIndex / presetPalettesSize) * 3) % (presetPalettes[colorKey].length - 6))
+      ];
   }
 
   getWorkerIndex(workerId: string): number {
