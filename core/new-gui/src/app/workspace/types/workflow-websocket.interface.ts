@@ -140,6 +140,11 @@ export type PythonExpressionEvaluateResponse = Readonly<{
   values: EvaluatedValue[];
 }>;
 
+export type WorkflowWorkersUpdateEvent = Readonly<{
+  operatorId: string;
+  workerIds: readonly string[];
+}>;
+
 export type WorkerAssignmentUpdateEvent = Readonly<{
   operatorId: string;
   workerIds: readonly string[];
