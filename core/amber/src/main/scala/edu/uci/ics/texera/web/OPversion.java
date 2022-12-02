@@ -14,7 +14,8 @@ public class OPversion {
     static {
         try {
             Path path = Paths.get(currentPath);
-            if(currentPath.contains("core/amber")){
+            Path amberPath = Paths.get("core/amber/");
+            if(path.endsWith(amberPath)){
                 path = Paths.get(currentPath).getParent().getParent();
             }
             git = Git.open(new File(path+"/.git"));
