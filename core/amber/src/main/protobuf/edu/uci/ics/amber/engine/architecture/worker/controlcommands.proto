@@ -4,8 +4,8 @@ package edu.uci.ics.amber.engine.architecture.worker;
 
 import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
-import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
     scope: FILE,
@@ -66,7 +66,8 @@ message ReplayCurrentTupleV2 {
 message PythonConsoleMessageV2 {
     google.protobuf.Timestamp timestamp = 1  [(scalapb.field).no_box = true];
     string msg_type = 2;
-    string message = 3;
+    string source = 3;
+    string message = 4;
 }
 
 message EvaluateExpressionV2 {
