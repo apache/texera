@@ -3,6 +3,7 @@ syntax = "proto3";
 package edu.uci.ics.texera.web;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -41,22 +42,29 @@ message OperatorBreakpoints{
 }
 
 message JobBreakpointStore{
-  map<string,OperatorBreakpoints> operator_info = 1;
+  map<string, OperatorBreakpoints> operator_info = 1;
 }
 
 message EvaluatedValueList{
   repeated amber.engine.architecture.worker.EvaluatedValue values = 1;
 }
 
+message ConsoleMessage {
+  string workerId = 1;
+  google.protobuf.Timestamp timestamp = 2  [(scalapb.field).no_box = true];
+  string msg_type = 3;
+  string source = 4;
+  string message = 5;
+}
+
 message PythonOperatorInfo{
-  repeated string console_messages = 1;
-  map<string,EvaluatedValueList> evaluate_expr_results = 2;
+  repeated ConsoleMessage console_messages = 1;
+  map<string, EvaluatedValueList> evaluate_expr_results = 2;
 }
 
 message JobPythonStore{
   map<string, PythonOperatorInfo> operator_info = 1;
 }
-
 
 message OperatorRuntimeStats{
   WorkflowAggregatedState state = 1;
@@ -65,7 +73,7 @@ message OperatorRuntimeStats{
 }
 
 message JobStatsStore {
-  map<string,OperatorRuntimeStats> operator_info = 3;
+  map<string, OperatorRuntimeStats> operator_info = 1;
 }
 
 message JobMetadataStore{
