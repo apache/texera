@@ -10,4 +10,4 @@ class SchedulerTimeSlotEventHandler(Handler):
     def __call__(
         self, context: Context, command: SchedulerTimeSlotEventV2, *args, **kwargs
     ):
-        context.dp._scheduler_time_slot_event(command.time_slot_expired)
+        context.main_loop._scheduler_time_slot_event(command.time_slot_expired)
