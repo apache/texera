@@ -21,7 +21,9 @@ import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.{
-  ConsoleMessage, EvaluatedValueList, JobPythonStore,
+  ConsoleMessage,
+  EvaluatedValueList,
+  JobPythonStore,
   PythonOperatorInfo
 }
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
@@ -34,11 +36,11 @@ object JobPythonService {
 }
 
 class JobPythonService(
-                        client: AmberClient,
-                        stateStore: JobStateStore,
-                        wsInput: WebsocketInput,
-                        breakpointService: JobBreakpointService
-                      ) extends SubscriptionManager {
+    client: AmberClient,
+    stateStore: JobStateStore,
+    wsInput: WebsocketInput,
+    breakpointService: JobBreakpointService
+) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 
   addSubscription(

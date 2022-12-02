@@ -8,15 +8,13 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 object PythonDebugCommandHandler {
-  final case class PythonDebugCommand(workerId: String, cmd: String)
-    extends ControlCommand[Unit]
+  final case class PythonDebugCommand(workerId: String, cmd: String) extends ControlCommand[Unit]
 }
 
 trait PythonDebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
   registerHandler { (msg: PythonDebugCommand, sender) => {
-
-    Future(send(DebugCommand(msg.cmd), ActorVirtualIdentity(msg.workerId))).unit
-  }
+      Future(send(DebugCommand(msg.cmd), ActorVirtualIdentity(msg.workerId))).unit
+    }
   }
 }
