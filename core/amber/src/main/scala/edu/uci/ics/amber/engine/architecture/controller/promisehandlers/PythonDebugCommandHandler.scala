@@ -13,7 +13,8 @@ object PythonDebugCommandHandler {
 
 trait PythonDebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler { (msg: PythonDebugCommand, sender) => {
+  registerHandler { (msg: PythonDebugCommand, sender) =>
+    {
       Future(send(DebugCommand(msg.cmd), ActorVirtualIdentity(msg.workerId))).unit
     }
   }
