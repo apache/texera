@@ -1,3 +1,4 @@
+import datetime
 import threading
 import traceback
 import typing
@@ -25,7 +26,6 @@ from core.models.internal_queue import DataElement, ControlElement
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
-from core.util.console_message.replace_print import replace_print
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
     LocalOperatorExceptionV2,
@@ -309,6 +309,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Pause the data processing.
         """
+        logger.info("pausing main loop " + str(threading.current_thread()))
         self._check_and_report_print(force_flush=True)
         if self.context.state_manager.confirm_state(
             WorkerState.RUNNING, WorkerState.READY
@@ -321,6 +322,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Resume the data processing.
         """
+        logger.info("resuming main loop " + str(threading.current_thread()))
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
             if not self.context.pause_manager.is_paused():
@@ -354,10 +356,29 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
 
     def _switch_context(self):
-        with self.context.tuple_processing_manager.context_switch_condition:
-            with replace_print(self.context.console_message_manager.print_buf):
+        logger.info("in switch context " + str(threading.current_thread()))
+        if not self.context.debug_manager.talk_with_debugger.is_set():
+            # normal execution mode, switch to dp
+            with self.context.tuple_processing_manager.context_switch_condition:
                 self.context.tuple_processing_manager.context_switch_condition.notify()
                 self.context.tuple_processing_manager.context_switch_condition.wait()
+                logger.info("in main loop")
+
+        logger.info("check and report debug event " + str(threading.current_thread()))
+        if self.context.debug_manager.debug_out.value is not None:
+            debug_event = self.context.debug_manager.debug_out.readline()
+            logger.info("report debug event to UI " + debug_event)
+            self._send_console_message(
+                PythonConsoleMessageV2(
+                    timestamp=datetime.datetime.now(),
+                    msg_type="DEBUGGER",
+                    source=f"",
+                    message=debug_event,
+                )
+            )
+            logger.info("setting talk with debugger to True")
+            self.context.debug_manager.talk_with_debugger.set()
+            self._pause()
 
     def _check_and_report_exception(self):
         if self.context.exception_manager.has_exception():

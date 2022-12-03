@@ -5,7 +5,9 @@ from loguru import logger
 
 from core.architecture.managers import Context
 from core.models import Tuple
+from core.models.tdb import Tdb
 from core.util import Stoppable
+from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
 
 
@@ -13,6 +15,9 @@ class DataProcessor(Runnable, Stoppable):
     def __init__(self, context: Context):
         self._running = Event()
         self._context = context
+        self._tdb = Tdb(
+            self._context.debug_manager.debug_in, self._context.debug_manager.debug_out
+        )
 
     def run(self) -> None:
         with self._context.tuple_processing_manager.context_switch_condition:
@@ -45,11 +50,12 @@ class DataProcessor(Runnable, Stoppable):
                     if isinstance(tuple_, Tuple)
                     else operator.on_finish(port)
                 )
-                for output in output_iterator:
-                    self._context.tuple_processing_manager.current_output_tuple = (
-                        None if output is None else Tuple(output)
-                    )
-                    self._switch_context()
+                with replace_print(self._context.console_message_manager.print_buf):
+                    for output in output_iterator:
+                        self._context.tuple_processing_manager.current_output_tuple = (
+                            None if output is None else Tuple(output)
+                        )
+                        self._switch_context()
 
                 # current tuple finished successfully
                 finished_current.set()
@@ -62,8 +68,17 @@ class DataProcessor(Runnable, Stoppable):
 
     def _switch_context(self):
         with self._context.tuple_processing_manager.context_switch_condition:
+            self._context.debug_manager.talk_with_debugger.clear()
             self._context.tuple_processing_manager.context_switch_condition.notify()
             self._context.tuple_processing_manager.context_switch_condition.wait()
+            logger.info("in dp")
+        if (
+            not self._context.debug_manager.talk_with_debugger.is_set()
+            and self._context.debug_manager.debug_in.value is not None
+        ):
+            logger.info(" bring up tdb")
+            self._context.debug_manager.talk_with_debugger.set()
+            self._tdb.set_trace()
 
     def stop(self):
         self._running.clear()
