@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import threading
 from pdb import Pdb
 from threading import Condition
-from typing import IO
+from types import TracebackType
+from typing import IO, Type, AnyStr, Iterator, Iterable
 
 from loguru import logger
 
@@ -52,9 +55,58 @@ class SingleBlockingIO(IO):
             logger.info("set value to None")
             self.value = None
 
-    readline_unblock = readline
+    ####################################################################################
+    # The following IO methods are not implemented as they are not used in pdb.
+    ####################################################################################
+    def close(self) -> None:
+        pass
 
+    def fileno(self) -> int:
+        pass
 
-class Tdb(Pdb):
-    def __init__(self, stdin: SingleBlockingIO, stdout: SingleBlockingIO):
-        super().__init__(stdin=stdin, stdout=stdout)
+    def isatty(self) -> bool:
+        pass
+
+    def read(self, __n: int = ...) -> AnyStr:
+        pass
+
+    def readable(self) -> bool:
+        pass
+
+    def readlines(self, __hint: int = ...) -> list[AnyStr]:
+        pass
+
+    def seek(self, __offset: int, __whence: int = ...) -> int:
+        pass
+
+    def seekable(self) -> bool:
+        pass
+
+    def tell(self) -> int:
+        pass
+
+    def truncate(self, __size: int | None = ...) -> int:
+        pass
+
+    def writable(self) -> bool:
+        pass
+
+    def writelines(self, __lines: Iterable[AnyStr]) -> None:
+        pass
+
+    def __next__(self) -> AnyStr:
+        pass
+
+    def __iter__(self) -> Iterator[AnyStr]:
+        pass
+
+    def __enter__(self) -> IO[AnyStr]:
+        pass
+
+    def __exit__(
+        self,
+        __t: Type[BaseException] | None,
+        __value: BaseException | None,
+        __traceback: TracebackType | None,
+    ) -> bool | None:
+        pass

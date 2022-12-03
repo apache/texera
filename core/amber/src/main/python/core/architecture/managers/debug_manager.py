@@ -1,6 +1,6 @@
 from threading import Event
 
-from core.models.tdb import SingleBlockingIO
+from core.models.single_blocking_io import SingleBlockingIO
 
 
 class DebugManager:

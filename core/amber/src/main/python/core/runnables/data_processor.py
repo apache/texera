@@ -1,11 +1,11 @@
 import sys
+from pdb import Pdb
 from threading import Event
 
 from loguru import logger
 
 from core.architecture.managers import Context
 from core.models import Tuple
-from core.models.tdb import Tdb
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
@@ -15,8 +15,9 @@ class DataProcessor(Runnable, Stoppable):
     def __init__(self, context: Context):
         self._running = Event()
         self._context = context
-        self._tdb = Tdb(
-            self._context.debug_manager.debug_in, self._context.debug_manager.debug_out
+        self._debugger = Pdb(
+            stdin=self._context.debug_manager.debug_in,
+            stdout=self._context.debug_manager.debug_out,
         )
 
     def run(self) -> None:
@@ -76,9 +77,9 @@ class DataProcessor(Runnable, Stoppable):
             not self._context.debug_manager.talk_with_debugger.is_set()
             and self._context.debug_manager.debug_in.value is not None
         ):
-            logger.info(" bring up tdb")
+            logger.info("bring up pdb")
             self._context.debug_manager.talk_with_debugger.set()
-            self._tdb.set_trace()
+            self._debugger.set_trace()
 
     def stop(self):
         self._running.clear()

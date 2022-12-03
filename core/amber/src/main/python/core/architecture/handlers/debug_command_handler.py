@@ -5,7 +5,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 )
 from .handler_base import Handler
 from ..managers.context import Context
-from ...models.tdb import Tdb
+from ...models.single_blocking_io import Tdb
 
 
 class WorkerDebugCommandHandler(Handler):
