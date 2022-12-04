@@ -54,7 +54,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
 
         self.data_processor = DataProcessor(self.context)
-        threading.Thread(target=self.data_processor.run, daemon=True).start()
+        threading.Thread(
+            target=self.data_processor.run, daemon=True, name="DataProcessor"
+        ).start()
 
     def complete(self) -> None:
         """
@@ -372,7 +374,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 PythonConsoleMessageV2(
                     timestamp=datetime.datetime.now(),
                     msg_type="DEBUGGER",
-                    source=f"",
+                    source="",
+                    # TODO: find a good way to transfer source information
+                    #   of a debug event.
                     message=debug_event,
                 )
             )

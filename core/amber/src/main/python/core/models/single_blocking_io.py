@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import threading
-from pdb import Pdb
-from threading import Condition
+from threading import Condition, current_thread
 from types import TracebackType
 from typing import IO, Type, AnyStr, Iterator, Iterable
 
@@ -25,30 +23,24 @@ class SingleBlockingIO(IO):
         if self.value is None:
             self.value = ""
         self.value += "\n"
-        logger.info("calling flush " + str(threading.current_thread()))
+        logger.info("calling flush " + str(current_thread()))
         with self.condition:
             logger.info(
-                "done with flush "
-                + str(threading.current_thread())
-                + ": "
-                + repr(self.value)
+                "done with flush " + str(current_thread()) + ": " + repr(self.value)
             )
             self.condition.notify()
-            logger.info("waiting after flush " + str(threading.current_thread()))
+            logger.info("waiting after flush " + str(current_thread()))
             self.condition.wait()
 
     def readline(self, limit=None):
-        logger.info("calling readline " + str(threading.current_thread()))
+        logger.info("calling readline " + str(current_thread()))
         try:
             with self.condition:
                 if self.value is None:
-                    logger.info("waiting on read " + str(threading.current_thread()))
+                    logger.info("waiting on read " + str(current_thread()))
                     self.condition.wait()
                 logger.info(
-                    "done with read "
-                    + str(threading.current_thread())
-                    + ": "
-                    + repr(self.value)
+                    "done with read " + str(current_thread()) + ": " + repr(self.value)
                 )
                 return self.value + "\n"
         finally:
