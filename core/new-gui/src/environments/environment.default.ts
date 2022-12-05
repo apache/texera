@@ -36,12 +36,12 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: false,
+  userSystemEnabled: true,
 
   /**
    * whether local login is enabled
    */
-  localLogin: true,
+  localLogin: false,
 
   /**
    * whether user preset feature is enabled, requires user system to be enabled

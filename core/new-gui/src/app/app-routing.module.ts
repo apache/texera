@@ -10,6 +10,8 @@ import { UserProjectListComponent } from "./dashboard/component/feature-containe
 
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 
+import { LoginComponent } from "./dashboard/component/login/login.component";
+import { AuthGuardService } from "./dashboard/service/auth-guard/auth-guard.service";
 /*
  *  This file defines the url path
  *  The workflow workspace is set as default path
@@ -18,10 +20,12 @@ const routes: Routes = [
   {
     path: "",
     component: WorkspaceComponent,
-  },
+    canActivate: [AuthGuardService],
+},
   {
     path: "workflow/:id",
     component: WorkspaceComponent,
+    canActivate: [AuthGuardService],
   },
 ];
 
@@ -38,6 +42,7 @@ if (environment.userSystemEnabled) {
   routes.push({
     path: "dashboard",
     component: DashboardComponent,
+    canActivate: [AuthGuardService],
     children: [
       {
         path: "user-project",
@@ -56,6 +61,11 @@ if (environment.userSystemEnabled) {
         component: UserFileSectionComponent,
       },
     ],
+  });
+
+  routes.push({
+    path: "login",
+    component: LoginComponent,
   });
 }
 
