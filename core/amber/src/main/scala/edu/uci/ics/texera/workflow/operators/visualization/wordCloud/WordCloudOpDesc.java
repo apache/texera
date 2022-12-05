@@ -68,7 +68,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
+                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
+                false, false);
     }
 
     @Override

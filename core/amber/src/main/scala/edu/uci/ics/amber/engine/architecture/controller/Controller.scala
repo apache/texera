@@ -1,15 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.SupervisorStrategy.{Escalate, Restart, Resume, Stop}
-import akka.actor.{
-  ActorRef,
-  Address,
-  Cancellable,
-  OneForOneStrategy,
-  PoisonPill,
-  Props,
-  SupervisorStrategy
-}
+import akka.actor.{Address, Cancellable, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
@@ -24,33 +15,20 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   ProcessControlMessage
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkAck,
   NetworkMessage,
   NetworkSenderActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.recovery.GlobalRecoveryManager
-import edu.uci.ics.amber.engine.architecture.scheduling.{
-  WorkflowPipelinedRegionsBuilder,
-  WorkflowScheduler
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowScheduler
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  NotifyFailedNode,
-  ResendOutputTo,
-  UpdateRecoveryStatus,
-  WorkflowControlMessage,
-  WorkflowRecoveryMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
-import edu.uci.ics.amber.error.ErrorUtils.safely
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -105,6 +83,7 @@ class Controller(
   var statusUpdateAskHandle: Cancellable = _
 
   override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
+
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
   val controlMessagesToRecover: Iterator[InMemDeterminant] =
     logStorage.getReader.mkLogRecordIterator()

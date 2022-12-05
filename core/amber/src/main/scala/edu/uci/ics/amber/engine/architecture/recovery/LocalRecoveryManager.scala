@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   ProcessControlMessage,
   SenderActorChange,
   StepDelta,
+  TerminateSignal,
   TimeStamp
 }
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogReader

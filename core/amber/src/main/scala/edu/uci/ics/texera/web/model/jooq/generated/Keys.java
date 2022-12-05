@@ -6,7 +6,6 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -15,12 +14,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowSnapshot;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileOfProjectRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.KeywordDictionaryRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserConfigRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserFileAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserProjectRecord;
@@ -29,7 +26,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowExecut
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfProjectRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfUserRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowSnapshotRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowVersionRecord;
 
@@ -52,12 +48,10 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     public static final Identity<FileRecord, UInteger> IDENTITY_FILE = Identities0.IDENTITY_FILE;
-    public static final Identity<KeywordDictionaryRecord, UInteger> IDENTITY_KEYWORD_DICTIONARY = Identities0.IDENTITY_KEYWORD_DICTIONARY;
     public static final Identity<UserRecord, UInteger> IDENTITY_USER = Identities0.IDENTITY_USER;
     public static final Identity<UserProjectRecord, UInteger> IDENTITY_USER_PROJECT = Identities0.IDENTITY_USER_PROJECT;
     public static final Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Identities0.IDENTITY_WORKFLOW;
     public static final Identity<WorkflowExecutionsRecord, UInteger> IDENTITY_WORKFLOW_EXECUTIONS = Identities0.IDENTITY_WORKFLOW_EXECUTIONS;
-    public static final Identity<WorkflowSnapshotRecord, UInteger> IDENTITY_WORKFLOW_SNAPSHOT = Identities0.IDENTITY_WORKFLOW_SNAPSHOT;
     public static final Identity<WorkflowVersionRecord, UInteger> IDENTITY_WORKFLOW_VERSION = Identities0.IDENTITY_WORKFLOW_VERSION;
 
     // -------------------------------------------------------------------------
@@ -67,8 +61,6 @@ public class Keys {
     public static final UniqueKey<FileRecord> KEY_FILE_UID = UniqueKeys0.KEY_FILE_UID;
     public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
     public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_FILE_OF_PROJECT_PRIMARY;
-    public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = UniqueKeys0.KEY_KEYWORD_DICTIONARY_UID;
-    public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = UniqueKeys0.KEY_KEYWORD_DICTIONARY_PRIMARY;
     public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = UniqueKeys0.KEY_USER_PRIMARY;
     public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = UniqueKeys0.KEY_USER_GOOGLE_ID;
     public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = UniqueKeys0.KEY_USER_CONFIG_PRIMARY;
@@ -79,7 +71,6 @@ public class Keys {
     public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = UniqueKeys0.KEY_WORKFLOW_EXECUTIONS_PRIMARY;
     public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_PROJECT_PRIMARY;
     public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_USER_PRIMARY;
-    public static final UniqueKey<WorkflowSnapshotRecord> KEY_WORKFLOW_SNAPSHOT_PRIMARY = UniqueKeys0.KEY_WORKFLOW_SNAPSHOT_PRIMARY;
     public static final UniqueKey<WorkflowUserAccessRecord> KEY_WORKFLOW_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_WORKFLOW_USER_ACCESS_PRIMARY;
     public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = UniqueKeys0.KEY_WORKFLOW_VERSION_PRIMARY;
 
@@ -90,7 +81,6 @@ public class Keys {
     public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = ForeignKeys0.FILE_IBFK_1;
     public static final ForeignKey<FileOfProjectRecord, FileRecord> FILE_OF_PROJECT_IBFK_1 = ForeignKeys0.FILE_OF_PROJECT_IBFK_1;
     public static final ForeignKey<FileOfProjectRecord, UserProjectRecord> FILE_OF_PROJECT_IBFK_2 = ForeignKeys0.FILE_OF_PROJECT_IBFK_2;
-    public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = ForeignKeys0.KEYWORD_DICTIONARY_IBFK_1;
     public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = ForeignKeys0.USER_CONFIG_IBFK_1;
     public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = ForeignKeys0.USER_FILE_ACCESS_IBFK_1;
     public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = ForeignKeys0.USER_FILE_ACCESS_IBFK_2;
@@ -111,12 +101,10 @@ public class Keys {
 
     private static class Identities0 {
         public static Identity<FileRecord, UInteger> IDENTITY_FILE = Internal.createIdentity(File.FILE, File.FILE.FID);
-        public static Identity<KeywordDictionaryRecord, UInteger> IDENTITY_KEYWORD_DICTIONARY = Internal.createIdentity(KeywordDictionary.KEYWORD_DICTIONARY, KeywordDictionary.KEYWORD_DICTIONARY.KID);
         public static Identity<UserRecord, UInteger> IDENTITY_USER = Internal.createIdentity(User.USER, User.USER.UID);
         public static Identity<UserProjectRecord, UInteger> IDENTITY_USER_PROJECT = Internal.createIdentity(UserProject.USER_PROJECT, UserProject.USER_PROJECT.PID);
         public static Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Internal.createIdentity(Workflow.WORKFLOW, Workflow.WORKFLOW.WID);
         public static Identity<WorkflowExecutionsRecord, UInteger> IDENTITY_WORKFLOW_EXECUTIONS = Internal.createIdentity(WorkflowExecutions.WORKFLOW_EXECUTIONS, WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
-        public static Identity<WorkflowSnapshotRecord, UInteger> IDENTITY_WORKFLOW_SNAPSHOT = Internal.createIdentity(WorkflowSnapshot.WORKFLOW_SNAPSHOT, WorkflowSnapshot.WORKFLOW_SNAPSHOT.SID);
         public static Identity<WorkflowVersionRecord, UInteger> IDENTITY_WORKFLOW_VERSION = Internal.createIdentity(WorkflowVersion.WORKFLOW_VERSION, WorkflowVersion.WORKFLOW_VERSION.VID);
     }
 
@@ -124,8 +112,6 @@ public class Keys {
         public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, "KEY_file_uid", File.FILE.UID, File.FILE.NAME);
         public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
         public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = Internal.createUniqueKey(FileOfProject.FILE_OF_PROJECT, "KEY_file_of_project_PRIMARY", FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID);
-        public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_uid", KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME);
-        public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY.KID);
         public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
         public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = Internal.createUniqueKey(User.USER, "KEY_user_google_id", User.USER.GOOGLE_ID);
         public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = Internal.createUniqueKey(UserConfig.USER_CONFIG, "KEY_user_config_PRIMARY", UserConfig.USER_CONFIG.UID, UserConfig.USER_CONFIG.KEY);
@@ -136,7 +122,6 @@ public class Keys {
         public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = Internal.createUniqueKey(WorkflowExecutions.WORKFLOW_EXECUTIONS, "KEY_workflow_executions_PRIMARY", WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
         public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = Internal.createUniqueKey(WorkflowOfProject.WORKFLOW_OF_PROJECT, "KEY_workflow_of_project_PRIMARY", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID, WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
         public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, "KEY_workflow_of_user_PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID);
-        public static final UniqueKey<WorkflowSnapshotRecord> KEY_WORKFLOW_SNAPSHOT_PRIMARY = Internal.createUniqueKey(WorkflowSnapshot.WORKFLOW_SNAPSHOT, "KEY_workflow_snapshot_PRIMARY", WorkflowSnapshot.WORKFLOW_SNAPSHOT.SID);
         public static final UniqueKey<WorkflowUserAccessRecord> KEY_WORKFLOW_USER_ACCESS_PRIMARY = Internal.createUniqueKey(WorkflowUserAccess.WORKFLOW_USER_ACCESS, "KEY_workflow_user_access_PRIMARY", WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID, WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID);
         public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = Internal.createUniqueKey(WorkflowVersion.WORKFLOW_VERSION, "KEY_workflow_version_PRIMARY", WorkflowVersion.WORKFLOW_VERSION.VID);
     }
@@ -145,7 +130,6 @@ public class Keys {
         public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
         public static final ForeignKey<FileOfProjectRecord, FileRecord> FILE_OF_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_1", FileOfProject.FILE_OF_PROJECT.FID);
         public static final ForeignKey<FileOfProjectRecord, UserProjectRecord> FILE_OF_PROJECT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PROJECT_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_2", FileOfProject.FILE_OF_PROJECT.PID);
-        public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, KeywordDictionary.KEYWORD_DICTIONARY, "keyword_dictionary_ibfk_1", KeywordDictionary.KEYWORD_DICTIONARY.UID);
         public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserConfig.USER_CONFIG, "user_config_ibfk_1", UserConfig.USER_CONFIG.UID);
         public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_1", UserFileAccess.USER_FILE_ACCESS.UID);
         public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_2", UserFileAccess.USER_FILE_ACCESS.FID);
