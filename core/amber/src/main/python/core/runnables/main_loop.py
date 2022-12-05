@@ -369,16 +369,17 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.debug_manager.has_debug_event():
             debug_event = self.context.debug_manager.get_debug_event()
             logger.info("report debug event to UI " + debug_event)
-            self._send_console_message(
-                PythonConsoleMessageV2(
-                    timestamp=datetime.datetime.now(),
-                    msg_type="DEBUGGER",
-                    source="",
-                    # TODO: find a good way to transfer source information
-                    #   of a debug event.
-                    message=debug_event,
-                )
-            )
+            for each_line in debug_event.split("(Pdb)"):
+                each_line = each_line.strip()
+                if each_line:
+                    self._send_console_message(
+                        PythonConsoleMessageV2(
+                            timestamp=datetime.datetime.now(),
+                            msg_type="DEBUGGER",
+                            source="(Pdb)",
+                            message=each_line,
+                        )
+                    )
             logger.info("setting talk with debugger to True")
             self.context.debug_manager.talk_with_debugger = True
             self._pause_dp()
