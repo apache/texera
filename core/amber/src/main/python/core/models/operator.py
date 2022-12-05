@@ -104,9 +104,9 @@ class BatchOperator(TupleOperatorV2):
     """
 
     DEFAULT_BATCH_SIZE: int = (
-        50  # if BATCH_SIZE is not initialized, then it will use DEFAULT_BATCH_SIZE
+        10  # if BATCH_SIZE is not initialized, then it will use DEFAULT_BATCH_SIZE
     )
-    BATCH_SIZE: Optional[int] = None  # must be a positive integer
+    BATCH_SIZE: Optional[int] = DEFAULT_BATCH_SIZE  # must be a positive integer
 
     def __init__(self):
         super().__init__()
