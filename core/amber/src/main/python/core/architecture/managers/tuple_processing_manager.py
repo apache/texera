@@ -17,3 +17,7 @@ class TupleProcessingManager:
         self.input_link_map: MutableMapping[LinkIdentity, int] = dict()
         self.context_switch_condition: Condition = Condition()
         self.finished_current: Event = Event()
+
+    def get_output_tuple(self) -> Optional[Tuple]:
+        ret, self.current_output_tuple = self.current_output_tuple, None
+        return ret

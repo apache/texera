@@ -166,11 +166,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         finished_current = self.context.tuple_processing_manager.finished_current
         finished_current.clear()
-        self._switch_context()
 
         while not finished_current.is_set():
             self.check_and_process_control()
-            yield self.context.tuple_processing_manager.current_output_tuple
+            yield self.context.tuple_processing_manager.get_output_tuple()
             self._switch_context()
             self._check_and_report_print()
             self._check_and_report_exception()
