@@ -4,7 +4,9 @@ from pytexera import *
 class CountBatchOperator(UDFBatchOperator):
     BATCH_SIZE = 10
 
-    def __init__(self):
+    def __init__(self, *args):
+        if len(args) >= 1:
+            self.BATCH_SIZE = args[0]
         super().__init__()
         self.count = 0
 

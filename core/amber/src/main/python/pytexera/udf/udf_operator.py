@@ -112,6 +112,7 @@ class UDFTableOperator(TableOperator):
         """
         pass
 
+
 class UDFBatchOperator(BatchOperator):
     """
     Base class for batch-oriented user-defined operators. A concrete implementation must

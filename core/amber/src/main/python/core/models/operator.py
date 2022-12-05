@@ -9,7 +9,7 @@ from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from ..util.arrow_utils import to_arrow_schema
-import timeit
+import warnings
 
 
 class Operator(ABC):
@@ -46,7 +46,7 @@ class Operator(ABC):
     @output_schema.setter
     @overrides.final
     def output_schema(
-            self, raw_output_schema: Union[Schema, Mapping[str, str]]
+        self, raw_output_schema: Union[Schema, Mapping[str, str]]
     ) -> None:
         self.__internal_output_schema = (
             raw_output_schema
@@ -102,36 +102,51 @@ class BatchOperator(TupleOperatorV2):
     Base class for batch-oriented operators. A concrete implementation must
     be provided upon using.
     """
+
+    DEFAULT_BATCH_SIZE: int = (
+        50  # if BATCH_SIZE is not initialized, then it will use DEFAULT_BATCH_SIZE
+    )
     BATCH_SIZE: Optional[int] = None  # must be a positive integer
-    DEFAULT_VALUE: int = 50 # if BATCH_SIZE is
 
     def __init__(self):
         super().__init__()
-        self.__internal_is_source: bool = False
         self.__batch_data: Mapping[int, List[Tuple]] = defaultdict(list)
-        # must be a positive integer
-        # assert self.BATCH_SIZE is None or (isinstance(self.BATCH_SIZE, int) and self.BATCH_SIZE > 0)
+        self._check_batch_size(self.BATCH_SIZE)
+
+    @staticmethod
+    def _check_batch_size(value):
+        if value is None:
+            raise ValueError("BATCH_SIZE cannot be None.")
+        if type(value) is not int:
+            raise ValueError("BATCH_SIZE cannot be " + str(type(value)) + ".")
+        if value <= 0:
+            raise ValueError("BATCH_SIZE should be positive.")
 
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        if self.BATCH_SIZE is None or not isinstance(self.BATCH_SIZE, int) or self.BATCH_SIZE <= 0:
-            self.BATCH_SIZE = self.DEFAULT_VALUE
         self.__batch_data[port].append(tuple_)
-        if self.BATCH_SIZE is not None and len(self.__batch_data[port]) >= self.BATCH_SIZE:
+        if (
+            self.BATCH_SIZE is not None
+            and len(self.__batch_data[port]) >= self.BATCH_SIZE
+        ):
             yield from self._process_batch(port)
 
     def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
         batch = Batch(
-            pandas.DataFrame([self.__batch_data[port].pop(0).as_series() for _ in
-                              range(min(len(self.__batch_data[port]), self.BATCH_SIZE))])
+            pandas.DataFrame(
+                [
+                    self.__batch_data[port].pop(0).as_series()
+                    for _ in range(min(len(self.__batch_data[port]), self.BATCH_SIZE))
+                ]
+            )
         )
-        for output_table in self.process_batch(batch, port):
-            if output_table is not None:
-                if isinstance(output_table, pandas.DataFrame):
-                    for _, output_tuple in output_table.iterrows():
+        for output_batch in self.process_batch(batch, port):
+            if output_batch is not None:
+                if isinstance(output_batch, pandas.DataFrame):
+                    for _, output_tuple in output_batch.iterrows():
                         yield output_tuple
                 else:
-                    yield output_table
+                    yield output_batch
 
     def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
         while len(self.__batch_data[port]) != 0:
@@ -144,7 +159,7 @@ class BatchOperator(TupleOperatorV2):
         pandas.DataFrame.
 
         :param batch: Batch, a batch to be processed.
-        :param port: int, input port index of the current Tuple.
+        :param port: int, input port index of the current Batch.
         :return: Iterator[Optional[BatchLike]], producing one BatchLike object at a
             time, or None.
         """
@@ -169,8 +184,12 @@ class TableOperator(TupleOperatorV2):
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
         table = Table(
-            pandas.DataFrame([self.__table_data[port].pop(0).as_series() for _ in
-                              range(len(self.__table_data[port]))])
+            pandas.DataFrame(
+                [
+                    self.__table_data[port].pop(0).as_series()
+                    for _ in range(len(self.__table_data[port]))
+                ]
+            )
         )
         for output_table in self.process_table(table, port):
             if output_table is not None:
@@ -203,7 +222,7 @@ class TupleOperator(Operator):
 
     @abstractmethod
     def process_tuple(
-            self, tuple_: Union[Tuple, InputExhausted], input_: int
+        self, tuple_: Union[Tuple, InputExhausted], input_: int
     ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
