@@ -3,7 +3,6 @@ from core.models.single_blocking_io import SingleBlockingIO
 
 class DebugManager:
     def __init__(self, condition):
-        self.talk_with_debugger: bool = False
         self.debug_in = SingleBlockingIO(condition)
         self.debug_out = SingleBlockingIO(condition)
 
@@ -18,6 +17,7 @@ class DebugManager:
 
     def put_debug_command(self, command: str) -> None:
         self.debug_in.write(command)
-        self.debug_in.flush()
+        self.debug_in.flush(blocking=True)
 
-
+    def is_waiting_on_command(self) -> bool:
+        return self.debug_in.is_waiting_on_read

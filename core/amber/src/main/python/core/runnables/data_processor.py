@@ -71,18 +71,16 @@ class DataProcessor(Runnable, Stoppable):
 
     def _switch_context(self):
         with self._context.tuple_processing_manager.context_switch_condition:
-            self._context.debug_manager.talk_with_debugger = False
             self._context.tuple_processing_manager.context_switch_condition.notify()
             self._context.tuple_processing_manager.context_switch_condition.wait()
             logger.info("in dp")
 
     def _check_debug_command(self):
         if (
-            not self._context.debug_manager.talk_with_debugger
+            not self._context.debug_manager.is_waiting_on_command()
             and self._context.debug_manager.has_debug_command()
         ):
             logger.info("bring up pdb")
-            self._context.debug_manager.talk_with_debugger = True
             self._debugger.set_trace()
 
     def stop(self):

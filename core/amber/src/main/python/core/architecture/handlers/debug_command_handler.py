@@ -16,7 +16,7 @@ class WorkerDebugCommandHandler(Handler):
         # translate the command with the context
         translated_command = self.translate_debug_command(command, context)
 
-        if not context.debug_manager.talk_with_debugger:
+        if not context.debug_manager.is_waiting_on_command():
 
             # initialize debugger
             logger.info("sending an emtpy string to invoke pdb")

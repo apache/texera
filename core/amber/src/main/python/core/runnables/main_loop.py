@@ -358,7 +358,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _switch_context(self):
         logger.info("in switch context " + str(threading.current_thread()))
-        if not self.context.debug_manager.talk_with_debugger:
+        if not self.context.debug_manager.is_waiting_on_command():
             # normal execution mode, switch to dp
             with self.context.tuple_processing_manager.context_switch_condition:
                 self.context.tuple_processing_manager.context_switch_condition.notify()
@@ -380,8 +380,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                             message=each_line,
                         )
                     )
-            logger.info("setting talk with debugger to True")
-            self.context.debug_manager.talk_with_debugger = True
             self._pause_dp()
 
     def _check_and_report_exception(self):
