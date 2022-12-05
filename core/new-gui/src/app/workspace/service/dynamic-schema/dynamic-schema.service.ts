@@ -94,6 +94,10 @@ export class DynamicSchemaService {
     return this.dynamicSchemaMap;
   }
 
+  public dynamicSchemaExists(operatorID: string): boolean {
+    return this.dynamicSchemaMap.has(operatorID);
+  }
+
   /**
    * Based on the operatorID, get the current dynamic operator schema that is created through autocomplete
    */
@@ -145,10 +149,7 @@ export class DynamicSchemaService {
 
     // set the new dynamic schema
     this.dynamicSchemaMap.set(operatorID, dynamicSchema);
-    // only emit event if the old dynamic schema is not present
-    if (currentDynamicSchema) {
-      this.operatorDynamicSchemaChangedStream.next({ operatorID });
-    }
+    this.operatorDynamicSchemaChangedStream.next({ operatorID });
   }
 
   /**

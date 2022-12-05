@@ -5,6 +5,7 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import Ajv from "ajv";
 import { filter, map } from "rxjs/operators";
+import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 
 export type ValidationError = {
   isValid: false;
@@ -56,7 +57,8 @@ export class ValidationWorkflowService {
    */
   constructor(
     private operatorMetadataService: OperatorMetadataService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private dynamicSchemaService: DynamicSchemaService
   ) {
     // fetch operator schema list
     this.operatorMetadataService
@@ -136,13 +138,11 @@ export class ValidationWorkflowService {
         this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID));
       });
 
-    // Capture the operator add event and validate the newly added operator
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorAddStream()
-      .subscribe(operator =>
-        this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID))
-      );
+    // Capture operator dynamic schema changed event
+    // dynamic schema changed event is also triggered when an operator is newly added
+    this.dynamicSchemaService
+      .getOperatorDynamicSchemaChangedStream()
+      .subscribe(op => this.updateValidationState(op.operatorID, this.validateOperator(op.operatorID)));
 
     // Capture the operator delete event but not validate the deleted operator
     this.workflowActionService
@@ -219,7 +219,9 @@ export class ValidationWorkflowService {
     if (operator === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+
+    // try to fetch dynamic schema first
+    const operatorSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (operatorSchema === undefined) {
       throw new Error("operatorSchema doesn't exist");
     }
