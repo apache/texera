@@ -457,11 +457,9 @@ export class JointGraphWrapper {
 
   public highlightCommentBoxes(...commentBoxIDs: string[]): void {
     const highlightedCommentBoxesIDs: string[] = [];
-    this.unhighlightCommentBoxes(...this.currentHighlightedCommentBoxes);
     commentBoxIDs.forEach(commentBoxID =>
       this.highlightElement(commentBoxID, this.currentHighlightedCommentBoxes, highlightedCommentBoxesIDs)
     );
-
     if (highlightedCommentBoxesIDs.length > 0) {
       this.jointCommentBoxHighlightStream.next(highlightedCommentBoxesIDs);
     }

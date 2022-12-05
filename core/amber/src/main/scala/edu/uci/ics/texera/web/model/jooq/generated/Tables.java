@@ -6,7 +6,6 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -15,7 +14,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowSnapshot;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
@@ -35,11 +33,6 @@ public class Tables {
      * The table <code>texera_db.file_of_project</code>.
      */
     public static final FileOfProject FILE_OF_PROJECT = FileOfProject.FILE_OF_PROJECT;
-
-    /**
-     * The table <code>texera_db.keyword_dictionary</code>.
-     */
-    public static final KeywordDictionary KEYWORD_DICTIONARY = KeywordDictionary.KEYWORD_DICTIONARY;
 
     /**
      * The table <code>texera_db.user</code>.
@@ -80,11 +73,6 @@ public class Tables {
      * The table <code>texera_db.workflow_of_user</code>.
      */
     public static final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
-
-    /**
-     * The table <code>texera_db.workflow_snapshot</code>.
-     */
-    public static final WorkflowSnapshot WORKFLOW_SNAPSHOT = WorkflowSnapshot.WORKFLOW_SNAPSHOT;
 
     /**
      * The table <code>texera_db.workflow_user_access</code>.

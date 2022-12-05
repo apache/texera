@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats
+import edu.uci.ics.texera.web.workflowruntimestate.{ConsoleMessage, OperatorRuntimeStats}
 
 import scala.collection.mutable
 
@@ -25,9 +25,9 @@ object ControllerEvent {
       operatorID: String = null
   ) extends ControlCommand[Unit]
 
-  case class PythonPrintTriggered(
-      message: String,
-      operatorID: String = null
+  case class ConsoleMessageTriggered(
+      operatorId: String,
+      consoleMessage: ConsoleMessage
   ) extends ControlCommand[Unit]
 
   case class ReportCurrentProcessingTuple(
