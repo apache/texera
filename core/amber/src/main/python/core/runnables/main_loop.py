@@ -55,7 +55,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         self.data_processor = DataProcessor(self.context)
         threading.Thread(
-            target=self.data_processor.run, daemon=True, name="DataProcessor"
+            target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
     def complete(self) -> None:
@@ -307,24 +307,24 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_data()
 
-    def _pause(self) -> None:
+    def _pause_dp(self) -> None:
         """
         Pause the data processing.
         """
-        logger.info("pausing main loop " + str(threading.current_thread()))
+        logger.info("pausing dp " + str(threading.current_thread()))
         self._check_and_report_print(force_flush=True)
         if self.context.state_manager.confirm_state(
                 WorkerState.RUNNING, WorkerState.READY
         ):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
-            self.context.state_manager.transit_to(WorkerState.PAUSED)
             self._input_queue.disable_data()
+            self.context.state_manager.transit_to(WorkerState.PAUSED)
 
-    def _resume(self) -> None:
+    def _resume_dp(self) -> None:
         """
         Resume the data processing.
         """
-        logger.info("resuming main loop " + str(threading.current_thread()))
+        logger.info("resuming dp " + str(threading.current_thread()))
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
             if not self.context.pause_manager.is_paused():
@@ -367,8 +367,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 logger.info("in main loop")
 
         logger.info("check and report debug event " + str(threading.current_thread()))
-        if self.context.debug_manager.debug_out.value is not None:
-            debug_event = self.context.debug_manager.debug_out.readline()
+        if self.context.debug_manager.has_debug_event():
+            debug_event = self.context.debug_manager.get_debug_event()
             logger.info("report debug event to UI " + debug_event)
             self._send_console_message(
                 PythonConsoleMessageV2(
@@ -382,12 +382,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
             logger.info("setting talk with debugger to True")
             self.context.debug_manager.talk_with_debugger = True
-            self._pause()
+            self._pause_dp()
 
     def _check_and_report_exception(self):
         if self.context.exception_manager.has_exception():
             self.report_exception(self.context.exception_manager.get_exc_info())
-            self._pause()
+            self._pause_dp()
 
     def _check_and_report_print(self, force_flush=False):
         for  msg in self.context.console_message_manager.get_messages(force_flush):

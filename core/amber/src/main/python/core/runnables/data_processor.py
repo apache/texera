@@ -79,7 +79,7 @@ class DataProcessor(Runnable, Stoppable):
     def _check_debug_command(self):
         if (
             not self._context.debug_manager.talk_with_debugger
-            and self._context.debug_manager.debug_in.value is not None
+            and self._context.debug_manager.has_debug_command()
         ):
             logger.info("bring up pdb")
             self._context.debug_manager.talk_with_debugger = True

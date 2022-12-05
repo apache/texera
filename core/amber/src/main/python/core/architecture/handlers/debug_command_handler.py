@@ -31,7 +31,7 @@ class WorkerDebugCommandHandler(Handler):
             context.debug_manager.debug_in.flush()
 
             # ignore the initial message sent by pdb.
-            context.debug_manager.debug_out.readline()
+            context.debug_manager.get_debug_event()
             logger.info("pdb is up, ready to send command")
 
             # send the actual command in
@@ -40,7 +40,7 @@ class WorkerDebugCommandHandler(Handler):
 
             return None
         else:
-            context.main_loop._resume()
+            context.main_loop._resume_dp()
 
             context.debug_manager.debug_in.write(formatted_command)
             context.debug_manager.debug_in.flush()
