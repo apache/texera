@@ -1,5 +1,3 @@
-from threading import Event
-
 from core.models.single_blocking_io import SingleBlockingIO
 
 
@@ -17,4 +15,9 @@ class DebugManager:
 
     def get_debug_event(self) -> str:
         return self.debug_out.readline()
+
+    def put_debug_command(self, command: str) -> None:
+        self.debug_in.write(command)
+        self.debug_in.flush()
+
 
