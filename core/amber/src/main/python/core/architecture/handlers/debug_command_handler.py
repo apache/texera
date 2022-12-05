@@ -23,7 +23,7 @@ class WorkerDebugCommandHandler(Handler):
             formatted_command = f"{debug_command} {' '.join(debug_args)}".strip()
         logger.info("formatted debug command " + formatted_command)
 
-        if not context.debug_manager.talk_with_debugger.is_set():
+        if not context.debug_manager.talk_with_debugger:
 
             # initialize debugger
             logger.info("sending an emtpy string to invoke pdb")
