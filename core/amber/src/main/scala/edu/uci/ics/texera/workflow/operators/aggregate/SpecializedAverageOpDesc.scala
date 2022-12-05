@@ -29,7 +29,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Aggregation Function")
-  @JsonPropertyDescription("sum, count, average, min, or max")
+  @JsonPropertyDescription("sum, count, average, min, max, or concat")
   var aggFunction: AggregationFunction = _
 
   @JsonProperty(value = "attribute", required = true)
@@ -64,6 +64,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       case AggregationFunction.MAX     => maxAgg(operatorSchemaInfo)
       case AggregationFunction.MIN     => minAgg(operatorSchemaInfo)
       case AggregationFunction.SUM     => sumAgg(operatorSchemaInfo)
+      case AggregationFunction.CONCAT  => concatAgg(operatorSchemaInfo)
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
@@ -109,6 +110,40 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       groupByFunc()
     )
     new AggregateOpExecConfig[Integer](
+      operatorIdentifier,
+      aggregation,
+      operatorSchemaInfo
+    )
+  }
+
+  def concatAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+    val aggregation = new DistributedAggregation[String](
+      () => "",
+      (partial, tuple) => {
+        if (partial == "") {
+          if (tuple.getField(attribute) != null) tuple.getField(attribute).toString() else ""
+        } else {
+          partial + "," + (if (tuple.getField(attribute) != null)
+                             tuple.getField(attribute).toString()
+                           else "")
+        }
+      },
+      (partial1, partial2) => {
+        if (partial1 != "" && partial2 != "") {
+          partial1 + "," + partial2
+        } else {
+          partial1 + partial2
+        }
+      },
+      partial => {
+        Tuple
+          .newBuilder(finalAggValueSchema)
+          .add(resultAttribute, AttributeType.STRING, partial)
+          .build
+      },
+      groupByFunc()
+    )
+    new AggregateOpExecConfig[String](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo
@@ -233,6 +268,11 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       Schema
         .newBuilder()
         .add(resultAttribute, AttributeType.INTEGER)
+        .build()
+    } else if (this.aggFunction.equals(AggregationFunction.CONCAT)) {
+      Schema
+        .newBuilder()
+        .add(resultAttribute, AttributeType.STRING)
         .build()
     } else {
       Schema
