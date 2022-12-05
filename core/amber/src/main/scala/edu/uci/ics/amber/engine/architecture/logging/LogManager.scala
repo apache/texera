@@ -13,7 +13,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 //In-mem formats:
 sealed trait InMemDeterminant
-case class LinkChange(linkIdentity: LinkIdentity) extends InMemDeterminant
 case class SenderActorChange(actorVirtualIdentity: ActorVirtualIdentity) extends InMemDeterminant
 case class StepDelta(steps: Long) extends InMemDeterminant
 case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirtualIdentity)
@@ -34,7 +33,7 @@ object LogManager {
   }
 }
 
-abstract class LogManager {
+trait LogManager {
   def setupWriter(logWriter: DeterminantLogWriter): Unit
 
   def getDeterminantLogger: DeterminantLogger

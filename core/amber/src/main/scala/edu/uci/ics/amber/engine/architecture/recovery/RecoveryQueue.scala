@@ -1,11 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.recovery
 
 import edu.uci.ics.amber.engine.architecture.logging.{
-  InMemDeterminant,
-  LinkChange,
   ProcessControlMessage,
   SenderActorChange,
   StepDelta,
+  TerminateSignal,
   TimeStamp
 }
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogReader
@@ -13,16 +12,13 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   ControlElement,
   EndMarker,
-  EndOfAllMarker,
   InputTuple,
-  InternalQueueElement,
-  SenderChangeMarker
+  InternalQueueElement
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
 
 import java.util.concurrent.LinkedBlockingQueue
-import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -34,7 +30,6 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
     .HashMap[ActorVirtualIdentity, mutable.Queue[ControlElement]]()
   private var step = 0L
   private var targetVId: ActorVirtualIdentity = _
-  private var currentInputSender: ActorVirtualIdentity = _
   private var cleaned = false
   private val callbacksOnEnd = new ArrayBuffer[() => Unit]()
   private var endCallbackTriggered = false
@@ -72,24 +67,17 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
   def add(elem: InternalQueueElement): Unit = {
     elem match {
       case tuple: InputTuple =>
-        currentInputSender = tuple.from
         inputMapping
           .getOrElseUpdate(tuple.from, new LinkedBlockingQueue[InternalQueueElement]())
           .put(tuple)
-      case SenderChangeMarker(newUpstreamLink) =>
-      //ignore, we use log to enforce original order
       case control: ControlElement =>
         controlMessages
           .getOrElseUpdate(control.from, new mutable.Queue[ControlElement]())
           .enqueue(control)
-      case WorkerInternalQueue.EndMarker =>
+      case WorkerInternalQueue.EndMarker(from) =>
         inputMapping
-          .getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]())
-          .put(EndMarker)
-      case WorkerInternalQueue.EndOfAllMarker =>
-        inputMapping
-          .getOrElseUpdate(currentInputSender, new LinkedBlockingQueue[InternalQueueElement]())
-          .put(EndOfAllMarker)
+          .getOrElseUpdate(from, new LinkedBlockingQueue[InternalQueueElement]())
+          .put(EndMarker(from))
     }
   }
 
@@ -118,23 +106,20 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
     step == 0
   }
 
-  @tailrec
   private def processInternalEventsTillNextControl(): Unit = {
-    if (!records.hasNext) {
-      return
-    }
-    records.next() match {
-      case StepDelta(steps) =>
-        step += steps
-        processInternalEventsTillNextControl()
-      case SenderActorChange(actorVirtualIdentity) =>
-        targetVId = actorVirtualIdentity
-        processInternalEventsTillNextControl()
-      case LinkChange(linkIdentity) =>
-        nextRecordToEmit = SenderChangeMarker(linkIdentity)
-      case ProcessControlMessage(controlPayload, from) =>
-        nextRecordToEmit = ControlElement(controlPayload, from)
-      case TimeStamp(value) => ???
+    var stop = false
+    while (records.hasNext && !stop) {
+      records.next() match {
+        case StepDelta(steps) =>
+          step += steps
+        case SenderActorChange(actorVirtualIdentity) =>
+          targetVId = actorVirtualIdentity
+        case ProcessControlMessage(controlPayload, from) =>
+          nextRecordToEmit = ControlElement(controlPayload, from)
+          stop = true
+        case TimeStamp(value) => ???
+        case TerminateSignal  => throw new RuntimeException("Cannot handle terminate signal here.")
+      }
     }
   }
 

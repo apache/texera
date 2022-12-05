@@ -28,14 +28,10 @@ object WorkerInternalQueue {
 
   case class InputTuple(from: ActorVirtualIdentity, tuple: ITuple) extends InternalQueueElement
 
-  case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
-
   case class ControlElement(payload: ControlPayload, from: ActorVirtualIdentity)
       extends InternalQueueElement
 
-  case object EndMarker extends InternalQueueElement
-
-  case object EndOfAllMarker extends InternalQueueElement
+  case class EndMarker(from: ActorVirtualIdentity) extends InternalQueueElement
 
 }
 

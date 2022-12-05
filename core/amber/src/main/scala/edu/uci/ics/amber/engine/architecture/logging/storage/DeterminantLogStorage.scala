@@ -32,8 +32,8 @@ object DeterminantLogStorage {
     KryoPool.withByteArrayOutputStream(Runtime.getRuntime.availableProcessors * 2, ki)
   }
 
-  private val maxSize: Long =
-    AmberUtils.amberConfig.getLong("fault-tolerance.log-record-max-size-in-byte")
+  private val maxSize: Int =
+    AmberUtils.amberConfig.getInt("fault-tolerance.log-record-max-size-in-byte")
 
   // For debugging purpose only
   def fetchAllLogRecords(storage: DeterminantLogStorage): Iterable[InMemDeterminant] = {

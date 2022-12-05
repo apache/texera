@@ -9,8 +9,6 @@ import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.logging.{
-  DeterminantLogger,
-  LinkChange,
   LogManager,
   ProcessControlMessage,
   SenderActorChange
@@ -46,6 +44,7 @@ class DataProcessor( // dependencies:
     val pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
+    dataInputManager: DataInputManager,
     asyncRPCServer: AsyncRPCServer,
     val logStorage: DeterminantLogStorage,
     val logManager: LogManager,
@@ -99,7 +98,6 @@ class DataProcessor( // dependencies:
   private var inputTupleCount = 0L
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
-  private var currentInputLink: LinkIdentity = _
   private var currentInputActor: ActorVirtualIdentity = _
   private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
 
@@ -137,11 +135,13 @@ class DataProcessor( // dependencies:
     *
     * @return an iterator of output tuples
     */
-  private[this] def processInputTuple(): Iterator[(ITuple, Option[LinkIdentity])] = {
+  private[this] def processInputTuple(
+      currentLink: LinkIdentity
+  ): Iterator[(ITuple, Option[LinkIdentity])] = {
     var outputIterator: Iterator[(ITuple, Option[LinkIdentity])] = null
     try {
       outputIterator =
-        operator.processTuple(currentInputTuple, currentInputLink, pauseManager, asyncRPCClient)
+        operator.processTuple(currentInputTuple, currentLink, pauseManager, asyncRPCClient)
       if (currentInputTuple.isLeft) {
         inputTupleCount += 1
       }
@@ -203,25 +203,29 @@ class DataProcessor( // dependencies:
           currentInputActor = from
         }
         currentInputTuple = Left(tuple)
-        handleInputTuple()
-      case SenderChangeMarker(link) =>
-        determinantLogger.logDeterminant(LinkChange(link))
-        currentInputLink = link
-      case EndMarker =>
-        currentInputTuple = Right(InputExhausted())
-        handleInputTuple()
-        if (currentInputLink != null) {
-          asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
+        handleInputTuple(dataInputManager.getInputLink(currentInputActor))
+      case EndMarker(from) =>
+        if (currentInputActor != from) {
+          determinantLogger.logDeterminant(SenderActorChange(from))
+          currentInputActor = from
         }
-      case EndOfAllMarker =>
         processControlCommandsDuringExecution() // necessary for trigger correct recovery
-        batchProducer.emitEndOfUpstream()
-        // Send Completed signal to worker actor.
-        logger.info(s"$operator completed")
-        disableDataQueue()
-        operator.close() // close operator
-        asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
-        stateManager.transitTo(COMPLETED)
+        dataInputManager.markWorkerEOF(from)
+        val currentLink = dataInputManager.getInputLink(currentInputActor)
+        if (dataInputManager.isLinkEOF(currentLink)) {
+          currentInputTuple = Right(InputExhausted())
+          handleInputTuple(currentLink)
+          asyncRPCClient.send(LinkCompleted(currentLink), CONTROLLER)
+        }
+        if (dataInputManager.isAllEOF) {
+          batchProducer.emitEndOfUpstream()
+          // Send Completed signal to worker actor.
+          logger.info(s"$operator completed")
+          disableDataQueue()
+          operator.close() // close operator
+          asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
+          stateManager.transitTo(COMPLETED)
+        }
       case ControlElement(payload, from) =>
         processControlCommand(payload, from)
     }
@@ -257,12 +261,12 @@ class DataProcessor( // dependencies:
     asyncRPCServer.execute(PauseWorker(), SELF)
   }
 
-  private[this] def handleInputTuple(): Unit = {
+  private[this] def handleInputTuple(currentLink: LinkIdentity): Unit = {
     // process controls before processing the input tuple.
     processControlCommandsDuringExecution()
     if (currentInputTuple != null) {
       // pass input tuple to operator logic.
-      currentOutputIterator = processInputTuple()
+      currentOutputIterator = processInputTuple(currentLink)
       // process controls before outputting tuples.
       processControlCommandsDuringExecution()
       // output loop: take one tuple from iterator at a time.
