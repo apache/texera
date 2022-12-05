@@ -106,8 +106,7 @@ export class ValidationWorkflowService {
     }
     const jsonSchemaValidation = this.validateJsonSchema(operatorID);
     const operatorConnectionValidation = this.validateOperatorConnection(operatorID);
-    const propertyValidation = this.validatePropertyAgainstDynamicSchema(operatorID);
-    return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation, propertyValidation);
+    return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation);
   }
 
   private updateValidationState(operatorID: string, validation: Validation) {
@@ -139,13 +138,11 @@ export class ValidationWorkflowService {
         this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID));
       });
 
-    // Capture the operator add event and validate the newly added operator
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorAddStream()
-      .subscribe(operator =>
-        this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID))
-      );
+    // Capture operator dynamic schema changed event
+    // dynamic schema changed event is also triggered when an operator is newly added
+    this.dynamicSchemaService
+      .getOperatorDynamicSchemaChangedStream()
+      .subscribe(op => this.updateValidationState(op.operatorID, this.validateOperator(op.operatorID)));
 
     // Capture the operator delete event but not validate the deleted operator
     this.workflowActionService
@@ -188,14 +185,6 @@ export class ValidationWorkflowService {
         this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID))
       );
 
-    this.dynamicSchemaService
-      .getOperatorDynamicSchemaChangedStream()
-      .subscribe(
-        value => {
-          this.updateValidationState(value.operatorID, this.validateOperator(value.operatorID))
-        }
-      )
-
     // on enable / disable operator - re-validate the changed operators
     this.workflowActionService
       .getTexeraGraph()
@@ -220,24 +209,6 @@ export class ValidationWorkflowService {
         operatorsToRevalidate.forEach(op => this.updateValidationState(op, this.validateOperator(op)));
       });
   }
-  
-  private validatePropertyAgainstDynamicSchema(operatorID: string): Validation {
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
-    const isValid = this.ajv.validate(dynamicSchema.jsonSchema, operator.operatorProperties);
-    console.log("validate:", dynamicSchema, operator.operatorProperties)
-    console.log("ajv", isValid, this.ajv.errors);
-    if (isValid) {
-      return { isValid: true };
-    }
-
-    const errors = this.ajv.errors;
-    const validationError: Record<string, string> = {};
-    if (errors) {
-      errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));
-    }
-    return { isValid: false, messages: validationError };
-  }
 
   /**
    * This method is used to check whether all required properties of the operator have been completed.
@@ -248,7 +219,9 @@ export class ValidationWorkflowService {
     if (operator === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+
+    // try to fetch dynamic schema first
+    const operatorSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (operatorSchema === undefined) {
       throw new Error("operatorSchema doesn't exist");
     }

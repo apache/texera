@@ -1,4 +1,13 @@
-import { ChangeDetectorRef, Component, ComponentFactoryResolver, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  ComponentFactoryResolver,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges,
+} from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { AbstractControl, FormGroup } from "@angular/forms";
@@ -224,6 +233,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId) {
       return;
     }
+    console.log("re-rendered");
+    // console.trace()
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
@@ -474,13 +485,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       if (isDefined(mapSource.enum)) {
         mappedField.validators = {
           inEnum: {
-            expression: (c: AbstractControl) => (mapSource.enum as JSONSchema7Type[]).includes(c.value),
-            message: (error: any, field: FormlyFieldConfig) => `"${field.formControl?.value}" is no longer a valid option`,
-          }
-        }
+            expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
+            message: (error: any, field: FormlyFieldConfig) =>
+              `"${field.formControl?.value}" is no longer a valid option`,
+          },
+        };
         mappedField.validation = {
-          show: true
-        }
+          show: true,
+        };
       }
 
       return mappedField;
