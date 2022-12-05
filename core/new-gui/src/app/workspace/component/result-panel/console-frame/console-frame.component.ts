@@ -39,6 +39,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   labelMapping = new Map([
     ["PRINT", "default"],
     ["COMMAND", "processing"],
+    ["DEBUGGER", "warning"],
   ]);
 
   constructor(
