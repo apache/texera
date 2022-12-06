@@ -308,7 +308,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Pause the data processing.
         """
-        logger.info("pausing dp " + str(threading.current_thread()))
         self._check_and_report_print(force_flush=True)
         if self.context.state_manager.confirm_state(
                 WorkerState.RUNNING, WorkerState.READY
@@ -321,7 +320,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Resume the data processing.
         """
-        logger.info("resuming dp " + str(threading.current_thread()))
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
             if not self.context.pause_manager.is_paused():
