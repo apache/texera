@@ -71,4 +71,12 @@ describe("UserService", () => {
       expect((service as any).currentUser).toBeFalsy();
     });
   });
+
+  it("should log out when called log out function", fakeAsync(() => {
+    expect((service as any).currentUser).toBeFalsy();
+    service
+      .userChanged()
+      .pipe(skip(2))
+      .subscribe(user => expect(user).toBeFalsy());
+  }));
 });
