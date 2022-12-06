@@ -58,7 +58,7 @@ class OperatorManager:
         if module_name in sys.modules:
             operator_module = importlib.import_module(module_name)
             operator_module.__dict__.clear()
-            operator_module.__dict__['__name__'] = module_name
+            operator_module.__dict__["__name__"] = module_name
             operator_module = importlib.reload(operator_module)
         else:
             operator_module = importlib.import_module(module_name)
