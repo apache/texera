@@ -15,12 +15,9 @@ class DataProcessor(Runnable, Stoppable):
     def __init__(self, context: Context):
         self._running = Event()
         self._context = context
-        self._debugger = Pdb(
-            stdin=self._context.debug_manager.debug_in,
-            stdout=self._context.debug_manager.debug_out,
-        )
+
         # Customized prompt, we can design our prompt for the debugger.
-        self._debugger.prompt = ""
+
 
     def run(self) -> None:
         with self._context.tuple_processing_manager.context_switch_condition:
@@ -31,7 +28,7 @@ class DataProcessor(Runnable, Stoppable):
             self.process_tuple()
             self._switch_context()
 
-    def process_tuple(self):
+    def process_tuple(self) -> None:
         finished_current = self._context.tuple_processing_manager.finished_current
         while not finished_current.is_set():
 
@@ -79,12 +76,19 @@ class DataProcessor(Runnable, Stoppable):
             self._context.tuple_processing_manager.context_switch_condition.wait()
         self._post_switch_context_checks()
 
-    def _check_debug_command(self):
+    def _check_and_process_debug_command(self) -> None:
+        """
+        If there is a debug command available, invokes the debugger from this frame.
+        :return:
+        """
         if self._context.debug_manager.has_debug_command():
-            self._debugger.set_trace()
+            # let debugger trace from the current frame.
+            # this line will also trigger cmdloop in debugger.
+            # this line has no side effects on the current debugger state.
+            self._context.debug_manager.debugger.set_trace()
+
+    def _post_switch_context_checks(self):
+        self._check_and_process_debug_command()
 
     def stop(self):
         self._running.clear()
-
-    def _post_switch_context_checks(self):
-        self._check_debug_command()
