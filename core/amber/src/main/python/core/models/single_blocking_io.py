@@ -13,8 +13,8 @@ class SingleBlockingIO(IO):
 
     Some highlights:
     - The IO only has one value.
-    - Each write() can appending to the value.
-    - Each flush() will restart the value from being written.
+    - Each write() will append to the value.
+    - Each flush() will make the value readable resets the value to be written next.
     - Each readline() will fetch the value and clear the IO.
     - When there is no value to read, it blocks in readline() until there is a value.
     """
