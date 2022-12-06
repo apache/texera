@@ -78,5 +78,8 @@ describe("UserService", () => {
       .userChanged()
       .pipe(skip(2))
       .subscribe(user => expect(user).toBeFalsy());
+    service.login("test", "password").subscribe(() => {
+      expect((service as any).currentUser).toBeTruthy();
+    });
   }));
 });
