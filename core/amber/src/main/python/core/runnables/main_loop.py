@@ -75,7 +75,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
         self.context.close()
 
-    def check_and_process_control(self) -> None:
+    def _check_and_process_control(self) -> None:
         """
         Check if there exists any ControlElement(s) in the input_queue, if so, take and
         process them one by one.
@@ -91,8 +91,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
-
-        self._post_process_control_checks()
+            self._post_process_control_checks()
 
     @overrides
     def pre_start(self) -> None:
@@ -146,7 +145,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.statistics_manager.increase_input_tuple_count()
 
         for output_tuple in self.process_tuple_with_udf():
-            self.check_and_process_control()
+            self._check_and_process_control()
             if output_tuple is not None:
                 schema = self.context.operator_manager.operator.output_schema
                 self.cast_tuple_to_match_schema(output_tuple, schema)
@@ -170,9 +169,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         finished_current.clear()
 
         while not finished_current.is_set():
-            self.check_and_process_control()
-            yield self.context.tuple_processing_manager.get_output_tuple()
+            self._check_and_process_control()
             self._switch_context()
+            yield self.context.tuple_processing_manager.get_output_tuple()
 
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
@@ -197,7 +196,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
         self.context.tuple_processing_manager.current_input_tuple = tuple_
         self.process_input_tuple()
-        self.check_and_process_control()
+        self._check_and_process_control()
 
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
         self._process_tuple(input_exhausted)
@@ -237,7 +236,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for to, batch in self.context.tuple_to_batch_converter.emit_end_of_upstream():
             batch.schema = self.context.operator_manager.operator.output_schema
             self._output_queue.put(DataElement(tag=to, payload=batch))
-            self.check_and_process_control()
+            self._check_and_process_control()
         self.complete()
 
     def _process_data_element(self, data_element: DataElement) -> None:
@@ -363,7 +362,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.tuple_processing_manager.context_switch_condition.wait()
             logger.info("in main loop")
 
-        self._post_switch_checks()
+        self._post_switch_context_checks()
 
     def _check_and_report_debug_event(self) -> None:
         logger.info("check and report debug event " + str(threading.current_thread()))
@@ -389,7 +388,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for  msg in self.context.console_message_manager.get_messages(force_flush):
             self._send_console_message(msg)
 
-    def _post_switch_checks(self):
+    def _post_switch_context_checks(self):
         self._check_and_report_exception()
         self._check_and_report_print()
         self._check_and_report_debug_event()
