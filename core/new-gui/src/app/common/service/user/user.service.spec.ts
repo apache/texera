@@ -13,7 +13,7 @@ describe("UserService", () => {
   beforeEach(() => {
     AuthService.removeAccessToken();
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule],
+      imports: [RouterTestingModule.withRoutes([])],
       providers: [UserService, { provide: AuthService, Router, useClass: StubAuthService }],
     });
 
