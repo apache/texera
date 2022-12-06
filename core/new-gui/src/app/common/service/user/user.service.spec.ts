@@ -1,20 +1,20 @@
-import { discardPeriodicTasks, fakeAsync, flush, flushMicrotasks, TestBed, tick } from "@angular/core/testing";
-
+import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
-import { RouterTestingModule } from "@angular/router/testing";
 import { Router } from "@angular/router";
-
 describe("UserService", () => {
   let service: UserService;
-
+  const routerSpy = jasmine.createSpyObj("Router", ["login"]);
   beforeEach(() => {
     AuthService.removeAccessToken();
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule],
-      providers: [UserService, { provide: AuthService, Router, useClass: StubAuthService }],
+      providers: [
+        UserService,
+        { provide: AuthService, useClass: StubAuthService },
+        { provide: Router, useClass: routerSpy },
+      ],
     });
 
     service = TestBed.inject(UserService);
@@ -83,7 +83,6 @@ describe("UserService", () => {
 
       tick(10);
       service.logout();
-      flush();
       tick(10);
       expect((service as any).currentUser).toBeFalsy();
     });
