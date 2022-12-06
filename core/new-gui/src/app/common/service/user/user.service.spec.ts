@@ -1,4 +1,4 @@
-import { fakeAsync, flush, TestBed, tick } from "@angular/core/testing";
+import { discardPeriodicTasks, fakeAsync, flush, flushMicrotasks, TestBed, tick } from "@angular/core/testing";
 
 import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
@@ -87,6 +87,8 @@ describe("UserService", () => {
       tick(10);
       expect((service as any).currentUser).toBeFalsy();
       flush();
+      flushMicrotasks();
+      discardPeriodicTasks();
     });
   }));
 });
