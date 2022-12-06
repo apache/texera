@@ -117,9 +117,9 @@ import { CoeditorUserIconComponent } from "./workspace/component/navigation/coed
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
-import {LoginComponent} from "./dashboard/component/login/login.component";
-import {NzLayoutModule} from "ng-zorro-antd/layout";
-import {AuthGuardService} from "./dashboard/service/auth-guard/auth-guard.service";
+import { LoginComponent } from "./dashboard/component/login/login.component";
+import { NzLayoutModule } from "ng-zorro-antd/layout";
+import { AuthGuardService } from "./dashboard/service/auth-guard/auth-guard.service";
 
 registerLocaleData(en);
 

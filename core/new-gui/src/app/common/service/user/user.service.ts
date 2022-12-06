@@ -4,7 +4,7 @@ import { User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
 import { map, mergeMap } from "rxjs/operators";
-import {Router} from "@angular/router";
+import { Router } from "@angular/router";
 
 /**
  * User Service manages User information. It relies on different
@@ -50,8 +50,7 @@ export class UserService {
     this.authService.logout().subscribe(_ => {
       this.changeUser(undefined);
       this.router.navigate(["login"]);
-      }
-    );
+    });
   }
 
   public register(username: string, password: string): Observable<void> {

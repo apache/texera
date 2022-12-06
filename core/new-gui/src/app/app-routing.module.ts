@@ -21,7 +21,7 @@ const routes: Routes = [
     path: "",
     component: WorkspaceComponent,
     canActivate: [AuthGuardService],
-},
+  },
   {
     path: "workflow/:id",
     component: WorkspaceComponent,
