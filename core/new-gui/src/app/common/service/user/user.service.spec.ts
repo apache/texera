@@ -84,7 +84,7 @@ describe("UserService", () => {
       tick(10);
       service.logout();
 
-      tick(10);
+      tick(100);
       expect((service as any).currentUser).toBeFalsy();
     });
   }));
