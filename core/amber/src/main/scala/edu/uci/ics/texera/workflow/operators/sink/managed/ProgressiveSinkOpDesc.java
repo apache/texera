@@ -48,7 +48,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 "View the edu.uci.ics.texera.workflow results",
                 OperatorGroupConstants.RESULT_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                List.empty());
+                List.empty(), false, false);
     }
 
     @Override

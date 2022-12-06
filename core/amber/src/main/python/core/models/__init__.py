@@ -1,9 +1,7 @@
-from .internal_queue import (
-    ControlElement,
-    DataElement,
-    InternalQueue,
-    InternalQueueElement,
-)
+from inspect import Traceback
+from typing import NamedTuple
+
+from .internal_queue import InternalQueue
 from .marker import EndOfAllMarker, Marker, SenderChangeMarker
 from .tuple import InputExhausted, Tuple, TupleLike, ArrowTableTupleProvider
 from .table import Table, TableLike
@@ -17,11 +15,15 @@ from .operator import (
 )
 from .payload import InputDataFrame, OutputDataFrame, DataPayload, EndOfUpstream
 
+
+class ExceptionInfo(NamedTuple):
+    exc: type
+    value: Exception
+    tb: Traceback
+
+
 __all__ = [
-    "ControlElement",
-    "DataElement",
     "InternalQueue",
-    "InternalQueueElement",
     "EndOfAllMarker",
     "Marker",
     "SenderChangeMarker",
@@ -42,4 +44,5 @@ __all__ = [
     "OutputDataFrame",
     "DataPayload",
     "EndOfUpstream",
+    "ExceptionInfo",
 ]

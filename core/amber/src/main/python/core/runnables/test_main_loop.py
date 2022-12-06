@@ -9,8 +9,6 @@ import warnings
 from loguru import logger
 
 from core.models import (
-    ControlElement,
-    DataElement,
     InputDataFrame,
     OutputDataFrame,
     EndOfUpstream,
@@ -18,7 +16,8 @@ from core.models import (
     Tuple,
     Batch,
 )
-from core.runnables import DataProcessor
+from core.models.internal_queue import DataElement, ControlElement
+from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -48,10 +47,8 @@ from pytexera.udf.examples.echo_operator import EchoOperator
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 
 
-logger.level("PRINT", no=38)
 
-
-class TestDataProcessor:
+class TestMainLoop:
     @pytest.fixture
     def command_sequence(self):
         return 1
@@ -182,19 +179,19 @@ class TestDataProcessor:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
-    def data_processor(self, input_queue, output_queue, mock_udf, mock_link):
-        data_processor = DataProcessor(input_queue, output_queue)
+    def main_loop(self, input_queue, output_queue, mock_udf, mock_link):
+        main_loop = MainLoop(input_queue, output_queue)
         # mock the operator binding
-        data_processor._operator = mock_udf
-        data_processor.context.batch_to_tuple_converter.update_all_upstream_link_ids(
+        main_loop.context.operator_manager.operator = mock_udf
+        main_loop.context.batch_to_tuple_converter.update_all_upstream_link_ids(
             {mock_link}
         )
-        data_processor._operator.output_schema = {
+        main_loop.context.operator_manager.operator.output_schema = {
             "test-1": "string",
             "test-2": "integer",
         }
-        yield data_processor
-        data_processor.stop()
+        yield main_loop
+        main_loop.stop()
 
     @pytest.fixture
     def batch_data_processor(
@@ -214,13 +211,13 @@ class TestDataProcessor:
         batch_data_processor.stop()
 
     @pytest.fixture
-    def dp_thread(self, data_processor, reraise):
+    def main_loop_thread(self, main_loop, reraise):
         def wrapper():
             with reraise:
-                data_processor.run()
+                main_loop.run()
 
-        dp_thread = Thread(target=wrapper, name="dp_thread")
-        yield dp_thread
+        main_loop_thread = Thread(target=wrapper, name="main_loop_thread")
+        yield main_loop_thread
 
     @pytest.fixture
     def batch_dp_thread(self, batch_data_processor, reraise):
@@ -298,12 +295,12 @@ class TestDataProcessor:
         assert batch_dp_thread.is_alive()
 
     @pytest.mark.timeout(2)
-    def test_dp_thread_can_start(self, dp_thread):
-        dp_thread.start()
-        assert dp_thread.is_alive()
+    def test_main_loop_thread_can_start(self, main_loop_thread):
+        main_loop_thread.start()
+        assert main_loop_thread.is_alive()
 
     @pytest.mark.timeout(2)
-    def test_dp_thread_can_process_messages(
+    def test_main_loop_thread_can_process_messages(
         self,
         mock_link,
         mock_receiver_actor,
@@ -311,7 +308,7 @@ class TestDataProcessor:
         input_queue,
         output_queue,
         mock_data_element,
-        dp_thread,
+        main_loop_thread,
         mock_update_input_linking,
         mock_add_partitioning,
         mock_end_of_upstream,
@@ -320,7 +317,7 @@ class TestDataProcessor:
         command_sequence,
         reraise,
     ):
-        dp_thread.start()
+        main_loop_thread.start()
 
         # can process UpdateInputLinking
         input_queue.put(mock_update_input_linking)
@@ -388,9 +385,6 @@ class TestDataProcessor:
                 )
             ),
         )
-        assert output_queue.get() == DataElement(
-            tag=mock_receiver_actor, payload=EndOfUpstream()
-        )
 
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
         assert output_queue.get() == ControlElement(
@@ -403,6 +397,10 @@ class TestDataProcessor:
                     ),
                 )
             ),
+        )
+
+        assert output_queue.get() == DataElement(
+            tag=mock_receiver_actor, payload=EndOfUpstream()
         )
 
         # can process ReturnInvocation

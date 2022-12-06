@@ -2,6 +2,7 @@
 # sources: edu/uci/ics/texera/workflowcachestate.proto, edu/uci/ics/texera/workflowresultstate.proto, edu/uci/ics/texera/workflowruntimestate.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List
 
 import betterproto
@@ -20,10 +21,9 @@ class WorkflowAggregatedState(betterproto.Enum):
     PAUSING = 3
     PAUSED = 4
     RESUMING = 5
-    RECOVERING = 6
-    COMPLETED = 7
-    ABORTED = 8
-    UNKNOWN = 9
+    COMPLETED = 6
+    ABORTED = 7
+    UNKNOWN = 8
 
 
 @dataclass(eq=False, repr=False)
@@ -31,18 +31,6 @@ class WorkflowCacheStore(betterproto.Message):
     operator_info: Dict[str, "CacheState"] = betterproto.map_field(
         1, betterproto.TYPE_STRING, betterproto.TYPE_ENUM
     )
-
-
-@dataclass(eq=False, repr=False)
-class WorkflowResultStore(betterproto.Message):
-    operator_info: Dict[str, "OperatorResultMetadata"] = betterproto.map_field(
-        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
-    )
-
-
-@dataclass(eq=False, repr=False)
-class OperatorResultMetadata(betterproto.Message):
-    tuple_count: int = betterproto.int32_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -79,8 +67,17 @@ class EvaluatedValueList(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ConsoleMessage(betterproto.Message):
+    worker_id: str = betterproto.string_field(1)
+    timestamp: datetime = betterproto.message_field(2)
+    msg_type: str = betterproto.string_field(3)
+    source: str = betterproto.string_field(4)
+    message: str = betterproto.string_field(5)
+
+
+@dataclass(eq=False, repr=False)
 class PythonOperatorInfo(betterproto.Message):
-    console_messages: List[str] = betterproto.string_field(1)
+    console_messages: List["ConsoleMessage"] = betterproto.message_field(1)
     evaluate_expr_results: Dict[str, "EvaluatedValueList"] = betterproto.map_field(
         2, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
@@ -103,7 +100,7 @@ class OperatorRuntimeStats(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class JobStatsStore(betterproto.Message):
     operator_info: Dict[str, "OperatorRuntimeStats"] = betterproto.map_field(
-        3, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
+        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
 
 
@@ -112,6 +109,19 @@ class JobMetadataStore(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
     error: str = betterproto.string_field(2)
     eid: int = betterproto.int64_field(3)
+    is_recovering: bool = betterproto.bool_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class WorkflowResultStore(betterproto.Message):
+    operator_info: Dict[str, "OperatorResultMetadata"] = betterproto.map_field(
+        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
+    )
+
+
+@dataclass(eq=False, repr=False)
+class OperatorResultMetadata(betterproto.Message):
+    tuple_count: int = betterproto.int32_field(1)
 
 
 from ...amber.engine.architecture import worker as __amber_engine_architecture_worker__

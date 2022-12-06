@@ -17,14 +17,24 @@ export interface OperatorPort
     portID: string;
   }> {}
 
+export interface PortDescription
+  extends Readonly<{
+    portID: string;
+    displayName?: string;
+    allowMultiInputs?: boolean;
+    isDynamicPort?: boolean;
+  }> {}
+
 export interface OperatorPredicate
   extends Readonly<{
     operatorID: string;
     operatorType: string;
     operatorVersion: string;
     operatorProperties: Readonly<{ [key: string]: any }>;
-    inputPorts: { portID: string; displayName?: string }[];
-    outputPorts: { portID: string; displayName?: string }[];
+    inputPorts: PortDescription[];
+    outputPorts: PortDescription[];
+    dynamicInputPorts?: boolean;
+    dynamicOutputPorts?: boolean;
     showAdvanced: boolean;
     isDisabled?: boolean;
     isCached?: boolean;
@@ -90,7 +100,21 @@ export type BreakpointTriggerInfo = Readonly<{
   operatorID: string;
 }>;
 
-export type PythonPrintTriggerInfo = Readonly<{
-  message: Readonly<string>;
-  operatorID: string;
+/**
+ * refer to src/main/scalapb/edu/uci/ics/texera/web/workflowruntimestate/ConsoleMessage.scala
+ */
+export type ConsoleMessage = Readonly<{
+  workerId: string;
+  timestamp: {
+    nanos: number;
+    seconds: number;
+  };
+  msgType: string;
+  source: string;
+  message: string;
+}>;
+
+export type ConsoleUpdateEvent = Readonly<{
+  operatorId: string;
+  messages: ReadonlyArray<ConsoleMessage>;
 }>;
