@@ -80,6 +80,12 @@ describe("UserService", () => {
       .subscribe(user => expect(user).toBeFalsy());
     service.login("test", "password").subscribe(() => {
       expect((service as any).currentUser).toBeTruthy();
+
+      tick(10);
+      service.logout();
+
+      tick(10);
+      expect((service as any).currentUser).toBeFalsy();
     });
   }));
 });
