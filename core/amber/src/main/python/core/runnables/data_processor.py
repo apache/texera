@@ -16,9 +16,6 @@ class DataProcessor(Runnable, Stoppable):
         self._running = Event()
         self._context = context
 
-        # Customized prompt, we can design our prompt for the debugger.
-
-
     def run(self) -> None:
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.wait()
