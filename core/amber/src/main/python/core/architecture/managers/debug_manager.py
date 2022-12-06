@@ -8,10 +8,7 @@ class DebugManager:
     def __init__(self, condition: Condition):
         self.debug_in = SingleBlockingIO(condition)
         self.debug_out = SingleBlockingIO(condition)
-        self.debugger = Pdb(
-            stdin=self.debug_in,
-            stdout=self.debug_out,
-        )
+        self.debugger = Pdb(stdin=self.debug_in, stdout=self.debug_out, nosigint=True)
         self.debugger.prompt = ""
 
     def has_debug_command(self) -> bool:
