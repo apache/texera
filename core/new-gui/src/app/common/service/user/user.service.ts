@@ -49,7 +49,7 @@ export class UserService {
   public logout(): void {
     this.authService.logout().subscribe(_ => {
       this.changeUser(undefined);
-      this.router.navigate(["login"]);
+      //this.router.navigate(["login"]);
     });
   }
 
