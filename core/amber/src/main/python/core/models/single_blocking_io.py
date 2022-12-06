@@ -2,33 +2,65 @@ from __future__ import annotations
 
 from threading import Condition, current_thread
 from types import TracebackType
-from typing import IO, Type, AnyStr, Iterator, Iterable
+from typing import IO, Type, AnyStr, Iterator, Iterable, Optional
 
 from loguru import logger
 
 
 class SingleBlockingIO(IO):
-    def __init__(self, condition: Condition):
-        self.value = None
-        self.buf = ""
-        self.condition = condition
+    """
+    An implementation of single-element IO that can be blocked on reading.
 
-    def write(self, v):
-        self.buf += v
+    Some highlights:
+    - The IO only has one value.
+    - Each write() can appending to the value.
+    - Each flush() will restart the value from being written.
+    - Each readline() will fetch the value and clear the IO.
+    - When there is no value to read, it blocks in readline() until there is a value.
+    """
+
+    def __init__(self, condition: Condition):
+        self.value: Optional[str] = None
+        self.buf: str = ""
+        self.condition: Condition = condition
+
+    def write(self, s: str) -> None:
+        """
+        Writes a partial string, append to the buffer.
+        :param s: a string.
+        :return:
+        """
+        self.buf += s
 
     def flush(self) -> None:
+        """
+        Denotes the end of buffer, adds a "\n" to complete the string.
+        Flushes the completed string in the buffer to value.
+        Resets the buffer to accept the next complete string.
+        :return:
+        """
         self.write("\n")
         self.value, self.buf = self.buf, ""
         logger.info("flush " + repr(self.value) + " " + str(current_thread()))
 
-    def readline(self, limit=None):
+    def readline(self, limit=None) -> str:
+        """
+        Fetches a string value by removing it from the IO. It blocks the current
+        thread until there is a valid string to fetch.
+        :param limit: parent's API, not implemented here. It is always None.
+        :return str: A completed string value.
+        """
         try:
             with self.condition:
-                if self.value is None:
+
+                # keeps waiting when no value is available
+                while self.value is None:
                     logger.info("waiting on read " + str(current_thread()))
                     self.condition.notify()
                     self.condition.wait()
                     logger.info("back into read " + str(current_thread()))
+
+                # noinspection PyTypeChecker
                 return self.value
         finally:
             self.value = None
