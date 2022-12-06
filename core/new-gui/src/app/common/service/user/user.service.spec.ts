@@ -86,9 +86,7 @@ describe("UserService", () => {
       flush();
       tick(10);
       expect((service as any).currentUser).toBeFalsy();
-      flush();
-      flushMicrotasks();
-      discardPeriodicTasks();
+      tick();
     });
   }));
 });
