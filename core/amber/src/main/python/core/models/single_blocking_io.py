@@ -10,46 +10,27 @@ from loguru import logger
 class SingleBlockingIO(IO):
     def __init__(self, condition: Condition):
         self.value = None
+        self.buf = ""
         self.condition = condition
-        self.is_waiting_on_read: bool = False
 
     def write(self, v):
-        if self.value is None:
-            self.value = ""
+        self.buf += v
 
-        self.value += v
-        logger.info("Now value is:" + repr(self.value))
-
-    def flush(self, blocking=False):
-        logger.info("calling flush " + str(current_thread()))
+    def flush(self) -> None:
         self.write("\n")
-        logger.info(
-            "done with flush " + str(current_thread()) + ": " + repr(self.value)
-        )
-        if blocking:
-            with self.condition:
-                self.condition.notify()
-                logger.info("waiting after flush " + str(current_thread()))
-                self.condition.wait()
-                logger.info("back into after flush " + str(current_thread()))
+        self.value, self.buf = self.buf, ""
+        logger.info("flush " + repr(self.value) + " " + str(current_thread()))
 
     def readline(self, limit=None):
-        logger.info("calling readline " + str(current_thread()))
         try:
             with self.condition:
                 if self.value is None:
                     logger.info("waiting on read " + str(current_thread()))
-                    self.is_waiting_on_read = True
                     self.condition.notify()
                     self.condition.wait()
                     logger.info("back into read " + str(current_thread()))
-                    self.is_waiting_on_read = False
-                logger.info(
-                    "done with read " + str(current_thread()) + ": " + repr(self.value)
-                )
                 return self.value
         finally:
-            logger.info("set value to None")
             self.value = None
 
     ####################################################################################
@@ -101,9 +82,9 @@ class SingleBlockingIO(IO):
         pass
 
     def __exit__(
-        self,
-        __t: Type[BaseException] | None,
-        __value: BaseException | None,
-        __traceback: TracebackType | None,
+            self,
+            __t: Type[BaseException] | None,
+            __value: BaseException | None,
+            __traceback: TracebackType | None,
     ) -> bool | None:
         pass

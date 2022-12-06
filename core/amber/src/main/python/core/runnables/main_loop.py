@@ -191,7 +191,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param control_element: ControlElement to be handled.
         """
         self.process_control_payload(control_element.tag, control_element.payload)
-        self._post_process_control_checks()
 
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
         self.context.tuple_processing_manager.current_input_tuple = tuple_
@@ -355,20 +354,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
             ),
         )
 
-    def _switch_context(self):
-        logger.info("in switch context " + str(threading.current_thread()))
+    def _switch_context(self) -> None:
+        """
+        Notify the DataProcessor thread and wait here to until being switched back.
+        :return:
+        """
         with self.context.tuple_processing_manager.context_switch_condition:
             self.context.tuple_processing_manager.context_switch_condition.notify()
             self.context.tuple_processing_manager.context_switch_condition.wait()
-            logger.info("in main loop")
-
         self._post_switch_context_checks()
 
     def _check_and_report_debug_event(self) -> None:
-        logger.info("check and report debug event " + str(threading.current_thread()))
         if self.context.debug_manager.has_debug_event():
             debug_event = self.context.debug_manager.get_debug_event()
-            logger.info("report debug event to UI " + debug_event)
             self._send_console_message(
                 PythonConsoleMessageV2(
                     timestamp=datetime.datetime.now(),
@@ -389,9 +387,17 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._send_console_message(msg)
 
     def _post_switch_context_checks(self):
+        """
+        Post callback for switch context.
+
+        One step in DataProcessor could produce some results, which includes
+            - Exception
+            - print messages
+            - Debug Event
+        We check and report them each time coming back from DataProcessor.
+        :return:
+        """
         self._check_and_report_exception()
         self._check_and_report_print()
         self._check_and_report_debug_event()
 
-    def _post_process_control_checks(self):
-        self._check_and_report_debug_event()

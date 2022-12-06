@@ -11,25 +11,14 @@ class WorkerDebugCommandHandler(Handler):
     cmd = WorkerDebugCommandV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        logger.info(f"Got WorkerDebugCommand {command}")
-
-        # translate the command with the context
+        # translate the command with the context.
         translated_command = self.translate_debug_command(command, context)
 
-        if not context.debug_manager.is_waiting_on_command():
-
-            # initialize debugger
-            logger.info("sending an emtpy string to invoke pdb")
-            context.debug_manager.put_debug_command("")
-
-            # ignore the initial message sent by pdb.
-            context.debug_manager.get_debug_event()
-            logger.info("pdb is up, ready to send command")
-
-        else:
-            context.main_loop._resume_dp()
-
+        # send the translated command to debugger to consume later.
         context.debug_manager.put_debug_command(translated_command)
+
+        # allow MainLoop to switch into DataProcessor.
+        context.main_loop._resume_dp()
 
     @staticmethod
     def translate_debug_command(command: cmd, context: Context) -> str:

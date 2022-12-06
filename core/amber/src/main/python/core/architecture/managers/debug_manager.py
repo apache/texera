@@ -17,7 +17,5 @@ class DebugManager:
 
     def put_debug_command(self, command: str) -> None:
         self.debug_in.write(command)
-        self.debug_in.flush(blocking=True)
+        self.debug_in.flush()
 
-    def is_waiting_on_command(self) -> bool:
-        return self.debug_in.is_waiting_on_read

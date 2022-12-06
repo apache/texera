@@ -70,18 +70,17 @@ class DataProcessor(Runnable, Stoppable):
                 self._switch_context()
 
     def _switch_context(self):
+        """
+        Notify the MainLoop thread and wait here to until being switched back.
+        :return:
+        """
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.notify()
             self._context.tuple_processing_manager.context_switch_condition.wait()
-            logger.info("in dp")
         self._post_switch_context_checks()
 
     def _check_debug_command(self):
-        if (
-                not self._context.debug_manager.is_waiting_on_command()
-                and self._context.debug_manager.has_debug_command()
-        ):
-            logger.info("bring up pdb")
+        if self._context.debug_manager.has_debug_command():
             self._debugger.set_trace()
 
     def stop(self):
