@@ -17,7 +17,7 @@ export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
-  constructor(private authService: AuthService, public router: Router) {
+  constructor(private authService: AuthService, private router: Router) {
     if (environment.userSystemEnabled) {
       this.authService.loginWithExistingToken().subscribe(user => this.changeUser(user));
     }

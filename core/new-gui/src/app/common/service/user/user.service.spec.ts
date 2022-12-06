@@ -4,6 +4,7 @@ import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
+import { Router } from "@angular/router";
 
 describe("UserService", () => {
   let service: UserService;
@@ -11,7 +12,7 @@ describe("UserService", () => {
   beforeEach(() => {
     AuthService.removeAccessToken();
     TestBed.configureTestingModule({
-      providers: [UserService, { provide: AuthService, useClass: StubAuthService }],
+      providers: [UserService, { provide: AuthService, Router, useClass: StubAuthService }],
     });
 
     service = TestBed.inject(UserService);
