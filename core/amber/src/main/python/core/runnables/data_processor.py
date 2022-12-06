@@ -64,7 +64,7 @@ class DataProcessor(Runnable, Stoppable):
 
     def _switch_context(self):
         """
-        Notify the MainLoop thread and wait here to until being switched back.
+        Notify the MainLoop thread and wait here until being switched back.
         :return:
         """
         with self._context.tuple_processing_manager.context_switch_condition:

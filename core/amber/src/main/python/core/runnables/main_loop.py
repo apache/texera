@@ -354,7 +354,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _switch_context(self) -> None:
         """
-        Notify the DataProcessor thread and wait here to until being switched back.
+        Notify the DataProcessor thread and wait here until being switched back.
         :return:
         """
         with self.context.tuple_processing_manager.context_switch_condition:
