@@ -5,7 +5,7 @@ import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
 import { RouterTestingModule } from "@angular/router/testing";
-import {Router} from "@angular/router";
+import { Router } from "@angular/router";
 
 describe("UserService", () => {
   let service: UserService;
