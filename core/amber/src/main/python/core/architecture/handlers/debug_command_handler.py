@@ -47,7 +47,10 @@ class WorkerDebugCommandHandler(Handler):
         module_name = context.operator_manager.operator_module_name
         if debug_command in ["b", "break"] and len(debug_args) > 0:
             # b(reak) ([filename:]lineno | function) [, condition]¶
-            translated_command = f"{debug_command} {module_name}:{debug_args[0]}"
+            translated_command = (
+                f"{debug_command} {module_name}:{debug_args[0]} "
+                f"{' '.join(debug_args[1:])}"
+            )
         else:
             translated_command = f"{debug_command} {' '.join(debug_args)}"
         logger.info("translated debug command " + translated_command)

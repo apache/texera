@@ -19,6 +19,8 @@ class DataProcessor(Runnable, Stoppable):
             stdin=self._context.debug_manager.debug_in,
             stdout=self._context.debug_manager.debug_out,
         )
+        # Customized prompt, we can design our prompt for the debugger.
+        self._debugger.prompt = ""
 
     def run(self) -> None:
         with self._context.tuple_processing_manager.context_switch_condition:
