@@ -48,8 +48,8 @@ export class UserService {
 
   public logout(): void {
     this.authService.logout().subscribe(_ => {
-      this.router.navigate(["login"]);
       this.changeUser(undefined);
+      this.router.navigate(["login"]);
     });
   }
 
