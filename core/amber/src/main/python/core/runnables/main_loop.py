@@ -171,8 +171,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.check_and_process_control()
             yield self.context.tuple_processing_manager.get_output_tuple()
             self._switch_context()
-            self._check_and_report_print()
-            self._check_and_report_exception()
 
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
@@ -365,6 +363,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.tuple_processing_manager.context_switch_condition.wait()
                 logger.info("in main loop")
 
+        self._post_switch_checks()
+
+    def _check_and_report_debug_event(self) -> None:
         logger.info("check and report debug event " + str(threading.current_thread()))
         if self.context.debug_manager.has_debug_event():
             debug_event = self.context.debug_manager.get_debug_event()
@@ -379,7 +380,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
             self._pause_dp()
 
-    def _check_and_report_exception(self):
+    def _check_and_report_exception(self) -> None:
         if self.context.exception_manager.has_exception():
             self.report_exception(self.context.exception_manager.get_exc_info())
             self._pause_dp()
@@ -387,3 +388,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _check_and_report_print(self, force_flush=False):
         for  msg in self.context.console_message_manager.get_messages(force_flush):
             self._send_console_message(msg)
+
+    def _post_switch_checks(self):
+        self._check_and_report_exception()
+        self._check_and_report_print()
+        self._check_and_report_debug_event()
