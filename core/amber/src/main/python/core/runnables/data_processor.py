@@ -1,5 +1,4 @@
 import sys
-from pdb import Pdb
 from threading import Event
 
 from loguru import logger
