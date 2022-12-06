@@ -59,7 +59,6 @@ class DataProcessor(Runnable, Stoppable):
                             None if output is None else Tuple(output)
                         )
                         self._switch_context()
-                        self._check_debug_command()
 
                 # current tuple finished successfully
                 finished_current.set()
@@ -69,21 +68,24 @@ class DataProcessor(Runnable, Stoppable):
                 self._context.exception_manager.set_exception_info(sys.exc_info())
             finally:
                 self._switch_context()
-                self._check_debug_command()
 
     def _switch_context(self):
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.notify()
             self._context.tuple_processing_manager.context_switch_condition.wait()
             logger.info("in dp")
+        self._post_switch_context_checks()
 
     def _check_debug_command(self):
         if (
-            not self._context.debug_manager.is_waiting_on_command()
-            and self._context.debug_manager.has_debug_command()
+                not self._context.debug_manager.is_waiting_on_command()
+                and self._context.debug_manager.has_debug_command()
         ):
             logger.info("bring up pdb")
             self._debugger.set_trace()
 
     def stop(self):
         self._running.clear()
+
+    def _post_switch_context_checks(self):
+        self._check_debug_command()
