@@ -4,17 +4,15 @@ import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
 import { Router } from "@angular/router";
+import { RouterTestingModule } from "@angular/router/testing";
 describe("UserService", () => {
   let service: UserService;
-  const routerSpy = jasmine.createSpyObj("Router", ["login"]);
   beforeEach(() => {
     AuthService.removeAccessToken();
     TestBed.configureTestingModule({
-      providers: [
-        UserService,
-        { provide: AuthService, useClass: StubAuthService },
-        { provide: Router, useClass: routerSpy },
-      ],
+      imports: [RouterTestingModule.withRoutes([{ path: "login" }])],
+
+      providers: [UserService, { provide: AuthService, useClass: StubAuthService }, ,],
     });
 
     service = TestBed.inject(UserService);
