@@ -91,7 +91,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
-            self._post_process_control_checks()
 
     @overrides
     def pre_start(self) -> None:
@@ -192,6 +191,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param control_element: ControlElement to be handled.
         """
         self.process_control_payload(control_element.tag, control_element.payload)
+        self._post_process_control_checks()
 
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
         self.context.tuple_processing_manager.current_input_tuple = tuple_
