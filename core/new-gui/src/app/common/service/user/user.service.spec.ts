@@ -71,5 +71,4 @@ describe("UserService", () => {
       expect((service as any).currentUser).toBeFalsy();
     });
   });
-
 });
