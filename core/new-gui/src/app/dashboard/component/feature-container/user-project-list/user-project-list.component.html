@@ -1,16 +1,35 @@
 <div>
   <nz-card>
     <h2>Projects</h2>
-    <a nz-dropdown [nzDropdownMenu]="menu">
+    <a
+      nz-dropdown
+      [nzDropdownMenu]="menu">
       <button nz-button>
-        <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="sort-ascending"></i>
       </button>
     </a>
     <nz-dropdown-menu #menu="nzDropdownMenu">
-      <ul nz-menu nzSelectable>
-        <li (click)="sortByCreationTime()" nz-menu-item>By Time Created</li>
-        <li (click)="sortByNameAsc()" nz-menu-item>A -> Z</li>
-        <li (click)="sortByNameDesc()" nz-menu-item>Z -> A</li>
+      <ul
+        nz-menu
+        nzSelectable>
+        <li
+          (click)="sortByCreationTime()"
+          nz-menu-item>
+          By Time Created
+        </li>
+        <li
+          (click)="sortByNameAsc()"
+          nz-menu-item>
+          A -> Z
+        </li>
+        <li
+          (click)="sortByNameDesc()"
+          nz-menu-item>
+          Z -> A
+        </li>
       </ul>
     </nz-dropdown-menu>
     <button
@@ -18,9 +37,11 @@
       nz-button
       nz-tooltip="Create a new project"
       nzTooltipPlacement="bottom"
-      type="button"
-    >
-      <i nz-icon nzTheme="outline" nzType="file-add"></i>
+      type="button">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="file-add"></i>
     </button>
     <input
       *ngIf="createButtonIsClicked"
@@ -28,8 +49,7 @@
       (focusout)="unclickCreateButton()"
       (keyup.enter)="createNewProject()"
       placeholder="Enter project name"
-      [(ngModel)]="createProjectName"
-    />
+      [(ngModel)]="createProjectName" />
   </nz-card>
 
   <nz-card>
@@ -48,18 +68,18 @@
                 [cpSaveClickOutside]="false"
                 [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
                 [cpExtraTemplate]="colorMenuTemplate"
-                (colorPickerSelect)="updateProjectColor(dashboardUserProjectEntry, i)"
-              ></nz-avatar>
+                (colorPickerSelect)="updateProjectColor(dashboardUserProjectEntry, i)"></nz-avatar>
               <ng-template #colorMenuTemplate>
                 <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
                   <button
                     [disabled]="dashboardUserProjectEntry.color === null"
                     (click)="removeProjectColor(dashboardUserProjectEntry, i)"
-                    class="btn btn-outline-danger btn-xs"
-                  >
+                    class="btn btn-outline-danger btn-xs">
                     Delete
                   </button>
-                  <button (click)="updateProjectColor(dashboardUserProjectEntry, i)" class="btn btn-primary btn-xs">
+                  <button
+                    (click)="updateProjectColor(dashboardUserProjectEntry, i)"
+                    class="btn btn-primary btn-xs">
                     Save
                   </button>
                 </div>
@@ -68,9 +88,10 @@
           </nz-list-item-meta-avatar>
           <nz-list-item-meta-title>
             <ng-container
-              *ngIf="userProjectEntriesIsEditingName.indexOf(dashboardUserProjectEntry.pid) === -1;else editingProject"
-            >
-              <a class="project-name" [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + dashboardUserProjectEntry.pid">
+              *ngIf="userProjectEntriesIsEditingName.indexOf(dashboardUserProjectEntry.pid) === -1;else editingProject">
+              <a
+                class="project-name"
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + dashboardUserProjectEntry.pid">
                 {{dashboardUserProjectEntry.name}}</a
               >
               <button
@@ -79,9 +100,11 @@
                 nz-tooltip="Edit Project Name"
                 nzTooltipPlacement="top"
                 nzSize="small"
-                nzType="text"
-              >
-                <i nz-icon nzTheme="outline" nzType="edit"></i>
+                nzType="text">
+                <i
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="edit"></i>
               </button>
             </ng-container>
 
@@ -91,8 +114,7 @@
                 (focusout)="removeEditStatus(dashboardUserProjectEntry.pid)"
                 (keyup.enter)="saveProjectName(dashboardUserProjectEntry, editedName.value)"
                 placeholder="{{ dashboardUserProjectEntry.name }}"
-                value="{{ dashboardUserProjectEntry.name }}"
-              />
+                value="{{ dashboardUserProjectEntry.name }}" />
             </ng-template>
           </nz-list-item-meta-title>
 
@@ -107,9 +129,11 @@
               (click)="deleteProject(dashboardUserProjectEntry.pid, dashboardUserProjectEntry.name, i)"
               nz-button
               nz-tooltip="Delete the project {{dashboardUserProjectEntry.name}}"
-              nzTooltipPlacement="bottom"
-            >
-              <i nz-icon nzTheme="outline" nzType="delete"></i>
+              nzTooltipPlacement="bottom">
+              <i
+                nz-icon
+                nzTheme="outline"
+                nzType="delete"></i>
             </button>
           </nz-list-item-action>
         </ul>
