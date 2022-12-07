@@ -45,7 +45,7 @@ class DataProcessor( // dependencies:
     val pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
-    dataInputManager: UpstreamLinkStatus,
+    upstreamLinkStatus: UpstreamLinkStatus,
     asyncRPCServer: AsyncRPCServer,
     val logStorage: DeterminantLogStorage,
     val logManager: LogManager,
@@ -233,14 +233,14 @@ class DataProcessor( // dependencies:
           currentInputActor = from
         }
         processControlCommandsDuringExecution() // necessary for trigger correct recovery
-        dataInputManager.markWorkerEOF(from)
+        upstreamLinkStatus.markWorkerEOF(from)
         val currentLink = getInputLink(currentInputActor)
-        if (dataInputManager.isLinkEOF(currentLink)) {
+        if (upstreamLinkStatus.isLinkEOF(currentLink)) {
           currentInputTuple = Right(InputExhausted())
           handleInputTuple()
           asyncRPCClient.send(LinkCompleted(currentLink), CONTROLLER)
         }
-        if (dataInputManager.isAllEOF) {
+        if (upstreamLinkStatus.isAllEOF) {
           batchProducer.emitEndOfUpstream()
           // Send Completed signal to worker actor.
           logger.info(s"$operator completed")

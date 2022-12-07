@@ -18,7 +18,7 @@ trait UpdateInputLinkingHandler {
   registerHandler { (msg: UpdateInputLinking, sender) =>
     stateManager.assertState(READY, RUNNING, PAUSED)
     dataProcessor.registerInput(msg.identifier, msg.inputLink)
-    dataInputManager.registerInput(msg.identifier, msg.inputLink)
+    upstreamLinkStatus.registerInput(msg.identifier, msg.inputLink)
   }
 
 }

@@ -77,7 +77,7 @@ class WorkflowWorker(
 ) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {
   lazy val recoveryQueue = new RecoveryQueue(logStorage.getReader)
   lazy val pauseManager: PauseManager = wire[PauseManager]
-  lazy val dataInputManager: UpstreamLinkStatus = wire[UpstreamLinkStatus]
+  lazy val upstreamLinkStatus: UpstreamLinkStatus = wire[UpstreamLinkStatus]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
     new NetworkInputPort[DataPayload](this.actorId, this.handleDataPayload)
