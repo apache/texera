@@ -138,7 +138,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val recoveryManager = new LocalRecoveryManager()
     val asyncRPCServer: AsyncRPCServer = null
     val senderID = ActorVirtualIdentity("sender")
-    val dataInputManager: DataInputManager = new DataInputManager(Set(linkID))
+    val dataInputManager: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     dataInputManager.registerInput(senderID, linkID)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     inAnyOrder {
@@ -176,7 +176,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val senderID = ActorVirtualIdentity("sender")
-    val dataInputManager: DataInputManager = new DataInputManager(Set(linkID))
+    val dataInputManager: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     dataInputManager.registerInput(senderID, linkID)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
@@ -227,7 +227,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val recoveryManager = new LocalRecoveryManager()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
-    val dataInputManager: DataInputManager = new DataInputManager(Set(linkID))
+    val dataInputManager: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     dataInputManager.registerInput(senderID, linkID)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -258,7 +258,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val recoveryManager = new LocalRecoveryManager()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
-    val dataInputManager: DataInputManager = new DataInputManager(Set(linkID))
+    val dataInputManager: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     dataInputManager.registerInput(senderID, linkID)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -290,7 +290,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val senderID = ActorVirtualIdentity("sender")
-    val dataInputManager: DataInputManager = new DataInputManager(Set(linkID))
+    val dataInputManager: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     dataInputManager.registerInput(senderID, linkID)
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     (asyncRPCClient.send _).expects(*, *).anyNumberOfTimes()
@@ -371,7 +371,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
-    val dataInputManager: DataInputManager = new DataInputManager(Set(linkID))
+    val dataInputManager: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     dataInputManager.registerInput(senderID, linkID)
     val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
 

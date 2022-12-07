@@ -4,15 +4,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 import scala.collection.mutable
 
-class DataInputManager(allUpstreamLinkIds: Set[LinkIdentity]) {
-
-  /**
-    * Map from Identifier to input number. Used to convert the Identifier
-    * to int when adding sender info to the queue.
-    * We also keep track of the upstream actors so that we can emit
-    * EndOfAllMarker when all upstream actors complete their job
-    */
-  private val inputMap = new mutable.HashMap[ActorVirtualIdentity, LinkIdentity]
+class UpstreamLinkStatus(allUpstreamLinkIds: Set[LinkIdentity]) {
 
   /**
     * The scheduler may not schedule the entire workflow at once. Consider a 2-phase hash join where the first
@@ -23,31 +15,16 @@ class DataInputManager(allUpstreamLinkIds: Set[LinkIdentity]) {
     * links that a worker receives data from.
     */
   private val upstreamMap = new mutable.HashMap[LinkIdentity, mutable.HashSet[ActorVirtualIdentity]]
-  private val endReceivedFromWorkers =
-    new mutable.HashMap[LinkIdentity, mutable.HashSet[ActorVirtualIdentity]]
+  private val endReceivedFromWorkers = new mutable.HashSet[ActorVirtualIdentity]
   private val completedLinkIds = new mutable.HashSet[LinkIdentity]()
 
   def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
     upstreamMap.getOrElseUpdate(input, new mutable.HashSet[ActorVirtualIdentity]()).add(identifier)
-    inputMap(identifier) = input
-  }
-
-  def getInputLink(identifier: ActorVirtualIdentity): LinkIdentity = {
-    if (identifier != null) {
-      inputMap(identifier)
-    } else {
-      null // special case for source operator
-    }
   }
 
   def markWorkerEOF(identifier: ActorVirtualIdentity): Unit = {
     if (identifier != null) {
-      val existingEndReceived =
-        endReceivedFromWorkers.getOrElseUpdate(
-          getInputLink(identifier),
-          new mutable.HashSet[ActorVirtualIdentity]()
-        )
-      existingEndReceived.add(identifier)
+      endReceivedFromWorkers.add(identifier)
     }
   }
 
@@ -55,7 +32,7 @@ class DataInputManager(allUpstreamLinkIds: Set[LinkIdentity]) {
     if (link == null) {
       return true // special case for source operator
     }
-    if (upstreamMap(link).equals(endReceivedFromWorkers(link))) {
+    if (upstreamMap(link).subsetOf(endReceivedFromWorkers)) {
       completedLinkIds.add(link)
       return true
     }

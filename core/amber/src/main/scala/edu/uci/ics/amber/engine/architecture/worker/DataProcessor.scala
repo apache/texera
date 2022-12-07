@@ -36,6 +36,7 @@ import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputEx
 import edu.uci.ics.amber.error.ErrorUtils.safely
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
+import scala.collection.mutable
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
@@ -44,7 +45,7 @@ class DataProcessor( // dependencies:
     val pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
-    dataInputManager: DataInputManager,
+    dataInputManager: UpstreamLinkStatus,
     asyncRPCServer: AsyncRPCServer,
     val logStorage: DeterminantLogStorage,
     val logManager: LogManager,
@@ -93,6 +94,26 @@ class DataProcessor( // dependencies:
       })
     }
   }
+
+  /**
+    * Map from Identifier to input number. Used to convert the Identifier
+    * to int when adding sender info to the queue.
+    * We also keep track of the upstream actors so that we can emit
+    * EndOfAllMarker when all upstream actors complete their job
+    */
+  private val inputMap = new mutable.HashMap[ActorVirtualIdentity, LinkIdentity]
+
+  def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
+    inputMap(identifier) = input
+  }
+
+  def getInputLink(identifier: ActorVirtualIdentity): LinkIdentity = {
+    if (identifier != null) {
+      inputMap(identifier)
+    } else {
+      null // special case for source operator
+    }
+  }
   // dp thread stats:
   // TODO: add another variable for recovery index instead of using the counts below.
   private var inputTupleCount = 0L
@@ -135,13 +156,15 @@ class DataProcessor( // dependencies:
     *
     * @return an iterator of output tuples
     */
-  private[this] def processInputTuple(
-      currentLink: LinkIdentity
-  ): Iterator[(ITuple, Option[LinkIdentity])] = {
+  private[this] def processInputTuple(): Iterator[(ITuple, Option[LinkIdentity])] = {
     var outputIterator: Iterator[(ITuple, Option[LinkIdentity])] = null
     try {
-      outputIterator =
-        operator.processTuple(currentInputTuple, currentLink, pauseManager, asyncRPCClient)
+      outputIterator = operator.processTuple(
+        currentInputTuple,
+        getInputLink(currentInputActor),
+        pauseManager,
+        asyncRPCClient
+      )
       if (currentInputTuple.isLeft) {
         inputTupleCount += 1
       }
@@ -203,7 +226,7 @@ class DataProcessor( // dependencies:
           currentInputActor = from
         }
         currentInputTuple = Left(tuple)
-        handleInputTuple(dataInputManager.getInputLink(currentInputActor))
+        handleInputTuple()
       case EndMarker(from) =>
         if (currentInputActor != from) {
           determinantLogger.logDeterminant(SenderActorChange(from))
@@ -211,10 +234,10 @@ class DataProcessor( // dependencies:
         }
         processControlCommandsDuringExecution() // necessary for trigger correct recovery
         dataInputManager.markWorkerEOF(from)
-        val currentLink = dataInputManager.getInputLink(currentInputActor)
+        val currentLink = getInputLink(currentInputActor)
         if (dataInputManager.isLinkEOF(currentLink)) {
           currentInputTuple = Right(InputExhausted())
-          handleInputTuple(currentLink)
+          handleInputTuple()
           asyncRPCClient.send(LinkCompleted(currentLink), CONTROLLER)
         }
         if (dataInputManager.isAllEOF) {
@@ -261,12 +284,12 @@ class DataProcessor( // dependencies:
     asyncRPCServer.execute(PauseWorker(), SELF)
   }
 
-  private[this] def handleInputTuple(currentLink: LinkIdentity): Unit = {
+  private[this] def handleInputTuple(): Unit = {
     // process controls before processing the input tuple.
     processControlCommandsDuringExecution()
     if (currentInputTuple != null) {
       // pass input tuple to operator logic.
-      currentOutputIterator = processInputTuple(currentLink)
+      currentOutputIterator = processInputTuple()
       // process controls before outputting tuples.
       processControlCommandsDuringExecution()
       // output loop: take one tuple from iterator at a time.
