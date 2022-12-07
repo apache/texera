@@ -160,6 +160,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
 
     val dp = wire[DataProcessor]
+    dp.registerInput(senderID, linkID)
     dp.start()
     operator.open()
     Await.result(sendDataToDP(senderID, dp, tuples), 3.seconds)
@@ -208,6 +209,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       }
     }
     val dp: DataProcessor = wire[DataProcessor]
+    dp.registerInput(senderID, linkID)
     dp.start()
     operator.open()
     val f1 = sendDataToDP(senderID, dp, tuples, 2)
@@ -238,6 +240,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.close _).expects().once()
     }
     val dp: DataProcessor = wire[DataProcessor]
+    dp.registerInput(senderID, linkID)
     dp.start()
     operator.open()
     Await.result(
@@ -269,6 +272,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.close _).expects().once()
     }
     val dp: DataProcessor = wire[DataProcessor]
+    dp.registerInput(senderID, linkID)
     dp.start()
     operator.open()
     Await.result(
@@ -297,6 +301,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val dp: DataProcessor = wire[DataProcessor]
+    dp.registerInput(senderID, linkID)
     dp.start()
     val handlerInitializer = wire[WorkerAsyncRPCHandlerInitializer]
     inSequence {
@@ -376,6 +381,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
 
     val dp = wire[DataProcessor]
+    dp.registerInput(senderID, linkID)
     dp.start()
     operator.open()
     assert(dp.getSenderCredits(senderID) == Constants.unprocessedBatchesCreditLimitPerSender)
