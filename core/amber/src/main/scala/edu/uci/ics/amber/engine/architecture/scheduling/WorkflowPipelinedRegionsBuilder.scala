@@ -157,9 +157,10 @@ class WorkflowPipelinedRegionsBuilder(
 
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
+    val inputSchemaMapStr = inputSchemaMap.map(kv => (kv._1.operatorID, kv._2))
     val fromOpIdInputSchema: Array[Schema] =
       if (!operatorIdToDesc(fromOpId.operator).isInstanceOf[SourceOperatorDescriptor])
-        inputSchemaMap(operatorIdToDesc(fromOpId.operator)).map(s => s.get).toArray
+        inputSchemaMapStr(fromOpId.operator).map(s => s.get).toArray
       else Array()
     val matWriterInputSchema = operatorIdToDesc(fromOpId.operator).getOutputSchemas(
       fromOpIdInputSchema
