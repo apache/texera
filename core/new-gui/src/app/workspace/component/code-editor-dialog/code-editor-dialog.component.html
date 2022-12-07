@@ -2,8 +2,17 @@
   <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
 </ng-container>
 
-<button [mat-dialog-close]="true" class="close-button" mat-icon-button>
-  <mat-icon class="close-icon" color="white">close</mat-icon>
+<button
+  [mat-dialog-close]="true"
+  class="close-button"
+  mat-icon-button>
+  <mat-icon
+    class="close-icon"
+    color="white"
+    >close</mat-icon
+  >
 </button>
 <h1 mat-dialog-title>Python Script</h1>
-<div #editor class="code-editor"></div>
+<div
+  #editor
+  class="code-editor"></div>

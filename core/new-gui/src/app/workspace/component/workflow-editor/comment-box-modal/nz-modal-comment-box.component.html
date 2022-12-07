@@ -1,11 +1,19 @@
 <div class="modal-body">
   <nz-list [nzItemLayout]="'horizontal'">
-    <nz-list-item *ngFor="let item of commentBox.get('comments')" [nzNoFlex]="false">
-      <nz-comment [nzAuthor]="item['creatorName']" [nzDatetime]="toRelative(item.creationTime)">
-        <nz-avatar nz-comment-avatar [nzText]="item['creatorName'].substring(0,1)"></nz-avatar>
+    <nz-list-item
+      *ngFor="let item of commentBox.get('comments')"
+      [nzNoFlex]="false">
+      <nz-comment
+        [nzAuthor]="item['creatorName']"
+        [nzDatetime]="toRelative(item.creationTime)">
+        <nz-avatar
+          nz-comment-avatar
+          [nzText]="item['creatorName'].substring(0,1)"></nz-avatar>
         <nz-comment-content class="commentContent">
           <p [attr.id]="'comment' + item['creatorName'] + item.creationTime">{{ item.content }}</p>
-          <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
+          <nz-input-group
+            nzSearch
+            [nzAddOnAfter]="suffixIconButton">
             <textarea
               display="none"
               hidden="hidden"
@@ -15,8 +23,7 @@
               placeholder="edit comment"
               [(ngModel)]="editValue"
               nz-input
-              [nzAutosize]="{ minRows: 1, maxRows: 6}"
-            ></textarea>
+              [nzAutosize]="{ minRows: 1, maxRows: 6}"></textarea>
           </nz-input-group>
           <ng-template #suffixIconButton>
             <button
@@ -28,9 +35,10 @@
               nzType="primary"
               [nzLoading]="submitting"
               [disabled]="!user || !editValue"
-              (click)="editComment(item['creatorID'], item['creatorName'], item.creationTime)"
-            >
-              <i nz-icon nzType="send"></i>
+              (click)="editComment(item['creatorID'], item['creatorName'], item.creationTime)">
+              <i
+                nz-icon
+                nzType="send"></i>
             </button>
           </ng-template>
         </nz-comment-content>
@@ -53,14 +61,15 @@
 <div class="modal-footer">
   <!-- TODO: add user avatar-->
   <!--    <nz-avatar nz-comment-avatar nzIcon="user" [nzSrc]="user.avatar"></nz-avatar>-->
-  <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
+  <nz-input-group
+    nzSearch
+    [nzAddOnAfter]="suffixIconButton">
     <textarea
       type="text"
       placeholder="add new comment"
       [(ngModel)]="inputValue"
       nz-input
-      [nzAutosize]="{ minRows: 1, maxRows: 6}"
-    ></textarea>
+      [nzAutosize]="{ minRows: 1, maxRows: 6}"></textarea>
   </nz-input-group>
   <ng-template #suffixIconButton>
     <button
@@ -68,9 +77,10 @@
       nzType="primary"
       [nzLoading]="submitting"
       [disabled]="!user || !inputValue"
-      (click)="onClickAddComment()"
-    >
-      <i nz-icon nzType="send"></i>
+      (click)="onClickAddComment()">
+      <i
+        nz-icon
+        nzType="send"></i>
     </button>
   </ng-template>
 </div>
