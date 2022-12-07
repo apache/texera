@@ -47,31 +47,29 @@ describe("WorkflowEditorComponent", () => {
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let jointGraph: joint.dia.Graph;
 
-    beforeEach(
-      waitForAsync(() => {
-        TestBed.configureTestingModule({
-          declarations: [WorkflowEditorComponent],
-          imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule],
-          providers: [
-            JointUIService,
-            WorkflowUtilService,
-            UndoRedoService,
-            DragDropService,
-            ResultPanelToggleService,
-            ValidationWorkflowService,
-            WorkflowActionService,
-            NzContextMenuService,
-            Overlay,
-            {
-              provide: OperatorMetadataService,
-              useClass: StubOperatorMetadataService,
-            },
-            WorkflowStatusService,
-            ExecuteWorkflowService,
-          ],
-        }).compileComponents();
-      })
-    );
+    beforeEach(waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [WorkflowEditorComponent],
+        imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule],
+        providers: [
+          JointUIService,
+          WorkflowUtilService,
+          UndoRedoService,
+          DragDropService,
+          ResultPanelToggleService,
+          ValidationWorkflowService,
+          WorkflowActionService,
+          NzContextMenuService,
+          Overlay,
+          {
+            provide: OperatorMetadataService,
+            useClass: StubOperatorMetadataService,
+          },
+          WorkflowStatusService,
+          ExecuteWorkflowService,
+        ],
+      }).compileComponents();
+    }));
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
@@ -148,37 +146,35 @@ describe("WorkflowEditorComponent", () => {
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
 
-    beforeEach(
-      waitForAsync(() => {
-        TestBed.configureTestingModule({
-          declarations: [WorkflowEditorComponent, NzModalCommentBoxComponent],
-          imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule, NoopAnimationsModule],
-          providers: [
-            JointUIService,
-            WorkflowUtilService,
-            WorkflowActionService,
-            UndoRedoService,
-            ResultPanelToggleService,
-            ValidationWorkflowService,
-            DragDropService,
-            NzModalService,
-            NzContextMenuService,
-            {
-              provide: OperatorMetadataService,
-              useClass: StubOperatorMetadataService,
-            },
-            {
-              provide: UserService,
-              useClass: StubUserService,
-            },
-            WorkflowStatusService,
-            ExecuteWorkflowService,
-            UndoRedoService,
-            WorkflowVersionService,
-          ],
-        }).compileComponents();
-      })
-    );
+    beforeEach(waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [WorkflowEditorComponent, NzModalCommentBoxComponent],
+        imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule, NoopAnimationsModule],
+        providers: [
+          JointUIService,
+          WorkflowUtilService,
+          WorkflowActionService,
+          UndoRedoService,
+          ResultPanelToggleService,
+          ValidationWorkflowService,
+          DragDropService,
+          NzModalService,
+          NzContextMenuService,
+          {
+            provide: OperatorMetadataService,
+            useClass: StubOperatorMetadataService,
+          },
+          {
+            provide: UserService,
+            useClass: StubUserService,
+          },
+          WorkflowStatusService,
+          ExecuteWorkflowService,
+          UndoRedoService,
+          WorkflowVersionService,
+        ],
+      }).compileComponents();
+    }));
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);

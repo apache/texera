@@ -17,24 +17,22 @@ describe("MiniMapComponent", () => {
   let fixture: ComponentFixture<MiniMapComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [MiniMapComponent, WorkflowEditorComponent],
-        providers: [
-          WorkflowActionService,
-          WorkflowUtilService,
-          JointUIService,
-          UndoRedoService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-        ],
-        imports: [HttpClientTestingModule],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [MiniMapComponent, WorkflowEditorComponent],
+      providers: [
+        WorkflowActionService,
+        WorkflowUtilService,
+        JointUIService,
+        UndoRedoService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+      ],
+      imports: [HttpClientTestingModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(MiniMapComponent);

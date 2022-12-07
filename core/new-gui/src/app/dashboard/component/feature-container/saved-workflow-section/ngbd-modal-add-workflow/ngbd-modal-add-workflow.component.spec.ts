@@ -15,15 +15,13 @@ describe("NgbdModalAddProjectComponent", () => {
   let addcomponent: NgbdModalAddWorkflowComponent;
   let addfixture: ComponentFixture<NgbdModalAddWorkflowComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [NgbdModalAddWorkflowComponent],
-        providers: [NgbActiveModal],
-        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [NgbdModalAddWorkflowComponent],
+      providers: [NgbActiveModal],
+      imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalAddWorkflowComponent);

@@ -24,23 +24,21 @@ describe("NgbdModalShareAccessComponent", () => {
     lastModifiedTime: 2,
   };
 
-  beforeEach(
-    waitForAsync(async () => {
-      TestBed.configureTestingModule({
-        imports: [ReactiveFormsModule, FormsModule],
-        declarations: [NgbdModalWorkflowShareAccessComponent],
-        providers: [
-          NgbActiveModal,
-          HttpClient,
-          HttpHandler,
-          {
-            provide: WorkflowAccessService,
-            useClass: StubWorkflowAccessService,
-          },
-        ],
-      });
-    })
-  );
+  beforeEach(waitForAsync(async () => {
+    TestBed.configureTestingModule({
+      imports: [ReactiveFormsModule, FormsModule],
+      declarations: [NgbdModalWorkflowShareAccessComponent],
+      providers: [
+        NgbActiveModal,
+        HttpClient,
+        HttpHandler,
+        {
+          provide: WorkflowAccessService,
+          useClass: StubWorkflowAccessService,
+        },
+      ],
+    });
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalWorkflowShareAccessComponent);

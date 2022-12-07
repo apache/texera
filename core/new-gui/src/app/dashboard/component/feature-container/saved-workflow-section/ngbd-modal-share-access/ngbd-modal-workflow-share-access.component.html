@@ -1,11 +1,21 @@
 <div class="modal-header">
-  <h4 class="modal-title" id="modal-basic-title">Share This Workflow With Someone</h4>
-  <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
+  <h4
+    class="modal-title"
+    id="modal-basic-title">
+    Share This Workflow With Someone
+  </h4>
+  <button
+    (click)="activeModal.dismiss('Cross click')"
+    aria-label="Close"
+    class="close"
+    type="button">
     <span aria-hidden="true"> × </span>
   </button>
 </div>
 <div class="modal-body">
-  <form (ngSubmit)="onClickShareWorkflow(workflow)" [formGroup]="shareForm">
+  <form
+    (ngSubmit)="onClickShareWorkflow(workflow)"
+    [formGroup]="shareForm">
     <div class="form-group">
       <label for="username"> Username of the target user to share </label>
       <input
@@ -17,20 +27,27 @@
         id="username"
         type="text"
         (ngModelChange)="onChange($event)"
-        [nzAutocomplete]="auto"
-      />
+        [nzAutocomplete]="auto" />
       <nz-autocomplete
         [nzDefaultActiveFirstOption]="false"
         [nzDataSource]="filteredOwners"
         nzBackfill
-        #auto
-      ></nz-autocomplete>
+        #auto></nz-autocomplete>
       <br />
       <label for="accessLevel"> Access Level </label>
       <div id="accessLevel">
-        <select class="custom-select" formControlName="accessLevel">
-          <option disabled value="">Choose Access Level To Be Shared</option>
-          <option (change)="changeType($event)" *ngFor="let accessLevel of accessLevels" [ngValue]="accessLevel">
+        <select
+          class="custom-select"
+          formControlName="accessLevel">
+          <option
+            disabled
+            value="">
+            Choose Access Level To Be Shared
+          </option>
+          <option
+            (change)="changeType($event)"
+            *ngFor="let accessLevel of accessLevels"
+            [ngValue]="accessLevel">
             {{ accessLevel }}
           </option>
         </select>
@@ -42,8 +59,7 @@
         nz-tooltip="share the access to the target user"
         nzTooltipPlacement="bottom"
         nzType="primary"
-        type="submit"
-      >
+        type="submit">
         Share
       </button>
     </div>
@@ -54,12 +70,16 @@
     nz-button
     nz-tooltip="reload all accesses"
     nzSize="small"
-    nzTooltipPlacement="bottom"
-  >
-    <i nz-icon nzTheme="outline" nzType="reload"></i>
+    nzTooltipPlacement="bottom">
+    <i
+      nz-icon
+      nzTheme="outline"
+      nzType="reload"></i>
   </button>
   <label for="current-share">Access:</label>
-  <ul class="current-share" id="current-share">
+  <ul
+    class="current-share"
+    id="current-share">
     <li>{{ workflowOwner }} <span class="badge badge-primary">Owner</span></li>
     <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
       {{ userWorkflowAccess.userName }}
@@ -69,9 +89,11 @@
         nz-button
         nz-tooltip="revoke access"
         nzSize="small"
-        nzTooltipPlacement="bottom"
-      >
-        <i nz-icon nzTheme="outline" nzType="delete"></i>
+        nzTooltipPlacement="bottom">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="delete"></i>
       </button>
     </li>
   </ul>

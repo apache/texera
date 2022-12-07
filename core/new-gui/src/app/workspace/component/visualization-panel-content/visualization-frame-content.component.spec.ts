@@ -21,26 +21,24 @@ describe("VisualizationFrameContentComponent", () => {
   const operatorID = "operator1";
   let operatorResultService: OperatorResultService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [MatDialogModule, HttpClientTestingModule],
-        declarations: [VisualizationFrameContentComponent],
-        providers: [
-          JointUIService,
-          WorkflowUtilService,
-          UndoRedoService,
-          WorkflowActionService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          WorkflowStatusService,
-          ExecuteWorkflowService,
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [MatDialogModule, HttpClientTestingModule],
+      declarations: [VisualizationFrameContentComponent],
+      providers: [
+        JointUIService,
+        WorkflowUtilService,
+        UndoRedoService,
+        WorkflowActionService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        WorkflowStatusService,
+        ExecuteWorkflowService,
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(VisualizationFrameContentComponent);

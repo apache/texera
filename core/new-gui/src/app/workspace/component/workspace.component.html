@@ -5,9 +5,11 @@
 		'texera-original-workspace-grid-container': !this.showResultPanel,
 		'texera-workspace-grid-container': this.showResultPanel,
 		'user-system-enabled': this.userSystemEnabled
-	}"
->
-  <texera-navigation class="texera-navigation-grid-container grid-container" [pid]="pid"> </texera-navigation>
+	}">
+  <texera-navigation
+    class="texera-navigation-grid-container grid-container"
+    [pid]="pid">
+  </texera-navigation>
 
   <texera-operator-panel class="texera-operator-panel-grid-container grid-container"> </texera-operator-panel>
 
@@ -18,7 +20,9 @@
     </div>
   </div>
 
-  <texera-workflow-editor id="texera-workflow-editor" class="texera-workflow-editor-grid-container grid-container">
+  <texera-workflow-editor
+    id="texera-workflow-editor"
+    class="texera-workflow-editor-grid-container grid-container">
   </texera-workflow-editor>
 
   <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container grid-container">

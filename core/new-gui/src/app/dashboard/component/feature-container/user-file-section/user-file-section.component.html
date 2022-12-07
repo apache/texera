@@ -2,18 +2,45 @@
   <nz-card class="section-title">
     <h2 class="page-title">Files</h2>
     <div class="d-inline-block">
-      <a nz-dropdown [nzDropdownMenu]="menu">
+      <a
+        nz-dropdown
+        [nzDropdownMenu]="menu">
         <button nz-button>
-          <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="sort-ascending"></i>
         </button>
       </a>
       <nz-dropdown-menu #menu="nzDropdownMenu">
-        <ul nz-menu nzSelectable>
-          <li (click)="ascSort()" nz-menu-item>A -> Z</li>
-          <li (click)="dscSort()" nz-menu-item>Z -> A</li>
-          <li (click)="timeSortDesc()" nz-menu-item>Newest</li>
-          <li (click)="timeSortAsc()" nz-menu-item>Oldest</li>
-          <li (click)="sizeSort()" nz-menu-item>By Size (Descending)</li>
+        <ul
+          nz-menu
+          nzSelectable>
+          <li
+            (click)="ascSort()"
+            nz-menu-item>
+            A -> Z
+          </li>
+          <li
+            (click)="dscSort()"
+            nz-menu-item>
+            Z -> A
+          </li>
+          <li
+            (click)="timeSortDesc()"
+            nz-menu-item>
+            Newest
+          </li>
+          <li
+            (click)="timeSortAsc()"
+            nz-menu-item>
+            Oldest
+          </li>
+          <li
+            (click)="sizeSort()"
+            nz-menu-item>
+            By Size (Descending)
+          </li>
         </ul>
       </nz-dropdown-menu>
       <button
@@ -21,15 +48,19 @@
         [disabled]="disableAddButton()"
         nz-button
         nz-tooltip="Upload file"
-        nzTooltipPlacement="bottom"
-      >
-        <i nz-icon nzTheme="outline" nzType="upload"></i>
+        nzTooltipPlacement="bottom">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="upload"></i>
       </button>
     </div>
   </nz-card>
 
   <div class="section-search-bar">
-    <div *ngIf="isSearchByProject" class="texera-dashboard-user-file-project-box-select">
+    <div
+      *ngIf="isSearchByProject"
+      class="texera-dashboard-user-file-project-box-select">
       <i
         style="margin-right: 10px; align-self: center"
         nz-icon
@@ -37,17 +68,18 @@
         nzPopoverTitle="Filter Instructions"
         nzType="question-circle"
         nzTheme="outline"
-        [nzPopoverContent]="filterPopContent"
-      ></i>
+        [nzPopoverContent]="filterPopContent"></i>
       <button
         style="align-self: center; margin-right: 0%"
         nz-button
         nz-tooltip="Switch to workflow search"
         nzTooltipPlacement="bottom"
         type="button"
-        (click)="toggleSearchMode()"
-      >
-        <i nz-icon nzType="search" nzTheme="outline"></i>
+        (click)="toggleSearchMode()">
+        <i
+          nz-icon
+          nzType="search"
+          nzTheme="outline"></i>
       </button>
       <nz-select
         style="width: 100%"
@@ -58,11 +90,14 @@
         [nzBorderless]="true"
         [nzOpen]="true"
         [(ngModel)]="projectFilterList"
-        (ngModelChange)="isTyping = false"
-      >
+        (ngModelChange)="isTyping = false">
         <nz-option-group nzLabel="Colored Projects">
           <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color !== null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+            <nz-option
+              *ngIf="project.color !== null"
+              nzCustomContent
+              [nzLabel]="project.name"
+              [nzValue]="project.pid">
               <nz-tag
                 [nzColor]="'#' + project.color"
                 [ngStyle]="{ 'color' : colorBrightnessMap.get(project.pid) ? 'black' : 'white'}"
@@ -74,14 +109,22 @@
         </nz-option-group>
         <nz-option-group nzLabel="Colorless Projects">
           <div *ngFor="let project of userProjectsList">
-            <nz-option *ngIf="project.color === null" nzCustomContent [nzLabel]="project.name" [nzValue]="project.pid">
+            <nz-option
+              *ngIf="project.color === null"
+              nzCustomContent
+              [nzLabel]="project.name"
+              [nzValue]="project.pid">
               <nz-tag [nzColor]="'#595959'">{{project.pid}}</nz-tag>
               {{project.name}}
             </nz-option>
           </div>
         </nz-option-group>
       </nz-select>
-      <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
+      <ng-template
+        #tagPlaceHolder
+        let-selectedList
+        >and {{ selectedList.length }} more selected</ng-template
+      >
       <ng-template #filterPopContent>
         To search for a file by project(s) it belongs to, click on the search bar to view and select the appropriate
         projects.
@@ -92,8 +135,7 @@
       *ngIf="!isSearchByProject"
       [nzPrefix]="prefixPopoverButton"
       [nzSuffix]="suffixIconSearch"
-      class="texera-dashboard-user-file-search-box-input"
-    >
+      class="texera-dashboard-user-file-search-box-input">
       <input
         [(ngModel)]="userFileSearchValue"
         nz-input
@@ -102,28 +144,30 @@
         (keyup.enter)="isTyping = false"
         type="text"
         (ngModelChange)="searchInputOnChange($event)"
-        [nzAutocomplete]="auto"
-      />
+        [nzAutocomplete]="auto" />
       <ng-template #prefixPopoverButton>
         <button
           (click)="toggleSearchMode()"
           nz-button
           nz-tooltip="Filter files by project"
           nzTooltipPlacement="bottom"
-          type="button"
-        >
-          <i nz-icon nzType="filter" nzTheme="outline"></i>
+          type="button">
+          <i
+            nz-icon
+            nzType="filter"
+            nzTheme="outline"></i>
         </button>
       </ng-template>
       <ng-template #suffixIconSearch>
-        <i nz-icon nzType="search"></i>
+        <i
+          nz-icon
+          nzType="search"></i>
       </ng-template>
       <nz-autocomplete
         [nzDefaultActiveFirstOption]="false"
         [nzDataSource]="filteredFilenames"
         nzBackfill
-        #auto
-      ></nz-autocomplete>
+        #auto></nz-autocomplete>
     </nz-input-group>
   </div>
 
@@ -132,16 +176,19 @@
       this MUST be approximately the same as list item size set in CSS,
       .file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
-    <cdk-virtual-scroll-viewport itemSize="80" class="virtual-scroll-container">
+    <cdk-virtual-scroll-viewport
+      itemSize="80"
+      class="virtual-scroll-container">
       <nz-list>
         <nz-list-item
           *cdkVirtualFor="let dashboardUserFileEntry of getFileArray();let indexOfElement=index"
-          class="file-list-item"
-        >
+          class="file-list-item">
           <nz-list-item-meta class="file-item-meta">
             <nz-list-item-meta-title>
               <div class="file-item-meta-title">
-                <h4 *ngIf="isEditingName.indexOf(indexOfElement) === -1; else customeFileName" class="file-name">
+                <h4
+                  *ngIf="isEditingName.indexOf(indexOfElement) === -1; else customeFileName"
+                  class="file-name">
                   {{ dashboardUserFileEntry.ownerName + "/" + dashboardUserFileEntry.file.name }}
                 </h4>
                 <ng-template #customeFileName>
@@ -150,8 +197,7 @@
                     (focusout)="confirmUpdateFileCustomName(dashboardUserFileEntry, customeFileName.value, indexOfElement)"
                     (keyup.enter)="confirmUpdateFileCustomName(dashboardUserFileEntry, customeFileName.value, indexOfElement)"
                     placeholder="{{ dashboardUserFileEntry.file.name }}"
-                    value="{{ dashboardUserFileEntry.file.name }}"
-                  />
+                    value="{{ dashboardUserFileEntry.file.name }}" />
                 </ng-template>
                 <button
                   (click)="isEditingName.push(indexOfElement)"
@@ -159,9 +205,11 @@
                   nz-tooltip="Customize File Name"
                   nzSize="small"
                   nzTooltipPlacement="bottom"
-                  nzType="text"
-                >
-                  <i nz-icon nzTheme="outline" nzType="edit"></i>
+                  nzType="text">
+                  <i
+                    nz-icon
+                    nzTheme="outline"
+                    nzType="edit"></i>
                 </button>
                 <button
                   (click)="isEditingDescription.push(indexOfElement)"
@@ -170,9 +218,11 @@
                   nzSize="small"
                   nzTooltipPlacement="bottom"
                   nzType="text"
-                  class="add-description-btn"
-                >
-                  <i nz-icon nzTheme="outline" nzType="plus-square"></i>
+                  class="add-description-btn">
+                  <i
+                    nz-icon
+                    nzTheme="outline"
+                    nzType="plus-square"></i>
                 </button>
                 <i
                   class="file-is-owner-icon"
@@ -180,8 +230,7 @@
                   ngbTooltip="You are the OWNER"
                   nz-icon
                   nzTheme="outline"
-                  nzType="user"
-                ></i>
+                  nzType="user"></i>
                 <i
                   *ngIf="!dashboardUserFileEntry.isOwner"
                   ngbTooltip="{{
@@ -189,8 +238,7 @@
 								}} access shared by {{ dashboardUserFileEntry.ownerName }}"
                   nz-icon
                   nzTheme="outline"
-                  nzType="team"
-                ></i>
+                  nzType="team"></i>
               </div>
             </nz-list-item-meta-title>
 
@@ -200,8 +248,7 @@
                 <label
                   *ngIf="(isEditingDescription.indexOf(indexOfElement) === -1); else customFileDescription "
                   (click)="isEditingDescription.push(indexOfElement)"
-                  class="file-description-label"
-                >
+                  class="file-description-label">
                   {{ dashboardUserFileEntry.file.description }}
                 </label>
                 <ng-template #customFileDescription>
@@ -211,8 +258,7 @@
                     (focusout)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
                     (keyup.enter)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
                     value="{{ dashboardUserFileEntry.file.description }}"
-                    maxlength="500"
-                  />
+                    maxlength="500" />
                 </ng-template>
               </div>
             </nz-list-item-meta-description>
@@ -223,8 +269,12 @@
             </nz-list-item-meta-description>
           </nz-list-item-meta>
 
-          <div *ngIf="userProjectsLoaded" class="project-label-container">
-            <div *ngFor="let pid of dashboardUserFileEntry.projectIDs" class="project-label">
+          <div
+            *ngIf="userProjectsLoaded"
+            class="project-label-container">
+            <div
+              *ngFor="let pid of dashboardUserFileEntry.projectIDs"
+              class="project-label">
               <a
                 *ngIf="userProjectsMap.has(pid) && userProjectsMap.get(pid)!.color !== null"
                 nz-tooltip="{{userProjectsMap.get(pid)!.name}}"
@@ -232,8 +282,7 @@
                 class="left-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
-                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(pid)?.pid"
-              >
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(pid)?.pid">
                 {{userProjectsMap.get(pid)!.name}}
               </a>
               <div
@@ -243,8 +292,7 @@
                 class="right-div"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(pid), 'dark-color' : !colorBrightnessMap.get(pid)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(pid) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(pid)!.color}"
-                (click)="removeFileFromProject(pid, dashboardUserFileEntry.file.fid)"
-              >
+                (click)="removeFileFromProject(pid, dashboardUserFileEntry.file.fid)">
                 x
               </div>
             </div>
@@ -260,9 +308,11 @@
 								dashboardUserFileEntry.file.name
 							}} to others"
                 nzTooltipPlacement="bottom"
-                type="button"
-              >
-                <i nz-icon nzTheme="outline" nzType="share-alt"></i>
+                type="button">
+                <i
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="share-alt"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>
@@ -270,9 +320,11 @@
                 (click)="downloadUserFile(dashboardUserFileEntry)"
                 nz-button
                 nz-tooltip="Download the {{ dashboardUserFileEntry.file.name }}"
-                nzTooltipPlacement="bottom"
-              >
-                <i nz-icon nzTheme="outline" nzType="download"></i>
+                nzTooltipPlacement="bottom">
+                <i
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="download"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>
@@ -284,9 +336,11 @@
 								dashboardUserFileEntry.file.name
 							}}"
                 nzTooltipPlacement="bottom"
-                type="button"
-              >
-                <i nz-icon nzTheme="outline" nzType="delete"></i>
+                type="button">
+                <i
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="delete"></i>
               </button>
             </nz-list-item-action>
           </ul>

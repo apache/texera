@@ -17,31 +17,29 @@ describe("UserLoginComponent", () => {
   let fixture: ComponentFixture<UserLoginModalComponent>;
   let nzModalRefSpy: jasmine.SpyObj<NzModalRef>;
 
-  beforeEach(
-    waitForAsync(() => {
-      const nzModalRefSpyObj = jasmine.createSpyObj("NzModalRef", ["close"]);
-      TestBed.configureTestingModule({
-        declarations: [UserLoginModalComponent],
-        providers: [
-          { provide: NzModalRef, useValue: nzModalRefSpyObj },
-          { provide: UserService, useClass: StubUserService },
-          FormBuilder,
-        ],
-        imports: [
-          BrowserAnimationsModule,
-          HttpClientTestingModule,
-          MatTabsModule,
-          MatFormFieldModule,
-          MatInputModule,
-          NzModalModule,
-          FormsModule,
-          ReactiveFormsModule,
-          MatDialogModule,
-        ],
-      }).compileComponents();
-      nzModalRefSpy = TestBed.inject(NzModalRef) as jasmine.SpyObj<NzModalRef>;
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    const nzModalRefSpyObj = jasmine.createSpyObj("NzModalRef", ["close"]);
+    TestBed.configureTestingModule({
+      declarations: [UserLoginModalComponent],
+      providers: [
+        { provide: NzModalRef, useValue: nzModalRefSpyObj },
+        { provide: UserService, useClass: StubUserService },
+        FormBuilder,
+      ],
+      imports: [
+        BrowserAnimationsModule,
+        HttpClientTestingModule,
+        MatTabsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        NzModalModule,
+        FormsModule,
+        ReactiveFormsModule,
+        MatDialogModule,
+      ],
+    }).compileComponents();
+    nzModalRefSpy = TestBed.inject(NzModalRef) as jasmine.SpyObj<NzModalRef>;
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(UserLoginModalComponent);

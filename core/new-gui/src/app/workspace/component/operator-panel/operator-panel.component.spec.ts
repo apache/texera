@@ -30,25 +30,23 @@ describe("OperatorPanelComponent", () => {
   let component: OperatorPanelComponent;
   let fixture: ComponentFixture<OperatorPanelComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [OperatorPanelComponent, OperatorLabelComponent],
-        providers: [
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          DragDropService,
-          WorkflowActionService,
-          UndoRedoService,
-          WorkflowUtilService,
-          JointUIService,
-        ],
-        imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [OperatorPanelComponent, OperatorLabelComponent],
+      providers: [
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        DragDropService,
+        WorkflowActionService,
+        UndoRedoService,
+        WorkflowUtilService,
+        JointUIService,
+      ],
+      imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorPanelComponent);

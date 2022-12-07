@@ -20,15 +20,13 @@ describe("DeletePromptComponent", () => {
     }).compileComponents();
   });
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [DeletePromptComponent],
-        providers: [NgbActiveModal],
-        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [DeletePromptComponent],
+      providers: [NgbActiveModal],
+      imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     deleteFixture = TestBed.createComponent(DeletePromptComponent);
