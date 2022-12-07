@@ -18,6 +18,7 @@ import edu.uci.ics.texera.web.auth.JwtAuth.{
 }
 import edu.uci.ics.texera.web.model.http.request.auth.GoogleUserLoginRequest
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.retrieveUserByGoogleAuthCode
@@ -74,11 +75,10 @@ object GoogleAuthResource {
           val user = new User
           user.setName(googleEmail)
           user.setGoogleId(googleId)
-          user.setPermission("pending")
+          user.setPermission(UserPermission.pending)
           userDao.insert(user)
           user
       }
-      throw new NotAuthorizedException("Login credentials are incorrect.")
     })
   }
 
@@ -115,7 +115,9 @@ class GoogleAuthResource {
   def login(request: GoogleUserLoginRequest): TokenIssueResponse = {
     retrieveUserByGoogleAuthCode(request.authCode) match {
       case Success(user) =>
-        TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
+        if (user.getPermission == UserPermission.pending)
+          throw new NotAuthorizedException("Account pending approval.")
+        else TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case Failure(_) => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
   }
