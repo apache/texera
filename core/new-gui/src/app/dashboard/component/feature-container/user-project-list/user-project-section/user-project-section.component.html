@@ -41,7 +41,10 @@
     </button>
     <ng-template #colorMenuTemplate>
       <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
-        <button [disabled]="color === null" (click)="removeProjectColor()" class="btn btn-outline-danger btn-xs">
+        <button
+          [disabled]="color === null"
+          (click)="removeProjectColor()"
+          class="btn btn-outline-danger btn-xs">
           Delete
         </button>
         <button

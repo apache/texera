@@ -3,25 +3,34 @@
     nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0)"
-    (click)="onCopy()"
-  >
-    <span nz-icon nzType="copy" nzTheme="outline"></span>copy
+    (click)="onCopy()">
+    <span
+      nz-icon
+      nzType="copy"
+      nzTheme="outline"></span
+    >copy
   </li>
   <li
     nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0)"
-    (click)="onCut()"
-  >
-    <span nz-icon nzType="scissor" nzTheme="outline"></span>cut
+    (click)="onCut()">
+    <span
+      nz-icon
+      nzType="scissor"
+      nzTheme="outline"></span
+    >cut
   </li>
   <li
     nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length === 0 &&
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length === 0)"
-    (click)="onPaste()"
-  >
-    <span nz-icon nzType="snippets" nzTheme="outline"></span>paste
+    (click)="onPaste()">
+    <span
+      nz-icon
+      nzType="snippets"
+      nzTheme="outline"></span
+    >paste
   </li>
   <li
     nz-menu-item
@@ -67,8 +76,11 @@
     nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0)"
-    (click)="onDelete()"
-  >
-    <span nz-icon nzType="delete" nzTheme="outline"></span>delete
+    (click)="onDelete()">
+    <span
+      nz-icon
+      nzType="delete"
+      nzTheme="outline"></span
+    >delete
   </li>
 </ul>
