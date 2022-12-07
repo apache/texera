@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from threading import Condition, current_thread
+from threading import Condition
 from types import TracebackType
 from typing import IO, Type, AnyStr, Iterator, Iterable, Optional
-
-from loguru import logger
 
 
 class SingleBlockingIO(IO):
