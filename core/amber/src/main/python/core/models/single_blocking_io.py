@@ -41,7 +41,6 @@ class SingleBlockingIO(IO):
         """
         self.write("\n")
         self.value, self.buf = self.buf, ""
-        logger.info("flush " + repr(self.value) + " " + str(current_thread()))
 
     def readline(self, limit=None) -> str:
         """
@@ -53,12 +52,10 @@ class SingleBlockingIO(IO):
         try:
             with self.condition:
 
-                # keeps waiting when no value is available
+                # keeps waiting until a value is available
                 while self.value is None:
-                    logger.info("waiting on read " + str(current_thread()))
                     self.condition.notify()
                     self.condition.wait()
-                    logger.info("back into read " + str(current_thread()))
 
                 # noinspection PyTypeChecker
                 return self.value

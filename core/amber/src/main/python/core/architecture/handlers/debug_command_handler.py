@@ -1,5 +1,3 @@
-from loguru import logger
-
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerDebugCommandV2,
 )
@@ -42,7 +40,6 @@ class WorkerDebugCommandHandler(Handler):
             )
         else:
             translated_command = f"{debug_command} {' '.join(debug_args)}"
-        logger.info("translated debug command " + translated_command)
 
         translated_command = translated_command.strip()
         return translated_command
