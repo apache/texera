@@ -12,13 +12,14 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   GetActorRef,
   NetworkSenderActorRef,
   RegisterActorRef,
+  ResendFeasibility,
   SendRequest
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkCommunicationActor,
   NetworkOutputPort
 }
-import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
+import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
@@ -50,12 +51,13 @@ abstract class WorkflowActor(
       NetworkCommunicationActor.props(parentNetworkCommunicationActorRef.ref, actorId)
     )
   )
-  val logStorage: DeterminantLogStorage =
+  val logStorage: DeterminantLogStorage = {
     DeterminantLogStorage.getLogStorage(supportFaultTolerance, getLogName)
-  val recoveryManager = new LocalRecoveryManager(logStorage.getReader)
+  }
+  val recoveryManager = new LocalRecoveryManager()
   val logManager: LogManager =
     LogManager.getLogManager(supportFaultTolerance, networkCommunicationActor)
-  if (recoveryManager.replayCompleted()) {
+  if (!logStorage.isLogAvailableForRead) {
     logManager.setupWriter(logStorage.getWriter)
   } else {
     logManager.setupWriter(new EmptyLogStorage().getWriter)
@@ -75,6 +77,16 @@ abstract class WorkflowActor(
   ): Unit = {
     val msg = WorkflowControlMessage(self, seqNum, payload)
     logManager.sendCommitted(SendRequest(to, msg))
+  }
+
+  def forwardResendRequest: Receive = {
+    case resend: ResendOutputTo =>
+      networkCommunicationActor ! resend
+    case ResendFeasibility(status) =>
+      if (!status) {
+        // this exception will be caught by the catch in receiveAndProcessMessages
+        throw new WorkflowRuntimeException(s"network sender cannot resend message!")
+      }
   }
 
   def disallowActorRefRelatedMessages: Receive = {

@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
   DeterminantLogReader,
   DeterminantLogWriter
 }
-import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.nio.file.{
@@ -29,25 +28,21 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
   }
 
   override def getWriter: DeterminantLogWriter = {
-    new DeterminantLogWriter {
-      override lazy protected val outputStream = {
-        new DataOutputStream(
-          Files.newOutputStream(
-            getLogPath,
-            StandardOpenOption.CREATE,
-            StandardOpenOption.APPEND
-          )
+    new DeterminantLogWriter(
+      new DataOutputStream(
+        Files.newOutputStream(
+          getLogPath,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.APPEND
         )
-      }
-    }
+      )
+    )
   }
 
   override def getReader: DeterminantLogReader = {
     val path = getLogPath
     if (Files.exists(path)) {
-      new DeterminantLogReader {
-        override protected val inputStream = new DataInputStream(Files.newInputStream(path))
-      }
+      new DeterminantLogReader(() => new DataInputStream(Files.newInputStream(path)))
     } else {
       // we do not throw exception here because every worker
       // will try to read log during startup.
@@ -66,21 +61,29 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
   override def cleanPartiallyWrittenLogFile(): Unit = {
     var tmpPath = getLogPath
     tmpPath = tmpPath.resolveSibling(tmpPath.getFileName + ".tmp")
-    copyReadableLogRecords(new DeterminantLogWriter {
-      override lazy protected val outputStream = {
+    copyReadableLogRecords(
+      new DeterminantLogWriter(
         new DataOutputStream(
           Files.newOutputStream(
             tmpPath,
             StandardOpenOption.CREATE
           )
         )
-      }
-    })
+      )
+    )
     Files.move(
       tmpPath,
       getLogPath,
       StandardCopyOption.REPLACE_EXISTING,
       StandardCopyOption.ATOMIC_MOVE
     )
+  }
+
+  override def isLogAvailableForRead: Boolean = {
+    if (Files.exists(getLogPath)) {
+      Files.isReadable(getLogPath) && Files.size(getLogPath) > 0
+    } else {
+      false
+    }
   }
 }
