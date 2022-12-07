@@ -1,26 +1,28 @@
-from abc import abstractmethod
+from abc import ABCMeta
 from dataclasses import dataclass
 
-from typing_extensions import Protocol, T
+from core.util.protocol.base_protocols import (
+    Putable,
+    Getable,
+    EmtpyCheckable,
+    KeyedPutable,
+    KeyedEmtpyCheckable,
+)
 
 
-class IQueue(Protocol):
-    @dataclass
-    class QueueElement:
-        pass
+@dataclass
+class QueueElement:
+    pass
 
-    @dataclass
-    class QueueControl(QueueElement):
-        msg: str
 
-    @abstractmethod
-    def empty(self) -> bool:
-        pass
+@dataclass
+class QueueControl(QueueElement):
+    msg: str
 
-    @abstractmethod
-    def get(self) -> T:
-        pass
 
-    @abstractmethod
-    def put(self, item: T) -> None:
-        pass
+class IQueue(Putable, Getable, EmtpyCheckable, metaclass=ABCMeta):
+    pass
+
+
+class IKeyedQueue(KeyedPutable, Getable, KeyedEmtpyCheckable, metaclass=ABCMeta):
+    pass
