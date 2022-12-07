@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 
@@ -107,5 +108,19 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
      */
     public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByGoogleId(String value) {
         return fetchOne(User.USER.GOOGLE_ID, value);
+    }
+
+    /**
+     * Fetch records that have <code>permission BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfPermission(UserPermission lowerInclusive, UserPermission upperInclusive) {
+        return fetchRange(User.USER.PERMISSION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>permission IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByPermission(UserPermission... values) {
+        return fetch(User.USER.PERMISSION, values);
     }
 }

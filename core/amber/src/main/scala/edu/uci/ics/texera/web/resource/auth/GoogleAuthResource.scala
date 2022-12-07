@@ -74,9 +74,11 @@ object GoogleAuthResource {
           val user = new User
           user.setName(googleEmail)
           user.setGoogleId(googleId)
+          user.setPermission("pending")
           userDao.insert(user)
           user
       }
+      throw new NotAuthorizedException("Login credentials are incorrect.")
     })
   }
 

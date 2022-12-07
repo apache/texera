@@ -4,6 +4,8 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission;
+
 import java.io.Serializable;
 
 import org.jooq.types.UInteger;
@@ -54,6 +56,16 @@ public interface IUser extends Serializable {
      * Getter for <code>texera_db.user.google_id</code>.
      */
     public String getGoogleId();
+
+    /**
+     * Setter for <code>texera_db.user.permission</code>.
+     */
+    public void setPermission(UserPermission value);
+
+    /**
+     * Getter for <code>texera_db.user.permission</code>.
+     */
+    public UserPermission getPermission();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

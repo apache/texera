@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IUser;
 
 import org.jooq.types.UInteger;
@@ -15,12 +16,13 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = -1659266357;
+    private static final long serialVersionUID = 212225240;
 
-    private String   name;
-    private UInteger uid;
-    private String   password;
-    private String   googleId;
+    private String         name;
+    private UInteger       uid;
+    private String         password;
+    private String         googleId;
+    private UserPermission permission;
 
     public User() {}
 
@@ -29,18 +31,21 @@ public class User implements IUser {
         this.uid = value.getUid();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
+        this.permission = value.getPermission();
     }
 
     public User(
-        String   name,
-        UInteger uid,
-        String   password,
-        String   googleId
+        String         name,
+        UInteger       uid,
+        String         password,
+        String         googleId,
+        UserPermission permission
     ) {
         this.name = name;
         this.uid = uid;
         this.password = password;
         this.googleId = googleId;
+        this.permission = permission;
     }
 
     @Override
@@ -84,6 +89,16 @@ public class User implements IUser {
     }
 
     @Override
+    public UserPermission getPermission() {
+        return this.permission;
+    }
+
+    @Override
+    public void setPermission(UserPermission permission) {
+        this.permission = permission;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("User (");
 
@@ -91,6 +106,7 @@ public class User implements IUser {
         sb.append(", ").append(uid);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
+        sb.append(", ").append(permission);
 
         sb.append(")");
         return sb.toString();
@@ -106,6 +122,7 @@ public class User implements IUser {
         setUid(from.getUid());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
+        setPermission(from.getPermission());
     }
 
     @Override

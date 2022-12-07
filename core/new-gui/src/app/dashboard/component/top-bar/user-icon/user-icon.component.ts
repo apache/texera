@@ -5,6 +5,8 @@ import { UserLoginModalComponent } from "./user-login/user-login-modal.component
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { environment } from "../../../../../environments/environment";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { HttpErrorResponse } from "@angular/common/http";
 /**
  * UserIconComponent is used to control user system on the top right corner
  * It includes the button for login/registration/logout
@@ -19,7 +21,11 @@ import { environment } from "../../../../../environments/environment";
 export class UserIconComponent {
   public user: User | undefined;
   localLogin = environment.localLogin;
-  constructor(private modalService: NzModalService, private userService: UserService) {
+  constructor(
+    private modalService: NzModalService,
+    private userService: UserService,
+    private notificationService: NotificationService
+  ) {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
@@ -54,6 +60,13 @@ export class UserIconComponent {
    * then sending the code to the backend
    */
   public googleLogin(): void {
-    this.userService.googleLogin().pipe(untilDestroyed(this)).subscribe();
+    this.userService
+      .googleLogin()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: (e: unknown) => {
+          if (e instanceof HttpErrorResponse) this.notificationService.error(e.headers.get("WWW-Authenticate"));
+        },
+      });
   }
 }
