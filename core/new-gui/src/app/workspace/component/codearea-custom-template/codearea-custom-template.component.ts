@@ -22,7 +22,7 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 })
 export class CodeareaCustomTemplateComponent extends FieldType<any> implements AfterViewInit {
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
-  disabled: boolean = false;
+  readonly: boolean = false;
 
   constructor(public dialog: MatDialog, private coeditorPresenceService: CoeditorPresenceService) {
     super();
@@ -30,17 +30,17 @@ export class CodeareaCustomTemplateComponent extends FieldType<any> implements A
   }
 
   ngAfterViewInit() {
-    this.handleDisabled();
+    this.handleReadonlyStatusChange();
   }
 
   /**
    * Syncs the disabled status of the button with formControl.
    * Used to fit the unit test since undefined might occur.
    */
-  handleDisabled(): void {
+  handleReadonlyStatusChange(): void {
     if (this.field !== undefined)
       this.field.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-        this.disabled = this.field.formControl.disabled;
+        this.readonly = this.field.formControl.disabled;
       });
   }
 
