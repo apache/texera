@@ -11,19 +11,19 @@ import java.io.{DataInputStream, DataOutputStream}
 
 class EmptyLogStorage extends DeterminantLogStorage {
   override def getWriter: DeterminantLogWriter = {
-    new DeterminantLogWriter {
-      override protected val outputStream: DataOutputStream = new DataOutputStream(
+    new DeterminantLogWriter(
+      new DataOutputStream(
         new NullOutputStream()
       )
-    }
+    )
   }
 
   override def getReader: DeterminantLogReader = {
-    new DeterminantLogReader {
-      override protected val inputStream: DataInputStream = new DataInputStream(
+    new DeterminantLogReader(() =>
+      new DataInputStream(
         new NullInputStream()
       )
-    }
+    )
   }
 
   override def deleteLog(): Unit = {
@@ -33,4 +33,6 @@ class EmptyLogStorage extends DeterminantLogStorage {
   override def cleanPartiallyWrittenLogFile(): Unit = {
     // empty
   }
+
+  override def isLogAvailableForRead: Boolean = false
 }

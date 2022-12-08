@@ -121,24 +121,22 @@ describe("UserFileSectionComponent", () => {
 
   const testFileEntries: DashboardUserFileEntry[] = [testFile, testFile1, testFile2, testFile3, testFile4, testFile5];
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [UserFileSectionComponent],
-        providers: [NgbModal, { provide: UserService, useClass: StubUserService }, UserFileService],
-        imports: [
-          CustomNgMaterialModule,
-          NgbModule,
-          FormsModule,
-          ReactiveFormsModule,
-          MatListModule,
-          HttpClientTestingModule,
-          RouterTestingModule,
-          NzDropDownModule,
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [UserFileSectionComponent],
+      providers: [NgbModal, { provide: UserService, useClass: StubUserService }, UserFileService],
+      imports: [
+        CustomNgMaterialModule,
+        NgbModule,
+        FormsModule,
+        ReactiveFormsModule,
+        MatListModule,
+        HttpClientTestingModule,
+        RouterTestingModule,
+        NzDropDownModule,
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(UserFileSectionComponent);
@@ -204,66 +202,60 @@ describe("UserFileSectionComponent", () => {
     expect(SortedCase).toEqual([1, 5, 2, 4, 3, 6]);
   });
 
-  it(
-    "adding a file description adds a description to the file",
-    waitForAsync(() => {
-      fixture.whenStable().then(() => {
-        let addFileDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
-        expect(addFileDescriptionBtn1).toBeFalsy();
-        // add some test workflows
-        component.dashboardUserFileEntries = testFileEntries;
-        fixture.detectChanges();
-        let addFileDescriptionBtn2 = fixture.debugElement.query(By.css(".add-description-btn"));
-        // the button for adding workflow descriptions should appear now
-        expect(addFileDescriptionBtn2).toBeTruthy();
-        addFileDescriptionBtn2.triggerEventHandler("click", null);
-        fixture.detectChanges();
-        let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
-          ".file-editable-description-input"
-        );
-        expect(editableDescriptionInput1).toBeTruthy();
+  it("adding a file description adds a description to the file", waitForAsync(() => {
+    fixture.whenStable().then(() => {
+      let addFileDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
+      expect(addFileDescriptionBtn1).toBeFalsy();
+      // add some test workflows
+      component.dashboardUserFileEntries = testFileEntries;
+      fixture.detectChanges();
+      let addFileDescriptionBtn2 = fixture.debugElement.query(By.css(".add-description-btn"));
+      // the button for adding workflow descriptions should appear now
+      expect(addFileDescriptionBtn2).toBeTruthy();
+      addFileDescriptionBtn2.triggerEventHandler("click", null);
+      fixture.detectChanges();
+      let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
+        ".file-editable-description-input"
+      );
+      expect(editableDescriptionInput1).toBeTruthy();
 
-        spyOn(component, "confirmUpdateFileCustomDescription");
-        sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
-          fixture.detectChanges();
-          editableDescriptionInput1.dispatchEvent(new Event("focusout"));
-          fixture.detectChanges();
-          expect(component.confirmUpdateFileCustomDescription).toHaveBeenCalledTimes(1);
-        });
+      spyOn(component, "confirmUpdateFileCustomDescription");
+      sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
+        fixture.detectChanges();
+        editableDescriptionInput1.dispatchEvent(new Event("focusout"));
+        fixture.detectChanges();
+        expect(component.confirmUpdateFileCustomDescription).toHaveBeenCalledTimes(1);
       });
-    })
-  );
+    });
+  }));
 
-  it(
-    "Editing a file description edits a description to the file",
-    waitForAsync(() => {
-      fixture.whenStable().then(() => {
-        let fileDescriptionLabel1 = fixture.debugElement.query(By.css(".file-description-label"));
-        expect(fileDescriptionLabel1).toBeFalsy();
-        // add some test workflows
-        component.dashboardUserFileEntries = testFileEntries;
+  it("Editing a file description edits a description to the file", waitForAsync(() => {
+    fixture.whenStable().then(() => {
+      let fileDescriptionLabel1 = fixture.debugElement.query(By.css(".file-description-label"));
+      expect(fileDescriptionLabel1).toBeFalsy();
+      // add some test workflows
+      component.dashboardUserFileEntries = testFileEntries;
+      fixture.detectChanges();
+      let fileDescriptionLabel2 = fixture.debugElement.query(By.css(".file-description-label"));
+      // the workflow description label should appear now
+      expect(fileDescriptionLabel2).toBeTruthy();
+      fileDescriptionLabel2.triggerEventHandler("click", null);
+      fixture.detectChanges();
+      let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
+        ".file-editable-description-input"
+      );
+      expect(editableDescriptionInput1).toBeTruthy();
+
+      spyOn(component, "confirmUpdateFileCustomDescription");
+
+      sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
         fixture.detectChanges();
-        let fileDescriptionLabel2 = fixture.debugElement.query(By.css(".file-description-label"));
-        // the workflow description label should appear now
-        expect(fileDescriptionLabel2).toBeTruthy();
-        fileDescriptionLabel2.triggerEventHandler("click", null);
+        editableDescriptionInput1.dispatchEvent(new Event("focusout"));
         fixture.detectChanges();
-        let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
-          ".file-editable-description-input"
-        );
-        expect(editableDescriptionInput1).toBeTruthy();
-
-        spyOn(component, "confirmUpdateFileCustomDescription");
-
-        sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
-          fixture.detectChanges();
-          editableDescriptionInput1.dispatchEvent(new Event("focusout"));
-          fixture.detectChanges();
-          expect(component.confirmUpdateFileCustomDescription).toHaveBeenCalledTimes(1);
-        });
+        expect(component.confirmUpdateFileCustomDescription).toHaveBeenCalledTimes(1);
       });
-    })
-  );
+    });
+  }));
 
   function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
     // editableDescriptionInput.dispatchEvent(new Event("focus"));
