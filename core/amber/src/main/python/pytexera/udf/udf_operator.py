@@ -129,7 +129,7 @@ class UDFBatchOperator(BatchOperator):
     @abstractmethod
     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
         """
-        Process an input Table from the given link. The Table is represented as
+        Process an input Batch from the given link. The Batch is represented as
         pandas.DataFrame.
 
         :param batch: Batch, a batch to be processed.

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union
+from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
 
 import overrides
 import pandas
@@ -103,14 +103,11 @@ class BatchOperator(TupleOperatorV2):
     be provided upon using.
     """
 
-    DEFAULT_BATCH_SIZE: int = (
-        10  # if BATCH_SIZE is not initialized, then it will use DEFAULT_BATCH_SIZE
-    )
-    BATCH_SIZE: Optional[int] = DEFAULT_BATCH_SIZE  # must be a positive integer
+    BATCH_SIZE: int = 10  # must be a positive integer
 
     def __init__(self):
         super().__init__()
-        self.__batch_data: Mapping[int, List[Tuple]] = defaultdict(list)
+        self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
         self._check_batch_size(self.BATCH_SIZE)
 
     @staticmethod
@@ -184,12 +181,7 @@ class TableOperator(TupleOperatorV2):
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
         table = Table(
-            pandas.DataFrame(
-                [
-                    self.__table_data[port].pop(0).as_series()
-                    for _ in range(len(self.__table_data[port]))
-                ]
-            )
+            pandas.DataFrame([i.as_series() for i in self.__table_data[port]])
         )
         for output_table in self.process_table(table, port):
             if output_table is not None:
