@@ -1,17 +1,19 @@
-<h3 *ngIf="formTitle" class="texera-workspace-property-editor-title">{{ formTitle }}</h3>
+<h3
+  *ngIf="formTitle"
+  class="texera-workspace-property-editor-title">
+  {{ formTitle }}
+</h3>
 
 <form
   *ngIf="formlyFields && formlyFormGroup"
   [formGroup]="formlyFormGroup"
-  class="texera-workspace-property-editor-form"
->
+  class="texera-workspace-property-editor-form">
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"
     [form]="formlyFormGroup"
     [model]="formData"
-    [options]="formlyOptions"
-  >
+    [options]="formlyOptions">
   </formly-form>
 </form>
 
@@ -19,8 +21,7 @@
   (click)="handleAddBreakpoint()"
   *ngIf="currentLinkId !== undefined && !hasBreakpoint()"
   class="breakpointRemoveButton"
-  type="button"
->
+  type="button">
   Add Breakpoint
 </button>
 
@@ -28,7 +29,6 @@
   (click)="handleRemoveBreakpoint()"
   *ngIf="currentLinkId !== undefined && hasBreakpoint()"
   class="breakpointRemoveButton"
-  type="button"
->
+  type="button">
   Remove Breakpoint
 </button>

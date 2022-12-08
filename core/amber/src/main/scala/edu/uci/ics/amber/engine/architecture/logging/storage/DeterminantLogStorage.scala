@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
   DeterminantLogReader,
   DeterminantLogWriter
 }
-import edu.uci.ics.amber.engine.architecture.recovery.RecordIterator
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -33,23 +32,21 @@ object DeterminantLogStorage {
     KryoPool.withByteArrayOutputStream(Runtime.getRuntime.availableProcessors * 2, ki)
   }
 
-  private val maxSize: Long =
-    AmberUtils.amberConfig.getLong("fault-tolerance.log-record-max-size-in-byte")
+  private val maxSize: Int =
+    AmberUtils.amberConfig.getInt("fault-tolerance.log-record-max-size-in-byte")
 
   // For debugging purpose only
   def fetchAllLogRecords(storage: DeterminantLogStorage): Iterable[InMemDeterminant] = {
     val reader = storage.getReader
-    val recordIter = new RecordIterator(reader)
+    val recordIter = reader.mkLogRecordIterator()
     val buffer = new ArrayBuffer[InMemDeterminant]()
-    while (!recordIter.isEmpty) {
-      buffer.append(recordIter.peek())
-      recordIter.readNext()
+    while (recordIter.hasNext) {
+      buffer.append(recordIter.next())
     }
     buffer
   }
 
-  abstract class DeterminantLogWriter {
-    protected val outputStream: DataOutputStream
+  class DeterminantLogWriter(outputStream: DataOutputStream) {
     lazy val output = new Output(outputStream)
     def writeLogRecord(obj: InMemDeterminant): Unit = {
       val bytes = kryoPool.toBytesWithClass(obj)
@@ -68,25 +65,33 @@ object DeterminantLogStorage {
     }
   }
 
-  abstract class DeterminantLogReader {
-    protected val inputStream: DataInputStream
-    lazy val input = new Input(inputStream)
-    def readLogRecord(): InMemDeterminant = {
-      try {
-        val len = input.readInt()
-        assert(
-          len < maxSize,
-          "Reading log record size = " + len + " which exceeds the max size of " + maxSize + " bytes"
-        )
-        val bytes = input.readBytes(len)
-        kryoPool.fromBytes(bytes).asInstanceOf[InMemDeterminant]
-      } catch {
-        case e: Throwable =>
-          null
+  class DeterminantLogReader(inputStreamGen: () => DataInputStream) {
+    def mkLogRecordIterator(): Iterator[InMemDeterminant] = {
+      lazy val input = new Input(inputStreamGen())
+      new Iterator[InMemDeterminant] {
+        var record: InMemDeterminant = internalNext()
+        private def internalNext(): InMemDeterminant = {
+          try {
+            val len = input.readInt()
+            assert(
+              len < maxSize,
+              "Reading log record size = " + len + " which exceeds the max size of " + maxSize + " bytes"
+            )
+            val bytes = input.readBytes(len)
+            kryoPool.fromBytes(bytes).asInstanceOf[InMemDeterminant]
+          } catch {
+            case e: Throwable =>
+              input.close()
+              null
+          }
+        }
+        override def next(): InMemDeterminant = {
+          val currentRecord = record
+          record = internalNext()
+          currentRecord
+        }
+        override def hasNext: Boolean = record != null
       }
-    }
-    def close(): Unit = {
-      input.close()
     }
   }
 
@@ -115,15 +120,16 @@ abstract class DeterminantLogStorage {
 
   def getReader: DeterminantLogReader
 
+  def isLogAvailableForRead: Boolean
+
   def deleteLog(): Unit
 
   def cleanPartiallyWrittenLogFile(): Unit
 
   protected def copyReadableLogRecords(writer: DeterminantLogWriter): Unit = {
-    val recordIterator = new RecordIterator(getReader)
-    while (!recordIterator.isEmpty) {
-      writer.writeLogRecord(recordIterator.peek())
-      recordIterator.readNext()
+    val recordIterator = getReader.mkLogRecordIterator()
+    while (recordIterator.hasNext) {
+      writer.writeLogRecord(recordIterator.next())
     }
     writer.close()
   }

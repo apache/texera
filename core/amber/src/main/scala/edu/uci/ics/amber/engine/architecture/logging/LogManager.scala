@@ -13,7 +13,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 //In-mem formats:
 sealed trait InMemDeterminant
-case class LinkChange(linkIdentity: LinkIdentity) extends InMemDeterminant
 case class SenderActorChange(actorVirtualIdentity: ActorVirtualIdentity) extends InMemDeterminant
 case class StepDelta(steps: Long) extends InMemDeterminant
 case class ProcessControlMessage(controlPayload: ControlPayload, from: ActorVirtualIdentity)
@@ -34,7 +33,7 @@ object LogManager {
   }
 }
 
-abstract class LogManager {
+trait LogManager {
   def setupWriter(logWriter: DeterminantLogWriter): Unit
 
   def getDeterminantLogger: DeterminantLogger
@@ -42,5 +41,47 @@ abstract class LogManager {
   def sendCommitted(sendRequest: SendRequest): Unit
 
   def terminate(): Unit
+
+}
+
+class EmptyLogManagerImpl(
+    networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
+) extends LogManager {
+  override def setupWriter(logWriter: DeterminantLogStorage.DeterminantLogWriter): Unit = {}
+
+  override def getDeterminantLogger: DeterminantLogger = new EmptyDeterminantLogger()
+
+  override def sendCommitted(
+      sendRequest: NetworkCommunicationActor.SendRequest
+  ): Unit = {
+    networkCommunicationActor ! sendRequest
+  }
+
+  override def terminate(): Unit = {}
+}
+
+class LogManagerImpl(
+    networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
+) extends LogManager {
+
+  private val determinantLogger = new DeterminantLoggerImpl()
+
+  private var writer: AsyncLogWriter = _
+
+  def setupWriter(logWriter: DeterminantLogWriter): Unit = {
+    writer = new AsyncLogWriter(networkCommunicationActor, logWriter)
+    writer.start()
+  }
+
+  def getDeterminantLogger: DeterminantLogger = determinantLogger
+
+  def sendCommitted(sendRequest: SendRequest): Unit = {
+    writer.putDeterminants(determinantLogger.drainCurrentLogRecords())
+    writer.putOutput(sendRequest)
+  }
+
+  def terminate(): Unit = {
+    writer.terminate()
+  }
 
 }
