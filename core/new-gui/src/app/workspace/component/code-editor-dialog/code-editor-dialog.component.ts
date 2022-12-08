@@ -77,7 +77,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     ).get("code") as YText;
 
     this.initMonaco();
-    this.handleWorkflowModificationEnabledChange();
+    this.handleDisabledStatusChange();
   }
 
   /**
@@ -115,7 +115,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * Uses the formControl's status to change readonly status of the editor.
    * @private
    */
-  private handleWorkflowModificationEnabledChange(): void {
+  private handleDisabledStatusChange(): void {
     this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
       this.editor.updateOptions({
         readOnly: this.formControl.disabled,
