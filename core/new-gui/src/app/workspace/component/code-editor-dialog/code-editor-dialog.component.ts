@@ -37,10 +37,10 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     fontSize: "11",
     automaticLayout: true,
   };
-  formControl: FormControl;
   @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
   loaded: boolean = false;
 
+  private formControl: FormControl;
   private ytext?: YText;
   private editor?: any;
 
