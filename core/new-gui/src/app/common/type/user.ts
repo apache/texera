@@ -10,6 +10,7 @@ export interface User
     name: string;
     uid: number;
     googleId?: string;
+    role?: string;
     color?: string;
   }> {}
 
