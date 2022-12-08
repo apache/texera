@@ -5,7 +5,9 @@
     nz-button
     nzShape="round"
     nzType="primary"
-    [disabled]="this.formControl.disabled">
-    <div>Edit code content</div>
+    [ngClass]="{ 'readonly': disabled }"
+  >
+    <div *ngIf="!disabled">Edit code content</div>
+    <div *ngIf="disabled">View code content</div>
   </button>
 </div>

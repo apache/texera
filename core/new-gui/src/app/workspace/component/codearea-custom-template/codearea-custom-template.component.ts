@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import {AfterViewInit, Component, OnInit} from "@angular/core";
 import { FieldType } from "@ngx-formly/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
@@ -20,12 +20,28 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
   templateUrl: "./codearea-custom-template.component.html",
   styleUrls: ["./codearea-custom-template.component.scss"],
 })
-export class CodeareaCustomTemplateComponent extends FieldType {
+export class CodeareaCustomTemplateComponent extends FieldType<any> implements AfterViewInit {
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
+  disabled: boolean = false;
 
   constructor(public dialog: MatDialog, private coeditorPresenceService: CoeditorPresenceService) {
     super();
     this.handleShadowingMode();
+  }
+
+  ngAfterViewInit() {
+    this.handleDisabled();
+  }
+
+  /**
+   * Syncs the disabled status of the button with formControl.
+   * Used to fit the unit test since undefined might occur.
+   */
+  handleDisabled(): void {
+    if (this.field !== undefined)
+      this.field.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+        this.disabled = this.field.formControl.disabled;
+      });
   }
 
   /**
@@ -33,7 +49,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
    */
   onClickEditor(): void {
     this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
-      data: this.formControl,
+      data: this.field.formControl,
     });
   }
 
