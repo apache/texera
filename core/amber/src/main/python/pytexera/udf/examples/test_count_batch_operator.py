@@ -76,7 +76,9 @@ class TestCountBatchOperator:
     def test_edge_case_string(self):
         with pytest.raises(ValueError) as exc_info:
             operator_string = str(inspect.getsource(CountBatchOperator))
-            operator_string = operator_string.replace("BATCH_SIZE = 10", "BATCH_SIZE = \"test\"")
+            operator_string = operator_string.replace(
+                "BATCH_SIZE = 10", 'BATCH_SIZE = "test"'
+            )
             operator_string += "operator = CountBatchOperator()"
             exec(operator_string)
             assert (
@@ -87,7 +89,9 @@ class TestCountBatchOperator:
     def test_edge_case_non_positive(self, count_batch_operator):
         with pytest.raises(ValueError) as exc_info:
             operator_string = str(inspect.getsource(CountBatchOperator))
-            operator_string = operator_string.replace("BATCH_SIZE = 10", "BATCH_SIZE = -20")
+            operator_string = operator_string.replace(
+                "BATCH_SIZE = 10", "BATCH_SIZE = -20"
+            )
             operator_string += "operator = CountBatchOperator()"
             exec(operator_string)
             assert exc_info.value.args[0] == "BATCH_SIZE should be positive."
@@ -95,7 +99,9 @@ class TestCountBatchOperator:
     def test_edge_case_none(self, count_batch_operator):
         with pytest.raises(ValueError) as exc_info:
             operator_string = str(inspect.getsource(CountBatchOperator))
-            operator_string = operator_string.replace("BATCH_SIZE = 10", "BATCH_SIZE = None")
+            operator_string = operator_string.replace(
+                "BATCH_SIZE = 10", "BATCH_SIZE = None"
+            )
             operator_string += "operator = CountBatchOperator()"
             exec(operator_string)
             assert exc_info.value.args[0] == "BATCH_SIZE cannot be None."
