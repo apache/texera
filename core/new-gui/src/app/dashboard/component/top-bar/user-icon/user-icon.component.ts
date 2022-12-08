@@ -29,7 +29,7 @@ export class UserIconComponent {
   }
 
   ngOnInit() {
-    this.detectUserChange();
+    this.logoutInactiveUser();
   }
 
   /**
@@ -63,7 +63,7 @@ export class UserIconComponent {
     this.userService.googleLogin().pipe(untilDestroyed(this)).subscribe();
   }
 
-  private detectUserChange(): void {
+  private logoutInactiveUser(): void {
     // TODO temporary solution, need improvement
     this.userService
       .userChanged()
