@@ -1,13 +1,21 @@
 package edu.uci.ics.texera.web.resource.auth
 
-import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeTokenRequest, GoogleIdToken}
+import com.google.api.client.googleapis.auth.oauth2.{
+  GoogleAuthorizationCodeTokenRequest,
+  GoogleIdToken
+}
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims, jwtToken}
+import edu.uci.ics.texera.web.auth.JwtAuth.{
+  TOKEN_EXPIRE_TIME_IN_DAYS,
+  dayToMin,
+  jwtClaims,
+  jwtToken
+}
 import edu.uci.ics.texera.web.model.http.request.auth.GoogleUserLoginRequest
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole

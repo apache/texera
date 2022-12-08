@@ -5,8 +5,8 @@ import { UserLoginModalComponent } from "./user-login/user-login-modal.component
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { environment } from "../../../../../environments/environment";
-import {filter} from "rxjs/operators";
-import {isDefined} from "../../../../common/util/predicate";
+import { filter } from "rxjs/operators";
+import { isDefined } from "../../../../common/util/predicate";
 /**
  * UserIconComponent is used to control user system on the top right corner
  * It includes the button for login/registration/logout
@@ -21,10 +21,7 @@ import {isDefined} from "../../../../common/util/predicate";
 export class UserIconComponent {
   public user: User | undefined;
   localLogin = environment.localLogin;
-  constructor(
-    private modalService: NzModalService,
-    private userService: UserService,
-  ) {
+  constructor(private modalService: NzModalService, private userService: UserService) {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
@@ -63,10 +60,7 @@ export class UserIconComponent {
    * then sending the code to the backend
    */
   public googleLogin(): void {
-    this.userService
-      .googleLogin()
-      .pipe(untilDestroyed(this))
-      .subscribe();
+    this.userService.googleLogin().pipe(untilDestroyed(this)).subscribe();
   }
 
   private detectUserChange(): void {
@@ -77,7 +71,7 @@ export class UserIconComponent {
       .pipe(untilDestroyed(this))
       .subscribe(
         Zone.current.wrap(() => {
-          if(this.user?.role=="inactive") {
+          if (this.user?.role == "inactive") {
             // TODO temporary solution, will replace after login page PR.
             alert("Account pending approval.");
             this.userService.logout();
