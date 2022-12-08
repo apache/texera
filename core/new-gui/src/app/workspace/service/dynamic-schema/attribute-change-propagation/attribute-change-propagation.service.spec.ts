@@ -1,8 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { async, fakeAsync, inject, TestBed, tick, waitForAsync } from "@angular/core/testing";
+import { fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
 import { environment } from "../../../../../environments/environment";
-import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import {
   mockPoint,
@@ -11,29 +10,27 @@ import {
   mockSentimentPredicate,
 } from "../../workflow-graph/model/mock-workflow-data";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
-import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
-import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { AttributeChangePropagationService } from "./attribute-change-propagation.service";
-import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
-import { OperatorLink, OperatorPredicate } from "src/app/workspace/types/workflow-common.interface";
-import { 
-  mockSchemaPropagationResponse1, 
-  mockSchemaPropagationResponse2, 
-  mockSchemaPropagationResponse3, 
-  mockSentimentOperatorA, 
-  mockSentimentOperatorB, 
+import {
+  mockSchemaPropagationResponse1,
+  mockSchemaPropagationResponse2,
+  mockSchemaPropagationResponse3,
+  mockSentimentOperatorA,
+  mockSentimentOperatorB,
   mockLinkAtoB,
   mockLinkBtoC,
   mockSentimentOperatorC,
   mockSchemaPropagationResponse4,
-  mockSchemaPropagationResponse5
+  mockSchemaPropagationResponse5,
 } from "./mock-attribute-change-propagation.data";
-import { mockNlpSentimentSchema } from "../../operator-metadata/mock-operator-metadata.data";
 import { AppSettings } from "src/app/common/app-setting";
-import { SchemaPropagationService, SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS, SCHEMA_PROPAGATION_ENDPOINT } from "../schema-propagation/schema-propagation.service";
-
+import {
+  SchemaPropagationService,
+  SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS,
+  SCHEMA_PROPAGATION_ENDPOINT,
+} from "../schema-propagation/schema-propagation.service";
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 describe("AttributeChangePropagationService", () => {
@@ -67,7 +64,9 @@ describe("AttributeChangePropagationService", () => {
   it("should propagate new attribute name when atteibute is renamed", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(AttributeChangePropagationService);
+    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(
+      AttributeChangePropagationService
+    );
 
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
@@ -88,14 +87,17 @@ describe("AttributeChangePropagationService", () => {
     req2.flush(mockSchemaPropagationResponse2);
     httpTestingController.verify();
 
-    expect(workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute).toEqual("user_display_name")
-    
+    expect(
+      workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute
+    ).toEqual("user_display_name");
   }));
 
   it("should delete attribute in succeeding operators when attribute is deleted", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(AttributeChangePropagationService);
+    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(
+      AttributeChangePropagationService
+    );
 
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
@@ -116,13 +118,17 @@ describe("AttributeChangePropagationService", () => {
     req2.flush(mockSchemaPropagationResponse3);
     httpTestingController.verify();
 
-    expect(workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute).toEqual("");
+    expect(
+      workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute
+    ).toEqual("");
   }));
 
   it("should propagate new attribute name in three consecutive operators", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(AttributeChangePropagationService);
+    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(
+      AttributeChangePropagationService
+    );
 
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
@@ -146,7 +152,8 @@ describe("AttributeChangePropagationService", () => {
     req2.flush(mockSchemaPropagationResponse5);
     httpTestingController.verify();
 
-    expect(workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorC.operatorID).operatorProperties.attribute).toEqual("screen_display_time");
+    expect(
+      workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorC.operatorID).operatorProperties.attribute
+    ).toEqual("screen_display_time");
   }));
-
 });

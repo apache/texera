@@ -30,11 +30,9 @@ export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
   providedIn: "root",
 })
 export class SchemaPropagationService {
-  private operatorInputSchemaMap: Readonly<{
-    [key: string]: OperatorInputSchema;
-  }> = {};
+  private operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>> = {};
 
-  private operatorInputSchemaChangedStream = new Subject<InputSchemaChange>();
+  private operatorInputSchemaChangedStream = new Subject<void>();
 
   constructor(
     private httpClient: HttpClient,
@@ -62,20 +60,14 @@ export class SchemaPropagationService {
         filter(response => response.code === 0)
       )
       .subscribe(response => {
-        // Find out which input schema changed
-        for (const operatorID in response.result) {
-          if (!isEqual(this.operatorInputSchemaMap[operatorID], response.result[operatorID])) {
-            this.operatorInputSchemaChangedStream.next({
-              operatorID: operatorID,
-              oldInputSchema: this.operatorInputSchemaMap[operatorID],
-              newInputSchema: response.result[operatorID],
-            });
-          };
-        }
-
         this.operatorInputSchemaMap = response.result;
+        this.operatorInputSchemaChangedStream.next();
         this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
+  }
+
+  public getOperatorInputSchemaMap(): Readonly<Record<string, OperatorInputSchema>> {
+    return this.operatorInputSchemaMap;
   }
 
   public getOperatorInputSchema(operatorID: string): OperatorInputSchema | undefined {
@@ -99,7 +91,6 @@ export class SchemaPropagationService {
 
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
-      // console.log("schemaPropagationResult", schemaPropagationResult)
       if (schemaPropagationResult[operatorID]) {
         newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(
           currentDynamicSchema,
@@ -133,7 +124,6 @@ export class SchemaPropagationService {
     // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     // make a http post request to the API endpoint with the logical plan object
-    // console.log("invokeSchemaPropagationAPI: body", body)
     return this.httpClient
       .post<SchemaPropagationResponse>(
         `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
@@ -280,7 +270,7 @@ export class SchemaPropagationService {
     };
   }
 
-  public getOperatorInputSchemaChangedStream(): Observable<InputSchemaChange> {
+  public getOperatorInputSchemaChangedStream(): Observable<void> {
     return this.operatorInputSchemaChangedStream.asObservable();
   }
 }
@@ -328,9 +318,3 @@ export interface SchemaPropagationError
     code: -1;
     message: string;
   }> {}
-
-interface InputSchemaChange {
-  operatorID: string;
-  oldInputSchema: OperatorInputSchema;
-  newInputSchema: OperatorInputSchema;
-}

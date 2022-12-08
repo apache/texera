@@ -1,4 +1,4 @@
-import { ComponentFactoryResolver, Injectable } from "@angular/core";
+import { Injectable } from "@angular/core";
 import {
   OperatorInputSchema,
   SchemaAttribute,
@@ -7,7 +7,7 @@ import {
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
-import { cloneDeep } from "lodash-es";
+import { cloneDeep, isEqual } from "lodash-es";
 // TODO: Add typing for the below two packages
 // @ts-ignore
 import jsonRefLite from "json-ref-lite";
@@ -26,6 +26,12 @@ import { levenshtein } from "edit-distance";
   providedIn: "root",
 })
 export class AttributeChangePropagationService {
+  // keep a copy of input schema map,
+  // the inputSchemaMap in SchemaPropagationService always keeps the input schema up-to-date
+  // this map keeps the last **known** schema for each operator
+  // if the current input schema is changed to undefined, this map still keeps the last known schema
+  private lastOperatorInputSchema: Record<string, OperatorInputSchema> = {};
+
   constructor(
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
@@ -35,11 +41,21 @@ export class AttributeChangePropagationService {
   }
 
   private registerInputSchemaChangedStream() {
-    this.schemaPropagationService
-      .getOperatorInputSchemaChangedStream()
-      .subscribe(({ operatorID, oldInputSchema, newInputSchema }) => {
-        this.updateOperatorPropertiesOnInputSchemaChange(operatorID, oldInputSchema, newInputSchema);
+    this.schemaPropagationService.getOperatorInputSchemaChangedStream().subscribe(() => {
+      Object.keys(this.schemaPropagationService.getOperatorInputSchemaMap()).forEach(op => {
+        const currentSchema = this.schemaPropagationService.getOperatorInputSchema(op);
+        if (currentSchema === undefined) {
+          // intentionally skip updating unknown new schema
+          // preserve the last known schema for comparing with the new schema
+          return;
+        }
+        const oldSchema = this.lastOperatorInputSchema[op];
+        this.lastOperatorInputSchema[op] = currentSchema;
+        if (!isEqual(oldSchema, currentSchema) && oldSchema !== undefined) {
+          this.updateOperatorPropertiesOnInputSchemaChange(op, oldSchema, currentSchema);
+        }
       });
+    });
   }
 
   private updateOperatorPropertiesOnInputSchemaChange(
@@ -47,7 +63,7 @@ export class AttributeChangePropagationService {
     oldInputSchema: OperatorInputSchema,
     newInputSchema: OperatorInputSchema
   ): void {
-    console.log(operatorID, oldInputSchema, newInputSchema)
+    console.log(operatorID, oldInputSchema, newInputSchema);
 
     const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (!dynamicSchema.jsonSchema.properties) return;
