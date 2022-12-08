@@ -106,6 +106,7 @@ export class AuthService {
       return of(<User>{
         name: this.jwtHelperService.decodeToken(token).sub,
         googleId: this.jwtHelperService.decodeToken(token).googleId,
+        role: this.jwtHelperService.decodeToken(token).role,
       });
     } else {
       // access token is expired, logout instantly
