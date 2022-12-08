@@ -7,7 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables;
 import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission;
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 
 import java.util.Arrays;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 1197225923;
+    private static final long serialVersionUID = 1404459595;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -71,9 +71,9 @@ public class User extends TableImpl<UserRecord> {
     public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
-     * The column <code>texera_db.user.permission</code>.
+     * The column <code>texera_db.user.role</code>.
      */
-    public final TableField<UserRecord, UserPermission> PERMISSION = createField(DSL.name("permission"), org.jooq.impl.SQLDataType.VARCHAR(8).defaultValue(org.jooq.impl.DSL.inline("pending", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission.class), this, "");
+    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(8).nullable(false).defaultValue(org.jooq.impl.DSL.inline("inactive", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
 
     /**
      * Create a <code>texera_db.user</code> table reference
@@ -164,7 +164,7 @@ public class User extends TableImpl<UserRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<String, UInteger, String, String, UserPermission> fieldsRow() {
+    public Row5<String, UInteger, String, String, UserRole> fieldsRow() {
         return (Row5) super.fieldsRow();
     }
 }

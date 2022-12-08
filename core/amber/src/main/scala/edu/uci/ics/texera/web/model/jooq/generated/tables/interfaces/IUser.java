@@ -4,7 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission;
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
 
 import java.io.Serializable;
 
@@ -58,14 +58,14 @@ public interface IUser extends Serializable {
     public String getGoogleId();
 
     /**
-     * Setter for <code>texera_db.user.permission</code>.
+     * Setter for <code>texera_db.user.role</code>.
      */
-    public void setPermission(UserPermission value);
+    public void setRole(UserRole value);
 
     /**
-     * Getter for <code>texera_db.user.permission</code>.
+     * Getter for <code>texera_db.user.role</code>.
      */
-    public UserPermission getPermission();
+    public UserRole getRole();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

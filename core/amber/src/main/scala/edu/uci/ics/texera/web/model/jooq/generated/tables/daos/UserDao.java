@@ -4,7 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserPermission;
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 
@@ -111,16 +111,16 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     }
 
     /**
-     * Fetch records that have <code>permission BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>role BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfPermission(UserPermission lowerInclusive, UserPermission upperInclusive) {
-        return fetchRange(User.USER.PERMISSION, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfRole(UserRole lowerInclusive, UserRole upperInclusive) {
+        return fetchRange(User.USER.ROLE, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>permission IN (values)</code>
+     * Fetch records that have <code>role IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByPermission(UserPermission... values) {
-        return fetch(User.USER.PERMISSION, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByRole(UserRole... values) {
+        return fetch(User.USER.ROLE, values);
     }
 }

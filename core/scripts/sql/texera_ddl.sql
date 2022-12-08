@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS user
     `uid`        INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `password`   VARCHAR(256),
     `google_id`  VARCHAR(256) UNIQUE,
-    'permission' ENUM('pending', 'approved', 'admin') DEFAULT 'pending',
+    `role`       ENUM('inactive', 'basic', 'admin', 'restricted') NOT NULL DEFAULT 'inactive',
     PRIMARY KEY (`uid`),
     CONSTRAINT CK_nulltest
         CHECK (`password` IS NOT NULL OR `google_id` IS NOT NULL)
