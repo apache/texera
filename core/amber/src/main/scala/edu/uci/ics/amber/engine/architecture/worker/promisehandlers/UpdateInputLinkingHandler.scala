@@ -17,7 +17,8 @@ trait UpdateInputLinkingHandler {
 
   registerHandler { (msg: UpdateInputLinking, sender) =>
     stateManager.assertState(READY, RUNNING, PAUSED)
-    batchToTupleConverter.registerInput(msg.identifier, msg.inputLink)
+    dataProcessor.registerInput(msg.identifier, msg.inputLink)
+    upstreamLinkStatus.registerInput(msg.identifier, msg.inputLink)
   }
 
 }

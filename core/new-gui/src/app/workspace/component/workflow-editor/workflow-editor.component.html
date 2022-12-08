@@ -2,12 +2,15 @@
   <div
     [attr.id]="WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID"
     (contextmenu)="contextMenu($event, menu)"
-    class="texera-workspace-workflow-editor-body texera-workflow-component-body"
-  >
-    <div [attr.id]="WORKFLOW_EDITOR_JOINTJS_ID" class="texera-workspace-workflow-jointjs"></div>
+    class="texera-workspace-workflow-editor-body texera-workflow-component-body">
+    <div
+      [attr.id]="WORKFLOW_EDITOR_JOINTJS_ID"
+      class="texera-workspace-workflow-jointjs"></div>
   </div>
 </div>
 
-<nz-dropdown-menu nzNoAnimation #menu="nzDropdownMenu">
+<nz-dropdown-menu
+  nzNoAnimation
+  #menu="nzDropdownMenu">
   <texera-context-menu></texera-context-menu>
 </nz-dropdown-menu>
