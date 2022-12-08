@@ -1,7 +1,6 @@
 import inspect
 from collections import deque
 
-import pandas
 import pytest
 
 from pytexera import *

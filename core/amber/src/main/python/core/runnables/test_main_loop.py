@@ -1,5 +1,4 @@
 import inspect
-import time
 from threading import Thread
 
 import pandas
