@@ -180,7 +180,7 @@ class EvaluateExpressionV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class DebugCommandV2(betterproto.Message):
+class WorkerDebugCommandV2(betterproto.Message):
     cmd: str = betterproto.string_field(1)
 
 
@@ -239,7 +239,7 @@ class ControlCommandV2(betterproto.Message):
     query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
         betterproto.message_field(41, group="sealed_value")
     )
-    debug_command: "DebugCommandV2" = betterproto.message_field(
+    worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
         81, group="sealed_value"
     )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (

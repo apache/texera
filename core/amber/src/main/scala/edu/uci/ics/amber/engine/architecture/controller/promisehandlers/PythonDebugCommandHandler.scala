@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonDebugCommandHandler.PythonDebugCommand
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.DebugCommandHandler.DebugCommand
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -15,7 +15,7 @@ trait PythonDebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
   registerHandler { (msg: PythonDebugCommand, sender) =>
     {
-      send(DebugCommand(msg.cmd), ActorVirtualIdentity(msg.workerId))
+      send(WorkerDebugCommand(msg.cmd), ActorVirtualIdentity(msg.workerId))
     }
   }
 }

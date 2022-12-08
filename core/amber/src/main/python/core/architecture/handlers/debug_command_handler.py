@@ -1,15 +1,15 @@
 from loguru import logger
 
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    DebugCommandV2,
+    WorkerDebugCommandV2,
 )
 from .handler_base import Handler
 from ..managers.context import Context
 
 
-class DebugCommandHandler(Handler):
-    cmd = DebugCommandV2
+class WorkerDebugCommandHandler(Handler):
+    cmd = WorkerDebugCommandV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        logger.info(f"Got DebugCommand {command}")
+        logger.info(f"Got WorkerDebugCommand {command}")
         return None
