@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, Address}
 import com.twitter.util.Future
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssigned,
+  WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
@@ -309,7 +309,7 @@ class WorkflowScheduler(
   private def prepareAndStartRegion(region: PipelinedRegion): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
     asyncRPCClient.sendToClient(
-      WorkerAssigned(
+      WorkerAssignmentUpdate(
         workflow.getOperatorToWorkers
           .map({
             case (opId: OperatorIdentity, workerIds: Seq[ActorVirtualIdentity]) =>

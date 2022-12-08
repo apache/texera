@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssigned,
+  WorkerAssignmentUpdate,
   WorkflowCompleted,
   WorkflowRecoveryStatus,
   WorkflowStatusUpdate
@@ -84,7 +84,7 @@ class JobStatsService(
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {
     addSubscription(
       client
-        .registerCallback[WorkerAssigned]((evt: WorkerAssigned) => {
+        .registerCallback[WorkerAssignmentUpdate]((evt: WorkerAssignmentUpdate) => {
           stateStore.statsStore.updateState { jobInfo =>
             jobInfo.withOperatorWorkerMapping(
               evt.workerMapping
