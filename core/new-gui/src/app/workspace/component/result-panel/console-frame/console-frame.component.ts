@@ -134,7 +134,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     console.log("got messages", this.consoleMessages);
   }
 
-  submitCommand(): void {
+  submitDebugCommand(): void {
     if (!isDefined(this.operatorId)) {
       return;
     }
@@ -145,7 +145,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       workers.push(this.targetWorker);
     }
     for (let worker of workers) {
-      this.workflowWebsocketService.send("PythonDebugCommandRequest", {
+      this.workflowWebsocketService.send("DebugCommandRequest", {
         operatorId: this.operatorId,
         workerId: worker,
         cmd: this.command,

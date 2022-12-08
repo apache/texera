@@ -47,7 +47,7 @@
 </nz-list>
 
 <nz-input-group nzCompact [nzAddOnBefore]="addOnBeforeTemplate">
-  <input type="text" nz-input [(ngModel)]="command" (keyup.enter)="submitCommand()" />
+  <input type="text" nz-input [(ngModel)]="command" (keyup.enter)="submitDebugCommand()" />
 </nz-input-group>
 
 <ng-template #addOnBeforeTemplate>
