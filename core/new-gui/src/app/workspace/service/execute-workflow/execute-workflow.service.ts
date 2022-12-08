@@ -61,7 +61,10 @@ export class ExecuteWorkflowService {
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
-  private operatorToWorkersMap: Map<string, readonly string[]> = new Map();
+
+  // TODO: move this to another service, or redesign how this
+  //   information is stored on the frontend.
+  private assignedWorkerIds: Map<string, readonly string[]> = new Map();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -70,8 +73,8 @@ export class ExecuteWorkflowService {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
         switch (event.type) {
-          case "WorkflowWorkersUpdateEvent":
-            this.operatorToWorkersMap.set(event.operatorId, event.workerIds);
+          case "WorkerAssignmentUpdateEvent":
+            this.assignedWorkerIds.set(event.operatorId, event.workerIds);
             break;
           default:
             // workflow status related event
@@ -467,6 +470,6 @@ export class ExecuteWorkflowService {
   }
 
   public getWorkerIds(operatorId: string): ReadonlyArray<string> {
-    return this.operatorToWorkersMap.get(operatorId) || [];
+    return this.assignedWorkerIds.get(operatorId) || [];
   }
 }

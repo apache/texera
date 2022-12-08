@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   OperatorStatistics,
   OperatorStatisticsUpdateEvent,
-  WorkflowWorkersUpdateEvent
+  WorkerAssignmentUpdateEvent
 }
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
@@ -54,7 +54,7 @@ class JobStatsService(
       if (newState.operatorWorkerMapping != oldState.operatorWorkerMapping) {
         newState.operatorWorkerMapping
           .map { opToWorkers =>
-            WorkflowWorkersUpdateEvent(opToWorkers.operatorId, opToWorkers.workerIds)
+            WorkerAssignmentUpdateEvent(opToWorkers.operatorId, opToWorkers.workerIds)
           }
       } else {
         Iterable()

@@ -21,7 +21,7 @@ import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, Regis
     new Type(value = classOf[CacheStatusUpdateEvent]),
     new Type(value = classOf[PaginatedResultEvent]),
     new Type(value = classOf[PythonExpressionEvaluateResponse]),
-    new Type(value = classOf[WorkflowWorkersUpdateEvent])
+    new Type(value = classOf[WorkerAssignmentUpdateEvent])
   )
 )
 trait TexeraWebSocketEvent {}
