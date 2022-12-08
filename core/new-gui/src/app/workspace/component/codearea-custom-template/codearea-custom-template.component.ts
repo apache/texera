@@ -33,7 +33,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
    */
   onClickEditor(): void {
     this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
-      data: this.formControl?.value || "",
+      data: this.formControl,
     });
   }
 

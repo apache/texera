@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
@@ -8,6 +8,7 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
+import { FormControl } from "@angular/forms";
 
 declare const monaco: any;
 
@@ -36,20 +37,21 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     fontSize: "11",
     automaticLayout: true,
   };
-  code: string;
+  formControl: FormControl;
   @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
   loaded: boolean = false;
 
   private ytext?: YText;
+  private editor?: any;
 
   constructor(
     private sanitizer: DomSanitizer,
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) code: any,
+    @Inject(MAT_DIALOG_DATA) formControl: FormControl,
     private workflowActionService: WorkflowActionService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
-    this.code = code;
+    this.formControl = formControl;
   }
 
   ngOnDestroy(): void {
@@ -75,6 +77,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     ).get("code") as YText;
 
     this.initMonaco();
+    this.handleWorkflowModificationEnabledChange();
   }
 
   /**
@@ -105,5 +108,18 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
       );
     }
+    this.editor = editor;
+  }
+
+  /**
+   * Uses the formControl's status to change readonly status of the editor.
+   * @private
+   */
+  private handleWorkflowModificationEnabledChange(): void {
+    this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
+      this.editor.updateOptions({
+        readOnly: this.formControl.disabled,
+      });
+    });
   }
 }
