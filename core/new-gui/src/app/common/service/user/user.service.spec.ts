@@ -4,6 +4,7 @@ import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
+
 describe("UserService", () => {
   let service: UserService;
 
