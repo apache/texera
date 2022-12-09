@@ -4,7 +4,6 @@ import { User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
 import { map, mergeMap } from "rxjs/operators";
-import { Router } from "@angular/router";
 
 /**
  * User Service manages User information. It relies on different
@@ -17,7 +16,7 @@ export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
-  constructor(private authService: AuthService, private router: Router) {
+  constructor(private authService: AuthService) {
     if (environment.userSystemEnabled) {
       this.authService.loginWithExistingToken().subscribe(user => this.changeUser(user));
     }
@@ -49,7 +48,6 @@ export class UserService {
   public logout(): void {
     this.authService.logout().subscribe(_ => {
       this.changeUser(undefined);
-      this.router.navigate(["login"]);
     });
   }
 
