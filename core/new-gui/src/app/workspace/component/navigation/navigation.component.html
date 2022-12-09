@@ -43,7 +43,7 @@
         *ngIf="displayParticularWorkflowVersion"
         nz-button
         nzType="primary"
-        [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+        [disabled]="!workflowVersionService.modificationEnabledBeforeTempWorkflow"
         (click)="revertToVersion()">
         Restore this version
       </button>
