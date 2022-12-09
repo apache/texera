@@ -216,6 +216,7 @@
         </button>
         <button
           (click)="onClickAddCommentBox()"
+          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
           nz-button
           title="add a comment">
           <i
