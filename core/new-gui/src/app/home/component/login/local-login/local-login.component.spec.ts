@@ -1,1 +1,1 @@
-describe("GoogleLoginComponent", () => {});
+describe("LocalLoginComponent", () => {});
