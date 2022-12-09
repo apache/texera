@@ -389,12 +389,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         Post callback for switch context.
 
         One step in DataProcessor could produce some results, which includes
-            - Exception
             - print messages
             - Debug Event
+            - Exception
         We check and report them each time coming back from DataProcessor.
         :return:
         """
-        self._check_and_report_exception()
         self._check_and_report_print()
         self._check_and_report_debug_event()
+        self._check_and_report_exception()
