@@ -16,6 +16,7 @@ object PythonConsoleMessageHandler {
       source: String,
       message: String
   ) extends ControlCommand[Unit]
+
 }
 
 trait PythonConsoleMessageHandler {
