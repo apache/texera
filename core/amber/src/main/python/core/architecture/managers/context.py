@@ -1,5 +1,6 @@
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from .console_message_manager import ConsoleMessageManager
+from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
 from .tuple_processing_manager import TupleProcessingManager
 from .operator_manager import OperatorManager
@@ -41,6 +42,9 @@ class Context:
         self.tuple_to_batch_converter = TupleToBatchConverter()
         self.batch_to_tuple_converter = BatchToTupleConverter()
         self.console_message_manager = ConsoleMessageManager()
+        self.debug_manager = DebugManager(
+            self.tuple_processing_manager.context_switch_condition
+        )
 
     def close(self):
         self.operator_manager.close()

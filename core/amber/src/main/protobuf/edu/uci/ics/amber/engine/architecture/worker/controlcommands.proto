@@ -74,6 +74,10 @@ message EvaluateExpressionV2 {
     string expression = 1;
 }
 
+message WorkerDebugCommandV2 {
+    string cmd = 1;
+}
+
 message QuerySelfWorkloadMetricsV2{
 }
 
@@ -107,6 +111,8 @@ message ControlCommandV2 {
         EvaluateExpressionV2 evaluate_expression = 25;
 
         QuerySelfWorkloadMetricsV2 query_self_workload_metrics = 41;
+
+        WorkerDebugCommandV2 worker_debug_command = 81;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }
