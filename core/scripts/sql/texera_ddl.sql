@@ -5,7 +5,6 @@ DROP TABLE IF EXISTS `keyword_dictionary`;
 DROP TABLE IF EXISTS `workflow_user_access`;
 DROP TABLE IF EXISTS `user_file_access`;
 DROP TABLE IF EXISTS `file`;
-DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
@@ -64,19 +63,6 @@ CREATE TABLE IF NOT EXISTS user_file_access
     FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE,
     FOREIGN KEY (`fid`) REFERENCES file (`fid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
-
-CREATE TABLE IF NOT EXISTS keyword_dictionary
-(
-    `uid`         INT UNSIGNED                NOT NULL,
-    `kid`         INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `name`        VARCHAR(128)                NOT NULL,
-    `content`     MEDIUMBLOB                  NOT NULL,
-    `description` VARCHAR(512)                NOT NULL,
-    UNIQUE (`uid`, `name`),
-    PRIMARY KEY (`kid`),
-    FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
-) ENGINE = INNODB,
-  AUTO_INCREMENT = 1;
 
 CREATE TABLE IF NOT EXISTS workflow
 (
