@@ -1,12 +1,12 @@
 import { Component } from "@angular/core";
-import { UserService } from "../../../common/service/user/user.service";
+import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { environment } from "../../../../environments/environment";
+import { environment } from "../../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-login",
+  selector: "texera-local-login",
   templateUrl: "./local-login.component.html",
   styleUrls: ["./local-login.component.scss"],
 })
@@ -26,7 +26,6 @@ export class LocalLoginComponent {
       registerConfirmationPassword: new FormControl("", [Validators.required, this.confirmationValidator]),
     });
   }
-
 
   public updateConfirmValidator(): void {
     // immediately update validator (asynchronously to wait for value to refresh)

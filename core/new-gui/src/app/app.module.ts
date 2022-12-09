@@ -119,7 +119,8 @@ import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { HomeComponent } from "./home/component/home.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
-import {LocalLoginComponent} from "./home/component/local-login/local-login.component";
+import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
+import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
 
 registerLocaleData(en);
 
@@ -178,6 +179,8 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
+    GoogleLoginComponent,
+    LocalLoginComponent,
     DeletePromptComponent,
     ContextMenuComponent,
     CoeditorUserIconComponent,

@@ -1,9 +1,8 @@
-import {Component} from "@angular/core";
+import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
-import {Router} from "@angular/router";
 /**
  * UserIconComponent is used to control user system on the top right corner
  * It includes the button for login/registration/logout
@@ -15,9 +14,9 @@ import {Router} from "@angular/router";
   templateUrl: "./user-icon.component.html",
   styleUrls: ["./user-icon.component.scss"],
 })
-export class UserIconComponent{
+export class UserIconComponent {
   public user: User | undefined;
-  constructor(private modalService: NzModalService, private userService: UserService, private router: Router) {
+  constructor(private modalService: NzModalService, private userService: UserService) {
     this.user = this.userService.getCurrentUser();
   }
 
