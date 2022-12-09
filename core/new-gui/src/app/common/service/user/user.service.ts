@@ -46,9 +46,7 @@ export class UserService {
   }
 
   public logout(): void {
-    this.authService.logout().subscribe(_ => {
-      this.changeUser(undefined);
-    });
+    this.authService.logout().subscribe(_ => this.changeUser(undefined));
   }
 
   public register(username: string, password: string): Observable<void> {
