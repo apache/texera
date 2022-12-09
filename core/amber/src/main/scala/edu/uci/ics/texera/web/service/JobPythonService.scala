@@ -3,29 +3,20 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ConsoleMessageTriggered
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.DebugCommandHandler.DebugCommand
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonDebugCommandHandler.PythonDebugCommand
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
-import edu.uci.ics.texera.web.model.websocket.request.python.{
-  DebugCommandRequest,
-  PythonExpressionEvaluateRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request.python.{DebugCommandRequest, PythonExpressionEvaluateRequest}
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  ConsoleMessage,
-  EvaluatedValueList,
-  JobPythonStore,
-  PythonOperatorInfo
-}
+import edu.uci.ics.texera.web.workflowruntimestate.{ConsoleMessage, EvaluatedValueList, JobPythonStore, PythonOperatorInfo}
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
 import scala.collection.mutable
@@ -36,11 +27,11 @@ object JobPythonService {
 }
 
 class JobPythonService(
-    client: AmberClient,
-    stateStore: JobStateStore,
-    wsInput: WebsocketInput,
-    breakpointService: JobBreakpointService
-) extends SubscriptionManager {
+                        client: AmberClient,
+                        stateStore: JobStateStore,
+                        wsInput: WebsocketInput,
+                        breakpointService: JobBreakpointService
+                      ) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 
   addSubscription(
@@ -78,10 +69,10 @@ class JobPythonService(
   }
 
   private[this] def addConsoleMessage(
-      jobInfo: JobPythonStore,
-      opId: String,
-      consoleMessage: ConsoleMessage
-  ): JobPythonStore = {
+                                       jobInfo: JobPythonStore,
+                                       opId: String,
+                                       consoleMessage: ConsoleMessage
+                                     ): JobPythonStore = {
     val opInfo = jobInfo.operatorInfo.getOrElse(opId, PythonOperatorInfo())
 
     if (opInfo.consoleMessages.size < bufferSize) {
@@ -126,46 +117,6 @@ class JobPythonService(
         )
       )
     })
-    //Receive debug command
-    addSubscription(wsInput.subscribe((req: PythonDebugCommandRequest, uidOpt) => {
-      stateStore.pythonStore.updateState { jobInfo =>
-        if (!jobInfo.operatorInfo.contains(req.operatorId)) {
-          jobInfo.addOperatorInfo((req.operatorId, PythonOperatorInfo()))
-        }
-        val opInfo = jobInfo.operatorInfo.getOrElse(req.operatorId, PythonOperatorInfo())
-        if (!opInfo.workerInfo.contains(req.workerId)) {
-          opInfo.addWorkerInfo((req.workerId, PythonWorkerInfo()))
-        }
-        val workerInfo = opInfo.workerInfo.getOrElse(req.workerId, PythonWorkerInfo())
-        val newMessage =
-          new PythonConsoleMessageV2(Timestamp.defaultInstance, "COMMAND", "user", req.cmd)
-        if (workerInfo.pythonConsoleMessages.size < bufferSize) {
-          jobInfo.addOperatorInfo(
-            (
-              req.operatorId,
-              opInfo.addWorkerInfo((req.workerId, workerInfo.addPythonConsoleMessages(newMessage)))
-            )
-          )
-        } else {
-          jobInfo.addOperatorInfo(
-            (
-              req.operatorId,
-              opInfo.addWorkerInfo(
-                (
-                  req.workerId,
-                  workerInfo.withPythonConsoleMessages(
-                    workerInfo.pythonConsoleMessages.drop(1) :+ newMessage
-                  )
-                )
-              )
-            )
-          )
-        }
-      }
-
-      client.sendAsync(PythonDebugCommand(req.operatorId, req.workerId, req.cmd))
-
-    }))
 
     // TODO: remove the following hack after fixing the frontend
     // currently frontend is not prepared for re-receiving the eval-expr messages
