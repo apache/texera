@@ -26,7 +26,8 @@ trait PythonConsoleMessageHandler {
       sendToClient(
         ConsoleMessageTriggered(
           workflow.getOperator(sender).id.operator,
-          ConsoleMessage(sender.name, msg.timestamp, msg.msgType, msg.source, msg.message))
+          ConsoleMessage(sender.name, msg.timestamp, msg.msgType, msg.source, msg.message)
+        )
       )
     }
   }

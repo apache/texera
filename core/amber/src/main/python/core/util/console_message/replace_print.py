@@ -23,7 +23,7 @@ class replace_print(ContextManager):
     print function.
     """
 
-    def __init__(self, buf:IBuffer):
+    def __init__(self, buf: IBuffer):
         # save a reference to the original builtin.print before we replace it.
         # it will always replace back when the context manager exits, with exception
         # or not.
@@ -58,6 +58,7 @@ class replace_print(ContextManager):
                         message=complete_str,
                     )
                 )
+
         builtins.print = wrapped_print
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:

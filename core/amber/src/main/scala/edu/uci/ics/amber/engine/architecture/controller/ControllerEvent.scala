@@ -26,7 +26,7 @@ object ControllerEvent {
   ) extends ControlCommand[Unit]
 
   case class ConsoleMessageTriggered(
-      operatorId:  String,
+      operatorId: String,
       consoleMessage: ConsoleMessage
   ) extends ControlCommand[Unit]
 
