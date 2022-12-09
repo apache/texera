@@ -36,6 +36,10 @@ export class CodeareaCustomTemplateComponent extends FieldType<any> implements A
   /**
    * Syncs the disabled status of the button with formControl.
    * Used to fit the unit test since undefined might occur.
+   * TODO: Using <code>formControl</code> here instead of
+   *  <code>WorkflowActionService.checkWorkflowModificationEnabled()</code>
+   *  since the readonly status of operator properties also locally depend on whether "Unlock for Logic Change"
+   *  is enabled, which can only be accessed via <code>formControl</code>. Might need a more unified solution.
    */
   handleReadonlyStatusChange(): void {
     if (this.field !== undefined)
