@@ -1,10 +1,10 @@
 CREATE SCHEMA IF NOT EXISTS `texera_db`;
 USE `texera_db`;
 
-DROP TABLE IF EXISTS `keyword_dictionary`;
 DROP TABLE IF EXISTS `workflow_user_access`;
 DROP TABLE IF EXISTS `user_file_access`;
 DROP TABLE IF EXISTS `file`;
+DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
