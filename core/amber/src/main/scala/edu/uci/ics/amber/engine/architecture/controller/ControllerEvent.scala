@@ -1,6 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonConsoleMessageHandler.PythonConsoleMessage
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -35,4 +37,6 @@ object ControllerEvent {
       tuple: Array[(ITuple, ActorVirtualIdentity)]
   ) extends ControlCommand[Unit]
 
+  case class WorkerAssignmentUpdate(workerMapping: Map[String, Seq[String]])
+      extends ControlCommand[Unit]
 }

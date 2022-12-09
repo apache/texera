@@ -61,9 +61,30 @@
         </nz-tag>
         <nz-tag *ngIf="showSource"> {{entry.source}} </nz-tag>
         <nz-badge [nzStatus]="labelMapping.get(entry.msgType)"> </nz-badge>
-
         <span class="console-message"> {{ entry.message }} </span>
       </span>
     </nz-list-item>
   </cdk-virtual-scroll-viewport>
 </nz-list>
+
+<nz-input-group
+  nzCompact
+  [nzAddOnBefore]="addOnBeforeTemplate">
+  <input
+    type="text"
+    nz-input
+    [(ngModel)]="command"
+    (keyup.enter)="submitDebugCommand()" />
+</nz-input-group>
+
+<ng-template #addOnBeforeTemplate>
+  <nz-select [(ngModel)]="targetWorker">
+    <nz-option
+      *ngFor="let workerId of workerIds"
+      [nzLabel]="workerIdToAbbr(workerId)"
+      [nzValue]="workerId"></nz-option>
+    <nz-option
+      [nzLabel]="ALL_WORKERS"
+      [nzValue]="ALL_WORKERS"></nz-option>
+  </nz-select>
+</ng-template>

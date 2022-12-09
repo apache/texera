@@ -180,6 +180,11 @@ class EvaluateExpressionV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class WorkerDebugCommandV2(betterproto.Message):
+    cmd: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class QuerySelfWorkloadMetricsV2(betterproto.Message):
     pass
 
@@ -233,6 +238,9 @@ class ControlCommandV2(betterproto.Message):
     )
     query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
         betterproto.message_field(41, group="sealed_value")
+    )
+    worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
+        81, group="sealed_value"
     )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")

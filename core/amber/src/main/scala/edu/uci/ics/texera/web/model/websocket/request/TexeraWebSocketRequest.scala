@@ -2,7 +2,10 @@ package edu.uci.ics.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
+import edu.uci.ics.texera.web.model.websocket.request.python.{
+  DebugCommandRequest,
+  PythonExpressionEvaluateRequest
+}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
@@ -21,7 +24,8 @@ import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEva
     new Type(value = classOf[WorkflowKillRequest]),
     new Type(value = classOf[WorkflowPauseRequest]),
     new Type(value = classOf[WorkflowResumeRequest]),
-    new Type(value = classOf[PythonExpressionEvaluateRequest])
+    new Type(value = classOf[PythonExpressionEvaluateRequest]),
+    new Type(value = classOf[DebugCommandRequest])
   )
 )
 trait TexeraWebSocketRequest {}
