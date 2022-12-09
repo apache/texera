@@ -39,6 +39,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   labelMapping = new Map([
     ["PRINT", "default"],
     ["COMMAND", "processing"],
+    ["DEBUGGER", "warning"],
   ]);
 
   constructor(
@@ -131,7 +132,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   displayConsoleMessages(operatorId: string): void {
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
-    console.log("got messages", this.consoleMessages);
   }
 
   submitDebugCommand(): void {

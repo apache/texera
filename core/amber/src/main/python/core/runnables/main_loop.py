@@ -1,3 +1,4 @@
+import datetime
 import threading
 import traceback
 import typing
@@ -25,7 +26,6 @@ from core.models.internal_queue import DataElement, ControlElement
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
-from core.util.console_message.replace_print import replace_print
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
     LocalOperatorExceptionV2,
@@ -54,7 +54,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
 
         self.data_processor = DataProcessor(self.context)
-        threading.Thread(target=self.data_processor.run, daemon=True).start()
+        threading.Thread(
+            target=self.data_processor.run, daemon=True, name="data_processor_thread"
+        ).start()
 
     def complete(self) -> None:
         """
@@ -73,15 +75,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
         self.context.close()
 
-    def check_and_process_control(self) -> None:
+    def _check_and_process_control(self) -> None:
         """
         Check if there exists any ControlElement(s) in the input_queue, if so, take and
         process them one by one.
 
         This is used very frequently as we want to prioritize the process of
-        ControlElement, and will be invoked many times during a DataElement's processing
-        lifecycle. Thus, this method's invocation could appear in any stage while
-        processing a DataElement.
+        ControlElement, and will be invoked many times during a DataElement's
+        processing lifecycle. Thus, this method's invocation could appear in any
+        stage while processing a DataElement.
         """
         while (
             not self._input_queue.is_control_empty()
@@ -142,7 +144,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.statistics_manager.increase_input_tuple_count()
 
         for output_tuple in self.process_tuple_with_udf():
-            self.check_and_process_control()
+            self._check_and_process_control()
             if output_tuple is not None:
                 schema = self.context.operator_manager.operator.output_schema
                 self.cast_tuple_to_match_schema(output_tuple, schema)
@@ -164,14 +166,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         finished_current = self.context.tuple_processing_manager.finished_current
         finished_current.clear()
-        self._switch_context()
 
         while not finished_current.is_set():
-            self.check_and_process_control()
-            yield self.context.tuple_processing_manager.current_output_tuple
+            self._check_and_process_control()
             self._switch_context()
-            self._check_and_report_print()
-            self._check_and_report_exception()
+            yield self.context.tuple_processing_manager.get_output_tuple()
 
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
@@ -196,7 +195,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
         self.context.tuple_processing_manager.current_input_tuple = tuple_
         self.process_input_tuple()
-        self.check_and_process_control()
+        self._check_and_process_control()
 
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
         self._process_tuple(input_exhausted)
@@ -236,7 +235,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for to, batch in self.context.tuple_to_batch_converter.emit_end_of_upstream():
             batch.schema = self.context.operator_manager.operator.output_schema
             self._output_queue.put(DataElement(tag=to, payload=batch))
-            self.check_and_process_control()
+            self._check_and_process_control()
         self.complete()
 
     def _process_data_element(self, data_element: DataElement) -> None:
@@ -305,7 +304,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_data()
 
-    def _pause(self) -> None:
+    def _pause_dp(self) -> None:
         """
         Pause the data processing.
         """
@@ -314,10 +313,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
             WorkerState.RUNNING, WorkerState.READY
         ):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
-            self.context.state_manager.transit_to(WorkerState.PAUSED)
             self._input_queue.disable_data()
+            self.context.state_manager.transit_to(WorkerState.PAUSED)
 
-    def _resume(self) -> None:
+    def _resume_dp(self) -> None:
         """
         Resume the data processing.
         """
@@ -353,17 +352,47 @@ class MainLoop(StoppableQueueBlockingRunnable):
             ),
         )
 
-    def _switch_context(self):
+    def _switch_context(self) -> None:
+        """
+        Notify the DataProcessor thread and wait here until being switched back.
+        """
         with self.context.tuple_processing_manager.context_switch_condition:
-            with replace_print(self.context.console_message_manager.print_buf):
-                self.context.tuple_processing_manager.context_switch_condition.notify()
-                self.context.tuple_processing_manager.context_switch_condition.wait()
+            self.context.tuple_processing_manager.context_switch_condition.notify()
+            self.context.tuple_processing_manager.context_switch_condition.wait()
+        self._post_switch_context_checks()
 
-    def _check_and_report_exception(self):
+    def _check_and_report_debug_event(self) -> None:
+        if self.context.debug_manager.has_debug_event():
+            debug_event = self.context.debug_manager.get_debug_event()
+            self._send_console_message(
+                PythonConsoleMessageV2(
+                    timestamp=datetime.datetime.now(),
+                    msg_type="DEBUGGER",
+                    source="(Pdb)",
+                    message=debug_event,
+                )
+            )
+            self._pause_dp()
+
+    def _check_and_report_exception(self) -> None:
         if self.context.exception_manager.has_exception():
             self.report_exception(self.context.exception_manager.get_exc_info())
-            self._pause()
+            self._pause_dp()
 
-    def _check_and_report_print(self, force_flush=False):
+    def _check_and_report_print(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):
             self._send_console_message(msg)
+
+    def _post_switch_context_checks(self) -> None:
+        """
+        Post callback for switch context.
+
+        One step in DataProcessor could produce some results, which includes
+            - print messages
+            - Debug Event
+            - Exception
+        We check and report them each time coming back from DataProcessor.
+        """
+        self._check_and_report_print()
+        self._check_and_report_debug_event()
+        self._check_and_report_exception()
