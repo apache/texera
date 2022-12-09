@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 1404459595;
+    private static final long serialVersionUID = -1170158302;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -73,7 +73,7 @@ public class User extends TableImpl<UserRecord> {
     /**
      * The column <code>texera_db.user.role</code>.
      */
-    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(8).nullable(false).defaultValue(org.jooq.impl.DSL.inline("inactive", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
+    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(10).nullable(false).defaultValue(org.jooq.impl.DSL.inline("INACTIVE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
 
     /**
      * Create a <code>texera_db.user</code> table reference

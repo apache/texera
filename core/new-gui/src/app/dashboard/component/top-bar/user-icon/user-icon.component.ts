@@ -1,6 +1,6 @@
 import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
-import { User } from "../../../../common/type/user";
+import { User,Role } from "../../../../common/type/user";
 import { UserLoginModalComponent } from "./user-login/user-login-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -71,7 +71,7 @@ export class UserIconComponent {
       .pipe(untilDestroyed(this))
       .subscribe(
         Zone.current.wrap(() => {
-          if (this.user?.role == "inactive") {
+          if (this.user?.role == Role.INACTIVE) {
             // TODO temporary solution, will replace after login page PR.
             alert("Account pending approval.");
             this.userService.logout();

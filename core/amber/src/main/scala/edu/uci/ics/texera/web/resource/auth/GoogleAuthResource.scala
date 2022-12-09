@@ -75,7 +75,7 @@ object GoogleAuthResource {
           val user = new User
           user.setName(googleEmail)
           user.setGoogleId(googleId)
-          user.setRole(UserRole.inactive)
+          user.setRole(UserRole.INACTIVE)
           userDao.insert(user)
           user
       }

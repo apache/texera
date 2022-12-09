@@ -15,11 +15,13 @@ import org.jooq.Schema;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public enum UserRole implements EnumType {
 
-    inactive("inactive"),
+    INACTIVE("INACTIVE"),
 
-    basic("basic"),
+    RESTRICTED("RESTRICTED"),
 
-    admin("admin");
+    REGULAR("REGULAR"),
+
+    ADMIN("ADMIN");
 
     private final String literal;
 

@@ -5,14 +5,22 @@ import { Point } from "../../workspace/types/workflow-common.interface";
  * Such information is used to identify users and to save their data
  * Corresponds to `core/amber/src/main/scala/edu/uci/ics/texera/web/resource/auth/UserResource.scala`
  */
+
+export enum Role {
+  INACTIVE = "INACTIVE",
+  RESTRICTED = "RESTRICTED",
+  REGULAR = "REGULAR",
+  ADMIN = "ADMIN"
+}
 export interface User
   extends Readonly<{
     name: string;
     uid: number;
     googleId?: string;
-    role?: string;
+    role?: Role;
     color?: string;
   }> {}
+
 
 /**
  * Coeditor extends User and adds clientId to differentiate local user and collaborative editor
