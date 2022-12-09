@@ -3,6 +3,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
+import {Router} from "@angular/router";
 /**
  * UserIconComponent is used to control user system on the top right corner
  * It includes the button for login/registration/logout
@@ -16,11 +17,11 @@ import { NzModalService } from "ng-zorro-antd/modal";
 })
 export class UserIconComponent {
   public user: User | undefined;
-  constructor(private modalService: NzModalService, private userService: UserService) {
+  constructor(private modalService: NzModalService, private userService: UserService, private router: Router) {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
-      .subscribe(user => (this.user = user));
+      .subscribe(user => this.user = user);
   }
 
   /**
@@ -28,5 +29,6 @@ export class UserIconComponent {
    */
   public onClickLogout(): void {
     this.userService.logout();
+    this.router.navigate(["home"]);
   }
 }
