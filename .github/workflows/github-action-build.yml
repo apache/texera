@@ -69,6 +69,8 @@ jobs:
           ignore_sha: true
           all_but_latest: true
           access_token: ${{ github.token }}
+      - name: Prepare ENV
+        run: sudo apt-get install libncurses5
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup Java
