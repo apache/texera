@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
   WorkflowCompleted,
   WorkflowRecoveryStatus,
   WorkflowStatusUpdate
@@ -12,9 +13,10 @@ import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   OperatorStatistics,
   OperatorStatisticsUpdateEvent,
-  TexeraWebSocketEvent
+  WorkerAssignmentUpdateEvent
 }
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{ABORTED, COMPLETED}
 
 class JobStatsService(
@@ -46,8 +48,23 @@ class JobStatsService(
     })
   )
 
+  addSubscription(
+    stateStore.statsStore.registerDiffHandler((oldState, newState) => {
+      // update operators' workers.
+      if (newState.operatorWorkerMapping != oldState.operatorWorkerMapping) {
+        newState.operatorWorkerMapping
+          .map { opToWorkers =>
+            WorkerAssignmentUpdateEvent(opToWorkers.operatorId, opToWorkers.workerIds)
+          }
+      } else {
+        Iterable()
+      }
+    })
+  )
+
   private[this] def registerCallbacks(): Unit = {
     registerCallbackOnWorkflowStatusUpdate()
+    registerCallbackOnWorkerAssignedUpdate()
     registerCallbackOnWorkflowRecoveryUpdate()
     registerCallbackOnWorkflowComplete()
     registerCallbackOnFatalError()
@@ -59,6 +76,23 @@ class JobStatsService(
         .registerCallback[WorkflowStatusUpdate]((evt: WorkflowStatusUpdate) => {
           stateStore.statsStore.updateState { jobInfo =>
             jobInfo.withOperatorInfo(evt.operatorStatistics)
+          }
+        })
+    )
+  }
+
+  private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {
+    addSubscription(
+      client
+        .registerCallback[WorkerAssignmentUpdate]((evt: WorkerAssignmentUpdate) => {
+          stateStore.statsStore.updateState { jobInfo =>
+            jobInfo.withOperatorWorkerMapping(
+              evt.workerMapping
+                .map({
+                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds)
+                })
+                .toSeq
+            )
           }
         })
     )

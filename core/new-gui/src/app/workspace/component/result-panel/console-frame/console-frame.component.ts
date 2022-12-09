@@ -6,6 +6,8 @@ import { WorkflowConsoleService } from "../../../service/workflow-console/workfl
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { presetPalettes } from "@ant-design/colors";
+import { isDefined } from "../../../../common/util/predicate";
+import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 
 @UntilDestroy()
 @Component({
@@ -28,11 +30,21 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   showTimestamp: boolean = true;
   showSource: boolean = true;
 
-  labelMapping = new Map([["PRINT", "default"]]);
+  // WorkerId Menu related items.
+  ALL_WORKERS: string = "All Workers";
+  workerIds: readonly string[] = [];
+  command: string = "";
+  targetWorker: string = this.ALL_WORKERS;
+
+  labelMapping = new Map([
+    ["PRINT", "default"],
+    ["COMMAND", "processing"],
+  ]);
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowConsoleService: WorkflowConsoleService
+    private workflowConsoleService: WorkflowConsoleService,
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -84,6 +96,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
 
     if (this.operatorId) {
+      this.workerIds = this.executeWorkflowService.getWorkerIds(this.operatorId);
+
       // first display error messages if applicable
       if (this.operatorId === breakpointTriggerInfo?.operatorID) {
         // if we hit a breakpoint
@@ -117,6 +131,27 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   displayConsoleMessages(operatorId: string): void {
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
+    console.log("got messages", this.consoleMessages);
+  }
+
+  submitDebugCommand(): void {
+    if (!isDefined(this.operatorId)) {
+      return;
+    }
+    let workers = [];
+    if (this.targetWorker === this.ALL_WORKERS) {
+      workers = [...this.workerIds];
+    } else {
+      workers.push(this.targetWorker);
+    }
+    for (let worker of workers) {
+      this.workflowWebsocketService.send("DebugCommandRequest", {
+        operatorId: this.operatorId,
+        workerId: worker,
+        cmd: this.command,
+      });
+    }
+    this.command = "";
   }
 
   workerIdToAbbr(workerId: string): string {
