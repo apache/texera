@@ -7,8 +7,7 @@
       *ngIf="color !== null"
       id="left-div"
       [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
-      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}"
-    >
+      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}">
       color
     </div>
     <div
@@ -18,8 +17,7 @@
       (click)="removeProjectColor()"
       id="right-div"
       [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
-      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}"
-    >
+      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}">
       x
     </div>
 
@@ -33,30 +31,34 @@
       [cpSaveClickOutside]="false"
       [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
       [cpExtraTemplate]="colorMenuTemplate"
-      (colorPickerSelect)="updateProjectColor(inputColor)"
-    >
+      (colorPickerSelect)="updateProjectColor(inputColor)">
       <i
         nz-icon
         nzType="format-painter"
         nzTheme="outline"
         nz-tooltip="Set project color"
-        nzTooltipPlacement="bottom"
-      ></i>
+        nzTooltipPlacement="bottom"></i>
     </button>
     <ng-template #colorMenuTemplate>
       <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
-        <button [disabled]="color === null" (click)="removeProjectColor()" class="btn btn-outline-danger btn-xs">
+        <button
+          [disabled]="color === null"
+          (click)="removeProjectColor()"
+          class="btn btn-outline-danger btn-xs">
           Delete
         </button>
-        <button (click)="updateProjectColor(inputColor)" class="btn btn-primary btn-xs">Save</button>
+        <button
+          (click)="updateProjectColor(inputColor)"
+          class="btn btn-primary btn-xs">
+          Save
+        </button>
       </div>
     </ng-template>
   </nz-card>
 
   <texera-saved-workflow-section
     [pid]="pid"
-    [updateProjectStatus]="updateProjectStatus"
-  ></texera-saved-workflow-section>
+    [updateProjectStatus]="updateProjectStatus"></texera-saved-workflow-section>
 </div>
 
 <div>
@@ -67,18 +69,22 @@
       nz-button
       nz-tooltip="Add file(s) to project"
       nzTooltipPlacement="bottom"
-      type="button"
-    >
-      <i nz-icon nzTheme="outline" nzType="plus-square"></i>
+      type="button">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="plus-square"></i>
     </button>
     <button
       (click)="onClickOpenRemoveFile()"
       nz-button
       nz-tooltip="Remove workflow(s) from project"
       nzTooltipPlacement="bottom"
-      type="button"
-    >
-      <i nz-icon nzTheme="outline" nzType="minus-square"></i>
+      type="button">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="minus-square"></i>
     </button>
   </nz-card>
 
@@ -88,7 +94,9 @@
         <nz-list-item-meta>
           <nz-list-item-meta-title>
             <div class="file-name">
-              <h4 *ngIf="isEditingFileName.indexOf(i) === -1; else editFileName" class="file-title">
+              <h4
+                *ngIf="isEditingFileName.indexOf(i) === -1; else editFileName"
+                class="file-title">
                 {{file.ownerName + "/" + file.file.name}}
               </h4>
               <ng-template #editFileName>
@@ -97,8 +105,7 @@
                   (focusout)="confirmEditFileName(file, editFileName.value, i)"
                   (keyup.enter)="confirmEditFileName(file, editFileName.value, i)"
                   placeholder="{{file.file.name}}"
-                  value="{{file.file.name}}"
-                />
+                  value="{{file.file.name}}" />
               </ng-template>
               <button
                 (click)="isEditingFileName.push(i)"
@@ -106,26 +113,36 @@
                 nz-tooltip="Edit File Name"
                 nzSize="small"
                 nzTooltipPlacement="bottom"
-                nzType="text"
-              >
-                <i nz-icon nzTheme="outline" nzType="edit"></i>
+                nzType="text">
+                <i
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="edit"></i>
               </button>
-              <i *ngIf="file.isOwner" ngbTooltip="You are the OWNER" nz-icon nzTheme="outline" nzType="user"></i>
+              <i
+                *ngIf="file.isOwner"
+                ngbTooltip="You are the OWNER"
+                nz-icon
+                nzTheme="outline"
+                nzType="user"></i>
               <i
                 *ngIf="!file.isOwner"
                 ngbTooltip="{{file.accessLevel}} access shared by {{file.ownerName}}"
                 nz-icon
                 nzTheme="outline"
-                nzType="team"
-              ></i>
+                nzType="team"></i>
             </div>
           </nz-list-item-meta-title>
           <nz-list-item-meta-description> {{addFileSizeUnit(file.file.size)}} </nz-list-item-meta-description>
         </nz-list-item-meta>
 
         <!-- this is temporary, TODO : refactor this once file service PR gets approved -->
-        <div *ngIf="projectDataIsLoaded" class="file-project-label-container">
-          <div *ngFor="let projectID of file.projectIDs" class="file-project-label">
+        <div
+          *ngIf="projectDataIsLoaded"
+          class="file-project-label-container">
+          <div
+            *ngFor="let projectID of file.projectIDs"
+            class="file-project-label">
             <div
               *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
               nz-tooltip="Go to project page"
@@ -133,8 +150,7 @@
               id="left-div"
               [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
               [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-              (click)="jumpToProject(userProjectsMap.get(projectID)!)"
-            >
+              (click)="jumpToProject(userProjectsMap.get(projectID)!)">
               {{userProjectsMap.get(projectID)!.name}}
             </div>
             <div
@@ -144,8 +160,7 @@
               id="right-div"
               [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
               [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-              (click)="removeFileFromProject(projectID, file.file.fid)"
-            >
+              (click)="removeFileFromProject(projectID, file.file.fid)">
               x
             </div>
           </div>
@@ -159,9 +174,11 @@
               nz-button
               nz-tooltip="Share the file {{file.file.name}} to others"
               nzTooltipPlacement="bottom"
-              type="button"
-            >
-              <i nz-icon nzTheme="outline" nzType="share-alt"></i>
+              type="button">
+              <i
+                nz-icon
+                nzTheme="outline"
+                nzType="share-alt"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
@@ -169,9 +186,11 @@
               (click)="downloadUserFile(file)"
               nz-button
               nz-tooltip="Download the file {{file.file.name}}"
-              nzTooltipPlacement="bottom"
-            >
-              <i nz-icon nzTheme="outline" nzType="download"></i>
+              nzTooltipPlacement="bottom">
+              <i
+                nz-icon
+                nzTheme="outline"
+                nzType="download"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
@@ -181,9 +200,11 @@
               nz-button
               nz-tooltip="Delete the file {{file.file.name}}"
               nzTooltipPlacement="bottom"
-              type="button"
-            >
-              <i nz-icon nzTheme="outline" nzType="delete"></i>
+              type="button">
+              <i
+                nz-icon
+                nzTheme="outline"
+                nzType="delete"></i>
             </button>
           </nz-list-item-action>
         </ul>

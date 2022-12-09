@@ -1,20 +1,30 @@
 package edu.uci.ics.texera.web.service
 
+import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.DebugCommandHandler.DebugCommand
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
-import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
+import edu.uci.ics.texera.web.model.websocket.request.python.{
+  DebugCommandRequest,
+  PythonExpressionEvaluateRequest
+}
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
-import edu.uci.ics.texera.web.workflowruntimestate.{EvaluatedValueList, PythonOperatorInfo}
+import edu.uci.ics.texera.web.workflowruntimestate.{
+  ConsoleMessage,
+  EvaluatedValueList,
+  JobPythonStore,
+  PythonOperatorInfo
+}
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
 import scala.collection.mutable
@@ -59,32 +69,35 @@ class JobPythonService(
       client
         .registerCallback[ConsoleMessageTriggered]((evt: ConsoleMessageTriggered) => {
           stateStore.pythonStore.updateState { jobInfo =>
-            {
-              if (!jobInfo.operatorInfo.contains(evt.operatorId)) {
-                jobInfo.addOperatorInfo((evt.operatorId, PythonOperatorInfo()))
-              }
-              val opInfo = jobInfo.operatorInfo.getOrElse(evt.operatorId, PythonOperatorInfo())
-
-              if (opInfo.consoleMessages.size < bufferSize) {
-                jobInfo.addOperatorInfo(
-                  (
-                    evt.operatorId,
-                    opInfo.addConsoleMessages(evt.consoleMessage)
-                  )
-                )
-              } else {
-                jobInfo.addOperatorInfo(
-                  (
-                    evt.operatorId,
-                    opInfo.withConsoleMessages(opInfo.consoleMessages.drop(1) :+ evt.consoleMessage)
-                  )
-                )
-              }
-            }
+            addConsoleMessage(jobInfo, evt.operatorId, evt.consoleMessage)
           }
         })
     )
 
+  }
+
+  private[this] def addConsoleMessage(
+      jobInfo: JobPythonStore,
+      opId: String,
+      consoleMessage: ConsoleMessage
+  ): JobPythonStore = {
+    val opInfo = jobInfo.operatorInfo.getOrElse(opId, PythonOperatorInfo())
+
+    if (opInfo.consoleMessages.size < bufferSize) {
+      jobInfo.addOperatorInfo(
+        (
+          opId,
+          opInfo.addConsoleMessages(consoleMessage)
+        )
+      )
+    } else {
+      jobInfo.addOperatorInfo(
+        (
+          opId,
+          opInfo.withConsoleMessages(opInfo.consoleMessages.drop(1) :+ consoleMessage)
+        )
+      )
+    }
   }
 
   //Receive retry request
@@ -119,6 +132,23 @@ class JobPythonService(
       val opInfo = pythonStore.operatorInfo.getOrElse(req.operatorId, PythonOperatorInfo())
       pythonStore.addOperatorInfo((req.operatorId, opInfo.clearEvaluateExprResults))
     })
+  }))
+
+  //Receive debug command
+  addSubscription(wsInput.subscribe((req: DebugCommandRequest, uidOpt) => {
+    stateStore.pythonStore.updateState { jobInfo =>
+      val newMessage = new ConsoleMessage(
+        req.workerId,
+        Timestamp.defaultInstance,
+        "COMMAND",
+        "USER-" + uidOpt.getOrElse("UNKNOWN"),
+        req.cmd
+      )
+      addConsoleMessage(jobInfo, req.operatorId, newMessage)
+    }
+
+    client.sendAsync(DebugCommand(req.workerId, req.cmd))
+
   }))
 
 }

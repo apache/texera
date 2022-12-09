@@ -9,8 +9,7 @@
       nz-dropdown
       nzTrigger="click"
       [nzDropdownMenu]="menu"
-      nzPlacement="bottomRight"
-    >
+      nzPlacement="bottomRight">
     </texera-user-avatar>
   </div>
   <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -18,15 +17,13 @@
       <li
         *ngIf="!(coeditorPresenceService.shadowingModeEnabled && coeditorPresenceService.shadowingCoeditor?.clientId === this.coeditor.clientId)"
         nz-menu-item
-        (click)="shadowCoeditor()"
-      >
+        (click)="shadowCoeditor()">
         <b>Start "shadowing":&nbsp;&nbsp;</b> {{coeditor.name}} - {{coeditor.clientId}}
       </li>
       <li
         *ngIf="(coeditorPresenceService.shadowingModeEnabled && coeditorPresenceService.shadowingCoeditor?.clientId === this.coeditor.clientId)"
         nz-menu-item
-        (click)="stopShadowing()"
-      >
+        (click)="stopShadowing()">
         Stop Shadowing
       </li>
     </ul>
