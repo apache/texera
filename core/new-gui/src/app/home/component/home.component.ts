@@ -6,6 +6,7 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 import { Router } from "@angular/router";
+import {environment} from "../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -17,6 +18,8 @@ export class HomeComponent implements OnInit {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
+
+  localLogin = environment.localLogin;
 
   constructor(private formBuilder: FormBuilder, private userService: UserService, public router: Router) {
     this.allForms = this.formBuilder.group({
