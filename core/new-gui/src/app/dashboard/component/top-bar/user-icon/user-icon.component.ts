@@ -1,6 +1,6 @@
 import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
-import { User,Role } from "../../../../common/type/user";
+import { User, Role } from "../../../../common/type/user";
 import { UserLoginModalComponent } from "./user-login/user-login-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";

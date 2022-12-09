@@ -10,7 +10,7 @@ export enum Role {
   INACTIVE = "INACTIVE",
   RESTRICTED = "RESTRICTED",
   REGULAR = "REGULAR",
-  ADMIN = "ADMIN"
+  ADMIN = "ADMIN",
 }
 export interface User
   extends Readonly<{
@@ -20,7 +20,6 @@ export interface User
     role?: Role;
     color?: string;
   }> {}
-
 
 /**
  * Coeditor extends User and adds clientId to differentiate local user and collaborative editor
