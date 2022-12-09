@@ -49,7 +49,7 @@ export class HomeComponent implements OnInit {
   };
 
   /**
-   * This method is respond for the sign in button in the pop up
+   * This method response for the sign-in button
    * It will send data inside the text entry to the user service to login
    */
   public login(): void {
