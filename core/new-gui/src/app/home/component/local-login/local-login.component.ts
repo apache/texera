@@ -1,26 +1,23 @@
-import { Component, OnInit } from "@angular/core";
-import { UserService } from "../../common/service/user/user.service";
+import { Component } from "@angular/core";
+import { UserService } from "../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
-import { isDefined } from "../../common/util/predicate";
-import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Router } from "@angular/router";
-import { environment } from "../../../environments/environment";
+import { environment } from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
   selector: "texera-login",
-  templateUrl: "./home.component.html",
-  styleUrls: ["./home.component.scss"],
+  templateUrl: "./local-login.component.html",
+  styleUrls: ["./local-login.component.scss"],
 })
-export class HomeComponent {
+export class LocalLoginComponent {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
   localLogin = environment.localLogin;
 
-  constructor(private formBuilder: FormBuilder, private userService: UserService, public router: Router) {
+  constructor(private formBuilder: FormBuilder, private userService: UserService) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
@@ -68,19 +65,34 @@ export class HomeComponent {
       });
   }
 
-
-
   /**
-   * this method will retrieve a usable Google OAuth Instance first,
-   * with that available instance, get googleUsername and authorization code respectively,
-   * then sending the code to the backend
+   * This method is respond for the sign on button in the pop up
+   * It will send data inside the text entry to the user service to register
    */
-  public googleLogin(): void {
+  public register(): void {
+    // validate the credentials format
+    this.registerErrorMessage = undefined;
+    const registerPassword = this.allForms.get("registerPassword")?.value;
+    const registerConfirmationPassword = this.allForms.get("registerConfirmationPassword")?.value;
+    const registerUsername = this.allForms.get("registerUsername")?.value.trim();
+    const validation = UserService.validateUsername(registerUsername);
+    if (registerPassword.length < 6) {
+      this.registerErrorMessage = "Password length should be greater than 5";
+      return;
+    }
+    if (registerPassword !== registerConfirmationPassword) {
+      this.registerErrorMessage = "Passwords do not match";
+      return;
+    }
+    if (!validation.result) {
+      this.registerErrorMessage = validation.message;
+      return;
+    }
+    // register the credentials with backend
     this.userService
-      .googleLogin()
+      .register(registerUsername, registerPassword)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => (location.href = "dashboard/workflow"),
         error: () => (this.loginErrorMessage = "Incorrect credentials"),
       });
   }

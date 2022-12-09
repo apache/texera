@@ -1,7 +1,7 @@
-import { Component } from "@angular/core";
+import {Component} from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
 import {Router} from "@angular/router";
 /**
@@ -15,13 +15,10 @@ import {Router} from "@angular/router";
   templateUrl: "./user-icon.component.html",
   styleUrls: ["./user-icon.component.scss"],
 })
-export class UserIconComponent {
+export class UserIconComponent{
   public user: User | undefined;
   constructor(private modalService: NzModalService, private userService: UserService, private router: Router) {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(user => this.user = user);
+    this.user = this.userService.getCurrentUser();
   }
 
   /**
@@ -29,6 +26,6 @@ export class UserIconComponent {
    */
   public onClickLogout(): void {
     this.userService.logout();
-    this.router.navigate(["home"]);
+    location.href = "home";
   }
 }
