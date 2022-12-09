@@ -62,10 +62,9 @@ class DataProcessor(Runnable, Stoppable):
             finally:
                 self._switch_context()
 
-    def _switch_context(self):
+    def _switch_context(self) -> None:
         """
         Notify the MainLoop thread and wait here until being switched back.
-        :return:
         """
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.notify()
@@ -74,13 +73,12 @@ class DataProcessor(Runnable, Stoppable):
 
     def _check_and_process_debug_command(self) -> None:
         """
-        If there is a debug command available, invokes the debugger from this frame.
-        :return:
+        If a debug command is available, invokes the debugger from this frame.
         """
         if self._context.debug_manager.has_debug_command():
-            # let debugger trace from the current frame.
-            # this line will also trigger cmdloop in debugger.
-            # this line has no side effects on the current debugger state.
+            # Let debugger trace from the current frame.
+            # This line will also trigger cmdloop in the debugger.
+            # This line has no side effects on the current debugger state.
             self._context.debug_manager.debugger.set_trace()
 
     def _post_switch_context_checks(self):

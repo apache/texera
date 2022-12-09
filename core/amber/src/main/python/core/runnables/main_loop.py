@@ -81,9 +81,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         process them one by one.
 
         This is used very frequently as we want to prioritize the process of
-        ControlElement, and will be invoked many times during a DataElement's processing
-        lifecycle. Thus, this method's invocation could appear in any stage while
-        processing a DataElement.
+        ControlElement, and will be invoked many times during a DataElement's
+        processing lifecycle. Thus, this method's invocation could appear in any
+        stage while processing a DataElement.
         """
         while (
             not self._input_queue.is_control_empty()
@@ -355,7 +355,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _switch_context(self) -> None:
         """
         Notify the DataProcessor thread and wait here until being switched back.
-        :return:
         """
         with self.context.tuple_processing_manager.context_switch_condition:
             self.context.tuple_processing_manager.context_switch_condition.notify()
@@ -380,11 +379,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.report_exception(self.context.exception_manager.get_exc_info())
             self._pause_dp()
 
-    def _check_and_report_print(self, force_flush=False):
+    def _check_and_report_print(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):
             self._send_console_message(msg)
 
-    def _post_switch_context_checks(self):
+    def _post_switch_context_checks(self) -> None:
         """
         Post callback for switch context.
 
@@ -393,7 +392,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             - Debug Event
             - Exception
         We check and report them each time coming back from DataProcessor.
-        :return:
         """
         self._check_and_report_print()
         self._check_and_report_debug_event()
