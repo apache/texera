@@ -4,13 +4,13 @@ import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
 import { RouterTestingModule } from "@angular/router/testing";
-import { LoginComponent } from "../../../dashboard/component/login/login.component";
+import { HomeComponent } from "../../../home/component/home.component";
 describe("UserService", () => {
   let service: UserService;
   beforeEach(() => {
     AuthService.removeAccessToken();
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule.withRoutes([{ path: "login", component: LoginComponent }])],
+      imports: [RouterTestingModule.withRoutes([{ path: "login", component: HomeComponent }])],
       providers: [UserService, { provide: AuthService, useClass: StubAuthService }],
     });
 

@@ -7,8 +7,8 @@ import { UserFileSectionComponent } from "./dashboard/component/feature-containe
 import { UserProjectSectionComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/user-project-section.component";
 import { UserProjectListComponent } from "./dashboard/component/feature-container/user-project-list/user-project-list.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { LoginComponent } from "./dashboard/component/login/login.component";
-import { AuthGuardService } from "./dashboard/service/auth-guard/auth-guard.service";
+import { HomeComponent } from "./home/component/home.component";
+import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
 /*
  *  This file defines the url path
  *  The workflow workspace is set as default path
@@ -61,8 +61,8 @@ if (environment.userSystemEnabled) {
   });
 
   routes.push({
-    path: "login",
-    component: LoginComponent,
+    path: "home",
+    component: HomeComponent,
   });
 }
 

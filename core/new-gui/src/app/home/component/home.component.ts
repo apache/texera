@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
-import { UserService } from "../../../common/service/user/user.service";
+import { UserService } from "../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
-import { isDefined } from "../../../common/util/predicate";
+import { isDefined } from "../../common/util/predicate";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -10,10 +10,10 @@ import { Router } from "@angular/router";
 @UntilDestroy()
 @Component({
   selector: "texera-login",
-  templateUrl: "./login.component.html",
-  styleUrls: ["./login.component.scss"],
+  templateUrl: "./home.component.html",
+  styleUrls: ["./home.component.scss"],
 })
-export class LoginComponent implements OnInit {
+export class HomeComponent implements OnInit {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
