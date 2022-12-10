@@ -285,7 +285,7 @@ class ProjectResource {
   ): UserProject = {
     val oid = sessionUser.getUser.getUid
 
-    val userProject = new UserProject(null, name, oid, null, null)
+    val userProject = new UserProject(null, name, null, oid, null, null)
     try {
       userProjectDao.insert(userProject)
     } catch {
@@ -345,6 +345,27 @@ class ProjectResource {
       userProjectDao.update(userProject)
     } catch {
       case _: Throwable => throw new BadRequestException("Cannot rename project to provided name.");
+    }
+  }
+
+  /**
+    * This method updates the description of a specified, existing project
+    *
+    * @param pid project ID
+    */
+  @POST
+  @Path("/{pid}/update/description")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def updateProjectDescription(@PathParam("pid") pid: UInteger, project: UserProject): Unit = {
+    val description = project.getDescription
+    val userProject = userProjectDao.fetchOneByPid(pid)
+    try {
+      userProject.setDescription(description)
+      userProjectDao.update(userProject)
+    } catch {
+      case _: Throwable =>
+        throw new BadRequestException("Cannot update project description to provided text.");
     }
   }
 
