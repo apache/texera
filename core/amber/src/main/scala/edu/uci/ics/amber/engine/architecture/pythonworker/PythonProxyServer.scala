@@ -78,7 +78,7 @@ private class AmberProducer(
     // send back ack with credits on ackStream
     val bufferAllocator = new RootAllocator(8 * 1024)
     try {
-      val arrowBuf: ArrowBuf = bufferAllocator.buffer(4 * 1024)
+      val arrowBuf: ArrowBuf = bufferAllocator.buffer(Longs.BYTES + 4)
       arrowBuf.writeLong(
         31L
       ) // TODO : set up channel to get credits, for now overwriting with dummy credit
