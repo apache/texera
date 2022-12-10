@@ -84,7 +84,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
     @logger.catch(reraise=True)
     def _send_control(
-            self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
+        self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used

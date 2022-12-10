@@ -8,6 +8,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlP
 from collections import defaultdict
 from typing import T
 
+
 class InternalQueue(DoubleBlockingQueue):
     def __init__(self):
         super().__init__(DataElement, Marker)
@@ -29,7 +30,10 @@ class InternalQueue(DoubleBlockingQueue):
         """
         # credits = batch_limit_per_sender - num_batches_in_queue
         # here we only return num_batches_in_queue since we dont know batch_limit_per_sender
-        return self._input_batches_put_in_queue[sender] - self._input_batches_taken_out_of_queue[sender]
+        return (
+            self._input_batches_put_in_queue[sender]
+            - self._input_batches_taken_out_of_queue[sender]
+        )
 
     # override get / put methods to update dictionaries tracking number of tuples taken in / out
     def get(self) -> T:
@@ -45,6 +49,7 @@ class InternalQueue(DoubleBlockingQueue):
             self._input_batches_put_in_queue[item.tag] += 1
 
         DoubleBlockingQueue.put(self, item)
+
 
 @dataclass
 class InternalQueueElement(IQueue.QueueElement):

@@ -24,7 +24,7 @@ class FlowControlManager:
         ] = defaultdict(queue.Queue)
 
     def get_message_to_forward(
-            self, message: InternalQueueElement
+        self, message: InternalQueueElement
     ) -> Optional[InternalQueueElement]:
         """
         Return next queued message to be sent to receiver, only if there are enough credits
@@ -33,8 +33,8 @@ class FlowControlManager:
         :return: next message to be sent to receiver, or None if not enough credits
         """
         if (
-                isinstance(message, DataElement)
-                and FlowControlManager.FLOW_CONTROL_IS_ENABLED
+            isinstance(message, DataElement)
+            and FlowControlManager.FLOW_CONTROL_IS_ENABLED
         ):
             self.data_messages_awaiting_credits[message.tag].put(message)
             if self.receiver_id_to_credits[message.tag] > 0:
@@ -45,7 +45,7 @@ class FlowControlManager:
         return message
 
     def update_credits(
-            self, receiver_id: ActorVirtualIdentity, credit_amount: int
+        self, receiver_id: ActorVirtualIdentity, credit_amount: int
     ) -> None:
         """
         Save the credit amount returned by the receiver worker
