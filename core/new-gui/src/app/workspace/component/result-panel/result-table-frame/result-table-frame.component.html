@@ -1,7 +1,11 @@
-<div *ngIf="!currentResult || currentResult.length === 0" style="text-align: center">
+<div
+  *ngIf="!currentResult || currentResult.length === 0"
+  style="text-align: center">
   <h4>Empty result set</h4>
 </div>
-<div [hidden]="!currentColumns" class="result-table">
+<div
+  [hidden]="!currentColumns"
+  class="result-table">
   <nz-table
     #basicTable
     (nzQueryParams)="onTableQueryParamsChange($event)"
@@ -18,7 +22,10 @@
     nzBordered="true">
     <thead>
       <tr>
-        <th *ngFor="let column of currentColumns; let i = index" ngClass="header-size" style="text-align: center">
+        <th
+          *ngFor="let column of currentColumns; let i = index"
+          ngClass="header-size"
+          style="text-align: center">
           {{ column.header }}
         </th>
       </tr>

@@ -1,16 +1,35 @@
 <div>
   <nz-card>
     <h2>Projects</h2>
-    <a nz-dropdown [nzDropdownMenu]="menu">
+    <a
+      nz-dropdown
+      [nzDropdownMenu]="menu">
       <button nz-button>
-        <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="sort-ascending"></i>
       </button>
     </a>
     <nz-dropdown-menu #menu="nzDropdownMenu">
-      <ul nz-menu nzSelectable>
-        <li (click)="sortByCreationTime()" nz-menu-item>By Time Created</li>
-        <li (click)="sortByNameAsc()" nz-menu-item>A -> Z</li>
-        <li (click)="sortByNameDesc()" nz-menu-item>Z -> A</li>
+      <ul
+        nz-menu
+        nzSelectable>
+        <li
+          (click)="sortByCreationTime()"
+          nz-menu-item>
+          By Time Created
+        </li>
+        <li
+          (click)="sortByNameAsc()"
+          nz-menu-item>
+          A -> Z
+        </li>
+        <li
+          (click)="sortByNameDesc()"
+          nz-menu-item>
+          Z -> A
+        </li>
       </ul>
     </nz-dropdown-menu>
     <button
@@ -19,7 +38,10 @@
       nz-tooltip="Create a new project"
       nzTooltipPlacement="bottom"
       type="button">
-      <i nz-icon nzTheme="outline" nzType="file-add"></i>
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="file-add"></i>
     </button>
     <input
       *ngIf="createButtonIsClicked"
@@ -55,7 +77,9 @@
                     class="btn btn-outline-danger btn-xs">
                     Delete
                   </button>
-                  <button (click)="updateProjectColor(dashboardUserProjectEntry, i)" class="btn btn-primary btn-xs">
+                  <button
+                    (click)="updateProjectColor(dashboardUserProjectEntry, i)"
+                    class="btn btn-primary btn-xs">
                     Save
                   </button>
                 </div>
@@ -67,7 +91,9 @@
           <nz-list-item-meta-title>
             <ng-container
               *ngIf="userProjectEntriesIsEditingName.indexOf(dashboardUserProjectEntry.pid) === -1;else editingProject">
-              <a class="project-name" [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + dashboardUserProjectEntry.pid">
+              <a
+                class="project-name"
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + dashboardUserProjectEntry.pid">
                 {{dashboardUserProjectEntry.name}}</a
               >
               <button
@@ -77,7 +103,11 @@
                 nzTooltipPlacement="top"
                 nzSize="small"
                 nzType="text">
-                <i class="edit-name-icon" nz-icon nzTheme="outline" nzType="edit"></i>
+                <i
+                  class="edit-name-icon"
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="edit"></i>
               </button>
               <button
                 (click)="userProjectEntriesIsEditingDescription.push(dashboardUserProjectEntry.pid)"
@@ -86,7 +116,10 @@
                 nzTooltipPlacement="top"
                 nzSize="small"
                 nzType="text">
-                <i nz-icon nzTheme="outline" nzType="plus-square"></i>
+                <i
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="plus-square"></i>
               </button>
             </ng-container>
 
@@ -106,7 +139,9 @@
               *ngIf="userProjectEntriesIsEditingDescription.indexOf(dashboardUserProjectEntry.pid) === -1;else editingDescription">
               <p *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim()">
                 {{dashboardUserProjectEntry.description}}
-                <button nz-button nzSize="small">
+                <button
+                  nz-button
+                  nzSize="small">
                   <i
                     class="edit-description-icon"
                     nz-icon
@@ -119,7 +154,9 @@
               </p>
             </ng-container>
             <ng-template #editingDescription>
-              <nz-input-group [nzSuffix]="saveDescriptionIcon" class="ant-input-affix-wrapper-textarea-with-clear-btn">
+              <nz-input-group
+                [nzSuffix]="saveDescriptionIcon"
+                class="ant-input-affix-wrapper-textarea-with-clear-btn">
                 <textarea
                   #descriptionBox
                   nz-input
@@ -157,7 +194,10 @@
               nz-button
               nz-tooltip="Delete the project {{dashboardUserProjectEntry.name}}"
               nzTooltipPlacement="bottom">
-              <i nz-icon nzTheme="outline" nzType="delete"></i>
+              <i
+                nz-icon
+                nzTheme="outline"
+                nzType="delete"></i>
             </button>
           </nz-list-item-action>
         </ul>

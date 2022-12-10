@@ -16,27 +16,25 @@ describe("NgbdModalFileAddComponent", () => {
   let component: NgbdModalFileAddComponent;
   let fixture: ComponentFixture<NgbdModalFileAddComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [NgbdModalFileAddComponent],
-        providers: [
-          { provide: UserService, useClass: StubUserService },
-          UserFileService,
-          UserFileUploadService,
-          NgbActiveModal,
-        ],
-        imports: [
-          CustomNgMaterialModule,
-          NgbModule,
-          FormsModule,
-          FileUploadModule,
-          ReactiveFormsModule,
-          HttpClientTestingModule,
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [NgbdModalFileAddComponent],
+      providers: [
+        { provide: UserService, useClass: StubUserService },
+        UserFileService,
+        UserFileUploadService,
+        NgbActiveModal,
+      ],
+      imports: [
+        CustomNgMaterialModule,
+        NgbModule,
+        FormsModule,
+        FileUploadModule,
+        ReactiveFormsModule,
+        HttpClientTestingModule,
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalFileAddComponent);
