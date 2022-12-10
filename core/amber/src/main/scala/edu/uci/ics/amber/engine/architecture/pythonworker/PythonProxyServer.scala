@@ -45,9 +45,18 @@ private class AmberProducer(
             throw new RuntimeException(s"not supported payload $payload")
 
         }
+
+        // get little-endian representation of credits
+        var creditVal: Long = 30L // TODO : replace with actual credit value
+        val creditByteArr: Array[Byte] = new Array[Byte](Longs.BYTES)
+        for (x <- 0 until Longs.BYTES - 1) {
+          creditByteArr(x) = (creditVal & 0xFF).asInstanceOf[Byte]
+          creditVal >>= Longs.BYTES
+        }
+
         listener.onNext(
-          new Result(Longs.toByteArray(30L))
-        ) // TODO : replace with actual credit value
+          new Result(creditByteArr)
+        )
         listener.onCompleted()
       case _ => throw new NotImplementedError()
     }

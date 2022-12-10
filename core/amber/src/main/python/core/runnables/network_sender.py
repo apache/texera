@@ -97,7 +97,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         python_control_message = PythonControlMessage(tag=to, payload=control_payload)
         returned_credits = int.from_bytes(
             self._proxy_client.call_action("control", bytes(python_control_message)),
-            byteorder="big",
+            byteorder="little",
         )
         if to in self._flow_control.receiver_id_to_credits:
             # only update credits for workers that we send data messages to (e.g. no credits needed for controller)
