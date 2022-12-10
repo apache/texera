@@ -42,17 +42,10 @@
     </button>
     <ng-template #colorMenuTemplate>
       <div style="display: flex; padding: 0px 16px 16px; justify-content: space-between">
-        <button
-          [disabled]="color === null"
-          (click)="removeProjectColor()"
-          class="btn btn-outline-danger btn-xs">
+        <button [disabled]="color === null" (click)="removeProjectColor()" class="btn btn-outline-danger btn-xs">
           Delete
         </button>
-        <button
-          (click)="updateProjectColor(inputColor)"
-          class="btn btn-primary btn-xs">
-          Save
-        </button>
+        <button (click)="updateProjectColor(inputColor)" class="btn btn-primary btn-xs">Save</button>
       </div>
     </ng-template>
   </nz-card>
@@ -71,10 +64,7 @@
       nz-tooltip="Add file(s) to project"
       nzTooltipPlacement="bottom"
       type="button">
-      <i
-        nz-icon
-        nzTheme="outline"
-        nzType="plus-square"></i>
+      <i nz-icon nzTheme="outline" nzType="plus-square"></i>
     </button>
     <button
       (click)="onClickOpenRemoveFile()"
@@ -82,10 +72,7 @@
       nz-tooltip="Remove workflow(s) from project"
       nzTooltipPlacement="bottom"
       type="button">
-      <i
-        nz-icon
-        nzTheme="outline"
-        nzType="minus-square"></i>
+      <i nz-icon nzTheme="outline" nzType="minus-square"></i>
     </button>
   </nz-card>
 
@@ -95,9 +82,7 @@
         <nz-list-item-meta>
           <nz-list-item-meta-title>
             <div class="file-name">
-              <h4
-                *ngIf="isEditingFileName.indexOf(i) === -1; else editFileName"
-                class="file-title">
+              <h4 *ngIf="isEditingFileName.indexOf(i) === -1; else editFileName" class="file-title">
                 {{file.ownerName + "/" + file.file.name}}
               </h4>
               <ng-template #editFileName>
@@ -115,17 +100,9 @@
                 nzSize="small"
                 nzTooltipPlacement="bottom"
                 nzType="text">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="edit"></i>
+                <i nz-icon nzTheme="outline" nzType="edit"></i>
               </button>
-              <i
-                *ngIf="file.isOwner"
-                ngbTooltip="You are the OWNER"
-                nz-icon
-                nzTheme="outline"
-                nzType="user"></i>
+              <i *ngIf="file.isOwner" ngbTooltip="You are the OWNER" nz-icon nzTheme="outline" nzType="user"></i>
               <i
                 *ngIf="!file.isOwner"
                 ngbTooltip="{{file.accessLevel}} access shared by {{file.ownerName}}"
@@ -138,12 +115,8 @@
         </nz-list-item-meta>
 
         <!-- this is temporary, TODO : refactor this once file service PR gets approved -->
-        <div
-          *ngIf="projectDataIsLoaded"
-          class="file-project-label-container">
-          <div
-            *ngFor="let projectID of file.projectIDs"
-            class="file-project-label">
+        <div *ngIf="projectDataIsLoaded" class="file-project-label-container">
+          <div *ngFor="let projectID of file.projectIDs" class="file-project-label">
             <div
               *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
               nz-tooltip="Go to project page"
@@ -176,10 +149,7 @@
               nz-tooltip="Share the file {{file.file.name}} to others"
               nzTooltipPlacement="bottom"
               type="button">
-              <i
-                nz-icon
-                nzTheme="outline"
-                nzType="share-alt"></i>
+              <i nz-icon nzTheme="outline" nzType="share-alt"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
@@ -188,10 +158,7 @@
               nz-button
               nz-tooltip="Download the file {{file.file.name}}"
               nzTooltipPlacement="bottom">
-              <i
-                nz-icon
-                nzTheme="outline"
-                nzType="download"></i>
+              <i nz-icon nzTheme="outline" nzType="download"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
@@ -202,10 +169,7 @@
               nz-tooltip="Delete the file {{file.file.name}}"
               nzTooltipPlacement="bottom"
               type="button">
-              <i
-                nz-icon
-                nzTheme="outline"
-                nzType="delete"></i>
+              <i nz-icon nzTheme="outline" nzType="delete"></i>
             </button>
           </nz-list-item-action>
         </ul>

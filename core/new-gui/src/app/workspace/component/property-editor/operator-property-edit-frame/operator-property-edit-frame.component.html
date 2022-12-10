@@ -1,11 +1,5 @@
-<div
-  *ngIf="!editingTitle"
-  id="formly-title">
-  <h3
-    *ngIf="!editingTitle && formTitle"
-    class="texera-workspace-property-editor-title">
-    {{ formTitle }}
-  </h3>
+<div *ngIf="!editingTitle" id="formly-title">
+  <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title">{{ formTitle }}</h3>
   <button
     (click)="editingTitle=true; connectQuillToText()"
     nz-button
@@ -14,10 +8,7 @@
     nzTooltipPlacement="bottom"
     nzType="text"
     [disabled]="!interactive">
-    <i
-      nz-icon
-      nzTheme="outline"
-      nzType="edit"></i>
+    <i nz-icon nzTheme="outline" nzType="edit"></i>
   </button>
 </div>
 
@@ -57,10 +48,7 @@
   nzTooltipPlacement="bottom"
   [disabled]="!lockGranted">
   Unlock for Logic Change
-  <i
-    nz-icon
-    nzTheme="outline"
-    nzType="unlock"></i>
+  <i nz-icon nzTheme="outline" nzType="unlock"></i>
 </button>
 
 <button

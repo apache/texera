@@ -1,19 +1,11 @@
 <div class="modal-body">
   <nz-list [nzItemLayout]="'horizontal'">
-    <nz-list-item
-      *ngFor="let item of commentBox.get('comments')"
-      [nzNoFlex]="false">
-      <nz-comment
-        [nzAuthor]="item['creatorName']"
-        [nzDatetime]="toRelative(item.creationTime)">
-        <nz-avatar
-          nz-comment-avatar
-          [nzText]="item['creatorName'].substring(0,1)"></nz-avatar>
+    <nz-list-item *ngFor="let item of commentBox.get('comments')" [nzNoFlex]="false">
+      <nz-comment [nzAuthor]="item['creatorName']" [nzDatetime]="toRelative(item.creationTime)">
+        <nz-avatar nz-comment-avatar [nzText]="item['creatorName'].substring(0,1)"></nz-avatar>
         <nz-comment-content class="commentContent">
           <p [attr.id]="'comment' + item['creatorName'] + item.creationTime">{{ item.content }}</p>
-          <nz-input-group
-            nzSearch
-            [nzAddOnAfter]="suffixIconButton">
+          <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
             <textarea
               display="none"
               hidden="hidden"
@@ -36,9 +28,7 @@
               [nzLoading]="submitting"
               [disabled]="!user || !editValue"
               (click)="editComment(item['creatorID'], item['creatorName'], item.creationTime)">
-              <i
-                nz-icon
-                nzType="send"></i>
+              <i nz-icon nzType="send"></i>
             </button>
           </ng-template>
         </nz-comment-content>
@@ -61,9 +51,7 @@
 <div class="modal-footer">
   <!-- TODO: add user avatar-->
   <!--    <nz-avatar nz-comment-avatar nzIcon="user" [nzSrc]="user.avatar"></nz-avatar>-->
-  <nz-input-group
-    nzSearch
-    [nzAddOnAfter]="suffixIconButton">
+  <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
     <textarea
       type="text"
       placeholder="add new comment"
@@ -78,9 +66,7 @@
       [nzLoading]="submitting"
       [disabled]="!user || !inputValue"
       (click)="onClickAddComment()">
-      <i
-        nz-icon
-        nzType="send"></i>
+      <i nz-icon nzType="send"></i>
     </button>
   </ng-template>
 </div>

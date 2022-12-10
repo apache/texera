@@ -10,18 +10,20 @@ describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
   let fixture: ComponentFixture<ResultTableFrameComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzModalModule],
-      declarations: [ResultTableFrameComponent],
-      providers: [
-        {
-          provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService,
-        },
-      ],
-    }).compileComponents();
-  }));
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        imports: [HttpClientTestingModule, NzModalModule],
+        declarations: [ResultTableFrameComponent],
+        providers: [
+          {
+            provide: OperatorMetadataService,
+            useClass: StubOperatorMetadataService,
+          },
+        ],
+      }).compileComponents();
+    })
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultTableFrameComponent);

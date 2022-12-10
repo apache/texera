@@ -14,13 +14,21 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 describe("TopBarComponent", () => {
   let component: TopBarComponent;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [TopBarComponent, UserIconComponent],
-      providers: [{ provide: UserService, useClass: StubUserService }],
-      imports: [HttpClientTestingModule, RouterTestingModule, CustomNgMaterialModule, NzModalModule, NzDropDownModule],
-    }).compileComponents();
-  }));
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [TopBarComponent, UserIconComponent],
+        providers: [{ provide: UserService, useClass: StubUserService }],
+        imports: [
+          HttpClientTestingModule,
+          RouterTestingModule,
+          CustomNgMaterialModule,
+          NzModalModule,
+          NzDropDownModule,
+        ],
+      }).compileComponents();
+    })
+  );
 
   beforeEach(() => {
     const fixture = TestBed.createComponent(TopBarComponent);

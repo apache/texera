@@ -11,13 +11,15 @@ describe("UserIconComponent", () => {
   let component: UserIconComponent;
   let fixture: ComponentFixture<UserIconComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [UserIconComponent],
-      providers: [{ provide: UserService, useClass: StubUserService }],
-      imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule],
-    }).compileComponents();
-  }));
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [UserIconComponent],
+        providers: [{ provide: UserService, useClass: StubUserService }],
+        imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule],
+      }).compileComponents();
+    })
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(UserIconComponent);

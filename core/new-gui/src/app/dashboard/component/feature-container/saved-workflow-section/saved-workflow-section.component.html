@@ -1,55 +1,25 @@
 <div class="section-container subsection-grid-container">
   <nz-card class="section-title">
     <h2 class="page-title">Workflows</h2>
-    <nz-button-group
-      class="utility-button-group"
-      ngbDropdown>
-      <a
-        [nzDropdownMenu]="sortOptions"
-        nz-dropdown>
-        <button
-          id="sortDropdown"
-          ngbDropdownToggle
-          nz-button>
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="sort-ascending"></i>
+    <nz-button-group class="utility-button-group" ngbDropdown>
+      <a [nzDropdownMenu]="sortOptions" nz-dropdown>
+        <button id="sortDropdown" ngbDropdownToggle nz-button>
+          <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
         </button>
       </a>
       <nz-dropdown-menu #sortOptions="nzDropdownMenu">
         <ul nz-menu>
           <li nz-menu-item>
-            <button
-              (click)="lastSort()"
-              class="sorting_func"
-              nz-button>
-              By Edit Time
-            </button>
+            <button (click)="lastSort()" class="sorting_func" nz-button>By Edit Time</button>
           </li>
           <li nz-menu-item>
-            <button
-              (click)="dateSort()"
-              class="sorting_func"
-              nz-button>
-              By Create Time
-            </button>
+            <button (click)="dateSort()" class="sorting_func" nz-button>By Create Time</button>
           </li>
           <li nz-menu-item>
-            <button
-              (click)="ascSort()"
-              class="sorting_func"
-              nz-button>
-              A -> Z
-            </button>
+            <button (click)="ascSort()" class="sorting_func" nz-button>A -> Z</button>
           </li>
           <li nz-menu-item>
-            <button
-              (click)="dscSort()"
-              class="sorting_func"
-              nz-button>
-              Z -> A
-            </button>
+            <button (click)="dscSort()" class="sorting_func" nz-button>Z -> A</button>
           </li>
         </ul>
       </nz-dropdown-menu>
@@ -59,10 +29,7 @@
         nz-tooltip="Create a new workflow"
         nzTooltipPlacement="bottom"
         type="button">
-        <i
-          nz-icon
-          nzTheme="outline"
-          nzType="file-add"></i>
+        <i nz-icon nzTheme="outline" nzType="file-add"></i>
       </button>
       <button
         [disabled]="downloadListWorkflow.size === 0"
@@ -71,21 +38,11 @@
         nz-tooltip="Download added workflow as a ZIP file"
         nzTooltipPlacement="bottom"
         type="button">
-        <i
-          nz-icon
-          nzType="cloud-download"
-          nzTheme="outline"></i>
+        <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
       </button>
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
-        <button
-          nz-button
-          nz-tooltip="Upload ZIP/JSON file as workflow"
-          nzTooltipPlacement="bottom"
-          type="button">
-          <i
-            nz-icon
-            nzType="cloud-upload"
-            nzTheme="outline"></i>
+        <button nz-button nz-tooltip="Upload ZIP/JSON file as workflow" nzTooltipPlacement="bottom" type="button">
+          <i nz-icon nzType="cloud-upload" nzTheme="outline"></i>
         </button>
       </nz-upload>
 
@@ -96,10 +53,7 @@
         nz-tooltip="Add workflow(s) to project"
         nzTooltipPlacement="bottom"
         type="button">
-        <i
-          nz-icon
-          nzTheme="outline"
-          nzType="plus-square"></i>
+        <i nz-icon nzTheme="outline" nzType="plus-square"></i>
       </button>
       <button
         *ngIf="pid !== 0"
@@ -108,31 +62,19 @@
         nz-tooltip="Remove workflow(s) from project"
         nzTooltipPlacement="bottom"
         type="button">
-        <i
-          nz-icon
-          nzTheme="outline"
-          nzType="minus-square"></i>
+        <i nz-icon nzTheme="outline" nzType="minus-square"></i>
       </button>
     </nz-button-group>
 
-    <nz-button-group
-      class="filter-button-group"
-      ngbDropdown>
+    <nz-button-group class="filter-button-group" ngbDropdown>
       <a
         [nzDropdownMenu]="mtimeSearchOptions"
         nz-dropdown
         nzTrigger="click"
         [nzOverlayStyle]="{'border-style': 'double'}"
         class="modification-time-button">
-        <button
-          id="mtimeSort"
-          ngbDropdownToggle
-          nz-button>
-          <i
-            nz-icon
-            nzType="form"
-            nzTheme="outline"
-            nz-tooltip="Modification Time"></i>
+        <button id="mtimeSort" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="form" nzTheme="outline" nz-tooltip="Modification Time"></i>
         </button>
       </a>
 
@@ -150,15 +92,8 @@
         nzTrigger="click"
         [nzOverlayStyle]="{'border-style': 'double'}"
         class="search-creation-time-button">
-        <button
-          id="ctimeSort"
-          ngbDropdownToggle
-          nz-button>
-          <i
-            nz-icon
-            nzType="calendar"
-            nzTheme="outline"
-            nz-tooltip="Creation Time"></i>
+        <button id="ctimeSort" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="calendar" nzTheme="outline" nz-tooltip="Creation Time"></i>
         </button>
       </a>
       <nz-dropdown-menu #ctimeSearchOptions="nzDropdownMenu">
@@ -175,27 +110,14 @@
         nzTrigger="click"
         [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
         class="search-owners-button">
-        <button
-          id="sortOwner"
-          ngbDropdownToggle
-          nz-button>
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="user"
-            nz-tooltip="Owner"></i>
+        <button id="sortOwner" ngbDropdownToggle nz-button>
+          <i nz-icon nzTheme="outline" nzType="user" nz-tooltip="Owner"></i>
         </button>
       </a>
       <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
-        <ul
-          nz-menu
-          *ngFor="let owner of owners">
+        <ul nz-menu *ngFor="let owner of owners">
           <li nz-menu-item>
-            <label
-              nz-checkbox
-              ngDefaultControl
-              [(ngModel)]="owner.checked"
-              (ngModelChange)="updateSelectedOwners()"
+            <label nz-checkbox ngDefaultControl [(ngModel)]="owner.checked" (ngModelChange)="updateSelectedOwners()"
               >{{owner.userName}}</label
             >
           </li>
@@ -208,27 +130,14 @@
         nzTrigger="click"
         [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
         class="search-wids-button">
-        <button
-          id="sortID"
-          ngbDropdownToggle
-          nz-button>
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="ordered-list"
-            nz-tooltip="Workflow ID"></i>
+        <button id="sortID" ngbDropdownToggle nz-button>
+          <i nz-icon nzTheme="outline" nzType="ordered-list" nz-tooltip="Workflow ID"></i>
         </button>
       </a>
       <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
-        <ul
-          nz-menu
-          *ngFor="let wid of wids">
+        <ul nz-menu *ngFor="let wid of wids">
           <li nz-menu-item>
-            <label
-              nz-checkbox
-              ngDefaultControl
-              [(ngModel)]="wid.checked"
-              (ngModelChange)="updateSelectedIDs()"
+            <label nz-checkbox ngDefaultControl [(ngModel)]="wid.checked" (ngModelChange)="updateSelectedIDs()"
               >{{wid.id}}</label
             >
           </li>
@@ -241,24 +150,13 @@
         nzTrigger="click"
         [nzOverlayStyle]="{'border-style': 'double'}"
         class="search-operators-button">
-        <button
-          id="sortOperator"
-          ngbDropdownToggle
-          nz-button>
-          <i
-            nz-icon
-            nzType="appstore"
-            nzTheme="outline"
-            nz-tooltip="Operators"></i>
+        <button id="sortOperator" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="appstore" nzTheme="outline" nz-tooltip="Operators"></i>
         </button>
       </a>
       <nz-dropdown-menu #operatorSearchOptions="nzDropdownMenu">
-        <ul
-          nz-menu
-          *ngFor="let group of operatorGroups">
-          <li
-            nz-submenu
-            nzTitle="{{group}}">
+        <ul nz-menu *ngFor="let group of operatorGroups">
+          <li nz-submenu nzTitle="{{group}}">
             <ul *ngFor="let operator of operators.get(group)">
               <li nz-menu-item>
                 <label
@@ -280,27 +178,14 @@
         nzTrigger="click"
         [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
         class="search-projects-button">
-        <button
-          id="sortProject"
-          ngbDropdownToggle
-          nz-button>
-          <i
-            nz-icon
-            nzType="file"
-            nzTheme="outline"
-            nz-tooltip="Projects"></i>
+        <button id="sortProject" ngbDropdownToggle nz-button>
+          <i nz-icon nzType="file" nzTheme="outline" nz-tooltip="Projects"></i>
         </button>
       </a>
       <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
-        <ul
-          nz-menu
-          *ngFor="let project of userProjectsDropdown">
+        <ul nz-menu *ngFor="let project of userProjectsDropdown">
           <li nz-menu-item>
-            <label
-              nz-checkbox
-              ngDefaultControl
-              [(ngModel)]="project.checked"
-              (ngModelChange)="updateSelectedProjects()"
+            <label nz-checkbox ngDefaultControl [(ngModel)]="project.checked" (ngModelChange)="updateSelectedProjects()"
               >{{project.name}}</label
             >
           </li>
@@ -357,9 +242,7 @@
       this MUST be approximately the same as list item size set in CSS,
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
-    <cdk-virtual-scroll-viewport
-      itemSize="80"
-      class="virtual-scroll-container">
+    <cdk-virtual-scroll-viewport itemSize="80" class="virtual-scroll-container">
       <nz-list>
         <nz-list-item
           *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
@@ -403,10 +286,7 @@
                   nzSize="small"
                   nzTooltipPlacement="bottom"
                   nzType="text">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="edit"></i>
+                  <i nz-icon nzTheme="outline" nzType="edit"></i>
                 </button>
                 <button
                   (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
@@ -416,10 +296,7 @@
                   nzTooltipPlacement="bottom"
                   nzType="text"
                   class="add-description-btn">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="plus-square"></i>
+                  <i nz-icon nzTheme="outline" nzType="plus-square"></i>
                 </button>
                 <i
                   class="workflow-is-owner-icon"
@@ -469,12 +346,8 @@
             </nz-list-item-meta-description>
           </nz-list-item-meta>
 
-          <div
-            *ngIf="userProjectsLoaded"
-            class="project-label-container">
-            <div
-              *ngFor="let projectID of dashboardWorkflowEntry.projectIDs"
-              class="project-label">
+          <div *ngIf="userProjectsLoaded" class="project-label-container">
+            <div *ngFor="let projectID of dashboardWorkflowEntry.projectIDs" class="project-label">
               <a
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
                 nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
@@ -509,10 +382,7 @@
 							}} to others"
                 nzTooltipPlacement="bottom"
                 type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="share-alt"></i>
+                <i nz-icon nzTheme="outline" nzType="share-alt"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>
@@ -525,10 +395,7 @@
 							}}"
                 nzTooltipPlacement="bottom"
                 type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="copy"></i>
+                <i nz-icon nzTheme="outline" nzType="copy"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>
@@ -540,10 +407,7 @@
 							}}"
                 nzTooltipPlacement="bottom"
                 type="button">
-                <i
-                  nz-icon
-                  nzType="cloud-download"
-                  nzTheme="outline"></i>
+                <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>
@@ -558,10 +422,7 @@
 								dashboardWorkflowEntry.workflow.name
 							}}"
                 nzTooltipPlacement="bottom">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="delete"></i>
+                <i nz-icon nzTheme="outline" nzType="delete"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action *ngIf="workflowExecutionsTrackingEnabled">
@@ -573,10 +434,7 @@
 							}}"
                 nzTooltipPlacement="bottom"
                 type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="history"></i>
+                <i nz-icon nzTheme="outline" nzType="history"></i>
               </button>
             </nz-list-item-action>
           </ul>

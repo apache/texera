@@ -8,9 +8,7 @@
   (nzVisibleChange)="onDropdownVisibilityEvent($event)"
   [nzVisible]="presetMenuVisible"
   nzClickHide="true">
-  <span
-    class="formly-field"
-    autocomplete="off">
+  <span class="formly-field" autocomplete="off">
     <ng-container #fieldComponent></ng-container>
   </span>
 
@@ -22,25 +20,14 @@
     nzSize="small"
     nzShape="circle"
     (click)="savePreset()">
-    <i
-      nz-icon
-      nzType="save"
-      nzTheme="outline"></i>
+    <i nz-icon nzType="save" nzTheme="outline"></i>
   </button>
 </div>
 <nz-dropdown-menu #menu="nzDropdownMenu">
-  <ul
-    nz-menu
-    nzBordered
-    nzSelectable="false"
-    class="preset-menu">
-    <li
-      nz-menu-item
-      *ngFor="let preset of searchResults; index as i">
+  <ul nz-menu nzBordered nzSelectable="false" class="preset-menu">
+    <li nz-menu-item *ngFor="let preset of searchResults; index as i">
       <div class="preset-dropdown-item">
-        <span
-          class="dropdown-entry"
-          (click)="applyPreset(preset)">
+        <span class="dropdown-entry" (click)="applyPreset(preset)">
           <span class="title">{{this.getEntryTitle(preset)}}</span>
           <span class="description">{{this.getEntryDescription(preset)}}</span>
         </span>
@@ -53,9 +40,7 @@
           nzSize="small"
           nzShape="circle"
           (click)="$event.stopPropagation(); deletePreset(preset)">
-          <i
-            nz-icon
-            nzType="close"></i>
+          <i nz-icon nzType="close"></i>
         </button>
       </div>
     </li>

@@ -132,13 +132,15 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     testWorkflowExecution7,
   ];
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [NgbdModalWorkflowExecutionsComponent],
-      providers: [NgbActiveModal, WorkflowExecutionsService],
-      imports: [MatDialogModule, FormsModule, HttpClientModule],
-    }).compileComponents();
-  }));
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [NgbdModalWorkflowExecutionsComponent],
+        providers: [NgbActiveModal, WorkflowExecutionsService],
+        imports: [MatDialogModule, FormsModule, HttpClientModule],
+      }).compileComponents();
+    })
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalWorkflowExecutionsComponent);

@@ -12,13 +12,15 @@ describe("CoeditorUserIconComponent", () => {
   let fixture: ComponentFixture<CoeditorUserIconComponent>;
   let coeditorPresenceService: CoeditorPresenceService;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzDropDownModule],
-      declarations: [CoeditorUserIconComponent],
-      providers: [WorkflowActionService, CoeditorPresenceService, HttpClient, NzDropdownMenuComponent],
-    }).compileComponents();
-  }));
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        imports: [HttpClientTestingModule, NzDropDownModule],
+        declarations: [CoeditorUserIconComponent],
+        providers: [WorkflowActionService, CoeditorPresenceService, HttpClient, NzDropdownMenuComponent],
+      }).compileComponents();
+    })
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(CoeditorUserIconComponent);
