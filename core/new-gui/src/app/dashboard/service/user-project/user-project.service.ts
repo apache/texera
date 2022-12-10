@@ -53,6 +53,10 @@ export class UserProjectService {
     return this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/rename/${name}`, {});
   }
 
+  public updateProjectDescription(pid: number, description: string): Observable<Response> {
+    return this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/update/description`, { description: description });
+  }
+
   public deleteProject(pid: number): Observable<Response> {
     return this.http.delete<Response>(`${DELETE_PROJECT_URL}/` + pid);
   }
