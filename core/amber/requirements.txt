@@ -27,3 +27,4 @@ typing_extensions
 pytest-reraise
 dataclasses
 Deprecated~=1.2.13
+fs==2.4.16

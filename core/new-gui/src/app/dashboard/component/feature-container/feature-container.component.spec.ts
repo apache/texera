@@ -7,14 +7,12 @@ describe("FeatureContainerComponent", () => {
   let component: FeatureContainerComponent;
   let fixture: ComponentFixture<FeatureContainerComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [FeatureContainerComponent],
-        imports: [RouterTestingModule],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [FeatureContainerComponent],
+      imports: [RouterTestingModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(FeatureContainerComponent);

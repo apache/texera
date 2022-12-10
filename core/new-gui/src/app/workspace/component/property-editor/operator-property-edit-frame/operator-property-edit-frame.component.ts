@@ -1,7 +1,16 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  ComponentFactoryResolver,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges,
+} from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
-import { FormGroup } from "@angular/forms";
+import { AbstractControl, FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
@@ -41,6 +50,7 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { JSONSchema7Type } from "json-schema";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -223,6 +233,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId) {
       return;
     }
+    console.log("re-rendered");
+    // console.trace()
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
@@ -468,6 +480,19 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorId,
           mappedField.wrappers?.includes("preset-wrapper")
         );
+      }
+
+      if (isDefined(mapSource.enum)) {
+        mappedField.validators = {
+          inEnum: {
+            expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
+            message: (error: any, field: FormlyFieldConfig) =>
+              `"${field.formControl?.value}" is no longer a valid option`,
+          },
+        };
+        mappedField.validation = {
+          show: true,
+        };
       }
 
       return mappedField;

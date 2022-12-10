@@ -10,14 +10,12 @@ describe("FeatureBarComponent", () => {
   let component: FeatureBarComponent;
   let fixture: ComponentFixture<FeatureBarComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [FeatureBarComponent],
-        imports: [RouterTestingModule, MatDividerModule, MatListModule],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [FeatureBarComponent],
+      imports: [RouterTestingModule, MatDividerModule, MatListModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(FeatureBarComponent);

@@ -4,6 +4,7 @@ package edu.uci.ics.amber.engine.architecture.worker;
 
 import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -62,12 +63,19 @@ message ModifyOperatorLogicV2 {
 message ReplayCurrentTupleV2 {
 }
 
-message PythonPrintV2 {
-    string message = 1;
+message PythonConsoleMessageV2 {
+    google.protobuf.Timestamp timestamp = 1  [(scalapb.field).no_box = true];
+    string msg_type = 2;
+    string source = 3;
+    string message = 4;
 }
 
 message EvaluateExpressionV2 {
     string expression = 1;
+}
+
+message WorkerDebugCommandV2 {
+    string cmd = 1;
 }
 
 message QuerySelfWorkloadMetricsV2{
@@ -98,11 +106,13 @@ message ControlCommandV2 {
 
         InitializeOperatorLogicV2 initialize_operator_logic = 21;
         ModifyOperatorLogicV2 modify_operator_logic = 22;
-        PythonPrintV2 python_print = 23;
+        PythonConsoleMessageV2 python_console_message = 23;
         ReplayCurrentTupleV2 replay_current_tuple = 24;
         EvaluateExpressionV2 evaluate_expression = 25;
 
         QuerySelfWorkloadMetricsV2 query_self_workload_metrics = 41;
+
+        WorkerDebugCommandV2 worker_debug_command = 81;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }

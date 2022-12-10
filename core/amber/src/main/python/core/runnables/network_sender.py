@@ -3,15 +3,8 @@ from overrides import overrides
 from pyarrow import Table
 
 from core.architecture.managers.flow_control_manager import FlowControlManager
-from core.models import (
-    ControlElement,
-    DataElement,
-    OutputDataFrame,
-    DataPayload,
-    EndOfUpstream,
-    InternalQueue,
-    InternalQueueElement,
-)
+from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
+from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.common import (
