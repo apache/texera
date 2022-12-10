@@ -7,7 +7,13 @@
     [(ngModel)]="field?.formControl.value"
     matInput
     required
-    [nzAutocomplete]="auto"
-  />
-  <nz-autocomplete [nzDataSource]="suggestions" nzBackfill #auto> </nz-autocomplete>
+    [nzAutocomplete]="auto" />
+  <mat-error>
+    <formly-validation-message [field]="field"></formly-validation-message>
+  </mat-error>
+  <nz-autocomplete
+    [nzDataSource]="suggestions"
+    nzBackfill
+    #auto>
+  </nz-autocomplete>
 </mat-form-field>

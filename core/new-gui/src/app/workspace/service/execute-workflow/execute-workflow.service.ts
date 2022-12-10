@@ -1,4 +1,4 @@
-import { Injectable, Version } from "@angular/core";
+import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -13,19 +13,11 @@ import {
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from "../../types/workflow-common.interface";
-import {
-  OperatorCurrentTuples,
-  TexeraWebsocketEvent,
-  WorkflowExecuteRequest,
-} from "../../types/workflow-websocket.interface";
+import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { Version as version } from "src/environments/version";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { WorkflowSnapshotService } from "src/app/dashboard/service/workflow-snapshot/workflow-snapshot.service";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -58,7 +50,6 @@ export const EXECUTION_TIMEOUT = 3000;
 @Injectable({
   providedIn: "root",
 })
-@UntilDestroy()
 export class ExecuteWorkflowService {
   private currentState: ExecutionStateInfo = {
     state: ExecutionState.Uninitialized,
@@ -70,21 +61,27 @@ export class ExecuteWorkflowService {
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
-  private hasSnapshot: boolean = false;
+
+  // TODO: move this to another service, or redesign how this
+  //   information is stored on the frontend.
+  private assignedWorkerIds: Map<string, readonly string[]> = new Map();
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowSnapshotService: WorkflowSnapshotService,
-    private notificationService: NotificationService,
-    private workflowPersistService: WorkflowPersistService
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
-        // workflow status related event
-        const newState = this.handleExecutionEvent(event);
-        if (newState !== undefined) {
-          this.updateExecutionState(newState);
+        switch (event.type) {
+          case "WorkerAssignmentUpdateEvent":
+            this.assignedWorkerIds.set(event.operatorId, event.workerIds);
+            break;
+          default:
+            // workflow status related event
+            const newState = this.handleExecutionEvent(event);
+            if (newState !== undefined) {
+              this.updateExecutionState(newState);
+            }
         }
       });
     }
@@ -470,5 +467,9 @@ export class ExecuteWorkflowService {
       throw new Error("unhandled breakpoint data " + breakpointData);
     }
     return { operatorID, breakpoint };
+  }
+
+  public getWorkerIds(operatorId: string): ReadonlyArray<string> {
+    return this.assignedWorkerIds.get(operatorId) || [];
   }
 }
