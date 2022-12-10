@@ -50,7 +50,7 @@ private class AmberProducer(
         var creditVal: Long = 30L // TODO : replace with actual credit value
         val creditByteArr: Array[Byte] = new Array[Byte](Longs.BYTES)
         for (x <- 0 until Longs.BYTES - 1) {
-          creditByteArr(x) = (creditVal & 0xFF).asInstanceOf[Byte]
+          creditByteArr(x) = (creditVal & 0xff).asInstanceOf[Byte]
           creditVal >>= Longs.BYTES
         }
 
