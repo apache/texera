@@ -3,7 +3,88 @@
     <div class="error-message">{{ item.key }}:{{ item.value }}</div>
   </div>
 </div>
+<a
+  nz-dropdown
+  [nzDropdownMenu]="menu">
+  <span
+    nz-icon
+    nzType="setting"
+    nzTheme="outline"></span>
+</a>
+<nz-dropdown-menu #menu="nzDropdownMenu">
+  <ul nz-menu>
+    <li nz-menu-item>
+      <nz-switch
+        [(ngModel)]="showTimestamp"
+        [nzCheckedChildren]="checkedTemplate"
+        [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
+      Show Timestamp
+      <ng-template #checkedTemplate
+        ><span
+          nz-icon
+          nzType="check"></span
+      ></ng-template>
+      <ng-template #unCheckedTemplate
+        ><span
+          nz-icon
+          nzType="close"></span
+      ></ng-template>
+    </li>
+    <li nz-menu-item>
+      <nz-switch
+        [(ngModel)]="showSource"
+        [nzCheckedChildren]="checkedTemplate"
+        [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
+      Show Source
+      <ng-template #checkedTemplate
+        ><span
+          nz-icon
+          nzType="check"></span
+      ></ng-template>
+      <ng-template #unCheckedTemplate
+        ><span
+          nz-icon
+          nzType="close"></span
+      ></ng-template>
+    </li>
+  </ul>
+</nz-dropdown-menu>
+<nz-list nzSize="small">
+  <cdk-virtual-scroll-viewport
+    itemSize="14"
+    class="infinite-container">
+    <nz-list-item *cdkVirtualFor="let entry of consoleMessages">
+      <span *ngIf="entry.workerId">
+        <nz-tag [nzColor]="getWorkerColor(getWorkerIndex(entry.workerId))"> {{workerIdToAbbr(entry.workerId)}}</nz-tag>
+        <nz-tag *ngIf="showTimestamp">
+          {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
+        </nz-tag>
+        <nz-tag *ngIf="showSource"> {{entry.source}} </nz-tag>
+        <nz-badge [nzStatus]="labelMapping.get(entry.msgType)"> </nz-badge>
+        <span class="console-message"> {{ entry.message }} </span>
+      </span>
+    </nz-list-item>
+  </cdk-virtual-scroll-viewport>
+</nz-list>
 
-<div *ngFor="let message of consoleMessages">
-  <div class="console-message">{{ message }}</div>
-</div>
+<nz-input-group
+  nzCompact
+  [nzAddOnBefore]="addOnBeforeTemplate">
+  <input
+    type="text"
+    nz-input
+    [(ngModel)]="command"
+    (keyup.enter)="submitDebugCommand()" />
+</nz-input-group>
+
+<ng-template #addOnBeforeTemplate>
+  <nz-select [(ngModel)]="targetWorker">
+    <nz-option
+      *ngFor="let workerId of workerIds"
+      [nzLabel]="workerIdToAbbr(workerId)"
+      [nzValue]="workerId"></nz-option>
+    <nz-option
+      [nzLabel]="ALL_WORKERS"
+      [nzValue]="ALL_WORKERS"></nz-option>
+  </nz-select>
+</ng-template>

@@ -1,6 +1,7 @@
 from loguru import logger
 
 from core.architecture.handlers.add_partitioning_handler import AddPartitioningHandler
+from core.architecture.handlers.debug_command_handler import WorkerDebugCommandHandler
 from core.architecture.handlers.evaluate_expression_handler import (
     EvaluateExpressionHandler,
 )
@@ -30,7 +31,7 @@ from core.architecture.handlers.scheduler_time_slot_event_handler import (
     SchedulerTimeSlotEventHandler,
 )
 from core.architecture.managers.context import Context
-from core.models.internal_queue import ControlElement, InternalQueue
+from core.models.internal_queue import InternalQueue, ControlElement
 from core.util import get_one_of, set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
@@ -64,6 +65,7 @@ class AsyncRPCServer:
         self.register(EvaluateExpressionHandler())
         self.register(MonitoringHandler())
         self.register(SchedulerTimeSlotEventHandler())
+        self.register(WorkerDebugCommandHandler())
 
     def receive(
         self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2

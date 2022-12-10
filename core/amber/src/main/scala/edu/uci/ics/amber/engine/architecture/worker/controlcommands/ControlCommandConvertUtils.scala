@@ -2,8 +2,9 @@ package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonPrintHandler.PythonPrint
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonConsoleMessageHandler.PythonConsoleMessage
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyOperatorLogicHandler.ModifyOperatorLogic
@@ -65,6 +66,8 @@ object ControlCommandConvertUtils {
         ModifyOperatorLogicV2(code, isSource)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
+      case WorkerDebugCommand(cmd) =>
+        WorkerDebugCommandV2(cmd)
       case QuerySelfWorkloadMetrics() =>
         QuerySelfWorkloadMetricsV2()
       case _ =>
@@ -83,8 +86,8 @@ object ControlCommandConvertUtils {
         WorkerExecutionCompleted()
       case LocalOperatorExceptionV2(message) =>
         LocalOperatorException(null, new RuntimeException(message))
-      case PythonPrintV2(message) =>
-        PythonPrint(message)
+      case PythonConsoleMessageV2(timestamp, msgType, source, message) =>
+        PythonConsoleMessage(timestamp, msgType, source, message)
       case LinkCompletedV2(link) => LinkCompleted(link)
       case _ =>
         throw new UnsupportedOperationException(

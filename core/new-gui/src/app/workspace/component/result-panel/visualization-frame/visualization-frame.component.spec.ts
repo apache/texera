@@ -25,26 +25,24 @@ describe("VisualizationFameComponent", () => {
     table: [],
   };
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [NzModalModule, NzButtonModule, HttpClientTestingModule],
-        declarations: [VisualizationFrameComponent],
-        providers: [
-          JointUIService,
-          WorkflowUtilService,
-          UndoRedoService,
-          WorkflowActionService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          WorkflowResultService,
-          ExecuteWorkflowService,
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [NzModalModule, NzButtonModule, HttpClientTestingModule],
+      declarations: [VisualizationFrameComponent],
+      providers: [
+        JointUIService,
+        WorkflowUtilService,
+        UndoRedoService,
+        WorkflowActionService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        WorkflowResultService,
+        ExecuteWorkflowService,
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(VisualizationFrameComponent);

@@ -2,6 +2,7 @@ import { Observable, Subject } from "rxjs";
 import {
   Breakpoint,
   Comment,
+  PortDescription,
   CommentBox,
   OperatorLink,
   OperatorPort,
@@ -12,6 +13,7 @@ import { SharedModel } from "./shared-model";
 import { User, CoeditorState } from "../../../../common/type/user";
 import { createYTypeFromObject, YType, updateYTypeFromObject } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
+import * as Y from "yjs";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -23,6 +25,8 @@ type restrictedMethods =
   | "deleteLink"
   | "deleteLinkWithID"
   | "setOperatorProperty"
+  | "addPort"
+  | "removePort"
   | "setLinkBreakpoint"
   | "operatorAddSubject"
   | "operatorDeleteSubject"
@@ -104,6 +108,9 @@ export class WorkflowGraph {
   public readonly breakpointChangeStream = new Subject<{
     oldBreakpoint: object | undefined;
     linkID: string;
+  }>();
+  public readonly operatorPortChangedSubject = new Subject<{
+    newOperator: OperatorPredicate;
   }>();
   public readonly commentBoxAddSubject = new Subject<CommentBox>();
   public readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
@@ -516,6 +523,36 @@ export class WorkflowGraph {
     );
   }
 
+  public addPort(operatorID: string, port: PortDescription, isInput: boolean): void {
+    this.assertOperatorExists(operatorID);
+    if (isInput) {
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      inputPorts.push([createYTypeFromObject<PortDescription>(port)]);
+    } else {
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      outputPorts.push([createYTypeFromObject<PortDescription>(port)]);
+    }
+  }
+
+  public removePort(operatorID: string, isInput: boolean): void {
+    this.assertOperatorExists(operatorID);
+    if (isInput) {
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      inputPorts.delete(inputPorts.length - 1, 1);
+    } else {
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      outputPorts.delete(outputPorts.length - 1, 1);
+    }
+  }
+
   /**
    * Adds a link to the operator graph.
    * Throws an error if
@@ -799,7 +836,7 @@ export class WorkflowGraph {
 
   /**
    * Gets the observable event stream of a change in operator's properties.
-   * The observable value includes the old property that is replaced, and the operator with new property.
+   * The observable value includes the operator with new property.
    */
   public getOperatorPropertyChangeStream(): Observable<{
     operator: OperatorPredicate;
@@ -815,6 +852,12 @@ export class WorkflowGraph {
     linkID: string;
   }> {
     return this.breakpointChangeStream.asObservable();
+  }
+
+  public getOperatorPortChangeStream(): Observable<{
+    newOperator: OperatorPredicate;
+  }> {
+    return this.operatorPortChangedSubject.asObservable();
   }
 
   /**
