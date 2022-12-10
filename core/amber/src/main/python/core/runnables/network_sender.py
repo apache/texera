@@ -76,5 +76,5 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         python_control_message = PythonControlMessage(tag=to, payload=control_payload)
         returned_credits = int.from_bytes(
             self._proxy_client.call_action("control", bytes(python_control_message)),
-            byteorder="big",
+            byteorder="little",
         )

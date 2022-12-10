@@ -45,9 +45,18 @@ private class AmberProducer(
             throw new RuntimeException(s"not supported payload $payload")
 
         }
+
+        // get little-endian representation of credits
+        var creditVal: Long = 30L // TODO : replace with actual credit value
+        val creditByteArr: Array[Byte] = new Array[Byte](Longs.BYTES)
+        for (x <- 0 until Longs.BYTES - 1) {
+          creditByteArr(x) = (creditVal & 0xff).asInstanceOf[Byte]
+          creditVal >>= Longs.BYTES
+        }
+
         listener.onNext(
-          new Result(Longs.toByteArray(30L))
-        ) // TODO : replace with actual credit value
+          new Result(creditByteArr)
+        )
         listener.onCompleted()
       case _ => throw new NotImplementedError()
     }
@@ -69,7 +78,7 @@ private class AmberProducer(
     // send back ack with credits on ackStream
     val bufferAllocator = new RootAllocator(8 * 1024)
     try {
-      val arrowBuf: ArrowBuf = bufferAllocator.buffer(4 * 1024)
+      val arrowBuf: ArrowBuf = bufferAllocator.buffer(Longs.BYTES + 4)
       arrowBuf.writeLong(
         31L
       ) // TODO : replace with actual credit value

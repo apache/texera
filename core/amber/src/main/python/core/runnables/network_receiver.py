@@ -30,8 +30,7 @@ class NetworkReceiver(Runnable, Stoppable):
 
             :param command:
             :param table:
-            :return: number of batches in internal queue belonging to this command's sender actor.
-                this is used for calculating sender credits
+            :return: sender credits (the number of batches in internal queue belonging to this command's sender actor)
             """
             data_header = PythonDataHeader().parse(command)
             if not data_header.is_end:
@@ -53,8 +52,7 @@ class NetworkReceiver(Runnable, Stoppable):
             Control handler for deserializing control messages
 
             :param message:
-            :return: number of batches in internal queue belonging to this message's sender actor.
-                this is used for calculating sender credits
+            :return: sender credits (the number of batches in internal queue belonging to this command's sender actor)
             """
             python_control_message = PythonControlMessage().parse(message)
             shared_queue.put(
