@@ -44,6 +44,11 @@ export const defaultEnvironment = {
   localLogin: true,
 
   /**
+   * whether invite only is enabled
+   */
+  inviteOnly: false,
+
+  /**
    * whether user preset feature is enabled, requires user system to be enabled
    */
   userPresetEnabled: false,

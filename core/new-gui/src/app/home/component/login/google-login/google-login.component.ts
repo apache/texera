@@ -9,8 +9,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./google-login.component.scss"],
 })
 export class GoogleLoginComponent {
-  public errorMessage: string | undefined;
   constructor(private userService: UserService) {}
+
   /**
    * this method will retrieve a usable Google OAuth Instance first,
    * with that available instance, get googleUsername and authorization code respectively,
@@ -20,9 +20,10 @@ export class GoogleLoginComponent {
     this.userService
       .googleLogin()
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => (location.href = "dashboard/workflow"),
-        error: () => (this.errorMessage = "Incorrect credentials"),
+      .subscribe(() => {
+        if (this.userService.getCurrentUser()) {
+          location.href = "dashboard/workflow";
+        }
       });
   }
 }
