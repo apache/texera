@@ -1,5 +1,8 @@
 .login-with-google-btn {
-  width: 100%;
+  @media only screen and (min-width: 1000px) {
+    width: 268px;
+  }
+  min-width: 185px;
   height: 35px;
   transition: background-color 0.3s, box-shadow 0.3s;
   padding: 4px 16px 4px 42px;
@@ -19,8 +22,4 @@
   &:active {
     background-color: #eeeeee;
   }
-}
-
-.form {
-  margin: 20px;
 }

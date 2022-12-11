@@ -41,7 +41,7 @@ export class LocalLoginComponent {
   };
 
   /**
-   * This method response for the sign-in button
+   * This method responds to the sign-in button
    * It will send data inside the text entry to the user service to login
    */
   public login(): void {
@@ -65,7 +65,7 @@ export class LocalLoginComponent {
   }
 
   /**
-   * This method is respond for the sign on button in the pop up
+   * This method responds to the sign-up button
    * It will send data inside the text entry to the user service to register
    */
   public register(): void {
