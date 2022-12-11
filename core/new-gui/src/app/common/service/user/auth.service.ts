@@ -9,7 +9,7 @@ import { JwtHelperService } from "@auth0/angular-jwt";
 import { GoogleAuthService } from "ng-gapi";
 import GoogleAuth = gapi.auth2.GoogleAuth;
 import { NotificationService } from "../notification/notification.service";
-import {environment} from "../../../../environments/environment";
+import { environment } from "../../../../environments/environment";
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -115,7 +115,6 @@ export class AuthService {
     }
 
     const role = this.jwtHelperService.decodeToken(token).role;
-
 
     if (this.inviteOnly && role == "INACTIVE") {
       this.notificationService.error("Account pending approval!");
