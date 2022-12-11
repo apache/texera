@@ -50,8 +50,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     "# \n" +
                     "#     @overrides\n" +
                     "#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n" +
-                    "#         yield table\n" +
-                    "# \n")
+                    "#         yield table\n")
     @JsonSchemaTitle("Python script")
     @JsonPropertyDescription("Input your code here")
     public String code;
