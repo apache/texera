@@ -9,6 +9,7 @@ import { JwtHelperService } from "@auth0/angular-jwt";
 import { GoogleAuthService } from "ng-gapi";
 import GoogleAuth = gapi.auth2.GoogleAuth;
 import { NotificationService } from "../notification/notification.service";
+import {environment} from "../../../../environments/environment";
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -23,6 +24,7 @@ export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
   providedIn: "root",
 })
 export class AuthService {
+  inviteOnly = environment.inviteOnly;
   public static readonly LOGIN_ENDPOINT = "auth/login";
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
@@ -114,7 +116,8 @@ export class AuthService {
 
     const role = this.jwtHelperService.decodeToken(token).role;
 
-    if (role == "INACTIVE") {
+
+    if (this.inviteOnly && role == "INACTIVE") {
       this.notificationService.error("Account pending approval!");
       return this.logout();
     }
