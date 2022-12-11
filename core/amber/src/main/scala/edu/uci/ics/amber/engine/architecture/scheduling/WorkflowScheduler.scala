@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import akka.actor.{ActorContext, Address}
 import com.twitter.util.Future
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
@@ -276,6 +279,7 @@ class WorkflowScheduler(
   private def startRegion(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+
     allOperatorsInRegion
       .filter(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED)
       .foreach(opId => workflow.getOperator(opId).setAllWorkerState(READY))
@@ -304,7 +308,17 @@ class WorkflowScheduler(
 
   private def prepareAndStartRegion(region: PipelinedRegion): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-    Future()
+    asyncRPCClient.sendToClient(
+      WorkerAssignmentUpdate(
+        workflow.getOperatorToWorkers
+          .map({
+            case (opId: OperatorIdentity, workerIds: Seq[ActorVirtualIdentity]) =>
+              opId.operator -> workerIds.map(_.name)
+          })
+          .toMap
+      )
+    )
+    Future(())
       .flatMap(_ => initializePythonOperators(region))
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
@@ -341,7 +355,7 @@ class WorkflowScheduler(
 
   private def scheduleRegion(region: PipelinedRegion): Future[Unit] = {
     if (constructingRegions.contains(region.getId())) {
-      return Future()
+      return Future(())
     }
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())

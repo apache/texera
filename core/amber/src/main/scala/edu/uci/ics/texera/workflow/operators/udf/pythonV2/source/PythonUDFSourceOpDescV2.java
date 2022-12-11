@@ -78,7 +78,10 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 scala.collection.immutable.List.<InputPort>empty(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
+                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
+                false,
+                false
+        );
     }
 
     @Override

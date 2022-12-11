@@ -279,10 +279,15 @@ class Workflow(
           operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
       }) map { case (workerId: ActorVirtualIdentity, _: IOperatorExecutor) => workerId }
 
+  def getOperatorToWorkers: Iterable[(OperatorIdentity, Seq[ActorVirtualIdentity])] = {
+    getAllOperatorIds.map(opId => {
+      (opId, getAllWorkersForOperators(Array(opId)).toSeq)
+    })
+  }
   def getAllWorkersForOperators(
       operators: Array[OperatorIdentity]
   ): Array[ActorVirtualIdentity] = {
-    operators.map(opId => operatorToOpExecConfig(opId).getAllWorkers).flatten
+    operators.flatMap(opId => operatorToOpExecConfig(opId).getAllWorkers)
   }
 
   def getPythonOperators(fromOperatorsList: Array[OperatorIdentity]): Array[OperatorIdentity] = {

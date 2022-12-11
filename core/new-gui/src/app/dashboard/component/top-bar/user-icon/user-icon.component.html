@@ -1,10 +1,4 @@
 <div class="user-icon">
-  <div *ngIf="!user">
-    <button *ngIf="localLogin" nz-button nzType="primary" nzGhost nzSize="large" (click)="onClickLogin()">
-      Sign In
-    </button>
-    <button *ngIf="!localLogin" class="login-with-google-btn" (click)="googleLogin()">Sign in with Google</button>
-  </div>
   <div *ngIf="user">
     <texera-user-avatar
       class="user-avatar caret-off"
@@ -15,13 +9,16 @@
       nz-dropdown
       nzTrigger="click"
       [nzDropdownMenu]="menu"
-      nzPlacement="bottomRight"
-    >
+      nzPlacement="bottomRight">
     </texera-user-avatar>
   </div>
   <nz-dropdown-menu #menu="nzDropdownMenu">
     <ul nz-menu>
-      <li nz-menu-item (click)="onClickLogout()">Sign Out</li>
+      <li
+        nz-menu-item
+        (click)="onClickLogout()">
+        Sign Out
+      </li>
     </ul>
   </nz-dropdown-menu>
 </div>

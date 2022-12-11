@@ -12,7 +12,9 @@ public enum AggregationFunction {
 
     MIN("min"),
 
-    MAX("max");
+    MAX("max"),
+
+    CONCAT("concat");
 
     private final String name;
 

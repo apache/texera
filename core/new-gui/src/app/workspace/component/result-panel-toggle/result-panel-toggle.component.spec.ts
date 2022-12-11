@@ -6,14 +6,12 @@ describe("ResultPanelToggleComponent", () => {
   let component: ResultPanelToggleComponent;
   let fixture: ComponentFixture<ResultPanelToggleComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [ResultPanelToggleComponent],
-        providers: [ResultPanelToggleService],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [ResultPanelToggleComponent],
+      providers: [ResultPanelToggleService],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultPanelToggleComponent);
