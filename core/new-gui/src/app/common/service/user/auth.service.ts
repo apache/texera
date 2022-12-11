@@ -8,6 +8,7 @@ import { mergeMap, startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { GoogleAuthService } from "ng-gapi";
 import GoogleAuth = gapi.auth2.GoogleAuth;
+import { NotificationService } from "../notification/notification.service";
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -33,7 +34,8 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private jwtHelperService: JwtHelperService,
-    private googleAuthService: GoogleAuthService
+    private googleAuthService: GoogleAuthService,
+    private notificationService: NotificationService
   ) {}
 
   /**
@@ -100,18 +102,30 @@ export class AuthService {
   public loginWithExistingToken(): Observable<User | undefined> {
     this.tokenExpirationSubscription?.unsubscribe();
     const token = AuthService.getAccessToken();
-    if (token !== null && !this.jwtHelperService.isTokenExpired(token)) {
-      this.registerAutoLogout();
-      this.registerAutoRefreshToken();
-      return of(<User>{
-        name: this.jwtHelperService.decodeToken(token).sub,
-        googleId: this.jwtHelperService.decodeToken(token).googleId,
-        role: this.jwtHelperService.decodeToken(token).role,
-      });
-    } else {
-      // access token is expired, logout instantly
+
+    if (token == null) {
       return this.logout();
     }
+
+    if (this.jwtHelperService.isTokenExpired(token)) {
+      this.notificationService.error("Access token is expired!");
+      return this.logout();
+    }
+
+    const role = this.jwtHelperService.decodeToken(token).role;
+
+    if (role == "INACTIVE") {
+      this.notificationService.error("Account pending approval!");
+      return this.logout();
+    }
+
+    this.registerAutoLogout();
+    this.registerAutoRefreshToken();
+    return of(<User>{
+      name: this.jwtHelperService.decodeToken(token).sub,
+      googleId: this.jwtHelperService.decodeToken(token).googleId,
+      role: role,
+    });
   }
 
   /**
