@@ -62,7 +62,6 @@ import { UserFileSectionComponent } from "./dashboard/component/feature-containe
 import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
 import { UserIconComponent } from "./dashboard/component/top-bar/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
-import { UserLoginModalComponent } from "./dashboard/component/top-bar/user-icon/user-login/user-login-modal.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
@@ -117,6 +116,11 @@ import { CoeditorUserIconComponent } from "./workspace/component/navigation/coed
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
+import { HomeComponent } from "./home/component/home.component";
+import { NzLayoutModule } from "ng-zorro-antd/layout";
+import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
+import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
+import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
 
 registerLocaleData(en);
 
@@ -135,11 +139,11 @@ registerLocaleData(en);
     TopBarComponent,
     UserIconComponent,
     UserAvatarComponent,
+    LocalLoginComponent,
     FeatureBarComponent,
     FeatureContainerComponent,
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
-    UserLoginModalComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
     RowModalComponent,
@@ -175,11 +179,14 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
+    GoogleLoginComponent,
+    LocalLoginComponent,
     DeletePromptComponent,
     ContextMenuComponent,
     CoeditorUserIconComponent,
     InputAutoCompleteComponent,
     CollabWrapperComponent,
+    HomeComponent,
   ],
   imports: [
     BrowserModule,
@@ -249,8 +256,10 @@ registerLocaleData(en);
     ColorPickerModule,
     NgPipesModule,
     NzSwitchModule,
+    NzLayoutModule,
   ],
   providers: [
+    AuthGuardService,
     DatePipe,
     UserService,
     UserFileService,
