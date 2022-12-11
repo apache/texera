@@ -41,7 +41,6 @@ from proto.edu.uci.ics.amber.engine.common import (
 )
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
-from loguru import logger
 
 
 class TestMainLoop:
@@ -230,7 +229,6 @@ class TestMainLoop:
             with reraise:
                 main_loop.run()
 
-        logger.info(str(main_loop))
         main_loop_thread = Thread(target=wrapper, name="main_loop_thread")
         yield main_loop_thread
 
@@ -396,7 +394,7 @@ class TestMainLoop:
         reraise()
 
     @pytest.mark.timeout(5)
-    def test_batch_dp_thread_can_process_batch_complex(
+    def test_batch_dp_thread_can_process_batch(
         self,
         mock_controller,
         mock_link,
@@ -472,7 +470,7 @@ class TestMainLoop:
         for i in range(20):
             output_data_elements.append(output_queue.get())
         assert operator.count == 2
-        # input: 41, output: 30, in buffer: 11
+        # input queue 41, output queue 30, batch_buffer 11
         operator.BATCH_SIZE = 5
         input_queue.put(mock_batch_data_elements[41])
         for i in range(5):

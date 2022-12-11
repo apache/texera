@@ -35,11 +35,12 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
         "#         yield tuple_\n" +
         "# \n" +
         "# class ProcessBatchOperator(UDFBatchOperator):\n" +
-        "# \n" +
         "#     BATCH_SIZE = 10 # must be a positive integer\n" +
+        "# \n" +
         "#     @overrides\n" +
         "#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:\n" +
         "#         yield batch\n" +
+        "# \n" +
         "# class ProcessTableOperator(UDFTableOperator):\n" +
         "# \n" +
         "#     @overrides\n" +

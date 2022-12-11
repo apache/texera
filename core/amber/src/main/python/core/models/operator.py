@@ -107,14 +107,15 @@ class BatchOperator(TupleOperatorV2):
     def __init__(self):
         super().__init__()
         self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
-        self._check_batch_size(self.BATCH_SIZE)
+        self._validate_batch_size(self.BATCH_SIZE)
 
     @staticmethod
-    def _check_batch_size(value):
+    @overrides.final
+    def _validate_batch_size(value):
         if value is None:
             raise ValueError("BATCH_SIZE cannot be None.")
         if type(value) is not int:
-            raise ValueError("BATCH_SIZE cannot be " + str(type(value)) + ".")
+            raise ValueError("BATCH_SIZE cannot be {type(value))}.")
         if value <= 0:
             raise ValueError("BATCH_SIZE should be positive.")
 
@@ -127,6 +128,7 @@ class BatchOperator(TupleOperatorV2):
         ):
             yield from self._process_batch(port)
 
+    @overrides.final
     def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
         batch = Batch(
             pandas.DataFrame(
@@ -144,6 +146,7 @@ class BatchOperator(TupleOperatorV2):
                 else:
                     yield output_batch
 
+    @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
         while len(self.__batch_data[port]) != 0:
             yield from self._process_batch(port)
