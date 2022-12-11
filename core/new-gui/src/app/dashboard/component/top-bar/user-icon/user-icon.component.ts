@@ -1,12 +1,7 @@
 import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
-import { User, Role } from "../../../../common/type/user";
-import { UserLoginModalComponent } from "./user-login/user-login-modal.component";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzModalService } from "ng-zorro-antd/modal";
-import { environment } from "../../../../../environments/environment";
-import { filter } from "rxjs/operators";
-import { isDefined } from "../../../../common/util/predicate";
+import { User } from "../../../../common/type/user";
+import { UntilDestroy } from "@ngneat/until-destroy";
 /**
  * UserIconComponent is used to control user system on the top right corner
  * It includes the button for login/registration/logout
@@ -20,16 +15,8 @@ import { isDefined } from "../../../../common/util/predicate";
 })
 export class UserIconComponent {
   public user: User | undefined;
-  localLogin = environment.localLogin;
-  constructor(private modalService: NzModalService, private userService: UserService) {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(user => (this.user = user));
-  }
-
-  ngOnInit() {
-    this.logoutInactiveUser();
+  constructor(private userService: UserService) {
+    this.user = this.userService.getCurrentUser();
   }
 
   /**
@@ -37,46 +24,6 @@ export class UserIconComponent {
    */
   public onClickLogout(): void {
     this.userService.logout();
-  }
-
-  /**
-   * handle the event when user click on the login (sign in) button
-   */
-  public onClickLogin(): void {
-    this.openLoginComponent();
-  }
-
-  /**
-   * This method will open the login/register pop up
-   * It will switch to the tab based on the mode number given
-   * @param mode 0 indicates login and 1 indicates registration
-   */
-  private openLoginComponent(): void {
-    this.modalService.create({ nzContent: UserLoginModalComponent, nzOkText: null });
-  }
-  /**
-   * this method will retrieve a usable Google OAuth Instance first,
-   * with that available instance, get googleUsername and authorization code respectively,
-   * then sending the code to the backend
-   */
-  public googleLogin(): void {
-    this.userService.googleLogin().pipe(untilDestroyed(this)).subscribe();
-  }
-
-  private logoutInactiveUser(): void {
-    // TODO temporary solution, need improvement
-    this.userService
-      .userChanged()
-      .pipe(filter(isDefined))
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        Zone.current.wrap(() => {
-          if (this.user?.role == Role.INACTIVE) {
-            // TODO temporary solution, will replace after login page PR.
-            alert("Account pending approval.");
-            this.userService.logout();
-          }
-        }, "")
-      );
+    location.href = "home";
   }
 }
