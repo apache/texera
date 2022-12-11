@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{EndMarker, EndOfAllMarker}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.EndMarker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
@@ -20,8 +20,7 @@ trait StartHandler {
     if (operator.isInstanceOf[ISourceOperatorExecutor]) {
       stateManager.assertState(READY)
       stateManager.transitTo(RUNNING)
-      dataProcessor.appendElement(EndMarker)
-      dataProcessor.appendElement(EndOfAllMarker)
+      dataProcessor.appendElement(EndMarker(null))
       stateManager.getCurrentState
     } else {
       throw new WorkflowRuntimeException(

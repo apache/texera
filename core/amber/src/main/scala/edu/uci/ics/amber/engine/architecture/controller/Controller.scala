@@ -20,10 +20,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.recovery.{
-  FIFOStateRecoveryManager,
-  GlobalRecoveryManager
-}
+import edu.uci.ics.amber.engine.architecture.recovery.GlobalRecoveryManager
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowScheduler
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
@@ -88,6 +85,8 @@ class Controller(
   override def getLogName: String = "WF" + workflow.getWorkflowId().id + "-CONTROLLER"
 
   val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
+  val controlMessagesToRecover: Iterator[InMemDeterminant] =
+    logStorage.getReader.mkLogRecordIterator()
   val globalRecoveryManager: GlobalRecoveryManager = new GlobalRecoveryManager(
     () => {
       logger.info("Start global recovery")
@@ -130,7 +129,7 @@ class Controller(
   }
 
   def running: Receive = {
-    acceptRecoveryMessages orElse acceptDirectInvocations orElse {
+    forwardResendRequest orElse acceptRecoveryMessages orElse acceptDirectInvocations orElse {
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(
           this.sender(),
@@ -193,6 +192,8 @@ class Controller(
                 logger.info("Global Recovery: trigger resend from " + vid + " to " + info.id)
                 workflow.getWorkerInfo(vid).ref ! ResendOutputTo(info.id, ref)
               }
+            // let controller resend control messages immediately
+            networkCommunicationActor ! ResendOutputTo(info.id, ref)
           }
       }
   }
@@ -221,7 +222,7 @@ class Controller(
       d match {
         case ProcessControlMessage(controlPayload, from) =>
           handleControlPayload(from, controlPayload)
-          if (recoveryManager.replayCompleted()) {
+          if (!controlMessagesToRecover.hasNext) {
             logManager.terminate()
             logStorage.cleanPartiallyWrittenLogFile()
             logManager.setupWriter(logStorage.getWriter)
@@ -229,8 +230,7 @@ class Controller(
             unstashAll()
             context.become(running)
           } else {
-            val inMemDeterminant = recoveryManager.popDeterminant()
-            self ! inMemDeterminant
+            self ! controlMessagesToRecover.next()
           }
         case otherDeterminant =>
           throw new RuntimeException(
@@ -254,14 +254,12 @@ class Controller(
   }
 
   override def receive: Receive = {
-    if (!recoveryManager.replayCompleted()) {
+    if (controlMessagesToRecover.hasNext) {
       globalRecoveryManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
-      val fifoStateRecoveryManager = new FIFOStateRecoveryManager(logStorage.getReader)
-      val fifoState = fifoStateRecoveryManager.getFIFOState
+      val fifoState = recoveryManager.getFIFOState(logStorage.getReader.mkLogRecordIterator())
       controlInputPort.overwriteFIFOState(fifoState)
-      val inMemDeterminant = recoveryManager.popDeterminant()
-      self ! inMemDeterminant
-      acceptRecoveryMessages orElse recovering
+      self ! controlMessagesToRecover.next()
+      forwardResendRequest orElse acceptRecoveryMessages orElse recovering
     } else {
       running
     }

@@ -12,21 +12,19 @@ describe("VersionsListDisplayComponent", () => {
   let fixture: ComponentFixture<VersionsListDisplayComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [VersionsListDisplayComponent],
-        providers: [WorkflowActionService],
-        imports: [
-          BrowserAnimationsModule,
-          FormsModule,
-          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-          ReactiveFormsModule,
-          HttpClientTestingModule,
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [VersionsListDisplayComponent],
+      providers: [WorkflowActionService],
+      imports: [
+        BrowserAnimationsModule,
+        FormsModule,
+        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+        ReactiveFormsModule,
+        HttpClientTestingModule,
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(VersionsListDisplayComponent);

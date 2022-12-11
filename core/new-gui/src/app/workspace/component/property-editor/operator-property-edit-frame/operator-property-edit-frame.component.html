@@ -1,5 +1,11 @@
-<div *ngIf="!editingTitle" id="formly-title">
-  <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title">{{ formTitle }}</h3>
+<div
+  *ngIf="!editingTitle"
+  id="formly-title">
+  <h3
+    *ngIf="!editingTitle && formTitle"
+    class="texera-workspace-property-editor-title">
+    {{ formTitle }}
+  </h3>
   <button
     (click)="editingTitle=true; connectQuillToText()"
     nz-button
@@ -7,9 +13,11 @@
     nzSize="small"
     nzTooltipPlacement="bottom"
     nzType="text"
-    [disabled]="!interactive"
-  >
-    <i nz-icon nzTheme="outline" nzType="edit"></i>
+    [disabled]="!interactive">
+    <i
+      nz-icon
+      nzTheme="outline"
+      nzType="edit"></i>
   </button>
 </div>
 
@@ -17,26 +25,22 @@
   id="customName"
   [hidden]="!editingTitle"
   (focusout)="disconnectQuillFromText()"
-  (keyup.enter)="disconnectQuillFromText()"
-></div>
+  (keyup.enter)="disconnectQuillFromText()"></div>
 
 <form
   *ngIf="formlyFields && formlyFormGroup"
   [formGroup]="formlyFormGroup"
-  class="texera-workspace-property-editor-form"
->
+  class="texera-workspace-property-editor-form">
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"
     [form]="formlyFormGroup"
     [model]="formData"
-    [options]="formlyOptions"
-  >
+    [options]="formlyOptions">
   </formly-form>
   <ndc-dynamic
     [ndcDynamicComponent]="extraDisplayComponentConfig?.component"
-    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs ?? {}"
-  ></ndc-dynamic>
+    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
 </form>
 
 <button
@@ -51,10 +55,12 @@
   nz-button
   nz-tooltip="Unlock the operator to change logic"
   nzTooltipPlacement="bottom"
-  [disabled]="!lockGranted"
->
+  [disabled]="!lockGranted">
   Unlock for Logic Change
-  <i nz-icon nzTheme="outline" nzType="unlock"></i>
+  <i
+    nz-icon
+    nzTheme="outline"
+    nzType="unlock"></i>
 </button>
 
 <button
@@ -69,8 +75,7 @@
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"
   nzTooltipPlacement="bottom"
-  [disabled]="!lockGranted"
->
+  [disabled]="!lockGranted">
   Confirm Change
 </button>
 
