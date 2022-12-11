@@ -24,7 +24,7 @@ export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
   providedIn: "root",
 })
 export class AuthService {
-  inviteOnly = environment.inviteOnly;
+  private inviteOnly = environment.inviteOnly;
   public static readonly LOGIN_ENDPOINT = "auth/login";
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
