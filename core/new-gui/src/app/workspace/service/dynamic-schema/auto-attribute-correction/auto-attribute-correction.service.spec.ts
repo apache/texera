@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
+import { fakeAsync, inject, TestBed, tick, flush, discardPeriodicTasks } from "@angular/core/testing";
 import { environment } from "../../../../../environments/environment";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import {
@@ -12,7 +12,7 @@ import {
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
-import { AttributeChangePropagationService } from "./attribute-change-propagation.service";
+import { AutoAttributeCorrectionService } from "./auto-attribute-correction.service";
 import {
   mockSchemaPropagationResponse1,
   mockSchemaPropagationResponse2,
@@ -24,7 +24,7 @@ import {
   mockSentimentOperatorC,
   mockSchemaPropagationResponse4,
   mockSchemaPropagationResponse5,
-} from "./mock-attribute-change-propagation.data";
+} from "./mock-auto-attribute-correction.data";
 import { AppSettings } from "src/app/common/app-setting";
 import {
   SchemaPropagationService,
@@ -47,7 +47,7 @@ describe("AttributeChangePropagationService", () => {
         },
         WorkflowActionService,
         DynamicSchemaService,
-        AttributeChangePropagationService,
+        AutoAttributeCorrectionService,
         SchemaPropagationService,
       ],
     });
@@ -57,16 +57,15 @@ describe("AttributeChangePropagationService", () => {
     environment.schemaPropagationEnabled = true;
   });
 
-  it("should be created", inject([AttributeChangePropagationService], (service: AttributeChangePropagationService) => {
+  it("should be created", inject([AutoAttributeCorrectionService], (service: AutoAttributeCorrectionService) => {
     expect(service).toBeTruthy();
   }));
 
   it("should propagate new attribute name when atteibute is renamed", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(
-      AttributeChangePropagationService
-    );
+    const autoAttributeCorrectionService: AutoAttributeCorrectionService =
+      TestBed.inject(AutoAttributeCorrectionService);
 
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
@@ -90,14 +89,15 @@ describe("AttributeChangePropagationService", () => {
     expect(
       workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute
     ).toEqual("user_display_name");
+    flush();
+    discardPeriodicTasks();
   }));
 
   it("should delete attribute in succeeding operators when attribute is deleted", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(
-      AttributeChangePropagationService
-    );
+    const autoAttributeCorrectionService: AutoAttributeCorrectionService =
+      TestBed.inject(AutoAttributeCorrectionService);
 
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
@@ -111,7 +111,7 @@ describe("AttributeChangePropagationService", () => {
 
     // trigger inputSchemaChangeStream
     workflowActionService.setOperatorProperty(mockSentimentOperatorA.operatorID, { testAttr: "test" });
-    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     const req2 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
     expect(req2.request.method === "POST");
     expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
@@ -121,14 +121,16 @@ describe("AttributeChangePropagationService", () => {
     expect(
       workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute
     ).toEqual("");
+
+    flush();
+    discardPeriodicTasks();
   }));
 
   it("should propagate new attribute name in three consecutive operators", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
-    const attributeChangePropagationService: AttributeChangePropagationService = TestBed.inject(
-      AttributeChangePropagationService
-    );
+    const autoAttributeCorrectionService: AutoAttributeCorrectionService =
+      TestBed.inject(AutoAttributeCorrectionService);
 
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
@@ -155,5 +157,8 @@ describe("AttributeChangePropagationService", () => {
     expect(
       workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorC.operatorID).operatorProperties.attribute
     ).toEqual("screen_display_time");
+
+    flush();
+    discardPeriodicTasks();
   }));
 });

@@ -22,7 +22,7 @@ import { OperatorCacheStatusService } from "../service/workflow-status/operator-
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
-import { AttributeChangePropagationService } from "../service/dynamic-schema/attribute-change-propagation/attribute-change-propagation.service";
+import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -60,7 +60,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
     private userProjectService: UserProjectService,
-    private attributeChangePropagationService: AttributeChangePropagationService
+    private autoAttributeCorrectionService: AutoAttributeCorrectionService
   ) {}
 
   ngOnInit() {

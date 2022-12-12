@@ -24,6 +24,7 @@ export const mockSentimentOperatorA: OperatorPredicate = {
   outputPorts: [{ portID: "7", displayName: "7" }],
   showAdvanced: true,
   isDisabled: false,
+  operatorVersion: "1",
 };
 
 export const mockSentimentOperatorB: OperatorPredicate = {
@@ -36,6 +37,7 @@ export const mockSentimentOperatorB: OperatorPredicate = {
   outputPorts: [{ portID: "9", displayName: "9" }],
   showAdvanced: true,
   isDisabled: false,
+  operatorVersion: "1",
 };
 
 export const mockSentimentOperatorC: OperatorPredicate = {
@@ -48,6 +50,7 @@ export const mockSentimentOperatorC: OperatorPredicate = {
   outputPorts: [],
   showAdvanced: true,
   isDisabled: false,
+  operatorVersion: "1",
 };
 
 export const mockLinkAtoB: OperatorLink = {
@@ -125,7 +128,7 @@ export const mockSchemaPropagationResponse4: Readonly<SchemaPropagationResponse>
     [mockSentimentOperatorB.operatorID]: [
       [
         { attributeName: "city", attributeType: "string" },
-        { attributeName: "user_screen_name", attributeType: "string" },
+        { attributeName: "screen_display_time", attributeType: "string" },
         { attributeName: "user_name", attributeType: "string" },
         { attributeName: "county", attributeType: "string" },
       ],
@@ -148,7 +151,7 @@ export const mockSchemaPropagationResponse5: Readonly<SchemaPropagationResponse>
     [mockSentimentOperatorB.operatorID]: [
       [
         { attributeName: "city", attributeType: "string" },
-        { attributeName: "user_display_name", attributeType: "string" },
+        { attributeName: "screen_display_time", attributeType: "string" },
         { attributeName: "user_name", attributeType: "string" },
         { attributeName: "county", attributeType: "string" },
       ],
@@ -156,7 +159,7 @@ export const mockSchemaPropagationResponse5: Readonly<SchemaPropagationResponse>
     [mockSentimentOperatorC.operatorID]: [
       [
         { attributeName: "city", attributeType: "string" },
-        { attributeName: "user_display_name", attributeType: "string" },
+        { attributeName: "screen_display_time", attributeType: "string" },
         { attributeName: "user_name", attributeType: "string" },
         { attributeName: "county", attributeType: "string" },
       ],
