@@ -41,7 +41,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   loaded: boolean = false;
 
   private formControl: FormControl;
-  private ytext?: YText;
+  private code?: YText;
   private editor?: any;
 
   constructor(
@@ -69,7 +69,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
 
-    this.ytext = (
+    this.code = (
       this.workflowActionService
         .getTexeraGraph()
         .getSharedOperatorType(currentOperatorId)
@@ -100,9 +100,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    */
   private initMonaco() {
     const editor = monaco.editor.create(this.divEditor?.nativeElement, this.editorOptions);
-    if (this.ytext) {
+    if (this.code) {
       new MonacoBinding(
-        this.ytext,
+        this.code,
         editor.getModel(),
         new Set([editor]),
         this.workflowActionService.getTexeraGraph().getSharedModelAwareness()

@@ -42,10 +42,10 @@ export class CodeareaCustomTemplateComponent extends FieldType<any> implements A
    *  is enabled, which can only be accessed via <code>formControl</code>. Might need a more unified solution.
    */
   handleReadonlyStatusChange(): void {
-    if (this.field !== undefined)
-      this.field.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-        this.readonly = this.field.formControl.disabled;
-      });
+    if (this.field === undefined) return;
+    this.field.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+      this.readonly = this.field.formControl.disabled;
+    });
   }
 
   /**
