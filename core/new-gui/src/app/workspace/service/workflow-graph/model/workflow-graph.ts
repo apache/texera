@@ -700,7 +700,6 @@ export class WorkflowGraph {
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    console.log(this);
     const previousProperty = this.getSharedOperatorType(operatorID).get(
       "operatorProperties"
     ) as YType<OperatorPropertiesType>;
