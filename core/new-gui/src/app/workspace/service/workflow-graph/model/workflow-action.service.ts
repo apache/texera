@@ -437,12 +437,6 @@ export class WorkflowActionService {
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     this.texeraGraph.bundleActions(() => {
       this.texeraGraph.setOperatorProperty(operatorID, newProperty);
-      // unhighlight everything but the operator being modified
-      const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
-      if (!currentHighlightedOperators.includes(operatorID)) {
-        this.jointGraphWrapper.setMultiSelectMode(false);
-        this.jointGraphWrapper.highlightOperators(operatorID);
-      }
     });
   }
 
