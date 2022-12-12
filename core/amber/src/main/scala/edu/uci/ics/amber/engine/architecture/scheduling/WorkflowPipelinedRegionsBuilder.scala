@@ -28,18 +28,20 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowPipelinedRegionsBuilder(
-    workflowContext: WorkflowContext,
-    operatorIdToDesc: Map[String, OperatorDescriptor],
-    inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]],
-    workflowId: WorkflowIdentity,
-    operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
-    outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]],
-    opResultStorage: OpResultStorage
-) {
+                                       workflowContext: WorkflowContext,
+                                       operatorIdToDesc: Map[String, OperatorDescriptor],
+                                       inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]],
+                                       workflowId: WorkflowIdentity,
+                                       operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
+                                       outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]],
+                                       opResultStorage: OpResultStorage
+                                     ) {
   var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] =
     new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
       classOf[DefaultEdge]
     )
+
+  var materializationWriterReaderPairs = new mutable.HashMap[OperatorIdentity, OperatorIdentity]()
 
   private def inLinks(): Map[OperatorIdentity, Set[OperatorIdentity]] =
     AmberUtils.reverseMultimap(
@@ -91,16 +93,45 @@ class WorkflowPipelinedRegionsBuilder(
     dag
   }
 
+  private def getSourcesOfRegions(
+                                   blockingEdgesRemovedDAG: DirectedAcyclicGraph[OperatorIdentity, DefaultEdge]
+                                 ): Set[OperatorIdentity] = {
+    blockingEdgesRemovedDAG
+      .vertexSet()
+      .filter(opId => blockingEdgesRemovedDAG.getAncestors(opId).isEmpty())
+      .toSet
+  }
+
+  private def getRegionOperatorsFromSource(
+                                            sourceOperator: OperatorIdentity,
+                                            blockingEdgesRemovedDAG: DirectedAcyclicGraph[OperatorIdentity, DefaultEdge]
+                                          ): mutable.HashSet[OperatorIdentity] = {
+    val visited = new mutable.HashSet[OperatorIdentity]()
+    val toVisit = new mutable.Queue[OperatorIdentity]()
+    toVisit.enqueue(sourceOperator)
+    while (toVisit.nonEmpty) {
+      val opToExplore = toVisit.dequeue()
+      visited.add(opToExplore)
+      val descendentOps = blockingEdgesRemovedDAG.getDescendants(opToExplore)
+      descendentOps.foreach(descendentOp =>
+        if (!visited.contains(descendentOp)) {
+          toVisit.enqueue(descendentOp)
+        }
+      )
+    }
+    visited
+  }
+
   /**
     * When a materialization writer and reader have to be inserted between two operators, then the
     * port maps in the OpExecConfig of the operators have to be updated.
     */
   private def updatePortLinking(
-      originalSrcOpId: OperatorIdentity,
-      originalDestOpId: OperatorIdentity,
-      matWriterOpId: OperatorIdentity,
-      matReaderOpId: OperatorIdentity
-  ): Unit = {
+                                 originalSrcOpId: OperatorIdentity,
+                                 originalDestOpId: OperatorIdentity,
+                                 matWriterOpId: OperatorIdentity,
+                                 matReaderOpId: OperatorIdentity
+                               ): Unit = {
     val originalLink = LinkIdentity(
       operatorToOpExecConfig(originalSrcOpId).topology.layers.last.id,
       operatorToOpExecConfig(originalDestOpId).topology.layers.head.id
@@ -195,18 +226,11 @@ class WorkflowPipelinedRegionsBuilder(
     outLinks(fromOpId) = downstreamOps
     outLinks(matReaderOpExecConfig.id) = mutable.Set(toOpId)
 
+    materializationWriterReaderPairs(matWriter.operatorIdentifier) =
+      materializationReader.operatorIdentifier
+
     // update port linkage
     updatePortLinking(fromOpId, toOpId, matWriterOpExecConfig.id, matReaderOpExecConfig.id)
-  }
-
-  private def createPipelinedRegionFromComponent(
-      component: Graph[OperatorIdentity, DefaultEdge],
-      regionCount: Int
-  ): PipelinedRegion = {
-    val regionId = PipelinedRegionIdentity(workflowId, regionCount.toString())
-    val operatorArray = new ArrayBuffer[OperatorIdentity]()
-    component.vertexSet().forEach(opId => operatorArray.append(opId))
-    new PipelinedRegion(regionId, operatorArray.toArray)
   }
 
   /**
@@ -214,40 +238,72 @@ class WorkflowPipelinedRegionsBuilder(
     * are added to force dependent ipnut links of an operator to come from different regions.
     */
   private def addMaterializationOperatorIfNeeded(): Boolean = {
-    val connectedComponents = new BiconnectivityInspector[OperatorIdentity, DefaultEdge](
-      getBlockingEdgesRemovedDAG()
-    ).getConnectedComponents()
+    val dagWithoutBlockingEdges = getBlockingEdgesRemovedDAG()
+    val sourceOperators = getSourcesOfRegions(dagWithoutBlockingEdges)
     pipelinedRegionsDAG = new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
       classOf[DefaultEdge]
     )
     var regionCount = 1
-    connectedComponents.foreach(component => {
-      pipelinedRegionsDAG.addVertex(createPipelinedRegionFromComponent(component, regionCount))
+    sourceOperators.foreach(sourceOp => {
+      val operatorsInRegion = getRegionOperatorsFromSource(sourceOp, dagWithoutBlockingEdges)
+      val regionId = PipelinedRegionIdentity(workflowId, regionCount.toString())
+      pipelinedRegionsDAG.addVertex(new PipelinedRegion(regionId, operatorsInRegion.toArray))
       regionCount += 1
     })
     getTopologicallyOrderedOperators().foreach(opId => {
       val inputProcessingOrderForOp = operatorToOpExecConfig(opId).getInputProcessingOrder()
       if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
         for (i <- 1 to inputProcessingOrderForOp.length - 1) {
-          val prevInOrder = getPipelinedRegionFromOperatorId(
+          val prevInOrderRegions = getPipelinedRegionsFromOperatorId(
             toOperatorIdentity(inputProcessingOrderForOp(i - 1).from)
           )
-          val nextInOrder = getPipelinedRegionFromOperatorId(
+          val nextInOrderRegions = getPipelinedRegionsFromOperatorId(
             toOperatorIdentity(inputProcessingOrderForOp(i).from)
           )
-          try {
-            if (!pipelinedRegionsDAG.getDescendants(prevInOrder).contains(nextInOrder)) {
-              pipelinedRegionsDAG.addEdge(prevInOrder, nextInOrder)
+          for (prevInOrderRegion <- prevInOrderRegions) {
+            for (nextInOrderRegion <- nextInOrderRegions) {
+              try {
+                if (
+                  !pipelinedRegionsDAG.getDescendants(prevInOrderRegion).contains(nextInOrderRegion)
+                ) {
+                  pipelinedRegionsDAG.addEdge(prevInOrderRegion, nextInOrderRegion)
+                }
+              } catch {
+                case e: java.lang.IllegalArgumentException =>
+                  // edge causes a cycle
+                  addMaterializationToLink(inputProcessingOrderForOp(i))
+                  return false
+              }
             }
-          } catch {
-            case e: java.lang.IllegalArgumentException =>
-              // edge causes a cycle
-              addMaterializationToLink(inputProcessingOrderForOp(i))
-              return false
           }
         }
       }
     })
+
+    // add dependencies between materialization writer and reader regions
+    for ((writer, reader) <- materializationWriterReaderPairs) {
+      val prevInOrderRegions = getPipelinedRegionsFromOperatorId(writer)
+      val nextInOrderRegions = getPipelinedRegionsFromOperatorId(reader)
+      for (prevInOrderRegion <- prevInOrderRegions) {
+        for (nextInOrderRegion <- nextInOrderRegions) {
+          try {
+            if (
+              !pipelinedRegionsDAG.getDescendants(prevInOrderRegion).contains(nextInOrderRegion)
+            ) {
+              pipelinedRegionsDAG.addEdge(prevInOrderRegion, nextInOrderRegion)
+            }
+          } catch {
+            case e: java.lang.IllegalArgumentException =>
+              // edge causes a cycle
+              throw new WorkflowRuntimeException(
+                s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${
+                  writer.operator
+                } and ${reader.operator}"
+              )
+          }
+        }
+      }
+    }
 
     true
   }
@@ -259,15 +315,18 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  private def getPipelinedRegionFromOperatorId(operatorId: OperatorIdentity): PipelinedRegion = {
+  private def getPipelinedRegionsFromOperatorId(
+                                                 operatorId: OperatorIdentity
+                                               ): Set[PipelinedRegion] = {
+    val regionsForOperator = new mutable.HashSet[PipelinedRegion]()
     pipelinedRegionsDAG
       .vertexSet()
       .forEach(region =>
         if (region.getOperators().contains(operatorId)) {
-          return region
+          regionsForOperator.add(region)
         }
       )
-    null
+    return regionsForOperator.toSet
   }
 
   private def addDependenciesBetweenIOOfBlockingOperator(): Unit = {
@@ -283,33 +342,40 @@ class WorkflowPipelinedRegionsBuilder(
           operatorToOpExecConfig(opId).topology.layers.head.id
         )
         if (operatorToOpExecConfig(opId).isInputBlocking(linkFromUpstreamOp)) {
-          val prevInOrder = getPipelinedRegionFromOperatorId(upstreamOp)
-          val nextInOrder = getPipelinedRegionFromOperatorId(opId)
+          val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
+          val nextInOrderRegions = getPipelinedRegionsFromOperatorId(opId)
 
-          try {
-            if (!pipelinedRegionsDAG.getDescendants(prevInOrder).contains(nextInOrder)) {
-              pipelinedRegionsDAG.addEdge(prevInOrder, nextInOrder)
+          for (prevInOrderRegion <- prevInOrderRegions) {
+            for (nextInOrderRegion <- nextInOrderRegions) {
+              try {
+                if (
+                  !pipelinedRegionsDAG.getDescendants(prevInOrderRegion).contains(nextInOrderRegion)
+                ) {
+                  pipelinedRegionsDAG.addEdge(prevInOrderRegion, nextInOrderRegion)
+                }
+              } catch {
+                case e: java.lang.IllegalArgumentException =>
+                  // edge causes a cycle
+                  throw new WorkflowRuntimeException(
+                    s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${
+                      upstreamOp
+                        .toString()
+                    } and ${opId.toString()}"
+                  )
+              }
             }
             if (
               !regionTerminalOperatorInOtherRegions.contains(
-                prevInOrder
-              ) || !regionTerminalOperatorInOtherRegions(prevInOrder).contains(opId)
+                prevInOrderRegion
+              ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion).contains(opId)
             ) {
-
               val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
-                prevInOrder,
+                prevInOrderRegion,
                 new ArrayBuffer[OperatorIdentity]()
               )
               terminalOps.append(opId)
-              regionTerminalOperatorInOtherRegions(prevInOrder) = terminalOps
+              regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
             }
-          } catch {
-            case e: java.lang.IllegalArgumentException =>
-              // edge causes a cycle
-              throw new WorkflowRuntimeException(
-                s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${upstreamOp
-                  .toString()} and ${opId.toString()}"
-              )
           }
         }
       })
@@ -318,6 +384,10 @@ class WorkflowPipelinedRegionsBuilder(
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
       region.blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray
     }
+  }
+
+  private def addDependenciesBetweenMatWriterAndReaderRegions(): Unit = {
+
   }
 
   def buildPipelinedRegions(): DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = {
