@@ -1,26 +1,23 @@
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
-import { UserService } from "../../../../../common/service/user/user.service";
+import { Component } from "@angular/core";
+import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
-import { isDefined } from "../../../../../common/util/predicate";
-import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzModalRef } from "ng-zorro-antd/modal";
+import { environment } from "../../../../../environments/environment";
 
-/**
- * UserLoginModalComponent is the pop up for user login/registration
- */
 @UntilDestroy()
 @Component({
-  selector: "texera-user-login-modal",
-  templateUrl: "./user-login-modal.component.html",
-  styleUrls: ["./user-login-modal.component.scss"],
+  selector: "texera-local-login",
+  templateUrl: "./local-login.component.html",
+  styleUrls: ["./local-login.component.scss"],
 })
-export class UserLoginModalComponent implements OnInit {
+export class LocalLoginComponent {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
-  constructor(private formBuilder: FormBuilder, public modal: NzModalRef, private userService: UserService) {
+  localLogin = environment.localLogin;
+
+  constructor(private formBuilder: FormBuilder, private userService: UserService) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
@@ -28,10 +25,6 @@ export class UserLoginModalComponent implements OnInit {
       registerPassword: new FormControl("", [Validators.required, Validators.minLength(6)]),
       registerConfirmationPassword: new FormControl("", [Validators.required, this.confirmationValidator]),
     });
-  }
-
-  ngOnInit() {
-    this.detectUserChange();
   }
 
   public updateConfirmValidator(): void {
@@ -48,7 +41,7 @@ export class UserLoginModalComponent implements OnInit {
   };
 
   /**
-   * This method is respond for the sign in button in the pop up
+   * This method responds to the sign-in button
    * It will send data inside the text entry to the user service to login
    */
   public login(): void {
@@ -72,7 +65,7 @@ export class UserLoginModalComponent implements OnInit {
   }
 
   /**
-   * This method is respond for the sign on button in the pop up
+   * This method responds to the sign-up button
    * It will send data inside the text entry to the user service to register
    */
   public register(): void {
@@ -101,35 +94,5 @@ export class UserLoginModalComponent implements OnInit {
       .subscribe({
         error: () => (this.loginErrorMessage = "Incorrect credentials"),
       });
-  }
-
-  /**
-   * this method will retrieve a usable Google OAuth Instance first,
-   * with that available instance, get googleUsername and authorization code respectively,
-   * then sending the code to the backend
-   */
-  public googleLogin(): void {
-    this.userService
-      .googleLogin()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        error: () => (this.loginErrorMessage = "Incorrect credentials"),
-      });
-  }
-
-  /**
-   * this method will handle the pop up when user successfully login
-   */
-  private detectUserChange(): void {
-    // TODO temporary solution, need improvement
-    this.userService
-      .userChanged()
-      .pipe(filter(isDefined))
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        Zone.current.wrap(() => {
-          this.modal.close();
-        }, "")
-      );
   }
 }
