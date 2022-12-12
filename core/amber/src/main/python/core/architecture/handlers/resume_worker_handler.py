@@ -8,6 +8,6 @@ class ResumeWorkerHandler(Handler):
     cmd = ResumeWorkerV2
 
     def __call__(self, context: Context, command: ResumeWorkerV2, *args, **kwargs):
-        context.dp._resume()
+        context.main_loop._resume_dp()
         state = context.state_manager.get_current_state()
         return state

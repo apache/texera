@@ -34,7 +34,7 @@ import edu.uci.ics.texera.web.auth.SessionRole.GUEST
   ): Boolean = {
 
     val principal =
-      Optional.of(new SessionUser(new User("guest", null, null, null, null, null), Set(GUEST)))
+      Optional.of(new SessionUser(new User("guest", null, null, null, null), Set(GUEST)))
     val securityContext = requestContext.getSecurityContext
     val secure = securityContext != null && securityContext.isSecure
     requestContext.setSecurityContext(new SecurityContext() {

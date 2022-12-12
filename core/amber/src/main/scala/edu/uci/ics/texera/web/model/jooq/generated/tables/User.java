@@ -7,6 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables;
 import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 
 import java.util.Arrays;
@@ -18,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row6;
+import org.jooq.Row5;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -1564222946;
+    private static final long serialVersionUID = -1170158302;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -50,19 +51,14 @@ public class User extends TableImpl<UserRecord> {
     }
 
     /**
-     * The column <code>texera_db.user.email</code>.
+     * The column <code>texera_db.user.name</code>.
      */
-    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user.uid</code>.
      */
     public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
-
-    /**
-     * The column <code>texera_db.user.name</code>.
-     */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.password</code>.
@@ -75,9 +71,9 @@ public class User extends TableImpl<UserRecord> {
     public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
-     * The column <code>texera_db.user.permission</code>.
+     * The column <code>texera_db.user.role</code>.
      */
-    public final TableField<UserRecord, Integer> PERMISSION = createField(DSL.name("permission"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(10).nullable(false).defaultValue(org.jooq.impl.DSL.inline("INACTIVE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
 
     /**
      * Create a <code>texera_db.user</code> table reference
@@ -164,11 +160,11 @@ public class User extends TableImpl<UserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row6 type methods
+    // Row5 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<String, UInteger, String, String, String, Integer> fieldsRow() {
-        return (Row6) super.fieldsRow();
+    public Row5<String, UInteger, String, String, UserRole> fieldsRow() {
+        return (Row5) super.fieldsRow();
     }
 }

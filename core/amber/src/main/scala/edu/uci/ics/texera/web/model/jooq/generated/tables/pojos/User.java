@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IUser;
 
 import org.jooq.types.UInteger;
@@ -15,60 +16,36 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = -1774029550;
+    private static final long serialVersionUID = 1019071732;
 
-    private String   email;
-    private UInteger uid;
     private String   name;
+    private UInteger uid;
     private String   password;
     private String   googleId;
-    private Integer  permission;
+    private UserRole role;
 
     public User() {}
 
     public User(IUser value) {
-        this.email = value.getEmail();
-        this.uid = value.getUid();
         this.name = value.getName();
+        this.uid = value.getUid();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
-        this.permission = value.getPermission();
+        this.role = value.getRole();
     }
 
     public User(
-        String   email,
-        UInteger uid,
         String   name,
+        UInteger uid,
         String   password,
         String   googleId,
-        Integer  permission
+        UserRole role
     ) {
-        this.email = email;
-        this.uid = uid;
         this.name = name;
+        this.uid = uid;
         this.password = password;
         this.googleId = googleId;
-        this.permission = permission;
-    }
-
-    @Override
-    public String getEmail() {
-        return this.email;
-    }
-
-    @Override
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    @Override
-    public UInteger getUid() {
-        return this.uid;
-    }
-
-    @Override
-    public void setUid(UInteger uid) {
-        this.uid = uid;
+        this.role = role;
     }
 
     @Override
@@ -79,6 +56,16 @@ public class User implements IUser {
     @Override
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public UInteger getUid() {
+        return this.uid;
+    }
+
+    @Override
+    public void setUid(UInteger uid) {
+        this.uid = uid;
     }
 
     @Override
@@ -102,25 +89,24 @@ public class User implements IUser {
     }
 
     @Override
-    public Integer getPermission() {
-        return this.permission;
+    public UserRole getRole() {
+        return this.role;
     }
 
     @Override
-    public void setPermission(Integer permission) {
-        this.permission = permission;
+    public void setRole(UserRole role) {
+        this.role = role;
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("User (");
 
-        sb.append(email);
+        sb.append(name);
         sb.append(", ").append(uid);
-        sb.append(", ").append(name);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
-        sb.append(", ").append(permission);
+        sb.append(", ").append(role);
 
         sb.append(")");
         return sb.toString();
@@ -132,12 +118,11 @@ public class User implements IUser {
 
     @Override
     public void from(IUser from) {
-        setEmail(from.getEmail());
-        setUid(from.getUid());
         setName(from.getName());
+        setUid(from.getUid());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
-        setPermission(from.getPermission());
+        setRole(from.getRole());
     }
 
     @Override
