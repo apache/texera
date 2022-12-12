@@ -1,0 +1,115 @@
+<div class="form">
+  <nz-tabset
+    nzCentered
+    nzSize="large">
+    <!-- template for validation error messages (shared by sign in and sign out validation) -->
+    <ng-template
+      #passwordErrorTip
+      let-control>
+      <ng-container *ngIf="control.hasError('required')">Please input your password. </ng-container>
+      <ng-container *ngIf="control.hasError('minlength')">Minimal password length is 6. </ng-container>
+    </ng-template>
+    <ng-template
+      #confirmErrorTip
+      let-control>
+      <ng-container *ngIf="control.hasError('required')">Please confirm your password. </ng-container>
+      <ng-container *ngIf="control.hasError('confirm')">Two passwords are inconsistent. </ng-container>
+    </ng-template>
+
+    <nz-tab nzTitle="Sign In">
+      <form
+        nz-form
+        [formGroup]="allForms"
+        class="login-form"
+        (ngSubmit)="login()">
+        <nz-form-item>
+          <nz-form-control nzErrorTip="Please input your username">
+            <nz-input-group nzPrefixIcon="user">
+              <input
+                type="text"
+                nz-input
+                formControlName="loginUsername"
+                placeholder="Username" />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-control [nzErrorTip]="passwordErrorTip">
+            <nz-input-group nzPrefixIcon="lock">
+              <input
+                type="password"
+                nz-input
+                formControlName="loginPassword"
+                placeholder="Password" />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+        <button
+          nz-button
+          class="login-form-button login-form-margin"
+          [nzType]="'primary'">
+          Sign in
+        </button>
+        <p
+          *ngIf="loginErrorMessage"
+          style="color: red">
+          {{ loginErrorMessage }}
+        </p>
+      </form>
+    </nz-tab>
+
+    <nz-tab nzTitle="Sign Up">
+      <form
+        nz-form
+        [formGroup]="allForms"
+        class="login-form"
+        (ngSubmit)="register()">
+        <nz-form-item>
+          <nz-form-control nzErrorTip="Please input your username">
+            <nz-input-group nzPrefixIcon="user">
+              <input
+                type="text"
+                nz-input
+                formControlName="registerUsername"
+                placeholder="Username" />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-control [nzErrorTip]="passwordErrorTip">
+            <nz-input-group nzPrefixIcon="lock">
+              <input
+                type="password"
+                nz-input
+                formControlName="registerPassword"
+                placeholder="Password"
+                (ngModelChange)="updateConfirmValidator()" />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-control [nzErrorTip]="confirmErrorTip">
+            <nz-input-group nzPrefixIcon="lock">
+              <input
+                type="password"
+                nz-input
+                formControlName="registerConfirmationPassword"
+                placeholder="Confirm password" />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+        <button
+          nz-button
+          class="login-form-button login-form-margin"
+          [nzType]="'primary'">
+          Sign up
+        </button>
+        <p
+          *ngIf="registerErrorMessage"
+          style="color: red">
+          {{ registerErrorMessage }}
+        </p>
+      </form>
+    </nz-tab>
+  </nz-tabset>
+</div>
