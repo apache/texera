@@ -5142,6 +5142,11 @@ caseless@~0.12.0:
   resolved "https://registry.yarnpkg.com/caseless/-/caseless-0.12.0.tgz#1b681c21ff84033c826543090689420d187151dc"
   integrity sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==
 
+cat@0.2.0:
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/cat/-/cat-0.2.0.tgz#fd850cda7d4162e6904f33b7fcf743b1243fd434"
+  integrity sha512-FrG38TVBt6XKcbWHNZ1AsnFr+eozwypXhaMRHuJrC1JvC+3GaG8G/MwuChyJOVVdPT5VsH91PiRFaheQlK/6Gg==
+
 chalk@4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-4.1.0.tgz#4e14870a618d9e2edd97dd8345fd9d9dc315646a"
