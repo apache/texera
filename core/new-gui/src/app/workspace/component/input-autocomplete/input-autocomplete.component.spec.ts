@@ -9,14 +9,12 @@ describe("InputAutoCompleteComponent", () => {
   let component: InputAutoCompleteComponent;
   let fixture: ComponentFixture<InputAutoCompleteComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [InputAutoCompleteComponent],
-        imports: [ReactiveFormsModule, HttpClientTestingModule, HttpClientModule],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [InputAutoCompleteComponent],
+      imports: [ReactiveFormsModule, HttpClientTestingModule, HttpClientModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(InputAutoCompleteComponent);
