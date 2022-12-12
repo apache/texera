@@ -4,6 +4,8 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
+
 import java.io.Serializable;
 
 import org.jooq.types.UInteger;
@@ -54,6 +56,16 @@ public interface IUser extends Serializable {
      * Getter for <code>texera_db.user.google_id</code>.
      */
     public String getGoogleId();
+
+    /**
+     * Setter for <code>texera_db.user.role</code>.
+     */
+    public void setRole(UserRole value);
+
+    /**
+     * Getter for <code>texera_db.user.role</code>.
+     */
+    public UserRole getRole();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
