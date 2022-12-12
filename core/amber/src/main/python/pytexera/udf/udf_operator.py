@@ -111,3 +111,36 @@ class UDFTableOperator(TableOperator):
         Close the context of the operator.
         """
         pass
+
+
+class UDFBatchOperator(BatchOperator):
+    """
+    Base class for batch-oriented user-defined operators. A concrete implementation must
+    be provided upon using.
+    """
+
+    def open(self) -> None:
+        """
+        Open a context of the operator. Usually can be used for loading/initiating some
+        resources, such as a file, a model, or an API client.
+        """
+        pass
+
+    @abstractmethod
+    def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
+        """
+        Process an input Batch from the given link. The Batch is represented as
+        pandas.DataFrame.
+
+        :param batch: Batch, a batch to be processed.
+        :param port: int, input index of the current Batch.
+        :return: Iterator[Optional[BatchLike]], producing one BatchLike object at a
+            time, or None.
+        """
+        yield
+
+    def close(self) -> None:
+        """
+        Close the context of the operator.
+        """
+        pass
