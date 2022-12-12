@@ -84,7 +84,6 @@ export class AutoAttributeCorrectionService {
           else return 1;
         }
       );
-      dynamicSchema.jsonSchema.properties;
       // [[oldAttribute1, newAttribute1], [oldAttribute2, newAttribute2], ...]
       const mapping: SchemaAttribute[][] = attributeMapping.pairs();
       // Resolve #ref in some json schema (e.g. Filter)
