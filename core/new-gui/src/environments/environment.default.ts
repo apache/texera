@@ -34,6 +34,12 @@ export const defaultEnvironment = {
   exportExecutionResultEnabled: false,
 
   /**
+   * Whether automatically correcting attribute name on change is enabled
+   * See AutoAttributeCorrectionService for more details
+   */
+  autoAttributeCorrectionEnabled: true,
+
+  /**
    * whether user system is enabled
    */
   userSystemEnabled: false,
@@ -42,6 +48,11 @@ export const defaultEnvironment = {
    * whether local login is enabled
    */
   localLogin: true,
+
+  /**
+   * whether invite only is enabled
+   */
+  inviteOnly: false,
 
   /**
    * whether user preset feature is enabled, requires user system to be enabled

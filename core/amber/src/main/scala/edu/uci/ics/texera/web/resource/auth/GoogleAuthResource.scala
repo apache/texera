@@ -18,6 +18,7 @@ import edu.uci.ics.texera.web.auth.JwtAuth.{
 }
 import edu.uci.ics.texera.web.model.http.request.auth.GoogleUserLoginRequest
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.retrieveUserByGoogleAuthCode
@@ -74,6 +75,7 @@ object GoogleAuthResource {
           val user = new User
           user.setName(googleEmail)
           user.setGoogleId(googleId)
+          user.setRole(UserRole.INACTIVE)
           userDao.insert(user)
           user
       }
