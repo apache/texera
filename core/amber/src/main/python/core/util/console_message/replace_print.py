@@ -42,6 +42,9 @@ class replace_print(ContextManager):
         def wrapped_print(*args, **kwargs):
             # use StringIO to obtain the written complete string from the original
             # print function.
+            if "file" in kwargs:
+                self.builtins_print(*args, **kwargs)
+                return
             with StringIO() as tmp_buf, redirect_stdout(tmp_buf):
                 self.builtins_print(*args, **kwargs)
                 complete_str = tmp_buf.getvalue()

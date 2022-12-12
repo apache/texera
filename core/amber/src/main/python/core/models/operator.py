@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union
+from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
 
 import overrides
 import pandas
 from pyarrow.lib import Schema
 from deprecated import deprecated
 
-from . import InputExhausted, Table, TableLike, Tuple, TupleLike
+from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from ..util.arrow_utils import to_arrow_schema
 
 
@@ -91,6 +91,75 @@ class TupleOperatorV2(Operator):
 
         :param port: int, input port index of the current exhausted port.
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
+            time, or None.
+        """
+        yield
+
+
+class BatchOperator(TupleOperatorV2):
+    """
+    Base class for batch-oriented operators. A concrete implementation must
+    be provided upon using.
+    """
+
+    BATCH_SIZE: int = 10  # must be a positive integer
+
+    def __init__(self):
+        super().__init__()
+        self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
+        self._validate_batch_size(self.BATCH_SIZE)
+
+    @staticmethod
+    @overrides.final
+    def _validate_batch_size(value):
+        if value is None:
+            raise ValueError("BATCH_SIZE cannot be None.")
+        if type(value) is not int:
+            raise ValueError("BATCH_SIZE cannot be {type(value))}.")
+        if value <= 0:
+            raise ValueError("BATCH_SIZE should be positive.")
+
+    @overrides.final
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        self.__batch_data[port].append(tuple_)
+        if (
+            self.BATCH_SIZE is not None
+            and len(self.__batch_data[port]) >= self.BATCH_SIZE
+        ):
+            yield from self._process_batch(port)
+
+    @overrides.final
+    def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
+        batch = Batch(
+            pandas.DataFrame(
+                [
+                    self.__batch_data[port].pop(0).as_series()
+                    for _ in range(min(len(self.__batch_data[port]), self.BATCH_SIZE))
+                ]
+            )
+        )
+        for output_batch in self.process_batch(batch, port):
+            if output_batch is not None:
+                if isinstance(output_batch, pandas.DataFrame):
+                    for _, output_tuple in output_batch.iterrows():
+                        yield output_tuple
+                else:
+                    yield output_batch
+
+    @overrides.final
+    def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
+        while len(self.__batch_data[port]) != 0:
+            yield from self._process_batch(port)
+
+    @abstractmethod
+    def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
+        """
+        Process an input Batch from the given link. The Batch is represented as a
+        pandas.DataFrame.
+
+        :param batch: Batch, a batch to be processed.
+        :param port: int, input port index of the current Batch.
+        :return: Iterator[Optional[BatchLike]], producing one BatchLike object at a
             time, or None.
         """
         yield

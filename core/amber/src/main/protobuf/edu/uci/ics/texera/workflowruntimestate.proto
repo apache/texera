@@ -66,6 +66,11 @@ message JobPythonStore{
   map<string, PythonOperatorInfo> operator_info = 1;
 }
 
+message OperatorWorkerMapping{
+  string operatorId = 1;
+  repeated string workerIds = 2;
+}
+
 message OperatorRuntimeStats{
   WorkflowAggregatedState state = 1;
   int64 input_count = 2;
@@ -74,6 +79,7 @@ message OperatorRuntimeStats{
 
 message JobStatsStore {
   map<string, OperatorRuntimeStats> operator_info = 1;
+  repeated OperatorWorkerMapping operator_worker_mapping = 2;
 }
 
 message JobMetadataStore{
