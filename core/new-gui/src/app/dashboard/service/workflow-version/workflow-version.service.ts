@@ -30,6 +30,7 @@ export class WorkflowVersionService {
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
+  public modificationEnabledBeforeTempWorkflow = true;
   public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -59,6 +60,7 @@ export class WorkflowVersionService {
   }
 
   public displayParticularVersion(workflow: Workflow) {
+    this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
     // get the list of IDs of different elements when comparing displaying to the editing version
@@ -201,6 +203,7 @@ export class WorkflowVersionService {
     this.workflowActionService.resetTempWorkflow();
     this.workflowPersistService.setWorkflowPersistFlag(true);
     this.setDisplayParticularVersion(false);
+    if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
   }
 
   public closeParticularVersionDisplay() {
@@ -218,6 +221,7 @@ export class WorkflowVersionService {
     this.undoRedoService.enableWorkFlowModification();
     this.workflowPersistService.setWorkflowPersistFlag(true);
     this.setDisplayParticularVersion(false);
+    if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
   }
 
   public unhighlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
