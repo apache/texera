@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import io.dropwizard.auth.Auth
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.{PermitAll, RolesAllowed}
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{Consumes, POST, Path, Produces}
 
@@ -19,6 +19,7 @@ class SchemaPropagationResource {
 
   @POST
   @Path("/autocomplete")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def suggestAutocompleteSchema(
       workflowStr: String,
       @Auth sessionUser: SessionUser

@@ -5,24 +5,14 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.http.response.{AccessResponse, OwnershipResponse}
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  checkAccessLevel,
-  context,
-  getGrantedWorkflowAccessList,
-  hasNoWorkflowAccessRecord,
-  userDao
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{checkAccessLevel, context, getGrantedWorkflowAccessList, hasNoWorkflowAccessRecord, userDao}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.{PermitAll, RolesAllowed}
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.JavaConverters._
@@ -184,6 +174,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/owner/{wid}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def getWorkflowOwner(@PathParam("wid") wid: UInteger): OwnershipResponse = {
     val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
     val ownerName = userDao.fetchOneByUid(uid).getName
@@ -198,6 +189,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/workflow/{wid}/level")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def retrieveUserAccessLevel(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -216,6 +208,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/list/{wid}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def retrieveGrantedWorkflowAccessList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -243,6 +236,7 @@ class WorkflowAccessResource() {
     */
   @DELETE
   @Path("/revoke/{wid}/{username}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def revokeWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,
@@ -282,6 +276,7 @@ class WorkflowAccessResource() {
     */
   @POST
   @Path("/grant/{wid}/{username}/{accessLevel}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def grantWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,

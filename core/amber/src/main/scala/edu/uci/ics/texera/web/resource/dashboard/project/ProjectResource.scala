@@ -2,38 +2,10 @@ package edu.uci.ics.texera.web.resource.dashboard.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  FILE,
-  FILE_OF_PROJECT,
-  USER,
-  USER_FILE_ACCESS,
-  USER_PROJECT,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileOfProjectDao,
-  UserProjectDao,
-  WorkflowOfProjectDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  File,
-  FileOfProject,
-  UserFileAccess,
-  UserProject,
-  Workflow,
-  WorkflowOfProject,
-  WorkflowUserAccess
-}
-import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
-  context,
-  fileOfProjectDao,
-  userProjectDao,
-  workflowOfProjectDao,
-  workflowOfProjectExists
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_PROJECT, USER, USER_FILE_ACCESS, USER_PROJECT, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, UserProjectDao, WorkflowOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfProject, UserFileAccess, UserProject, Workflow, WorkflowOfProject, WorkflowUserAccess}
+import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{context, fileOfProjectDao, userProjectDao, workflowOfProjectDao, workflowOfProjectExists}
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
@@ -46,7 +18,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.{PermitAll, RolesAllowed}
 
 /**
   * This file handles various request related to projects.
@@ -130,6 +102,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def getProject(@PathParam("pid") pid: UInteger): UserProject = {
     userProjectDao.fetchOneByPid(pid)
   }
@@ -142,6 +115,7 @@ class ProjectResource {
     */
   @GET
   @Path("/list")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def listProjectsOwnedByUser(@Auth sessionUser: SessionUser): util.List[UserProject] = {
     val oid = sessionUser.getUser.getUid
     userProjectDao.fetchByOwnerId(oid)
@@ -157,6 +131,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}/workflows")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def listProjectWorkflows(
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
@@ -212,6 +187,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}/files")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
@@ -279,6 +255,7 @@ class ProjectResource {
     */
   @POST
   @Path("/create/{name}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def createProject(
       @Auth sessionUser: SessionUser,
       @PathParam("name") name: String
@@ -304,6 +281,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/workflow/{wid}/add")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def addWorkflowToProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger
@@ -322,6 +300,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/user-file/{fid}/add")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def addFileToProject(@PathParam("pid") pid: UInteger, @PathParam("fid") fid: UInteger): Unit = {
     fileOfProjectDao.insert(new FileOfProject(fid, pid))
   }
@@ -334,6 +313,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/rename/{name}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def updateProjectName(@PathParam("pid") pid: UInteger, @PathParam("name") name: String): Unit = {
     if (StringUtils.isBlank(name)) {
       throw new BadRequestException("Cannot rename project to empty or blank name.")
@@ -356,6 +336,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/color/{colorHex}/add")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def updateProjectColor(
       @PathParam("pid") pid: UInteger,
       @PathParam("colorHex") colorHex: String
@@ -375,6 +356,7 @@ class ProjectResource {
 
   @POST
   @Path("/{pid}/color/delete")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
     val userProject = userProjectDao.fetchOneByPid(pid)
     userProject.setColor(null)
@@ -388,6 +370,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/delete/{pid}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def deleteProject(@PathParam("pid") pid: UInteger): Unit = {
     userProjectDao.deleteById(pid)
   }
@@ -401,6 +384,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/workflow/{wid}/delete")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def deleteWorkflowFromProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger
@@ -419,6 +403,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/user-file/{fid}/delete")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def deleteFileFromProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("fid") fid: UInteger

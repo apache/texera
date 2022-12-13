@@ -6,15 +6,11 @@ import edu.uci.ics.texera.web.model.http.request.auth.GrantAccessRequest
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{
-  context,
-  grantAccess,
-  userDao
-}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{context, grantAccess, userDao}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.{PermitAll, RolesAllowed}
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.JavaConverters._
@@ -83,6 +79,7 @@ class UserFileAccessResource {
     */
   @GET
   @Path("list/{fileName}/{ownerName}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def getAllSharedFileAccess(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String
@@ -118,6 +115,7 @@ class UserFileAccessResource {
     */
   @POST
   @Path("grant")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def grantAccessTo(
       request: GrantAccessRequest
   ): Unit = {
@@ -142,6 +140,7 @@ class UserFileAccessResource {
     */
   @DELETE
   @Path("/revoke/{fileName}/{ownerName}/{username}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def revokeFileAccess(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String,

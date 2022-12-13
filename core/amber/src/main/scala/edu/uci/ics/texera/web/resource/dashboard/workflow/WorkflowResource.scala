@@ -2,36 +2,17 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
-  DashboardWorkflowEntry,
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.{PermitAll, RolesAllowed}
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -94,6 +75,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/workflow-ids")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
@@ -114,6 +96,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/owners")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
@@ -139,6 +122,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/search-by-operators")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
       @Auth sessionUser: SessionUser
@@ -191,6 +175,7 @@ class WorkflowResource {
 
   @GET
   @Path("/list")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
@@ -247,6 +232,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/{wid}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -272,8 +258,9 @@ class WorkflowResource {
     *             Should consider making the operations atomic
     */
   @POST
-  @Path("/persist")
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Path("/persist")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
 
@@ -306,8 +293,9 @@ class WorkflowResource {
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
-  @Path("/duplicate")
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Path("/duplicate")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def duplicateWorkflow(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
@@ -346,9 +334,10 @@ class WorkflowResource {
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
-  @Path("/create")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/create")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflowEntry = {
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
@@ -374,6 +363,7 @@ class WorkflowResource {
     */
   @DELETE
   @Path("/{wid}")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
     if (workflowOfUserExists(wid, user.getUid)) {
@@ -389,9 +379,10 @@ class WorkflowResource {
     * @return Response
     */
   @POST
-  @Path("/update/name")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/update/name")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def updateWorkflowName(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
@@ -416,9 +407,10 @@ class WorkflowResource {
     * @return Response
     */
   @POST
-  @Path("/update/description")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/update/description")
+  @RolesAllowed(Array("REGULAR","ADMIN"))
   def updateWorkflowDescription(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
