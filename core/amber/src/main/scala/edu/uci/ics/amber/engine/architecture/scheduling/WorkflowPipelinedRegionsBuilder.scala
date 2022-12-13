@@ -98,26 +98,6 @@ class WorkflowPipelinedRegionsBuilder(
       .toSet
   }
 
-  private def getRegionOperatorsFromSource(
-      sourceOperator: OperatorIdentity,
-      blockingEdgesRemovedDAG: DirectedAcyclicGraph[OperatorIdentity, DefaultEdge]
-  ): mutable.HashSet[OperatorIdentity] = {
-    val visited = new mutable.HashSet[OperatorIdentity]()
-    val toVisit = new mutable.Queue[OperatorIdentity]()
-    toVisit.enqueue(sourceOperator)
-    while (toVisit.nonEmpty) {
-      val opToExplore = toVisit.dequeue()
-      visited.add(opToExplore)
-      val descendentOps = blockingEdgesRemovedDAG.getDescendants(opToExplore)
-      descendentOps.foreach(descendentOp =>
-        if (!visited.contains(descendentOp)) {
-          toVisit.enqueue(descendentOp)
-        }
-      )
-    }
-    visited
-  }
-
   /**
     * When a materialization writer and reader have to be inserted between two operators, then the
     * port maps in the OpExecConfig of the operators have to be updated.
@@ -262,9 +242,10 @@ class WorkflowPipelinedRegionsBuilder(
     )
     var regionCount = 1
     sourceOperators.foreach(sourceOp => {
-      val operatorsInRegion = getRegionOperatorsFromSource(sourceOp, dagWithoutBlockingEdges)
+      val operatorsInRegion = dagWithoutBlockingEdges.getDescendants(sourceOp)
+      operatorsInRegion.add(sourceOp)
       val regionId = PipelinedRegionIdentity(workflowId, regionCount.toString())
-      pipelinedRegionsDAG.addVertex(new PipelinedRegion(regionId, operatorsInRegion.toArray))
+      pipelinedRegionsDAG.addVertex(new PipelinedRegion(regionId, operatorsInRegion.toSet.toArray))
       regionCount += 1
     })
 
