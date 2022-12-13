@@ -2,8 +2,7 @@ import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { environment } from "../../../../../environments/environment";
-
+import { Router } from "@angular/router";
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
@@ -15,9 +14,7 @@ export class LocalLoginComponent {
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
-  localLogin = environment.localLogin;
-
-  constructor(private formBuilder: FormBuilder, private userService: UserService) {
+  constructor(private formBuilder: FormBuilder, private userService: UserService, private router: Router) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
@@ -59,9 +56,12 @@ export class LocalLoginComponent {
     this.userService
       .login(username, password)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        error: () => (this.loginErrorMessage = "Incorrect credentials"),
-      });
+      .subscribe(
+        Zone.current.wrap(() => {
+          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
+          this.router.navigate(["/dashboard/workflow"]);
+        }, "")
+      );
   }
 
   /**
@@ -91,8 +91,11 @@ export class LocalLoginComponent {
     this.userService
       .register(registerUsername, registerPassword)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        error: () => (this.loginErrorMessage = "Incorrect credentials"),
-      });
+      .subscribe(
+        Zone.current.wrap(() => {
+          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
+          this.router.navigate(["/dashboard/workflow"]);
+        }, "")
+      );
   }
 }

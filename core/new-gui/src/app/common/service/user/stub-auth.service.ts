@@ -34,16 +34,16 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return of(MOCK_TOKEN);
   }
 
-  loginWithExistingToken(): Observable<User | undefined> {
+  loginWithExistingToken(): User | undefined {
     if (AuthService.getAccessToken() === MOCK_TOKEN.accessToken) {
-      return of(MOCK_USER);
+      return MOCK_USER;
     } else {
-      return of(undefined);
+      return undefined;
     }
   }
 
-  logout(): Observable<undefined> {
-    return of(undefined);
+  logout(): undefined {
+    return undefined;
   }
 
   register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
