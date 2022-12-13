@@ -22,11 +22,11 @@ export class GoogleLoginComponent {
     this.userService
       .googleLogin()
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.getCurrentUser()) {
-          location.href = "dashboard/workflow";
-          //this.router.navigate(["/dashboard/workflow"]);
-        }
-      });
+      .subscribe(
+        Zone.current.wrap(() => {
+          // TODO temporary solution, need improvement
+          this.router.navigate(["/dashboard/workflow"]);
+        }, "")
+      );
   }
 }

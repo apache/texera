@@ -2,6 +2,7 @@ import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Router } from "@angular/router";
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
@@ -13,7 +14,7 @@ export class LocalLoginComponent {
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
-  constructor(private formBuilder: FormBuilder, private userService: UserService) {
+  constructor(private formBuilder: FormBuilder, private userService: UserService, private router: Router) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
@@ -57,10 +58,9 @@ export class LocalLoginComponent {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          if (this.userService.getCurrentUser()) {
-            location.href = "dashboard/workflow";
-            //this.router.navigate(["/dashboard/workflow"]);
-          }
+          Zone.current.wrap(() => {
+            this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
+          }, "");
         },
         error: () => (this.loginErrorMessage = "Incorrect credentials"),
       });
@@ -95,10 +95,9 @@ export class LocalLoginComponent {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          if (this.userService.getCurrentUser()) {
-            location.href = "dashboard/workflow";
-            //this.router.navigate(["/dashboard/workflow"]);
-          }
+          Zone.current.wrap(() => {
+            this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
+          }, "");
         },
         error: () => (this.loginErrorMessage = "Incorrect credentials"),
       });
