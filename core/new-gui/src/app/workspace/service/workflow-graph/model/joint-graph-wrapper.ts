@@ -6,12 +6,7 @@ import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
-import {
-  operatorCoeditorChangedPropertyBGClass,
-  operatorCoeditorChangedPropertyClass,
-  operatorCoeditorEditingBGClass,
-  operatorCoeditorEditingClass,
-} from "../../joint-ui/joint-ui.service";
+import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
 import Selectors = dia.Cell.Selectors;
 
@@ -1114,10 +1109,6 @@ export class JointGraphWrapper {
           fill: color,
           visibility: "visible",
         },
-        [`.${operatorCoeditorEditingBGClass}`]: {
-          text: statusText,
-          visibility: "visible",
-        },
       });
     // "Animation"
     const getCurrentlyEditingText = (): string => {
@@ -1142,9 +1133,6 @@ export class JointGraphWrapper {
             [`.${operatorCoeditorEditingClass}`]: {
               text: nextText,
             },
-            [`.${operatorCoeditorEditingBGClass}`]: {
-              text: nextText,
-            },
           });
       }
     }, 300);
@@ -1156,10 +1144,6 @@ export class JointGraphWrapper {
       ?.getModelById(previousEditing)
       .attr({
         [`.${operatorCoeditorEditingClass}`]: {
-          text: "",
-          visibility: "hidden",
-        },
-        [`.${operatorCoeditorEditingBGClass}`]: {
           text: "",
           visibility: "hidden",
         },
@@ -1178,10 +1162,6 @@ export class JointGraphWrapper {
           fill: color,
           visibility: "visible",
         },
-        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
-          text: statusText,
-          visibility: "visible",
-        },
       });
   }
 
@@ -1190,10 +1170,6 @@ export class JointGraphWrapper {
       ?.getModelById(currentChanged)
       .attr({
         [`.${operatorCoeditorChangedPropertyClass}`]: {
-          text: "",
-          visibility: "hidden",
-        },
-        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
           text: "",
           visibility: "hidden",
         },
