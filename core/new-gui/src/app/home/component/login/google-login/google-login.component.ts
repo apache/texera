@@ -1,6 +1,8 @@
 import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Router } from "@angular/router";
+import { AuthService } from "../../../../common/service/user/auth.service";
 
 @UntilDestroy()
 @Component({
@@ -9,7 +11,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./google-login.component.scss"],
 })
 export class GoogleLoginComponent {
-  constructor(private userService: UserService) {}
+  constructor(private userService: UserService, private router: Router) {}
 
   /**
    * this method will retrieve a usable Google OAuth Instance first,
@@ -23,6 +25,7 @@ export class GoogleLoginComponent {
       .subscribe(() => {
         if (this.userService.getCurrentUser()) {
           location.href = "dashboard/workflow";
+          //this.router.navigate(["/dashboard/workflow"]);
         }
       });
   }
