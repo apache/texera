@@ -5142,11 +5142,6 @@ caseless@~0.12.0:
   resolved "https://registry.yarnpkg.com/caseless/-/caseless-0.12.0.tgz#1b681c21ff84033c826543090689420d187151dc"
   integrity sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==
 
-cat@0.2.0:
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/cat/-/cat-0.2.0.tgz#fd850cda7d4162e6904f33b7fcf743b1243fd434"
-  integrity sha512-FrG38TVBt6XKcbWHNZ1AsnFr+eozwypXhaMRHuJrC1JvC+3GaG8G/MwuChyJOVVdPT5VsH91PiRFaheQlK/6Gg==
-
 chalk@4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-4.1.0.tgz#4e14870a618d9e2edd97dd8345fd9d9dc315646a"
@@ -10698,6 +10693,11 @@ node-releases@^2.0.6:
   version "2.0.6"
   resolved "https://registry.yarnpkg.com/node-releases/-/node-releases-2.0.6.tgz#8a7088c63a55e493845683ebf3c828d8c51c5503"
   integrity sha512-PiVXnNuFm5+iYkLBNeq5211hvO38y63T0i2KKh2KnUs3RpzJ+JtODFjkD8yjLwnDkTYF1eKXheUwdssR+NRZdg==
+
+nodecat@2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/nodecat/-/nodecat-2.0.0.tgz#ac0d4bccd24e98097a6a29fa1198d20513e9dc36"
+  integrity sha512-0Terfdda/M6QH4fze99EestAS6qmdymRBERpG5OAiwvMUtS3V1k1Lrj4kxPl9kzyFW7LsFy99E28XANBe91URA==
 
 nopt@^5.0.0:
   version "5.0.0"
