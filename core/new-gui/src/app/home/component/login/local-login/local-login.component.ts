@@ -58,7 +58,8 @@ export class LocalLoginComponent {
       .pipe(untilDestroyed(this))
       .subscribe(
         Zone.current.wrap(() => {
-          this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
+          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
+          this.router.navigate(["/dashboard/workflow"]);
         }, "")
       );
   }
@@ -92,7 +93,8 @@ export class LocalLoginComponent {
       .pipe(untilDestroyed(this))
       .subscribe(
         Zone.current.wrap(() => {
-          this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
+          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
+          this.router.navigate(["/dashboard/workflow"]);
         }, "")
       );
   }

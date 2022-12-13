@@ -6,7 +6,13 @@ import { Point } from "../../workspace/types/workflow-common.interface";
  * Corresponds to `core/amber/src/main/scala/edu/uci/ics/texera/web/resource/auth/UserResource.scala`
  */
 
-type Role = "INACTIVE" | "RESTRICTED" | "REGULAR" | "ADMIN";
+export enum Role {
+  INACTIVE = "INACTIVE",
+  RESTRICTED = "RESTRICTED",
+  REGULAR = "REGULAR",
+  ADMIN = "ADMIN",
+}
+
 export interface User
   extends Readonly<{
     name: string;

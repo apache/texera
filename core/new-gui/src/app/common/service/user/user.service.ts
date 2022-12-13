@@ -29,7 +29,9 @@ export class UserService {
 
   public login(username: string, password: string): Observable<void> {
     // validate the credentials with backend
-    return this.authService.auth(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
+    return this.authService
+      .auth(username, password)
+      .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public googleLogin(): Observable<void> {

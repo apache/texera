@@ -2,12 +2,11 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { from, interval, Observable, of, Subscription } from "rxjs";
 import { AppSettings } from "../../app-setting";
-import { User } from "../../type/user";
+import { User, Role } from "../../type/user";
 import { timer } from "rxjs";
 import { mergeMap, startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { GoogleAuthService } from "ng-gapi";
-import GoogleAuth = gapi.auth2.GoogleAuth;
 import { NotificationService } from "../notification/notification.service";
 import { environment } from "../../../../environments/environment";
 
@@ -64,27 +63,13 @@ export class AuthService {
   public googleAuth(): Observable<Readonly<{ accessToken: string }>> {
     return this.googleAuthService.getAuth().pipe(
       mergeMap(auth => from(auth.grantOfflineAccess())),
-      mergeMap(res =>
+      mergeMap(({ code }) =>
         this.http.post<Readonly<{ accessToken: string }>>(
           `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-          { authCode: res.code }
+          { authCode: code }
         )
       )
     );
-
-    // return this.googleAuthService.getAuth().pipe(
-    //   mergeMap((auth: GoogleAuth) =>
-    //     // grantOfflineAccess allows application to access specified scopes offline
-    //     from(auth.grantOfflineAccess()).pipe(
-    //       mergeMap(({ code }) =>
-    //         this.http.post<Readonly<{ accessToken: string }>>(
-    //           `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-    //           { authCode: code }
-    //         )
-    //       )
-    //     )
-    //   )
-    // );
   }
 
   /**
@@ -125,7 +110,7 @@ export class AuthService {
 
     const role = this.jwtHelperService.decodeToken(token).role;
 
-    if (this.inviteOnly && role == "INACTIVE") {
+    if (this.inviteOnly && role == Role.INACTIVE) {
       this.notificationService.error("Account pending approval!");
       return this.logout();
     }
