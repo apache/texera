@@ -12,8 +12,6 @@ import { AuthService } from "../user/auth.service";
 export class AuthGuardService implements CanActivate {
   constructor(private userService: UserService, private router: Router) {}
   canActivate(): boolean {
-    console.log(AuthService.getAccessToken());
-    console.log(this.userService.isLogin());
     if (this.userService.isLogin() || !environment.userSystemEnabled) {
       return true;
     } else {
