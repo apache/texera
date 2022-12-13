@@ -53,9 +53,15 @@ class OperatorManager:
 
         with self.fs.open(file_name, "w") as file:
             file.write(code)
-        logger.info(f"A tmp py file is written to {self.root.with_name(file_name)}.")
+        logger.info(f"A tmp py file is written to {self.root.joinpath(file_name)}.")
 
-        operator_module = importlib.import_module(module_name)
+        if module_name in sys.modules:
+            operator_module = importlib.import_module(module_name)
+            operator_module.__dict__.clear()
+            operator_module.__dict__["__name__"] = module_name
+            operator_module = importlib.reload(operator_module)
+        else:
+            operator_module = importlib.import_module(module_name)
         self.operator_module_name = module_name
 
         operators = list(
