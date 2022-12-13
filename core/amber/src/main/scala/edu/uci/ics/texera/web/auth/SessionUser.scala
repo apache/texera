@@ -10,5 +10,5 @@ class SessionUser(val user: User) extends Principal {
 
   override def getName: String = user.getName
 
-  def isRoleOf(role: UserRole): Boolean = user.getRole==role
+  def isRoleOf(role: UserRole): Boolean = user.getRole == role
 }

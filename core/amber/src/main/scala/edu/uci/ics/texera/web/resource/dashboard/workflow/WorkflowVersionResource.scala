@@ -8,7 +8,13 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource.{VersionEntry, applyPatch, context, encodeVersionImportance, workflowDao}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource.{
+  VersionEntry,
+  applyPatch,
+  context,
+  encodeVersionImportance,
+  workflowDao
+}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
@@ -304,7 +310,7 @@ class WorkflowVersionResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveVersionsOfWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -339,7 +345,7 @@ class WorkflowVersionResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/{vid}")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowVersion(
       @PathParam("wid") wid: UInteger,
       @PathParam("vid") vid: UInteger,

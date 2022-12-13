@@ -19,7 +19,7 @@ import scala.jdk.CollectionConverters.asScalaBuffer
   * The details of user_dictionary can be found in /core/scripts/sql/texera_ddl.sql
   */
 @Path("/user/config")
-@RolesAllowed(Array("REGULAR","ADMIN"))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Consumes(Array(MediaType.TEXT_PLAIN))
 class UserConfigResource {
   final private val userDictionaryDao = new UserConfigDao(

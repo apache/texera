@@ -19,7 +19,7 @@ class SchemaPropagationResource {
 
   @POST
   @Path("/autocomplete")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def suggestAutocompleteSchema(
       workflowStr: String,
       @Auth sessionUser: SessionUser
