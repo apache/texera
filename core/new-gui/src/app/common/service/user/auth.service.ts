@@ -127,7 +127,7 @@ export class AuthService {
 
     if (this.inviteOnly && role == "INACTIVE") {
       this.notificationService.error("Account pending approval!");
-      //return this.logout();
+      return this.logout();
     }
 
     this.registerAutoLogout();
