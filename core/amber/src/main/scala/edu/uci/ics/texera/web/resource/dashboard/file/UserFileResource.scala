@@ -4,9 +4,18 @@ import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao, UserDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileDao,
+  FileOfProjectDao,
+  UserDao,
+  UserFileAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{DashboardFileEntry, context, saveUserFileSafe}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{
+  DashboardFileEntry,
+  context,
+  saveUserFileSafe
+}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -96,7 +105,7 @@ class UserFileResource {
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Path("/upload")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def uploadFile(
       @FormDataParam("file") uploadedInputStream: InputStream,
       @FormDataParam("file") fileDetail: FormDataContentDisposition,
@@ -125,7 +134,7 @@ class UserFileResource {
     */
   @GET
   @Path("/list")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listUserFiles(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
     val user = sessionUser.getUser
     getUserFileRecord(user)
@@ -133,7 +142,7 @@ class UserFileResource {
 
   @GET
   @Path("/autocomplete/{query:.*}")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def autocompleteUserFiles(
       @Auth sessionUser: SessionUser,
       @PathParam("query") q: String
@@ -221,7 +230,7 @@ class UserFileResource {
     */
   @DELETE
   @Path("/delete/{fileName}/{ownerName}")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteUserFile(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String,
@@ -253,7 +262,7 @@ class UserFileResource {
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Path("/validate")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def validateUserFile(
       @FormDataParam("name") fileName: String,
       @Auth sessionUser: SessionUser
@@ -284,7 +293,7 @@ class UserFileResource {
 
   @GET
   @Path("/download/{fileId}")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def downloadFile(
       @PathParam("fileId") fileId: UInteger,
       @Auth sessionUser: SessionUser
@@ -335,7 +344,7 @@ class UserFileResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/name")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def changeUserFileName(file: File, @Auth sessionUser: SessionUser): Unit = {
     val userId = sessionUser.getUser.getUid
     val fid = file.getFid
@@ -379,7 +388,7 @@ class UserFileResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/description")
-  @RolesAllowed(Array("REGULAR","ADMIN"))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def changeUserFileDescription(file: File, @Auth sessionUser: SessionUser): Unit = {
     val userId = sessionUser.getUser.getUid
     val fid = file.getFid
