@@ -56,14 +56,11 @@ export class LocalLoginComponent {
     this.userService
       .login(username, password)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          Zone.current.wrap(() => {
-            this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
-          }, "");
-        },
-        error: () => (this.loginErrorMessage = "Incorrect credentials"),
-      });
+      .subscribe(
+        Zone.current.wrap(() => {
+          this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
+        }, "")
+      );
   }
 
   /**
@@ -93,13 +90,10 @@ export class LocalLoginComponent {
     this.userService
       .register(registerUsername, registerPassword)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          Zone.current.wrap(() => {
-            this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
-          }, "");
-        },
-        error: () => (this.loginErrorMessage = "Incorrect credentials"),
-      });
+      .subscribe(
+        Zone.current.wrap(() => {
+          this.router.navigate(["/dashboard/workflow"]); // TODO temporary solution, need improvement
+        }, "")
+      );
   }
 }
