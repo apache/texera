@@ -4,7 +4,9 @@
     class="code-button"
     nz-button
     nzShape="round"
-    nzType="primary">
-    <div>Edit code content</div>
+    nzType="primary"
+    [ngClass]="{ 'readonly': readonly }">
+    <div *ngIf="!readonly">Edit code content</div>
+    <div *ngIf="readonly">View code content</div>
   </button>
 </div>

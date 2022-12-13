@@ -137,21 +137,25 @@ export class OperatorMenuService {
   handleDisableOperatorStatusChange() {
     merge(
       this.effectivelyHighlightedOperators,
-      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
+      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
+      this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
       const allDisabled = this.effectivelyHighlightedOperators.value.every(op =>
         this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
       );
 
       this.isDisableOperator = !allDisabled;
-      this.isDisableOperatorClickable = this.effectivelyHighlightedOperators.value.length !== 0;
+      this.isDisableOperatorClickable =
+        this.effectivelyHighlightedOperators.value.length !== 0 &&
+        this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }
 
   handleCacheOperatorStatusChange() {
     merge(
       this.effectivelyHighlightedOperators,
-      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream()
+      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream(),
+      this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
       const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
@@ -162,7 +166,9 @@ export class OperatorMenuService {
       );
 
       this.isCacheOperator = !allCached;
-      this.isCacheOperatorClickable = effectiveHighlightedOperatorsExcludeSink.length !== 0;
+      this.isCacheOperatorClickable =
+        effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
+        this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }
 
