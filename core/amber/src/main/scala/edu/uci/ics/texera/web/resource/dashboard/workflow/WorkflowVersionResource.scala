@@ -19,7 +19,7 @@ import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -297,7 +297,6 @@ object WorkflowVersionResource {
 
 }
 
-@PermitAll
 @Path("/version")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowVersionResource {

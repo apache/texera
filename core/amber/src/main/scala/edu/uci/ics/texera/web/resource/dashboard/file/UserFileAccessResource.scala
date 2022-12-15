@@ -14,7 +14,7 @@ import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.JavaConverters._
@@ -69,10 +69,9 @@ object UserFileAccessResource {
       )
   }
 }
-@PermitAll
-@Path("/user/file/access")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/user/file/access")
 class UserFileAccessResource {
 
   /**

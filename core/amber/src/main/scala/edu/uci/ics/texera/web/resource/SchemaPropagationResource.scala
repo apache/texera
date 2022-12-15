@@ -1,5 +1,4 @@
 package edu.uci.ics.texera.web.resource
-
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse

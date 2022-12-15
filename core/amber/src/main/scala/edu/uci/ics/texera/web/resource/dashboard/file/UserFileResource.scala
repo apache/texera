@@ -27,7 +27,7 @@ import java.nio.file.Paths
 import java.sql.Timestamp
 import java.time.Instant
 import java.util
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import javax.ws.rs.{WebApplicationException, _}
 import scala.collection.JavaConverters._
@@ -85,11 +85,9 @@ object UserFileResource {
       projectIDs: List[UInteger]
   )
 }
-
-@PermitAll
-@Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/user/file")
 class UserFileResource {
   final private val fileDao = new FileDao(context.configuration)
   final private val userFileAccessDao = new UserFileAccessDao(

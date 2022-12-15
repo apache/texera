@@ -31,7 +31,7 @@ import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -81,10 +81,8 @@ object WorkflowResource {
       projectIDs: List[UInteger]
   )
 }
-
-@PermitAll
-@Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/workflow")
 class WorkflowResource {
 
   /**

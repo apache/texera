@@ -46,7 +46,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 
 /**
   * This file handles various request related to projects.
@@ -118,7 +118,6 @@ object ProjectResource {
 }
 
 @Path("/project")
-@PermitAll
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ProjectResource {
 

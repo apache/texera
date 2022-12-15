@@ -22,7 +22,7 @@ import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.JavaConverters._
@@ -159,9 +159,8 @@ object WorkflowAccessResource {
 /**
   * Provides endpoints for operations related to Workflow Access.
   */
-@PermitAll
-@Path("/workflow/access")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/workflow/access")
 class WorkflowAccessResource() {
 
   private val workflowOfUserDao = new WorkflowOfUserDao(

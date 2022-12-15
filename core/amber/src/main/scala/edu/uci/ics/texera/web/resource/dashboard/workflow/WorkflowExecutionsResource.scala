@@ -16,7 +16,7 @@ import org.jooq.types.UInteger
 import org.jooq._
 
 import java.sql.Timestamp
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -69,9 +69,8 @@ case class ExecutionGroupBookmarkRequest(
 case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
-@PermitAll
-@Path("/executions")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/executions")
 class WorkflowExecutionsResource {
 
   /**
