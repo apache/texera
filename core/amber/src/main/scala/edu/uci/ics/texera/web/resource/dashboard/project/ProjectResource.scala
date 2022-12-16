@@ -31,6 +31,7 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
   fileOfProjectDao,
   userProjectDao,
+  verifySessionUserHasProjectAccess,
   workflowOfProjectDao,
   workflowOfProjectExists
 }
@@ -67,6 +68,29 @@ object ProjectResource {
         .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
         .values(wid, pid)
     )
+  }
+
+  /**
+    * This method ensures the user with the specified uid has access to
+    * the project with the specified pid, if such a project exists.
+    *
+    * If so, it will return the UserProject (which may be None)
+    * If not, it will throw a ForbiddenException stating insufficient access
+    *
+    * @param sessionUser
+    * @param pid
+    * @return UserProject corresponding to pid, if there exists one
+    */
+  private def verifySessionUserHasProjectAccess(
+      uid: UInteger,
+      pid: UInteger
+  ): Option[UserProject] = {
+    val userProject: Option[UserProject] = Option(userProjectDao.fetchOneByPid(pid))
+    if (userProject.isDefined && userProject.get.getOwnerId != uid) {
+      // currently only owners should be able to access project
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+    userProject
   }
 
   /**
@@ -130,8 +154,13 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}")
-  def getProject(@PathParam("pid") pid: UInteger): UserProject = {
-    userProjectDao.fetchOneByPid(pid)
+  def getProject(
+      @PathParam("pid") pid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): Option[UserProject] = {
+    val userProject: Option[UserProject] =
+      verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    userProject
   }
 
   /**
@@ -306,8 +335,10 @@ class ProjectResource {
   @Path("/{pid}/workflow/{wid}/add")
   def addWorkflowToProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
     if (!workflowOfProjectExists(wid, pid)) {
       workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
     }
@@ -322,7 +353,12 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/user-file/{fid}/add")
-  def addFileToProject(@PathParam("pid") pid: UInteger, @PathParam("fid") fid: UInteger): Unit = {
+  def addFileToProject(
+      @PathParam("pid") pid: UInteger,
+      @PathParam("fid") fid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
     fileOfProjectDao.insert(new FileOfProject(fid, pid))
   }
 
@@ -334,7 +370,13 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/rename/{name}")
-  def updateProjectName(@PathParam("pid") pid: UInteger, @PathParam("name") name: String): Unit = {
+  def updateProjectName(
+      @PathParam("pid") pid: UInteger,
+      @PathParam("name") name: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+
     if (StringUtils.isBlank(name)) {
       throw new BadRequestException("Cannot rename project to empty or blank name.")
     }
@@ -357,7 +399,13 @@ class ProjectResource {
   @Path("/{pid}/update/description")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def updateProjectDescription(@PathParam("pid") pid: UInteger, project: UserProject): Unit = {
+  def updateProjectDescription(
+      @PathParam("pid") pid: UInteger,
+      project: UserProject,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+
     val description = project.getDescription
     val userProject = userProjectDao.fetchOneByPid(pid)
     try {
@@ -379,8 +427,11 @@ class ProjectResource {
   @Path("/{pid}/color/{colorHex}/add")
   def updateProjectColor(
       @PathParam("pid") pid: UInteger,
-      @PathParam("colorHex") colorHex: String
+      @PathParam("colorHex") colorHex: String,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+
     if (
       colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
         "^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$"
@@ -396,7 +447,8 @@ class ProjectResource {
 
   @POST
   @Path("/{pid}/color/delete")
-  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
+  def deleteProjectColor(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
     val userProject = userProjectDao.fetchOneByPid(pid)
     userProject.setColor(null)
     userProjectDao.update(userProject)
@@ -409,7 +461,8 @@ class ProjectResource {
     */
   @DELETE
   @Path("/delete/{pid}")
-  def deleteProject(@PathParam("pid") pid: UInteger): Unit = {
+  def deleteProject(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
     userProjectDao.deleteById(pid)
   }
 
@@ -424,8 +477,10 @@ class ProjectResource {
   @Path("/{pid}/workflow/{wid}/delete")
   def deleteWorkflowFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
     workflowOfProjectDao.deleteById(
       context.newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID).values(wid, pid)
     )
@@ -442,8 +497,10 @@ class ProjectResource {
   @Path("/{pid}/user-file/{fid}/delete")
   def deleteFileFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("fid") fid: UInteger
+      @PathParam("fid") fid: UInteger,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
     fileOfProjectDao.deleteById(
       context.newRecord(FILE_OF_PROJECT.FID, FILE_OF_PROJECT.PID).values(fid, pid)
     )
