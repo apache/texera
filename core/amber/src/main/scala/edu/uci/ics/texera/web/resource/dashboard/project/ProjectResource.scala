@@ -433,17 +433,15 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/update/description")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.TEXT_PLAIN))
   def updateProjectDescription(
       @PathParam("pid") pid: UInteger,
-      project: UserProject,
+      description: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
     verifyProjectExists(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
 
-    val description = project.getDescription
     val userProject = userProjectDao.fetchOneByPid(pid)
     try {
       userProject.setDescription(description)

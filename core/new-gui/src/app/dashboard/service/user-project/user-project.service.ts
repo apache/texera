@@ -46,7 +46,7 @@ export class UserProjectService {
   }
 
   public retrieveProject(pid: number): Observable<UserProject> {
-    return this.http.get<UserProject>(`${USER_PROJECT_BASE_URL}/` + pid);
+    return this.http.get<UserProject>(`${USER_PROJECT_BASE_URL}/${pid}`);
   }
 
   public updateProjectName(pid: number, name: string): Observable<Response> {
@@ -54,7 +54,7 @@ export class UserProjectService {
   }
 
   public updateProjectDescription(pid: number, description: string): Observable<Response> {
-    return this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/update/description`, { description: description });
+    return this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/update/description`, `${description}`);
   }
 
   public deleteProject(pid: number): Observable<Response> {
