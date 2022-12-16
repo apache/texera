@@ -1,7 +1,9 @@
 package edu.uci.ics.texera.web.auth
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.AuthFilter
+
 import javax.annotation.Nullable
 import javax.annotation.Priority
 import javax.ws.rs.Priorities
@@ -12,7 +14,6 @@ import java.io.IOException
 import java.security.Principal
 import java.util
 import java.util.Optional
-import edu.uci.ics.texera.web.auth.SessionRole.GUEST
 
 @PreMatching
 @Priority(Priorities.AUTHENTICATION) object GuestAuthFilter {
@@ -34,7 +35,7 @@ import edu.uci.ics.texera.web.auth.SessionRole.GUEST
   ): Boolean = {
 
     val principal =
-      Optional.of(new SessionUser(new User("guest", null, null, null, null), Set(GUEST)))
+      Optional.of(new SessionUser(new User("guest", null, null, null, UserRole.REGULAR)))
     val securityContext = requestContext.getSecurityContext
     val secure = securityContext != null && securityContext.isSecure
     requestContext.setSecurityContext(new SecurityContext() {

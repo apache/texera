@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_VERSION}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource.{
@@ -19,7 +19,7 @@ import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
-import javax.annotation.security.PermitAll
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -297,7 +297,6 @@ object WorkflowVersionResource {
 
 }
 
-@PermitAll
 @Path("/version")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowVersionResource {
@@ -308,8 +307,9 @@ class WorkflowVersionResource {
     * @return versions[]
     */
   @GET
-  @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveVersionsOfWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -342,8 +342,9 @@ class WorkflowVersionResource {
     * @return workflow of a particular version
     */
   @GET
-  @Path("/{wid}/{vid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/{vid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowVersion(
       @PathParam("wid") wid: UInteger,
       @PathParam("vid") vid: UInteger,
