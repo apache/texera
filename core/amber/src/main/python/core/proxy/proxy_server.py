@@ -155,14 +155,12 @@ class ProxyServer(FlightServerBase):
         command: bytes = descriptor.command
         logger.info(f"getting a data batch {data}")
 
-        # credit is the number of batches in internal queue belonging to this command's sender actor
-        # derive actual credit value by doing (credit limit per sender) - (# batches in internal queue)
         sender_credits = self.process_data(command, data)
         if isinstance(sender_credits, int):
-            num_batches_buf: Buffer = py_buffer(
+            sender_credits_buf: Buffer = py_buffer(
                 sender_credits.to_bytes(length=8, byteorder="little")
             )
-            writer.write(num_batches_buf)
+            writer.write(sender_credits_buf)
 
     ###############################
     # Actions related methods #
