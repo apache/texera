@@ -126,7 +126,7 @@
             <ng-template #editingProject>
               <input
                 #editedName
-                (focusout)="removeEditStatus(dashboardUserProjectEntry.pid, 'name')"
+                (focusout)="removeEditNameStatus(dashboardUserProjectEntry.pid)"
                 (keyup.enter)="saveProjectName(dashboardUserProjectEntry, editedName.value)"
                 placeholder="{{ dashboardUserProjectEntry.name }}"
                 value="{{ dashboardUserProjectEntry.name }}" />
@@ -176,7 +176,7 @@
                   nz-tooltip="Save"
                   nzTooltipPlacement="top"
                   *ngIf="descriptionBox.value !== dashboardUserProjectEntry.description"
-                  (click)="removeEditStatus(dashboardUserProjectEntry.pid, 'description')"></span>
+                  (click)="removeEditDescriptionStatus(dashboardUserProjectEntry.pid)"></span>
               </ng-template>
             </ng-template>
           </nz-list-item-meta-description>
