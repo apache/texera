@@ -34,6 +34,11 @@ class TestNetworkReceiver:
         network_receiver._proxy_server.shutdown()
 
     class MockFlightMetadataReader:
+        """
+        MockFlightMetadataReader is a mocked FlightMetadataReader class to ultimately
+        mock a credit value to be returned from Scala server to Python client
+        """
+
         class MockBuffer:
             def to_pybytes(self):
                 dummy_credit = 31
@@ -53,6 +58,16 @@ class TestNetworkReceiver:
             Schema_schema,
             FlightCallOptions_options=None,
         ):
+            """
+            Mocking FlightClient.do_put that is called in ProxyClient to return
+            a MockFlightMetadataReader instead of a FlightMetadataReader
+
+            :param self: an instance of FlightClient (would be ProxyClient in this case)
+            :param FlightDescriptor_descriptor: descriptor
+            :param Schema_schema: schema
+            :param FlightCallOptions_options: options, None by default
+            :return: writer : FlightStreamWriter, reader : MockFlightMetadataReader
+            """
             writer, _ = super(ProxyClient, self).do_put(
                 FlightDescriptor_descriptor, Schema_schema, FlightCallOptions_options
             )
