@@ -52,7 +52,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.RolesAllowed
 
 /**
   * This file handles various request related to projects.
@@ -159,7 +159,6 @@ object ProjectResource {
 }
 
 @Path("/project")
-@PermitAll
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ProjectResource {
 
@@ -172,6 +171,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getProject(
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
@@ -190,6 +190,7 @@ class ProjectResource {
     */
   @GET
   @Path("/list")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectsOwnedByUser(@Auth sessionUser: SessionUser): util.List[UserProject] = {
     val oid = sessionUser.getUser.getUid
     userProjectDao.fetchByOwnerId(oid)
@@ -205,6 +206,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}/workflows")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectWorkflows(
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
@@ -262,6 +264,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}/files")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
@@ -331,6 +334,7 @@ class ProjectResource {
     */
   @POST
   @Path("/create/{name}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def createProject(
       @Auth sessionUser: SessionUser,
       @PathParam("name") name: String
@@ -356,6 +360,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/workflow/{wid}/add")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def addWorkflowToProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger,
@@ -382,6 +387,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/user-file/{fid}/add")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def addFileToProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("fid") fid: UInteger,
@@ -405,6 +411,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/rename/{name}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectName(
       @PathParam("pid") pid: UInteger,
       @PathParam("name") name: String,
@@ -434,6 +441,7 @@ class ProjectResource {
   @POST
   @Path("/{pid}/update/description")
   @Consumes(Array(MediaType.TEXT_PLAIN))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectDescription(
       @PathParam("pid") pid: UInteger,
       description: String,
@@ -460,6 +468,7 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/color/{colorHex}/add")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectColor(
       @PathParam("pid") pid: UInteger,
       @PathParam("colorHex") colorHex: String,
@@ -483,6 +492,7 @@ class ProjectResource {
 
   @POST
   @Path("/{pid}/color/delete")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteProjectColor(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     verifyProjectExists(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
@@ -498,6 +508,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/delete/{pid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteProject(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     verifyProjectExists(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
@@ -513,6 +524,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/workflow/{wid}/delete")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflowFromProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger,
@@ -534,6 +546,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/user-file/{fid}/delete")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteFileFromProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("fid") fid: UInteger,

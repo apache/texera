@@ -16,7 +16,7 @@ import org.jooq.types.UInteger
 import org.jooq._
 
 import java.sql.Timestamp
-import javax.annotation.security.PermitAll
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -69,9 +69,8 @@ case class ExecutionGroupBookmarkRequest(
 case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
-@PermitAll
-@Path("/executions")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/executions")
 class WorkflowExecutionsResource {
 
   /**
@@ -80,8 +79,9 @@ class WorkflowExecutionsResource {
     * @return executions[]
     */
   @GET
-  @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveExecutionsOfWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -122,8 +122,9 @@ class WorkflowExecutionsResource {
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */
   @PUT
-  @Path("/set_execution_bookmarks")
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Path("/set_execution_bookmarks")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def setExecutionAreBookmarked(
       request: ExecutionGroupBookmarkRequest,
       @Auth sessionUser: SessionUser
@@ -159,8 +160,9 @@ class WorkflowExecutionsResource {
 
   /** Delete a group of executions */
   @PUT
-  @Path("/delete_executions")
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Path("/delete_executions")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def groupDeleteExecutionsOfWorkflow(
       request: ExecutionGroupDeleteRequest,
       @Auth sessionUser: SessionUser
@@ -177,8 +179,9 @@ class WorkflowExecutionsResource {
 
   /** Name a single execution * */
   @POST
-  @Path("/update_execution_name")
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Path("/update_execution_name")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateWorkflowExecutionsName(
       request: ExecutionRenameRequest,
       @Auth sessionUser: SessionUser
