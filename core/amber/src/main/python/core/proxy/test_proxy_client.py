@@ -30,9 +30,37 @@ class TestProxyClient:
         yield server
         server.shutdown()
 
+    class MockFlightMetadataReader:
+        class MockBuffer:
+            def to_pybytes(self):
+                dummy_credit = 31
+                return dummy_credit.to_bytes(8, "little")
+
+        def read(self):
+            return self.MockBuffer()
+
     @pytest.fixture
     def client(self):
-        yield ProxyClient()
+        mock_client = ProxyClient()
+
+        # mocking do_put, read, to_pybytes to return fake credit values
+        def mock_do_put(
+            self,
+            FlightDescriptor_descriptor,
+            Schema_schema,
+            FlightCallOptions_options=None,
+        ):
+            writer, _ = super(ProxyClient, self).do_put(
+                FlightDescriptor_descriptor, Schema_schema, FlightCallOptions_options
+            )
+            reader = TestProxyClient.MockFlightMetadataReader()
+            return writer, reader
+
+        mock_client.do_put = mock_do_put.__get__(
+            mock_client, ProxyClient
+        )  # override do_put with mock_do_put
+
+        yield mock_client
 
     @pytest.fixture
     def data_table(self):

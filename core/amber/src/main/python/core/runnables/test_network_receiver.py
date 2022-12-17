@@ -6,6 +6,7 @@ import pytest
 from core.models import Tuple
 from core.models.internal_queue import InternalQueue, ControlElement, DataElement
 from core.models.payload import OutputDataFrame, EndOfUpstream
+from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.arrow_utils import to_arrow_schema
@@ -32,9 +33,37 @@ class TestNetworkReceiver:
         yield network_receiver
         network_receiver._proxy_server.shutdown()
 
+    class MockFlightMetadataReader:
+        class MockBuffer:
+            def to_pybytes(self):
+                dummy_credit = 31
+                return dummy_credit.to_bytes(8, "little")
+
+        def read(self):
+            return self.MockBuffer()
+
     @pytest.fixture
     def network_sender_thread(self, input_queue):
         network_sender = NetworkSender(input_queue, host="localhost", port=5555)
+
+        # mocking do_put, read, to_pybytes to return fake credit values
+        def mock_do_put(
+            self,
+            FlightDescriptor_descriptor,
+            Schema_schema,
+            FlightCallOptions_options=None,
+        ):
+            writer, _ = super(ProxyClient, self).do_put(
+                FlightDescriptor_descriptor, Schema_schema, FlightCallOptions_options
+            )
+            reader = TestNetworkReceiver.MockFlightMetadataReader()
+            return writer, reader
+
+        mock_proxy_client = network_sender._proxy_client
+        mock_proxy_client.do_put = mock_do_put.__get__(
+            mock_proxy_client, ProxyClient
+        )  # override do_put with mock_do_put
+
         network_sender_thread = threading.Thread(target=network_sender.run)
         yield network_sender_thread
         network_sender.stop()
