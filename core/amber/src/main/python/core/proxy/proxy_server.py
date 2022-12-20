@@ -153,7 +153,7 @@ class ProxyServer(FlightServerBase):
 
         data: Table = reader.read_all()
         command: bytes = descriptor.command
-        logger.info(f"getting a data batch {data}")
+        logger.debug(f"getting a data batch {data}")
 
         sender_credits = self.process_data(command, data)
         if isinstance(sender_credits, int):
