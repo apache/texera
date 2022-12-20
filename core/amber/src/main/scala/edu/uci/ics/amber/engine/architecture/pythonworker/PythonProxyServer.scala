@@ -14,6 +14,7 @@ import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
 
+import java.nio.{ByteBuffer, ByteOrder}
 import scala.collection.mutable
 
 private class AmberProducer(
@@ -48,11 +49,8 @@ private class AmberProducer(
 
         // get little-endian representation of credits
         var creditVal: Long = 30L // TODO : replace with actual credit value
-        val creditByteArr: Array[Byte] = new Array[Byte](Longs.BYTES)
-        for (x <- 0 until Longs.BYTES - 1) {
-          creditByteArr(x) = (creditVal & 0xff).asInstanceOf[Byte]
-          creditVal >>= Longs.BYTES
-        }
+        val creditByteArr: Array[Byte] =
+          ByteBuffer.allocate(Longs.BYTES).order(ByteOrder.LITTLE_ENDIAN).putLong(creditVal).array
 
         listener.onNext(
           new Result(creditByteArr)
