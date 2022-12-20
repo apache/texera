@@ -91,23 +91,20 @@ object ProjectResource {
     * This method verifies the user with the specified uid has access to
     * the project with the specified pid, assuming such a project exists.
     *
-    * If user has access, it will return the UserProject
-    * If not, it will throw a ForbiddenException stating insufficient access
+    * If user has no access, it will throw a ForbiddenException stating insufficient access
     *
     * @param uid user ID
-    * @param pid project ID
+    * @param userProject user project
     * @return UserProject corresponding to pid
     */
   private def verifySessionUserHasProjectAccess(
       uid: UInteger,
-      pid: UInteger
-  ): UserProject = {
-    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+      userProject: UserProject
+  ): Unit = {
     if (userProject != null && userProject.getOwnerId != uid) {
       // currently only owners should be able to access project
       throw new ForbiddenException("No sufficient access privilege to project.")
     }
-    userProject
   }
 
   /**
@@ -177,8 +174,8 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): UserProject = {
     verifyProjectExists(pid)
-    val userProject: UserProject =
-      verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProject
   }
 
@@ -368,7 +365,8 @@ class ProjectResource {
   ): Unit = {
     val uid = sessionUser.getUser.getUid
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(uid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(uid, userProject)
     if (hasNoWorkflowAccess(wid, uid)) {
       throw new ForbiddenException("No sufficient access privilege to workflow.")
     }
@@ -395,7 +393,8 @@ class ProjectResource {
   ): Unit = {
     val uid = sessionUser.getUser.getUid
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(uid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(uid, userProject)
     if (!hasAccessTo(uid, fid)) {
       throw new ForbiddenException("No sufficient access privilege to file.")
     }
@@ -418,13 +417,13 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
 
     if (StringUtils.isBlank(name)) {
       throw new BadRequestException("Cannot rename project to empty or blank name.")
     }
 
-    val userProject = userProjectDao.fetchOneByPid(pid)
     try {
       userProject.setName(name)
       userProjectDao.update(userProject)
@@ -448,9 +447,9 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
 
-    val userProject = userProjectDao.fetchOneByPid(pid)
     try {
       userProject.setDescription(description)
       userProjectDao.update(userProject)
@@ -475,7 +474,8 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
 
     if (
       colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
@@ -485,7 +485,6 @@ class ProjectResource {
       throw new BadRequestException("Cannot assign invalid HEX format color to project.")
     }
 
-    val userProject = userProjectDao.fetchOneByPid(pid)
     userProject.setColor(colorHex)
     userProjectDao.update(userProject)
   }
@@ -495,8 +494,8 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteProjectColor(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
-    val userProject = userProjectDao.fetchOneByPid(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProject.setColor(null)
     userProjectDao.update(userProject)
   }
@@ -511,7 +510,8 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteProject(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProjectDao.deleteById(pid)
   }
 
@@ -531,7 +531,8 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     workflowOfProjectDao.deleteById(
       context.newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID).values(wid, pid)
     )
@@ -553,7 +554,8 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     verifyProjectExists(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     fileOfProjectDao.deleteById(
       context.newRecord(FILE_OF_PROJECT.FID, FILE_OF_PROJECT.PID).values(fid, pid)
     )
