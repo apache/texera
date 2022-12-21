@@ -17,10 +17,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserProject implements IUserProject {
 
-    private static final long serialVersionUID = -1632066760;
+    private static final long serialVersionUID = 1734579044;
 
     private UInteger  pid;
     private String    name;
+    private String    description;
     private UInteger  ownerId;
     private Timestamp creationTime;
     private String    color;
@@ -30,6 +31,7 @@ public class UserProject implements IUserProject {
     public UserProject(IUserProject value) {
         this.pid = value.getPid();
         this.name = value.getName();
+        this.description = value.getDescription();
         this.ownerId = value.getOwnerId();
         this.creationTime = value.getCreationTime();
         this.color = value.getColor();
@@ -38,12 +40,14 @@ public class UserProject implements IUserProject {
     public UserProject(
         UInteger  pid,
         String    name,
+        String    description,
         UInteger  ownerId,
         Timestamp creationTime,
         String    color
     ) {
         this.pid = pid;
         this.name = name;
+        this.description = description;
         this.ownerId = ownerId;
         this.creationTime = creationTime;
         this.color = color;
@@ -67,6 +71,16 @@ public class UserProject implements IUserProject {
     @Override
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public String getDescription() {
+        return this.description;
+    }
+
+    @Override
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     @Override
@@ -105,6 +119,7 @@ public class UserProject implements IUserProject {
 
         sb.append(pid);
         sb.append(", ").append(name);
+        sb.append(", ").append(description);
         sb.append(", ").append(ownerId);
         sb.append(", ").append(creationTime);
         sb.append(", ").append(color);
@@ -121,6 +136,7 @@ public class UserProject implements IUserProject {
     public void from(IUserProject from) {
         setPid(from.getPid());
         setName(from.getName());
+        setDescription(from.getDescription());
         setOwnerId(from.getOwnerId());
         setCreationTime(from.getCreationTime());
         setColor(from.getColor());

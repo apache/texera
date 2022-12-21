@@ -27,15 +27,21 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   WorkflowOfProject,
   WorkflowUserAccess
 }
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.hasAccessTo
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
   fileOfProjectDao,
   userProjectDao,
+  verifyProjectExists,
+  verifySessionUserHasProjectAccess,
   workflowOfProjectDao,
   workflowOfProjectExists
 }
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
+  hasNoWorkflowAccess,
+  toAccessLevel
+}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
@@ -67,6 +73,38 @@ object ProjectResource {
         .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
         .values(wid, pid)
     )
+  }
+
+  /**
+    * This method verifies a project exists with the corresponding
+    * pid, throwing an exception in the case it does not.
+    *
+    * @param pid project ID
+    */
+  private def verifyProjectExists(pid: UInteger): Unit = {
+    if (!userProjectDao.existsById(pid)) {
+      throw new BadRequestException("The project does not exist.")
+    }
+  }
+
+  /**
+    * This method verifies the user with the specified uid has access to
+    * the project with the specified pid, assuming such a project exists.
+    *
+    * If user has no access, it will throw a ForbiddenException stating insufficient access
+    *
+    * @param uid user ID
+    * @param userProject user project
+    * @return UserProject corresponding to pid
+    */
+  private def verifySessionUserHasProjectAccess(
+      uid: UInteger,
+      userProject: UserProject
+  ): Unit = {
+    if (userProject != null && userProject.getOwnerId != uid) {
+      // currently only owners should be able to access project
+      throw new ForbiddenException("No sufficient access privilege to project.")
+    }
   }
 
   /**
@@ -122,7 +160,8 @@ object ProjectResource {
 class ProjectResource {
 
   /**
-    * This method returns the specified project.
+    * This method returns the specified project, if it exists and
+    * the user has access to it.
     *
     * @param pid project id
     * @return project specified by the project id
@@ -130,8 +169,14 @@ class ProjectResource {
   @GET
   @Path("/{pid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def getProject(@PathParam("pid") pid: UInteger): UserProject = {
-    userProjectDao.fetchOneByPid(pid)
+  def getProject(
+      @PathParam("pid") pid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): UserProject = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
+    userProject
   }
 
   /**
@@ -163,6 +208,8 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
+    verifyProjectExists(pid)
+
     val uid = sessionUser.getUser.getUid
     val workflowEntries = context
       .select(
@@ -219,6 +266,8 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[DashboardFileEntry] = {
+    verifyProjectExists(pid)
+
     val user = sessionUser.getUser
     val fileEntries = context
       .select(
@@ -289,7 +338,7 @@ class ProjectResource {
   ): UserProject = {
     val oid = sessionUser.getUser.getUid
 
-    val userProject = new UserProject(null, name, oid, null, null)
+    val userProject = new UserProject(null, name, null, oid, null, null)
     try {
       userProjectDao.insert(userProject)
     } catch {
@@ -311,8 +360,17 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def addWorkflowToProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    val uid = sessionUser.getUser.getUid
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(uid, userProject)
+    if (hasNoWorkflowAccess(wid, uid)) {
+      throw new ForbiddenException("No sufficient access privilege to workflow.")
+    }
+
     if (!workflowOfProjectExists(wid, pid)) {
       workflowOfProjectDao.insert(new WorkflowOfProject(wid, pid))
     }
@@ -328,7 +386,19 @@ class ProjectResource {
   @POST
   @Path("/{pid}/user-file/{fid}/add")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def addFileToProject(@PathParam("pid") pid: UInteger, @PathParam("fid") fid: UInteger): Unit = {
+  def addFileToProject(
+      @PathParam("pid") pid: UInteger,
+      @PathParam("fid") fid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    val uid = sessionUser.getUser.getUid
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(uid, userProject)
+    if (!hasAccessTo(uid, fid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
+
     fileOfProjectDao.insert(new FileOfProject(fid, pid))
   }
 
@@ -341,17 +411,51 @@ class ProjectResource {
   @POST
   @Path("/{pid}/rename/{name}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def updateProjectName(@PathParam("pid") pid: UInteger, @PathParam("name") name: String): Unit = {
+  def updateProjectName(
+      @PathParam("pid") pid: UInteger,
+      @PathParam("name") name: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
+
     if (StringUtils.isBlank(name)) {
       throw new BadRequestException("Cannot rename project to empty or blank name.")
     }
 
-    val userProject = userProjectDao.fetchOneByPid(pid)
     try {
       userProject.setName(name)
       userProjectDao.update(userProject)
     } catch {
       case _: Throwable => throw new BadRequestException("Cannot rename project to provided name.");
+    }
+  }
+
+  /**
+    * This method updates the description of a specified, existing project
+    *
+    * @param pid project ID
+    */
+  @POST
+  @Path("/{pid}/update/description")
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def updateProjectDescription(
+      @PathParam("pid") pid: UInteger,
+      description: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
+
+    try {
+      userProject.setDescription(description)
+      userProjectDao.update(userProject)
+    } catch {
+      case _: Throwable =>
+        throw new BadRequestException("Cannot update project description to provided text.");
     }
   }
 
@@ -366,8 +470,13 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectColor(
       @PathParam("pid") pid: UInteger,
-      @PathParam("colorHex") colorHex: String
+      @PathParam("colorHex") colorHex: String,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
+
     if (
       colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
         "^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$"
@@ -376,7 +485,6 @@ class ProjectResource {
       throw new BadRequestException("Cannot assign invalid HEX format color to project.")
     }
 
-    val userProject = userProjectDao.fetchOneByPid(pid)
     userProject.setColor(colorHex)
     userProjectDao.update(userProject)
   }
@@ -384,8 +492,10 @@ class ProjectResource {
   @POST
   @Path("/{pid}/color/delete")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
-    val userProject = userProjectDao.fetchOneByPid(pid)
+  def deleteProjectColor(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProject.setColor(null)
     userProjectDao.update(userProject)
   }
@@ -398,7 +508,10 @@ class ProjectResource {
   @DELETE
   @Path("/delete/{pid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def deleteProject(@PathParam("pid") pid: UInteger): Unit = {
+  def deleteProject(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProjectDao.deleteById(pid)
   }
 
@@ -414,8 +527,12 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflowFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     workflowOfProjectDao.deleteById(
       context.newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID).values(wid, pid)
     )
@@ -433,8 +550,12 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteFileFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("fid") fid: UInteger
+      @PathParam("fid") fid: UInteger,
+      @Auth sessionUser: SessionUser
   ): Unit = {
+    verifyProjectExists(pid)
+    val userProject: UserProject = userProjectDao.fetchOneByPid(pid)
+    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     fileOfProjectDao.deleteById(
       context.newRecord(FILE_OF_PROJECT.FID, FILE_OF_PROJECT.PID).values(fid, pid)
     )

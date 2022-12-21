@@ -27,6 +27,7 @@ export class UserProjectSectionComponent implements OnInit {
   // information from the database about this project
   public pid: number = 0;
   public name: string = "";
+  public description: string = "";
   public ownerID: number = 0;
   public creationTime: number = 0;
   public color: string | null = null;
@@ -115,6 +116,7 @@ export class UserProjectSectionComponent implements OnInit {
             // get single project information
             if (userProject.pid == this.pid) {
               this.name = userProject.name;
+              this.description = userProject.description;
               this.ownerID = userProject.ownerID;
               this.creationTime = userProject.creationTime;
               if (userProject.color != null) {

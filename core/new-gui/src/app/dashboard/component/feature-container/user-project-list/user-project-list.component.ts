@@ -18,6 +18,7 @@ export class UserProjectListComponent implements OnInit {
   // store list of projects / variables to create and edit projects
   public userProjectEntries: UserProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
+  public userProjectEntriesIsEditingDescription: number[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
 
@@ -64,21 +65,57 @@ export class UserProjectListComponent implements OnInit {
       });
   }
 
-  public removeEditStatus(pid: number): void {
+  public removeEditNameStatus(pid: number) {
     this.userProjectEntriesIsEditingName = this.userProjectEntriesIsEditingName.filter(index => index != pid);
+  }
+
+  public removeEditDescriptionStatus(pid: number) {
+    this.userProjectEntriesIsEditingDescription = this.userProjectEntriesIsEditingDescription.filter(
+      index => index != pid
+    );
+  }
+
+  public saveProjectDescription(project: UserProject, newDescr: string, index: number): void {
+    // nothing happens if description is the same
+    if (project.description === newDescr) {
+      this.removeEditDescriptionStatus(project.pid);
+      return;
+    }
+
+    // update the project's description
+    this.userProjectService
+      .updateProjectDescription(project.pid, newDescr)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        () => {
+          let updatedProjectEntry = { ...project };
+          updatedProjectEntry.description = newDescr;
+          const newEntries = this.userProjectEntries.slice();
+          newEntries[index] = updatedProjectEntry;
+          this.userProjectEntries = newEntries;
+          this.notificationService.success(`Saved description for project: "${project.name}".`);
+        },
+        (err: unknown) => {
+          // @ts-ignore
+          this.notificationService.error(err.error.message);
+        }
+      )
+      .add(() => {
+        this.removeEditDescriptionStatus(project.pid);
+      });
   }
 
   public saveProjectName(project: UserProject, newName: string): void {
     // nothing happens if name is the same
     if (project.name === newName) {
-      this.removeEditStatus(project.pid);
+      this.removeEditNameStatus(project.pid);
     } else if (this.isValidNewProjectName(newName, project)) {
       this.userProjectService
         .updateProjectName(project.pid, newName)
         .pipe(untilDestroyed(this))
         .subscribe(
           () => {
-            this.removeEditStatus(project.pid);
+            this.removeEditNameStatus(project.pid);
             this.getUserProjectArray(); // refresh list of projects, name is read only property so cannot edit
           },
           (err: unknown) => {
