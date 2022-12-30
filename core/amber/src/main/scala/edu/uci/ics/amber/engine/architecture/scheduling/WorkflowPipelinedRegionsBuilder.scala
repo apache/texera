@@ -269,7 +269,7 @@ class WorkflowPipelinedRegionsBuilder(
         }
       }
 
-      // For operators that have only blocking input links
+      // For operators that have only blocking input links. e.g. Sort, Groupby
       val upstreamOps = getDirectUpstreamOperators(opId).toSet
       val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
         operatorToOpExecConfig(opId).isInputBlocking(
