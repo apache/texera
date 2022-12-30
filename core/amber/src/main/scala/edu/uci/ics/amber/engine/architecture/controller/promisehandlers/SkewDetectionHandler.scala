@@ -15,13 +15,13 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDete
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerWorkloadInfo}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseSkewMitigationHandler.PauseSkewMitigation
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateOrNotifyHelperHandler.SendImmutableStateOrNotifyHelper
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateHandler.SendImmutableState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SharePartitionHandler.SharePartition
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExecConfig
-import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpExecConfig
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -250,12 +250,10 @@ object SkewDetectionHandler {
           )
           .get
       case _ =>
-        // Should be sort operator
-        workflow
-          .getUpStreamConnectedWorkerLayers(opId)
-          .values
-          .toList
-          .head
+        // This case shouldn't arise
+        throw new WorkflowRuntimeException(
+          s"Reshape: Previous worker layer called when current operator is not join!"
+        )
     }
   }
 
@@ -373,10 +371,7 @@ trait SkewDetectionHandler {
       workflowReshapeState.detectionCallCount += 1
 
       workflow.getAllOperators.foreach(opConfig => {
-        if (
-          opConfig.isInstanceOf[HashJoinOpExecConfig[_]] || opConfig
-            .isInstanceOf[SortPartitionsOpExecConfig]
-        ) {
+        if (opConfig.isInstanceOf[HashJoinOpExecConfig[_]]) {
           // Skew handling is only for hash-join operator for now.
           // 1: Find the skewed and helper worker that need first phase.
           val skewedAndHelperPairsForFirstPhase =
@@ -406,7 +401,7 @@ trait SkewDetectionHandler {
             val currHelperWorker = skewedAndHelper._2
             val stateTransferOrIntimationNeeded = skewedAndHelper._3
             if (stateTransferOrIntimationNeeded) {
-              send(SendImmutableStateOrNotifyHelper(currHelperWorker), currSkewedWorker).map(
+              send(SendImmutableState(currHelperWorker), currSkewedWorker).map(
                 stateTransferOrIntimationSuccessful => {
                   if (stateTransferOrIntimationSuccessful) {
                     workflowReshapeState.skewedToStateTransferOrIntimationDone(currSkewedWorker) =
