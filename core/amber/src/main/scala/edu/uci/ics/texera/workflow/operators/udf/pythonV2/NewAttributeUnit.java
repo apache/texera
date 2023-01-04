@@ -18,7 +18,7 @@ public class NewAttributeUnit {
 
     @JsonProperty
     @JsonSchemaTitle("Expression")
-    @JsonPropertyDescription("Type the lambda expression")
+    @JsonPropertyDescription("Type the lambda expression. To specify an existing column, wrap the column name in backticks(`), e.g. `Unit Price`")
     public String expression;
 
     NewAttributeUnit(String attributeName, AttributeType attributeType, String expression) {

@@ -24,8 +24,14 @@ import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDe
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.{CSVOldScanSourceOpDesc, CSVScanSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
+  TwitterFullArchiveSearchSourceOpDesc,
+  TwitterSearchSourceOpDesc
+}
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
+  CSVOldScanSourceOpDesc,
+  CSVScanSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
@@ -33,7 +39,11 @@ import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSou
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{DualInputPortsPythonUDFOpDescV2, LambdaExpressionOpDesc, PythonUDFOpDescV2}
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+  DualInputPortsPythonUDFOpDescV2,
+  LambdaExpressionOpDesc,
+  PythonUDFOpDescV2
+}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
