@@ -24,14 +24,8 @@ import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDe
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
-  CSVOldScanSourceOpDesc,
-  CSVScanSourceOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.{CSVOldScanSourceOpDesc, CSVScanSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
@@ -39,12 +33,9 @@ import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSou
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2
-}
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.{PythonUDFSourceOpDescV2, RedditSearchSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
@@ -54,7 +45,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.Scatterpl
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
-import java.util.{UUID}
+import java.util.UUID
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
@@ -114,7 +105,8 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
     new Type(value = classOf[UnnestStringOpDesc], name = "UnnestString"),
     new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher"),
     new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions"),
-    new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan")
+    new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
+    new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
