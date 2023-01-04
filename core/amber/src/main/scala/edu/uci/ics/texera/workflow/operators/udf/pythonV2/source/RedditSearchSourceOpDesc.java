@@ -160,7 +160,6 @@ public class RedditSearchSourceOpDesc extends SourceOperatorDescriptor {
                 .replace("query = \"_QUERY_\"", "query = \"" + query_real + "\"")
                 .replace("sorting = \"_SORTING_\"", "sorting = \"" + this.sorting.getName() + "\"");
 
-        System.out.println(this.code);
         return sourceSchema();
     }
 
