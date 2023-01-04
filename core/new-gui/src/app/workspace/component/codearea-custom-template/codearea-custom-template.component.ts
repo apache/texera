@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import { AfterViewInit, Component } from "@angular/core";
 import { FieldType } from "@ngx-formly/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
@@ -20,12 +20,32 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
   templateUrl: "./codearea-custom-template.component.html",
   styleUrls: ["./codearea-custom-template.component.scss"],
 })
-export class CodeareaCustomTemplateComponent extends FieldType {
+export class CodeareaCustomTemplateComponent extends FieldType<any> implements AfterViewInit {
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
+  readonly: boolean = false;
 
   constructor(public dialog: MatDialog, private coeditorPresenceService: CoeditorPresenceService) {
     super();
     this.handleShadowingMode();
+  }
+
+  ngAfterViewInit() {
+    this.handleReadonlyStatusChange();
+  }
+
+  /**
+   * Syncs the disabled status of the button with formControl.
+   * Used to fit the unit test since undefined might occur.
+   * TODO: Using <code>formControl</code> here instead of
+   *  <code>WorkflowActionService.checkWorkflowModificationEnabled()</code>
+   *  since the readonly status of operator properties also locally depend on whether "Unlock for Logic Change"
+   *  is enabled, which can only be accessed via <code>formControl</code>. Might need a more unified solution.
+   */
+  handleReadonlyStatusChange(): void {
+    if (this.field === undefined) return;
+    this.field.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+      this.readonly = this.field.formControl.disabled;
+    });
   }
 
   /**
@@ -33,7 +53,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
    */
   onClickEditor(): void {
     this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
-      data: this.formControl?.value || "",
+      data: this.field.formControl,
     });
   }
 

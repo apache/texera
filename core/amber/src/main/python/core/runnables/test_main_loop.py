@@ -1,3 +1,4 @@
+import inspect
 from threading import Thread
 
 import pandas
@@ -28,6 +29,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
     WorkerStatistics,
     LinkCompletedV2,
+    InitializeOperatorLogicV2,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -37,6 +39,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     LinkIdentity,
     ReturnInvocationV2,
 )
+from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
 
 
@@ -44,10 +47,6 @@ class TestMainLoop:
     @pytest.fixture
     def command_sequence(self):
         return 1
-
-    @pytest.fixture
-    def mock_udf(self):
-        return EchoOperator()
 
     @pytest.fixture
     def mock_link(self):
@@ -59,6 +58,13 @@ class TestMainLoop:
     @pytest.fixture
     def mock_tuple(self):
         return Tuple({"test-1": "hello", "test-2": 10})
+
+    @pytest.fixture
+    def mock_batch(self):
+        batch_list = []
+        for i in range(57):
+            batch_list.append(Tuple({"test-1": "hello", "test-2": i}))
+        return batch_list
 
     @pytest.fixture
     def mock_sender_actor(self):
@@ -84,6 +90,25 @@ class TestMainLoop:
         )
 
     @pytest.fixture
+    def mock_batch_data_elements(self, mock_batch, mock_sender_actor):
+
+        data_elements = []
+        for i in range(57):
+            mock_tuple = Tuple({"test-1": "hello", "test-2": i})
+            data_elements.append(
+                DataElement(
+                    tag=mock_sender_actor,
+                    payload=InputDataFrame(
+                        frame=pyarrow.Table.from_pandas(
+                            pandas.DataFrame([mock_tuple.as_dict()])
+                        )
+                    ),
+                )
+            )
+
+        return data_elements
+
+    @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
         return DataElement(tag=mock_sender_actor, payload=EndOfUpstream())
 
@@ -102,6 +127,58 @@ class TestMainLoop:
         command = set_one_of(
             ControlCommandV2,
             UpdateInputLinkingV2(identifier=mock_sender_actor, input_link=mock_link),
+        )
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(command_id=command_sequence, command=command),
+        )
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
+    def mock_raw_schema(self):
+        return {"test-1": "string", "test-2": "integer"}
+
+    @pytest.fixture
+    def mock_initialize_operator_logic(
+        self,
+        mock_controller,
+        mock_sender_actor,
+        mock_link,
+        command_sequence,
+        mock_raw_schema,
+    ):
+        command = set_one_of(
+            ControlCommandV2,
+            InitializeOperatorLogicV2(
+                code="from pytexera import *\n" + inspect.getsource(EchoOperator),
+                is_source=False,
+                output_schema=mock_raw_schema,
+                upstream_link_ids=[mock_link],
+            ),
+        )
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(command_id=command_sequence, command=command),
+        )
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
+    def mock_initialize_batch_count_operator_logic(
+        self,
+        mock_controller,
+        mock_sender_actor,
+        mock_link,
+        command_sequence,
+        mock_raw_schema,
+    ):
+        command = set_one_of(
+            ControlCommandV2,
+            InitializeOperatorLogicV2(
+                code="from pytexera import *\n" + inspect.getsource(CountBatchOperator),
+                is_source=False,
+                output_schema=mock_raw_schema,
+                upstream_link_ids=[mock_link],
+            ),
         )
         payload = set_one_of(
             ControlPayloadV2,
@@ -141,17 +218,8 @@ class TestMainLoop:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
-    def main_loop(self, input_queue, output_queue, mock_udf, mock_link):
+    def main_loop(self, input_queue, output_queue, mock_link):
         main_loop = MainLoop(input_queue, output_queue)
-        # mock the operator binding
-        main_loop.context.operator_manager.operator = mock_udf
-        main_loop.context.batch_to_tuple_converter.update_all_upstream_link_ids(
-            {mock_link}
-        )
-        main_loop.context.operator_manager.operator.output_schema = {
-            "test-1": "string",
-            "test-2": "integer",
-        }
         yield main_loop
         main_loop.stop()
 
@@ -163,6 +231,30 @@ class TestMainLoop:
 
         main_loop_thread = Thread(target=wrapper, name="main_loop_thread")
         yield main_loop_thread
+
+    @staticmethod
+    def check_batch_rank_sum(
+        operator,
+        input_queue,
+        mock_batch_data_elements,
+        output_data_elements,
+        output_queue,
+        mock_batch,
+        start,
+        end,
+        count,
+    ):
+        # Checking the rank sum of each batch to make sure the accuracy
+        for i in range(start, end):
+            input_queue.put(mock_batch_data_elements[i])
+        rank_sum_real = 0
+        rank_sum_suppose = 0
+        for i in range(start, end):
+            output_data_elements.append(output_queue.get())
+            rank_sum_real += output_data_elements[i].payload.frame[0]["test-2"]
+            rank_sum_suppose += mock_batch[i]["test-2"]
+        assert operator.count == count
+        assert rank_sum_real == rank_sum_suppose
 
     @pytest.mark.timeout(2)
     def test_main_loop_thread_can_start(self, main_loop_thread):
@@ -181,6 +273,7 @@ class TestMainLoop:
         main_loop_thread,
         mock_update_input_linking,
         mock_add_partitioning,
+        mock_initialize_operator_logic,
         mock_end_of_upstream,
         mock_query_statistics,
         mock_tuple,
@@ -204,6 +297,18 @@ class TestMainLoop:
 
         # can process AddPartitioning
         input_queue.put(mock_add_partitioning)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process InitializeOperatorLogic
+        input_queue.put(mock_initialize_operator_logic)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -285,5 +390,115 @@ class TestMainLoop:
                 ),
             )
         )
+
+        reraise()
+
+    @pytest.mark.timeout(5)
+    def test_batch_dp_thread_can_process_batch(
+        self,
+        mock_controller,
+        mock_link,
+        input_queue,
+        output_queue,
+        mock_receiver_actor,
+        main_loop,
+        main_loop_thread,
+        mock_query_statistics,
+        mock_update_input_linking,
+        mock_add_partitioning,
+        mock_initialize_batch_count_operator_logic,
+        mock_batch,
+        mock_batch_data_elements,
+        mock_end_of_upstream,
+        command_sequence,
+        reraise,
+    ):
+        main_loop_thread.start()
+
+        # can process UpdateInputLinking
+        input_queue.put(mock_update_input_linking)
+
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process AddPartitioning
+        input_queue.put(mock_add_partitioning)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process InitializeOperatorLogic
+        input_queue.put(mock_initialize_batch_count_operator_logic)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+        operator = main_loop.context.operator_manager.operator
+
+        # can process a InputDataFrame
+
+        output_data_elements = []
+        # can process a InputDataFrame
+        operator.BATCH_SIZE = 10
+        for i in range(13):
+            input_queue.put(mock_batch_data_elements[i])
+        for i in range(10):
+            output_data_elements.append(output_queue.get())
+        assert operator.count == 1
+        # input queue 13, output queue 10, batch_buffer 3
+        operator.BATCH_SIZE = 20
+        for i in range(13, 41):
+            input_queue.put(mock_batch_data_elements[i])
+        for i in range(20):
+            output_data_elements.append(output_queue.get())
+        assert operator.count == 2
+        # input queue 41, output queue 30, batch_buffer 11
+        operator.BATCH_SIZE = 5
+        input_queue.put(mock_batch_data_elements[41])
+        for i in range(5):
+            output_data_elements.append(output_queue.get())
+        assert operator.count == 3
+        input_queue.put(mock_batch_data_elements[42])
+        for i in range(5):
+            output_data_elements.append(output_queue.get())
+        assert operator.count == 4
+        # input queue 43, output queue 40, batch_buffer 3
+        for i in range(43, 57):
+            input_queue.put(mock_batch_data_elements[i])
+        for i in range(15):
+            output_data_elements.append(output_queue.get())
+        # input queue 57, output queue 55, batch_buffer 2
+        assert operator.count == 7
+
+        input_queue.put(mock_end_of_upstream)
+        for i in range(2):
+            output_data_elements.append(output_queue.get())
+
+        # check the batch count
+        assert main_loop.context.operator_manager.operator.count == 8
+
+        assert output_data_elements[0].tag == mock_receiver_actor
+        assert isinstance(output_data_elements[0].payload, OutputDataFrame)
+        data_frame: OutputDataFrame = output_data_elements[0].payload
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame[0] == Tuple(mock_batch[0])
 
         reraise()
