@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.udf.pythonV2
 
-import com.fasterxml.jackson.annotation.{JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 class LambdaExpressionOpDesc extends OperatorDescriptor {
   @JsonSchemaTitle("Add new column(s)")
@@ -19,6 +19,10 @@ class LambdaExpressionOpDesc extends OperatorDescriptor {
     "Name the new column, select the data type, type the lambda expression"
   )
   var newAttributeUnits: List[NewAttributeUnit] = List()
+
+  @JsonSchemaTitle("Modify the existing column(s)")
+  @JsonPropertyDescription("Select the existing column, type the lambda expression")
+  var modifyAttributeUnits: List[ModifyAttributeUnit] = List()
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val exec = (i: Any) =>
@@ -65,7 +69,7 @@ class LambdaExpressionOpDesc extends OperatorDescriptor {
       "from pytexera import *\n" +
         "class ProcessTupleOperator(UDFOperatorV2):\n" +
         "    @overrides\n" +
-        "    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n";
+        "    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n"
     // if newColumns is not null, add the new column into the tuple
     if (newAttributeUnits != null) {
       for (unit <- newAttributeUnits) {
@@ -81,6 +85,22 @@ class LambdaExpressionOpDesc extends OperatorDescriptor {
             unit.attributeType,
             inputSchema
           ).eval()
+      }
+    }
+    // modify the existing columns
+    if (modifyAttributeUnits != null) {
+      for (unit <- modifyAttributeUnits) {
+        if (unit.expression != null && unit.expression.nonEmpty)
+          code += new LambdaExpression(
+            unit.expression,
+            unit.attributeName,
+            inputSchema.getAttribute(unit.attributeName).getType,
+            inputSchema
+          ).eval()
+        else
+          throw new RuntimeException(
+            s"Column name ${unit.attributeName}'s expression shouldn't be null or empty!"
+          )
       }
     }
     code + "        yield tuple_\n"
