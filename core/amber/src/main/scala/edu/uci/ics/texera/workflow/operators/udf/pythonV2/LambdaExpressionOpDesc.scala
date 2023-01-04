@@ -23,7 +23,7 @@ class LambdaExpressionOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val exec = (i: Any) =>
       new PythonUDFOpExecV2(
-        PythonCodeBuilder.build(newAttributeUnits),
+        buildPythonCode(operatorSchemaInfo.inputSchemas(0)),
         operatorSchemaInfo.outputSchemas.head
       )
     new OneToOneOpExecConfig(operatorIdentifier, exec)
@@ -58,4 +58,31 @@ class LambdaExpressionOpDesc extends OperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
+  private def buildPythonCode(inputSchema: Schema): String = {
+    // build the python udf code
+    var code: String =
+      "from pytexera import *\n" +
+        "class ProcessTupleOperator(UDFOperatorV2):\n" +
+        "    @overrides\n" +
+        "    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n";
+    // if newColumns is not null, add the new column into the tuple
+    if (newAttributeUnits != null) {
+      for (unit <- newAttributeUnits) {
+        if (inputSchema.containsAttribute(unit.attributeName))
+          throw new RuntimeException(
+            "Column name " + unit.attributeName + " already exists!"
+          )
+        code += s"        tuple_['${unit.attributeName}'] = None\n"
+        if (unit.expression != null && unit.expression.nonEmpty)
+          code += new LambdaExpression(
+            unit.expression,
+            unit.attributeName,
+            unit.attributeType,
+            inputSchema
+          ).eval()
+      }
+    }
+    code + "        yield tuple_\n"
+  }
 }
