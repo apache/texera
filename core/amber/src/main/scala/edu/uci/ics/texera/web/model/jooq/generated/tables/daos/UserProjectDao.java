@@ -76,6 +76,20 @@ public class UserProjectDao extends DAOImpl<UserProjectRecord, edu.uci.ics.texer
     }
 
     /**
+     * Fetch records that have <code>description BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserProject> fetchRangeOfDescription(String lowerInclusive, String upperInclusive) {
+        return fetchRange(UserProject.USER_PROJECT.DESCRIPTION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>description IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserProject> fetchByDescription(String... values) {
+        return fetch(UserProject.USER_PROJECT.DESCRIPTION, values);
+    }
+
+    /**
      * Fetch records that have <code>owner_id BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserProject> fetchRangeOfOwnerId(UInteger lowerInclusive, UInteger upperInclusive) {

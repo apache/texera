@@ -128,23 +128,15 @@ export const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
 export const operatorCacheTextClass = "texera-operator-result-cache-text";
 export const operatorCacheIconClass = "texera-operator-result-cache-icon";
-export const operatorStateBGClass = "texera-operator-state-background";
 export const operatorStateClass = "texera-operator-state";
-
-export const operatorProcessedCountBGClass = "texera-operator-processed-count-background";
 export const operatorProcessedCountClass = "texera-operator-processed-count";
-export const operatorOutputCountBGClass = "texera-operator-output-count-background";
 export const operatorOutputCountClass = "texera-operator-output-count";
-export const operatorAbbreviatedCountBGClass = "texera-operator-abbreviated-count-background";
 export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
 export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
-export const operatorCoeditorEditingBGClass = "texera-operator-coeditor-editing-background";
 export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
-export const operatorCoeditorChangedPropertyBGClass = "texera-operator-coeditor-changed-property-background";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
-export const operatorNameBGClass = "texera-operator-name-background";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -159,20 +151,13 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
     <g class="element-node">
       <rect class="body"></rect>
       <image class="${operatorIconClass}"></image>
-      <text class="${operatorNameBGClass}"></text>
       <text class="${operatorNameClass}"></text>
-      <text class="${operatorProcessedCountBGClass}"></text>
       <text class="${operatorProcessedCountClass}"></text>
-      <text class="${operatorOutputCountBGClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
-      <text class="${operatorAbbreviatedCountBGClass}"></text>
       <text class="${operatorAbbreviatedCountClass}"></text>
-      <text class="${operatorStateBGClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorCacheTextClass}"></text>
-      <text class="${operatorCoeditorEditingBGClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
-      <text class="${operatorCoeditorChangedPropertyBGClass}"></text>
       <text class="${operatorCoeditorChangedPropertyClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
       <rect class="boundary"></rect>
@@ -341,12 +326,9 @@ export class JointUIService {
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
     const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorProcessedCountBGClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
       [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
       [`.${operatorOutputCountClass}`]: { text: outputText },
-      [`.${operatorOutputCountBGClass}`]: { text: outputText },
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
-      [`.${operatorAbbreviatedCountBGClass}`]: { text: abbreviatedText },
     });
   }
 
@@ -372,13 +354,9 @@ export class JointUIService {
 
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "visible" },
       [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
       [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
-      [`.${operatorProcessedCountBGClass}`]: { visibility: "hidden" },
-      [`.${operatorOutputCountBGClass}`]: { visibility: "hidden" },
       [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
-      [`.${operatorStateBGClass}`]: { visibility: "hidden" },
       [`.${operatorStateClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
       ".add-input-port-button": { visibility: "hidden" },
@@ -390,13 +368,9 @@ export class JointUIService {
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "hidden" },
       [`.${operatorAbbreviatedCountClass}`]: { visibility: "hidden" },
       [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
-      [`.${operatorProcessedCountBGClass}`]: { visibility: "visible" },
-      [`.${operatorOutputCountBGClass}`]: { visibility: "visible" },
       [`.${operatorOutputCountClass}`]: { visibility: "visible" },
-      [`.${operatorStateBGClass}`]: { visibility: "visible" },
       [`.${operatorStateClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
       ".add-input-port-button": { visibility: "visible" },
@@ -465,7 +439,6 @@ export class JointUIService {
     }
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorStateClass}`]: { text: operatorState.toString() },
-      [`.${operatorStateBGClass}`]: { text: operatorState.toString() },
       [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
       [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
@@ -551,7 +524,6 @@ export class JointUIService {
     displayName: string
   ): void {
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameClass}/text`, displayName);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameBGClass}/text`, displayName);
   }
 
   public getBreakpointButton(): new () => joint.linkTools.Button {
@@ -775,19 +747,6 @@ export class JointUIService {
     operatorType: string
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      ".texera-operator-coeditor-editing-background": {
-        text: "",
-        "font-size": "14px",
-        "font-weight": "bold",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "hidden",
-        "ref-x": -50,
-        "ref-y": 100,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "start",
-      },
       ".texera-operator-coeditor-editing": {
         text: "",
         "font-size": "14px",
@@ -798,19 +757,6 @@ export class JointUIService {
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "start",
-      },
-      ".texera-operator-coeditor-changed-property-background": {
-        text: "",
-        "font-size": "14px",
-        "font-weight": "bold",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": 120,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
       },
       ".texera-operator-coeditor-changed-property": {
         text: "",
@@ -823,36 +769,12 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      ".texera-operator-state-background": {
-        text: "",
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": 100,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
       ".texera-operator-state": {
         text: "",
         "font-size": "14px",
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": 100,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-      ".texera-operator-abbreviated-count-background": {
-        text: "",
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "visible",
-        "ref-x": 0.5,
-        "ref-y": -30,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -868,18 +790,6 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      ".texera-operator-processed-count-background": {
-        text: "",
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": -50,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
       ".texera-operator-processed-count": {
         text: "",
         fill: "green",
@@ -887,18 +797,6 @@ export class JointUIService {
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": -50,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-      ".texera-operator-output-count-background": {
-        text: "",
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": -30,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -947,17 +845,6 @@ export class JointUIService {
         fill: "transparent",
         "ref-x": -30,
         "ref-y": -10,
-      },
-      ".texera-operator-name-background": {
-        text: operatorDisplayName,
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        "ref-x": 0.5,
-        "ref-y": 80,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
       },
       ".texera-operator-name": {
         text: operatorDisplayName,

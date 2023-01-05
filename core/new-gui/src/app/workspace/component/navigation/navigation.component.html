@@ -43,6 +43,7 @@
         *ngIf="displayParticularWorkflowVersion"
         nz-button
         nzType="primary"
+        [disabled]="!workflowVersionService.modificationEnabledBeforeTempWorkflow"
         (click)="revertToVersion()">
         Restore this version
       </button>
@@ -115,7 +116,7 @@
         <button
           (click)="persistWorkflow()"
           *ngIf="userSystemEnabled"
-          [disabled]="!userService.isLogin() || isSaving"
+          [disabled]="!userService.isLogin() || isSaving || !workflowActionService.checkWorkflowModificationEnabled()"
           nz-button
           title="save">
           <i
@@ -132,6 +133,7 @@
         </button>
         <button
           (click)="onClickDeleteAllOperators()"
+          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
           nz-button
           title="delete all">
           <i
@@ -139,9 +141,12 @@
             nzTheme="outline"
             nzType="delete"></i>
         </button>
-        <nz-upload [nzBeforeUpload]="onClickImportWorkflow">
+        <nz-upload
+          [nzDisabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [nzBeforeUpload]="onClickImportWorkflow">
           <button
             nz-button
+            [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
             title="import workflow">
             <i
               nz-icon
@@ -202,6 +207,7 @@
         <button
           nz-button
           (click)="onClickAutoLayout()"
+          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
           title="auto layout">
           <i
             nz-icon
@@ -210,6 +216,7 @@
         </button>
         <button
           (click)="onClickAddCommentBox()"
+          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
           nz-button
           title="add a comment">
           <i
