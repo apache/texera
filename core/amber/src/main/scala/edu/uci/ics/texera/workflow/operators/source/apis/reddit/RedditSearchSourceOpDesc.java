@@ -111,14 +111,12 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         String client_secret_real = this.client_secret.replace("\n", "").trim();
         String query_real = this.query.replace("\n", "").trim();
 
-        code = code
+        return code
                 .replace("_CLIENT_ID_", "\"" + client_id_real + "\"")
                 .replace("_CLIENT_SECRET_", "\"" + client_secret_real + "\"")
-                .replace("_LIMIT_",   ""+this.limit)
+                .replace("_LIMIT_", "" + this.limit)
                 .replace("_QUERY_", "\"" + query_real + "\"")
                 .replace("_SORTING_", "\"" + this.sorting.getName() + "\"");
-        return code;
-
     }
 
 
