@@ -3,14 +3,9 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV2
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 class LambdaExpressionOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Add new column(s)")
@@ -53,9 +48,9 @@ class LambdaExpressionOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def generatePythonCode(inputSchemas: Array[Schema]): String = {
+  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
     // build the python udf code
-    val inputSchema = inputSchemas.apply(0)
+    val inputSchema = operatorSchemaInfo.inputSchemas.apply(0)
     var code: String =
       "from pytexera import *\n" +
         "class ProcessTupleOperator(UDFOperatorV2):\n" +

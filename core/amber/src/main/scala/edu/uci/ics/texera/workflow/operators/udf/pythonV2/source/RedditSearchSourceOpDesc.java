@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import static java.util.Collections.singletonList;
@@ -44,7 +45,8 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     public RedditSourceOperatorFunction sorting;
 
     @Override
-    public String generatePythonCode(Schema[] inputSchemas) {
+    public String generatePythonCode(OperatorSchemaInfo operatorSchemaInfo) {
+
         String code = "from pytexera import *\n" +
                 "import praw\n" +
                 "from datetime import datetime\n" +
