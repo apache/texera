@@ -44,11 +44,7 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
   LambdaExpressionOpDesc,
   PythonUDFOpDescV2
 }
-import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.{
-  PythonUDFSourceOpDescV2,
-  RedditSearchSourceOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
@@ -61,7 +57,9 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import java.util.UUID
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
+import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
