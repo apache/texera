@@ -6,12 +6,13 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 trait PythonOperatorDescriptor extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    val exec = (i: Any) =>
+    val generatedCode = generatePythonCode(operatorSchemaInfo.inputSchemas)
+
+    new OneToOneOpExecConfig(operatorIdentifier, (_: Any) =>
       new PythonUDFOpExecV2(
-        generatePythonCode(operatorSchemaInfo.inputSchemas),
+        generatedCode,
         operatorSchemaInfo.outputSchemas.head
-      )
-    new OneToOneOpExecConfig(operatorIdentifier, exec)
+      ))
   }
 
   def generatePythonCode(inputSchemas: Array[Schema]): String

@@ -16,9 +16,9 @@ public class PythonUDFOpExecV2 implements OperatorExecutor {
     private final String code;
     private final Schema outputSchema;
 
-
     public PythonUDFOpExecV2(String code, Schema outputSchema) {
         this.code = code;
+        // TODO: support multiple output Schemas
         this.outputSchema = outputSchema;
     }
 
