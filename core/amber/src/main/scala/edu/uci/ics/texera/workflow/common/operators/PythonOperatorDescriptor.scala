@@ -8,11 +8,14 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val generatedCode = generatePythonCode(operatorSchemaInfo.inputSchemas)
 
-    new OneToOneOpExecConfig(operatorIdentifier, (_: Any) =>
-      new PythonUDFOpExecV2(
-        generatedCode,
-        operatorSchemaInfo.outputSchemas.head
-      ))
+    new OneToOneOpExecConfig(
+      operatorIdentifier,
+      (_: Any) =>
+        new PythonUDFOpExecV2(
+          generatedCode,
+          operatorSchemaInfo.outputSchemas.head
+        )
+    )
   }
 
   def generatePythonCode(inputSchemas: Array[Schema]): String
