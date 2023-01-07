@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
+package edu.uci.ics.texera.workflow.operators.source.apis.reddit;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 

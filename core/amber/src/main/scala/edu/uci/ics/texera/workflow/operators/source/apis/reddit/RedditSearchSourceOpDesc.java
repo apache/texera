@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
+package edu.uci.ics.texera.workflow.operators.source.apis.reddit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -52,19 +52,18 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
                 "from datetime import datetime\n" +
                 "\n" +
                 "class ProcessTupleOperator(UDFOperator):\n" +
-                "    client_id = \"_CLIENT_ID_\"\n" +
-                "    client_secret = \"_CLIENT_SECRET_\"\n" +
-                "    user_agent = \"chrome:reddit 0.0.0 (by /u/)\"\n" +
-                "    limit = 100\n" +
-                "    query = \"_QUERY_\"\n" +
-                "    sorting = \"_SORTING_\"\n" +
+                "    client_id = _CLIENT_ID_\n" +
+                "    client_secret = _CLIENT_SECRET_\n" +
+                "    limit = _LIMIT_\n" +
+                "    query = _QUERY_\n" +
+                "    sorting = _SORTING_\n" +
                 "\n" +
                 "    @overrides\n" +
                 "    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
                 "        redditInstance = praw.Reddit(\n" +
                 "            client_id=self.client_id,\n" +
                 "            client_secret=self.client_secret,\n" +
-                "            user_agent=self.user_agent\n" +
+                "            user_agent=\"chrome:reddit 0.0.0 (by /u/)\"\n" +
                 "        )\n" +
                 "\n" +
                 "        if len(self.client_id) == 0:\n" +
@@ -112,11 +111,12 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         String client_secret_real = this.client_secret.replace("\n", "").trim();
         String query_real = this.query.replace("\n", "").trim();
 
-        code = code.replace("client_id = \"_CLIENT_ID_\"", "client_id = \"" + client_id_real + "\"")
-                .replace("client_secret = \"_CLIENT_SECRET_\"", "client_secret = \"" + client_secret_real + "\"")
-                .replace("limit = 100", "limit = " + this.limit)
-                .replace("query = \"_QUERY_\"", "query = \"" + query_real + "\"")
-                .replace("sorting = \"_SORTING_\"", "sorting = \"" + this.sorting.getName() + "\"");
+        code = code
+                .replace("_CLIENT_ID_", "\"" + client_id_real + "\"")
+                .replace("_CLIENT_SECRET_", "\"" + client_secret_real + "\"")
+                .replace("_LIMIT_",   ""+this.limit)
+                .replace("_QUERY_", "\"" + query_real + "\"")
+                .replace("_SORTING_", "\"" + this.sorting.getName() + "\"");
         return code;
 
     }
