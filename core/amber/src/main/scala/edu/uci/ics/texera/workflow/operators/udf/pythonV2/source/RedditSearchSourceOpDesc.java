@@ -1,104 +1,23 @@
 package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
 
-import akka.util.Switch;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.common.IOperatorExecutor;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
-import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig;
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
+import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Function1;
-import com.google.common.base.Preconditions;
-
-import java.util.Collections;
-import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
-import static scala.collection.JavaConverters.mapAsScalaMap;
-
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 
 
-public class RedditSearchSourceOpDesc extends SourceOperatorDescriptor {
+public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
 
-    @JsonIgnore
-    public String code = "from pytexera import *\n" +
-            "import praw\n" +
-            "from datetime import datetime\n" +
-            "\n" +
-            "class ProcessTupleOperator(UDFOperator):\n" +
-            "    client_id = \"_CLIENT_ID_\"\n" +
-            "    client_secret = \"_CLIENT_SECRET_\"\n" +
-            "    user_agent = \"chrome:reddit 0.0.0 (by /u/)\"\n" +
-            "    limit = 100\n" +
-            "    query = \"_QUERY_\"\n" +
-            "    sorting = \"_SORTING_\"\n" +
-            "\n" +
-            "    @overrides\n" +
-            "    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
-            "        redditInstance = praw.Reddit(\n" +
-            "            client_id=self.client_id,\n" +
-            "            client_secret=self.client_secret,\n" +
-            "            user_agent=self.user_agent\n" +
-            "        )\n" +
-            "\n" +
-            "        if len(self.client_id) == 0:\n" +
-            "            raise ValueError(\"Client Id cannot be None.\")\n" +
-            "        \n" +
-            "        if len(self.client_secret) == 0:\n" +
-            "            raise ValueError(\"Client Secret cannot be None.\")\n" +
-            "        \n" +
-            "        if len(self.query) == 0:\n" +
-            "            raise ValueError(\"Query cannot be None.\")\n" +
-            "        \n" +
-            "        if self.limit <= 0 or self.limit > 1000:\n" +
-            "            raise ValueError(\"Limit should be larger than 0 and no more than 1000.\")\n" +
-            "        if self.sorting == \"none\":\n" +
-            "            submissions = redditInstance.subreddit(\"all\").search(query=self.query, limit=self.limit)\n" +
-            "        else:\n" +
-            "            submissions = redditInstance.subreddit(\"all\").search(query=self.query, limit=self.limit, sort=self.sorting)\n" +
-            "        for submission in submissions:\n" +
-            "            author = submission.author\n" +
-            "            subreddit = str(submission.subreddit.display_name)\n" +
-            "            edited = None\n" +
-            "            if type(submission.edited) != type(True):\n" +
-            "                edited = datetime.fromtimestamp(submission.edited)\n" +
-            "            tuple_submission = Tuple({\n" +
-            "                \"id\": submission.id,\n" +
-            "                \"name\": submission.name,\n" +
-            "                \"title\": submission.title,\n" +
-            "                \"created_utc\": datetime.fromtimestamp(submission.created_utc),\n" +
-            "                \"edited\": edited,\n" +
-            "                \"is_self\": submission.is_self,\n" +
-            "                \"selftext\": submission.selftext,\n" +
-            "                \"over_18\": submission.over_18,\n" +
-            "                \"is_original_content\": submission.is_original_content,\n" +
-            "                \"locked\": submission.locked,\n" +
-            "                \"score\": submission.score,\n" +
-            "                \"upvote_ratio\": submission.upvote_ratio,\n" +
-            "                \"num_comments\": submission.num_comments,\n" +
-            "                \"permalink\": submission.permalink,\n" +
-            "                \"url\": submission.url,\n" +
-//            "                \"author_id\": author_id,\n" +
-            "                \"author_name\": author.name,\n" +
-            "                \"subreddit\": subreddit\n" +
-            "            })\n" +
-            "            yield tuple_submission";
-
-    // query etc.
     @JsonProperty(required = true)
     @JsonSchemaTitle("Client Id")
     @JsonPropertyDescription("Client id that uses to access Reddit API")
@@ -125,11 +44,81 @@ public class RedditSearchSourceOpDesc extends SourceOperatorDescriptor {
     public RedditSourceOperatorFunction sorting;
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        Function1<Object, IOperatorExecutor> exec = (i) ->
-                new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
-        return new ManyToOneOpExecConfig(operatorIdentifier(), exec, mapAsScalaMap(Collections.emptyMap()));
+    public String generatePythonCode(Schema[] inputSchemas) {
+        String code = "from pytexera import *\n" +
+                "import praw\n" +
+                "from datetime import datetime\n" +
+                "\n" +
+                "class ProcessTupleOperator(UDFOperator):\n" +
+                "    client_id = \"_CLIENT_ID_\"\n" +
+                "    client_secret = \"_CLIENT_SECRET_\"\n" +
+                "    user_agent = \"chrome:reddit 0.0.0 (by /u/)\"\n" +
+                "    limit = 100\n" +
+                "    query = \"_QUERY_\"\n" +
+                "    sorting = \"_SORTING_\"\n" +
+                "\n" +
+                "    @overrides\n" +
+                "    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
+                "        redditInstance = praw.Reddit(\n" +
+                "            client_id=self.client_id,\n" +
+                "            client_secret=self.client_secret,\n" +
+                "            user_agent=self.user_agent\n" +
+                "        )\n" +
+                "\n" +
+                "        if len(self.client_id) == 0:\n" +
+                "            raise ValueError(\"Client Id cannot be None.\")\n" +
+                "        \n" +
+                "        if len(self.client_secret) == 0:\n" +
+                "            raise ValueError(\"Client Secret cannot be None.\")\n" +
+                "        \n" +
+                "        if len(self.query) == 0:\n" +
+                "            raise ValueError(\"Query cannot be None.\")\n" +
+                "        \n" +
+                "        if self.limit <= 0 or self.limit > 1000:\n" +
+                "            raise ValueError(\"Limit should be larger than 0 and no more than 1000.\")\n" +
+                "        if self.sorting == \"none\":\n" +
+                "            submissions = redditInstance.subreddit(\"all\").search(query=self.query, limit=self.limit)\n" +
+                "        else:\n" +
+                "            submissions = redditInstance.subreddit(\"all\").search(query=self.query, limit=self.limit, sort=self.sorting)\n" +
+                "        for submission in submissions:\n" +
+                "            author = submission.author\n" +
+                "            subreddit = str(submission.subreddit.display_name)\n" +
+                "            edited = None\n" +
+                "            if type(submission.edited) != type(True):\n" +
+                "                edited = datetime.fromtimestamp(submission.edited)\n" +
+                "            tuple_submission = Tuple({\n" +
+                "                \"id\": submission.id,\n" +
+                "                \"name\": submission.name,\n" +
+                "                \"title\": submission.title,\n" +
+                "                \"created_utc\": datetime.fromtimestamp(submission.created_utc),\n" +
+                "                \"edited\": edited,\n" +
+                "                \"is_self\": submission.is_self,\n" +
+                "                \"selftext\": submission.selftext,\n" +
+                "                \"over_18\": submission.over_18,\n" +
+                "                \"is_original_content\": submission.is_original_content,\n" +
+                "                \"locked\": submission.locked,\n" +
+                "                \"score\": submission.score,\n" +
+                "                \"upvote_ratio\": submission.upvote_ratio,\n" +
+                "                \"num_comments\": submission.num_comments,\n" +
+                "                \"permalink\": submission.permalink,\n" +
+                "                \"url\": submission.url,\n" +
+                "                \"author_name\": author.name,\n" +
+                "                \"subreddit\": subreddit\n" +
+                "            })\n" +
+                "            yield tuple_submission";
+        String client_id_real = this.client_id.replace("\n", "").trim();
+        String client_secret_real = this.client_secret.replace("\n", "").trim();
+        String query_real = this.query.replace("\n", "").trim();
+
+        code = code.replace("client_id = \"_CLIENT_ID_\"", "client_id = \"" + client_id_real + "\"")
+                .replace("client_secret = \"_CLIENT_SECRET_\"", "client_secret = \"" + client_secret_real + "\"")
+                .replace("limit = 100", "limit = " + this.limit)
+                .replace("query = \"_QUERY_\"", "query = \"" + query_real + "\"")
+                .replace("sorting = \"_SORTING_\"", "sorting = \"" + this.sorting.getName() + "\"");
+        return code;
+
     }
+
 
     @Override
     public OperatorInfo operatorInfo() {
@@ -142,25 +131,6 @@ public class RedditSearchSourceOpDesc extends SourceOperatorDescriptor {
                 false,
                 false
         );
-    }
-
-    @Override
-    public Schema getOutputSchema(Schema[] schemas) {
-        System.out.println(this.client_id);
-        System.out.println(this.client_secret);
-        Preconditions.checkArgument(schemas.length == 0);
-
-        String client_id_real = this.client_id.replace("\n", "").trim();
-        String client_secret_real = this.client_secret.replace("\n", "").trim();
-        String query_real = this.query.replace("\n", "").trim();
-
-        this.code = this.code.replace("client_id = \"_CLIENT_ID_\"", "client_id = \"" + client_id_real + "\"")
-                .replace("client_secret = \"_CLIENT_SECRET_\"", "client_secret = \"" + client_secret_real + "\"")
-                .replace("limit = 100", "limit = " + this.limit)
-                .replace("query = \"_QUERY_\"", "query = \"" + query_real + "\"")
-                .replace("sorting = \"_SORTING_\"", "sorting = \"" + this.sorting.getName() + "\"");
-
-        return sourceSchema();
     }
 
     public Schema sourceSchema() {
