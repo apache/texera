@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserProject extends TableImpl<UserProjectRecord> {
 
-    private static final long serialVersionUID = -508793175;
+    private static final long serialVersionUID = 440387621;
 
     /**
      * The reference instance of <code>texera_db.user_project</code>
@@ -63,7 +63,7 @@ public class UserProject extends TableImpl<UserProjectRecord> {
     /**
      * The column <code>texera_db.user_project.description</code>.
      */
-    public final TableField<UserProjectRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
+    public final TableField<UserProjectRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(10000), this, "");
 
     /**
      * The column <code>texera_db.user_project.owner_id</code>.
