@@ -22,12 +22,12 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     @JsonProperty(required = true)
     @JsonSchemaTitle("Client Id")
     @JsonPropertyDescription("Client id that uses to access Reddit API")
-    public String client_id;
+    public String clientId;
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("Client Secret")
     @JsonPropertyDescription("Client secret that uses to access Reddit API")
-    public String client_secret;
+    public String clientSecret;
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("Query")
@@ -107,15 +107,15 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
                 "                \"subreddit\": subreddit\n" +
                 "            })\n" +
                 "            yield tuple_submission";
-        String client_id_real = this.client_id.replace("\n", "").trim();
-        String client_secret_real = this.client_secret.replace("\n", "").trim();
-        String query_real = this.query.replace("\n", "").trim();
+        String clientIdReal = this.clientId.replace("\n", "").trim();
+        String clientSecretReal = this.clientSecret.replace("\n", "").trim();
+        String queryReal = this.query.replace("\n", "").trim();
 
         return code
-                .replace("_CLIENT_ID_", "\"" + client_id_real + "\"")
-                .replace("_CLIENT_SECRET_", "\"" + client_secret_real + "\"")
+                .replace("_CLIENT_ID_", "\"" + clientIdReal + "\"")
+                .replace("_CLIENT_SECRET_", "\"" + clientSecretReal + "\"")
                 .replace("_LIMIT_", "" + this.limit)
-                .replace("_QUERY_", "\"" + query_real + "\"")
+                .replace("_QUERY_", "\"" + queryReal + "\"")
                 .replace("_SORTING_", "\"" + this.sorting.getName() + "\"");
     }
 
@@ -124,7 +124,7 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
                 "Reddit Search Source Operator",
-                "Reddit search source operator in python script",
+                "Reddit search source operator to get Reddit posts by PRAW",
                 OperatorGroupConstants.SOURCE_GROUP(),
                 scala.collection.immutable.List.<InputPort>empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
@@ -152,7 +152,6 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
                         new Attribute("num_comments", AttributeType.INTEGER),
                         new Attribute("permalink", AttributeType.STRING),
                         new Attribute("url", AttributeType.STRING),
-//                        new Attribute("author_id", AttributeType.STRING),
                         new Attribute("author_name", AttributeType.STRING),
                         new Attribute("subreddit", AttributeType.STRING)
                 )
