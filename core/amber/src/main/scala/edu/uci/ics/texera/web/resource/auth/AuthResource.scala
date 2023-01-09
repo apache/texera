@@ -1,17 +1,15 @@
 package edu.uci.ics.texera.web.resource.auth
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
-import edu.uci.ics.texera.web.model.http.request.auth.{
-  RefreshTokenRequest,
-  UserLoginRequest,
-  UserRegistrationRequest
-}
+import edu.uci.ics.texera.web.model.http.request.auth.{RefreshTokenRequest, UserLoginRequest, UserRegistrationRequest}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
+
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 object AuthResource {
@@ -76,6 +74,7 @@ class AuthResource {
       case 0 =>
         val user = new User
         user.setName(username)
+        user.setRole(UserRole.ADMIN)
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)
