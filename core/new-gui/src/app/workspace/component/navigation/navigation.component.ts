@@ -1,32 +1,32 @@
-import {DatePipe, Location} from "@angular/common";
-import {ChangeDetectorRef, Component, ElementRef, Input, OnInit, ViewChild} from "@angular/core";
-import {environment} from "../../../../environments/environment";
-import {UserService} from "../../../common/service/user/user.service";
+import { DatePipe, Location } from "@angular/common";
+import { ChangeDetectorRef, Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { environment } from "../../../../environments/environment";
+import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../common/service/workflow-persist/workflow-persist.service";
-import {Workflow, WorkflowContent} from "../../../common/type/workflow";
-import {ExecuteWorkflowService} from "../../service/execute-workflow/execute-workflow.service";
-import {UndoRedoService} from "../../service/undo-redo/undo-redo.service";
-import {ValidationWorkflowService} from "../../service/validation/validation-workflow.service";
-import {JointGraphWrapper} from "../../service/workflow-graph/model/joint-graph-wrapper";
-import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
-import {ExecutionState} from "../../types/execute-workflow.interface";
-import {WorkflowWebsocketService} from "../../service/workflow-websocket/workflow-websocket.service";
-import {WorkflowResultExportService} from "../../service/workflow-result-export/workflow-result-export.service";
-import {debounceTime, map, takeUntil} from "rxjs/operators";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {WorkflowUtilService} from "../../service/workflow-graph/util/workflow-util.service";
-import {isSink} from "../../service/workflow-graph/model/workflow-graph";
-import {WorkflowVersionService} from "../../../dashboard/service/workflow-version/workflow-version.service";
-import {concatMap, catchError} from "rxjs/operators";
-import {UserProjectService} from "src/app/dashboard/service/user-project/user-project.service";
-import {NzUploadFile} from "ng-zorro-antd/upload";
-import {saveAs} from "file-saver";
-import {NotificationService} from "src/app/common/service/notification/notification.service";
-import {OperatorMenuService} from "../../service/operator-menu/operator-menu.service";
-import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
+import { Workflow, WorkflowContent } from "../../../common/type/workflow";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
+import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
+import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
+import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
+import { debounceTime, map, takeUntil } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
+import { isSink } from "../../service/workflow-graph/model/workflow-graph";
+import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { concatMap, catchError } from "rxjs/operators";
+import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
+import { NzUploadFile } from "ng-zorro-antd/upload";
+import { saveAs } from "file-saver";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -75,7 +75,6 @@ export class NavigationComponent implements OnInit {
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
-
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public workflowActionService: WorkflowActionService,
@@ -104,9 +103,14 @@ export class NavigationComponent implements OnInit {
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
-    this.workflowActionService.getWorkflowModificationEnabledStream().pipe(untilDestroyed(this)).subscribe(a => this.isWorkflowModifiable = a);
-    this.workflowActionService.workflowMetaDataChanged().pipe(untilDestroyed(this)).subscribe(metadata => this.workflowId = metadata.wid);
-
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(a => (this.isWorkflowModifiable = a));
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(metadata => (this.workflowId = metadata.wid));
   }
 
   public ngOnInit(): void {
@@ -153,8 +157,7 @@ export class NavigationComponent implements OnInit {
         text: "Error",
         icon: "exclamation-circle",
         disable: true,
-        onClick: () => {
-        },
+        onClick: () => {},
       };
     }
     switch (executionState) {
@@ -172,8 +175,7 @@ export class NavigationComponent implements OnInit {
           text: "Submitting",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          },
+          onClick: () => {},
         };
       case ExecutionState.Running:
         return {
@@ -195,24 +197,21 @@ export class NavigationComponent implements OnInit {
           text: "Pausing",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          },
+          onClick: () => {},
         };
       case ExecutionState.Resuming:
         return {
           text: "Resuming",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          },
+          onClick: () => {},
         };
       case ExecutionState.Recovering:
         return {
           text: "Recovering",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          },
+          onClick: () => {},
         };
     }
   }
@@ -381,7 +380,7 @@ export class NavigationComponent implements OnInit {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
     const workflowContentJson = JSON.stringify(workflowContent);
     const fileName = this.currentWorkflowName + ".json";
-    saveAs(new Blob([workflowContentJson], {type: "text/plain;charset=utf-8"}), fileName);
+    saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }
 
   /**
@@ -423,8 +422,7 @@ export class NavigationComponent implements OnInit {
           untilDestroyed(this)
         )
         .subscribe(
-          () => {
-          },
+          () => {},
           (error: unknown) => {
             alert(error);
             this.isSaving = false;
@@ -459,12 +457,12 @@ export class NavigationComponent implements OnInit {
           this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined
             ? ""
             : "Saved at " +
-            this.datePipe.transform(
-              this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
-              "MM/dd/yyyy HH:mm:ss zzz",
-              Intl.DateTimeFormat().resolvedOptions().timeZone,
-              "en"
-            );
+              this.datePipe.transform(
+                this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
+                "MM/dd/yyyy HH:mm:ss zzz",
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "en"
+              );
       });
   }
 
@@ -481,12 +479,12 @@ export class NavigationComponent implements OnInit {
           this.workflowActionService.getWorkflowMetadata().creationTime === undefined
             ? ""
             : "" +
-            this.datePipe.transform(
-              this.workflowActionService.getWorkflowMetadata().creationTime,
-              "MM/dd/yyyy HH:mm:ss zzz",
-              Intl.DateTimeFormat().resolvedOptions().timeZone,
-              "en"
-            );
+              this.datePipe.transform(
+                this.workflowActionService.getWorkflowMetadata().creationTime,
+                "MM/dd/yyyy HH:mm:ss zzz",
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "en"
+              );
         this.displayParticularWorkflowVersion = displayVersionFlag;
       });
   }

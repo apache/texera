@@ -4,7 +4,7 @@
       [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
       alt="Texera"
       class="texera-navigation-title"
-      src="assets/logos/full_logo_small.png?v=1"/>
+      src="assets/logos/full_logo_small.png?v=1" />
 
     <!-- workflow metadata display -->
     <div
@@ -31,7 +31,7 @@
           (change)="onWorkflowNameChange()"
           [(ngModel)]="currentWorkflowName"
           class="workflow-name"
-          placeholder="Untitled Workflow"/>
+          placeholder="Untitled Workflow" />
         <span
           *ngIf="displayParticularWorkflowVersion"
           class="particular-version-metadata"
@@ -318,7 +318,7 @@
       <label class="execution-name">
         <input
           [(ngModel)]="currentExecutionName"
-          placeholder="Untitled Execution"/>
+          placeholder="Untitled Execution" />
       </label>
       <nz-button-group nzSize="large">
         <button
