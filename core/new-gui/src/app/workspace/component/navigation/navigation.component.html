@@ -116,7 +116,7 @@
         <button
           (click)="persistWorkflow()"
           *ngIf="userSystemEnabled"
-          [disabled]="!userService.isLogin() || isSaving || !workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!userService.isLogin() || isSaving || !isWorkflowModifiable"
           nz-button
           title="save">
           <i
@@ -133,7 +133,7 @@
         </button>
         <button
           (click)="onClickDeleteAllOperators()"
-          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!isWorkflowModifiable"
           nz-button
           title="delete all">
           <i
@@ -142,11 +142,11 @@
             nzType="delete"></i>
         </button>
         <nz-upload
-          [nzDisabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [nzDisabled]="!isWorkflowModifiable"
           [nzBeforeUpload]="onClickImportWorkflow">
           <button
             nz-button
-            [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+            [disabled]="!isWorkflowModifiable"
             title="import workflow">
             <i
               nz-icon

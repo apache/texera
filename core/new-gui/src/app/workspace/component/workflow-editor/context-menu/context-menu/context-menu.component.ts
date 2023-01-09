@@ -1,6 +1,7 @@
 import { Component } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { untilDestroyed } from "@ngneat/until-destroy";
 
 @Component({
   selector: "texera-context-menu",
@@ -8,7 +9,11 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
   styleUrls: ["./context-menu.component.scss"],
 })
 export class ContextMenuComponent {
-  constructor(public workflowActionService: WorkflowActionService, public operatorMenu: OperatorMenuService) {}
+  public isWorkflowModifiable: boolean = false;
+
+  constructor(public workflowActionService: WorkflowActionService, public operatorMenu: OperatorMenuService) {
+    this.registerWorkflowModifiableChangedHandler();
+  }
 
   public onCopy(): void {
     this.operatorMenu.saveHighlightedElements();
@@ -33,5 +38,12 @@ export class ContextMenuComponent {
     highlightedCommentBoxIDs.forEach(highlightedCommentBoxID =>
       this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
     );
+  }
+
+  private registerWorkflowModifiableChangedHandler() {
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
   }
 }

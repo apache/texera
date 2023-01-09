@@ -103,14 +103,8 @@ export class NavigationComponent implements OnInit {
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
-    this.workflowActionService
-      .getWorkflowModificationEnabledStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(a => (this.isWorkflowModifiable = a));
-    this.workflowActionService
-      .workflowMetaDataChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(metadata => (this.workflowId = metadata.wid));
+    this.registerWorkflowModifiableChangedHandler();
+    this.registerWorkflowIdUpdateHandler();
   }
 
   public ngOnInit(): void {
@@ -497,5 +491,19 @@ export class NavigationComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+  }
+
+  private registerWorkflowModifiableChangedHandler(): void {
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
+  }
+
+  private registerWorkflowIdUpdateHandler(): void {
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(metadata => (this.workflowId = metadata.wid));
   }
 }
