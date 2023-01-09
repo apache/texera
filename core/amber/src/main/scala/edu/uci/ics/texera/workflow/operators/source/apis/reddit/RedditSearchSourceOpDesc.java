@@ -133,6 +133,11 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         );
     }
 
+    @Override
+    public int numWorkers(){
+        return 1;
+    }
+
     public Schema sourceSchema() {
         return Schema
                 .newBuilder()
