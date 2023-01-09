@@ -4,7 +4,7 @@
       [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
       alt="Texera"
       class="texera-navigation-title"
-      src="assets/logos/full_logo_small.png?v=1" />
+      src="assets/logos/full_logo_small.png?v=1"/>
 
     <!-- workflow metadata display -->
     <div
@@ -24,14 +24,14 @@
       </button>
       <label>
         <nz-avatar
-          *ngIf="workflowIdChanged | async as wid"
-          [nzText]="wid?.toString() || ''"></nz-avatar>
+          *ngIf="workflowId"
+          [nzText]="workflowId?.toString() || ''"></nz-avatar>
         <input
           *ngIf="!displayParticularWorkflowVersion"
           (change)="onWorkflowNameChange()"
           [(ngModel)]="currentWorkflowName"
           class="workflow-name"
-          placeholder="Untitled Workflow" />
+          placeholder="Untitled Workflow"/>
         <span
           *ngIf="displayParticularWorkflowVersion"
           class="particular-version-metadata"
@@ -63,7 +63,7 @@
       *ngIf="userSystemEnabled"
       class="texera-navigation-coeditor-icons">
       <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
-        <texera-coeditor-user-icon [coeditor]="user"> </texera-coeditor-user-icon>
+        <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
     </div>
 
@@ -207,7 +207,7 @@
         <button
           nz-button
           (click)="onClickAutoLayout()"
-          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!isWorkflowModifiable"
           title="auto layout">
           <i
             nz-icon
@@ -216,7 +216,7 @@
         </button>
         <button
           (click)="onClickAddCommentBox()"
-          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!isWorkflowModifiable"
           nz-button
           title="add a comment">
           <i
@@ -318,7 +318,7 @@
       <label class="execution-name">
         <input
           [(ngModel)]="currentExecutionName"
-          placeholder="Untitled Execution" />
+          placeholder="Untitled Execution"/>
       </label>
       <nz-button-group nzSize="large">
         <button
