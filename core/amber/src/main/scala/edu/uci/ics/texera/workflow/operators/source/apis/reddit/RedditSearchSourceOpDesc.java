@@ -47,7 +47,7 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     @Override
     public String generatePythonCode(OperatorSchemaInfo operatorSchemaInfo) {
 
-        String code = "from pytexera import *\n" +
+        String codeTemplate = "from pytexera import *\n" +
                 "import praw\n" +
                 "from datetime import datetime\n" +
                 "\n" +
@@ -111,7 +111,7 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         String clientSecretReal = this.clientSecret.replace("\n", "").trim();
         String queryReal = this.query.replace("\n", "").trim();
 
-        return code
+        return codeTemplate
                 .replace("_CLIENT_ID_", "\"" + clientIdReal + "\"")
                 .replace("_CLIENT_SECRET_", "\"" + clientSecretReal + "\"")
                 .replace("_LIMIT_", "" + this.limit)
