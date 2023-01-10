@@ -14,7 +14,7 @@
     nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0) &&
-  this.workflowActionService.checkWorkflowModificationEnabled()"
+  isWorkflowModifiable"
     (click)="onCut()">
     <span
       nz-icon
@@ -26,7 +26,7 @@
     nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length === 0 &&
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length === 0) &&
-  this.workflowActionService.checkWorkflowModificationEnabled()"
+  isWorkflowModifiable"
     (click)="onPaste()">
     <span
       nz-icon
@@ -78,7 +78,7 @@
     nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0) &&
-  this.workflowActionService.checkWorkflowModificationEnabled()"
+  isWorkflowModifiable"
     (click)="onDelete()">
     <span
       nz-icon

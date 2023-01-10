@@ -15,7 +15,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, map } from "rxjs/operators";
+import { debounceTime, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
@@ -54,6 +54,8 @@ export class NavigationComponent implements OnInit {
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
+  public isWorkflowModifiable: boolean = false;
+  public workflowId?: number;
 
   @Input() private pid: number = 0;
   @Input() public autoSaveState: string = "";
@@ -72,8 +74,6 @@ export class NavigationComponent implements OnInit {
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
-
-  public workflowIdChanged = this.workflowActionService.workflowMetaDataChanged().pipe(map(metadata => metadata.wid));
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -103,6 +103,8 @@ export class NavigationComponent implements OnInit {
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
+    this.registerWorkflowModifiableChangedHandler();
+    this.registerWorkflowIdUpdateHandler();
   }
 
   public ngOnInit(): void {
@@ -489,5 +491,19 @@ export class NavigationComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+  }
+
+  private registerWorkflowModifiableChangedHandler(): void {
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
+  }
+
+  private registerWorkflowIdUpdateHandler(): void {
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(metadata => (this.workflowId = metadata.wid));
   }
 }

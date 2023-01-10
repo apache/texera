@@ -1,13 +1,4 @@
-import {
-  ChangeDetectorRef,
-  Component,
-  ComponentFactoryResolver,
-  Input,
-  OnChanges,
-  OnDestroy,
-  OnInit,
-  SimpleChanges,
-} from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { AbstractControl, FormGroup } from "@angular/forms";
@@ -50,7 +41,6 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
-import { JSONSchema7Type } from "json-schema";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -87,7 +77,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   readonly ExecutionState = ExecutionState;
 
   // whether the editor can be edited
-  interactive: boolean = this.evaluateInteractivity();
+  interactive: boolean = false;
 
   // the source event stream of form change triggered by library at each user input
   sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
@@ -277,14 +267,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // execute set interactivity immediately in another task because of a formly bug
     // whenever the form model is changed, formly can only disable it after the UI is rendered
     setTimeout(() => {
-      const interactive = this.evaluateInteractivity();
-      this.setInteractivity(interactive);
+      this.setInteractivity(this.interactive);
       this.changeDetectorRef.detectChanges();
     }, 0);
-  }
-
-  evaluateInteractivity(): boolean {
-    return this.workflowActionService.checkWorkflowModificationEnabled();
   }
 
   setInteractivity(interactive: boolean) {
@@ -389,8 +374,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .pipe(untilDestroyed(this))
       .subscribe(canModify => {
         if (this.currentOperatorId) {
-          const interactive = this.evaluateInteractivity();
-          this.setInteractivity(interactive);
+          this.setInteractivity(canModify);
           this.changeDetectorRef.detectChanges();
         }
       });
