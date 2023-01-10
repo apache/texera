@@ -31,7 +31,6 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
     )
   }
 
-
   def numWorkers(): Int = Constants.numWorkerPerNode
 
   def dependency(): mutable.Map[Int, Int] = mutable.Map()
