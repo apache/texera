@@ -3,17 +3,16 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV2
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
-class LambdaExpressionOpDesc extends OperatorDescriptor {
+class LambdaExpressionOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Add new column(s)")
   @JsonPropertyDescription(
     "Name the new column, select the data type, type the lambda expression"
@@ -23,15 +22,6 @@ class LambdaExpressionOpDesc extends OperatorDescriptor {
   @JsonSchemaTitle("Modify the existing column(s)")
   @JsonPropertyDescription("Select the existing column, type the lambda expression")
   var modifyAttributeUnits: List[ModifyAttributeUnit] = List()
-
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    val exec = (i: Any) =>
-      new PythonUDFOpExecV2(
-        buildPythonCode(operatorSchemaInfo.inputSchemas(0)),
-        operatorSchemaInfo.outputSchemas.head
-      )
-    new OneToOneOpExecConfig(operatorIdentifier, exec)
-  }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
@@ -63,8 +53,9 @@ class LambdaExpressionOpDesc extends OperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  private def buildPythonCode(inputSchema: Schema): String = {
+  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
     // build the python udf code
+    val inputSchema = operatorSchemaInfo.inputSchemas.apply(0)
     var code: String =
       "from pytexera import *\n" +
         "class ProcessTupleOperator(UDFOperatorV2):\n" +

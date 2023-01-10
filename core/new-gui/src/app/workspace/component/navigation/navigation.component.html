@@ -24,8 +24,8 @@
       </button>
       <label>
         <nz-avatar
-          *ngIf="workflowIdChanged | async as wid"
-          [nzText]="wid?.toString() || ''"></nz-avatar>
+          *ngIf="workflowId"
+          [nzText]="workflowId?.toString() || ''"></nz-avatar>
         <input
           *ngIf="!displayParticularWorkflowVersion"
           (change)="onWorkflowNameChange()"
@@ -63,7 +63,7 @@
       *ngIf="userSystemEnabled"
       class="texera-navigation-coeditor-icons">
       <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
-        <texera-coeditor-user-icon [coeditor]="user"> </texera-coeditor-user-icon>
+        <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
     </div>
 
@@ -116,7 +116,7 @@
         <button
           (click)="persistWorkflow()"
           *ngIf="userSystemEnabled"
-          [disabled]="!userService.isLogin() || isSaving || !workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!userService.isLogin() || isSaving || !isWorkflowModifiable"
           nz-button
           title="save">
           <i
@@ -133,7 +133,7 @@
         </button>
         <button
           (click)="onClickDeleteAllOperators()"
-          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!isWorkflowModifiable"
           nz-button
           title="delete all">
           <i
@@ -142,11 +142,11 @@
             nzType="delete"></i>
         </button>
         <nz-upload
-          [nzDisabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [nzDisabled]="!isWorkflowModifiable"
           [nzBeforeUpload]="onClickImportWorkflow">
           <button
             nz-button
-            [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+            [disabled]="!isWorkflowModifiable"
             title="import workflow">
             <i
               nz-icon
@@ -207,7 +207,7 @@
         <button
           nz-button
           (click)="onClickAutoLayout()"
-          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!isWorkflowModifiable"
           title="auto layout">
           <i
             nz-icon
@@ -216,7 +216,7 @@
         </button>
         <button
           (click)="onClickAddCommentBox()"
-          [disabled]="!workflowActionService.checkWorkflowModificationEnabled()"
+          [disabled]="!isWorkflowModifiable"
           nz-button
           title="add a comment">
           <i
