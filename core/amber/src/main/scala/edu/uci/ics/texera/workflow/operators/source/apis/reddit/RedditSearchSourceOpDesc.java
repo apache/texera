@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.source.apis.reddit;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
@@ -126,7 +125,7 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
                 "Reddit Search",
                 "Retrieve data from python-wrapped Reddit API, PRAW",
                 OperatorGroupConstants.SOURCE_GROUP(),
-                scala.collection.immutable.List.<InputPort>empty(),
+                scala.collection.immutable.List.empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
                 false,
                 false
