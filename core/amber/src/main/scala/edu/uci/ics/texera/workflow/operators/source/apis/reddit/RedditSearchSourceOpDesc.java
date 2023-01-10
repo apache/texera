@@ -123,8 +123,8 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "Reddit Search Source Operator",
-                "Reddit search source operator to get Reddit posts by PRAW",
+                "Reddit Search",
+                "Retrieve data from python-wrapped Reddit API, PRAW",
                 OperatorGroupConstants.SOURCE_GROUP(),
                 scala.collection.immutable.List.<InputPort>empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
