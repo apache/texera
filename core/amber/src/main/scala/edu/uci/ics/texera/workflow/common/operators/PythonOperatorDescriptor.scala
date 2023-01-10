@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpExecV2
 
 import scala.collection.mutable
 
@@ -13,11 +14,18 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
 
     new OneToOneOpExecConfig(
       id = operatorIdentifier,
-      opExec = (_: Any) =>
-        new PythonUDFOpExecV2(
-          generatedCode,
-          operatorSchemaInfo.outputSchemas.head
-        ),
+      opExec = (_: Int) =>
+        if (asSource()) {
+          new PythonUDFSourceOpExecV2(
+            generatedCode,
+            operatorSchemaInfo.outputSchemas.head
+          )
+        } else {
+          new PythonUDFOpExecV2(
+            generatedCode,
+            operatorSchemaInfo.outputSchemas.head
+          )
+        },
       numWorkers(),
       dependency()
     )
@@ -27,6 +35,8 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
   def numWorkers(): Int = Constants.numWorkerPerNode
 
   def dependency(): mutable.Map[Int, Int] = mutable.Map()
+
+  def asSource(): Boolean = false
 
   /**
     * This method is to be implemented to generate the actual Python source code
