@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -1170158302;
+    private static final long serialVersionUID = 1064641923;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -51,14 +51,14 @@ public class User extends TableImpl<UserRecord> {
     }
 
     /**
-     * The column <code>texera_db.user.name</code>.
-     */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
-
-    /**
      * The column <code>texera_db.user.uid</code>.
      */
     public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
+    /**
+     * The column <code>texera_db.user.name</code>.
+     */
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32), this, "");
 
     /**
      * The column <code>texera_db.user.password</code>.
@@ -164,7 +164,7 @@ public class User extends TableImpl<UserRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<String, UInteger, String, String, UserRole> fieldsRow() {
+    public Row5<UInteger, String, String, String, UserRole> fieldsRow() {
         return (Row5) super.fieldsRow();
     }
 }
