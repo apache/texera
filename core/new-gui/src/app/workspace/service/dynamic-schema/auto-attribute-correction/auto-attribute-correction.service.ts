@@ -7,7 +7,7 @@ import {
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
-import { cloneDeep, isEqual, map } from "lodash-es";
+import { cloneDeep, isEqual } from "lodash-es";
 // TODO: Add typing for the below two packages
 // @ts-ignore
 import { levenshtein } from "edit-distance";
