@@ -10,9 +10,8 @@ import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.in
 import { cloneDeep, isEqual, map } from "lodash-es";
 // TODO: Add typing for the below two packages
 // @ts-ignore
-import jsonRefLite from "json-ref-lite";
-// @ts-ignore
 import { levenshtein } from "edit-distance";
+import { Resolver } from "@stoplight/json-ref-resolver";
 import { isNotNull, isNull } from "src/app/common/util/assert";
 import { environment } from "src/environments/environment";
 
@@ -87,61 +86,62 @@ export class AutoAttributeCorrectionService {
       // [[oldAttribute1, newAttribute1], [oldAttribute2, newAttribute2], ...]
       const mapping: SchemaAttribute[][] = attributeMapping.pairs();
       // Resolve #ref in some json schema (e.g. Filter)
-      const resolvedJsonSchema = jsonRefLite.resolve(dynamicSchema.jsonSchema);
+      const resolver = new Resolver();
+      resolver.resolve(dynamicSchema.jsonSchema).then(resolvedJsonSchema => {
+        const matchFunc = (schema: CustomJSONSchema7, value: any) => {
+          if (schema.autofill === undefined) {
+            return false;
+          }
+          if (schema.autofillAttributeOnPort === undefined && port === 0) {
+            return true;
+          }
+          return schema.autofillAttributeOnPort === port;
+        };
+        const mutationFunc = (schema: CustomJSONSchema7, value: any) => {
+          if (schema.autofill === "attributeName") {
+            // value must be a string
+            const attrMapping = mapping.find(p => p[0].attributeName === value);
+            if (attrMapping === undefined) {
+              return value;
+            }
+            if (isNull(attrMapping[1])) {
+              return "";
+            }
+            return attrMapping[1].attributeName;
+          }
+          if (schema.autofill === "attributeNameList") {
+            // value must be a list of strings
+            // map any existing variables
+            const newAttrs = (value as any[])
+              .map(attr => {
+                const attrMapping = mapping.find(p => p[0].attributeName === value);
+                if (attrMapping === undefined) {
+                  return value;
+                }
+                if (isNull(attrMapping[1])) {
+                  return "";
+                }
+                return attrMapping[1].attributeName;
+              })
+              .filter(v => !isNotNull(v) && v !== "");
+            // depending on if this is a projection operator, add new values
+            if (operator.operatorType === "Projection") {
+              mapping.filter(p => isNotNull(p[0])).forEach(p => newAttrs.push(p[1]));
+            }
+          }
+          return value;
+        };
 
-      const matchFunc = (schema: CustomJSONSchema7, value: any) => {
-        if (schema.autofill === undefined) {
-          return false;
+        const newProperty = this.updateOperatorProperty(
+          operator.operatorProperties,
+          resolvedJsonSchema.result,
+          matchFunc,
+          mutationFunc
+        );
+        if (!isEqual(newProperty, operator.operatorProperties)) {
+          this.workflowActionService.setOperatorProperty(operatorID, newProperty);
         }
-        if (schema.autofillAttributeOnPort === undefined && port === 0) {
-          return true;
-        }
-        return schema.autofillAttributeOnPort === port;
-      };
-      const mutationFunc = (schema: CustomJSONSchema7, value: any) => {
-        if (schema.autofill === "attributeName") {
-          // value must be a string
-          const attrMapping = mapping.find(p => p[0].attributeName === value);
-          if (attrMapping === undefined) {
-            return value;
-          }
-          if (isNull(attrMapping[1])) {
-            return "";
-          }
-          return attrMapping[1].attributeName;
-        }
-        if (schema.autofill === "attributeNameList") {
-          // value must be a list of strings
-          // map any existing variables
-          const newAttrs = (value as any[])
-            .map(attr => {
-              const attrMapping = mapping.find(p => p[0].attributeName === value);
-              if (attrMapping === undefined) {
-                return value;
-              }
-              if (isNull(attrMapping[1])) {
-                return "";
-              }
-              return attrMapping[1].attributeName;
-            })
-            .filter(v => !isNotNull(v) && v !== "");
-          // depending on if this is a projection operator, add new values
-          if (operator.operatorType === "Projection") {
-            mapping.filter(p => isNotNull(p[0])).forEach(p => newAttrs.push(p[1]));
-          }
-        }
-        return value;
-      };
-
-      const newProperty = this.updateOperatorProperty(
-        operator.operatorProperties,
-        resolvedJsonSchema,
-        matchFunc,
-        mutationFunc
-      );
-      if (!isEqual(newProperty, operator.operatorProperties)) {
-        this.workflowActionService.setOperatorProperty(operatorID, newProperty);
-      }
+      });
     }
   }
 
