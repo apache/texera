@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 /**
- * The base interface of partition information in the compiler layer.
- */
+  * The base interface of partition information in the compiler layer.
+  */
 sealed trait PartitionInfo {
 
   // whether this partition satisfies the other partition
@@ -22,7 +22,6 @@ sealed trait PartitionInfo {
 
 }
 
-
 object HashPartition {
   def apply(hashColumnIndices: Seq[Int]): PartitionInfo = {
     if (hashColumnIndices.nonEmpty)
@@ -33,9 +32,9 @@ object HashPartition {
 }
 
 /**
- * Represents an input stream is partitioned on multiple nodes
- * according to a hash function on the specified column indices.
- */
+  * Represents an input stream is partitioned on multiple nodes
+  * according to a hash function on the specified column indices.
+  */
 case class HashPartition(hashColumnIndices: Seq[Int]) extends PartitionInfo
 
 object RangePartition {
@@ -50,10 +49,10 @@ object RangePartition {
 }
 
 /**
- * Represents an input stream is partitioned on multiple nodes
- *  and each node contains data fit in a specific range.
- * The data within each node is also sorted.
- */
+  * Represents an input stream is partitioned on multiple nodes
+  *  and each node contains data fit in a specific range.
+  * The data within each node is also sorted.
+  */
 case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax: Long)
     extends PartitionInfo {
 
@@ -65,11 +64,11 @@ case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax
 }
 
 /**
- * Represent the input stream is not partitioned and all data are on a single node.
- */
+  * Represent the input stream is not partitioned and all data are on a single node.
+  */
 case class SinglePartition() extends PartitionInfo {}
 
 /**
- * Represents there is no specific partitioning scheme of the input stream.
- */
+  * Represents there is no specific partitioning scheme of the input stream.
+  */
 case class UnknownPartition() extends PartitionInfo {}
