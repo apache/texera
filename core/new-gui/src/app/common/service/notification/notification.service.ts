@@ -4,7 +4,7 @@ import { Observable, Subject } from "rxjs";
 export interface Notification {
   type: "success" | "info" | "error" | "warning" | "loading";
   message: string;
-  duration: number;
+  options: object;
 }
 
 /**
@@ -25,27 +25,27 @@ export class NotificationService {
     this.notificationStream.next(notification);
   }
 
-  success(message: string, duration: number = 3000) {
-    this.sendNotification({ type: "success", message, duration });
+  success(message: string, options: object = {}) {
+    this.sendNotification({ type: "success", message, options });
   }
 
-  info(message: string, duration: number = 3000) {
-    this.sendNotification({ type: "info", message, duration });
+  info(message: string, options: object = {}) {
+    this.sendNotification({ type: "info", message, options });
   }
 
-  error(cause: Error | any, duration: number = 3000) {
+  error(cause: Error | any, options: object = {}) {
     this.sendNotification({
       type: "error",
       message: cause instanceof Error ? cause.message : cause.toString(),
-      duration,
+      options,
     });
   }
 
-  warning(message: string, duration: number = 3000) {
-    this.sendNotification({ type: "warning", message, duration });
+  warning(message: string, options: object = {}) {
+    this.sendNotification({ type: "warning", message, options });
   }
 
-  loading(message: string, duration: number = 3000) {
-    return this.sendNotification({ type: "loading", message, duration });
+  loading(message: string, options: object = {}) {
+    return this.sendNotification({ type: "loading", message, options });
   }
 }
