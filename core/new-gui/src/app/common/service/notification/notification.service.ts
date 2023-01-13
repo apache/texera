@@ -1,10 +1,11 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
+import { NzMessageDataOptions } from "ng-zorro-antd/message";
 
 export interface Notification {
   type: "success" | "info" | "error" | "warning" | "loading";
   message: string;
-  options: object;
+  options: NzMessageDataOptions;
 }
 
 /**
@@ -25,15 +26,15 @@ export class NotificationService {
     this.notificationStream.next(notification);
   }
 
-  success(message: string, options: object = {}) {
+  success(message: string, options: NzMessageDataOptions = {}) {
     this.sendNotification({ type: "success", message, options });
   }
 
-  info(message: string, options: object = {}) {
+  info(message: string, options: NzMessageDataOptions = {}) {
     this.sendNotification({ type: "info", message, options });
   }
 
-  error(cause: Error | any, options: object = {}) {
+  error(cause: Error | any, options: NzMessageDataOptions = {}) {
     this.sendNotification({
       type: "error",
       message: cause instanceof Error ? cause.message : cause.toString(),
@@ -41,11 +42,11 @@ export class NotificationService {
     });
   }
 
-  warning(message: string, options: object = {}) {
+  warning(message: string, options: NzMessageDataOptions = {}) {
     this.sendNotification({ type: "warning", message, options });
   }
 
-  loading(message: string, options: object = {}) {
+  loading(message: string, options: NzMessageDataOptions = {}) {
     return this.sendNotification({ type: "loading", message, options });
   }
 }
