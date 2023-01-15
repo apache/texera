@@ -381,7 +381,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!firstPortInputSchema) {
       return;
     }
-    const schemaMap = new Map(firstPortInputSchema?.map((obj) => [obj.attributeName, obj.attributeType]));
+    const schemaMap = new Map(firstPortInputSchema?.map(obj => [obj.attributeName, obj.attributeType]));
     formData.lambdaAttributeUnits.forEach((unit: any, index: number, a: any) => {
       if (unit.attributeType) schemaMap.set(unit.attributeName, unit.attributeType);
       if (schemaMap.has(unit.attributeName)) a[index].attributeType = schemaMap.get(unit.attributeName);
