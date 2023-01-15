@@ -200,7 +200,11 @@ export class SchemaPropagationService {
       if (!inputAttrAtPort) {
         return undefined;
       }
-      return inputAttrAtPort.map(attr => attr.attributeName);
+      const attrNames: string[] = inputAttrAtPort.map(attr => attr.attributeName);
+      if (v.title  === "Existing Attribute Name") {
+        attrNames.push("Add New Column");
+      }
+      return attrNames;
     };
 
     newJsonSchema = DynamicSchemaService.mutateProperty(

@@ -32,6 +32,7 @@ export function createShouldHideFieldFunc(hideTarget: string, hideType: HideType
     let targetFieldValue: any = model[hideTarget];
     if (targetFieldValue === null || targetFieldValue === undefined) {
       // console.debug("Formly model does not contain hide target. Formly does not know what to hide.");
+      if (hideExpectedValue.toString() == "(?!Add New Column).*") return true;
       return false;
     }
 
