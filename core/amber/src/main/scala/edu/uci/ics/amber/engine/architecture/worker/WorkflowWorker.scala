@@ -51,6 +51,8 @@ object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       op: IOperatorExecutor,
+      inputToOrdinalMapping: Map[LinkIdentity, Int],
+      outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
       parentNetworkCommunicationActorRef: NetworkSenderActorRef,
       allUpstreamLinkIds: Set[LinkIdentity],
       supportFaultTolerance: Boolean
@@ -59,6 +61,8 @@ object WorkflowWorker {
       new WorkflowWorker(
         id,
         op,
+        inputToOrdinalMapping,
+        outputToOrdinalMapping,
         parentNetworkCommunicationActorRef,
         allUpstreamLinkIds,
         supportFaultTolerance
@@ -71,6 +75,8 @@ object WorkflowWorker {
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
+    inputToOrdinalMapping: Map[LinkIdentity, Int],
+    outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
     parentNetworkCommunicationActorRef: NetworkSenderActorRef,
     allUpstreamLinkIds: Set[LinkIdentity],
     supportFaultTolerance: Boolean

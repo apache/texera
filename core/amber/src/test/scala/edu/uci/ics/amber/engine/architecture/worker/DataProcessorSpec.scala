@@ -43,6 +43,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 
+import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -137,6 +138,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val asyncRPCServer: AsyncRPCServer = null
+    val inputOrdinalMapping: Map[LinkIdentity, Int] = Map()
+    val outputOrdinalMapping: mutable.Map[LinkIdentity, Int] = new mutable.HashMap()
     val senderID = ActorVirtualIdentity("sender")
     val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     upstreamLinkStatus.registerInput(senderID, linkID)
@@ -147,11 +150,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       inSequence {
         (operator.open _).expects().once()
         tuples.foreach { x =>
-          (operator.processTuple _).expects(Left(x), linkID, pauseManager, asyncRPCClient)
+          (operator.processTuple _).expects(Left(x), 0, pauseManager, asyncRPCClient)
         }
         (operator.processTuple _).expects(
           Right(InputExhausted()),
-          linkID,
+          0,
           pauseManager,
           asyncRPCClient
         )
@@ -176,6 +179,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
+    val inputOrdinalMapping: Map[LinkIdentity, Int] = Map()
+    val outputOrdinalMapping: mutable.Map[LinkIdentity, Int] = new mutable.HashMap()
     val senderID = ActorVirtualIdentity("sender")
     val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     upstreamLinkStatus.registerInput(senderID, linkID)
@@ -188,13 +193,13 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         (operator.open _).expects().once()
         inAnyOrder {
           tuples.map { x =>
-            (operator.processTuple _).expects(Left(x), linkID, pauseManager, asyncRPCClient)
+            (operator.processTuple _).expects(Left(x), 0, pauseManager, asyncRPCClient)
           }
           (asyncRPCServer.receive _).expects(*, *).atLeastOnce() //process controls during execution
         }
         (operator.processTuple _).expects(
           Right(InputExhausted()),
-          linkID,
+          0,
           pauseManager,
           asyncRPCClient
         )
@@ -227,6 +232,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
+    val inputOrdinalMapping: Map[LinkIdentity, Int] = Map()
+    val outputOrdinalMapping: mutable.Map[LinkIdentity, Int] = new mutable.HashMap()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
     val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
@@ -259,6 +266,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
+    val inputOrdinalMapping: Map[LinkIdentity, Int] = Map()
+    val outputOrdinalMapping: mutable.Map[LinkIdentity, Int] = new mutable.HashMap()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
     val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
@@ -293,6 +302,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
+    val inputOrdinalMapping: Map[LinkIdentity, Int] = Map()
+    val outputOrdinalMapping: mutable.Map[LinkIdentity, Int] = new mutable.HashMap()
     val senderID = ActorVirtualIdentity("sender")
     val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
     upstreamLinkStatus.registerInput(senderID, linkID)
@@ -352,6 +363,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
+    val inputOrdinalMapping: Map[LinkIdentity, Int] = Map()
+    val outputOrdinalMapping: mutable.Map[LinkIdentity, Int] = new mutable.HashMap()
     val operator = new IOperatorExecutor {
       override def open(): Unit = {}
 
@@ -359,10 +372,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity,
+          input: Int,
           pauseManager: PauseManager,
           asyncRPCClient: AsyncRPCClient
-      ): Iterator[(ITuple, Option[LinkIdentity])] = {
+      ): Iterator[(ITuple, Option[Int])] = {
         Await.result(
           Future {
             Thread.sleep(3000); 42

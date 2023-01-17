@@ -32,7 +32,9 @@ class SplitOpExecConfig(
           i => new SplitOpExec(i, splitOpDesc, outputToOrdinalMapping),
           Constants.currentWorkerNum,
           FollowPrevious(),
-          RoundRobinDeployment()
+          RoundRobinDeployment(),
+          this.inputToOrdinalMapping.map(p => (p._1, p._2._1)).toMap,
+          this.outputToOrdinalMapping.map(p => (p._1, p._2._1))
         )
       ),
       Array()

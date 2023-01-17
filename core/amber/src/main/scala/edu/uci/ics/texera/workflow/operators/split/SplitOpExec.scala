@@ -24,24 +24,24 @@ class SplitOpExec(
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[LinkIdentity])] = {
+  ): Iterator[(ITuple, Option[Int])] = {
 
     if (tuple.isLeft) {
       val isTraining = random.nextInt(100) < opDesc.k
-      val port = if (isTraining) "training" else "testing"
-      val outLink = outputLinkMapping.get(port)
-      Iterator.single((tuple.left.get, outLink))
+      // training output port: 0, testing output port: 1
+      val port = if (isTraining) 0 else 1
+      Iterator.single((tuple.left.get, Some(port)))
     } else {
       Iterator.empty
     }
   }
 
-  def processTexeraTuple(
+  override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = ???
