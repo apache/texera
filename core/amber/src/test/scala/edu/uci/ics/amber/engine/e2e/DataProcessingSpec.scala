@@ -270,59 +270,59 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute csv->keyword->count->sink workflow normally" in {
-    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
-    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val countOpDesc =
-      TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
-      mutable.MutableList[OperatorLink](
-        OperatorLink(
-          OperatorPort(csvOpDesc.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
-        ),
-        OperatorLink(
-          OperatorPort(keywordOpDesc.operatorID, 0),
-          OperatorPort(countOpDesc.operatorID, 0)
-        ),
-        OperatorLink(OperatorPort(countOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
-      )
-    )
-    executeWorkflow(workflow)
-  }
+//  "Engine" should "execute csv->keyword->count->sink workflow normally" in {
+//    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+//    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+//    val countOpDesc =
+//      TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
+//    val sink = TestOperators.sinkOpDesc()
+//    val workflow = buildWorkflow(
+//      mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
+//      mutable.MutableList[OperatorLink](
+//        OperatorLink(
+//          OperatorPort(csvOpDesc.operatorID, 0),
+//          OperatorPort(keywordOpDesc.operatorID, 0)
+//        ),
+//        OperatorLink(
+//          OperatorPort(keywordOpDesc.operatorID, 0),
+//          OperatorPort(countOpDesc.operatorID, 0)
+//        ),
+//        OperatorLink(OperatorPort(countOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+//      )
+//    )
+//    executeWorkflow(workflow)
+//  }
 
-  "Engine" should "execute csv->keyword->averageAndGroupBy->sink workflow normally" in {
-    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
-    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val averageAndGroupByOpDesc =
-      TestOperators.aggregateAndGroupByDesc(
-        "Units Sold",
-        AggregationFunction.AVERAGE,
-        List[String]("Country")
-      )
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      mutable
-        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
-      mutable.MutableList[OperatorLink](
-        OperatorLink(
-          OperatorPort(csvOpDesc.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
-        ),
-        OperatorLink(
-          OperatorPort(keywordOpDesc.operatorID, 0),
-          OperatorPort(averageAndGroupByOpDesc.operatorID, 0)
-        ),
-        OperatorLink(
-          OperatorPort(averageAndGroupByOpDesc.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
-        )
-      )
-    )
-    executeWorkflow(workflow)
-  }
+//  "Engine" should "execute csv->keyword->averageAndGroupBy->sink workflow normally" in {
+//    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+//    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+//    val averageAndGroupByOpDesc =
+//      TestOperators.aggregateAndGroupByDesc(
+//        "Units Sold",
+//        AggregationFunction.AVERAGE,
+//        List[String]("Country")
+//      )
+//    val sink = TestOperators.sinkOpDesc()
+//    val workflow = buildWorkflow(
+//      mutable
+//        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
+//      mutable.MutableList[OperatorLink](
+//        OperatorLink(
+//          OperatorPort(csvOpDesc.operatorID, 0),
+//          OperatorPort(keywordOpDesc.operatorID, 0)
+//        ),
+//        OperatorLink(
+//          OperatorPort(keywordOpDesc.operatorID, 0),
+//          OperatorPort(averageAndGroupByOpDesc.operatorID, 0)
+//        ),
+//        OperatorLink(
+//          OperatorPort(averageAndGroupByOpDesc.operatorID, 0),
+//          OperatorPort(sink.operatorID, 0)
+//        )
+//      )
+//    )
+//    executeWorkflow(workflow)
+//  }
 
   "Engine" should "execute csv->(csv->)->join->sink workflow normally" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()

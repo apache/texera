@@ -13,13 +13,14 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.{JavaConverters, mutable}
 
 class FinalAggregateOpExec[Partial <: AnyRef](
-    val aggFunc: DistributedAggregation[Partial]
+    val aggFuncs: List[DistributedAggregation[Partial]]
 ) extends OperatorExecutor {
 
   var groupByKeyAttributes: Array[Attribute] = _
   var schema: Schema = _
 
-  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
+//  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
+  var partialObjectsPerKey = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], Partial]())
   var outputIterator: Iterator[Tuple] = _
 
   override def open(): Unit = {}
@@ -33,44 +34,65 @@ class FinalAggregateOpExec[Partial <: AnyRef](
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
-        val groupBySchema = if (aggFunc == null) null else aggFunc.groupByFunc(t.getSchema)
+        val groupBySchema = if (aggFuncs(0) == null) null else aggFuncs(0).groupByFunc(t.getSchema)
         val builder = Tuple.newBuilder(groupBySchema)
         groupBySchema.getAttributeNames.foreach(attrName =>
           builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
         )
-        val groupByKey = if (aggFunc == null) null else builder.build()
+        val groupByKey = if (aggFuncs == null) null else builder.build()
         if (groupByKeyAttributes == null) {
           groupByKeyAttributes =
-            if (aggFunc == null) Array()
+            if (aggFuncs == null) Array()
             else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
         }
         val key =
           if (groupByKey == null) List()
           else JavaConverters.asScalaBuffer(groupByKey.getFields).toList
 
-        val partialObject = t.getField[Partial](INTERNAL_AGGREGATE_PARTIAL_OBJECT)
-        if (!partialObjectPerKey.contains(key)) {
-          partialObjectPerKey.put(key, partialObject)
-        } else {
-          partialObjectPerKey.put(key, aggFunc.merge(partialObjectPerKey(key), partialObject))
+        for ((aggFunc, index) <- aggFuncs.view.zipWithIndex) {
+          val partialObject = t.getField[Partial](INTERNAL_AGGREGATE_PARTIAL_OBJECT)
+          if (!partialObjectsPerKey(index).contains(key)) {
+            partialObjectsPerKey(index).put(key, partialObject)
+          } else {
+            partialObjectsPerKey(index).put(key, aggFunc.merge(partialObjectsPerKey(index)(key), partialObject))
+          }
         }
         Iterator()
       case Right(_) =>
-        partialObjectPerKey.iterator.map(pair => {
-          val finalObject = aggFunc.finalAgg(pair._2)
-          // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
-          // right schema from there is a bit challenging.
-          // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
-          if (schema == null) {
-            schema = Schema
-              .newBuilder()
-              .add(groupByKeyAttributes.toArray: _*)
-              .add(finalObject.getSchema)
-              .build()
+        partialObjectsPerKey(0).iterator.map(pair => {
+          var schemabuilder = Schema
+            .newBuilder()
+            .add(groupByKeyAttributes.toArray: _*)
+
+          var tuple = Tuple.newBuilder(schema)
+
+          for ((aggFunc, index) <- aggFuncs.view.zipWithIndex) {
+            val finalObject = aggFunc.finalAgg(partialObjectsPerKey(index)(pair._1))
+            schemabuilder.add(finalObject.getSchema)
+
+            val fields: Array[Object] =
+              (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
+            tuple.addSequentially(fields)
           }
-          val fields: Array[Object] =
-            (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
-          Tuple.newBuilder(schema).addSequentially(fields).build()
+          schema = schemabuilder.build()
+          tuple.build()
+
+//          partialObjectPerKey.iterator.map(pair => {
+//            val finalObject = aggFunc.finalAgg(pair._2)
+//            // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
+//            // right schema from there is a bit challenging.
+//            // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
+//            if (schema == null) {
+//              schema = Schema
+//                .newBuilder()
+//                .add(groupByKeyAttributes.toArray: _*)
+//                .add(finalObject.getSchema)
+//                .build()
+//            }
+//            val fields: Array[Object] =
+//              (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
+//            Tuple.newBuilder(schema).addSequentially(fields).build()
+//          })
         })
     }
   }

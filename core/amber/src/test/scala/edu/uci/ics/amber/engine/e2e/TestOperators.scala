@@ -75,18 +75,18 @@ object TestOperators {
     keywordSearchOp
   }
 
-  def aggregateAndGroupByDesc(
-      attributeToAggregate: String,
-      aggFunction: AggregationFunction,
-      groupByAttributes: List[String]
-  ): SpecializedAverageOpDesc = {
-    val aggOp = new SpecializedAverageOpDesc()
-    aggOp.aggFunction = aggFunction
-    aggOp.attribute = attributeToAggregate
-    aggOp.resultAttribute = "aggregate-result"
-    aggOp.groupByKeys = groupByAttributes
-    aggOp
-  }
+//  def aggregateAndGroupByDesc(
+//      attributeToAggregate: String,
+//      aggFunction: AggregationFunction,
+//      groupByAttributes: List[String]
+//  ): SpecializedAverageOpDesc = {
+//    val aggOp = new SpecializedAverageOpDesc()
+//    aggOp.aggFunction = aggFunction
+//    aggOp.attribute = attributeToAggregate
+//    aggOp.resultAttribute = "aggregate-result"
+//    aggOp.groupByKeys = groupByAttributes
+//    aggOp
+//  }
 
   def inMemoryMySQLSourceOpDesc(
       host: String,

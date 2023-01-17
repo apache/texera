@@ -2,24 +2,12 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{
-  AggregateOpDesc,
-  AggregateOpExecConfig,
-  DistributedAggregation
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, AggregateOpExecConfig, DistributedAggregation}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 
 import java.io.Serializable
 
@@ -27,19 +15,24 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
 class SpecializedAverageOpDesc extends AggregateOpDesc {
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Aggregation Function")
-  @JsonPropertyDescription("sum, count, average, min, max, or concat")
-  var aggFunction: AggregationFunction = _
+//  @JsonProperty(required = true)
+//  @JsonSchemaTitle("Aggregation Function")
+//  @JsonPropertyDescription("sum, count, average, min, max, or concat")
+//  var aggFunction: AggregationFunction = _
+//
+//  @JsonProperty(value = "attribute", required = true)
+//  @JsonPropertyDescription("column to calculate average value")
+//  @AutofillAttributeName
+//  var attribute: String = _
+//
+//  @JsonProperty(value = "result attribute", required = true)
+//  @JsonPropertyDescription("column name of average result")
+//  var resultAttribute: String = _
 
-  @JsonProperty(value = "attribute", required = true)
-  @JsonPropertyDescription("column to calculate average value")
-  @AutofillAttributeName
-  var attribute: String = _
-
-  @JsonProperty(value = "result attribute", required = true)
-  @JsonPropertyDescription("column name of average result")
-  var resultAttribute: String = _
+  @JsonProperty(value = "aggregations", required = true)
+  @JsonPropertyDescription("multiple predicates in OR")
+  var aggregations: List[AggregationOperator] = List()
+//  var aggregations: List[AggregationOperator] = List(new AggregationOperator())
 
   @JsonProperty("groupByKeys")
   @JsonSchemaTitle("Group By Keys")
@@ -47,211 +40,65 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @AutofillAttributeNameList
   var groupByKeys: List[String] = _
 
-  @JsonIgnore
-  private var groupBySchema: Schema = _
-  @JsonIgnore
-  private var finalAggValueSchema: Schema = _
+//  @JsonIgnore
+//  private var groupBySchema: Schema = _
+//  @JsonIgnore
+//  private var finalAggValueSchema: Schema = _
 
   override def operatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
-  ): AggregateOpExecConfig[_] = {
-    this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
-    this.finalAggValueSchema = getFinalAggValueSchema
+  ): AggregateOpExecConfig[java.lang.Double] = {
+    var groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
+    var finalAggValueSchema = getFinalAggValueSchema
 
-    aggFunction match {
-      case AggregationFunction.AVERAGE => averageAgg(operatorSchemaInfo)
-      case AggregationFunction.COUNT   => countAgg(operatorSchemaInfo)
-      case AggregationFunction.MAX     => maxAgg(operatorSchemaInfo)
-      case AggregationFunction.MIN     => minAgg(operatorSchemaInfo)
-      case AggregationFunction.SUM     => sumAgg(operatorSchemaInfo)
-      case AggregationFunction.CONCAT  => concatAgg(operatorSchemaInfo)
-      case _ =>
-        throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
+    var groupByFunc: Schema => Schema = {
+      if (this.groupByKeys == null) null
+      else
+        schema => {
+          // Since this is a partially evaluated tuple, there is no actual schema for this
+          // available anywhere. Constructing it once for re-use
+          if (groupBySchema == null) {
+            val schemaBuilder = Schema.newBuilder()
+            groupByKeys.foreach(key => schemaBuilder.add(schema.getAttribute(key)))
+            groupBySchema = schemaBuilder.build
+          }
+          groupBySchema
+        }
     }
-  }
 
-  def sumAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
-    val aggregation = new DistributedAggregation[java.lang.Double](
-      () => 0,
-      (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        partial + (if (value.isDefined) value.get else 0)
-
-      },
-      (partial1, partial2) => partial1 + partial2,
-      partial => {
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.DOUBLE, partial)
-          .build
-      },
-      groupByFunc()
-    )
-    new AggregateOpExecConfig[java.lang.Double](
+    new AggregateOpExecConfig(
       operatorIdentifier,
-      aggregation,
+      aggregations.map(_.getAggFunc(finalAggValueSchema, groupByFunc)),
       operatorSchemaInfo
     )
+
+//    aggFunction match {
+//      case AggregationFunction.AVERAGE => averageAgg(operatorSchemaInfo)
+//      case AggregationFunction.COUNT   => countAgg(operatorSchemaInfo)
+//      case AggregationFunction.MAX     => maxAgg(operatorSchemaInfo)
+//      case AggregationFunction.MIN     => minAgg(operatorSchemaInfo)
+//      case AggregationFunction.SUM     => sumAgg(operatorSchemaInfo)
+//      case AggregationFunction.CONCAT  => concatAgg(operatorSchemaInfo)
+//      case _ =>
+//        throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
+//    }
   }
 
-  def countAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
-    val aggregation = new DistributedAggregation[Integer](
-      () => 0,
-      (partial, tuple) => {
-        partial + (if (tuple.getField(attribute) != null) 1 else 0)
-      },
-      (partial1, partial2) => partial1 + partial2,
-      partial => {
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.INTEGER, partial)
-          .build
-      },
-      groupByFunc()
-    )
-    new AggregateOpExecConfig[Integer](
-      operatorIdentifier,
-      aggregation,
-      operatorSchemaInfo
-    )
-  }
+//  def groupByFunc(): Schema => Schema = {
+//    if (this.groupByKeys == null) null
+//    else
+//      schema => {
+//        // Since this is a partially evaluated tuple, there is no actual schema for this
+//        // available anywhere. Constructing it once for re-use
+//        if (groupBySchema == null) {
+//          val schemaBuilder = Schema.newBuilder()
+//          groupByKeys.foreach(key => schemaBuilder.add(schema.getAttribute(key)))
+//          groupBySchema = schemaBuilder.build
+//        }
+//        groupBySchema
+//      }
+//  }
 
-  def concatAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
-    val aggregation = new DistributedAggregation[String](
-      () => "",
-      (partial, tuple) => {
-        if (partial == "") {
-          if (tuple.getField(attribute) != null) tuple.getField(attribute).toString() else ""
-        } else {
-          partial + "," + (if (tuple.getField(attribute) != null)
-                             tuple.getField(attribute).toString()
-                           else "")
-        }
-      },
-      (partial1, partial2) => {
-        if (partial1 != "" && partial2 != "") {
-          partial1 + "," + partial2
-        } else {
-          partial1 + partial2
-        }
-      },
-      partial => {
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.STRING, partial)
-          .build
-      },
-      groupByFunc()
-    )
-    new AggregateOpExecConfig[String](
-      operatorIdentifier,
-      aggregation,
-      operatorSchemaInfo
-    )
-  }
-
-  def minAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
-    val aggregation = new DistributedAggregation[java.lang.Double](
-      () => Double.MaxValue,
-      (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        if (value.isDefined && value.get < partial) value.get else partial
-      },
-      (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
-      partial => {
-        if (partial == Double.MaxValue) null
-        else
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, partial)
-            .build
-      },
-      groupByFunc()
-    )
-    new AggregateOpExecConfig[java.lang.Double](
-      operatorIdentifier,
-      aggregation,
-      operatorSchemaInfo
-    )
-  }
-
-  def maxAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
-    val aggregation = new DistributedAggregation[java.lang.Double](
-      () => Double.MinValue,
-      (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        if (value.isDefined && value.get > partial) value.get else partial
-      },
-      (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
-      partial => {
-        if (partial == Double.MinValue) null
-        else
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, partial)
-            .build
-      },
-      groupByFunc()
-    )
-    new AggregateOpExecConfig[java.lang.Double](
-      operatorIdentifier,
-      aggregation,
-      operatorSchemaInfo
-    )
-  }
-
-  def groupByFunc(): Schema => Schema = {
-    if (this.groupByKeys == null) null
-    else
-      schema => {
-        // Since this is a partially evaluated tuple, there is no actual schema for this
-        // available anywhere. Constructing it once for re-use
-        if (groupBySchema == null) {
-          val schemaBuilder = Schema.newBuilder()
-          groupByKeys.foreach(key => schemaBuilder.add(schema.getAttribute(key)))
-          groupBySchema = schemaBuilder.build
-        }
-        groupBySchema
-      }
-  }
-
-  private def getNumericalValue(tuple: Tuple): Option[Double] = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return None
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(parseTimestamp(value.toString).getTime.toDouble)
-    else Option(value.toString.toDouble)
-  }
-
-  def averageAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
-    val aggregation = new DistributedAggregation[AveragePartialObj](
-      () => AveragePartialObj(0, 0),
-      (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        AveragePartialObj(
-          partial.sum + (if (value.isDefined) value.get else 0),
-          partial.count + (if (value.isDefined) 1 else 0)
-        )
-      },
-      (partial1, partial2) =>
-        AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
-      partial => {
-        val value = if (partial.count == 0) null else partial.sum / partial.count
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.DOUBLE, value)
-          .build
-      },
-      groupByFunc()
-    )
-    new AggregateOpExecConfig[AveragePartialObj](
-      operatorIdentifier,
-      aggregation,
-      operatorSchemaInfo
-    )
-  }
 
   private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
     if (groupByKeys == null) {
@@ -264,22 +111,12 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   }
 
   private def getFinalAggValueSchema: Schema = {
-    if (this.aggFunction.equals(AggregationFunction.COUNT)) {
-      Schema
-        .newBuilder()
-        .add(resultAttribute, AttributeType.INTEGER)
-        .build()
-    } else if (this.aggFunction.equals(AggregationFunction.CONCAT)) {
-      Schema
-        .newBuilder()
-        .add(resultAttribute, AttributeType.STRING)
-        .build()
-    } else {
-      Schema
-        .newBuilder()
-        .add(resultAttribute, AttributeType.DOUBLE)
-        .build()
+    // TODO: Remove for loop
+    val schema = Schema.newBuilder()
+    for (agg <- aggregations) {
+      schema.add(agg.getAggregationSchema)
     }
+    schema.build()
   }
 
   override def operatorInfo: OperatorInfo =
@@ -292,7 +129,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    if (resultAttribute == null || resultAttribute.trim.isEmpty) {
+    if (aggregations.length == 0 || aggregations(0).resultAttribute == null || aggregations(0).resultAttribute.trim.isEmpty) {
       return null
     }
     Schema

@@ -18,12 +18,14 @@ object PartialAggregateOpExec {
 }
 
 class PartialAggregateOpExec[Partial <: AnyRef](
-    val aggFunc: DistributedAggregation[Partial]
+    val aggFuncs: List[DistributedAggregation[Partial]]
 ) extends OperatorExecutor {
 
   var groupByKeyAttributes: Array[Attribute] = _
   var schema: Schema = _
-  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
+//  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
+
+  var partialObjectsPerKey = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], Partial]())
   var outputIterator: Iterator[ITuple] = _
 
   override def open(): Unit = {}
@@ -37,18 +39,18 @@ class PartialAggregateOpExec[Partial <: AnyRef](
   ): scala.Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
-        val groupBySchema = if (aggFunc == null) null else aggFunc.groupByFunc(t.getSchema)
+        val groupBySchema = if (aggFuncs == null) null else aggFuncs(0).groupByFunc(t.getSchema)
         val builder = Tuple.newBuilder(groupBySchema)
         groupBySchema.getAttributeNames.foreach(attrName =>
           builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
         )
-        val groupByKey = if (aggFunc == null) null else builder.build()
+        val groupByKey = if (aggFuncs == null) null else builder.build()
         // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
         // right schema from there is a bit challenging.
         // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
         if (schema == null) {
           groupByKeyAttributes =
-            if (aggFunc == null) Array()
+            if (aggFuncs == null) Array()
             else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
           schema = Schema
             .newBuilder()
@@ -60,14 +62,28 @@ class PartialAggregateOpExec[Partial <: AnyRef](
           if (groupByKey == null) List()
           else JavaConverters.asScalaBuffer(groupByKey.getFields).toList
 
-        val partialObject = aggFunc.iterate(partialObjectPerKey.getOrElse(key, aggFunc.init()), t)
-        partialObjectPerKey.put(key, partialObject)
+        for ((aggFunc, index) <- aggFuncs.view.zipWithIndex) {
+          val partialObject = aggFunc.iterate(partialObjectsPerKey(index).getOrElse(key, aggFunc.init()), t)
+          partialObjectsPerKey(index).put(key, partialObject)
+        }
+
         Iterator()
       case Right(_) =>
-        partialObjectPerKey.iterator.map(pair => {
-          val fields: Array[Object] = (pair._1 :+ pair._2).toArray
-          Tuple.newBuilder(schema).addSequentially(fields).build()
+        (1 to partialObjectsPerKey(0).iterator.length).iterator.map(index => {
+          var listFields = partialObjectsPerKey(index).iterator.map(pair => {
+            (pair._1 :+ pair._2).toArray
+          })
+//          val fields: Array[Object] = (pair._1 :+ pair._2).toArray
+          var tuple = Tuple.newBuilder(schema)
+          listFields.foreach(fields => {
+            tuple.addSequentially(fields)
+          })
+          tuple.build()
+//          Tuple.newBuilder(schema).addSequentially(fields).build()
         })
+//        partialObjectsPerKey(0).iterator.map(pair => {
+//
+//        })
     }
   }
 

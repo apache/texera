@@ -24,23 +24,23 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class AggregateOpExecConfig[P <: AnyRef](
     id: OperatorIdentity,
-    val aggFunc: DistributedAggregation[P],
+    val aggFuncs: List[DistributedAggregation[P]],
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
 
-    if (aggFunc.groupByFunc == null) {
+    if (aggFuncs.length == 0 || aggFuncs(0).groupByFunc == null) {
       val partialLayer = new WorkerLayer(
         makeLayer(id, "localAgg"),
-        _ => new PartialAggregateOpExec(aggFunc),
+        _ => new PartialAggregateOpExec(aggFuncs),
         Constants.currentWorkerNum,
         UseAll(),
         RoundRobinDeployment()
       )
       val finalLayer = new WorkerLayer(
         makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec(aggFunc),
+        _ => new FinalAggregateOpExec(aggFuncs),
         1,
         ForceLocal(),
         RandomDeployment()
@@ -57,14 +57,14 @@ class AggregateOpExecConfig[P <: AnyRef](
     } else {
       val partialLayer = new WorkerLayer(
         makeLayer(id, "localAgg"),
-        _ => new PartialAggregateOpExec(aggFunc),
+        _ => new PartialAggregateOpExec(aggFuncs),
         Constants.currentWorkerNum,
         UseAll(),
         RoundRobinDeployment()
       )
       val finalLayer = new WorkerLayer(
         makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec(aggFunc),
+        _ => new FinalAggregateOpExec(aggFuncs),
         Constants.currentWorkerNum,
         FollowPrevious(),
         RoundRobinDeployment()
@@ -87,7 +87,7 @@ class AggregateOpExecConfig[P <: AnyRef](
   }
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
-    aggFunc
+    aggFuncs(0)
       .groupByFunc(operatorSchemaInfo.inputSchemas(0))
       .getAttributes
       .toArray

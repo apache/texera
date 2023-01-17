@@ -41,14 +41,14 @@ class AggregatedVizOpExecConfig[P <: AnyRef](
   override lazy val topology: Topology = {
     val partialLayer = new WorkerLayer(
       makeLayer(id, "localAgg"),
-      _ => new PartialAggregateOpExec(aggFunc),
+      _ => new PartialAggregateOpExec(List(aggFunc)),
       Constants.currentWorkerNum,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new WorkerLayer(
       makeLayer(id, "globalAgg"),
-      _ => new FinalAggregateOpExec(aggFunc),
+      _ => new FinalAggregateOpExec(List(aggFunc)),
       Constants.currentWorkerNum,
       FollowPrevious(),
       RoundRobinDeployment()

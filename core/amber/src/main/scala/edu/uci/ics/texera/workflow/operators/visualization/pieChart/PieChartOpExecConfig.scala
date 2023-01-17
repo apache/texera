@@ -40,14 +40,14 @@ class PieChartOpExecConfig[P <: AnyRef](
   override lazy val topology: Topology = {
     val aggPartialLayer = new WorkerLayer(
       makeLayer(id, "localAgg"),
-      _ => new PartialAggregateOpExec(aggFunc),
+      _ => new PartialAggregateOpExec(List(aggFunc)),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val aggFinalLayer = new WorkerLayer(
       makeLayer(id, "globalAgg"),
-      _ => new FinalAggregateOpExec(aggFunc),
+      _ => new FinalAggregateOpExec(List(aggFunc)),
       numWorkers,
       FollowPrevious(),
       RoundRobinDeployment()
