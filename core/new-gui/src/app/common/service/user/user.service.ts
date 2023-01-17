@@ -3,7 +3,7 @@ import { Observable, ReplaySubject } from "rxjs";
 import { User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
-import { map, mergeMap } from "rxjs/operators";
+import { map } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -18,7 +18,8 @@ export class UserService {
 
   constructor(private authService: AuthService) {
     if (environment.userSystemEnabled) {
-      this.authService.loginWithExistingToken().subscribe(user => this.changeUser(user));
+      const user = this.authService.loginWithExistingToken();
+      this.changeUser(user);
     }
   }
 
@@ -30,11 +31,11 @@ export class UserService {
     // validate the credentials with backend
     return this.authService
       .auth(username, password)
-      .pipe(mergeMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+      .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public googleLogin(): Observable<void> {
-    return this.authService.googleAuth().pipe(mergeMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+    return this.authService.googleAuth().pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public isLogin(): boolean {
@@ -46,13 +47,14 @@ export class UserService {
   }
 
   public logout(): void {
-    this.authService.logout().subscribe(_ => this.changeUser(undefined));
+    this.authService.logout();
+    this.changeUser(undefined);
   }
 
   public register(username: string, password: string): Observable<void> {
     return this.authService
       .register(username, password)
-      .pipe(mergeMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+      .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   /**
@@ -71,9 +73,10 @@ export class UserService {
     this.userChangeSubject.next(this.currentUser);
   }
 
-  private handleAccessToken(accessToken: string): Observable<void> {
+  private handleAccessToken(accessToken: string): void {
     AuthService.setAccessToken(accessToken);
-    return this.authService.loginWithExistingToken().pipe(map(user => this.changeUser(user)));
+    const user = this.authService.loginWithExistingToken();
+    this.changeUser(user);
   }
 
   /**

@@ -1,13 +1,12 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { from, interval, Observable, of, Subscription } from "rxjs";
+import { from, interval, Observable, Subscription } from "rxjs";
 import { AppSettings } from "../../app-setting";
-import { User } from "../../type/user";
+import { User, Role } from "../../type/user";
 import { timer } from "rxjs";
 import { mergeMap, startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { GoogleAuthService } from "ng-gapi";
-import GoogleAuth = gapi.auth2.GoogleAuth;
 import { NotificationService } from "../notification/notification.service";
 import { environment } from "../../../../environments/environment";
 
@@ -63,15 +62,11 @@ export class AuthService {
    */
   public googleAuth(): Observable<Readonly<{ accessToken: string }>> {
     return this.googleAuthService.getAuth().pipe(
-      mergeMap((auth: GoogleAuth) =>
-        // grantOfflineAccess allows application to access specified scopes offline
-        from(auth.grantOfflineAccess()).pipe(
-          mergeMap(({ code }) =>
-            this.http.post<Readonly<{ accessToken: string }>>(
-              `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-              { authCode: code }
-            )
-          )
+      mergeMap(auth => from(auth.grantOfflineAccess())),
+      mergeMap(({ code }) =>
+        this.http.post<Readonly<{ accessToken: string }>>(
+          `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+          { authCode: code }
         )
       )
     );
@@ -93,15 +88,14 @@ export class AuthService {
   /**
    * this method will clear the saved user account and trigger userChangeEvent
    */
-  public logout(): Observable<undefined> {
+  public logout(): undefined {
     AuthService.removeAccessToken();
-
     this.tokenExpirationSubscription?.unsubscribe();
     this.refreshTokenSubscription?.unsubscribe();
-    return of(undefined);
+    return undefined;
   }
 
-  public loginWithExistingToken(): Observable<User | undefined> {
+  public loginWithExistingToken(): User | undefined {
     this.tokenExpirationSubscription?.unsubscribe();
     const token = AuthService.getAccessToken();
 
@@ -115,19 +109,23 @@ export class AuthService {
     }
 
     const role = this.jwtHelperService.decodeToken(token).role;
+    const sub = this.jwtHelperService.decodeToken(token).sub;
 
-    if (this.inviteOnly && role == "INACTIVE") {
-      this.notificationService.error("Account pending approval!");
+    if (this.inviteOnly && role == Role.INACTIVE) {
+      this.notificationService.loading("The account request of <b>" + sub + "</b> is received and pending.", {
+        nzDuration: 0,
+      });
       return this.logout();
     }
 
     this.registerAutoLogout();
     this.registerAutoRefreshToken();
-    return of(<User>{
-      name: this.jwtHelperService.decodeToken(token).sub,
+    return {
+      uid: this.jwtHelperService.decodeToken(token).uid,
+      name: sub,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
       role: role,
-    });
+    };
   }
 
   /**
