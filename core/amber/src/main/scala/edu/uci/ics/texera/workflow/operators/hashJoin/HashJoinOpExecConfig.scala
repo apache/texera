@@ -33,7 +33,6 @@ class HashJoinOpExecConfig[K](
           makeLayer(id, "main"),
           _ =>
             new HashJoinOpExec[K](
-              getBuildTableLinkId(),
               buildAttributeName,
               probeAttributeName,
               joinType,
@@ -41,7 +40,8 @@ class HashJoinOpExecConfig[K](
             ),
           Constants.currentWorkerNum,
           UseAll(),
-          RoundRobinDeployment()
+          RoundRobinDeployment(),
+          inputToOrdinalMapping.map(p => (p._1, p._2._1)).toMap
         )
       ),
       Array()

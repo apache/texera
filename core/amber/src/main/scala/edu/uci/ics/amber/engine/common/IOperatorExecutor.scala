@@ -16,10 +16,10 @@ trait IOperatorExecutor {
 
   def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[LinkIdentity])]
+  ): Iterator[(ITuple, Option[Int])]
 
   def getParam(query: String): String = { null }
 

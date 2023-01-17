@@ -33,7 +33,9 @@ class WorkerLayer(
     var initIOperatorExecutor: Int => IOperatorExecutor,
     var numWorkers: Int,
     val deploymentFilter: DeploymentFilter,
-    val deployStrategy: DeployStrategy
+    val deployStrategy: DeployStrategy,
+    val inputOrdinalMapping: Map[LinkIdentity, Int] = Map(),
+    val outputOrdinalMapping: mutable.Map[LinkIdentity, Int] = new mutable.HashMap()
 ) extends Serializable {
 
   private val startDependencies = mutable.HashSet[LinkIdentity]()
@@ -86,6 +88,8 @@ class WorkerLayer(
               .props(
                 workerId,
                 operatorExecutor,
+                this.inputOrdinalMapping,
+                this.outputOrdinalMapping,
                 parentNetworkCommunicationActorRef,
                 allUpstreamLinkIds
               )
@@ -95,6 +99,8 @@ class WorkerLayer(
               .props(
                 workerId,
                 operatorExecutor,
+                this.inputOrdinalMapping,
+                this.outputOrdinalMapping,
                 parentNetworkCommunicationActorRef,
                 allUpstreamLinkIds,
                 supportFaultTolerance

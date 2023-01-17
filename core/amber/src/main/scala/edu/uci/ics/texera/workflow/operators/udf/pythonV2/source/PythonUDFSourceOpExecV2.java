@@ -23,7 +23,7 @@ public class PythonUDFSourceOpExecV2 extends PythonUDFOpExecV2 implements Source
 
 
     @Override
-    public Iterator<Tuple2<ITuple, Option<LinkIdentity>>> processTuple(Either<ITuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
+    public Iterator<Tuple2<ITuple, Option<Object>>> processTuple(Either<ITuple, InputExhausted> tuple, int input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         return SourceOperatorExecutor.super.processTuple(tuple, input, pauseManager, asyncRPCClient);
         // Will not be used. The real implementation is in the Python UDF.
     }

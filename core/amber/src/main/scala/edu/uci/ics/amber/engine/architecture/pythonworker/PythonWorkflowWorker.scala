@@ -18,26 +18,42 @@ import java.io.IOException
 import java.net.ServerSocket
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
+import scala.collection.mutable
 import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       op: IOperatorExecutor,
+      inputToOrdinalMapping: Map[LinkIdentity, Int],
+      outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
       parentNetworkCommunicationActorRef: NetworkSenderActorRef,
       allUpstreamLinkIds: Set[LinkIdentity]
   ): Props =
-    Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
+    Props(
+      new PythonWorkflowWorker(
+        id,
+        op,
+        inputToOrdinalMapping,
+        outputToOrdinalMapping,
+        parentNetworkCommunicationActorRef,
+        allUpstreamLinkIds
+      )
+    )
 }
 
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
+    inputToOrdinalMapping: Map[LinkIdentity, Int],
+    outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
     parentNetworkCommunicationActorRef: NetworkSenderActorRef,
     allUpstreamLinkIds: Set[LinkIdentity]
 ) extends WorkflowWorker(
       actorId,
       operator,
+      inputToOrdinalMapping,
+      outputToOrdinalMapping,
       parentNetworkCommunicationActorRef,
       allUpstreamLinkIds,
       false

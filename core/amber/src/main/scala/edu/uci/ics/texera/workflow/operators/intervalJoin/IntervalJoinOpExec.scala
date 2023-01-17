@@ -23,8 +23,7 @@ import scala.collection.mutable.ListBuffer
   */
 class IntervalJoinOpExec(
     val operatorSchemaInfo: OperatorSchemaInfo,
-    val desc: IntervalJoinOpDesc,
-    val leftInputLink: LinkIdentity
+    val desc: IntervalJoinOpDesc
 ) extends OperatorExecutor {
 
   val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
@@ -34,13 +33,13 @@ class IntervalJoinOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
     tuple match {
       case Left(currentTuple) =>
-        if (input == leftInputLink) {
+        if (input == 0) {
           leftTable += currentTuple
           if (rightTable.nonEmpty) {
             removeTooSmallTupleInRightCache(leftTable.head)

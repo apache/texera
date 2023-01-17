@@ -13,7 +13,7 @@ class DistinctOpExec extends OperatorExecutor {
   private val hashset: mutable.HashSet[Tuple] = mutable.HashSet()
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {

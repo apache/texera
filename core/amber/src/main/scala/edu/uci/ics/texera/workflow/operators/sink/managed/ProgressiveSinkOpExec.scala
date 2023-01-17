@@ -23,7 +23,7 @@ class ProgressiveSinkOpExec(
 
   override def consume(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity
+      input: Int
   ): Unit = {
     tuple match {
       case Left(t) =>
