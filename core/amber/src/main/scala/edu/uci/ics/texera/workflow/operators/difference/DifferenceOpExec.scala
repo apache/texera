@@ -22,7 +22,9 @@ class DifferenceOpExec() extends OperatorExecutor {
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
-    assert(input < 2)
+    if (input >= 2) {
+      throw new IllegalArgumentException("input port should not be more than 2")
+    }
     tuple match {
       case Left(t) =>
         if (input == 1) { // right input
