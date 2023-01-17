@@ -2,7 +2,6 @@ import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
-import { AuthService } from "../../../../common/service/user/auth.service";
 
 @UntilDestroy()
 @Component({
