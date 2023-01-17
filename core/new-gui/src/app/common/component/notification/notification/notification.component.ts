@@ -18,15 +18,15 @@ export class NotificationComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe((notification: Notification) => {
         if (notification.type === "success") {
-          this.message.success(notification.message);
+          this.message.success(notification.message, notification.options);
         } else if (notification.type === "info") {
-          this.message.info(notification.message);
+          this.message.info(notification.message, notification.options);
         } else if (notification.type === "error") {
-          this.message.error(notification.message);
+          this.message.error(notification.message, notification.options);
         } else if (notification.type === "warning") {
-          this.message.warning(notification.message);
+          this.message.warning(notification.message, notification.options);
         } else if (notification.type === "loading") {
-          this.message.loading(notification.message);
+          this.message.loading(notification.message, notification.options);
         }
       });
   }
