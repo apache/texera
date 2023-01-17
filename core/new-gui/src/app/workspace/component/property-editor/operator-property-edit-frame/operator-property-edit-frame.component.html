@@ -19,6 +19,17 @@
       nzTheme="outline"
       nzType="edit"></i>
   </button>
+  <span
+    *ngIf="currentOperatorId?.includes('PythonLambdaFunction')"
+    nz-tooltip="Python Lambda Expression instructions: 1. access the value of any attribute in the input schema, e.g., tuple_['Unit Price']; 2. any python syntax is accepted, e.g. True if tuple_['Unit Price'] > 500 else False"
+    nzSize="small"
+    nzTooltipPlacement="left"
+    nzType="text">
+    <i
+      nz-icon
+      nzTheme="outline"
+      nzType="question-circle"></i>
+  </span>
 </div>
 
 <div
