@@ -11,10 +11,10 @@ trait OperatorExecutor extends IOperatorExecutor {
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[LinkIdentity])] = {
+  ): Iterator[(ITuple, Option[Int])] = {
     processTexeraTuple(
       tuple.asInstanceOf[Either[Tuple, InputExhausted]],
       input,
@@ -25,7 +25,7 @@ trait OperatorExecutor extends IOperatorExecutor {
 
   def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple]

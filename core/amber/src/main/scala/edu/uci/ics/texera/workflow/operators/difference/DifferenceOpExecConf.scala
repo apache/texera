@@ -17,18 +17,16 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 class DifferenceOpExecConf[K](
     id: OperatorIdentity
 ) extends OpExecConfig(id) {
-  def getRightLink(): LinkIdentity =
-    inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == 1 }).get._1
-
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new WorkerLayer(
           makeLayer(id, "main"),
-          _ => new DifferenceOpExec(getRightLink()),
+          _ => new DifferenceOpExec(),
           Constants.currentWorkerNum,
           UseAll(),
-          RoundRobinDeployment()
+          RoundRobinDeployment(),
+          inputToOrdinalMapping.map(p => (p._1, p._2._1)).toMap
         )
       ),
       Array()

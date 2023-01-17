@@ -32,7 +32,7 @@ public class PythonUDFOpExecV2 implements OperatorExecutor {
 
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         // Will not be used. The real implementation is in the Python UDF.
         return null;
     }

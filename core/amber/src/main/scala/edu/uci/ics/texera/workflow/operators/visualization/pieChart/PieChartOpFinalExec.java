@@ -51,7 +51,7 @@ public class PieChartOpFinalExec implements OperatorExecutor {
     }
 
     @Override
-    public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
+    public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         if (tuple.isLeft()) {
             if (noDataCol) {
                 sum += tuple.left().get().getInt(1);

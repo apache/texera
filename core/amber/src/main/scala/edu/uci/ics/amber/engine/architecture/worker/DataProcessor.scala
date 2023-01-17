@@ -51,7 +51,11 @@ class DataProcessor( // dependencies:
     val logManager: LogManager,
     val recoveryManager: LocalRecoveryManager,
     val recoveryQueue: RecoveryQueue,
-    val actorId: ActorVirtualIdentity
+    val actorId: ActorVirtualIdentity,
+    val inputToOrdinalMapping: Map[LinkIdentity, Int],
+    //  use two different types for the wire library to do dependency injection
+    // temporary workaround, will be refactored soon
+    val outputToOrdinalMapping: mutable.Map[LinkIdentity, Int]
 ) extends WorkerInternalQueue
     with AmberLogging {
   // initialize dp thread upon construction
@@ -114,13 +118,28 @@ class DataProcessor( // dependencies:
       null // special case for source operator
     }
   }
+
+  def getInputPort(identifier: ActorVirtualIdentity): Int = {
+    val inputLink = getInputLink(identifier)
+    if (inputLink == null) 0
+    else if (!inputToOrdinalMapping.contains(inputLink)) 0
+    else inputToOrdinalMapping(inputLink)
+  }
+
+  def getOutputLinkByPort(outputPort: Option[Int]): Option[List[LinkIdentity]] = {
+    if (outputPort.isEmpty)
+      return Option.empty
+    val outLinks = outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
+    Option.apply(outLinks)
+  }
+
   // dp thread stats:
   // TODO: add another variable for recovery index instead of using the counts below.
   private var inputTupleCount = 0L
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
   private var currentInputActor: ActorVirtualIdentity = _
-  private var currentOutputIterator: Iterator[(ITuple, Option[LinkIdentity])] = _
+  private var currentOutputIterator: Iterator[(ITuple, Option[Int])] = _
 
   def getOperatorExecutor(): IOperatorExecutor = operator
 
@@ -156,12 +175,12 @@ class DataProcessor( // dependencies:
     *
     * @return an iterator of output tuples
     */
-  private[this] def processInputTuple(): Iterator[(ITuple, Option[LinkIdentity])] = {
-    var outputIterator: Iterator[(ITuple, Option[LinkIdentity])] = null
+  private[this] def processInputTuple(): Iterator[(ITuple, Option[Int])] = {
+    var outputIterator: Iterator[(ITuple, Option[Int])] = null
     try {
       outputIterator = operator.processTuple(
         currentInputTuple,
-        getInputLink(currentInputActor),
+        getInputPort(currentInputActor),
         pauseManager,
         asyncRPCClient
       )
@@ -184,7 +203,7 @@ class DataProcessor( // dependencies:
     * this function is only called by the DP thread
     */
   private[this] def outputOneTuple(): Unit = {
-    var out: (ITuple, Option[LinkIdentity]) = null
+    var out: (ITuple, Option[Int]) = null
     try {
       out = currentOutputIterator.next
     } catch safely {
@@ -205,7 +224,14 @@ class DataProcessor( // dependencies:
       stateManager.transitTo(PAUSED)
     } else {
       outputTupleCount += 1
-      batchProducer.passTupleToDownstream(outputTuple, outputPortOpt)
+      val outLinks = getOutputLinkByPort(outputPortOpt)
+      if (outLinks.isEmpty) {
+        batchProducer.passTupleToDownstream(outputTuple, Option.empty)
+      } else {
+        outLinks.get.foreach(outLink => {
+          batchProducer.passTupleToDownstream(outputTuple, Option.apply(outLink))
+        })
+      }
     }
   }
 
@@ -314,7 +340,7 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def outputAvailable(
-      outputIterator: Iterator[(ITuple, Option[LinkIdentity])]
+      outputIterator: Iterator[(ITuple, Option[Int])]
   ): Boolean = {
     try {
       outputIterator != null && outputIterator.hasNext
