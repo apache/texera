@@ -2,7 +2,10 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -10,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+import scala.reflect.ClassTag;
 
 
 import java.util.Collections;
@@ -32,6 +36,15 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 worker -> new SpecializedFilterOpExec(this),
                 Constants.currentWorkerNum(),
                 mapAsScalaMap(Collections.emptyMap())
+        );
+    }
+
+    @Override
+    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+        return NewOpExecConfig.oneToOneLayer(
+                operatorIdentifier(),
+                worker -> new SpecializedFilterOpExec(this),
+                ClassTag.apply(SpecializedFilterOpExec.class)
         );
     }
 

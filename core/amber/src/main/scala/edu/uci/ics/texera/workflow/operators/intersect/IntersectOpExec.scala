@@ -20,6 +20,9 @@ class IntersectOpExec extends OperatorExecutor {
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
+    if (input >= 2) {
+      throw new IllegalArgumentException("input port should not be more than 2")
+    }
     tuple match {
       case Left(t) =>
         // add the tuple to corresponding set
