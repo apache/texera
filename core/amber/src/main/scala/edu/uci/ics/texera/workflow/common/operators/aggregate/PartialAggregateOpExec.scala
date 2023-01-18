@@ -72,32 +72,14 @@ class PartialAggregateOpExec[Partial <: AnyRef : ClassTag](
         Iterator()
       case Right(_) =>
         var temp = partialObjectsPerKey(0).iterator.map(pair => {
-//          var listFields = partialObjectsPerKey.map(partialObjectPerKey => {
-//            (partialObjectsPerKey(index)._1 :+ partialObjectsPerKey(index)._2).toArray
-//          })
-////          val fields: Array[Object] = (pair._1 :+ pair._2).toArray
           var tuple = Tuple.newBuilder(schema)
-//          listFields.foreach(fields => {
-
-//          })
-
-//          tuple.addSequentially(partialObjectsPerKey.map(partialObjectPerKey => {
-//            (pair._1 :+ partialObjectPerKey(pair._1)).toArray
-//          }).flatten.toArray)
-
-//          tuple.add()
-//          var fields: Array[Object] =
-
           tuple.addSequentially(
             (pair._1 ++
               partialObjectsPerKey.map(partialObjectPerKey => {
                 partialObjectPerKey(pair._1)
               })).toArray
           )
-
-
           tuple.build()
-//          Tuple.newBuilder(schema).addSequentially(fields).build()
         })
         temp
     }
