@@ -60,49 +60,28 @@ class FinalAggregateOpExec[Partial <: AnyRef](
         Iterator()
       case Right(_) =>
         var temp = partialObjectsPerKey(0).iterator.map(pair => {
-          // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
-          // right schema from there is a bit challenging.
-          // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
-          var schemabuilder = Schema
-            .newBuilder()
-            .add(groupByKeyAttributes.toArray: _*)
-
-          var listFields: Array[Object] = Array()
-
           var tupleBuilder: Tuple.BuilderV2 = null
-
           partialObjectsPerKey.indices.foreach(index => {
             tupleBuilder = aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1), tupleBuilder)
-//            result.addSequentially(fields)
-//            listFields = listFields ++ fields
           })
-
           val finalObject = tupleBuilder.build()
-
-          schemabuilder.add(finalObject.getSchema)
 
           val fields: Array[Object] =
             (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
 
-          if (schema == null)
-            schema = schemabuilder.build()
+          // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
+          // right schema from there is a bit challenging.
+          // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
+          if (schema == null) {
+            schema = Schema
+              .newBuilder()
+              .add(groupByKeyAttributes.toArray: _*)
+              .add(finalObject.getSchema)
+              .build()
+          }
 
           Tuple.newBuilder(schema).addSequentially(fields).build()
 
-//          partialObjectPerKey.iterator.map(pair => {
-//            val finalObject = aggFunc.finalAgg(pair._2)
-//
-//            if (schema == null) {
-//              schema = Schema
-//                .newBuilder()
-//                .add(groupByKeyAttributes.toArray: _*)
-//                .add(finalObject.getSchema)
-//                .build()
-//            }
-//            val fields: Array[Object] =
-//              (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
-//            Tuple.newBuilder(schema).addSequentially(fields).build()
-//          })
         })
 
         temp
