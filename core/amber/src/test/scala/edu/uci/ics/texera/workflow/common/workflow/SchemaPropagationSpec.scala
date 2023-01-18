@@ -133,7 +133,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       OperatorPort(inferenceSink.operatorID, 0)
     )
 
-    val workflowInfo = new WorkflowInfo(operators, links, new mutable.MutableList[BreakpointInfo]())
+    val workflowInfo = new WorkflowInfo(operators.toList, links.toList, List())
     val workflowCompiler = new WorkflowCompiler(workflowInfo, new WorkflowContext())
 
     val schemaResult = workflowCompiler.propagateWorkflowSchema()
