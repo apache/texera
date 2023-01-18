@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseT
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 
 import java.io.Serializable
+import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
@@ -29,10 +30,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 //  @JsonPropertyDescription("column name of average result")
 //  var resultAttribute: String = _
 
-  @JsonProperty(value = "aggregations", required = true)
-  @JsonPropertyDescription("multiple predicates in OR")
+//  @JsonProperty(value = "aggregations", required = true)
+//  @JsonPropertyDescription("multiple predicates in OR")
+//  var aggregations: List[AggregationOperator] = List()
   var aggregations: List[AggregationOperator] = List()
-//  var aggregations: List[AggregationOperator] = List(new AggregationOperator())
 
   @JsonProperty("groupByKeys")
   @JsonSchemaTitle("Group By Keys")
@@ -112,11 +113,14 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   private def getFinalAggValueSchema: Schema = {
     // TODO: Remove for loop
-    val schema = Schema.newBuilder()
-    for (agg <- aggregations) {
-      schema.add(agg.getAggregationSchema)
-    }
-    schema.build()
+//    val schema = Schema.newBuilder()
+//    for (agg <- aggregations) {
+//      schema.add(agg.getAggregationSchema)
+//    }
+//    schema.build()
+    Schema.newBuilder()
+      .add(aggregations.map(_.getAggregationAttribute).asJava)
+      .build()
   }
 
   override def operatorInfo: OperatorInfo =

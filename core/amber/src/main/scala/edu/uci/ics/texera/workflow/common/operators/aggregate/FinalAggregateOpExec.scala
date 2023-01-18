@@ -50,7 +50,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
           else JavaConverters.asScalaBuffer(groupByKey.getFields).toList
 
         for ((aggFunc, index) <- aggFuncs.view.zipWithIndex) {
-          val partialObject = t.getField[Partial](INTERNAL_AGGREGATE_PARTIAL_OBJECT)
+          val partialObject = t.getField[Partial](INTERNAL_AGGREGATE_PARTIAL_OBJECT + index)
           if (!partialObjectsPerKey(index).contains(key)) {
             partialObjectsPerKey(index).put(key, partialObject)
           } else {
@@ -59,29 +59,39 @@ class FinalAggregateOpExec[Partial <: AnyRef](
         }
         Iterator()
       case Right(_) =>
-        partialObjectsPerKey(0).iterator.map(pair => {
+        var temp = partialObjectsPerKey(0).iterator.map(pair => {
+          // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
+          // right schema from there is a bit challenging.
+          // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
           var schemabuilder = Schema
             .newBuilder()
             .add(groupByKeyAttributes.toArray: _*)
 
-          var tuple = Tuple.newBuilder(schema)
+          var listFields: Array[Object] = Array()
 
-          for ((aggFunc, index) <- aggFuncs.view.zipWithIndex) {
-            val finalObject = aggFunc.finalAgg(partialObjectsPerKey(index)(pair._1))
-            schemabuilder.add(finalObject.getSchema)
+          var tupleBuilder: Tuple.BuilderV2 = null
 
-            val fields: Array[Object] =
-              (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
-            tuple.addSequentially(fields)
-          }
-          schema = schemabuilder.build()
-          tuple.build()
+          partialObjectsPerKey.indices.foreach(index => {
+            tupleBuilder = aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1), tupleBuilder)
+//            result.addSequentially(fields)
+//            listFields = listFields ++ fields
+          })
+
+          val finalObject = tupleBuilder.build()
+
+          schemabuilder.add(finalObject.getSchema)
+
+          val fields: Array[Object] =
+            (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
+
+          if (schema == null)
+            schema = schemabuilder.build()
+
+          Tuple.newBuilder(schema).addSequentially(fields).build()
 
 //          partialObjectPerKey.iterator.map(pair => {
 //            val finalObject = aggFunc.finalAgg(pair._2)
-//            // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
-//            // right schema from there is a bit challenging.
-//            // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
+//
 //            if (schema == null) {
 //              schema = Schema
 //                .newBuilder()
@@ -94,6 +104,8 @@ class FinalAggregateOpExec[Partial <: AnyRef](
 //            Tuple.newBuilder(schema).addSequentially(fields).build()
 //          })
         })
+
+        temp
     }
   }
 

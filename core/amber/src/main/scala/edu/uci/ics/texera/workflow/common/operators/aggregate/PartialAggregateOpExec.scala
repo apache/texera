@@ -12,12 +12,14 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.{JavaConverters, mutable}
+import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.reflect.ClassTag
 
 object PartialAggregateOpExec {
   val INTERNAL_AGGREGATE_PARTIAL_OBJECT = "__internal_aggregate_partial_object__";
 }
 
-class PartialAggregateOpExec[Partial <: AnyRef](
+class PartialAggregateOpExec[Partial <: AnyRef : ClassTag](
     val aggFuncs: List[DistributedAggregation[Partial]]
 ) extends OperatorExecutor {
 
@@ -55,7 +57,7 @@ class PartialAggregateOpExec[Partial <: AnyRef](
           schema = Schema
             .newBuilder()
             .add(groupByKeyAttributes.toArray: _*)
-            .add(INTERNAL_AGGREGATE_PARTIAL_OBJECT, AttributeType.ANY)
+            .add(aggFuncs.indices.map(i => new Attribute(INTERNAL_AGGREGATE_PARTIAL_OBJECT + i, AttributeType.ANY)).asJava)
             .build()
         }
         val key =
@@ -69,21 +71,35 @@ class PartialAggregateOpExec[Partial <: AnyRef](
 
         Iterator()
       case Right(_) =>
-        (1 to partialObjectsPerKey(0).iterator.length).iterator.map(index => {
-          var listFields = partialObjectsPerKey(index).iterator.map(pair => {
-            (pair._1 :+ pair._2).toArray
-          })
-//          val fields: Array[Object] = (pair._1 :+ pair._2).toArray
+        var temp = partialObjectsPerKey(0).iterator.map(pair => {
+//          var listFields = partialObjectsPerKey.map(partialObjectPerKey => {
+//            (partialObjectsPerKey(index)._1 :+ partialObjectsPerKey(index)._2).toArray
+//          })
+////          val fields: Array[Object] = (pair._1 :+ pair._2).toArray
           var tuple = Tuple.newBuilder(schema)
-          listFields.foreach(fields => {
-            tuple.addSequentially(fields)
-          })
+//          listFields.foreach(fields => {
+
+//          })
+
+//          tuple.addSequentially(partialObjectsPerKey.map(partialObjectPerKey => {
+//            (pair._1 :+ partialObjectPerKey(pair._1)).toArray
+//          }).flatten.toArray)
+
+//          tuple.add()
+//          var fields: Array[Object] =
+
+          tuple.addSequentially(
+            (pair._1 ++
+              partialObjectsPerKey.map(partialObjectPerKey => {
+                partialObjectPerKey(pair._1)
+              })).toArray
+          )
+
+
           tuple.build()
 //          Tuple.newBuilder(schema).addSequentially(fields).build()
         })
-//        partialObjectsPerKey(0).iterator.map(pair => {
-//
-//        })
+        temp
     }
   }
 

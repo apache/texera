@@ -1,13 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.aggregate
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonPropertyDescription
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpExecConfig, DistributedAggregation}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 
 class AggregationOperator() {
 
@@ -24,16 +23,20 @@ class AggregationOperator() {
   @JsonProperty(value = "result attribute", required = true)
   @JsonPropertyDescription("column name of average result")
   var resultAttribute: String = _
-
-  def getAggregationSchema: Schema = {
+  @JsonIgnore
+  def getAggregationAttribute: Attribute = {
     if (this.aggFunction == AggregationFunction.COUNT)
-      Schema.newBuilder.add(resultAttribute, AttributeType.INTEGER).build
+      new Attribute(resultAttribute, AttributeType.INTEGER)
+//      Schema.newBuilder.add(resultAttribute, AttributeType.INTEGER).build
     else if (this.aggFunction == AggregationFunction.CONCAT)
-      Schema.newBuilder.add(resultAttribute, AttributeType.STRING).build
+      new Attribute(resultAttribute, AttributeType.STRING)
+//      Schema.newBuilder.add(resultAttribute, AttributeType.STRING).build
     else
-      Schema.newBuilder.add(resultAttribute, AttributeType.DOUBLE).build
+      new Attribute(resultAttribute, AttributeType.DOUBLE)
+//      Schema.newBuilder.add(resultAttribute, AttributeType.DOUBLE).build
   }
 
+  @JsonIgnore
   def getAggFunc(finalAggValueSchema: Schema, groupByFunc: Schema => Schema): DistributedAggregation[java.lang.Double] = {
     aggFunction match {
 //      case AggregationFunction.AVERAGE => averageAgg(finalAggValueSchema, groupByFunc)
@@ -56,11 +59,14 @@ class AggregationOperator() {
 
       },
       (partial1, partial2) => partial1 + partial2,
-      partial => {
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.DOUBLE, partial)
-          .build
+      (partial, tupleBuilder) => {
+        if (tupleBuilder == null) {
+          Tuple
+            .newBuilder(finalAggValueSchema)
+            .add(resultAttribute, AttributeType.DOUBLE, partial)
+        } else {
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial)
+        }
       },
       groupByFunc
     )
@@ -78,11 +84,14 @@ class AggregationOperator() {
         partial + (if (tuple.getField(attribute) != null) 1 else 0)
       },
       (partial1, partial2) => partial1 + partial2,
-      partial => {
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.INTEGER, partial)
-          .build
+      (partial, tupleBuilder) => {
+        if (tupleBuilder == null) {
+          Tuple
+            .newBuilder(finalAggValueSchema)
+            .add(resultAttribute, AttributeType.INTEGER, partial)
+        } else {
+          tupleBuilder.add(resultAttribute, AttributeType.INTEGER, partial)
+        }
       },
       groupByFunc
     )
@@ -112,11 +121,13 @@ class AggregationOperator() {
           partial1 + partial2
         }
       },
-      partial => {
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.STRING, partial)
-          .build
+      (partial, tupleBuilder) => {
+        if (tupleBuilder == null) {
+          Tuple
+            .newBuilder(finalAggValueSchema)
+        } else {
+          tupleBuilder.add(resultAttribute, AttributeType.STRING, partial)
+        }
       },
       groupByFunc
     )
@@ -135,13 +146,22 @@ class AggregationOperator() {
         if (value.isDefined && value.get < partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
-      partial => {
-        if (partial == Double.MaxValue) null
-        else
+//      partial => {
+//        if (partial == Double.MaxValue) null
+//        else
+//          Tuple
+//            .newBuilder(finalAggValueSchema)
+//            .add(resultAttribute, AttributeType.DOUBLE, partial)
+//            .build
+//      },
+      (partial, tupleBuilder) => {
+        if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
             .add(resultAttribute, AttributeType.DOUBLE, partial)
-            .build
+        } else {
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial)
+        }
       },
       groupByFunc
     )
@@ -160,13 +180,22 @@ class AggregationOperator() {
         if (value.isDefined && value.get > partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
-      partial => {
-        if (partial == Double.MinValue) null
-        else
+//      partial => {
+//        if (partial == Double.MinValue) null
+//        else
+//          Tuple
+//            .newBuilder(finalAggValueSchema)
+//            .add(resultAttribute, AttributeType.DOUBLE, partial)
+//            .build
+//      },
+      (partial, tupleBuilder) => {
+        if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
             .add(resultAttribute, AttributeType.DOUBLE, partial)
-            .build
+        } else {
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial)
+        }
       },
       groupByFunc
     )
@@ -201,12 +230,20 @@ class AggregationOperator() {
       },
       (partial1, partial2) =>
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
-      partial => {
-        val value = if (partial.count == 0) null else partial.sum / partial.count
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.DOUBLE, value)
-          .build
+//      partial => {
+//        val value = if (partial.count == 0) null else partial.sum / partial.count
+//        Tuple
+//          .newBuilder(finalAggValueSchema)
+//          .add(resultAttribute, AttributeType.DOUBLE, value)
+//          .build
+//      },
+      (partial, tupleBuilder) => {
+        if (tupleBuilder == null) {
+          Tuple
+            .newBuilder(finalAggValueSchema)
+        } else {
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial.count == 0) null else partial.sum / partial.count)
+        }
       },
       groupByFunc
     )

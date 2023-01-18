@@ -1,28 +1,19 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
-  FollowPrevious,
-  ForceLocal,
-  UseAll
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
-  RandomDeployment,
-  RoundRobinDeployment
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{FollowPrevious, ForceLocal, UseAll}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{RandomDeployment, RoundRobinDeployment}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class AggregateOpExecConfig[P <: AnyRef](
+import scala.reflect.ClassTag
+
+class AggregateOpExecConfig[P <: AnyRef : ClassTag](
     id: OperatorIdentity,
     val aggFuncs: List[DistributedAggregation[P]],
     operatorSchemaInfo: OperatorSchemaInfo
