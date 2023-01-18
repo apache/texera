@@ -1,30 +1,23 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.amber.clustering.SingleNodeListener
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.actor.{ActorSystem, Props}
+import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
-  OperatorLink,
-  OperatorPort,
-  WorkflowCompiler,
-  WorkflowInfo
-}
-import org.scalatest.BeforeAndAfterAll
-
-import scala.collection.mutable
-import scala.concurrent.duration._
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.workflow.{OperatorLink, OperatorPort}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
+
+import scala.concurrent.duration._
 
 class PauseSpec
     extends TestKit(ActorSystem("PauseSpec"))
@@ -45,8 +38,8 @@ class PauseSpec
   }
 
   def shouldPause(
-      operators: mutable.MutableList[OperatorDescriptor],
-      links: mutable.MutableList[OperatorLink]
+      operators: List[OperatorDescriptor],
+      links: List[OperatorLink]
   ): Unit = {
     val client =
       new AmberClient(
@@ -69,7 +62,6 @@ class PauseSpec
     Thread.sleep(4000)
     Await.result(client.sendAsync(ResumeWorkflow()))
     Await.result(completion)
-    client.shutdown()
   }
 
   "Engine" should "be able to pause csv->sink workflow" in {
@@ -77,8 +69,8 @@ class PauseSpec
     val sink = TestOperators.sinkOpDesc()
     logger.info(s"csv-id ${csvOpDesc.operatorID}, sink-id ${sink.operatorID}")
     shouldPause(
-      mutable.MutableList[OperatorDescriptor](csvOpDesc, sink),
-      mutable.MutableList[OperatorLink](
+      List(csvOpDesc, sink),
+      List(
         OperatorLink(OperatorPort(csvOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
@@ -92,8 +84,8 @@ class PauseSpec
       s"csv-id ${csvOpDesc.operatorID}, keyword-id ${keywordOpDesc.operatorID}, sink-id ${sink.operatorID}"
     )
     shouldPause(
-      mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, sink),
-      mutable.MutableList[OperatorLink](
+      List(csvOpDesc, keywordOpDesc, sink),
+      List(
         OperatorLink(
           OperatorPort(csvOpDesc.operatorID, 0),
           OperatorPort(keywordOpDesc.operatorID, 0)

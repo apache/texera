@@ -8,12 +8,12 @@ import scala.collection.mutable
 case class WorkflowExecuteRequest(
     executionName: String,
     engineVersion: String,
-    logicalPlan: LogicalPlan
+    logicalPlan: LogicalPlanPojo
 ) extends TexeraWebSocketRequest
 
-case class LogicalPlan(
-    operators: mutable.MutableList[OperatorDescriptor],
-    links: mutable.MutableList[OperatorLink],
-    breakpoints: mutable.MutableList[BreakpointInfo],
-    cachedOperatorIds: mutable.MutableList[String]
+case class LogicalPlanPojo(
+    operators: List[OperatorDescriptor],
+    links: List[OperatorLink],
+    breakpoints: List[BreakpointInfo],
+    var cachedOperatorIds: List[String]
 )
