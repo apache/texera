@@ -110,8 +110,11 @@ class WorkflowRewriter(
       addCacheSourceNewLinks.clear()
       addCacheSourceTmpLinks.foreach(addCacheSourceNewLinks.+=)
 
-      addCacheSourceWorkflowInfo =
-        WorkflowInfo(addCacheSourceNewOps, addCacheSourceNewLinks, addCacheSourceNewBreakpoints)
+      addCacheSourceWorkflowInfo = WorkflowInfo(
+        addCacheSourceNewOps.toList,
+        addCacheSourceNewLinks.toList,
+        addCacheSourceNewBreakpoints.toList
+      )
       addCacheSourceWorkflowInfo.toDAG.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
 
       // Topological traverse and add cache sink operators.
@@ -121,7 +124,11 @@ class WorkflowRewriter(
       addCacheSinkOpIds = addCacheSinkOpIds.reverse
       addCacheSinkOpIds.foreach(addCacheSink)
 
-      new WorkflowInfo(addCacheSinkNewOps, addCacheSinkNewLinks, addCacheSinkNewBreakpoints)
+      new WorkflowInfo(
+        addCacheSinkNewOps.toList,
+        addCacheSinkNewLinks.toList,
+        addCacheSinkNewBreakpoints.toList
+      )
     }
   }
 

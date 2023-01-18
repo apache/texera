@@ -36,14 +36,14 @@ import scala.collection.mutable
 class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
 
   def buildWorkflow(
-      operators: mutable.MutableList[OperatorDescriptor],
-      links: mutable.MutableList[OperatorLink]
+      operators: List[OperatorDescriptor],
+      links: List[OperatorLink]
   ): Workflow = {
     val context = new WorkflowContext
     context.jobId = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
+      WorkflowInfo(operators, links, List[BreakpointInfo]()),
       context
     )
     texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"), new OpResultStorage())
@@ -54,8 +54,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
-      mutable.MutableList[OperatorLink](
+      List(headerlessCsvOpDesc, keywordOpDesc, sink),
+      List(
         OperatorLink(
           OperatorPort(headerlessCsvOpDesc.operatorID, 0),
           OperatorPort(keywordOpDesc.operatorID, 0)
@@ -139,14 +139,14 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     val hashJoin2 = TestOperators.joinOpDesc("column-2", "Country")
     val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](
+      List(
         buildCsv,
         probeCsv,
         hashJoin1,
         hashJoin2,
         sink
       ),
-      mutable.MutableList[OperatorLink](
+      List(
         OperatorLink(
           OperatorPort(buildCsv.operatorID, 0),
           OperatorPort(hashJoin1.operatorID, 0)

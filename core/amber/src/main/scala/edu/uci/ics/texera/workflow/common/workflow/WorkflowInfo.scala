@@ -25,11 +25,11 @@ object WorkflowInfo {
   }
 }
 case class WorkflowInfo(
-    operators: mutable.MutableList[OperatorDescriptor],
-    links: mutable.MutableList[OperatorLink],
-    breakpoints: mutable.MutableList[BreakpointInfo]
+    operators: List[OperatorDescriptor],
+    links: List[OperatorLink],
+    breakpoints: List[BreakpointInfo]
 ) {
-  var cachedOperatorIds: mutable.MutableList[String] = _
+  var cachedOperatorIds: List[String] = _
 
   private lazy val dag = new WorkflowDAG(this)
 
