@@ -13,9 +13,9 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.reflect.ClassTag
 
-class AggregateOpExecConfig[P <: AnyRef : ClassTag](
+class AggregateOpExecConfig(
     id: OperatorIdentity,
-    val aggFuncs: List[DistributedAggregation[P]],
+    val aggFuncs: List[DistributedAggregation[AnyRef]],
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 

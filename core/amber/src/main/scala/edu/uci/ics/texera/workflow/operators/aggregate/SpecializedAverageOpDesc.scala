@@ -16,23 +16,9 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
 class SpecializedAverageOpDesc extends AggregateOpDesc {
 
-//  @JsonProperty(required = true)
-//  @JsonSchemaTitle("Aggregation Function")
-//  @JsonPropertyDescription("sum, count, average, min, max, or concat")
-//  var aggFunction: AggregationFunction = _
-//
-//  @JsonProperty(value = "attribute", required = true)
-//  @JsonPropertyDescription("column to calculate average value")
-//  @AutofillAttributeName
-//  var attribute: String = _
-//
-//  @JsonProperty(value = "result attribute", required = true)
-//  @JsonPropertyDescription("column name of average result")
-//  var resultAttribute: String = _
 
 //  @JsonProperty(value = "aggregations", required = true)
 //  @JsonPropertyDescription("multiple predicates in OR")
-//  var aggregations: List[AggregationOperator] = List()
   var aggregations: List[AggregationOperator] = List()
 
   @JsonProperty("groupByKeys")
@@ -48,7 +34,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   override def operatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
-  ): AggregateOpExecConfig[java.lang.Double] = {
+  ): AggregateOpExecConfig = {
     var groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
     var finalAggValueSchema = getFinalAggValueSchema
 
@@ -72,34 +58,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       aggregations.map(_.getAggFunc(finalAggValueSchema, groupByFunc)),
       operatorSchemaInfo
     )
-
-//    aggFunction match {
-//      case AggregationFunction.AVERAGE => averageAgg(operatorSchemaInfo)
-//      case AggregationFunction.COUNT   => countAgg(operatorSchemaInfo)
-//      case AggregationFunction.MAX     => maxAgg(operatorSchemaInfo)
-//      case AggregationFunction.MIN     => minAgg(operatorSchemaInfo)
-//      case AggregationFunction.SUM     => sumAgg(operatorSchemaInfo)
-//      case AggregationFunction.CONCAT  => concatAgg(operatorSchemaInfo)
-//      case _ =>
-//        throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
-//    }
   }
-
-//  def groupByFunc(): Schema => Schema = {
-//    if (this.groupByKeys == null) null
-//    else
-//      schema => {
-//        // Since this is a partially evaluated tuple, there is no actual schema for this
-//        // available anywhere. Constructing it once for re-use
-//        if (groupBySchema == null) {
-//          val schemaBuilder = Schema.newBuilder()
-//          groupByKeys.foreach(key => schemaBuilder.add(schema.getAttribute(key)))
-//          groupBySchema = schemaBuilder.build
-//        }
-//        groupBySchema
-//      }
-//  }
-
 
   private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
     if (groupByKeys == null) {
@@ -112,12 +71,6 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   }
 
   private def getFinalAggValueSchema: Schema = {
-    // TODO: Remove for loop
-//    val schema = Schema.newBuilder()
-//    for (agg <- aggregations) {
-//      schema.add(agg.getAggregationSchema)
-//    }
-//    schema.build()
     Schema.newBuilder()
       .add(aggregations.map(_.getAggregationAttribute).asJava)
       .build()
@@ -133,6 +86,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    // TODO: Check every index
     if (aggregations.length == 0 || aggregations(0).resultAttribute == null || aggregations(0).resultAttribute.trim.isEmpty) {
       return null
     }

@@ -23,28 +23,26 @@ class AggregationOperator() {
   @JsonProperty(value = "result attribute", required = true)
   @JsonPropertyDescription("column name of average result")
   var resultAttribute: String = _
+
   @JsonIgnore
   def getAggregationAttribute: Attribute = {
     if (this.aggFunction == AggregationFunction.COUNT)
       new Attribute(resultAttribute, AttributeType.INTEGER)
-//      Schema.newBuilder.add(resultAttribute, AttributeType.INTEGER).build
     else if (this.aggFunction == AggregationFunction.CONCAT)
       new Attribute(resultAttribute, AttributeType.STRING)
-//      Schema.newBuilder.add(resultAttribute, AttributeType.STRING).build
     else
       new Attribute(resultAttribute, AttributeType.DOUBLE)
-//      Schema.newBuilder.add(resultAttribute, AttributeType.DOUBLE).build
   }
 
   @JsonIgnore
-  def getAggFunc(finalAggValueSchema: Schema, groupByFunc: Schema => Schema): DistributedAggregation[java.lang.Double] = {
+  def getAggFunc(finalAggValueSchema: Schema, groupByFunc: Schema => Schema): DistributedAggregation[_ <: AnyRef] = {
     aggFunction match {
-//      case AggregationFunction.AVERAGE => averageAgg(finalAggValueSchema, groupByFunc)
-//      case AggregationFunction.COUNT   => countAgg(finalAggValueSchema, groupByFunc)
+      case AggregationFunction.AVERAGE => averageAgg(finalAggValueSchema, groupByFunc)
+      case AggregationFunction.COUNT   => countAgg(finalAggValueSchema, groupByFunc)
       case AggregationFunction.MAX     => maxAgg(finalAggValueSchema, groupByFunc)
       case AggregationFunction.MIN     => minAgg(finalAggValueSchema, groupByFunc)
       case AggregationFunction.SUM     => sumAgg(finalAggValueSchema, groupByFunc)
-//      case AggregationFunction.CONCAT  => concatAgg(finalAggValueSchema, groupByFunc)
+      case AggregationFunction.CONCAT  => concatAgg(finalAggValueSchema, groupByFunc)
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
@@ -146,6 +144,7 @@ class AggregationOperator() {
         if (value.isDefined && value.get < partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
+      // TODO: Check Max Value
 //      partial => {
 //        if (partial == Double.MaxValue) null
 //        else
@@ -180,6 +179,7 @@ class AggregationOperator() {
         if (value.isDefined && value.get > partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
+      // TODO: Check min value
 //      partial => {
 //        if (partial == Double.MinValue) null
 //        else
@@ -199,11 +199,6 @@ class AggregationOperator() {
       },
       groupByFunc
     )
-//    new AggregateOpExecConfig[java.lang.Double](
-//      operatorIdentifier,
-//      aggregation,
-//      operatorSchemaInfo
-//    )
   }
 
 
@@ -230,6 +225,7 @@ class AggregationOperator() {
       },
       (partial1, partial2) =>
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
+      // TODO: Check
 //      partial => {
 //        val value = if (partial.count == 0) null else partial.sum / partial.count
 //        Tuple
@@ -247,11 +243,6 @@ class AggregationOperator() {
       },
       groupByFunc
     )
-//    new AggregateOpExecConfig[AveragePartialObj](
-//      operatorIdentifier,
-//      aggregation,
-//      operatorSchemaInfo
-//    )
   }
 
 }

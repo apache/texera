@@ -19,15 +19,15 @@ object PartialAggregateOpExec {
   val INTERNAL_AGGREGATE_PARTIAL_OBJECT = "__internal_aggregate_partial_object__";
 }
 
-class PartialAggregateOpExec[Partial <: AnyRef : ClassTag](
-    val aggFuncs: List[DistributedAggregation[Partial]]
+class PartialAggregateOpExec[P <: AnyRef : ClassTag](
+    val aggFuncs: List[DistributedAggregation[P]]
 ) extends OperatorExecutor {
 
   var groupByKeyAttributes: Array[Attribute] = _
   var schema: Schema = _
 //  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
 
-  var partialObjectsPerKey = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], Partial]())
+  var partialObjectsPerKey = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], P]())
   var outputIterator: Iterator[ITuple] = _
 
   override def open(): Unit = {}

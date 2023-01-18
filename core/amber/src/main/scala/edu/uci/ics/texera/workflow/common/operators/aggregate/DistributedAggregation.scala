@@ -25,9 +25,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
   * "Distributed Aggregation for Data-Parallel Computing: Interfaces and Implementations"
   * https://www.sigops.org/s/conferences/sosp/2009/papers/yu-sosp09.pdf
   */
-case class DistributedAggregation[P <: AnyRef](
+case class DistributedAggregation[+P <: AnyRef](
     // () => PartialObject
     init: () => P,
+    // TODO: Use Generics instead of AnyRef
     // PartialObject + Tuple => PartialObject
     iterate: (P, Tuple) => P,
     // PartialObject + PartialObject => PartialObject
