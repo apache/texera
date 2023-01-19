@@ -8,10 +8,10 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
+  LogicalPlan,
   OperatorLink,
   OperatorPort,
-  WorkflowCompiler,
-  WorkflowInfo
+  WorkflowCompiler
 }
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
@@ -33,7 +33,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     context.jobId = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(operators, links, List[BreakpointInfo]()),
+      LogicalPlan(operators, links, List[BreakpointInfo]()),
       context
     )
     texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"), new OpResultStorage())

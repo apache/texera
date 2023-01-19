@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
   OperatorLink,
   WorkflowCompiler,
-  WorkflowInfo
+  LogicalPlan
 }
 
 object Utils {
@@ -24,7 +24,7 @@ object Utils {
     context.jobId = jobId
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(operators, links, List[BreakpointInfo]()),
+      LogicalPlan(operators, links, List[BreakpointInfo]()),
       context
     )
 

@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.web.workflowcachestate.CacheState.{INVALID, VALID}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowInfo, WorkflowRewriter, WorkflowVertex}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowRewriter, WorkflowVertex}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
@@ -48,11 +48,12 @@ class WorkflowCacheService(
   }))
 
   def updateCacheStatus(request: CacheStatusUpdateRequest): Unit = {
-    val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
-    workflowInfo.cachedOperatorIds = request.cachedOperatorIds
+    val logicalPlan =
+      LogicalPlan(request.operators, request.links, request.breakpoints, request.cachedOperatorIds)
+    logicalPlan.cachedOperatorIds = request.cachedOperatorIds
     logger.debug(s"Cached operators: $cachedOperators with ${request.cachedOperatorIds}")
     val workflowRewriter = new WorkflowRewriter(
-      workflowInfo,
+      logicalPlan,
       cachedOperators.clone(),
       cacheSourceOperators.clone(),
       cacheSinkOperators.clone(),
