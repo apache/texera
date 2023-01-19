@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 
-class AggregationOperator() {
+class AggregationOperation() {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Aggregation Function")
