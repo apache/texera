@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
@@ -134,7 +135,22 @@ abstract class OperatorDescriptor extends Serializable {
   var operatorVersion: String = getOperatorVersion()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
-  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
+  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    throw new UnsupportedOperationException(
+      "operator " + operatorIdentifier + " does not implement its executor"
+    )
+  }
+
+  def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): NewOpExecConfig = {
+    throw new UnsupportedOperationException(
+      "operator " + operatorIdentifier + " is not migrated to new OpExec API"
+    )
+  }
+
+  // a logical operator corresponds multiple physical operators (a small DAG)
+  def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
+    new PhysicalPlan(List(newOperatorExecutor(operatorSchemaInfo)), List())
+  }
 
   def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): NewOpExecConfig = {
     throw new UnsupportedOperationException(
