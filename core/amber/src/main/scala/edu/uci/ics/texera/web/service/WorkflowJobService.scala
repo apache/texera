@@ -33,8 +33,8 @@ class WorkflowJobService(
     with LazyLogging {
 
   val stateStore = new JobStateStore()
-  val workflowInfo: LogicalPlan = createWorkflowInfo()
-  val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo)
+  val logicalPlan: LogicalPlan = createLogicalPlan()
+  val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(logicalPlan)
   val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
     resultService.opResultStorage
@@ -42,7 +42,7 @@ class WorkflowJobService(
   private val controllerConfig = {
     val conf = ControllerConfig.default
     if (
-      workflowInfo.operators.exists {
+      logicalPlan.operators.exists {
         case x: DualInputPortsPythonUDFOpDescV2 => true
         case x: PythonUDFOpDescV2               => true
         case x: PythonUDFSourceOpDescV2         => true
@@ -76,13 +76,13 @@ class WorkflowJobService(
   workflowContext.executionID = -1 // for every new execution,
   // reset it so that the value doesn't carry over across executions
   def startWorkflow(): Unit = {
-    for (pair <- workflowInfo.breakpoints) {
+    for (pair <- logicalPlan.breakpoints) {
       Await.result(
         jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
         Duration.fromSeconds(10)
       )
     }
-    resultService.attachToJob(stateStore, workflowInfo, client)
+    resultService.attachToJob(stateStore, logicalPlan, client)
     if (WorkflowService.userSystemEnabled) {
       workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
         workflowContext.wId,
@@ -100,7 +100,7 @@ class WorkflowJobService(
     )
   }
 
-  private[this] def createWorkflowInfo(): LogicalPlan = {
+  private[this] def createLogicalPlan(): LogicalPlan = {
     var workflowInfo = LogicalPlan(request.logicalPlan)
     if (WorkflowCacheService.isAvailable) {
       logger.debug(
