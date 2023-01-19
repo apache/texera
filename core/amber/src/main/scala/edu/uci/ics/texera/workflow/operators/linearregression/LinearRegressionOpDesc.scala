@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.linearregression
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -29,8 +30,8 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
   @JsonPropertyDescription("Learning Rate")
   var learningRate: Double = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    new ManyToOneOpExecConfig(
+  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+    NewOpExecConfig.manyToOneLayer(
       operatorIdentifier,
       _ => new LinearRegressionOpExec(xAttr, yAttr, learningRate)
     )

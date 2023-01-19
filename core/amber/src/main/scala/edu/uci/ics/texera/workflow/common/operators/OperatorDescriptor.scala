@@ -152,12 +152,6 @@ abstract class OperatorDescriptor extends Serializable {
     new PhysicalPlan(List(newOperatorExecutor(operatorSchemaInfo)), List())
   }
 
-  def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): NewOpExecConfig = {
-    throw new UnsupportedOperationException(
-      "operator " + operatorIdentifier + " is not migrated to the new API"
-    )
-  }
-
   def operatorInfo: OperatorInfo
 
   def getOutputSchema(schemas: Array[Schema]): Schema

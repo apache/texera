@@ -14,10 +14,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 
 class UnionOpDesc extends OperatorDescriptor {
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new OneToOneOpExecConfig(operatorIdentifier, _ => new UnionOpExec())
-  }
-
   override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     NewOpExecConfig.oneToOneLayer(operatorIdentifier, _ => new UnionOpExec())
   }

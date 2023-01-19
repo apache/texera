@@ -30,16 +30,6 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public List<FilterPredicate> predicates;
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return new OneToOneOpExecConfig(
-                operatorIdentifier(),
-                worker -> new SpecializedFilterOpExec(this),
-                Constants.currentWorkerNum(),
-                mapAsScalaMap(Collections.emptyMap())
-        );
-    }
-
-    @Override
     public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return NewOpExecConfig.oneToOneLayer(
                 operatorIdentifier(),

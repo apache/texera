@@ -33,13 +33,6 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonPropertyDescription("Multiple type castings")
     public List<TypeCastingUnit> typeCastingUnits;
 
-
-    @Override
-    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]), Constants.currentWorkerNum(), mapAsScalaMap(Collections.emptyMap()));
-    }
-
     @Override
     public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());

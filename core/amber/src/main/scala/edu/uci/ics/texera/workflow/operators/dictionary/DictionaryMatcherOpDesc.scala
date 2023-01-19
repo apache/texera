@@ -32,12 +32,6 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
 
   @JsonProperty(value = "Matching type", required = true) var matchingType: MatchingType = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    new OneToOneOpExecConfig(
-      operatorIdentifier,
-      _ => new DictionaryMatcherOpExec(this, operatorSchemaInfo)
-    )
-
   override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     NewOpExecConfig.oneToOneLayer(
       operatorIdentifier,

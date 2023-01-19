@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.symmetricDifference
 
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -13,8 +14,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 
 class SymmetricDifferenceOpDesc extends OperatorDescriptor {
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new HashOpExecConfig(
+  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    NewOpExecConfig.hashLayer(
       operatorIdentifier,
       _ => new SymmetricDifferenceOpExec(),
       operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray

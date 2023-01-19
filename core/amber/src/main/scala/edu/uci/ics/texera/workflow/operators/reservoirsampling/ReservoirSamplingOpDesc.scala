@@ -42,13 +42,6 @@ class ReservoirSamplingOpDesc extends OperatorDescriptor {
     kPerActor(actor)
   }
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(
-      operatorIdentifier,
-      (actor: Int) => new ReservoirSamplingOpExec(actor, this)
-    )
-  }
-
   override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     NewOpExecConfig.oneToOneLayer(operatorIdentifier, p => new ReservoirSamplingOpExec(p._1, this))
   }
