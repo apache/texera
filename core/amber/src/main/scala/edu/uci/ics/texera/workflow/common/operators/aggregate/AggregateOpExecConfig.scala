@@ -15,7 +15,7 @@ import scala.reflect.ClassTag
 
 class AggregateOpExecConfig(
     id: OperatorIdentity,
-    val aggFuncs: List[DistributedAggregation[AnyRef]],
+    val aggFuncs: List[DistributedAggregation[Object]],
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
