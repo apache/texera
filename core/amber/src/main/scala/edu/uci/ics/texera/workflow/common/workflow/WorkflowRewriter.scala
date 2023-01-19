@@ -80,7 +80,7 @@ class WorkflowRewriter(
     null
   }
 
-  var addCacheSourcelogicalPlan: LogicalPlan = _
+  var addCacheSourceLogicalPlan: LogicalPlan = _
 
   def rewrite: LogicalPlan = {
     if (null == logicalPlan) {
@@ -110,15 +110,15 @@ class WorkflowRewriter(
       addCacheSourceNewLinks.clear()
       addCacheSourceTmpLinks.foreach(addCacheSourceNewLinks.+=)
 
-      addCacheSourcelogicalPlan = LogicalPlan(
+      addCacheSourceLogicalPlan = LogicalPlan(
         addCacheSourceNewOps.toList,
         addCacheSourceNewLinks.toList,
         addCacheSourceNewBreakpoints.toList
       )
-      addCacheSourcelogicalPlan.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
+      addCacheSourceLogicalPlan.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
 
       // Topological traverse and add cache sink operators.
-      val addCacheSinkOpIdIter = addCacheSourcelogicalPlan.jgraphtDag.iterator()
+      val addCacheSinkOpIdIter = addCacheSourceLogicalPlan.jgraphtDag.iterator()
       var addCacheSinkOpIds: mutable.MutableList[String] = mutable.MutableList[String]()
       addCacheSinkOpIdIter.forEachRemaining(opId => addCacheSinkOpIds.+=(opId))
       addCacheSinkOpIds = addCacheSinkOpIds.reverse
@@ -133,7 +133,7 @@ class WorkflowRewriter(
   }
 
   private def addCacheSink(opId: String): Unit = {
-    val op = addCacheSourcelogicalPlan.getOperator(opId)
+    val op = addCacheSourceLogicalPlan.getOperator(opId)
     if (isCacheEnabled(op) && !isCacheValid(op)) {
       val cacheSinkOp = generateCacheSinkOperator(op)
       val cacheSinkLink = generateCacheSinkLink(cacheSinkOp, op)
@@ -141,12 +141,12 @@ class WorkflowRewriter(
       addCacheSinkNewLinks += cacheSinkLink
     }
     addCacheSinkNewOps += op
-    addCacheSourcelogicalPlan.jgraphtDag
+    addCacheSourceLogicalPlan.jgraphtDag
       .outgoingEdgesOf(opId)
       .forEach(link => {
         addCacheSinkNewLinks += link
       })
-    addCacheSourcelogicalPlan.breakpoints.foreach(breakpoint => {
+    addCacheSourceLogicalPlan.breakpoints.foreach(breakpoint => {
       if (breakpoint.operatorID.equals(opId)) {
         addCacheSinkNewBreakpoints += breakpoint
       }

@@ -48,12 +48,12 @@ class WorkflowCacheService(
   }))
 
   def updateCacheStatus(request: CacheStatusUpdateRequest): Unit = {
-    val workflowInfo =
+    val logicalPlan =
       LogicalPlan(request.operators, request.links, request.breakpoints, request.cachedOperatorIds)
-    workflowInfo.cachedOperatorIds = request.cachedOperatorIds
+    logicalPlan.cachedOperatorIds = request.cachedOperatorIds
     logger.debug(s"Cached operators: $cachedOperators with ${request.cachedOperatorIds}")
     val workflowRewriter = new WorkflowRewriter(
-      workflowInfo,
+      logicalPlan,
       cachedOperators.clone(),
       cacheSourceOperators.clone(),
       cacheSinkOperators.clone(),

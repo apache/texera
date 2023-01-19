@@ -138,8 +138,8 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
 
-    val workflowInfo = LogicalPlan(operators, links, List())
-    val workflowCompiler = new WorkflowCompiler(workflowInfo, new WorkflowContext())
+    val logicalPlan = LogicalPlan(operators, links, List())
+    val workflowCompiler = new WorkflowCompiler(logicalPlan, new WorkflowContext())
 
     val schemaResult = workflowCompiler.logicalPlan.propagateWorkflowSchema()
 

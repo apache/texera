@@ -101,13 +101,13 @@ class WorkflowJobService(
   }
 
   private[this] def createLogicalPlan(): LogicalPlan = {
-    var workflowInfo = LogicalPlan(request.logicalPlan)
+    var logicalPlan = LogicalPlan(request.logicalPlan)
     if (WorkflowCacheService.isAvailable) {
       logger.debug(
-        s"Cached operators: ${operatorCache.cachedOperators} with ${workflowInfo.cachedOperatorIds}"
+        s"Cached operators: ${operatorCache.cachedOperators} with ${logicalPlan.cachedOperatorIds}"
       )
       val workflowRewriter = new WorkflowRewriter(
-        workflowInfo,
+        logicalPlan,
         operatorCache.cachedOperators,
         operatorCache.cacheSourceOperators,
         operatorCache.cacheSinkOperators,
@@ -115,20 +115,20 @@ class WorkflowJobService(
         resultService.opResultStorage
       )
       val newWorkflowInfo = workflowRewriter.rewrite
-      val oldWorkflowInfo = workflowInfo
-      workflowInfo = newWorkflowInfo
-      workflowInfo.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
+      val oldWorkflowInfo = logicalPlan
+      logicalPlan = newWorkflowInfo
+      logicalPlan.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
       logger.info(
-        s"Rewrite the original workflow: ${oldWorkflowInfo} to be: ${workflowInfo}"
+        s"Rewrite the original workflow: ${oldWorkflowInfo} to be: ${logicalPlan}"
       )
     }
-    workflowInfo
+    logicalPlan
   }
 
   private[this] def createWorkflowCompiler(
-      workflowInfo: LogicalPlan
+      logicalPlan: LogicalPlan
   ): WorkflowCompiler = {
-    val compiler = new WorkflowCompiler(workflowInfo, workflowContext)
+    val compiler = new WorkflowCompiler(logicalPlan, workflowContext)
     val violations = compiler.validate
     if (violations.nonEmpty) {
       throw new ConstraintViolationException(violations)
