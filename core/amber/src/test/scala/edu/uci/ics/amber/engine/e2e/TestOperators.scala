@@ -1,9 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.texera.workflow.operators.aggregate.{
-  AggregationFunction,
-  SpecializedAverageOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.aggregate.{AggregationFunction, AggregationOperator, SpecializedAverageOpDesc}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
@@ -75,18 +72,20 @@ object TestOperators {
     keywordSearchOp
   }
 
-//  def aggregateAndGroupByDesc(
-//      attributeToAggregate: String,
-//      aggFunction: AggregationFunction,
-//      groupByAttributes: List[String]
-//  ): SpecializedAverageOpDesc = {
-//    val aggOp = new SpecializedAverageOpDesc()
-//    aggOp.aggFunction = aggFunction
-//    aggOp.attribute = attributeToAggregate
-//    aggOp.resultAttribute = "aggregate-result"
-//    aggOp.groupByKeys = groupByAttributes
-//    aggOp
-//  }
+  def aggregateAndGroupByDesc(
+      attributeToAggregate: String,
+      aggFunction: AggregationFunction,
+      groupByAttributes: List[String]
+  ): SpecializedAverageOpDesc = {
+    val aggOp = new SpecializedAverageOpDesc()
+    val aggFunc = new AggregationOperator()
+    aggFunc.aggFunction = aggFunction
+    aggFunc.attribute = attributeToAggregate
+    aggFunc.resultAttribute = "aggregate-result"
+    aggOp.aggregations = List(aggFunc)
+    aggOp.groupByKeys = groupByAttributes
+    aggOp
+  }
 
   def inMemoryMySQLSourceOpDesc(
       host: String,

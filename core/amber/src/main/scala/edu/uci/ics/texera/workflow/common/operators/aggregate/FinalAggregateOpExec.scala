@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
+import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.constructInternalAggregatePartialObject
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
@@ -19,7 +19,8 @@ class FinalAggregateOpExec[Partial <: AnyRef](
   var groupByKeyAttributes: Array[Attribute] = _
   var schema: Schema = _
 
-//  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
+  // partialObjectsPerKey has the same length as aggFuncs
+  // partialObjectsPerKey[i] corresponds to aggFuncs[i]
   var partialObjectsPerKey = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], Partial]())
   var outputIterator: Iterator[Tuple] = _
 
@@ -34,34 +35,36 @@ class FinalAggregateOpExec[Partial <: AnyRef](
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
-        val groupBySchema = if (aggFuncs(0) == null) null else aggFuncs(0).groupByFunc(t.getSchema)
+        val groupBySchema = if (aggFuncs.isEmpty) null else aggFuncs(0).groupByFunc(t.getSchema)
         val builder = Tuple.newBuilder(groupBySchema)
         groupBySchema.getAttributeNames.foreach(attrName =>
           builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
         )
-        val groupByKey = if (aggFuncs == null) null else builder.build()
+        val groupByKey = if (aggFuncs.isEmpty) null else builder.build()
         if (groupByKeyAttributes == null) {
           groupByKeyAttributes =
-            if (aggFuncs == null) Array()
+            if (aggFuncs.isEmpty) Array()
             else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
         }
         val key =
           if (groupByKey == null) List()
           else JavaConverters.asScalaBuffer(groupByKey.getFields).toList
 
-        for ((aggFunc, index) <- aggFuncs.view.zipWithIndex) {
-          val partialObject = t.getField[Partial](INTERNAL_AGGREGATE_PARTIAL_OBJECT + index)
+        aggFuncs.indices.foreach(index => {
+          val partialObject = t.getField[Partial](constructInternalAggregatePartialObject(index))
           if (!partialObjectsPerKey(index).contains(key)) {
             partialObjectsPerKey(index).put(key, partialObject)
           } else {
-            partialObjectsPerKey(index).put(key, aggFunc.merge(partialObjectsPerKey(index)(key), partialObject))
+            partialObjectsPerKey(index).put(key, aggFuncs(index).merge(partialObjectsPerKey(index)(key), partialObject))
           }
-        }
+        })
         Iterator()
       case Right(_) =>
-        var temp = partialObjectsPerKey(0).iterator.map(pair => {
+        // TODO: Add support for empty aggFuncs
+        partialObjectsPerKey(0).iterator.map(pair => {
           var tupleBuilder: Tuple.BuilderV2 = null
           partialObjectsPerKey.indices.foreach(index => {
+            // TODO: Add if for null return value
             tupleBuilder = aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1), tupleBuilder)
           })
           val finalObject = tupleBuilder.build()
@@ -81,10 +84,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
           }
 
           Tuple.newBuilder(schema).addSequentially(fields).build()
-
         })
-
-        temp
     }
   }
 

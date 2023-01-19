@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
+import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.constructInternalAggregatePartialObject
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
@@ -17,9 +17,12 @@ import scala.reflect.ClassTag
 
 object PartialAggregateOpExec {
   val INTERNAL_AGGREGATE_PARTIAL_OBJECT = "__internal_aggregate_partial_object__";
+  def constructInternalAggregatePartialObject(key: Any): String = {
+    s"__internal_aggregate_partial_object_${key}__"
+  }
 }
 
-class PartialAggregateOpExec[P <: AnyRef : ClassTag](
+class PartialAggregateOpExec[P <: AnyRef](
     val aggFuncs: List[DistributedAggregation[P]]
 ) extends OperatorExecutor {
 
@@ -41,23 +44,23 @@ class PartialAggregateOpExec[P <: AnyRef : ClassTag](
   ): scala.Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
-        val groupBySchema = if (aggFuncs == null) null else aggFuncs(0).groupByFunc(t.getSchema)
+        val groupBySchema = if (aggFuncs.isEmpty) null else aggFuncs(0).groupByFunc(t.getSchema)
         val builder = Tuple.newBuilder(groupBySchema)
         groupBySchema.getAttributeNames.foreach(attrName =>
           builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
         )
-        val groupByKey = if (aggFuncs == null) null else builder.build()
+        val groupByKey = if (aggFuncs.isEmpty) null else builder.build()
         // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
         // right schema from there is a bit challenging.
         // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
         if (schema == null) {
           groupByKeyAttributes =
-            if (aggFuncs == null) Array()
+            if (aggFuncs.isEmpty) Array()
             else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
           schema = Schema
             .newBuilder()
             .add(groupByKeyAttributes.toArray: _*)
-            .add(aggFuncs.indices.map(i => new Attribute(INTERNAL_AGGREGATE_PARTIAL_OBJECT + i, AttributeType.ANY)).asJava)
+            .add(aggFuncs.indices.map(i => new Attribute(constructInternalAggregatePartialObject(i), AttributeType.ANY)).asJava)
             .build()
         }
         val key =
@@ -71,17 +74,17 @@ class PartialAggregateOpExec[P <: AnyRef : ClassTag](
 
         Iterator()
       case Right(_) =>
-        var temp = partialObjectsPerKey(0).iterator.map(pair => {
-          var tuple = Tuple.newBuilder(schema)
-          tuple.addSequentially(
-            (pair._1 ++
-              partialObjectsPerKey.map(partialObjectPerKey => {
-                partialObjectPerKey(pair._1)
-              })).toArray
-          )
-          tuple.build()
+        // TODO: Add support for empty aggFuncs
+        partialObjectsPerKey(0).iterator.map(pair => {
+          Tuple
+            .newBuilder(schema)
+            .addSequentially(
+                (pair._1 ++ partialObjectsPerKey.map(partialObjectPerKey => {
+                  partialObjectPerKey(pair._1)
+                })).toArray
+              )
+            .build()
         })
-        temp
     }
   }
 

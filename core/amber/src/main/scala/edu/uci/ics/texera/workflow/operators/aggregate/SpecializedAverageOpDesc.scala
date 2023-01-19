@@ -17,8 +17,9 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 class SpecializedAverageOpDesc extends AggregateOpDesc {
 
 
-//  @JsonProperty(value = "aggregations", required = true)
-//  @JsonPropertyDescription("multiple predicates in OR")
+  // TODO: Description does not display, need to fix
+  @JsonProperty(value = "aggregations", required = true)
+  @JsonPropertyDescription("multiple aggregation functions")
   var aggregations: List[AggregationOperator] = List()
 
   @JsonProperty("groupByKeys")
@@ -27,18 +28,13 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @AutofillAttributeNameList
   var groupByKeys: List[String] = _
 
-//  @JsonIgnore
-//  private var groupBySchema: Schema = _
-//  @JsonIgnore
-//  private var finalAggValueSchema: Schema = _
-
   override def operatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
   ): AggregateOpExecConfig = {
     var groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
-    var finalAggValueSchema = getFinalAggValueSchema
+    val finalAggValueSchema = getFinalAggValueSchema
 
-    var groupByFunc: Schema => Schema = {
+    val groupByFunc: Schema => Schema = {
       if (this.groupByKeys == null) null
       else
         schema => {
@@ -86,8 +82,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    // TODO: Check every index
-    if (aggregations.length == 0 || aggregations(0).resultAttribute == null || aggregations(0).resultAttribute.trim.isEmpty) {
+    if (aggregations.exists (agg => (agg.resultAttribute == null || agg.resultAttribute.trim.isEmpty))) {
       return null
     }
     Schema

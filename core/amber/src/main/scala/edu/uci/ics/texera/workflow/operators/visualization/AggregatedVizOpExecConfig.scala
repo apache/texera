@@ -22,7 +22,7 @@ import scala.reflect.ClassTag
   * @param operatorSchemaInfo The descriptor's OperatorSchemaInfo.
   * @tparam P The type of the aggregation data.
   */
-class AggregatedVizOpExecConfig[P <: AnyRef : ClassTag](
+class AggregatedVizOpExecConfig[P <: AnyRef](
     id: OperatorIdentity,
     val aggFunc: DistributedAggregation[P],
     exec: IOperatorExecutor,

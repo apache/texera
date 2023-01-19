@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 import scala.reflect.ClassTag
 
@@ -21,7 +21,7 @@ class AggregateOpExecConfig(
 
   override lazy val topology: Topology = {
 
-    if (aggFuncs.length == 0 || aggFuncs(0).groupByFunc == null) {
+    if (aggFuncs.isEmpty || aggFuncs(0).groupByFunc == null) {
       val partialLayer = new WorkerLayer(
         makeLayer(id, "localAgg"),
         _ => new PartialAggregateOpExec(aggFuncs),

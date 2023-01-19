@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.reflect.ClassTag
 
-class PieChartOpExecConfig[P <: AnyRef : ClassTag](
+class PieChartOpExecConfig[P <: AnyRef](
     tag: OperatorIdentity,
     val numWorkers: Int,
     val nameColumn: String,

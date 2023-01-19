@@ -68,11 +68,6 @@ class AggregationOperator() {
       },
       groupByFunc
     )
-//    new AggregateOpExecConfig[java.lang.Double](
-//      operatorIdentifier,
-//      aggregation,
-//      operatorSchemaInfo
-//    )
   }
 
   private def countAgg(finalAggValueSchema: Schema, groupByFunc: Schema => Schema): DistributedAggregation[Integer] = {
@@ -93,11 +88,6 @@ class AggregationOperator() {
       },
       groupByFunc
     )
-//    new AggregateOpExecConfig[Integer](
-//      operatorIdentifier,
-//      aggregation,
-//      operatorSchemaInfo
-//    )
   }
 
   private def concatAgg(finalAggValueSchema: Schema, groupByFunc: Schema => Schema): DistributedAggregation[String] = {
@@ -123,17 +113,13 @@ class AggregationOperator() {
         if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
+            .add(resultAttribute, AttributeType.STRING, partial)
         } else {
           tupleBuilder.add(resultAttribute, AttributeType.STRING, partial)
         }
       },
       groupByFunc
     )
-//    new AggregateOpExecConfig[String](
-//      operatorIdentifier,
-//      aggregation,
-//      operatorSchemaInfo
-//    )
   }
 
   private def minAgg(finalAggValueSchema: Schema, groupByFunc: Schema => Schema): DistributedAggregation[java.lang.Double] = {
@@ -144,17 +130,10 @@ class AggregationOperator() {
         if (value.isDefined && value.get < partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
-      // TODO: Check Max Value
-//      partial => {
-//        if (partial == Double.MaxValue) null
-//        else
-//          Tuple
-//            .newBuilder(finalAggValueSchema)
-//            .add(resultAttribute, AttributeType.DOUBLE, partial)
-//            .build
-//      },
       (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
+        if (partial == Double.MaxValue) {
+          if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
+        } else if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
             .add(resultAttribute, AttributeType.DOUBLE, partial)
@@ -164,11 +143,6 @@ class AggregationOperator() {
       },
       groupByFunc
     )
-//    new AggregateOpExecConfig[java.lang.Double](
-//      operatorIdentifier,
-//      aggregation,
-//      operatorSchemaInfo
-//    )
   }
 
   private def maxAgg(finalAggValueSchema: Schema, groupByFunc: Schema => Schema): DistributedAggregation[java.lang.Double] = {
@@ -179,17 +153,10 @@ class AggregationOperator() {
         if (value.isDefined && value.get > partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
-      // TODO: Check min value
-//      partial => {
-//        if (partial == Double.MinValue) null
-//        else
-//          Tuple
-//            .newBuilder(finalAggValueSchema)
-//            .add(resultAttribute, AttributeType.DOUBLE, partial)
-//            .build
-//      },
       (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
+        if (partial == Double.MinValue) {
+          if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
+        } else if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
             .add(resultAttribute, AttributeType.DOUBLE, partial)
@@ -225,20 +192,14 @@ class AggregationOperator() {
       },
       (partial1, partial2) =>
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
-      // TODO: Check
-//      partial => {
-//        val value = if (partial.count == 0) null else partial.sum / partial.count
-//        Tuple
-//          .newBuilder(finalAggValueSchema)
-//          .add(resultAttribute, AttributeType.DOUBLE, value)
-//          .build
-//      },
       (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
+        if (partial.count == 0) {
+          if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
+        } else if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
         } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial.count == 0) null else partial.sum / partial.count)
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial.sum / partial.count)
         }
       },
       groupByFunc
