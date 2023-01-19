@@ -16,7 +16,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 }
 
 class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
-  @JsonSchemaTitle("Modify the existing column(s) or Add new column(s)")
+  @JsonSchemaTitle("Add/Modify column(s)")
   var lambdaAttributeUnits: List[LambdaAttributeUnit] = List()
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

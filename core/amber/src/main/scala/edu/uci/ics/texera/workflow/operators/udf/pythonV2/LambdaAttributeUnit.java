@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.udf.pythonV2;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaBool;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
@@ -18,11 +19,14 @@ public class LambdaAttributeUnit {
 
     @JsonProperty
     @JsonSchemaTitle("New Attribute Name")
-    @JsonSchemaInject(strings = {
-            @JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeName"),
-            @JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
-            @JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "(?!Add New Column).*")
-    })
+    @JsonSchemaInject(
+            strings = {
+                @JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeName"),
+                @JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
+                @JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "(?!Add New Column).*")
+            },
+            bools = @JsonSchemaBool(path = HideAnnotation.hideOnNull, value = true)
+    )
     public String newAttributeName;
 
     @JsonProperty(required = true)

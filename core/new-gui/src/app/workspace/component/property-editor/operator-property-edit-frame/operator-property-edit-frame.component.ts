@@ -383,7 +383,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
     const schemaMap = new Map(firstPortInputSchema?.map(obj => [obj.attributeName, obj.attributeType]));
     formData.lambdaAttributeUnits.forEach((unit: any, index: number, a: any) => {
-      if (unit.attributeName === "Add New Column") a[index].attributeType = "";
+      if (unit.attributeName === "Add New Column" && !unit.newAttributeName) a[index].attributeType = "";
       if (schemaMap.has(unit.attributeName)) a[index].attributeType = schemaMap.get(unit.attributeName);
     });
   }
@@ -443,7 +443,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.hideExpression = createShouldHideFieldFunc(
           mapSource.hideTarget,
           mapSource.hideType,
-          mapSource.hideExpectedValue
+          mapSource.hideExpectedValue,
+          mapSource.hideOnNull
         );
       }
 

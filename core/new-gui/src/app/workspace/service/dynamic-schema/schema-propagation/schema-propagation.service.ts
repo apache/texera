@@ -201,8 +201,8 @@ export class SchemaPropagationService {
         return undefined;
       }
       const attrNames: string[] = inputAttrAtPort.map(attr => attr.attributeName);
-      if (v.title === "Existing Attribute Name") {
-        attrNames.push("Add New Column");
+      if (v.additionalEnumValue) {
+        attrNames.push(v.additionalEnumValue);
       }
       return attrNames;
     };
