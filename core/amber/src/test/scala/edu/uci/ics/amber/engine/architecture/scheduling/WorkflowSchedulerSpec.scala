@@ -24,7 +24,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   OperatorLink,
   OperatorPort,
   WorkflowCompiler,
-  WorkflowInfo
+  LogicalPlan
 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -43,7 +43,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     context.jobId = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(operators, links, List[BreakpointInfo]()),
+      LogicalPlan(operators, links, List[BreakpointInfo]()),
       context
     )
     texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"), new OpResultStorage())

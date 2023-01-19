@@ -26,7 +26,7 @@ import scala.collection.mutable.ArrayBuffer
 class WorkflowPipelinedRegionsBuilder(
     workflowContext: WorkflowContext,
     operatorIdToDesc: Map[String, OperatorDescriptor],
-    inputSchemaMap: Map[OperatorDescriptor, List[Option[Schema]]],
+    inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]],
     workflowId: WorkflowIdentity,
     operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
     outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]],
@@ -164,10 +164,10 @@ class WorkflowPipelinedRegionsBuilder(
 
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
-    val inputSchemaMapStr = inputSchemaMap.map(kv => (kv._1.operatorID, kv._2))
+    val inputSchemaMapStr = inputSchemaMap.map(kv => (kv._1, kv._2))
     val fromOpIdInputSchema: Array[Schema] =
       if (!operatorIdToDesc(fromOpId.operator).isInstanceOf[SourceOperatorDescriptor])
-        inputSchemaMapStr(fromOpId.operator).map(s => s.get).toArray
+        inputSchemaMapStr(fromOpId).map(s => s.get).toArray
       else Array()
     val matWriterInputSchema = operatorIdToDesc(fromOpId.operator).getOutputSchemas(
       fromOpIdInputSchema

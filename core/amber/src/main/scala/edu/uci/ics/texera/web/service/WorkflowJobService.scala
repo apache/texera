@@ -13,12 +13,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READ
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter
-}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler, WorkflowRewriter}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
   DualInputPortsPythonUDFOpDescV2,
@@ -38,7 +33,7 @@ class WorkflowJobService(
     with LazyLogging {
 
   val stateStore = new JobStateStore()
-  val workflowInfo: WorkflowInfo = createWorkflowInfo()
+  val workflowInfo: LogicalPlan = createWorkflowInfo()
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo)
   val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
@@ -105,16 +100,11 @@ class WorkflowJobService(
     )
   }
 
-  private[this] def createWorkflowInfo(): WorkflowInfo = {
-    var workflowInfo = WorkflowInfo(
-      request.logicalPlan.operators,
-      request.logicalPlan.links,
-      request.logicalPlan.breakpoints
-    )
+  private[this] def createWorkflowInfo(): LogicalPlan = {
+    var workflowInfo = LogicalPlan(request.logicalPlan)
     if (WorkflowCacheService.isAvailable) {
-      workflowInfo.cachedOperatorIds = request.logicalPlan.cachedOperatorIds
       logger.debug(
-        s"Cached operators: ${operatorCache.cachedOperators} with ${request.logicalPlan.cachedOperatorIds}"
+        s"Cached operators: ${operatorCache.cachedOperators} with ${workflowInfo.cachedOperatorIds}"
       )
       val workflowRewriter = new WorkflowRewriter(
         workflowInfo,
@@ -129,14 +119,14 @@ class WorkflowJobService(
       workflowInfo = newWorkflowInfo
       workflowInfo.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
       logger.info(
-        s"Rewrite the original workflow: ${toJgraphtDAG(oldWorkflowInfo)} to be: ${toJgraphtDAG(workflowInfo)}"
+        s"Rewrite the original workflow: ${oldWorkflowInfo} to be: ${workflowInfo}"
       )
     }
     workflowInfo
   }
 
   private[this] def createWorkflowCompiler(
-      workflowInfo: WorkflowInfo
+      workflowInfo: LogicalPlan
   ): WorkflowCompiler = {
     val compiler = new WorkflowCompiler(workflowInfo, workflowContext)
     val violations = compiler.validate
