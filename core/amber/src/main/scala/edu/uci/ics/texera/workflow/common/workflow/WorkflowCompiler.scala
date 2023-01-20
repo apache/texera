@@ -64,7 +64,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
     val (inputSchemaMap, errorList) = logicalPlan.propagateWorkflowSchema()
     if (errorList.nonEmpty) {
       throw new RuntimeException(
-        s"${errorList.size} error(s) occurred during submitting the workflow: \n ${errorList.mkString("\n")}"
+        s"${errorList.size} error(s) occurred in workflow submission: \n ${errorList.mkString("\n")}"
       )
     }
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()

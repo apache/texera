@@ -65,7 +65,7 @@ case class LogicalPlan(
   lazy val inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
     val (schemaMap, errorList) = propagateWorkflowSchema()
     if (errorList.nonEmpty) {
-      throw new RuntimeException(s"${errorList.size} error(s) occurred during schema propagation.")
+      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
     }
     schemaMap
   }
