@@ -127,7 +127,7 @@ case class LogicalPlan(
             Option.empty
           } else {
             // op's input schema is complete, try to infer its output schema
-            // if inference failed, print an exception message, but still continue the process
+            // if inference failed, print an exception message then abort
             Option.apply(
               op.getOutputSchemas(inputSchemaMap(op.operatorIdentifier).map(s => s.get).toArray)
             )
@@ -135,7 +135,7 @@ case class LogicalPlan(
         } catch {
           case e: Throwable =>
             e.printStackTrace()
-            Option.empty
+            throw e
         }
       }
       // exception: if op is a source operator, use its output schema as input schema for autocomplete
