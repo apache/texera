@@ -20,7 +20,12 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
 }
 
 /* Factory function to make functions that hide expressions for a particular field */
-export function createShouldHideFieldFunc(hideTarget: string, hideType: HideType, hideExpectedValue: string) {
+export function createShouldHideFieldFunc(
+  hideTarget: string,
+  hideType: HideType,
+  hideExpectedValue: string,
+  hideOnNull: boolean | undefined
+) {
   let shared_regex: RegExp | null = null;
 
   const hideFunc = (model: any, formState: any, field?: FormlyFieldConfig | undefined) => {
@@ -32,7 +37,7 @@ export function createShouldHideFieldFunc(hideTarget: string, hideType: HideType
     let targetFieldValue: any = model[hideTarget];
     if (targetFieldValue === null || targetFieldValue === undefined) {
       // console.debug("Formly model does not contain hide target. Formly does not know what to hide.");
-      return false;
+      return hideOnNull === true;
     }
 
     switch (hideType) {

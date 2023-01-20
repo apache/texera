@@ -43,7 +43,7 @@ import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDiffer
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
   DualInputPortsPythonUDFOpDescV2,
-  LambdaExpressionOpDesc,
+  PythonLambdaFunctionOpDesc,
   PythonUDFOpDescV2
 }
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
@@ -120,7 +120,7 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
     new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions"),
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
-    new Type(value = classOf[LambdaExpressionOpDesc], name = "LambdaExpression")
+    new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
