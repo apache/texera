@@ -154,14 +154,12 @@ class AggregationOperation() {
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
       (partial, tupleBuilder) => {
-        if (partial == Double.MaxValue) {
-          if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
-        } else if (tupleBuilder == null) {
+        if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, partial)
+            .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MaxValue) null else partial)
         } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial)
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MaxValue) null else partial)
         }
       },
       groupByFunc
@@ -180,14 +178,12 @@ class AggregationOperation() {
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
       (partial, tupleBuilder) => {
-        if (partial == Double.MinValue) {
-          if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
-        } else if (tupleBuilder == null) {
+        if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, partial)
+            .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MinValue) null else partial)
         } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial)
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MinValue) null else partial)
         }
       },
       groupByFunc
@@ -220,13 +216,11 @@ class AggregationOperation() {
       (partial1, partial2) =>
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
       (partial, tupleBuilder) => {
-        if (partial.count == 0) {
-          if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
-        } else if (tupleBuilder == null) {
+        if (tupleBuilder == null) {
           Tuple
             .newBuilder(finalAggValueSchema)
         } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial.sum / partial.count)
+          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial.count == 0) null else partial.sum / partial.count)
         }
       },
       groupByFunc
