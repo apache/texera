@@ -30,6 +30,7 @@ export class UserProjectListComponent implements OnInit {
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
 
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
+  public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
 
   constructor(
     private userProjectService: UserProjectService,
