@@ -9,13 +9,13 @@ trait ISinkOperatorExecutor extends IOperatorExecutor {
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[LinkIdentity])] = {
+  ): Iterator[(ITuple, Option[Int])] = {
     consume(tuple, input)
     Iterator.empty
   }
 
-  def consume(tuple: Either[ITuple, InputExhausted], input: LinkIdentity): Unit
+  def consume(tuple: Either[ITuple, InputExhausted], input: Int): Unit
 }

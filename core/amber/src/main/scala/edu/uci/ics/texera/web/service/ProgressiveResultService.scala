@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.texera.web.service.JobResultService._
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 
 /**
