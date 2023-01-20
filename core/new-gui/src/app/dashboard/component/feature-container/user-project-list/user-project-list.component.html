@@ -112,7 +112,7 @@
               <button
                 (click)="userProjectEntriesIsEditingDescription.push(dashboardUserProjectEntry.pid)"
                 nz-button
-                nz-tooltip="Add Description"
+                nz-tooltip="Add / Edit Description"
                 nzTooltipPlacement="top"
                 nzSize="small"
                 nzType="text">
@@ -120,6 +120,32 @@
                   nz-icon
                   nzTheme="outline"
                   nzType="plus-square"></i>
+              </button>
+              <button
+                *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim() && collapsedProjectDescriptions.indexOf(dashboardUserProjectEntry.pid) === -1"
+                (click)="collapsedProjectDescriptions.push(dashboardUserProjectEntry.pid)"
+                nz-button
+                nz-tooltip="Collapse Description"
+                nzTooltipPlacement="top"
+                nzSize="small"
+                nzType="text">
+                <i
+                  nz-icon
+                  nzType="up-square"
+                  nzTheme="outline"></i>
+              </button>
+              <button
+                *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim() && collapsedProjectDescriptions.indexOf(dashboardUserProjectEntry.pid) !== -1"
+                (click)="removeCollapsedProjectDescriptionStatus(dashboardUserProjectEntry.pid)"
+                nz-button
+                nz-tooltip="Expand Description"
+                nzTooltipPlacement="top"
+                nzSize="small"
+                nzType="text">
+                <i
+                  nz-icon
+                  nzType="down-square"
+                  nzTheme="outline"></i>
               </button>
             </ng-container>
 
@@ -137,22 +163,13 @@
           <nz-list-item-meta-description>
             <ng-container
               *ngIf="userProjectEntriesIsEditingDescription.indexOf(dashboardUserProjectEntry.pid) === -1;else editingDescription">
-              <p *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim()">
-                {{dashboardUserProjectEntry.description}}
-                <button
-                  nz-button
-                  nzSize="small">
-                  <i
-                    class="edit-description-icon"
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="edit"
-                    nz-tooltip="Edit Project Description"
-                    nzTooltipPlacement="top"
-                    (click)="userProjectEntriesIsEditingDescription.push(dashboardUserProjectEntry.pid)"></i>
-                </button>
-              </p>
+              <div
+                class="description-container"
+                *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim() && collapsedProjectDescriptions.indexOf(dashboardUserProjectEntry.pid) === -1">
+                <markdown [data]="dashboardUserProjectEntry.description"></markdown>
+              </div>
             </ng-container>
+
             <ng-template #editingDescription>
               <nz-input-group
                 [nzSuffix]="saveDescriptionIcon"

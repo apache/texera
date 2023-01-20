@@ -19,6 +19,7 @@ export class UserProjectListComponent implements OnInit {
   public userProjectEntries: UserProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
   public userProjectEntriesIsEditingDescription: number[] = [];
+  public collapsedProjectDescriptions: number[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
 
@@ -73,6 +74,10 @@ export class UserProjectListComponent implements OnInit {
     this.userProjectEntriesIsEditingDescription = this.userProjectEntriesIsEditingDescription.filter(
       index => index != pid
     );
+  }
+
+  public removeCollapsedProjectDescriptionStatus(pid: number) {
+    this.collapsedProjectDescriptions = this.collapsedProjectDescriptions.filter(index => index != pid);
   }
 
   public saveProjectDescription(project: UserProject, newDescr: string, index: number): void {
