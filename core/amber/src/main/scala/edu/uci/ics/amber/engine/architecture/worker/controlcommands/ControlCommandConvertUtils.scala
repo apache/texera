@@ -4,11 +4,11 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonConsoleMessageHandler.PythonConsoleMessage
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyOperatorLogicHandler.ModifyOperatorLogic
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
@@ -26,9 +26,8 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, Wor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(
@@ -107,7 +106,7 @@ object ControlCommandConvertUtils {
         //  this is left hardcoded now since sampling is not currently enabled for PythonUDF.
         (
           selfWorkloadReturn.value.metrics,
-          new ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+          List[mutable.HashMap[ActorVirtualIdentity, List[Long]]]()
         )
       case _ => controlReturnV2.value.value
     }

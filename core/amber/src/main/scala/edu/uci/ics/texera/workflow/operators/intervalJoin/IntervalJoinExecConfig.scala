@@ -35,12 +35,12 @@ class IntervalJoinExecConfig(
           _ =>
             new IntervalJoinOpExec(
               operatorSchemaInfo,
-              desc,
-              getLeftInputLink()
+              desc
             ),
           1,
           UseAll(),
-          RoundRobinDeployment()
+          RoundRobinDeployment(),
+          inputToOrdinalMapping.map(p => (p._1, p._2._1)).toMap
         )
       ),
       Array()

@@ -22,4 +22,7 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
   hideExpectedValue?: string;
   hideTarget?: string;
   hideType?: HideType;
+  hideOnNull?: boolean;
+
+  additionalEnumValue?: string;
 }
