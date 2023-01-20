@@ -33,6 +33,9 @@ class FinalAggregateOpExec[Partial <: AnyRef](
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
+    if (aggFuncs.isEmpty) {
+      throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
+    }
     tuple match {
       case Left(t) =>
         val groupBySchema = if (aggFuncs.isEmpty) null else aggFuncs(0).groupByFunc(t.getSchema)
@@ -60,11 +63,9 @@ class FinalAggregateOpExec[Partial <: AnyRef](
         })
         Iterator()
       case Right(_) =>
-        // TODO: Add support for empty aggFuncs
         partialObjectsPerKey(0).iterator.map(pair => {
           var tupleBuilder: Tuple.BuilderV2 = null
           partialObjectsPerKey.indices.foreach(index => {
-            // TODO: Add if for null return value
             tupleBuilder = aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1), tupleBuilder)
           })
           val finalObject = tupleBuilder.build()

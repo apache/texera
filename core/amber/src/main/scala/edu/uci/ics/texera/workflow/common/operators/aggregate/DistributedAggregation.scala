@@ -28,7 +28,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 case class DistributedAggregation[P <: AnyRef](
     // () => PartialObject
     init: () => P,
-    // TODO: Use Generics instead of AnyRef
     // PartialObject + Tuple => PartialObject
     iterate: (P, Tuple) => P,
     // PartialObject + PartialObject => PartialObject
