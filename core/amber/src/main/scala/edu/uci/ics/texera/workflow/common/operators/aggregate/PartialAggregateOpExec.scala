@@ -63,7 +63,13 @@ class PartialAggregateOpExec[P <: AnyRef](
           schema = Schema
             .newBuilder()
             .add(groupByKeyAttributes.toArray: _*)
-            .add(aggFuncs.indices.map(i => new Attribute(constructInternalAggregatePartialObject(i), AttributeType.ANY)).asJava)
+            .add(
+              aggFuncs.indices
+                .map(i =>
+                  new Attribute(constructInternalAggregatePartialObject(i), AttributeType.ANY)
+                )
+                .asJava
+            )
             .build()
         }
         val key =
@@ -71,7 +77,8 @@ class PartialAggregateOpExec[P <: AnyRef](
           else JavaConverters.asScalaBuffer(groupByKey.getFields).toList
 
         for ((aggFunc, index) <- aggFuncs.view.zipWithIndex) {
-          val partialObject = aggFunc.iterate(partialObjectsPerKey(index).getOrElse(key, aggFunc.init()), t)
+          val partialObject =
+            aggFunc.iterate(partialObjectsPerKey(index).getOrElse(key, aggFunc.init()), t)
           partialObjectsPerKey(index).put(key, partialObject)
         }
 
@@ -81,10 +88,10 @@ class PartialAggregateOpExec[P <: AnyRef](
           Tuple
             .newBuilder(schema)
             .addSequentially(
-                (pair._1 ++ partialObjectsPerKey.map(partialObjectPerKey => {
-                  partialObjectPerKey(pair._1)
-                })).toArray
-              )
+              (pair._1 ++ partialObjectsPerKey.map(partialObjectPerKey => {
+                partialObjectPerKey(pair._1)
+              })).toArray
+            )
             .build()
         })
     }

@@ -21,7 +21,8 @@ class FinalAggregateOpExec[Partial <: AnyRef](
 
   // partialObjectsPerKey has the same length as aggFuncs
   // partialObjectsPerKey[i] corresponds to aggFuncs[i]
-  var partialObjectsPerKey = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], Partial]())
+  var partialObjectsPerKey =
+    (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], Partial]())
   var outputIterator: Iterator[Tuple] = _
 
   override def open(): Unit = {}
@@ -58,7 +59,8 @@ class FinalAggregateOpExec[Partial <: AnyRef](
           if (!partialObjectsPerKey(index).contains(key)) {
             partialObjectsPerKey(index).put(key, partialObject)
           } else {
-            partialObjectsPerKey(index).put(key, aggFuncs(index).merge(partialObjectsPerKey(index)(key), partialObject))
+            partialObjectsPerKey(index)
+              .put(key, aggFuncs(index).merge(partialObjectsPerKey(index)(key), partialObject))
           }
         })
         Iterator()
@@ -66,7 +68,8 @@ class FinalAggregateOpExec[Partial <: AnyRef](
         partialObjectsPerKey(0).iterator.map(pair => {
           var tupleBuilder: Tuple.BuilderV2 = null
           partialObjectsPerKey.indices.foreach(index => {
-            tupleBuilder = aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1), tupleBuilder)
+            tupleBuilder =
+              aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1), tupleBuilder)
           })
           val finalObject = tupleBuilder.build()
 

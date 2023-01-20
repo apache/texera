@@ -93,7 +93,8 @@ class PieChartOpDesc extends VisualizationOperator {
           },
           (partial1, partial2) => partial1.zip(partial2).map { case (x, y) => x + y },
           (partial, tupleBuilder) => {
-            val resultBuilder = if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
+            val resultBuilder =
+              if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
             for (i <- dataColumns.indices) {
               resultBuilder.add(resultAttributeNames(i), AttributeType.DOUBLE, partial(i))
             }

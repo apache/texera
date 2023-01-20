@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.texera.workflow.operators.aggregate.{AggregationFunction, AggregationOperation, SpecializedAverageOpDesc}
+import edu.uci.ics.texera.workflow.operators.aggregate.{
+  AggregationFunction,
+  AggregationOperation,
+  SpecializedAverageOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
