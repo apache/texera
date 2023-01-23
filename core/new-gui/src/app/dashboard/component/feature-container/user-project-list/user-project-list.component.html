@@ -180,7 +180,7 @@
                   nz-input
                   placeholder="Enter project description"
                   nzAutosize
-                  maxlength="10000"
+                  [attr.maxlength]="MAX_PROJECT_DESCRIPTION_CHAR_COUNT"
                   (focusout)="saveProjectDescription(dashboardUserProjectEntry, descriptionBox.value, i)">
 {{dashboardUserProjectEntry.description}}</textarea
                 >
