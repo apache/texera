@@ -181,9 +181,9 @@ export class JointGraphWrapper {
       .subscribe(element => this.elementPositions.delete(element.id.toString()));
 
     this.getJointOperatorHighlightStream().subscribe(event => {
-      console.log('getJointOperatorHighlightStream emit event')
+      console.log("getJointOperatorHighlightStream emit event");
       // console.log(event)
-    })
+    });
   }
 
   /**
@@ -374,8 +374,8 @@ export class JointGraphWrapper {
     });
 
     if (highlightedOperatorIDs.length > 0) {
-      console.log('emitting hightlight stream')
-      console.log(highlightedOperatorIDs)
+      console.log("emitting hightlight stream");
+      console.log(highlightedOperatorIDs);
       this.jointOperatorHighlightStream.next(highlightedOperatorIDs);
     }
   }
