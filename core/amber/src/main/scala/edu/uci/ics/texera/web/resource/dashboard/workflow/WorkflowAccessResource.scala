@@ -22,7 +22,7 @@ import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.JavaConverters._
@@ -159,9 +159,8 @@ object WorkflowAccessResource {
 /**
   * Provides endpoints for operations related to Workflow Access.
   */
-@PermitAll
-@Path("/workflow/access")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/workflow/access")
 class WorkflowAccessResource() {
 
   private val workflowOfUserDao = new WorkflowOfUserDao(
@@ -184,6 +183,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/owner/{wid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getWorkflowOwner(@PathParam("wid") wid: UInteger): OwnershipResponse = {
     val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
     val ownerName = userDao.fetchOneByUid(uid).getName
@@ -198,6 +198,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/workflow/{wid}/level")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveUserAccessLevel(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -216,6 +217,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/list/{wid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveGrantedWorkflowAccessList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -243,6 +245,7 @@ class WorkflowAccessResource() {
     */
   @DELETE
   @Path("/revoke/{wid}/{username}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def revokeWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,
@@ -282,6 +285,7 @@ class WorkflowAccessResource() {
     */
   @POST
   @Path("/grant/{wid}/{username}/{accessLevel}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def grantWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,

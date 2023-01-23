@@ -24,8 +24,8 @@
       </button>
       <label>
         <nz-avatar
-          *ngIf="workflowIdChanged | async as wid"
-          [nzText]="wid?.toString() || ''"></nz-avatar>
+          *ngIf="workflowId"
+          [nzText]="workflowId?.toString() || ''"></nz-avatar>
         <input
           *ngIf="!displayParticularWorkflowVersion"
           (change)="onWorkflowNameChange()"
@@ -43,6 +43,7 @@
         *ngIf="displayParticularWorkflowVersion"
         nz-button
         nzType="primary"
+        [disabled]="!workflowVersionService.modificationEnabledBeforeTempWorkflow"
         (click)="revertToVersion()">
         Restore this version
       </button>
@@ -62,7 +63,7 @@
       *ngIf="userSystemEnabled"
       class="texera-navigation-coeditor-icons">
       <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
-        <texera-coeditor-user-icon [coeditor]="user"> </texera-coeditor-user-icon>
+        <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
     </div>
 
@@ -115,7 +116,7 @@
         <button
           (click)="persistWorkflow()"
           *ngIf="userSystemEnabled"
-          [disabled]="!userService.isLogin() || isSaving"
+          [disabled]="!userService.isLogin() || isSaving || !isWorkflowModifiable"
           nz-button
           title="save">
           <i
@@ -132,6 +133,7 @@
         </button>
         <button
           (click)="onClickDeleteAllOperators()"
+          [disabled]="!isWorkflowModifiable"
           nz-button
           title="delete all">
           <i
@@ -139,9 +141,12 @@
             nzTheme="outline"
             nzType="delete"></i>
         </button>
-        <nz-upload [nzBeforeUpload]="onClickImportWorkflow">
+        <nz-upload
+          [nzDisabled]="!isWorkflowModifiable"
+          [nzBeforeUpload]="onClickImportWorkflow">
           <button
             nz-button
+            [disabled]="!isWorkflowModifiable"
             title="import workflow">
             <i
               nz-icon
@@ -202,6 +207,7 @@
         <button
           nz-button
           (click)="onClickAutoLayout()"
+          [disabled]="!isWorkflowModifiable"
           title="auto layout">
           <i
             nz-icon
@@ -210,6 +216,7 @@
         </button>
         <button
           (click)="onClickAddCommentBox()"
+          [disabled]="!isWorkflowModifiable"
           nz-button
           title="add a comment">
           <i

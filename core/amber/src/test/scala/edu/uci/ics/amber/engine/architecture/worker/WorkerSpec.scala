@@ -68,10 +68,10 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity,
+          input: Int,
           pauseManager: PauseManager,
           asyncRPCClient: AsyncRPCClient
-      ): Iterator[(ITuple, Option[LinkIdentity])] = ???
+      ): Iterator[(ITuple, Option[Int])] = ???
     }
 
     val mockTag = LinkIdentity(null, null)
@@ -83,6 +83,8 @@ class WorkerSpec
         new WorkflowWorker(
           identifier1,
           mockOpExecutor,
+          Map[LinkIdentity, Int](),
+          new mutable.HashMap[LinkIdentity, Int](),
           NetworkSenderActorRef(null),
           Set(mockTag),
           false
@@ -115,16 +117,18 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity,
+          input: Int,
           pauseManager: PauseManager,
           asyncRPCClient: AsyncRPCClient
-      ): Iterator[(ITuple, Option[LinkIdentity])] = { return Iterator() }
+      ): Iterator[(ITuple, Option[Int])] = { return Iterator() }
     }
 
     val worker = TestActorRef(
       new WorkflowWorker(
         identifier1,
         mockOpExecutor,
+        Map[LinkIdentity, Int](),
+        new mutable.HashMap[LinkIdentity, Int](),
         NetworkSenderActorRef(probe.ref),
         Set(),
         false

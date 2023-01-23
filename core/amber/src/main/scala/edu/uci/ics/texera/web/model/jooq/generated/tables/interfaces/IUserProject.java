@@ -37,6 +37,16 @@ public interface IUserProject extends Serializable {
     public String getName();
 
     /**
+     * Setter for <code>texera_db.user_project.description</code>.
+     */
+    public void setDescription(String value);
+
+    /**
+     * Getter for <code>texera_db.user_project.description</code>.
+     */
+    public String getDescription();
+
+    /**
      * Setter for <code>texera_db.user_project.owner_id</code>.
      */
     public void setOwnerId(UInteger value);

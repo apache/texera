@@ -22,7 +22,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNI
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
@@ -129,7 +129,7 @@ class JobResultService(
 
   def attachToJob(
       stateStore: JobStateStore,
-      workflowInfo: WorkflowInfo,
+      logicalPlan: LogicalPlan,
       client: AmberClient
   ): Unit = {
 
@@ -199,8 +199,8 @@ class JobResultService(
     }
 
     // If we have cache sources, make dummy sink operators for displaying results on the frontend.
-    workflowInfo.toDAG.getSourceOperators.map(source => {
-      workflowInfo.toDAG.getOperator(source) match {
+    logicalPlan.getSourceOperators.map(source => {
+      logicalPlan.getOperator(source) match {
         case cacheSourceOpDesc: CacheSourceOpDesc =>
           val dummySink = new ProgressiveSinkOpDesc()
           dummySink.setStorage(opResultStorage.get(cacheSourceOpDesc.targetSinkStorageId))
@@ -215,8 +215,8 @@ class JobResultService(
     })
 
     // For cached operators and sinks, create result service so that the results can be displayed.
-    workflowInfo.toDAG.getSinkOperators.map(sink => {
-      workflowInfo.toDAG.getOperator(sink) match {
+    logicalPlan.getSinkOperators.map(sink => {
+      logicalPlan.getOperator(sink) match {
         case sinkOp: ProgressiveSinkOpDesc =>
           val service = new ProgressiveResultService(sinkOp)
           sinkOp.getCachedUpstreamId match {
