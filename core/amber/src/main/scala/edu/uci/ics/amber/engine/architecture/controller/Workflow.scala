@@ -1,127 +1,42 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, ActorRef, Address}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType, SinkOpExecConfig}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class Workflow(
-    workflowId: WorkflowIdentity,
-    operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
-    outLinks: Map[OperatorIdentity, Set[OperatorIdentity]],
-    pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge]
-) {
-  // The following data structures are created when workflow object is created.
-  private val inLinks: Map[OperatorIdentity, Set[OperatorIdentity]] =
-    AmberUtils.reverseMultimap(outLinks)
-  private val sourceOperators: Iterable[OperatorIdentity] =
-    operatorToOpExecConfig.keys.filter(!inLinks.contains(_))
-  private val sinkOperators: Iterable[OperatorIdentity] =
-    operatorToOpExecConfig.keys.filter(!outLinks.contains(_))
-
-  // This is updated by `instantiateAndStoreLinkInformation`
-  val idToLink = new mutable.HashMap[LinkIdentity, LinkStrategy]()
+class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan) {
 
   // The following data structures are updated when the operator is built (buildOperator())
   // by scheduler and the worker identities are available.
-  val workerToLayer = new mutable.HashMap[ActorVirtualIdentity, WorkerLayer]()
-  val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
+  val workerToLayer = new mutable.HashMap[ActorVirtualIdentity, NewOpExecConfig]()
+//  val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
 
-  instantiateAndStoreLinkInformation()
 
-  private def instantiateAndStoreLinkInformation(): Unit = {
-    getAllOperators.foreach(opExecConfig => {
-      opExecConfig.topology.links.foreach { (linkStrategy: LinkStrategy) =>
-        idToLink(linkStrategy.id) = linkStrategy
-      }
-    })
-    buildInterOperatorLinks()
-  }
-
-  private def buildInterOperatorLinks(): Unit = {
-    getAllOperatorIds.foreach(toOpId => {
-      for (from <- getDirectUpstreamOperators(toOpId)) {
-        val link = linkOperators(
-          (getOperator(from), getOperator(from).topology.layers.last),
-          (getOperator(toOpId), getOperator(toOpId).topology.layers.head)
-        )
-        idToLink(link.id) = link
-      }
-    })
-  }
-
-  private def linkOperators(
-      from: (OpExecConfig, WorkerLayer),
-      to: (OpExecConfig, WorkerLayer)
-  ): LinkStrategy = {
-    val sender = from._2
-    val receiver = to._2
-    val receiverOpExecConfig = to._1
-    if (receiverOpExecConfig.requiresShuffle) {
-      if (receiverOpExecConfig.shuffleType == ShuffleType.HASH_BASED) {
-        new HashBasedShuffle(
-          sender,
-          receiver,
-          Constants.defaultBatchSize,
-          receiverOpExecConfig.getPartitionColumnIndices(sender.id)
-        )
-      } else if (receiverOpExecConfig.shuffleType == ShuffleType.RANGE_BASED) {
-        new RangeBasedShuffle(
-          sender,
-          receiver,
-          Constants.defaultBatchSize,
-          receiverOpExecConfig.getPartitionColumnIndices(sender.id),
-          receiverOpExecConfig.getRangeShuffleMinAndMax._1,
-          receiverOpExecConfig.getRangeShuffleMinAndMax._2
-        )
-      } else {
-        // unknown shuffle type. Default to full round-robin
-        new FullRoundRobin(sender, receiver, Constants.defaultBatchSize)
-      }
-    } else if (receiverOpExecConfig.isInstanceOf[SinkOpExecConfig]) {
-      new AllToOne(sender, receiver, Constants.defaultBatchSize)
-    } else if (sender.numWorkers == receiver.numWorkers) {
-      new OneToOne(sender, receiver, Constants.defaultBatchSize)
-    } else {
-      new FullRoundRobin(sender, receiver, Constants.defaultBatchSize)
-    }
-  }
-
-  def getPipelinedRegionsDAG() = pipelinedRegionsDAG
-
-  def getBlockingOutlinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
-    val outlinks = new mutable.HashSet[LinkIdentity]()
+  def getBlockingOutLinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
+    val outLinks = new mutable.HashSet[LinkIdentity]()
     region.blockingDowstreamOperatorsInOtherRegions.foreach(opId => {
-      getDirectUpstreamOperators(opId)
-        .foreach(uOpId => {
-          if (region.getOperators().contains(uOpId)) {
-            outlinks.add(
-              LinkIdentity(
-                getOperator(uOpId).topology.layers.last.id,
-                getOperator(opId).topology.layers.head.id
-              )
-            )
-          }
-        })
+      physicalPlan.getUpstream(opId).foreach(upstream => {
+        if (region.operators.contains(upstream)) {
+          outLinks.add(LinkIdentity(upstream, opId))
+        }
+      })
     })
-    outlinks.toSet
+    outLinks.toSet
   }
 
   /**
@@ -129,18 +44,10 @@ class Workflow(
     */
   def getSourcesOfRegion(region: PipelinedRegion): Array[OperatorIdentity] = {
     val sources = new ArrayBuffer[OperatorIdentity]()
-    region
-      .getOperators()
-      .foreach(opId => {
-        if (
-          getDirectUpstreamOperators(opId)
-            .forall(upOp =>
-              !region
-                .getOperators()
-                .contains(upOp)
-            )
-        ) {
-          sources.append(opId)
+    region.getOperators().foreach(opId => {
+      val isSource = physicalPlan.getUpstream(opId).forall(up => !region.containsOperator(up))
+      if (isSource) {
+          sources.append(toOperatorIdentity(opId))
         }
       })
     sources.toArray
@@ -150,29 +57,32 @@ class Workflow(
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
 
-    allOperatorsInRegion.map(opId => operatorToOpExecConfig(opId).getAllWorkers.toList).flatten
+    allOperatorsInRegion.flatMap(opId => physicalPlan.operatorMap(opId).getAllWorkers.toList)
   }
 
   def getAllWorkerInfoOfAddress(address: Address): Iterable[WorkerInfo] = {
-    getAllLayers.flatMap(_.workers.values).filter(info => info.ref.path.address == address)
+    physicalPlan.operators.flatMap(_.workers.values).filter(info => info.ref.path.address == address)
   }
 
-  def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
+//  def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
 
-  def getAllOperatorIds: Iterable[OperatorIdentity] = operatorToOpExecConfig.keys
+//  def getAllOperatorIds: Iterable[OperatorIdentity] = operatorToOpExecConfig.keys
 
   def getWorkflowId(): WorkflowIdentity = workflowId
 
   def getDirectUpstreamWorkers(vid: ActorVirtualIdentity): Iterable[ActorVirtualIdentity] = {
-    val workerLayer = getWorkerLayer(vid)
-    val upstreamLinks = idToLink.values.filter(_.to.id == workerLayer.id)
+    val opId = workerToLayer(vid).id
+    val upstreamLinks = physicalPlan.getUpstreamLinks(opId)
     val upstreamWorkers = mutable.HashSet[ActorVirtualIdentity]()
-    upstreamLinks.flatMap(_.getPartitioning).foreach {
-      case (sender, _, _, receivers) =>
-        if (receivers.contains(vid)) {
-          upstreamWorkers.add(sender)
-        }
-    }
+    upstreamLinks
+      .map(link => physicalPlan.linkStrategies(link))
+      .flatMap(linkStrategy => linkStrategy.getPartitioning.toList)
+      .foreach {
+        case (sender, _, _, receivers) =>
+          if (receivers.contains(vid)) {
+            upstreamWorkers.add(sender)
+          }
+      }
     upstreamWorkers
   }
 
@@ -199,20 +109,20 @@ class Workflow(
     }.toMap
   }
 
-  def getStartOperators: Iterable[OpExecConfig] = sourceOperators.map(operatorToOpExecConfig(_))
+//  def getStartOperators: Iterable[OpExecConfig] = sourceOperators.map(operatorToOpExecConfig(_))
+//
+//  def getEndOperators: Iterable[OpExecConfig] = sinkOperators.map(operatorToOpExecConfig(_))
 
-  def getEndOperators: Iterable[OpExecConfig] = sinkOperators.map(operatorToOpExecConfig(_))
+//  def getOperator(opID: String): OpExecConfig =
+//    operatorToOpExecConfig(OperatorIdentity(workflowId.id, opID))
+//
+//  def getOperator(opID: OperatorIdentity): OpExecConfig = operatorToOpExecConfig(opID)
 
-  def getOperator(opID: String): OpExecConfig =
-    operatorToOpExecConfig(OperatorIdentity(workflowId.id, opID))
-
-  def getOperator(opID: OperatorIdentity): OpExecConfig = operatorToOpExecConfig(opID)
-
-  def getDirectUpstreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
-    inLinks.getOrElse(opID, Set())
-
-  def getDirectDownStreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
-    outLinks.getOrElse(opID, Set())
+//  def getDirectUpstreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
+//    inLinks.getOrElse(opID, Set())
+//
+//  def getDirectDownStreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
+//    outLinks.getOrElse(opID, Set())
 
   def getAllOperators: Iterable[OpExecConfig] = operatorToOpExecConfig.values
 
@@ -232,21 +142,21 @@ class Workflow(
     upstreamOperatorToLayers
   }
 
-  def getSourceLayers: Iterable[WorkerLayer] = {
-    val tos = getAllLinks.map(_.to).toSet
-    getAllLayers.filter(layer => !tos.contains(layer))
-  }
+//  def getSourceLayers: Iterable[WorkerLayer] = {
+//    val tos = getAllLinks.map(_.to).toSet
+//    getAllLayers.filter(layer => !tos.contains(layer))
+//  }
+//
+//  def getSinkLayers: Iterable[WorkerLayer] = {
+//    val froms = getAllLinks.map(_.from).toSet
+//    getAllLayers.filter(layer => !froms.contains(layer))
+//  }
 
-  def getSinkLayers: Iterable[WorkerLayer] = {
-    val froms = getAllLinks.map(_.from).toSet
-    getAllLayers.filter(layer => !froms.contains(layer))
-  }
+//  def getAllLayers: Iterable[WorkerLayer] = operatorToOpExecConfig.values.flatMap(_.topology.layers)
 
-  def getAllLayers: Iterable[WorkerLayer] = operatorToOpExecConfig.values.flatMap(_.topology.layers)
+//  def getAllLinks: Iterable[LinkStrategy] = idToLink.values
 
-  def getAllLinks: Iterable[LinkStrategy] = idToLink.values
-
-  def getWorkerLayer(workerID: ActorVirtualIdentity): WorkerLayer = workerToLayer(workerID)
+//  def getWorkerLayer(workerID: ActorVirtualIdentity): WorkerLayer = workerToLayer(workerID)
 
   def getInlinksIdsToWorkerLayer(layerIdentity: LayerIdentity): Set[LinkIdentity] = {
     val inlinkIds = new mutable.HashSet[LinkIdentity]()

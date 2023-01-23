@@ -126,12 +126,12 @@ object NewOpExecConfig {
      */
 
     // workers of this operator
-    var workers: Map[WorkerIdentity, WorkerInfo] =
-      Map[WorkerIdentity, WorkerInfo]()
+    var workers: Map[ActorVirtualIdentity, WorkerInfo] =
+      Map[ActorVirtualIdentity, WorkerInfo]()
 
     var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
-    var caughtLocalExceptions = new mutable.HashMap[WorkerIdentity, Throwable]()
-    var workerToWorkloadInfo = new mutable.HashMap[WorkerIdentity, WorkerWorkloadInfo]()
+    var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
+    var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
 
     /*
      * Helper functions related to compile-time operations
@@ -230,13 +230,13 @@ object NewOpExecConfig {
 
     def statistics: Array[WorkerStatistics] = workers.values.map(_.stats).toArray
 
-    def getAllWorkers: Iterable[WorkerIdentity] = workers.keys
+    def getAllWorkers: Iterable[ActorVirtualIdentity] = workers.keys
 
-    def getWorker(id: WorkerIdentity): WorkerInfo = {
+    def getWorker(id: ActorVirtualIdentity): WorkerInfo = {
       workers(id)
     }
 
-    def getWorkerWorkloadInfo(id: WorkerIdentity): WorkerWorkloadInfo = {
+    def getWorkerWorkloadInfo(id: ActorVirtualIdentity): WorkerWorkloadInfo = {
       if (!workerToWorkloadInfo.contains(id)) {
         workerToWorkloadInfo(id) = WorkerWorkloadInfo(0L, 0L)
       }

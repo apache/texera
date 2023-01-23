@@ -3,10 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import akka.actor.{ActorContext, Address}
 import com.twitter.util.Future
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
@@ -22,11 +19,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
@@ -48,9 +41,9 @@ class WorkflowScheduler(
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built
-  private val builtOperators = new mutable.HashSet[OperatorIdentity]()
-  private val openedOperators = new mutable.HashSet[OperatorIdentity]()
-  private val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
+  private val builtOperators = new mutable.HashSet[Set[LayerIdentity]]()
+  private val openedOperators = new mutable.HashSet[LayerIdentity]()
+  private val initializedPythonOperators = new mutable.HashSet[LayerIdentity]()
   private val activatedLink = new mutable.HashSet[LinkIdentity]()
 
   private val constructingRegions = new mutable.HashSet[PipelinedRegionIdentity]()

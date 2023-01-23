@@ -36,7 +36,7 @@ object SchedulingPolicy {
 abstract class SchedulingPolicy(workflow: Workflow) {
 
   protected val regionsScheduleOrder: mutable.Buffer[PipelinedRegion] =
-    new TopologicalOrderIterator(workflow.getPipelinedRegionsDAG()).asScala.toBuffer
+    new TopologicalOrderIterator(workflow.physicalPlan.pipelinedRegionsDAG).asScala.toBuffer
 
   // regions sent by the policy to be scheduled at least once
   protected val sentToBeScheduledRegions = new mutable.HashSet[PipelinedRegion]()
