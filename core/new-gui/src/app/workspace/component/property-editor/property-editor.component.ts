@@ -75,7 +75,6 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowVersionService.workflowVersionsDisplayObservable()
     )
       .pipe(
-        auditTime(0), // prevent a single user action triggering a re-render multiple times
         filter(() => this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()),
         untilDestroyed(this)
       )
