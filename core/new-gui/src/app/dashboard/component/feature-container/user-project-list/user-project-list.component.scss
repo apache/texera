@@ -17,6 +17,10 @@ button {
   border: none;
 }
 
+.edit-name-icon:hover, .edit-description-icon:hover {
+  color: skyblue;
+}
+
 .description-container {
   padding: 2.5%;
 }
