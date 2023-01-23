@@ -141,7 +141,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     val logicalPlan = LogicalPlan(operators, links, List())
     val workflowCompiler = new WorkflowCompiler(logicalPlan, new WorkflowContext())
 
-    val schemaResult = workflowCompiler.logicalPlan.propagateWorkflowSchema()
+    val schemaResult = workflowCompiler.logicalPlan.propagateWorkflowSchema()._1
 
     assert(schemaResult(mlTrainingOp.operatorIdentifier).head.get.equals(dataSchema))
     assert(schemaResult(mlTrainingOp.operatorIdentifier)(1).get.equals(dataSchema))

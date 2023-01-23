@@ -61,7 +61,12 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
     })
 
     // create and save OpExecConfigs for the operators
-    val inputSchemaMap = logicalPlan.propagateWorkflowSchema()
+    val (inputSchemaMap, errorList) = logicalPlan.propagateWorkflowSchema()
+    if (errorList.nonEmpty) {
+      throw new RuntimeException(
+        s"${errorList.size} error(s) occurred in workflow submission: \n ${errorList.mkString("\n")}"
+      )
+    }
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     logicalPlan.operators.foreach(o => {
       val inputSchemas: Array[Schema] =

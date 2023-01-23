@@ -31,10 +31,13 @@ class SchemaPropagationResource {
 
       val texeraWorkflowCompiler = new WorkflowCompiler(LogicalPlan(workflow), context)
 
-      val schemaPropagationResult = texeraWorkflowCompiler.logicalPlan
-        .propagateWorkflowSchema()
-        .map(e => (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala))))
-      SchemaPropagationResponse(0, schemaPropagationResult, null)
+      // ignore errors during propagation.
+      val (schemaPropagationResult, _) =
+        texeraWorkflowCompiler.logicalPlan.propagateWorkflowSchema()
+      val responseContent = schemaPropagationResult.map(e =>
+        (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala)))
+      )
+      SchemaPropagationResponse(0, responseContent, null)
     } catch {
       case e: Throwable =>
         e.printStackTrace()
