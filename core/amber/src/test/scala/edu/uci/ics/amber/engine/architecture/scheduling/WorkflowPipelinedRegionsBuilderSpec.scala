@@ -9,10 +9,15 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
+  LogicalPlan,
   OperatorLink,
   OperatorPort,
-  WorkflowCompiler,
-  LogicalPlan
+  WorkflowCompiler
+}
+import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonUDFOpDescV2
 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -191,6 +196,47 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         ),
         OperatorLink(
           OperatorPort(hashJoin2.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
+    assert(pipelinedRegions.vertexSet().size == 2)
+  }
+
+  "Pipelined Regions" should "correctly find regions in csv->split->training-infer workflow" in {
+    val csv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val split = new SplitOpDesc()
+    val training = new PythonUDFOpDescV2()
+    val inference = new DualInputPortsPythonUDFOpDescV2()
+    val sink = TestOperators.sinkOpDesc()
+    val workflow = buildWorkflow(
+      List(
+        csv,
+        split,
+        training,
+        inference,
+        sink
+      ),
+      List(
+        OperatorLink(
+          OperatorPort(csv.operatorID, 0),
+          OperatorPort(split.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(split.operatorID, 0),
+          OperatorPort(training.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(training.operatorID, 0),
+          OperatorPort(inference.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(split.operatorID, 1),
+          OperatorPort(inference.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(inference.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
       )

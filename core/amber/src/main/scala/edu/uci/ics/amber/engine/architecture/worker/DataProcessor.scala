@@ -54,11 +54,6 @@ class DataProcessor( // dependencies:
     val recoveryQueue: RecoveryQueue,
     val actorId: ActorVirtualIdentity,
     val opExecConfig: NewOpExecConfig
-
-    //    val inputToOrdinalMapping: Map[LinkIdentity, Int],
-    //  use two different types for the wire library to do dependency injection
-    // temporary workaround, will be refactored soon
-//    val outputToOrdinalMapping: mutable.Map[LinkIdentity, Int]
 ) extends WorkerInternalQueue
     with AmberLogging {
   // initialize dp thread upon construction

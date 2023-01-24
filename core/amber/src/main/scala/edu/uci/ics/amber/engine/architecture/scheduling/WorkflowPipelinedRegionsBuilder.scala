@@ -2,11 +2,9 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity,
-  OperatorIdentity,
   WorkflowIdentity
 }
 import edu.uci.ics.texera.workflow.common.workflow.{
@@ -57,32 +55,6 @@ class WorkflowPipelinedRegionsBuilder(
     )
 
   var materializationWriterReaderPairs = new mutable.HashMap[LayerIdentity, LayerIdentity]()
-
-//  private def inLinks(): Map[OperatorIdentity, Set[OperatorIdentity]] =
-//    AmberUtils.reverseMultimap(
-//      outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
-//    )
-
-//  private def getAllOperatorIds: Iterable[OperatorIdentity] = operatorToOpExecConfig.keys
-//
-//  private def getDirectUpstreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
-//    inLinks.getOrElse(opID, Set())
-//
-//  private def getTopologicallyOrderedOperators(): Array[OperatorIdentity] = {
-//    val dag = new DirectedAcyclicGraph[OperatorIdentity, DefaultEdge](classOf[DefaultEdge])
-//    getAllOperatorIds.foreach(opId => dag.addVertex(opId))
-//    outLinks.foreach(entry => {
-//      entry._2.foreach(toOpId => dag.addEdge(entry._1, toOpId))
-//    })
-//    val regionsScheduleOrderIterator =
-//      new TopologicalOrderIterator[OperatorIdentity, DefaultEdge](dag)
-//
-//    val orderedArray = new ArrayBuffer[OperatorIdentity]()
-//    while (regionsScheduleOrderIterator.hasNext()) {
-//      orderedArray.append(regionsScheduleOrderIterator.next())
-//    }
-//    orderedArray.toArray
-//  }
 
   /**
     * Uses the outLinks and operatorToOpExecConfig to create a DAG similar to the workflow but with all
@@ -268,7 +240,6 @@ class WorkflowPipelinedRegionsBuilder(
       })
 
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
-//      region.blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray
       val newRegion = region.copy(blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray)
       replaceVertex(pipelinedRegionsDAG, region, newRegion)
     }
