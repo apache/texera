@@ -19,7 +19,7 @@
         ],
         "runtimeCacheInputs": [
           "node -v",
-          "nodecat ./src/environments/environment.prod.ts"
+          "yarn run nodecat ./src/environments/environment.prod.ts"
         ],
         "accessToken": "MWY5NjA0ZDAtNTdjOS00NDY3LWIzNjYtNTYyMWU5OGFkYjgzfHJlYWQtd3JpdGU=",
         "parallel": 1
