@@ -48,7 +48,7 @@ abstract class SchedulingPolicy(workflow: Workflow) {
 
   protected def isRegionCompleted(region: PipelinedRegion): Boolean = {
     workflow
-      .getBlockingOutlinksOfRegion(region)
+      .getBlockingOutLinksOfRegion(region)
       .subsetOf(completedLinksOfRegion.getOrElse(region, new mutable.HashSet[LinkIdentity]())) &&
     region
       .getOperators()

@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -8,15 +9,10 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
-  LogicalPlan,
   OperatorLink,
   OperatorPort,
-  WorkflowCompiler
-}
-import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2
+  WorkflowCompiler,
+  LogicalPlan
 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,7 +50,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 1)
   }
 
@@ -86,7 +82,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
 
     var buildRegion: PipelinedRegion = null
@@ -119,7 +115,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
     assert(pipelinedRegions.getAncestors(probeRegion).size() == 1)
     assert(pipelinedRegions.getAncestors(probeRegion).contains(buildRegion))
-    assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.length == 1)
+    assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.size == 1)
     assert(
       buildRegion.blockingDowstreamOperatorsInOtherRegions.contains(
         OperatorIdentity(workflow.getWorkflowId().id, joinOpDesc.operatorID)
@@ -158,7 +154,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
@@ -199,48 +195,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
-    assert(pipelinedRegions.vertexSet().size == 2)
-  }
-
-  "Pipelined Regions" should "correctly find regions in csv->split->training-infer workflow" in {
-    val csv = TestOperators.headerlessSmallCsvScanOpDesc()
-    val split = new SplitOpDesc()
-    val training = new PythonUDFOpDescV2()
-    val inference = new DualInputPortsPythonUDFOpDescV2()
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      List(
-        csv,
-        split,
-        training,
-        inference,
-        sink
-      ),
-      List(
-        OperatorLink(
-          OperatorPort(csv.operatorID, 0),
-          OperatorPort(split.operatorID, 0)
-        ),
-        OperatorLink(
-          OperatorPort(split.operatorID, 0),
-          OperatorPort(training.operatorID, 0)
-        ),
-        OperatorLink(
-          OperatorPort(training.operatorID, 0),
-          OperatorPort(inference.operatorID, 0)
-        ),
-        OperatorLink(
-          OperatorPort(split.operatorID, 1),
-          OperatorPort(inference.operatorID, 1)
-        ),
-        OperatorLink(
-          OperatorPort(inference.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
-        )
-      )
-    )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 

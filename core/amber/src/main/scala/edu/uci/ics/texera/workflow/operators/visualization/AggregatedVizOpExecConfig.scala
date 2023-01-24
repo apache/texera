@@ -39,47 +39,48 @@ class AggregatedVizOpExecConfig[P <: AnyRef](
 ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
-    val partialLayer = new WorkerLayer(
-      makeLayer(id, "localAgg"),
-      _ => new PartialAggregateOpExec(aggFunc),
-      Constants.currentWorkerNum,
-      UseAll(),
-      RoundRobinDeployment()
-    )
-    val finalLayer = new WorkerLayer(
-      makeLayer(id, "globalAgg"),
-      _ => new FinalAggregateOpExec(aggFunc),
-      Constants.currentWorkerNum,
-      FollowPrevious(),
-      RoundRobinDeployment()
-    )
-    val vizLayer = new WorkerLayer(
-      makeLayer(id, "visualize"),
-      _ => exec,
-      Constants.currentWorkerNum,
-      FollowPrevious(),
-      RoundRobinDeployment()
-    )
-    new Topology(
-      Array(
-        partialLayer,
-        finalLayer,
-        vizLayer
-      ),
-      Array(
-        new HashBasedShuffle(
-          partialLayer,
-          finalLayer,
-          Constants.defaultBatchSize,
-          getPartitionColumnIndices(partialLayer.id)
-        ),
-        new OneToOne(
-          finalLayer,
-          vizLayer,
-          Constants.defaultBatchSize
-        )
-      )
-    )
+    throw new NotImplementedError("to be removed")
+    //    val partialLayer = new WorkerLayer(
+//      makeLayer(id, "localAgg"),
+//      _ => new PartialAggregateOpExec(aggFunc),
+//      Constants.currentWorkerNum,
+//      UseAll(),
+//      RoundRobinDeployment()
+//    )
+//    val finalLayer = new WorkerLayer(
+//      makeLayer(id, "globalAgg"),
+//      _ => new FinalAggregateOpExec(aggFunc),
+//      Constants.currentWorkerNum,
+//      FollowPrevious(),
+//      RoundRobinDeployment()
+//    )
+//    val vizLayer = new WorkerLayer(
+//      makeLayer(id, "visualize"),
+//      _ => exec,
+//      Constants.currentWorkerNum,
+//      FollowPrevious(),
+//      RoundRobinDeployment()
+//    )
+//    new Topology(
+//      Array(
+//        partialLayer,
+//        finalLayer,
+//        vizLayer
+//      ),
+//      Array(
+//        new HashBasedShuffle(
+//          partialLayer,
+//          finalLayer,
+//          Constants.defaultBatchSize,
+//          getPartitionColumnIndices(partialLayer.id)
+//        ),
+//        new OneToOne(
+//          finalLayer,
+//          vizLayer,
+//          Constants.defaultBatchSize
+//        )
+//      )
+//    )
   }
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {

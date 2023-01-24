@@ -38,60 +38,61 @@ class PieChartOpExecConfig[P <: AnyRef](
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
-    val aggPartialLayer = new WorkerLayer(
-      makeLayer(id, "localAgg"),
-      _ => new PartialAggregateOpExec(aggFunc),
-      numWorkers,
-      UseAll(),
-      RoundRobinDeployment()
-    )
-    val aggFinalLayer = new WorkerLayer(
-      makeLayer(id, "globalAgg"),
-      _ => new FinalAggregateOpExec(aggFunc),
-      numWorkers,
-      FollowPrevious(),
-      RoundRobinDeployment()
-    )
-    val partialLayer = new WorkerLayer(
-      makeLayer(tag, "localPieChartProcessor"),
-      _ => new PieChartOpPartialExec(nameColumn, dataColumn),
-      numWorkers,
-      UseAll(),
-      RoundRobinDeployment()
-    )
-    val finalLayer = new WorkerLayer(
-      makeLayer(tag, "globalPieChartProcessor"),
-      _ => new PieChartOpFinalExec(pruneRatio, dataColumn),
-      1,
-      ForceLocal(),
-      RandomDeployment()
-    )
-    new Topology(
-      Array(
-        aggPartialLayer,
-        aggFinalLayer,
-        partialLayer,
-        finalLayer
-      ),
-      Array(
-        new HashBasedShuffle(
-          aggPartialLayer,
-          aggFinalLayer,
-          Constants.defaultBatchSize,
-          getPartitionColumnIndices(partialLayer.id)
-        ),
-        new OneToOne(
-          aggFinalLayer,
-          partialLayer,
-          Constants.defaultBatchSize
-        ),
-        new AllToOne(
-          partialLayer,
-          finalLayer,
-          Constants.defaultBatchSize
-        )
-      )
-    )
+    throw new NotImplementedError("to be removed")
+    //    val aggPartialLayer = new WorkerLayer(
+//      makeLayer(id, "localAgg"),
+//      _ => new PartialAggregateOpExec(aggFunc),
+//      numWorkers,
+//      UseAll(),
+//      RoundRobinDeployment()
+//    )
+//    val aggFinalLayer = new WorkerLayer(
+//      makeLayer(id, "globalAgg"),
+//      _ => new FinalAggregateOpExec(aggFunc),
+//      numWorkers,
+//      FollowPrevious(),
+//      RoundRobinDeployment()
+//    )
+//    val partialLayer = new WorkerLayer(
+//      makeLayer(tag, "localPieChartProcessor"),
+//      _ => new PieChartOpPartialExec(nameColumn, dataColumn),
+//      numWorkers,
+//      UseAll(),
+//      RoundRobinDeployment()
+//    )
+//    val finalLayer = new WorkerLayer(
+//      makeLayer(tag, "globalPieChartProcessor"),
+//      _ => new PieChartOpFinalExec(pruneRatio, dataColumn),
+//      1,
+//      ForceLocal(),
+//      RandomDeployment()
+//    )
+//    new Topology(
+//      Array(
+//        aggPartialLayer,
+//        aggFinalLayer,
+//        partialLayer,
+//        finalLayer
+//      ),
+//      Array(
+//        new HashBasedShuffle(
+//          aggPartialLayer,
+//          aggFinalLayer,
+//          Constants.defaultBatchSize,
+//          getPartitionColumnIndices(partialLayer.id)
+//        ),
+//        new OneToOne(
+//          aggFinalLayer,
+//          partialLayer,
+//          Constants.defaultBatchSize
+//        ),
+//        new AllToOne(
+//          partialLayer,
+//          finalLayer,
+//          Constants.defaultBatchSize
+//        )
+//      )
+//    )
   }
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {

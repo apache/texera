@@ -3,8 +3,17 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity, OperatorIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, MaterializationRewriter, PhysicalPlan}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  LogicalPlan,
+  MaterializationRewriter,
+  PhysicalPlan
+}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
@@ -13,9 +22,9 @@ import scala.collection.mutable.ArrayBuffer
 object WorkflowPipelinedRegionsBuilder {
 
   def replaceVertex[V](
-    graph: DirectedAcyclicGraph[V, DefaultEdge],
-    oldVertex: V,
-    newVertex: V
+      graph: DirectedAcyclicGraph[V, DefaultEdge],
+      oldVertex: V,
+      newVertex: V
   ): Unit = {
     if (oldVertex.equals(newVertex)) {
       return
@@ -36,12 +45,11 @@ object WorkflowPipelinedRegionsBuilder {
 
 }
 
-
 class WorkflowPipelinedRegionsBuilder(
-  val workflowId: WorkflowIdentity,
-  val logicalPlan: LogicalPlan,
-  var physicalPlan: PhysicalPlan,
-  val materializationRewriter: MaterializationRewriter
+    val workflowId: WorkflowIdentity,
+    val logicalPlan: LogicalPlan,
+    var physicalPlan: PhysicalPlan,
+    val materializationRewriter: MaterializationRewriter
 ) {
   var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] =
     new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
@@ -144,50 +152,53 @@ class WorkflowPipelinedRegionsBuilder(
 
     // add dependencies among regions
     physicalPlan
-      .topologicalIterator().foreach(opId => {
-      // For operators like HashJoin that have an order among their blocking and pipelined inputs
-      val inputProcessingOrderForOp = physicalPlan.operatorMap(opId).getInputProcessingOrder()
-      if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
-        for (i <- 1 to inputProcessingOrderForOp.length - 1) {
-          try {
-            addEdgeBetweenRegions(
-              inputProcessingOrderForOp(i - 1).from,
-              inputProcessingOrderForOp(i).from,
-            )
-          } catch {
-            case e: java.lang.IllegalArgumentException =>
-              // edge causes a cycle
-              this.physicalPlan = materializationRewriter
-                .addMaterializationToLink(physicalPlan, logicalPlan, inputProcessingOrderForOp(i))
-              return false
+      .topologicalIterator()
+      .foreach(opId => {
+        // For operators like HashJoin that have an order among their blocking and pipelined inputs
+        val inputProcessingOrderForOp = physicalPlan.operatorMap(opId).getInputProcessingOrder()
+        if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
+          for (i <- 1 to inputProcessingOrderForOp.length - 1) {
+            try {
+              addEdgeBetweenRegions(
+                inputProcessingOrderForOp(i - 1).from,
+                inputProcessingOrderForOp(i).from
+              )
+            } catch {
+              case e: java.lang.IllegalArgumentException =>
+                // edge causes a cycle
+                this.physicalPlan = materializationRewriter
+                  .addMaterializationToLink(physicalPlan, logicalPlan, inputProcessingOrderForOp(i))
+                return false
+            }
           }
         }
-      }
 
-      // For operators that have only blocking input links. e.g. Sort, Groupby
-      val upstreamOps = physicalPlan.getUpstream(opId)
-      val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
-        physicalPlan.operatorMap(opId).isInputBlocking(
-          LinkIdentity(
-            physicalPlan.operatorMap(upstreamOp).id,
-            physicalPlan.operatorMap(opId).id
-          )
-        )
-      )
-      if (allInputBlocking)
-        upstreamOps.foreach(upstreamOp => {
-          try {
-            addEdgeBetweenRegions(upstreamOp, opId)
-          } catch {
-            case e: java.lang.IllegalArgumentException =>
-              // edge causes a cycle. Code shouldn't reach here.
-              throw new WorkflowRuntimeException(
-                s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${upstreamOp
-                  .toString()} and ${opId.toString()}"
+        // For operators that have only blocking input links. e.g. Sort, Groupby
+        val upstreamOps = physicalPlan.getUpstream(opId)
+        val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
+          physicalPlan
+            .operatorMap(opId)
+            .isInputBlocking(
+              LinkIdentity(
+                physicalPlan.operatorMap(upstreamOp).id,
+                physicalPlan.operatorMap(opId).id
               )
-          }
-        })
-    })
+            )
+        )
+        if (allInputBlocking)
+          upstreamOps.foreach(upstreamOp => {
+            try {
+              addEdgeBetweenRegions(upstreamOp, opId)
+            } catch {
+              case e: java.lang.IllegalArgumentException =>
+                // edge causes a cycle. Code shouldn't reach here.
+                throw new WorkflowRuntimeException(
+                  s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${upstreamOp
+                    .toString()} and ${opId.toString()}"
+                )
+            }
+          })
+      })
 
     // add dependencies between materialization writer and reader regions
     for ((writer, reader) <- materializationWriterReaderPairs) {
@@ -227,32 +238,34 @@ class WorkflowPipelinedRegionsBuilder(
   private def populateTerminalOperatorsForBlockingLinks(): Unit = {
     val regionTerminalOperatorInOtherRegions =
       new mutable.HashMap[PipelinedRegion, ArrayBuffer[LayerIdentity]]()
-    this.physicalPlan.topologicalIterator().foreach(opId => {
-      val upstreamOps = this.physicalPlan.getUpstream(opId)
-      upstreamOps.foreach(upstreamOp => {
-        val linkFromUpstreamOp = LinkIdentity(
-          physicalPlan.operatorMap(upstreamOp).id,
-          physicalPlan.operatorMap(opId).id
-        )
-        if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp)) {
-          val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
-          for (prevInOrderRegion <- prevInOrderRegions) {
-            if (
-              !regionTerminalOperatorInOtherRegions.contains(
-                prevInOrderRegion
-              ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion).contains(opId)
-            ) {
-              val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
-                prevInOrderRegion,
-                new ArrayBuffer[LayerIdentity]()
-              )
-              terminalOps.append(opId)
-              regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
+    this.physicalPlan
+      .topologicalIterator()
+      .foreach(opId => {
+        val upstreamOps = this.physicalPlan.getUpstream(opId)
+        upstreamOps.foreach(upstreamOp => {
+          val linkFromUpstreamOp = LinkIdentity(
+            physicalPlan.operatorMap(upstreamOp).id,
+            physicalPlan.operatorMap(opId).id
+          )
+          if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp)) {
+            val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
+            for (prevInOrderRegion <- prevInOrderRegions) {
+              if (
+                !regionTerminalOperatorInOtherRegions.contains(
+                  prevInOrderRegion
+                ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion).contains(opId)
+              ) {
+                val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
+                  prevInOrderRegion,
+                  new ArrayBuffer[LayerIdentity]()
+                )
+                terminalOps.append(opId)
+                regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
+              }
             }
           }
-        }
+        })
       })
-    })
 
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
 //      region.blockingDowstreamOperatorsInOtherRegions = terminalOps.toArray
@@ -261,9 +274,9 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  def buildPipelinedRegions(): DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = {
+  def buildPipelinedRegions(): PhysicalPlan = {
     findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks()
-    pipelinedRegionsDAG
+    this.physicalPlan.copy(pipelinedRegionsDAG = pipelinedRegionsDAG)
   }
 }
