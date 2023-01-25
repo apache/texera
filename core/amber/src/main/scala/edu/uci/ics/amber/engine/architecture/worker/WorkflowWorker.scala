@@ -8,6 +8,7 @@ import akka.pattern.ask
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage,
@@ -50,21 +51,17 @@ import scala.concurrent.duration._
 object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
-      op: IOperatorExecutor,
-      inputToOrdinalMapping: Map[LinkIdentity, Int],
-      outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
+      workerIndex: Int,
+      workerLayer: NewOpExecConfig,
       parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-      allUpstreamLinkIds: Set[LinkIdentity],
       supportFaultTolerance: Boolean
   ): Props =
     Props(
       new WorkflowWorker(
         id,
-        op,
-        inputToOrdinalMapping,
-        outputToOrdinalMapping,
+        workerIndex: Int,
+        workerLayer: NewOpExecConfig,
         parentNetworkCommunicationActorRef,
-        allUpstreamLinkIds,
         supportFaultTolerance
       )
     )
@@ -74,13 +71,13 @@ object WorkflowWorker {
 
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
-    operator: IOperatorExecutor,
-    inputToOrdinalMapping: Map[LinkIdentity, Int],
-    outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
+    workerIndex: Int,
+    workerLayer: NewOpExecConfig,
     parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity],
     supportFaultTolerance: Boolean
 ) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {
+  lazy val operator: IOperatorExecutor =
+    workerLayer.initIOperatorExecutor((workerIndex, workerLayer))
   lazy val recoveryQueue = new RecoveryQueue(logStorage.getReader)
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val upstreamLinkStatus: UpstreamLinkStatus = wire[UpstreamLinkStatus]

@@ -30,60 +30,61 @@ class AggregateOpExecConfig[P <: AnyRef](
 
   override lazy val topology: Topology = {
 
-    if (aggFunc.groupByFunc == null) {
-      val partialLayer = new WorkerLayer(
-        makeLayer(id, "localAgg"),
-        _ => new PartialAggregateOpExec(aggFunc),
-        Constants.currentWorkerNum,
-        UseAll(),
-        RoundRobinDeployment()
-      )
-      val finalLayer = new WorkerLayer(
-        makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec(aggFunc),
-        1,
-        ForceLocal(),
-        RandomDeployment()
-      )
-      new Topology(
-        Array(
-          partialLayer,
-          finalLayer
-        ),
-        Array(
-          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize)
-        )
-      )
-    } else {
-      val partialLayer = new WorkerLayer(
-        makeLayer(id, "localAgg"),
-        _ => new PartialAggregateOpExec(aggFunc),
-        Constants.currentWorkerNum,
-        UseAll(),
-        RoundRobinDeployment()
-      )
-      val finalLayer = new WorkerLayer(
-        makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec(aggFunc),
-        Constants.currentWorkerNum,
-        FollowPrevious(),
-        RoundRobinDeployment()
-      )
-      new Topology(
-        Array(
-          partialLayer,
-          finalLayer
-        ),
-        Array(
-          new HashBasedShuffle(
-            partialLayer,
-            finalLayer,
-            Constants.defaultBatchSize,
-            getPartitionColumnIndices(partialLayer.id)
-          )
-        )
-      )
-    }
+    throw new NotImplementedError("to be removed")
+//    if (aggFunc.groupByFunc == null) {
+//      val partialLayer = new WorkerLayer(
+//        makeLayer(id, "localAgg"),
+//        _ => new PartialAggregateOpExec(aggFunc),
+//        Constants.currentWorkerNum,
+//        UseAll(),
+//        RoundRobinDeployment()
+//      )
+//      val finalLayer = new WorkerLayer(
+//        makeLayer(id, "globalAgg"),
+//        _ => new FinalAggregateOpExec(aggFunc),
+//        1,
+//        ForceLocal(),
+//        RandomDeployment()
+//      )
+//      new Topology(
+//        Array(
+//          partialLayer,
+//          finalLayer
+//        ),
+//        Array(
+//          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize)
+//        )
+//      )
+//    } else {
+//      val partialLayer = new WorkerLayer(
+//        makeLayer(id, "localAgg"),
+//        _ => new PartialAggregateOpExec(aggFunc),
+//        Constants.currentWorkerNum,
+//        UseAll(),
+//        RoundRobinDeployment()
+//      )
+//      val finalLayer = new WorkerLayer(
+//        makeLayer(id, "globalAgg"),
+//        _ => new FinalAggregateOpExec(aggFunc),
+//        Constants.currentWorkerNum,
+//        FollowPrevious(),
+//        RoundRobinDeployment()
+//      )
+//      new Topology(
+//        Array(
+//          partialLayer,
+//          finalLayer
+//        ),
+//        Array(
+//          new HashBasedShuffle(
+//            partialLayer,
+//            finalLayer,
+//            Constants.defaultBatchSize,
+//            getPartitionColumnIndices(partialLayer.id)
+//          )
+//        )
+//      )
+//    }
   }
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {

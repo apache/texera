@@ -27,34 +27,36 @@ class WordCloudOpExecConfig(
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
-    val partialLayer = new WorkerLayer(
-      makeLayer(tag, "local"),
-      _ => new WordCloudOpPartialExec(textColumn),
-      numWorkers,
-      UseAll(),
-      RoundRobinDeployment()
-    )
-    val finalLayer = new WorkerLayer(
-      makeLayer(tag, "global"),
-      _ => new WordCloudOpFinalExec(topN),
-      1,
-      FollowPrevious(),
-      RoundRobinDeployment()
-    )
-    new Topology(
-      Array(
-        partialLayer,
-        finalLayer
-      ),
-      Array(
-        new HashBasedShuffle(
-          partialLayer,
-          finalLayer,
-          Constants.defaultBatchSize,
-          getPartitionColumnIndices(partialLayer.id)
-        )
-      )
-    )
+    throw new NotImplementedError("to be removed")
+
+    //    val partialLayer = new WorkerLayer(
+//      makeLayer(tag, "local"),
+//      _ => new WordCloudOpPartialExec(textColumn),
+//      numWorkers,
+//      UseAll(),
+//      RoundRobinDeployment()
+//    )
+//    val finalLayer = new WorkerLayer(
+//      makeLayer(tag, "global"),
+//      _ => new WordCloudOpFinalExec(topN),
+//      1,
+//      FollowPrevious(),
+//      RoundRobinDeployment()
+//    )
+//    new Topology(
+//      Array(
+//        partialLayer,
+//        finalLayer
+//      ),
+//      Array(
+//        new HashBasedShuffle(
+//          partialLayer,
+//          finalLayer,
+//          Constants.defaultBatchSize,
+//          getPartitionColumnIndices(partialLayer.id)
+//        )
+//      )
+//    )
   }
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {

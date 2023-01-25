@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -54,7 +55,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 1)
   }
 
@@ -86,7 +87,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
 
     var buildRegion: PipelinedRegion = null
@@ -119,9 +120,9 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
     assert(pipelinedRegions.getAncestors(probeRegion).size() == 1)
     assert(pipelinedRegions.getAncestors(probeRegion).contains(buildRegion))
-    assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.length == 1)
+    assert(buildRegion.blockingDownstreamOperatorsInOtherRegions.size == 1)
     assert(
-      buildRegion.blockingDowstreamOperatorsInOtherRegions.contains(
+      buildRegion.blockingDownstreamOperatorsInOtherRegions.contains(
         OperatorIdentity(workflow.getWorkflowId().id, joinOpDesc.operatorID)
       )
     )
@@ -158,7 +159,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
@@ -199,7 +200,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
@@ -240,7 +241,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 

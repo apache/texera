@@ -60,72 +60,17 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       }
     })
 
-    // create and save OpExecConfigs for the operators
-    val inputSchemaMap = logicalPlan.propagateWorkflowSchema()
-    val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
-    logicalPlan.operators.foreach(o => {
-      val inputSchemas: Array[Schema] =
-        if (!o.isInstanceOf[SourceOperatorDescriptor])
-          inputSchemaMap(o.operatorIdentifier).map(s => s.get).toArray
-        else Array()
-      val outputSchemas = o.getOutputSchemas(inputSchemas)
-      // assign storage to texera-managed sinks before generating exec config
-      o match {
-        case sink: ProgressiveSinkOpDesc =>
-          sink.getCachedUpstreamId match {
-            case Some(upstreamId) =>
-              sink.setStorage(opResultStorage.create(upstreamId, outputSchemas(0)))
-            case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchemas(0)))
-          }
-        case _ =>
-      }
-      val amberOperator: OpExecConfig =
-        o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchemas))
-      amberOperators.put(amberOperator.id, amberOperator)
-    })
-
-    // update the input and output port maps of OpExecConfigs with the link identities
-    val outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]] = mutable.Map()
-    logicalPlan.links.foreach(link => {
-      val origin = OperatorIdentity(this.context.jobId, link.origin.operatorID)
-      val dest = OperatorIdentity(this.context.jobId, link.destination.operatorID)
-      outLinks.getOrElseUpdate(origin, mutable.Set()).add(dest)
-
-      val layerLink = LinkIdentity(
-        amberOperators(origin).topology.layers.last.id,
-        amberOperators(dest).topology.layers.head.id
-      )
-      amberOperators(dest).setInputToOrdinalMapping(
-        layerLink,
-        link.destination.portOrdinal,
-        link.destination.portName
-      )
-      amberOperators(origin)
-        .setOutputToOrdinalMapping(layerLink, link.origin.portOrdinal, link.origin.portName)
-    })
+    val physicalPlan0 = logicalPlan.toPhysicalPlan(this.context, opResultStorage)
 
     // create pipelined regions.
-    val pipelinedRegionsDAG =
-      new WorkflowPipelinedRegionsBuilder(
-        context,
-        logicalPlan.operatorMap,
-        inputSchemaMap,
-        workflowId,
-        amberOperators, // may get changed as materialization operators can be added
-        outLinks, // may get changed as links to materialization operators can be added
-        opResultStorage
-      )
-        .buildPipelinedRegions()
-
-    val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
-      outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
-
-    new Workflow(
+    val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(
       workflowId,
-      amberOperators,
-      outLinksImmutable,
-      pipelinedRegionsDAG
-    )
+      logicalPlan,
+      physicalPlan0,
+      new MaterializationRewriter(context, opResultStorage)
+    ).buildPipelinedRegions()
+
+    new Workflow(workflowId, physicalPlan1)
   }
 
 }

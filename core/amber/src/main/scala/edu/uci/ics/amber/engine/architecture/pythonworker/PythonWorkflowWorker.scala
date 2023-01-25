@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
@@ -24,38 +25,30 @@ import scala.sys.process.{BasicIO, Process}
 object PythonWorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
-      op: IOperatorExecutor,
-      inputToOrdinalMapping: Map[LinkIdentity, Int],
-      outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
-      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-      allUpstreamLinkIds: Set[LinkIdentity]
+      workerIndex: Int,
+      workerLayer: NewOpExecConfig,
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef
   ): Props =
     Props(
       new PythonWorkflowWorker(
         id,
-        op,
-        inputToOrdinalMapping,
-        outputToOrdinalMapping,
-        parentNetworkCommunicationActorRef,
-        allUpstreamLinkIds
+        workerIndex,
+        workerLayer,
+        parentNetworkCommunicationActorRef
       )
     )
 }
 
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity,
-    operator: IOperatorExecutor,
-    inputToOrdinalMapping: Map[LinkIdentity, Int],
-    outputToOrdinalMapping: mutable.Map[LinkIdentity, Int],
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity]
+    workerIndex: Int,
+    workerLayer: NewOpExecConfig,
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef
 ) extends WorkflowWorker(
       actorId,
-      operator,
-      inputToOrdinalMapping,
-      outputToOrdinalMapping,
+      workerIndex,
+      workerLayer,
       parentNetworkCommunicationActorRef,
-      allUpstreamLinkIds,
       false
     ) {
 
