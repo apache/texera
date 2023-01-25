@@ -1,27 +1,48 @@
 package edu.uci.ics.texera.workflow.operators.visualization
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
-  FollowPrevious,
-  UseAll
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.linksemantics.{HashBasedShuffle, OneToOne}
-import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{NewOpExecConfig, WorkerLayer}
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{
-  DistributedAggregation,
-  FinalAggregateOpExec,
-  PartialAggregateOpExec
-}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, DistributedAggregation}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+
+import scala.reflect.ClassTag
+
+object AggregatedVizOpExecConfig {
+
+  /**
+   * Generic config for a visualization operator that supports aggregation internally.
+   * @param id A descriptor's OperatorIdentity.
+   * @param aggFunc Custom aggregation function to be applied on the data, the first two layers.
+   * @param exec The final layer, wraps things up for whatever is needed by the frontend.
+   * @param operatorSchemaInfo The descriptor's OperatorSchemaInfo.
+   * @tparam P The type of the aggregation data.
+   */
+  def opExecPhysicalPlan[P <: AnyRef, T <: IOperatorExecutor: ClassTag](
+    id: OperatorIdentity,
+    aggFunc: DistributedAggregation[P],
+    exec: ((Int, NewOpExecConfig)) => T,
+    operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalPlan = {
+
+    val aggregateOperators = AggregateOpDesc.opExecPhysicalPlan(id, aggFunc, operatorSchemaInfo)
+    val tailAggregateOp = aggregateOperators.sinkOperators.last
+
+    val vizLayer = NewOpExecConfig.oneToOneLayer(makeLayer(id, "visualize"), exec)
+
+    new PhysicalPlan(
+      vizLayer :: aggregateOperators.operators,
+      LinkIdentity(tailAggregateOp, vizLayer.id) :: aggregateOperators.links
+    )
+  }
+
+}
+
 
 /**
   * Generic config for a visualization operator that supports aggregation internally.
