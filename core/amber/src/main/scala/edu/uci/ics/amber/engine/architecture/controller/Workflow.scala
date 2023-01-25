@@ -2,14 +2,9 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.Address
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecConfigImpl,
-  WorkerInfo,
-  WorkerLayer
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfigImpl, WorkerInfo}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
@@ -23,11 +18,10 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
   // The following data structures are updated when the operator is built (buildOperator())
   // by scheduler and the worker identities are available.
   val workerToOpExecConfig = new mutable.HashMap[ActorVirtualIdentity, NewOpExecConfig]()
-//  val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
 
   def getBlockingOutLinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
     val outLinks = new mutable.HashSet[LinkIdentity]()
-    region.blockingDowstreamOperatorsInOtherRegions.foreach(opId => {
+    region.blockingDownstreamOperatorsInOtherRegions.foreach(opId => {
       physicalPlan
         .getUpstream(opId)
         .foreach(upstream => {
@@ -57,7 +51,7 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   def getAllWorkersOfRegion(region: PipelinedRegion): Array[ActorVirtualIdentity] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
 
     allOperatorsInRegion.flatMap(opId => physicalPlan.operatorMap(opId).getAllWorkers.toList)
   }
@@ -67,10 +61,6 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
       .flatMap(_.workers.values)
       .filter(info => info.ref.path.address == address)
   }
-
-//  def getStartOperatorIds: Iterable[OperatorIdentity] = sourceOperators
-
-//  def getAllOperatorIds: Iterable[OperatorIdentity] = operatorToOpExecConfig.keys
 
   def getWorkflowId(): WorkflowIdentity = workflowId
 
@@ -90,41 +80,9 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
     upstreamWorkers
   }
 
-//  def getSources(operator: OperatorIdentity): Set[OperatorIdentity] = {
-//    var result = Set[OperatorIdentity]()
-//    var current = Set[OperatorIdentity](operator)
-//    while (current.nonEmpty) {
-//      var next = Set[OperatorIdentity]()
-//      for (i <- current) {
-//        if (inLinks.contains(i) && inLinks(i).nonEmpty) {
-//          next ++= inLinks(i)
-//        } else {
-//          result += i
-//        }
-//        current = next
-//      }
-//    }
-//    result
-//  }
-
   def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
     physicalPlan.operatorMap.map(op => (op._1.operator, op._2.getOperatorStatistics))
   }
-
-//  def getStartOperators: Iterable[OpExecConfig] = sourceOperators.map(operatorToOpExecConfig(_))
-//
-//  def getEndOperators: Iterable[OpExecConfig] = sinkOperators.map(operatorToOpExecConfig(_))
-
-//  def getOperator(opID: String): OpExecConfig =
-//    operatorToOpExecConfig(OperatorIdentity(workflowId.id, opID))
-//
-//  def getOperator(opID: OperatorIdentity): OpExecConfig = operatorToOpExecConfig(opID)
-
-//  def getDirectUpstreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
-//    inLinks.getOrElse(opID, Set())
-//
-//  def getDirectDownStreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
-//    outLinks.getOrElse(opID, Set())
 
   def getAllOperators: Iterable[NewOpExecConfig] = physicalPlan.operators
 
@@ -143,20 +101,6 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
       .foreach(uOpID => upstreamOperatorToLayers(uOpID) = physicalPlan.operatorMap(opID))
     upstreamOperatorToLayers
   }
-
-//  def getSourceLayers: Iterable[WorkerLayer] = {
-//    val tos = getAllLinks.map(_.to).toSet
-//    getAllLayers.filter(layer => !tos.contains(layer))
-//  }
-//
-//  def getSinkLayers: Iterable[WorkerLayer] = {
-//    val froms = getAllLinks.map(_.from).toSet
-//    getAllLayers.filter(layer => !froms.contains(layer))
-//  }
-
-//  def getAllLayers: Iterable[WorkerLayer] = operatorToOpExecConfig.values.flatMap(_.topology.layers)
-
-//  def getAllLinks: Iterable[LinkStrategy] = idToLink.values
 
   def getWorkerLayer(workerID: ActorVirtualIdentity): NewOpExecConfig =
     workerToOpExecConfig(workerID)

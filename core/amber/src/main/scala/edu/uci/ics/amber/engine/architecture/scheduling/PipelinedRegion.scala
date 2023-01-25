@@ -1,11 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LayerIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, WorkflowIdentity}
 
 case class PipelinedRegionIdentity(workflowId: WorkflowIdentity, pipelineId: String)
 
@@ -15,10 +10,8 @@ case class PipelinedRegion(
     id: PipelinedRegionIdentity,
     operators: Array[LayerIdentity],
     // These are the operators that receive blocking inputs from this region
-    blockingDowstreamOperatorsInOtherRegions: Array[LayerIdentity] = Array.empty
+    blockingDownstreamOperatorsInOtherRegions: Array[LayerIdentity] = Array.empty
 ) {
-//  var blockingDowstreamOperatorsInOtherRegions: Array[OperatorIdentity] =
-//    Array.empty // These are the operators that receive blocking inputs from this region
 
   def getId(): PipelinedRegionIdentity = id
 

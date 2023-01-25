@@ -13,7 +13,6 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 object PhysicalPlan {
 

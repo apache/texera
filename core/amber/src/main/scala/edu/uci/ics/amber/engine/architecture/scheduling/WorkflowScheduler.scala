@@ -7,11 +7,10 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.AddressInfo
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
@@ -22,17 +21,15 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTim
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
+  LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -128,7 +125,7 @@ class WorkflowScheduler(
       }
 
       frontier = (region
-        .getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions)
+        .getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions)
         .filter(opId => {
           !builtOpsInRegion.contains(opId) && workflow.physicalPlan
             .getUpstream(opId)
@@ -153,7 +150,7 @@ class WorkflowScheduler(
   }
   private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
     val uninitializedPythonOperators = workflow.getPythonOperators(
       allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
     )
@@ -193,7 +190,7 @@ class WorkflowScheduler(
 
   private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
     Future.collect(
       // activate all links
       workflow.physicalPlan.linkStrategies.values
@@ -213,7 +210,7 @@ class WorkflowScheduler(
 
   private def openAllOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
     val allNotOpenedOperators =
       allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
     Future
@@ -230,7 +227,7 @@ class WorkflowScheduler(
 
   private def startRegion(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
 
     allOperatorsInRegion
       .filter(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED)
