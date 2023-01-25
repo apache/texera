@@ -102,18 +102,14 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
     upstreamOperatorToLayers
   }
 
-  def getWorkerLayer(workerID: ActorVirtualIdentity): NewOpExecConfig =
-    workerToOpExecConfig(workerID)
-
   def getInlinksIdsToWorkerLayer(layerIdentity: LayerIdentity): Set[LinkIdentity] = {
     physicalPlan.getLayer(layerIdentity).inputToOrdinalMapping.keySet
   }
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = workerToOpExecConfig.keys
 
-  def getOperator(workerId: ActorVirtualIdentity): NewOpExecConfig = {
-    physicalPlan.operators.find(op => op.workers.contains(workerId)).orNull
-  }
+  def getOperator(workerID: ActorVirtualIdentity): NewOpExecConfig =
+    workerToOpExecConfig(workerID)
 
   def getOperator(opID: LayerIdentity): NewOpExecConfig = physicalPlan.operatorMap(opID)
 
