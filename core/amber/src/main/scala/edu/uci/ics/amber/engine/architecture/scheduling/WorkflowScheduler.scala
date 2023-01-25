@@ -162,20 +162,23 @@ class WorkflowScheduler(
         // initialize python operator code
         workflow
           .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
-          .map {
-            case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-              asyncRPCClient.send(
-                InitializeOperatorLogic(
-                  pythonOperatorExec.getCode,
-                  workflow
-                    .getInlinksIdsToWorkerLayer(workflow.workerToOpExecConfig(workerID).id)
-                    .toArray,
-                  pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
-                  pythonOperatorExec.getOutputSchema
-                ),
-                workerID
-              )
-          }
+          .map(p => {
+            val workerID = p._1
+            val pythonUDFOpExecConfig = p._2
+            val pythonUDFOpExec = pythonUDFOpExecConfig
+              .initIOperatorExecutor((0, pythonUDFOpExecConfig))
+            asyncRPCClient.send(
+              InitializeOperatorLogic(
+                pythonUDFOpExec.getCode,
+                workflow
+                  .getInlinksIdsToWorkerLayer(workflow.workerToOpExecConfig(workerID).id)
+                  .toArray,
+                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
+                pythonUDFOpExec.getOutputSchema
+              ),
+              workerID
+            )
+          })
           .toSeq
       )
       .onSuccess(_ =>

@@ -2,7 +2,11 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.Address
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecConfigImpl,
+  WorkerInfo,
+  WorkerLayer
+}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
@@ -195,24 +199,14 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   def getPythonWorkerToOperatorExec(
       pythonOperators: Array[LayerIdentity]
-  ): Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] = {
-    throw new NotImplementedError("fix python")
-//    val allWorkers = pythonOperators.flatMap(opId => physicalPlan.operatorMap(opId).getAllWorkers)
-//    workerToOperatorExec
-//      .filter({
-//        case (id: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
-//          allWorkers.contains(id)
-//      })
-//      .asInstanceOf[Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)]]
+  ): Iterable[(ActorVirtualIdentity, OpExecConfigImpl[PythonUDFOpExecV2])] = {
+    pythonOperators
+      .map(opId => physicalPlan.operatorMap(opId))
+      .filter(op => op.opExecClass == classOf[PythonUDFOpExecV2])
+      .map(op => op.asInstanceOf[OpExecConfigImpl[PythonUDFOpExecV2]])
+      .flatMap(op => op.getAllWorkers.map(worker => (worker, op)))
+      .toList
   }
-
-  def getPythonWorkerToOperatorExec: Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] =
-    workerToOpExecConfig
-      .filter({
-        case (_: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
-          operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
-      })
-      .asInstanceOf[Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)]]
 
   def isCompleted: Boolean =
     workerToOpExecConfig.values.forall(op => op.getState == WorkflowAggregatedState.COMPLETED)
