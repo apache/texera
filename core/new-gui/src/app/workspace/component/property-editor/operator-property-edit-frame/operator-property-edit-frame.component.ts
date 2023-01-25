@@ -87,6 +87,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.checkOperatorProperty(data)
   );
 
+  listeningToChange: boolean = true;
+
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
   formData: any;
@@ -327,9 +329,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .getTexeraGraph()
       .getOperatorPropertyChangeStream()
       .pipe(
+        filter(_ => this.listeningToChange),
         filter(_ => this.currentOperatorId !== undefined),
-        filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId),
-        filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
+        filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
       )
       .pipe(untilDestroyed(this))
       .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
@@ -363,8 +365,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.operatorPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorId) {
+        this.listeningToChange = false;
         this.typeInferenceOnLambdaFunction(formData);
         this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
+        this.listeningToChange = true;
       }
     });
   }

@@ -179,6 +179,11 @@ export class JointGraphWrapper {
     this.jointCellDeleteStream
       .pipe(filter(cell => cell.isElement()))
       .subscribe(element => this.elementPositions.delete(element.id.toString()));
+
+    this.getJointOperatorHighlightStream().subscribe(event => {
+      console.log("getJointOperatorHighlightStream emit event");
+      // console.log(event)
+    });
   }
 
   /**
@@ -369,6 +374,8 @@ export class JointGraphWrapper {
     });
 
     if (highlightedOperatorIDs.length > 0) {
+      console.log("emitting hightlight stream");
+      console.log(highlightedOperatorIDs);
       this.jointOperatorHighlightStream.next(highlightedOperatorIDs);
     }
   }
@@ -473,7 +480,7 @@ export class JointGraphWrapper {
    * Gets the event stream of an operator being highlighted.
    */
   public getJointOperatorHighlightStream(): Observable<readonly string[]> {
-    return this.jointOperatorHighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
+    return this.jointOperatorHighlightStream;
   }
 
   /**
