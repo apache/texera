@@ -2,22 +2,39 @@ package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{AggregatedVizOpExecConfig, VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  AggregatedVizOpExecConfig,
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
 /**
- * Supports a bar chart with internal aggregation for one name column (label, x-axis) and multiple data columns (y-axis).
- * If no data column is provided, the count of each label is returned; else the aggregated sum over each data column,
- * grouped by each label is returned.
- */
+  * Supports a bar chart with internal aggregation for one name column (label, x-axis) and multiple data columns (y-axis).
+  * If no data column is provided, the count of each label is returned; else the aggregated sum over each data column,
+  * grouped by each label is returned.
+  */
 class BarChartOpDesc extends VisualizationOperator {
   @JsonProperty(value = "name column", required = true)
   @JsonPropertyDescription("column of name (for x-axis)")
@@ -139,16 +156,16 @@ class BarChartOpDesc extends VisualizationOperator {
   }
 
   def groupByFunc(): Schema => Schema = { schema =>
-  {
-    // Since this is a partially evaluated tuple, there is no actual schema for this
-    // available anywhere. Constructing it once for re-use
-    if (groupBySchema == null) {
-      val schemaBuilder = Schema.newBuilder()
-      schemaBuilder.add(schema.getAttribute(nameColumn))
-      groupBySchema = schemaBuilder.build
+    {
+      // Since this is a partially evaluated tuple, there is no actual schema for this
+      // available anywhere. Constructing it once for re-use
+      if (groupBySchema == null) {
+        val schemaBuilder = Schema.newBuilder()
+        schemaBuilder.add(schema.getAttribute(nameColumn))
+        groupBySchema = schemaBuilder.build
+      }
+      groupBySchema
     }
-    groupBySchema
-  }
   }
 
   override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): NewOpExecConfig = {

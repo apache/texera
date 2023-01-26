@@ -11,15 +11,21 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 object AggregateOpDesc {
 
   def opExecPhysicalPlan[P <: AnyRef](
-    id: OperatorIdentity,
-    aggFunc: DistributedAggregation[P],
-    operatorSchemaInfo: OperatorSchemaInfo
+      id: OperatorIdentity,
+      aggFunc: DistributedAggregation[P],
+      operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     val partialLayer =
-      NewOpExecConfig.oneToOneLayer(makeLayer(id, "localAgg"), _ => new PartialAggregateOpExec[P](aggFunc))
+      NewOpExecConfig.oneToOneLayer(
+        makeLayer(id, "localAgg"),
+        _ => new PartialAggregateOpExec[P](aggFunc)
+      )
 
     val finalLayer = if (aggFunc.groupByFunc == null) {
-      NewOpExecConfig.localLayer(makeLayer(id, "globalAgg"), _ => new FinalAggregateOpExec[P](aggFunc))
+      NewOpExecConfig.localLayer(
+        makeLayer(id, "globalAgg"),
+        _ => new FinalAggregateOpExec[P](aggFunc)
+      )
     } else {
       val partitionColumns = aggFunc
         .groupByFunc(operatorSchemaInfo.inputSchemas(0))
