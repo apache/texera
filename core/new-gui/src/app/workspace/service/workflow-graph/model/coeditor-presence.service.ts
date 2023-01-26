@@ -96,11 +96,6 @@ export class CoeditorPresenceService {
     this.texeraGraph.sharedModel.awareness.on(
       "change",
       (change: { added: number[]; updated: number[]; removed: number[] }) => {
-        this.getCoeditorStatesArray().filter(
-          userState =>
-            userState.user.clientId && this.getLocalClientId() && userState.user.clientId !== this.getLocalClientId()
-        );
-
         for (const clientId of change.added) {
           const coeditorState = this.getCoeditorStatesMap().get(clientId);
           if (coeditorState && coeditorState.user.clientId !== this.getLocalClientId()) this.addCoeditor(coeditorState);
