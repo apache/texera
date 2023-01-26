@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS user
 (
     `uid`        INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `name`       VARCHAR(32)                 NOT NULL,
+    `email`      VARCHAR(256),
     `password`   VARCHAR(256),
     `google_id`  VARCHAR(256) UNIQUE,
     `role`       ENUM('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN') NOT NULL DEFAULT 'INACTIVE',

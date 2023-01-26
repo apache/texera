@@ -38,6 +38,16 @@ public interface IUser extends Serializable {
     public String getName();
 
     /**
+     * Setter for <code>texera_db.user.email</code>.
+     */
+    public void setEmail(String value);
+
+    /**
+     * Getter for <code>texera_db.user.email</code>.
+     */
+    public String getEmail();
+
+    /**
      * Setter for <code>texera_db.user.password</code>.
      */
     public void setPassword(String value);
