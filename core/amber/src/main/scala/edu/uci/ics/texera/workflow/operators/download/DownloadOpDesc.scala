@@ -15,8 +15,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 
-import scala.collection.JavaConverters._
-
 class DownloadOpDesc extends OperatorDescriptor {
 
   var attributes: List[DownloadAttributeUnit] = List()

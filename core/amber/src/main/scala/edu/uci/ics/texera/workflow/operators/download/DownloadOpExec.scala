@@ -8,19 +8,23 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
 
 import java.io.{BufferedWriter, File, FileWriter}
+import java.util
 import java.util.UUID
+import java.util.concurrent.LinkedBlockingQueue
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.concurrent.duration._
+import scala.collection.JavaConversions._
 
 class DownloadOpExec(
     val attributes: List[DownloadAttributeUnit],
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
   private val DOWNLOADS_PATH = new File(new File(".").getCanonicalPath).getParent + "/downloads"
-  private val BATCH_SIZE = 10
-  private val batchBuffer = collection.mutable.Buffer[Future[Tuple]]()
+  private val downloading = collection.mutable.ArrayBuffer[Future[Boolean]]()
+  private val finished =  new LinkedBlockingQueue[(Tuple, Int)]
+  private var numTuples = 0
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -30,14 +34,20 @@ class DownloadOpExec(
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) => {
+        val index: Int = numTuples
+        numTuples += 1
         val futureTask = Future {
-          downloadTuple(t)
+          finished.add((downloadTuple(t), index))
         }
-        batchBuffer += futureTask
-        if (batchBuffer.size == BATCH_SIZE) processBatch else Iterator()
+        downloading.append(futureTask)
+        Iterator()
       }
-      case Right(_) =>
-        processBatch
+      case Right(_) => {
+        val combinedFuture = Future.sequence(downloading)
+        Await.result(combinedFuture, Duration.Inf)
+        downloading.clear()
+        getFinished
+      }
     }
   }
 
@@ -45,16 +55,15 @@ class DownloadOpExec(
 
   override def close(): Unit = {}
 
-  def processBatch(): Iterator[Tuple] = {
-    val combinedFuture = Future.sequence(batchBuffer)
-    val output = Await.result(combinedFuture, Duration.Inf)
-    batchBuffer.clear()
-    output.iterator
+  def getFinished(): Iterator[Tuple] = {
+    val arr = new util.ArrayList[(Tuple, Int)]()
+    finished.drainTo(arr)
+    val sortedArr = arr.sortBy(_._2)
+    sortedArr.map(_._1).iterator
   }
 
-  def downloadTuple(tuple: Tuple) = {
+  def downloadTuple(tuple: Tuple): Tuple = {
     val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
-
     for (attribute <- attributes) {
       builder.add(
         attribute.getUrlAttribute,
