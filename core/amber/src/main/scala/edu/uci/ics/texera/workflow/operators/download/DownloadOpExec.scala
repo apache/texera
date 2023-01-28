@@ -23,7 +23,7 @@ class DownloadOpExec(
 ) extends OperatorExecutor {
   private val DOWNLOADS_PATH = new File(new File(".").getCanonicalPath).getParent + "/downloads"
   private val downloading = collection.mutable.ArrayBuffer[Future[Boolean]]()
-  private val finished =  new LinkedBlockingQueue[(Tuple, Int)]
+  private val finished = new LinkedBlockingQueue[(Tuple, Int)]
   private var numTuples = 0
 
   override def processTexeraTuple(
