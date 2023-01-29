@@ -23,7 +23,8 @@ class DownloadOpExec(
     val resultAttribute: String,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
-  private val DOWNLOADS_PATH = new File(new File(".").getCanonicalPath).getParent + "/downloads"
+  private val DOWNLOADS_PATH =
+    new File(new File(".").getCanonicalPath) + "/user-resources/downloads"
   private val downloading = new mutable.Queue[Future[Tuple]]()
 
   class DownloadResultIterator(blocking: Boolean) extends Iterator[Tuple] {

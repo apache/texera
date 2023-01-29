@@ -24,19 +24,19 @@ class DownloadOpDesc extends OperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL Attribute")
   @AutofillAttributeName
-  private val urlAtttribute = ""
+  var urlAttribute: String = _
 
-  @JsonProperty
+  @JsonProperty(required = true)
   @JsonSchemaTitle("Result Attribute")
   @JsonPropertyDescription(
-    "Downloaded file path stored in this new attribute"
+    "Attribute name for results(downloaded file paths)"
   )
-  private val resultAttribute = ""
+  var resultAttribute: String = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(
       operatorIdentifier,
-      _ => new DownloadOpExec(urlAtttribute, resultAttribute, operatorSchemaInfo)
+      _ => new DownloadOpExec(urlAttribute, resultAttribute, operatorSchemaInfo)
     )
   }
 
@@ -55,6 +55,9 @@ class DownloadOpDesc extends OperatorDescriptor {
     val outputSchemaBuilder = Schema.newBuilder
     // keep the same schema from input
     outputSchemaBuilder.add(inputSchema)
+    if (resultAttribute == null || resultAttribute.isEmpty) {
+      resultAttribute = urlAttribute + " result"
+    }
     outputSchemaBuilder.add(
       new Attribute(
         resultAttribute,
