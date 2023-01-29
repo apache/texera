@@ -16,15 +16,30 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.concurrent.duration._
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 class DownloadOpExec(
     val attributes: List[DownloadAttributeUnit],
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
   private val DOWNLOADS_PATH = new File(new File(".").getCanonicalPath).getParent + "/downloads"
-  private val downloading = collection.mutable.ArrayBuffer[Future[Boolean]]()
-  private val finished = new LinkedBlockingQueue[(Tuple, Int)]
-  private var numTuples = 0
+  private val downloading = new mutable.Queue[Future[Tuple]]()
+
+  class DownloadResultIterator(blocking:Boolean) extends Iterator[Tuple]{
+    override def hasNext: Boolean = {
+      if(downloading.isEmpty){
+        return false
+      }
+      if(blocking){
+        Await.result(downloading.head, 5.seconds)
+      }
+      downloading.head.isCompleted
+    }
+
+    override def next(): Tuple = {
+      downloading.dequeue().value.get.get
+    }
+  }
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -33,34 +48,18 @@ class DownloadOpExec(
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
     tuple match {
-      case Left(t) => {
-        val index: Int = numTuples
-        numTuples += 1
-        val futureTask = Future {
-          finished.add((downloadTuple(t), index))
-        }
-        downloading.append(futureTask)
-        Iterator()
-      }
-      case Right(_) => {
-        val combinedFuture = Future.sequence(downloading)
-        Await.result(combinedFuture, Duration.Inf)
-        downloading.clear()
-        getFinished
-      }
+      case Left(t) =>
+        downloading.enqueue(Future{downloadTuple(t)})
+        new DownloadResultIterator(false)
+      case Right(_) =>
+        // pass
+        new DownloadResultIterator(true)
     }
   }
 
   override def open(): Unit = {}
 
   override def close(): Unit = {}
-
-  def getFinished(): Iterator[Tuple] = {
-    val arr = new util.ArrayList[(Tuple, Int)]()
-    finished.drainTo(arr)
-    val sortedArr = arr.sortBy(_._2)
-    sortedArr.map(_._1).iterator
-  }
 
   def downloadTuple(tuple: Tuple): Tuple = {
     val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
@@ -87,7 +86,9 @@ class DownloadOpExec(
         directory.mkdir()
       }
       try {
-        val data = Source.fromURL(url).mkString
+        val source = Source.fromURL(url)
+        val data = source.mkString
+        source.close()
         val filePath = s"$DOWNLOADS_PATH/${UUID.randomUUID()}.txt"
         val file = new File(filePath)
         val bw = new BufferedWriter(new FileWriter(file))
