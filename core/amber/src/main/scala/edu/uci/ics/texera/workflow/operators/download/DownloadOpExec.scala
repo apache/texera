@@ -19,7 +19,8 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 class DownloadOpExec(
-    val attributes: List[DownloadAttributeUnit],
+    val urlAttribute: String,
+    val resultAttribute: String,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
   private val DOWNLOADS_PATH = new File(new File(".").getCanonicalPath).getParent + "/downloads"
@@ -62,18 +63,26 @@ class DownloadOpExec(
 
   def downloadTuple(tuple: Tuple): Tuple = {
     val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
-    for (attribute <- attributes) {
-      builder.add(
-        attribute.getUrlAttribute,
-        tuple.getSchema.getAttribute(attribute.getUrlAttribute).getType,
-        tuple.getField(attribute.getUrlAttribute)
-      )
-      builder.add(
-        attribute.getResultAttribute,
-        AttributeType.STRING,
-        downloadUrl(tuple.getField(attribute.getUrlAttribute).toString)
-      )
-    }
+
+    operatorSchemaInfo
+      .outputSchemas(0)
+      .getAttributes
+      .foreach(attr => {
+        if (attr.getName == resultAttribute) {
+          builder.add(
+            resultAttribute,
+            AttributeType.STRING,
+            downloadUrl(tuple.getField(urlAttribute))
+          )
+        } else {
+          builder.add(
+            attr.getName,
+            tuple.getSchema.getAttribute(attr.getName).getType,
+            tuple.getField(attr.getName)
+          )
+        }
+      })
+
     builder.build()
   }
 

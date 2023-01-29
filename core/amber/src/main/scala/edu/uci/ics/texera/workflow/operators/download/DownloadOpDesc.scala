@@ -1,5 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.download
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonPropertyDescription
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import com.google.common.base.Preconditions
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -17,12 +21,22 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 
 class DownloadOpDesc extends OperatorDescriptor {
 
-  var attributes: List[DownloadAttributeUnit] = List()
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("URL Attribute")
+  @AutofillAttributeName
+  private val urlAtttribute = ""
+
+  @JsonProperty
+  @JsonSchemaTitle("Result Attribute")
+  @JsonPropertyDescription(
+    "Downloaded file path stored in this new attribute"
+  )
+  private val resultAttribute = ""
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(
       operatorIdentifier,
-      _ => new DownloadOpExec(attributes, operatorSchemaInfo)
+      _ => new DownloadOpExec(urlAtttribute, resultAttribute, operatorSchemaInfo)
     )
   }
 
@@ -37,22 +51,16 @@ class DownloadOpDesc extends OperatorDescriptor {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
-    Preconditions.checkArgument(attributes.nonEmpty)
+    val inputSchema = schemas(0)
     val outputSchemaBuilder = Schema.newBuilder
-    for (attribute <- attributes) {
-      outputSchemaBuilder.add(
-        new Attribute(
-          attribute.getUrlAttribute(),
-          schemas(0).getAttribute(attribute.getUrlAttribute()).getType
-        )
+    // keep the same schema from input
+    outputSchemaBuilder.add(inputSchema)
+    outputSchemaBuilder.add(
+      new Attribute(
+        resultAttribute,
+        AttributeType.STRING
       )
-      outputSchemaBuilder.add(
-        new Attribute(
-          attribute.getResultAttribute(),
-          AttributeType.STRING
-        )
-      )
-    }
+    )
     outputSchemaBuilder.build
   }
 }
