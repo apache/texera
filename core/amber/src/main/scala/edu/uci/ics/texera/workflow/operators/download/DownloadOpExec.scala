@@ -25,12 +25,12 @@ class DownloadOpExec(
   private val DOWNLOADS_PATH = new File(new File(".").getCanonicalPath).getParent + "/downloads"
   private val downloading = new mutable.Queue[Future[Tuple]]()
 
-  class DownloadResultIterator(blocking:Boolean) extends Iterator[Tuple]{
+  class DownloadResultIterator(blocking: Boolean) extends Iterator[Tuple] {
     override def hasNext: Boolean = {
-      if(downloading.isEmpty){
+      if (downloading.isEmpty) {
         return false
       }
-      if(blocking){
+      if (blocking) {
         Await.result(downloading.head, 5.seconds)
       }
       downloading.head.isCompleted
@@ -49,10 +49,9 @@ class DownloadOpExec(
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
-        downloading.enqueue(Future{downloadTuple(t)})
+        downloading.enqueue(Future { downloadTuple(t) })
         new DownloadResultIterator(false)
       case Right(_) =>
-        // pass
         new DownloadResultIterator(true)
     }
   }
