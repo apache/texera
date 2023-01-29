@@ -10,7 +10,7 @@ import {
   WorkflowVersionService,
 } from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
-import { filter } from "rxjs/operators";
+import { auditTime, filter } from "rxjs/operators";
 
 export type PropertyEditFrameComponent =
   | OperatorPropertyEditFrameComponent
