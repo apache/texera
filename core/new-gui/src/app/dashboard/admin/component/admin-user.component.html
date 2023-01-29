@@ -1,0 +1,39 @@
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Users</h2>
+  </nz-card>
+  <nz-card>
+    <nz-table #basicTable [nzData]="getUserArray()">
+      <thead>
+      <tr>
+        <th [nzSortFn]="sort">ID</th>
+        <th>Icon</th>
+        <th [nzSortFn]="sort">Name</th>
+        <th [nzSortFn]="sort">Email</th>
+        <th>Role</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr *ngFor="let user of basicTable.data">
+        <td>{{user.uid}}</td>
+        <td>
+          <texera-user-avatar class="user-avatar" [googleId]="user.googleId"></texera-user-avatar>
+        </td>
+        <td>{{user.name}}</td>
+        <td>{{user.email}}</td>
+        <td>
+          {{user.role}}
+          <nz-select [nzShowArrow]=false ngModel="{{user.role}}" (ngModelChange)="updateRole(user.uid,$event)" [nzCustomTemplate]="roleTemplate" nzBorderless class="extra-width">
+            <nz-option nzValue="0" nzLabel="Pending" nzCustomContent><span class="role c0">Pending</span></nz-option>
+            <nz-option nzValue="1" nzLabel="Approved" nzCustomContent><span class="role c1">Approved</span></nz-option>
+            <nz-option nzValue="2" nzLabel="Admin" nzCustomContent><span class="role c2">Admin</span></nz-option>
+          </nz-select>
+        </td>
+      </tr>
+      </tbody>
+    </nz-table>
+    <ng-template #roleTemplate let-selected>
+      <span class="role c{{selected.nzValue}}">{{selected.nzLabel}}</span>
+    </ng-template>
+  </nz-card>
+</div>

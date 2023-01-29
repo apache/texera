@@ -1,4 +1,5 @@
 import { Component } from "@angular/core";
+import { UserService } from "../../../common/service/user/user.service";
 
 /**
  * FeatureBarComponent contains buttons for four main sections of the dashboard - Saved Project,
@@ -15,4 +16,7 @@ import { Component } from "@angular/core";
   templateUrl: "./feature-bar.component.html",
   styleUrls: ["./feature-bar.component.scss"],
 })
-export class FeatureBarComponent {}
+export class FeatureBarComponent {
+  constructor(private userService: UserService) {}
+  isAdmin = this.userService.isAdmin();
+}

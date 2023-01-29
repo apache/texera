@@ -49,3 +49,22 @@
     </button>
   </nz-list-item>
 </nz-list>
+<nz-collapse *ngIf="isAdmin">
+  <nz-collapse-panel nzHeader = "Admin" >
+    <nz-list>
+      <nz-list-item>
+        <button
+                [routerLink]="['/dashboard/admin-user']"
+                class="feature-bar-btn"
+                nz-button
+                nz-tooltip="Look up the user"
+                nzTooltipPlacement="right"
+                nzType="text"
+        >
+          <i class="feature-bar-btn-icon" nz-icon nzTheme="outline" nzType="user"></i>
+          Users
+        </button>
+      </nz-list-item>
+    </nz-list>
+  </nz-collapse-panel>
+</nz-collapse>
