@@ -58,6 +58,8 @@ object GoogleAuthResource {
       // get the subject of the payload, use this value as a key to identify a user.
       val googleId = payload.getSubject
       // get the Google username of the user, will be used as Texera username
+      val googleName = payload.get("name").asInstanceOf[String]
+
       val googleEmail = payload.get("email").asInstanceOf[String]
 
       // store Google user id in database if it does not exist
@@ -65,15 +67,20 @@ object GoogleAuthResource {
         case Some(user) =>
           // the user's Google username could have been updated (due to user's action)
           // we update the user name in such case to reflect the change.
-          if (user.getName != googleEmail) {
-            user.setName(googleEmail)
+          if (user.getName != googleName) {
+            user.setName(googleName)
+            userDao.update(user)
+          }
+          if (user.getEmail != googleEmail) {
+            user.setEmail(googleEmail)
             userDao.update(user)
           }
           user
         case None =>
           // create a new user with googleId
           val user = new User
-          user.setName(googleEmail)
+          user.setName(googleName)
+          user.setEmail(googleEmail)
           user.setGoogleId(googleId)
           user.setRole(UserRole.INACTIVE)
           userDao.insert(user)

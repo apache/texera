@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
 
@@ -61,8 +62,13 @@ case class LogicalPlan(
       .filter(op => operatorMap(op).isInstanceOf[SinkOpDesc])
       .toList
 
-  lazy val inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] =
-    propagateWorkflowSchema()
+  lazy val inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
+    val (schemaMap, errorList) = propagateWorkflowSchema()
+    if (errorList.nonEmpty) {
+      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
+    }
+    schemaMap
+  }
 
   lazy val outputSchemaMap: Map[OperatorIdentity, List[Schema]] =
     operatorMap.values
@@ -98,7 +104,7 @@ case class LogicalPlan(
     downstream.toList
   }
 
-  def propagateWorkflowSchema(): Map[OperatorIdentity, List[Option[Schema]]] = {
+  def propagateWorkflowSchema(): (Map[OperatorIdentity, List[Option[Schema]]], List[Throwable]) = {
     // a map from an operator to the list of its input schema
     val inputSchemaMap =
       new mutable.HashMap[OperatorIdentity, mutable.MutableList[Option[Schema]]]()
@@ -106,7 +112,7 @@ case class LogicalPlan(
           mutable.MutableList
             .fill(operatorMap(op.operator).operatorInfo.inputPorts.size)(Option.empty)
         )
-
+    val errorsDuringPropagation = new ArrayBuffer[Throwable]()
     // propagate output schema following topological order
     val topologicalOrderIterator = jgraphtDag.iterator()
     topologicalOrderIterator.forEachRemaining(opID => {
@@ -134,7 +140,7 @@ case class LogicalPlan(
           }
         } catch {
           case e: Throwable =>
-            e.printStackTrace()
+            errorsDuringPropagation.append(e)
             Option.empty
         }
       }
@@ -164,10 +170,13 @@ case class LogicalPlan(
       })
     })
 
-    inputSchemaMap
-      .filter(e => !(e._2.exists(s => s.isEmpty) || e._2.isEmpty))
-      .map(e => (e._1, e._2.toList))
-      .toMap
+    (
+      inputSchemaMap
+        .filter(e => !(e._2.exists(s => s.isEmpty) || e._2.isEmpty))
+        .map(e => (e._1, e._2.toList))
+        .toMap,
+      errorsDuringPropagation.toList
+    )
   }
 
   def toPhysicalPlan(

@@ -61,8 +61,14 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
     })
 
     // create and save OpExecConfigs for the operators
-    val inputSchemaMap = logicalPlan.propagateWorkflowSchema()
+    val (inputSchemaMap, errorList) = logicalPlan.propagateWorkflowSchema()
+    if (errorList.nonEmpty) {
+      throw new RuntimeException(
+        s"${errorList.size} error(s) occurred in workflow submission: \n ${errorList.mkString("\n")}"
+      )
+    }
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
+    val amberOperatorsCopy: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     logicalPlan.operators.foreach(o => {
       val inputSchemas: Array[Schema] =
         if (!o.isInstanceOf[SourceOperatorDescriptor])
@@ -81,7 +87,10 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       }
       val amberOperator: OpExecConfig =
         o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchemas))
-      amberOperators.put(amberOperator.id, amberOperator)
+      val amberOperatorCopy: OpExecConfig =
+        o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchemas))
+      amberOperators.put(amberOperator.id, amberOperatorCopy)
+      amberOperatorsCopy.put(amberOperator.id, amberOperator)
     })
 
     // update the input and output port maps of OpExecConfigs with the link identities
@@ -92,8 +101,8 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       outLinks.getOrElseUpdate(origin, mutable.Set()).add(dest)
 
       val layerLink = LinkIdentity(
-        amberOperators(origin).topology.layers.last.id,
-        amberOperators(dest).topology.layers.head.id
+        amberOperatorsCopy(origin).topology.layers.last.id,
+        amberOperatorsCopy(dest).topology.layers.head.id
       )
       amberOperators(dest).setInputToOrdinalMapping(
         layerLink,
