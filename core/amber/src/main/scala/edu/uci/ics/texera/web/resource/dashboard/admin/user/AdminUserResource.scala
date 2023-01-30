@@ -4,6 +4,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
+import org.jasypt.util.password.StrongPasswordEncryptor
 import org.jooq.types.UInteger
 
 import java.util
@@ -48,7 +49,7 @@ class AdminUserResource {
     val random = System.currentTimeMillis().toString
     val newUser = new User
     newUser.setName("User" + random)
-    newUser.setPassword(random)
+    newUser.setPassword(new StrongPasswordEncryptor().encryptPassword(random))
     newUser.setRole(UserRole.INACTIVE)
     userDao.insert(newUser)
   }

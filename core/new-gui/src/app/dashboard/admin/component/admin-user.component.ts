@@ -16,13 +16,22 @@ export class AdminUserComponent implements OnInit {
   editEmail: string = "";
   editRole: Role = Role.REGULAR;
 
+  nameSearchValue: string = "";
+  emailSearchValue: string = "";
+  nameSearchVisible = false;
+  emailSearchVisible = false;
+  listOfDisplayUser = [...this.userList];
+
   constructor(private adminUserService: AdminUserService) {}
 
   ngOnInit() {
     this.adminUserService
       .getUserList()
       .pipe(untilDestroyed(this))
-      .subscribe(userList => (this.userList = userList));
+      .subscribe(userList => {
+        this.userList = userList;
+        this.reset();
+      });
   }
   public updateRole(user: User, role: Role): void {
     this.startEdit(user);
@@ -64,4 +73,22 @@ export class AdminUserComponent implements OnInit {
   public sortByName: NzTableSortFn<User> = (a: User, b: User) => b.name.localeCompare(a.name);
   public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => b.email.localeCompare(a.email);
   public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
+
+  reset(): void {
+    this.nameSearchValue = "";
+    this.emailSearchValue = "";
+    this.nameSearchVisible = false;
+    this.emailSearchVisible = false;
+    this.listOfDisplayUser = [...this.userList];
+  }
+
+  searchByName(): void {
+    this.nameSearchVisible = false;
+    this.listOfDisplayUser = this.userList.filter((user: User) => user.name.indexOf(this.nameSearchValue) !== -1);
+  }
+
+  searchByEmail(): void {
+    this.emailSearchVisible = false;
+    this.listOfDisplayUser = this.userList.filter((user: User) => user.email.indexOf(this.emailSearchValue) !== -1);
+  }
 }

@@ -3,17 +3,45 @@
     <h2 class="page-title">Users</h2>
   </nz-card>
   <nz-card>
-    <nz-table #basicTable [nzData]="userList">
+    <nz-table #basicTable [nzData]="listOfDisplayUser">
       <thead>
       <tr>
         <th>Avatar</th>
         <th [nzSortFn]="sortByID">ID</th>
-        <th [nzSortFn]="sortByName">Name</th>
-        <th [nzSortFn]="sortByEmail">Email</th>
+        <th [nzSortFn]="sortByName" nzCustomFilter>
+          Name
+          <nz-filter-trigger [(nzVisible)]="nameSearchVisible" [nzActive]="nameSearchValue.length > 0" [nzDropdownMenu]="nameMenu">
+            <span nz-icon nzType="search"></span>
+          </nz-filter-trigger>
+        </th>
+        <th [nzSortFn]="sortByEmail" nzCustomFilter>
+          Email
+          <nz-filter-trigger [(nzVisible)]="emailSearchVisible" [nzActive]="emailSearchValue.length > 0" [nzDropdownMenu]="emailMenu">
+            <span nz-icon nzType="search"></span>
+          </nz-filter-trigger>
+        </th>
         <th>Action</th>
         <th [nzSortFn]="sortByRole">Role</th>
       </tr>
       </thead>
+      <nz-dropdown-menu #nameMenu="nzDropdownMenu">
+        <div class="ant-table-filter-dropdown">
+          <div class="search-box">
+            <input type="text" nz-input placeholder="Search name" [(ngModel)]="nameSearchValue" />
+            <button nz-button nzSize="small" nzType="primary" (click)="searchByName()" class="search-button">Search</button>
+            <button nz-button nzSize="small" (click)="reset()">Reset</button>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+      <nz-dropdown-menu #emailMenu="nzDropdownMenu">
+        <div class="ant-table-filter-dropdown">
+          <div class="search-box">
+            <input type="text" nz-input placeholder="Search name" [(ngModel)]="emailSearchValue" />
+            <button nz-button nzSize="small" nzType="primary" (click)="searchByEmail()" class="search-button">Search</button>
+            <button nz-button nzSize="small" (click)="reset()">Reset</button>
+          </div>
+        </div>
+      </nz-dropdown-menu>
       <tbody>
       <tr *ngFor="let user of basicTable.data">
         <td><texera-user-avatar class="user-avatar" [googleId]="user.googleId" [userName]="user.name"></texera-user-avatar></td>
@@ -31,7 +59,7 @@
             {{user.email}}
           </ng-container>
           <ng-template #editEmailTemplate>
-            <input type="text" nz-input [(ngModel)]="editEmail" />
+            <input type="email" [email]="true"  nz-input [(ngModel)]="editEmail" />
           </ng-template>
         </td>
         <td style="color:#1890FF;">
