@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { AdminUserService } from "../service/admin-user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzTableSortFn } from "ng-zorro-antd/table";
+import { NzTableSortFn, NzTableFilterFn } from "ng-zorro-antd/table";
 import { Role, User } from "../../../common/type/user";
 
 @UntilDestroy()
@@ -89,6 +89,9 @@ export class AdminUserComponent implements OnInit {
 
   searchByEmail(): void {
     this.emailSearchVisible = false;
-    this.listOfDisplayUser = this.userList.filter((user: User) => user.email.indexOf(this.emailSearchValue) !== -1);
+    this.listOfDisplayUser = this.userList.filter(user => user.email.indexOf(this.emailSearchValue) !== -1);
   }
+
+  public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
+    list.some(role => user.role.indexOf(role) !== -1);
 }
