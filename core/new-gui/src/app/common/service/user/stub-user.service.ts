@@ -1,16 +1,17 @@
 import { Injectable } from "@angular/core";
 
-import { Observable, of, ReplaySubject, Subject } from "rxjs";
-import { User } from "../../type/user";
+import { Observable, of, Subject } from "rxjs";
+import { Role, User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
 
 export const MOCK_USER_ID = 1;
 export const MOCK_USER_NAME = "testUser";
 export const MOCK_USER = {
-  name: MOCK_USER_NAME,
   uid: MOCK_USER_ID,
+  name: MOCK_USER_NAME,
   googleId: undefined,
+  role: Role.REGULAR,
 };
 
 /**
@@ -25,6 +26,10 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   constructor() {
     this.user = MOCK_USER;
     this.userChangeSubject.next(this.user);
+  }
+
+  public isAdmin(): boolean {
+    throw new Error("Method not implemented.");
   }
 
   googleLogin(): Observable<void> {
