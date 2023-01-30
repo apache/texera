@@ -70,6 +70,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       aggregations.map(
         _.getAggFunc(finalAggValueSchema, groupByFunc).asInstanceOf[DistributedAggregation[Object]]
       ),
+      finalAggValueSchema,
       operatorSchemaInfo
     )
   }

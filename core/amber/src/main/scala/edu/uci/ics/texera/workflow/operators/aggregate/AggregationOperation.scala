@@ -71,14 +71,12 @@ class AggregationOperation() {
 
       },
       (partial1, partial2) => partial1 + partial2,
-      (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, partial)
-        } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, partial)
-        }
+      (partial) => {
+        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
+        Tuple
+          .newBuilder(schema)
+          .add(resultAttribute, AttributeType.DOUBLE, partial)
+          .build()
       },
       groupByFunc
     )
@@ -94,14 +92,12 @@ class AggregationOperation() {
         partial + (if (tuple.getField(attribute) != null) 1 else 0)
       },
       (partial1, partial2) => partial1 + partial2,
-      (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.INTEGER, partial)
-        } else {
-          tupleBuilder.add(resultAttribute, AttributeType.INTEGER, partial)
-        }
+      (partial) => {
+        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.INTEGER).build()
+        Tuple
+          .newBuilder(schema)
+          .add(resultAttribute, AttributeType.INTEGER, partial)
+          .build()
       },
       groupByFunc
     )
@@ -129,14 +125,12 @@ class AggregationOperation() {
           partial1 + partial2
         }
       },
-      (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.STRING, partial)
-        } else {
-          tupleBuilder.add(resultAttribute, AttributeType.STRING, partial)
-        }
+      (partial) => {
+        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.STRING).build()
+        Tuple
+          .newBuilder(schema)
+          .add(resultAttribute, AttributeType.STRING, partial)
+          .build()
       },
       groupByFunc
     )
@@ -153,14 +147,12 @@ class AggregationOperation() {
         if (value.isDefined && value.get < partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
-      (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MaxValue) null else partial)
-        } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MaxValue) null else partial)
-        }
+      (partial) => {
+        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
+        Tuple
+          .newBuilder(schema)
+          .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MaxValue) null else partial)
+          .build()
       },
       groupByFunc
     )
@@ -177,14 +169,12 @@ class AggregationOperation() {
         if (value.isDefined && value.get > partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
-      (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MinValue) null else partial)
-        } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MinValue) null else partial)
-        }
+      (partial) => {
+        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
+        Tuple
+          .newBuilder(schema)
+          .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MinValue) null else partial)
+          .build()
       },
       groupByFunc
     )
@@ -215,13 +205,12 @@ class AggregationOperation() {
       },
       (partial1, partial2) =>
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
-      (partial, tupleBuilder) => {
-        if (tupleBuilder == null) {
-          Tuple
-            .newBuilder(finalAggValueSchema)
-        } else {
-          tupleBuilder.add(resultAttribute, AttributeType.DOUBLE, if (partial.count == 0) null else partial.sum / partial.count)
-        }
+      (partial) => {
+        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
+        Tuple
+          .newBuilder(schema)
+          .add(resultAttribute, AttributeType.DOUBLE, if (partial.count == 0) null else partial.sum / partial.count)
+          .build()
       },
       groupByFunc
     )

@@ -13,7 +13,8 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.{JavaConverters, mutable}
 
 class FinalAggregateOpExec[Partial <: AnyRef](
-    val aggFuncs: List[DistributedAggregation[Partial]]
+    val aggFuncs: List[DistributedAggregation[Partial]],
+    val finalAggValueSchema: Schema,
 ) extends OperatorExecutor {
 
   var groupByKeyAttributes: Array[Attribute] = _
@@ -66,10 +67,9 @@ class FinalAggregateOpExec[Partial <: AnyRef](
         Iterator()
       case Right(_) =>
         partialObjectsPerKey(0).iterator.map(pair => {
-          var tupleBuilder: Tuple.BuilderV2 = null
+          var tupleBuilder: Tuple.BuilderV2 = Tuple.newBuilder(finalAggValueSchema)
           partialObjectsPerKey.indices.foreach(index => {
-            tupleBuilder =
-              aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1), tupleBuilder)
+            tupleBuilder.add(aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1)))
           })
           val finalObject = tupleBuilder.build()
 

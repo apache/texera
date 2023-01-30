@@ -69,14 +69,11 @@ class LineChartOpDesc extends VisualizationOperator {
             partial + (if (tuple.getField(nameColumn) != null) 1 else 0)
           },
           (partial1, partial2) => partial1 + partial2,
-          (partial, tupleBuilder) => {
-            if (tupleBuilder == null) {
-              Tuple
-                .newBuilder(finalAggValueSchema)
-                .add(resultAttributeNames.head, AttributeType.INTEGER, partial)
-            } else {
-              tupleBuilder.add(resultAttributeNames.head, AttributeType.INTEGER, partial)
-            }
+          (partial) => {
+            Tuple
+              .newBuilder(finalAggValueSchema)
+              .add(resultAttributeNames.head, AttributeType.INTEGER, partial)
+              .build()
           },
           groupByFunc()
         )
@@ -90,19 +87,19 @@ class LineChartOpDesc extends VisualizationOperator {
             partial
           },
           (partial1, partial2) => partial1.zip(partial2).map { case (x, y) => x + y },
-          (partial, tupleBuilder) => {
-            val resultBuilder =
-              if (tupleBuilder == null) Tuple.newBuilder(finalAggValueSchema) else tupleBuilder
+          (partial) => {
+            val resultBuilder = Tuple.newBuilder(finalAggValueSchema)
             for (i <- dataColumns.indices) {
               resultBuilder.add(resultAttributeNames(i), AttributeType.DOUBLE, partial(i))
             }
-            resultBuilder
+            resultBuilder.build()
           },
           groupByFunc()
         )
     new AggregatedVizOpExecConfig(
       operatorIdentifier,
       aggregation,
+      finalAggValueSchema,
       new LineChartOpExec(this, operatorSchemaInfo),
       operatorSchemaInfo
     )

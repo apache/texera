@@ -1,27 +1,16 @@
 package edu.uci.ics.texera.workflow.operators.visualization
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
-  FollowPrevious,
-  UseAll
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{FollowPrevious, UseAll}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{HashBasedShuffle, OneToOne}
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{
-  DistributedAggregation,
-  FinalAggregateOpExec,
-  PartialAggregateOpExec
-}
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{DistributedAggregation, FinalAggregateOpExec, PartialAggregateOpExec}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 import scala.reflect.ClassTag
 
@@ -36,6 +25,7 @@ import scala.reflect.ClassTag
 class AggregatedVizOpExecConfig[P <: AnyRef](
     id: OperatorIdentity,
     val aggFunc: DistributedAggregation[P],
+    val finalAggValueSchema: Schema,
     exec: IOperatorExecutor,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
@@ -50,7 +40,7 @@ class AggregatedVizOpExecConfig[P <: AnyRef](
     )
     val finalLayer = new WorkerLayer(
       makeLayer(id, "globalAgg"),
-      _ => new FinalAggregateOpExec(List(aggFunc)),
+      _ => new FinalAggregateOpExec(List(aggFunc), finalAggValueSchema),
       Constants.currentWorkerNum,
       FollowPrevious(),
       RoundRobinDeployment()

@@ -32,8 +32,8 @@ case class DistributedAggregation[P <: AnyRef](
     iterate: (P, Tuple) => P,
     // PartialObject + PartialObject => PartialObject
     merge: (P, P) => P,
-    // PartialObject + Tuple Builder => Tuple Builder
-    finalAgg: (P, Tuple.BuilderV2) => Tuple.BuilderV2,
+    // PartialObject => Tuple with one column, later be combined into FinalObject
+    finalAgg: (P) => Tuple,
     // optional: group by function, calculate a group by key for a tuple
     groupByFunc: Schema => Schema = null
 )

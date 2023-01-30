@@ -27,6 +27,7 @@ import scala.reflect.ClassTag
 class AggregateOpExecConfig(
     id: OperatorIdentity,
     val aggFuncs: List[DistributedAggregation[Object]],
+    val finalAggValueSchema: Schema,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
@@ -42,7 +43,7 @@ class AggregateOpExecConfig(
       )
       val finalLayer = new WorkerLayer(
         makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec(aggFuncs),
+        _ => new FinalAggregateOpExec(aggFuncs, finalAggValueSchema),
         1,
         ForceLocal(),
         RandomDeployment()
@@ -66,7 +67,7 @@ class AggregateOpExecConfig(
       )
       val finalLayer = new WorkerLayer(
         makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec(aggFuncs),
+        _ => new FinalAggregateOpExec(aggFuncs, finalAggValueSchema),
         Constants.currentWorkerNum,
         FollowPrevious(),
         RoundRobinDeployment()
