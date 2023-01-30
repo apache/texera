@@ -123,6 +123,7 @@ import { LocalLoginComponent } from "./home/component/login/local-login/local-lo
 import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 
 registerLocaleData(en);
 
@@ -264,6 +265,7 @@ registerLocaleData(en);
   ],
   providers: [
     AuthGuardService,
+    AdminGuardService,
     DatePipe,
     UserService,
     UserFileService,
