@@ -22,7 +22,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
 
   // partialObjectsPerKey has the same length as aggFuncs
   // partialObjectsPerKey[i] corresponds to aggFuncs[i]
-  var partialObjectsPerKey =
+  var partialObjectsPerKey: IndexedSeq[mutable.HashMap[List[AnyRef], Partial]] =
     (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], Partial]())
   var outputIterator: Iterator[Tuple] = _
 
@@ -67,7 +67,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
         Iterator()
       case Right(_) =>
         partialObjectsPerKey(0).iterator.map(pair => {
-          var tupleBuilder: Tuple.BuilderV2 = Tuple.newBuilder(finalAggValueSchema)
+          val tupleBuilder: Tuple.BuilderV2 = Tuple.newBuilder(finalAggValueSchema)
           partialObjectsPerKey.indices.foreach(index => {
             tupleBuilder.add(aggFuncs(index).finalAgg(partialObjectsPerKey(index)(pair._1)))
           })
@@ -87,7 +87,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
               .build()
           }
 
-          Tuple.newBuilder(schema).addSequentially(fields).build()
+          Tuple.newBuilder(finalAggValueSchema).addSequentially(fields).build()
         })
     }
   }

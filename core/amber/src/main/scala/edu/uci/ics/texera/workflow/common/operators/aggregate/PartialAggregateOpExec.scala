@@ -28,9 +28,8 @@ class PartialAggregateOpExec[P <: AnyRef](
 
   var groupByKeyAttributes: Array[Attribute] = _
   var schema: Schema = _
-//  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
 
-  var partialObjectsPerKey = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], P]())
+  var partialObjectsPerKey: IndexedSeq[mutable.HashMap[List[AnyRef], P]] = (1 to aggFuncs.length).map(_ => new mutable.HashMap[List[AnyRef], P]())
   var outputIterator: Iterator[ITuple] = _
 
   override def open(): Unit = {}
