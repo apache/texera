@@ -3,6 +3,7 @@ import { AdminUserService } from "../service/admin-user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { User } from "../../../common/type/user";
+
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-user.component.html",
@@ -22,8 +23,14 @@ export class AdminUserComponent implements OnInit {
     return this.userEntries;
   }
   public updateRole(uid: number, role: number): void {
-    console.log(role);
     this.adminUserService.updateRole(uid, role).pipe(untilDestroyed(this)).subscribe();
+  }
+
+  deleteUser(uid: number): void {
+    this.adminUserService
+      .delete(uid)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.ngOnInit());
   }
 
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;

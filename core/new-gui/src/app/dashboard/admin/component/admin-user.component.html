@@ -6,19 +6,19 @@
     <nz-table #basicTable [nzData]="getUserArray()">
       <thead>
       <tr>
+        <th>Avatar</th>
         <th [nzSortFn]="sortByID">ID</th>
-        <th>Icon</th>
         <th [nzSortFn]="sortByName">Name</th>
         <th [nzSortFn]="sortByEmail">Email</th>
         <th [nzSortFn]="sortByRole">Role</th>
+        <th>Action</th>
       </tr>
       </thead>
       <tbody>
       <tr *ngFor="let user of basicTable.data">
+
+        <td><texera-user-avatar class="user-avatar" [googleId]="user.googleId"></texera-user-avatar></td>
         <td>{{user.uid}}</td>
-        <td>
-          <texera-user-avatar class="user-avatar" [googleId]="user.googleId"></texera-user-avatar>
-        </td>
         <td>{{user.name}}</td>
         <td>{{user.email}}</td>
         <td>
@@ -26,7 +26,11 @@
             <nz-option nzValue="INACTIVE" nzLabel="0" nzCustomContent><span class="role c0">INACTIVE</span></nz-option>
             <nz-option nzValue="REGULAR" nzLabel="1" nzCustomContent><span class="role c1">REGULAR</span></nz-option>
             <nz-option nzValue="ADMIN" nzLabel="2" nzCustomContent><span class="role c2">ADMIN</span></nz-option>
+            <nz-option nzValue="RESTRICTED" nzLabel="3" nzCustomContent><span class="role c3">RESTRICTED</span></nz-option>
           </nz-select>
+        </td>
+        <td>
+          <a nz-popconfirm="" nzPopconfirmTitle="Sure to delete?" (nzOnConfirm)="deleteUser(user.uid)">Delete</a>
         </td>
       </tr>
       </tbody>

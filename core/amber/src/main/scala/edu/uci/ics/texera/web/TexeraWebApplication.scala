@@ -15,7 +15,7 @@ import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, U
 import edu.uci.ics.texera.web.resource.dashboard.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource
 import edu.uci.ics.texera.web.resource._
-import edu.uci.ics.texera.web.resource.dashboard.user.AdminUserResource
+import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle

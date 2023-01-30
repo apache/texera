@@ -1,0 +1,48 @@
+package edu.uci.ics.texera.web.resource.dashboard.admin.user
+
+import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
+import org.jooq.types.UInteger
+
+import java.util
+import javax.annotation.security.PermitAll
+import javax.ws.rs._
+import javax.ws.rs.core.MediaType
+
+object AdminUserResource {
+  final private val context = SqlServer.createDSLContext()
+  final private val userDao = new UserDao(context.configuration)
+}
+
+@Path("/admin/user")
+@PermitAll
+@Produces(Array(MediaType.APPLICATION_JSON))
+class AdminUserResource {
+
+  /**
+    * This method returns the list of users
+    *
+    * @return a list of users
+    */
+  @GET
+  @Path("/list")
+  def listUsers(): util.List[User] = {
+    userDao.fetchRangeOfUid(UInteger.MIN, UInteger.MAX)
+  }
+
+  @POST
+  @Path("/update")
+  def updateUserRole(user: User): Unit = {
+    val updatedUser = userDao.fetchOneByUid(user.getUid)
+    updatedUser.setRole(user.getRole)
+    userDao.update(updatedUser)
+  }
+
+  @DELETE
+  @Path("/delete/{uid}")
+  def delete(@PathParam("uid") uid: UInteger): Unit = {
+    userDao.deleteById(uid)
+  }
+}
