@@ -3,7 +3,7 @@
     <h2 class="page-title">Users</h2>
   </nz-card>
   <nz-card>
-    <nz-table #basicTable [nzData]="getUserArray()">
+    <nz-table #basicTable [nzData]="userList">
       <thead>
       <tr>
         <th>Avatar</th>
@@ -16,27 +16,51 @@
       </thead>
       <tbody>
       <tr *ngFor="let user of basicTable.data">
-
         <td><texera-user-avatar class="user-avatar" [googleId]="user.googleId"></texera-user-avatar></td>
         <td>{{user.uid}}</td>
-        <td>{{user.name}}</td>
-        <td>{{user.email}}</td>
         <td>
-          <nz-select [nzShowArrow]=false ngModel="{{user.role}}" (ngModelChange)="updateRole(user.uid,$event)" [nzCustomTemplate]="roleTemplate" nzBorderless class="extra-width">
+          <ng-container *ngIf="editUid !== user.uid; else editNameTemplate">
+            {{user.name}}
+          </ng-container>
+          <ng-template #editNameTemplate>
+            <input type="text" nz-input [(ngModel)]="editName" />
+          </ng-template>
+        </td>
+        <td>
+          <ng-container *ngIf="editUid !== user.uid; else editEmailTemplate">
+            {{user.email}}
+          </ng-container>
+          <ng-template #editEmailTemplate>
+            <input type="text" nz-input [(ngModel)]="editEmail" />
+          </ng-template>
+        </td>
+        <td>
+          <nz-select [nzShowArrow]=false ngModel="{{user.role}}" (ngModelChange)="updateRole(user,$event)" [nzCustomTemplate]="roleTemplate" nzBorderless class="extra-width">
             <nz-option nzValue="INACTIVE" nzLabel="0" nzCustomContent><span class="role c0">INACTIVE</span></nz-option>
             <nz-option nzValue="REGULAR" nzLabel="1" nzCustomContent><span class="role c1">REGULAR</span></nz-option>
             <nz-option nzValue="ADMIN" nzLabel="2" nzCustomContent><span class="role c2">ADMIN</span></nz-option>
             <nz-option nzValue="RESTRICTED" nzLabel="3" nzCustomContent><span class="role c3">RESTRICTED</span></nz-option>
           </nz-select>
+          <ng-template #roleTemplate let-selected>
+            <span class="role c{{selected.nzLabel}}">{{selected.nzValue}}</span>
+          </ng-template>
         </td>
-        <td>
+        <td style="color:#1890FF;">
+
+          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
+            <a (click)="startEdit(user)">Edit</a>
+          </ng-container>
+          <ng-template #editActionTemplate>
+            <a (click)="stopEdit()">Save</a>
+          </ng-template>
+          &nbsp;
           <a nz-popconfirm="" nzPopconfirmTitle="Sure to delete?" (nzOnConfirm)="deleteUser(user.uid)">Delete</a>
         </td>
       </tr>
       </tbody>
+
     </nz-table>
-    <ng-template #roleTemplate let-selected>
-      <span class="role c{{selected.nzLabel}}">{{selected.nzValue}}</span>
-    </ng-template>
+    <button nz-button (click)="addUser()" nzType="primary" style="position: absolute;bottom: 40px;">Add</button>
+
   </nz-card>
 </div>

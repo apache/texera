@@ -28,21 +28,23 @@ class AdminUserResource {
     */
   @GET
   @Path("/list")
-  def listUsers(): util.List[User] = {
+  def listUser(): util.List[User] = {
     userDao.fetchRangeOfUid(UInteger.MIN, UInteger.MAX)
   }
 
-  @POST
+  @PUT
   @Path("/update")
-  def updateUserRole(user: User): Unit = {
+  def updateUser(user: User): Unit = {
     val updatedUser = userDao.fetchOneByUid(user.getUid)
+    updatedUser.setName(user.getName)
+    updatedUser.setEmail(user.getEmail)
     updatedUser.setRole(user.getRole)
     userDao.update(updatedUser)
   }
 
   @DELETE
   @Path("/delete/{uid}")
-  def delete(@PathParam("uid") uid: UInteger): Unit = {
+  def deleteUser(@PathParam("uid") uid: UInteger): Unit = {
     userDao.deleteById(uid)
   }
 }
