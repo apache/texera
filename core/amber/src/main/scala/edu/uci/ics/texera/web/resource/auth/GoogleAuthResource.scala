@@ -77,14 +77,24 @@ object GoogleAuthResource {
           }
           user
         case None =>
-          // create a new user with googleId
-          val user = new User
-          user.setName(googleName)
-          user.setEmail(googleEmail)
-          user.setGoogleId(googleId)
-          user.setRole(UserRole.INACTIVE)
-          userDao.insert(user)
-          user
+          Option(userDao.fetchOneByEmail(googleEmail)) match {
+            case Some(user) =>
+              if (user.getName != googleName) {
+                user.setName(googleName)
+              }
+              user.setGoogleId(googleId)
+              userDao.update(user)
+              user
+            case None =>
+              // create a new user with googleId
+              val user = new User
+              user.setName(googleName)
+              user.setEmail(googleEmail)
+              user.setGoogleId(googleId)
+              user.setRole(UserRole.INACTIVE)
+              userDao.insert(user)
+              user
+          }
       }
     })
   }
