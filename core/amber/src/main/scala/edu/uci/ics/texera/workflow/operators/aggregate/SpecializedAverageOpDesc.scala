@@ -33,7 +33,6 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
 class SpecializedAverageOpDesc extends AggregateOpDesc {
 
-  // TODO: Description does not display, need to fix
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
   var aggregations: List[AggregationOperation] = List()

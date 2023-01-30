@@ -85,7 +85,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
               .build()
           }
 
-          Tuple.newBuilder(finalAggValueSchema).addSequentially(fields).build()
+          Tuple.newBuilder(schema).addSequentially(fields).build()
         })
     }
   }
