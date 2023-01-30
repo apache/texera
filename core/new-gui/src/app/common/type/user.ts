@@ -18,7 +18,7 @@ export interface User
   extends Readonly<{
     uid: number;
     name: string;
-    email?: string;
+    email: string;
     googleId?: string;
     role: Role;
     color?: string;
