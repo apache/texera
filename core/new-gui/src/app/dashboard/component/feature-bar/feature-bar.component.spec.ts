@@ -5,6 +5,8 @@ import { RouterTestingModule } from "@angular/router/testing";
 
 import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
+import { UserService } from "../../../common/service/user/user.service";
+import { StubUserService } from "../../../common/service/user/stub-user.service";
 
 describe("FeatureBarComponent", () => {
   let component: FeatureBarComponent;
@@ -14,6 +16,7 @@ describe("FeatureBarComponent", () => {
     TestBed.configureTestingModule({
       declarations: [FeatureBarComponent],
       imports: [RouterTestingModule, MatDividerModule, MatListModule],
+      providers: [{ provide: UserService, useClass: StubUserService }],
     }).compileComponents();
   }));
 

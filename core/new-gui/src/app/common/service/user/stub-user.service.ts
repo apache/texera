@@ -29,7 +29,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   }
 
   public isAdmin(): boolean {
-    throw new Error("Method not implemented.");
+    return false;
   }
 
   googleLogin(): Observable<void> {

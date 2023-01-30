@@ -2,7 +2,6 @@
 import { Router, CanActivate } from "@angular/router";
 import { UserService } from "../user/user.service";
 import { environment } from "../../../../environments/environment";
-import { AuthService } from "../user/auth.service";
 
 /**
  * AuthGuardService is a service can tell the router whether
