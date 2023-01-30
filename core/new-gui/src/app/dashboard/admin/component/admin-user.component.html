@@ -22,18 +22,17 @@
         <td>{{user.name}}</td>
         <td>{{user.email}}</td>
         <td>
-          {{user.role}}
           <nz-select [nzShowArrow]=false ngModel="{{user.role}}" (ngModelChange)="updateRole(user.uid,$event)" [nzCustomTemplate]="roleTemplate" nzBorderless class="extra-width">
-            <nz-option nzValue="0" nzLabel="Pending" nzCustomContent><span class="role c0">Pending</span></nz-option>
-            <nz-option nzValue="1" nzLabel="Approved" nzCustomContent><span class="role c1">Approved</span></nz-option>
-            <nz-option nzValue="2" nzLabel="Admin" nzCustomContent><span class="role c2">Admin</span></nz-option>
+            <nz-option nzValue="INACTIVE" nzLabel="0" nzCustomContent><span class="role c0">INACTIVE</span></nz-option>
+            <nz-option nzValue="REGULAR" nzLabel="1" nzCustomContent><span class="role c1">REGULAR</span></nz-option>
+            <nz-option nzValue="ADMIN" nzLabel="2" nzCustomContent><span class="role c2">ADMIN</span></nz-option>
           </nz-select>
         </td>
       </tr>
       </tbody>
     </nz-table>
     <ng-template #roleTemplate let-selected>
-      <span class="role c{{selected.nzValue}}">{{selected.nzLabel}}</span>
+      <span class="role c{{selected.nzLabel}}">{{selected.nzValue}}</span>
     </ng-template>
   </nz-card>
 </div>
