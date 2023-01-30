@@ -38,9 +38,8 @@ export class AdminUserComponent implements OnInit {
   }
 
   addUser(): void {
-    Date.now();
     this.adminUserService
-      .deleteUser(1)
+      .addUser()
       .pipe(untilDestroyed(this))
       .subscribe(() => this.ngOnInit());
   }

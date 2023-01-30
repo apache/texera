@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.admin.user
-
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
@@ -40,6 +40,17 @@ class AdminUserResource {
     updatedUser.setEmail(user.getEmail)
     updatedUser.setRole(user.getRole)
     userDao.update(updatedUser)
+  }
+
+  @POST
+  @Path("/add")
+  def addUser(): Unit = {
+    val random = System.currentTimeMillis().toString
+    val newUser = new User
+    newUser.setName("User" + random)
+    newUser.setPassword(random)
+    newUser.setRole(UserRole.INACTIVE)
+    userDao.insert(newUser)
   }
 
   @DELETE

@@ -10,13 +10,13 @@
         <th [nzSortFn]="sortByID">ID</th>
         <th [nzSortFn]="sortByName">Name</th>
         <th [nzSortFn]="sortByEmail">Email</th>
-        <th [nzSortFn]="sortByRole">Role</th>
         <th>Action</th>
+        <th [nzSortFn]="sortByRole">Role</th>
       </tr>
       </thead>
       <tbody>
       <tr *ngFor="let user of basicTable.data">
-        <td><texera-user-avatar class="user-avatar" [googleId]="user.googleId"></texera-user-avatar></td>
+        <td><texera-user-avatar class="user-avatar" [googleId]="user.googleId" [userName]="user.name"></texera-user-avatar></td>
         <td>{{user.uid}}</td>
         <td>
           <ng-container *ngIf="editUid !== user.uid; else editNameTemplate">
@@ -34,6 +34,16 @@
             <input type="text" nz-input [(ngModel)]="editEmail" />
           </ng-template>
         </td>
+        <td style="color:#1890FF;">
+          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
+            <a (click)="startEdit(user)">Edit</a>
+          </ng-container>
+          <ng-template #editActionTemplate>
+            <a (click)="stopEdit()">Save</a>
+          </ng-template>
+          &nbsp;
+          <a nz-popconfirm="" nzPopconfirmTitle="Sure to delete?" (nzOnConfirm)="deleteUser(user.uid)">Delete</a>
+        </td>
         <td>
           <nz-select [nzShowArrow]=false ngModel="{{user.role}}" (ngModelChange)="updateRole(user,$event)" [nzCustomTemplate]="roleTemplate" nzBorderless class="extra-width">
             <nz-option nzValue="INACTIVE" nzLabel="0" nzCustomContent><span class="role c0">INACTIVE</span></nz-option>
@@ -45,17 +55,7 @@
             <span class="role c{{selected.nzLabel}}">{{selected.nzValue}}</span>
           </ng-template>
         </td>
-        <td style="color:#1890FF;">
 
-          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
-            <a (click)="startEdit(user)">Edit</a>
-          </ng-container>
-          <ng-template #editActionTemplate>
-            <a (click)="stopEdit()">Save</a>
-          </ng-template>
-          &nbsp;
-          <a nz-popconfirm="" nzPopconfirmTitle="Sure to delete?" (nzOnConfirm)="deleteUser(user.uid)">Delete</a>
-        </td>
       </tr>
       </tbody>
 

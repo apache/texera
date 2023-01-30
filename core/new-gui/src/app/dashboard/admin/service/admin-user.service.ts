@@ -6,7 +6,7 @@ import { Role, User } from "../../../common/type/user";
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
 export const USER_UPDATE_URL = `${USER_BASE_URL}/update`;
-
+export const USER_ADD_URL = `${USER_BASE_URL}/add`;
 export const USER_DELETE_URL = `${USER_BASE_URL}/delete`;
 
 @Injectable({
@@ -30,5 +30,9 @@ export class AdminUserService {
 
   public deleteUser(uid: number): Observable<Response> {
     return this.http.delete<Response>(`${USER_DELETE_URL}/` + uid);
+  }
+
+  public addUser(): Observable<Response> {
+    return this.http.post<Response>(`${USER_ADD_URL}/`, {});
   }
 }
