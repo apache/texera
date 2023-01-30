@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.oneToOneLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{NewOpExecConfig, WorkerLayer}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
@@ -12,11 +14,8 @@ class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(
-      operatorIdentifier,
-      _ => new ProjectionOpExec(attributes, operatorSchemaInfo)
-    )
+  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    oneToOneLayer(operatorIdentifier, _ => new ProjectionOpExec(attributes, operatorSchemaInfo))
   }
 
   override def operatorInfo: OperatorInfo = {

@@ -135,11 +135,11 @@ abstract class OperatorDescriptor extends Serializable {
   var operatorVersion: String = getOperatorVersion()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
-  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    throw new UnsupportedOperationException(
-      "operator " + operatorIdentifier + " does not implement its executor"
-    )
-  }
+//  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+//    throw new UnsupportedOperationException(
+//      "operator " + operatorIdentifier + " does not implement its executor"
+//    )
+//  }
 
   def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): NewOpExecConfig = {
     throw new UnsupportedOperationException(

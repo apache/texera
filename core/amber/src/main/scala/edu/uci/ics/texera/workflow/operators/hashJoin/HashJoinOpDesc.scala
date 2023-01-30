@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{NewOpExecConfig, WorkerLayer}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
@@ -16,6 +17,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo}
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
@@ -38,18 +40,30 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonPropertyDescription("select the join type to execute")
   var joinType: JoinType = JoinType.INNER
 
-  @JsonIgnore
-  var opExecConfig: HashJoinOpExecConfig[K] = _
-
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    opExecConfig = new HashJoinOpExecConfig[K](
-      operatorIdentifier,
-      probeAttributeName,
-      buildAttributeName,
-      joinType,
-      operatorSchemaInfo
+  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    val partitionRequirement = List(
+      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)))),
+      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))))
     )
-    opExecConfig
+
+    NewOpExecConfig
+      .oneToOneLayer(
+        operatorIdentifier,
+        _ =>
+          new HashJoinOpExec[K](
+            buildAttributeName,
+            probeAttributeName,
+            joinType,
+            operatorSchemaInfo
+          )
+      )
+      .copy(
+        inputPorts = operatorInfo.inputPorts,
+        outputPorts = operatorInfo.outputPorts,
+        partitionRequirement = partitionRequirement,
+        blockingInputs = List(0),
+        dependency = Map(1 -> 0)
+      )
   }
 
   override def operatorInfo: OperatorInfo =

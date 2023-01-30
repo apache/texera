@@ -14,6 +14,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 
 import java.io.IOException
 import scala.jdk.CollectionConverters.asJavaIterableConverter
@@ -34,14 +35,14 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSVOld")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
     filePath match {
       case Some(_) =>
-        new ManyToOneOpExecConfig(operatorIdentifier, _ => new CSVOldScanSourceOpExec(this))
+        NewOpExecConfig.manyToOneLayer(operatorIdentifier, _ => new CSVOldScanSourceOpExec(this))
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
