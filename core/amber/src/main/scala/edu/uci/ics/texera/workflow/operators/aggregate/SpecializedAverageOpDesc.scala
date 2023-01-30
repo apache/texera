@@ -47,6 +47,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   override def operatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
   ): AggregateOpExecConfig = {
+    if (aggregations.isEmpty) {
+      throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
+    }
+
     var groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
     val finalAggValueSchema = getFinalAggValueSchema
 

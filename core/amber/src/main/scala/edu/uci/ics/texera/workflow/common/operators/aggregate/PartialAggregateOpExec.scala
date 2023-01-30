@@ -46,19 +46,18 @@ class PartialAggregateOpExec[P <: AnyRef](
     }
     tuple match {
       case Left(t) =>
-        val groupBySchema = if (aggFuncs.isEmpty) null else aggFuncs(0).groupByFunc(t.getSchema)
+        val groupBySchema = aggFuncs(0).groupByFunc(t.getSchema)
         val builder = Tuple.newBuilder(groupBySchema)
         groupBySchema.getAttributeNames.foreach(attrName =>
           builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
         )
-        val groupByKey = if (aggFuncs.isEmpty) null else builder.build()
+        val groupByKey = builder.build()
         // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
         // right schema from there is a bit challenging.
         // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
         if (schema == null) {
           groupByKeyAttributes =
-            if (aggFuncs.isEmpty) Array()
-            else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
+            groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
           schema = Schema
             .newBuilder()
             .add(groupByKeyAttributes.toArray: _*)

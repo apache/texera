@@ -40,16 +40,15 @@ class FinalAggregateOpExec[Partial <: AnyRef](
     }
     tuple match {
       case Left(t) =>
-        val groupBySchema = if (aggFuncs.isEmpty) null else aggFuncs(0).groupByFunc(t.getSchema)
+        val groupBySchema = aggFuncs(0).groupByFunc(t.getSchema)
         val builder = Tuple.newBuilder(groupBySchema)
         groupBySchema.getAttributeNames.foreach(attrName =>
           builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
         )
-        val groupByKey = if (aggFuncs.isEmpty) null else builder.build()
+        val groupByKey = builder.build()
         if (groupByKeyAttributes == null) {
           groupByKeyAttributes =
-            if (aggFuncs.isEmpty) Array()
-            else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
+            groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
         }
         val key =
           if (groupByKey == null) List()
