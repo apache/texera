@@ -25,5 +25,9 @@ export class AdminUserComponent implements OnInit {
     console.log(role);
     this.adminUserService.updateRole(uid, role).pipe(untilDestroyed(this)).subscribe();
   }
-  public sort: NzTableSortFn<User> = (a: User, b: User) => b.name.localeCompare(a.name);
+
+  public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
+  public sortByName: NzTableSortFn<User> = (a: User, b: User) => b.name.localeCompare(a.name);
+  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => b.email.localeCompare(a.email);
+  public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
 }
