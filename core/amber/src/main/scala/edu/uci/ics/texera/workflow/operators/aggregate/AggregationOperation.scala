@@ -151,7 +151,11 @@ class AggregationOperation() {
         val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
         Tuple
           .newBuilder(schema)
-          .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MaxValue) null else partial)
+          .add(
+            resultAttribute,
+            AttributeType.DOUBLE,
+            if (partial == Double.MaxValue) null else partial
+          )
           .build()
       },
       groupByFunc
@@ -173,7 +177,11 @@ class AggregationOperation() {
         val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
         Tuple
           .newBuilder(schema)
-          .add(resultAttribute, AttributeType.DOUBLE, if (partial == Double.MinValue) null else partial)
+          .add(
+            resultAttribute,
+            AttributeType.DOUBLE,
+            if (partial == Double.MinValue) null else partial
+          )
           .build()
       },
       groupByFunc
@@ -209,7 +217,11 @@ class AggregationOperation() {
         val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
         Tuple
           .newBuilder(schema)
-          .add(resultAttribute, AttributeType.DOUBLE, if (partial.count == 0) null else partial.sum / partial.count)
+          .add(
+            resultAttribute,
+            AttributeType.DOUBLE,
+            if (partial.count == 0) null else partial.sum / partial.count
+          )
           .build()
       },
       groupByFunc

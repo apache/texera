@@ -14,7 +14,7 @@ import scala.collection.{JavaConverters, mutable}
 
 class FinalAggregateOpExec[Partial <: AnyRef](
     val aggFuncs: List[DistributedAggregation[Partial]],
-    val finalAggValueSchema: Schema,
+    val finalAggValueSchema: Schema
 ) extends OperatorExecutor {
 
   var groupByKeyAttributes: Array[Attribute] = _
@@ -47,8 +47,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
         )
         val groupByKey = builder.build()
         if (groupByKeyAttributes == null) {
-          groupByKeyAttributes =
-            groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
+          groupByKeyAttributes = groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
         }
         val key =
           if (groupByKey == null) List()
