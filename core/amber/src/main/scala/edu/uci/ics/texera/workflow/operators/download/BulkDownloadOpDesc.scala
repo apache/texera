@@ -24,7 +24,7 @@ class BulkDownloadOpDesc extends OperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL Attribute")
   @JsonPropertyDescription(
-    "Should follow standard URL format: protocol+hostname+filename"
+    "Only accepts standard URL format"
   )
   @AutofillAttributeName
   var urlAttribute: String = _

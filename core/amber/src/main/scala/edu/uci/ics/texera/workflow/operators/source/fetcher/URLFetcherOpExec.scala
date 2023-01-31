@@ -9,7 +9,7 @@ import java.net.URL
 
 class URLFetcherOpExec(
     val url: String,
-    val decodingMethod:DecodingMethod,
+    val decodingMethod: DecodingMethod,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends SourceOperatorExecutor {
 
@@ -20,9 +20,9 @@ class URLFetcherOpExec(
   override def produceTexeraTuple(): Iterator[Tuple] = {
     val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
     val input = new URL(url).openStream()
-    if(decodingMethod == DecodingMethod.UTF_8){
+    if (decodingMethod == DecodingMethod.UTF_8) {
       builder.addSequentially(Array(IOUtils.toString(input, "UTF-8")))
-    }else{
+    } else {
       builder.addSequentially(Array(input.readAllBytes()))
     }
     Iterator(builder.build())
