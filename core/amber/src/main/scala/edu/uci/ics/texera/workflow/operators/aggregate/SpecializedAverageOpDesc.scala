@@ -14,12 +14,12 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   AggregateOpDesc,
-  AggregateOpExecConfig,
   DistributedAggregation
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import java.io.Serializable
 
@@ -52,9 +52,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @JsonIgnore
   private var finalAggValueSchema: Schema = _
 
-  override def operatorExecutor(
+  override def operatorExecutorMultiLayer(
       operatorSchemaInfo: OperatorSchemaInfo
-  ): AggregateOpExecConfig[_] = {
+  ): PhysicalPlan = {
     this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
     this.finalAggValueSchema = getFinalAggValueSchema
 
@@ -70,7 +70,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     }
   }
 
-  def sumAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+  def sumAgg(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => 0,
       (partial, tuple) => {
@@ -87,14 +87,14 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       groupByFunc()
     )
-    new AggregateOpExecConfig[java.lang.Double](
+    AggregateOpDesc.opExecPhysicalPlan[java.lang.Double](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo
     )
   }
 
-  def countAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+  def countAgg(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
     val aggregation = new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
@@ -109,14 +109,14 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       groupByFunc()
     )
-    new AggregateOpExecConfig[Integer](
+    AggregateOpDesc.opExecPhysicalPlan[Integer](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo
     )
   }
 
-  def concatAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+  def concatAgg(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
     val aggregation = new DistributedAggregation[String](
       () => "",
       (partial, tuple) => {
@@ -143,14 +143,14 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       groupByFunc()
     )
-    new AggregateOpExecConfig[String](
+    AggregateOpDesc.opExecPhysicalPlan[String](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo
     )
   }
 
-  def minAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+  def minAgg(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MaxValue,
       (partial, tuple) => {
@@ -168,14 +168,14 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       groupByFunc()
     )
-    new AggregateOpExecConfig[java.lang.Double](
+    AggregateOpDesc.opExecPhysicalPlan[java.lang.Double](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo
     )
   }
 
-  def maxAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+  def maxAgg(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MinValue,
       (partial, tuple) => {
@@ -193,7 +193,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       groupByFunc()
     )
-    new AggregateOpExecConfig[java.lang.Double](
+    AggregateOpDesc.opExecPhysicalPlan[java.lang.Double](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo
@@ -225,7 +225,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     else Option(value.toString.toDouble)
   }
 
-  def averageAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+  def averageAgg(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
     val aggregation = new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
@@ -246,7 +246,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       groupByFunc()
     )
-    new AggregateOpExecConfig[AveragePartialObj](
+    AggregateOpDesc.opExecPhysicalPlan[AveragePartialObj](
       operatorIdentifier,
       aggregation,
       operatorSchemaInfo

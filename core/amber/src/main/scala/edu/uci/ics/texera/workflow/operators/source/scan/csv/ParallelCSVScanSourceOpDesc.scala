@@ -15,6 +15,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 
 import java.io.{File, IOException}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
@@ -35,7 +36,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
@@ -45,9 +46,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
         val totalBytes: Long = new File(path).length()
         val numWorkers: Int = Constants.currentWorkerNum
 
-        new OneToOneOpExecConfig(
+        NewOpExecConfig.oneToOneLayer(
           operatorIdentifier,
-          (i: Int) => {
+          p => {
+            val i = p._1
             // TODO: add support for limit
             // TODO: add support for offset
             val startOffset: Long = totalBytes / numWorkers * i

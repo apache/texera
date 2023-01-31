@@ -3,6 +3,8 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV1;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
@@ -18,6 +20,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import scala.Function1;
+import scala.Tuple2;
+import scala.reflect.ClassTag;
 
 import java.util.Collections;
 import java.util.List;
@@ -72,8 +76,9 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        Function1<Object, IOperatorExecutor> exec = (i) ->
+    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+        Function1<Tuple2<Object, OpExecConfigImpl<? extends IOperatorExecutor>>, IOperatorExecutor>
+                exec = (i) ->
                 new PythonUDFOpExec(
                         pythonScriptText,
                         pythonScriptFile,
@@ -84,10 +89,10 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                         batchSize
                 );
         if (PythonUDFType.supportsParallel.contains(pythonUDFType)) {
-            return new OneToOneOpExecConfig(operatorIdentifier(), exec, Constants.currentWorkerNum(),  mapAsScalaMap(Collections.emptyMap()));
+            return NewOpExecConfig.oneToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
         } else {
             // changed it to 1 because training with Python needs all data in one node.
-            return new ManyToOneOpExecConfig(operatorIdentifier(), exec,  mapAsScalaMap(Collections.emptyMap()));
+            return NewOpExecConfig.manyToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
         }
     }
 
