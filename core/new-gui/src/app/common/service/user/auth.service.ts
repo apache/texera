@@ -126,7 +126,6 @@ export class AuthService {
       email: this.jwtHelperService.decodeToken(token).email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
       role: role,
-      h,
     };
   }
 
