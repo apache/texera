@@ -89,20 +89,25 @@ class BulkDownloadOpExec(
   }
 
   def downloadUrl(url: String): String = {
-    try{
+    try {
       Await.result(
         Future {
           val input = new URL(url).openStream()
-          if(input.available() > 0){
+          if (input.available() > 0) {
             UserFileResource
-              .saveUserFileSafe(uid, s"${UUID.randomUUID()}.download", input, "downloaded by execution")
-          }else{
+              .saveUserFileSafe(
+                uid,
+                s"${UUID.randomUUID()}.download",
+                input,
+                "downloaded by execution"
+              )
+          } else {
             throw new RuntimeException(s"content is not available for $url")
           }
         },
         5.seconds
       )
-    }catch{
+    } catch {
       case throwable: Throwable => s"Failed: ${throwable.getMessage}"
     }
   }

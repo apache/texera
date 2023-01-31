@@ -1,11 +1,11 @@
-package edu.uci.ics.texera.workflow.operators.download
+package edu.uci.ics.texera.workflow.operators.source.fetcher
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
 import scala.collection.immutable.List
 
@@ -18,9 +18,20 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   )
   var url: String = _
 
-  def sourceSchema(): Schema={
-    Schema
-      .newBuilder().add("URL content", AttributeType.BINARY).build()
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Decoding")
+  @JsonPropertyDescription(
+    "The decoding method for the url content"
+  )
+  var decodingMethod:DecodingMethod = _
+
+  def sourceSchema(): Schema = {
+      Schema
+        .newBuilder()
+        .add("URL content", if(decodingMethod == DecodingMethod.UTF_8){AttributeType.STRING} else{
+          AttributeType.ANY
+        })
+        .build()
   }
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
@@ -29,6 +40,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       _ =>
         new URLFetcherOpExec(
           url,
+          decodingMethod,
           operatorSchemaInfo
         )
     )
@@ -38,10 +50,9 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = "URL fetcher",
       operatorDescription = "Fetch the content of a single url",
-      operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+      operatorGroupName = OperatorGroupConstants.SOURCE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
-
 
 }
