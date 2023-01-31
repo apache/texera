@@ -53,10 +53,4 @@ class AdminUserResource {
     newUser.setRole(UserRole.INACTIVE)
     userDao.insert(newUser)
   }
-
-  @DELETE
-  @Path("/delete/{uid}")
-  def deleteUser(@PathParam("uid") uid: UInteger): Unit = {
-    userDao.deleteById(uid)
-  }
 }

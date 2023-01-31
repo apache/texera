@@ -38,14 +38,6 @@ export class AdminUserComponent implements OnInit {
     this.editRole = role;
     this.stopEdit();
   }
-
-  deleteUser(uid: number): void {
-    this.adminUserService
-      .deleteUser(uid)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
-  }
-
   addUser(): void {
     this.adminUserService
       .addUser()

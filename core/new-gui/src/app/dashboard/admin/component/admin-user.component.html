@@ -1,6 +1,12 @@
 <div class="section-container subsection-grid-container">
-  <nz-card class="section-title">
-    <h2 class="page-title">Users</h2>
+  <nz-card
+    class="section-title"
+    style="background-color: lightcoral">
+    <h2
+      class="page-title"
+      style="color: white">
+      Users
+    </h2>
   </nz-card>
   <nz-card>
     <nz-table
@@ -132,15 +138,13 @@
               <a (click)="startEdit(user)">Edit</a>
             </ng-container>
             <ng-template #editActionTemplate>
-              <a (click)="stopEdit()">Save</a>
+              <a
+                nz-popconfirm=""
+                nzPopconfirmTitle="Sure to save?"
+                (nzOnConfirm)="stopEdit()"
+                >Save</a
+              >
             </ng-template>
-            &nbsp;
-            <a
-              nz-popconfirm=""
-              nzPopconfirmTitle="Sure to delete?"
-              (nzOnConfirm)="deleteUser(user.uid)"
-              >Delete</a
-            >
           </td>
           <td>
             <nz-select
