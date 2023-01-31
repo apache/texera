@@ -12,25 +12,27 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
   override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
     if (asSource()) {
-      NewOpExecConfig.localLayer(
-        operatorIdentifier,
-        _ =>
-          new PythonUDFSourceOpExecV2(
-            generatedCode,
-            operatorSchemaInfo.outputSchemas.head
-          )
-      )
-//        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+      NewOpExecConfig
+        .localLayer(
+          operatorIdentifier,
+          _ =>
+            new PythonUDFSourceOpExecV2(
+              generatedCode,
+              operatorSchemaInfo.outputSchemas.head
+            )
+        )
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
     } else {
-      NewOpExecConfig.oneToOneLayer(
-        operatorIdentifier,
-        _ =>
-          new PythonUDFOpExecV2(
-            generatedCode,
-            operatorSchemaInfo.outputSchemas.head
-          )
-      )
-//        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+      NewOpExecConfig
+        .oneToOneLayer(
+          operatorIdentifier,
+          _ =>
+            new PythonUDFOpExecV2(
+              generatedCode,
+              operatorSchemaInfo.outputSchemas.head
+            )
+        )
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
     }
   }
 
