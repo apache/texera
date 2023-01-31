@@ -7,9 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaTitle
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -34,7 +32,7 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaDescription("Maximum number of tweets to retrieve")
   var limit: Int = _
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     // TODO: use multiple workers
     NewOpExecConfig.manyToOneLayer(
       operatorIdentifier,

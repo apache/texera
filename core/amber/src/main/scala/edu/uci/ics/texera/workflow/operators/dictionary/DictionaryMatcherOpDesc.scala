@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
 /**
@@ -32,7 +31,7 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
 
   @JsonProperty(value = "Matching type", required = true) var matchingType: MatchingType = _
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     NewOpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new DictionaryMatcherOpExec(this, operatorSchemaInfo)

@@ -43,7 +43,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     private Option<String> cachedUpstreamId = Option.empty();
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return NewOpExecConfig.localLayer(
                 operatorIdentifier(),
                 (OpExecFunc<ProgressiveSinkOpExec> & Serializable) p -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()),

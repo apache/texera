@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
@@ -26,7 +26,7 @@ object PythonWorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       workerIndex: Int,
-      workerLayer: NewOpExecConfig,
+      workerLayer: OpExecConfig,
       parentNetworkCommunicationActorRef: NetworkSenderActorRef
   ): Props =
     Props(
@@ -42,7 +42,7 @@ object PythonWorkflowWorker {
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity,
     workerIndex: Int,
-    workerLayer: NewOpExecConfig,
+    workerLayer: OpExecConfig,
     parentNetworkCommunicationActorRef: NetworkSenderActorRef
 ) extends WorkflowWorker(
       actorId,

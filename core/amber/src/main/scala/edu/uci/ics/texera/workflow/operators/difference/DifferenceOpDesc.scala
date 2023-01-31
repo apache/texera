@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 
 class DifferenceOpDesc extends OperatorDescriptor {
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     NewOpExecConfig.oneToOneLayer(operatorIdentifier, _ => new DifferenceOpExec())
   }
 

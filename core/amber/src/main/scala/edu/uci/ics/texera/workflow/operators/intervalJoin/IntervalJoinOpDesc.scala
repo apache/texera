@@ -1,12 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{NewOpExecConfig, WorkerLayer}
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -17,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{ManyToOneOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
@@ -60,7 +58,7 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("Year, Month, Day, Hour, Minute or Second")
   var timeIntervalType: Option[TimeIntervalType] = _
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val partitionRequirement = List(
       Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName)))),
       Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))))

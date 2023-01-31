@@ -1,13 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 abstract class LinkStrategy(
-    val from: NewOpExecConfig,
-    val to: NewOpExecConfig,
+    val from: OpExecConfig,
+    val to: OpExecConfig,
     val batchSize: Int
 ) extends Serializable {
 

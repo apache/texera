@@ -24,7 +24,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("JSONL")
 
   @throws[IOException]
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     filePath match {
       case Some(path) =>
         // count lines and partition the task to each worker

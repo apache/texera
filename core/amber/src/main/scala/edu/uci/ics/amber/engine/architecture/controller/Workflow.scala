@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.Address
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfigImpl, WorkerInfo}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
@@ -17,7 +17,7 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   // The following data structures are updated when the operator is built (buildOperator())
   // by scheduler and the worker identities are available.
-  val workerToOpExecConfig = new mutable.HashMap[ActorVirtualIdentity, NewOpExecConfig]()
+  val workerToOpExecConfig = new mutable.HashMap[ActorVirtualIdentity, OpExecConfig]()
 
   def getBlockingOutLinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
     val outLinks = new mutable.HashSet[LinkIdentity]()
@@ -84,7 +84,7 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
     physicalPlan.operatorMap.map(op => (op._1.operator, op._2.getOperatorStatistics))
   }
 
-  def getAllOperators: Iterable[NewOpExecConfig] = physicalPlan.operators
+  def getAllOperators: Iterable[OpExecConfig] = physicalPlan.operators
 
   def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = workerToOpExecConfig(id).workers(id)
 
@@ -94,8 +94,8 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
     */
   def getUpStreamConnectedWorkerLayers(
       opID: LayerIdentity
-  ): mutable.HashMap[LayerIdentity, NewOpExecConfig] = {
-    val upstreamOperatorToLayers = new mutable.HashMap[LayerIdentity, NewOpExecConfig]()
+  ): mutable.HashMap[LayerIdentity, OpExecConfig] = {
+    val upstreamOperatorToLayers = new mutable.HashMap[LayerIdentity, OpExecConfig]()
     physicalPlan
       .getUpstream(opID)
       .foreach(uOpID => upstreamOperatorToLayers(uOpID) = physicalPlan.operatorMap(opID))
@@ -108,10 +108,10 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = workerToOpExecConfig.keys
 
-  def getOperator(workerID: ActorVirtualIdentity): NewOpExecConfig =
+  def getOperator(workerID: ActorVirtualIdentity): OpExecConfig =
     workerToOpExecConfig(workerID)
 
-  def getOperator(opID: LayerIdentity): NewOpExecConfig = physicalPlan.operatorMap(opID)
+  def getOperator(opID: LayerIdentity): OpExecConfig = physicalPlan.operatorMap(opID)
 
   def getLink(linkID: LinkIdentity): LinkStrategy = physicalPlan.linkStrategies(linkID)
 

@@ -2,19 +2,18 @@ package edu.uci.ics.texera.workflow.operators.symmetricDifference
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{HashOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 class SymmetricDifferenceOpDesc extends OperatorDescriptor {
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     NewOpExecConfig.hashLayer(
       operatorIdentifier,
       _ => new SymmetricDifferenceOpExec(),

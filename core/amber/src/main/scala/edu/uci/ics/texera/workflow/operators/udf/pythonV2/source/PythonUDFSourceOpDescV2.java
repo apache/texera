@@ -67,7 +67,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public List<Attribute> columns;
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         OpExecFunc exec = (OpExecFunc & Serializable) (i) ->
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");

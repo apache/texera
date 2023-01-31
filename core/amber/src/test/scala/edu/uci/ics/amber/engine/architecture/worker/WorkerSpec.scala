@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{NewOpExecConfig, WorkerLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkAck,

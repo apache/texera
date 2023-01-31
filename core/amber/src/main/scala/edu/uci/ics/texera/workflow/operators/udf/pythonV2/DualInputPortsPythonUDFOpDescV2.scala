@@ -4,23 +4,17 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{
-  ManyToOneOpExecConfig,
-  OneToOneOpExecConfig,
-  OperatorDescriptor
-}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonProperty(
@@ -67,7 +61,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   )
   var outputColumns: List[Attribute] = List()
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1)
       NewOpExecConfig

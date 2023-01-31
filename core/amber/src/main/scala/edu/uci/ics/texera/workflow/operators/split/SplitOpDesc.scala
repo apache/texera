@@ -26,7 +26,7 @@ class SplitOpDesc extends OperatorDescriptor {
   @JsonIgnore
   val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     NewOpExecConfig.oneToOneLayer(operatorIdentifier, i => new SplitOpExec(i._1, this))
   }
 

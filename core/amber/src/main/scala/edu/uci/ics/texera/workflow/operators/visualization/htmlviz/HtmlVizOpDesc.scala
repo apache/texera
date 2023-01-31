@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -36,7 +35,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     NewOpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo)

@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
@@ -53,7 +53,7 @@ class DataProcessor( // dependencies:
     val recoveryManager: LocalRecoveryManager,
     val recoveryQueue: RecoveryQueue,
     val actorId: ActorVirtualIdentity,
-    val opExecConfig: NewOpExecConfig
+    val opExecConfig: OpExecConfig
 ) extends WorkerInternalQueue
     with AmberLogging {
   // initialize dp thread upon construction

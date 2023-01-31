@@ -8,7 +8,7 @@ import akka.pattern.ask
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage,
@@ -52,7 +52,7 @@ object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       workerIndex: Int,
-      workerLayer: NewOpExecConfig,
+      workerLayer: OpExecConfig,
       parentNetworkCommunicationActorRef: NetworkSenderActorRef,
       supportFaultTolerance: Boolean
   ): Props =
@@ -60,7 +60,7 @@ object WorkflowWorker {
       new WorkflowWorker(
         id,
         workerIndex: Int,
-        workerLayer: NewOpExecConfig,
+        workerLayer: OpExecConfig,
         parentNetworkCommunicationActorRef,
         supportFaultTolerance
       )
@@ -72,7 +72,7 @@ object WorkflowWorker {
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     workerIndex: Int,
-    workerLayer: NewOpExecConfig,
+    workerLayer: OpExecConfig,
     parentNetworkCommunicationActorRef: NetworkSenderActorRef,
     supportFaultTolerance: Boolean
 ) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {

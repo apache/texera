@@ -63,7 +63,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
             .add(partialAggregateSchema).build();
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer");
     }
 

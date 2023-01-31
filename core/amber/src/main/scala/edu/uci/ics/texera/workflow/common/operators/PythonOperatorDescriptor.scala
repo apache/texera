@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSource
 import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends OperatorDescriptor {
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
     if (asSource()) {
       NewOpExecConfig

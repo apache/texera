@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.lineChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -166,7 +166,7 @@ class LineChartOpDesc extends VisualizationOperator {
     }
   }
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): NewOpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     throw new UnsupportedOperationException("implemented in operatorExecutorMultiLayer")
   }
 

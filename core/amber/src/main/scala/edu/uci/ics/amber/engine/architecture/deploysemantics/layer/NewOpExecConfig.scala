@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
   AddressInfo,
   LocationPreference,
@@ -44,29 +44,29 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.{ClassTag, classTag}
 
-trait OpExecFunc[T] extends (((Int, NewOpExecConfig)) => T) with java.io.Serializable
+trait OpExecFunc[T] extends (((Int, OpExecConfig)) => T) with java.io.Serializable
 
 object NewOpExecConfig {
-  type NewOpExecConfig = OpExecConfigImpl[_ <: IOperatorExecutor]
+  type OpExecConfig = OpExecConfigImpl[_ <: IOperatorExecutor]
 
   def oneToOneLayer[T <: IOperatorExecutor: ClassTag](
       opId: OperatorIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T
+      opExec: ((Int, OpExecConfig)) => T
   ): OpExecConfigImpl[T] = oneToOneLayer(layerId = makeLayer(opId, "main"), opExec)
 
   def oneToOneLayer[T <: IOperatorExecutor: ClassTag](
       layerId: LayerIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T
+      opExec: ((Int, OpExecConfig)) => T
   ): OpExecConfigImpl[T] = OpExecConfigImpl(layerId, initIOperatorExecutor = opExec)
 
   def manyToOneLayer[T <: IOperatorExecutor: ClassTag](
       opId: OperatorIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T
+      opExec: ((Int, OpExecConfig)) => T
   ): OpExecConfigImpl[T] = manyToOneLayer(makeLayer(opId, "main"), opExec)
 
   def manyToOneLayer[T <: IOperatorExecutor: ClassTag](
       layerId: LayerIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T
+      opExec: ((Int, OpExecConfig)) => T
   ): OpExecConfigImpl[T] = {
     OpExecConfigImpl(
       layerId,
@@ -79,25 +79,25 @@ object NewOpExecConfig {
 
   def localLayer[T <: IOperatorExecutor: ClassTag](
       opId: OperatorIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T
+      opExec: ((Int, OpExecConfig)) => T
   ): OpExecConfigImpl[T] = localLayer(makeLayer(opId, "main"), opExec)
 
   def localLayer[T <: IOperatorExecutor: ClassTag](
       layerId: LayerIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T
+      opExec: ((Int, OpExecConfig)) => T
   ): OpExecConfigImpl[T] = {
     manyToOneLayer(layerId, opExec).copy(locationPreference = Option(new PreferController()))
   }
 
   def hashLayer[T <: IOperatorExecutor: ClassTag](
       opId: OperatorIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T,
+      opExec: ((Int, OpExecConfig)) => T,
       hashColumnIndices: Array[Int]
   ): OpExecConfigImpl[T] = hashLayer(makeLayer(opId, "main"), opExec, hashColumnIndices)
 
   def hashLayer[T <: IOperatorExecutor: ClassTag](
       layerId: LayerIdentity,
-      opExec: ((Int, NewOpExecConfig)) => T,
+      opExec: ((Int, OpExecConfig)) => T,
       hashColumnIndices: Array[Int]
   ): OpExecConfigImpl[T] = {
     OpExecConfigImpl[T](
@@ -310,7 +310,7 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
       addressInfo: AddressInfo,
       parentNetworkCommunicationActorRef: NetworkSenderActorRef,
       context: ActorContext,
-      workerToLayer: mutable.HashMap[ActorVirtualIdentity, NewOpExecConfig],
+      workerToLayer: mutable.HashMap[ActorVirtualIdentity, OpExecConfig],
       controllerConf: ControllerConfig
   ): Unit = {
     workers = (0 until numWorkers)

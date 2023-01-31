@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
+import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -12,9 +13,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{NewOpExecConfig, WorkerLayer}
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
@@ -35,7 +33,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")

@@ -26,7 +26,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public List<FilterPredicate> predicates;
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return NewOpExecConfig.oneToOneLayer(
                 operatorIdentifier(),
                 (OpExecFunc & Serializable) worker -> new SpecializedFilterOpExec(this),

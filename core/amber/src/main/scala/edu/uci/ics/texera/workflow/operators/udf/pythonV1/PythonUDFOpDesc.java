@@ -6,32 +6,23 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
-import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
-import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig;
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpExec;
-import scala.Function1;
-import scala.Tuple2;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.reflect.ClassTag;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
-import static scala.collection.JavaConverters.mapAsScalaMap;
 
 @Deprecated
 public class PythonUDFOpDesc extends OperatorDescriptor {
@@ -79,7 +70,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         OpExecFunc<PythonUDFOpExec> exec = (OpExecFunc<PythonUDFOpExec> & Serializable) (i) ->
                 new PythonUDFOpExec(
                         pythonScriptText,

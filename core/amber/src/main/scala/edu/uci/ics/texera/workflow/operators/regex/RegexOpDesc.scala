@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
@@ -30,7 +29,7 @@ class RegexOpDesc extends FilterOpDesc {
   @JsonPropertyDescription("regex match is case sensitive")
   var caseInsensitive: Boolean = _
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     NewOpExecConfig.oneToOneLayer(operatorIdentifier, _ => new RegexOpExec(this))
   }
 

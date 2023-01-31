@@ -13,12 +13,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
-    override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
   }
   private class TempTestSinkOpDesc extends SinkOpDesc {
-    override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
     override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -53,7 +53,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     val mlVizSchema = Schema.newBuilder().add("visualization", AttributeType.STRING).build()
 
     val mlTrainingOp = new OperatorDescriptor() {
-      override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
@@ -75,7 +75,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     mlTrainingOp.operatorID = "mlTrainingOp"
 
     val mlInferOp = new OperatorDescriptor() {
-      override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(

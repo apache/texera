@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
   HashBasedShufflePartitioning,
   Partitioning
@@ -8,8 +8,8 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 class HashBasedShuffle(
-    _from: NewOpExecConfig,
-    _to: NewOpExecConfig,
+    _from: OpExecConfig,
+    _to: OpExecConfig,
     batchSize: Int,
     hashColumnIndices: Seq[Int]
 ) extends LinkStrategy(_from, _to, batchSize) {

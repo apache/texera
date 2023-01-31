@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
@@ -38,7 +37,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
       outputPorts = List(OutputPort())
     )
 
-  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     NewOpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new UnnestStringOpExec(this, operatorSchemaInfo)

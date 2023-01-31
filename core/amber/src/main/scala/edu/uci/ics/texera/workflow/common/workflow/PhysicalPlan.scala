@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 
 object PhysicalPlan {
 
-  def apply(operatorList: Array[NewOpExecConfig], links: Array[LinkIdentity]): PhysicalPlan = {
+  def apply(operatorList: Array[OpExecConfig], links: Array[LinkIdentity]): PhysicalPlan = {
     new PhysicalPlan(operatorList.toList, links.toList)
   }
 
@@ -31,13 +31,13 @@ object PhysicalPlan {
 }
 
 case class PhysicalPlan(
-    operators: List[NewOpExecConfig],
+    operators: List[OpExecConfig],
     links: List[LinkIdentity],
     linkStrategies: Map[LinkIdentity, LinkStrategy] = Map(),
     pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = null
 ) {
 
-  lazy val operatorMap: Map[LayerIdentity, NewOpExecConfig] = operators.map(o => (o.id, o)).toMap
+  lazy val operatorMap: Map[LayerIdentity, OpExecConfig] = operators.map(o => (o.id, o)).toMap
 
   lazy val dag: DirectedAcyclicGraph[LayerIdentity, DefaultEdge] = {
     val jgraphtDag = new DirectedAcyclicGraph[LayerIdentity, DefaultEdge](classOf[DefaultEdge])
@@ -60,14 +60,14 @@ case class PhysicalPlan(
 
   def getSinkOperators: List[LayerIdentity] = this.sinkOperators
 
-  def layersOfLogicalOperator(opId: OperatorIdentity): List[NewOpExecConfig] = {
+  def layersOfLogicalOperator(opId: OperatorIdentity): List[OpExecConfig] = {
     topologicalIterator()
       .filter(layerId => toOperatorIdentity(layerId) == opId)
       .map(layerId => getLayer(layerId))
       .toList
   }
 
-  def getSingleLayerOfLogicalOperator(opId: OperatorIdentity): NewOpExecConfig = {
+  def getSingleLayerOfLogicalOperator(opId: OperatorIdentity): OpExecConfig = {
     val ops = layersOfLogicalOperator(opId)
     if (ops.size != 1) {
       val msg = s"operator $opId has ${ops.size} physical operators, expecting a single one"
@@ -76,7 +76,7 @@ case class PhysicalPlan(
     ops.head
   }
 
-  def getLayer(layer: LayerIdentity): NewOpExecConfig = operatorMap(layer)
+  def getLayer(layer: LayerIdentity): OpExecConfig = operatorMap(layer)
 
   def getUpstream(opID: LayerIdentity): List[LayerIdentity] = {
     dag.incomingEdgesOf(opID).asScala.map(e => dag.getEdgeSource(e)).toList
@@ -107,7 +107,7 @@ case class PhysicalPlan(
   }
 
   // returns a new physical plan with the operators added
-  def addOperator(opExecConfig: NewOpExecConfig): PhysicalPlan = {
+  def addOperator(opExecConfig: OpExecConfig): PhysicalPlan = {
     this.copy(operators = opExecConfig :: operators)
   }
 
@@ -141,7 +141,7 @@ case class PhysicalPlan(
     this.copy(operators = newOperators.values.toList, links = newLinks)
   }
 
-  def setOperator(newOp: NewOpExecConfig): PhysicalPlan = {
+  def setOperator(newOp: OpExecConfig): PhysicalPlan = {
     this.copy(operators = (operatorMap + (newOp.id -> newOp)).values.toList)
   }
 
