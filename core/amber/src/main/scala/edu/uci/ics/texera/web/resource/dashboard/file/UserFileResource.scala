@@ -57,7 +57,7 @@ object UserFileResource {
       new File(
         uid,
         null,
-        UInteger.valueOf(new java.io.File(fileNameStored).length()),
+        UInteger.valueOf(UserFileUtils.getFilePath(uid, fileNameStored).toFile.length()),
         fileNameStored,
         UserFileUtils.getFilePath(uid, fileNameStored).toString,
         description,
