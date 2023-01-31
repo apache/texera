@@ -2,11 +2,10 @@ package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor.getOpId
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
@@ -60,16 +59,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.Scatterpl
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
-object OperatorDescriptor {
-
-  var nextOpId = 0
-
-  def getOpId = {
-    nextOpId += 1
-    nextOpId
-  }
-
-}
+import java.util.UUID
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -138,7 +128,7 @@ abstract class OperatorDescriptor extends Serializable {
   var context: WorkflowContext = _
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
-  var operatorID: String = getClass.getSimpleName + "-" + getOpId
+  var operatorID: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()

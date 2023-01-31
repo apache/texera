@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -35,7 +35,7 @@ class DownloadOpDesc extends OperatorDescriptor {
   var resultAttribute: String = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    NewOpExecConfig.oneToOneLayer(
+    OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new DownloadOpExec(urlAttribute, resultAttribute, operatorSchemaInfo)
     )

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity

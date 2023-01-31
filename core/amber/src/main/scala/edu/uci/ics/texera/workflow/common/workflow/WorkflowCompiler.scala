@@ -2,21 +2,12 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LinkIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
-
-import scala.collection.mutable
 
 object WorkflowCompiler {
 

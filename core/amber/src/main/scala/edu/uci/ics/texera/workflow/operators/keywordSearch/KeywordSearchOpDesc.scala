@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.keywordSearch
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -27,7 +27,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   var keyword: String = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    NewOpExecConfig.oneToOneLayer(operatorIdentifier, _ => new KeywordSearchOpExec(this))
+    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => new KeywordSearchOpExec(this))
   }
 
   override def operatorInfo: OperatorInfo =

@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.{
 }
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList,
@@ -98,7 +98,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def getKeywords: Option[String] = super.getKeywords
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    NewOpExecConfig.localLayer(
+    OpExecConfig.localLayer(
       this.operatorIdentifier,
       _ =>
         new AsterixDBSourceOpExec(

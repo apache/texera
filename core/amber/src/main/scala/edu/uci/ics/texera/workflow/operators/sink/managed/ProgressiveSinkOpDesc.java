@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.sink.managed;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
@@ -44,7 +44,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return NewOpExecConfig.localLayer(
+        return OpExecConfig.localLayer(
                 operatorIdentifier(),
                 (OpExecFunc<ProgressiveSinkOpExec> & Serializable) p -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()),
                 ClassTag.apply(ProgressiveSinkOpExec.class)

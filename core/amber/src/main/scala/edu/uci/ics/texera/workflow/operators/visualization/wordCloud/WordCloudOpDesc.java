@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
@@ -74,14 +74,14 @@ public class WordCloudOpDesc extends VisualizationOperator {
         }
 
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
-        OpExecConfigImpl partialLayer = NewOpExecConfig.oneToOneLayer(
+        OpExecConfigImpl partialLayer = OpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
                 (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn),
                 ClassTag.apply(WordCloudOpPartialExec.class)
         ).withId(partialId);
 
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
-        OpExecConfigImpl finalLayer = NewOpExecConfig.manyToOneLayer(
+        OpExecConfigImpl finalLayer = OpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
                 (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN),
                 ClassTag.apply(WordCloudOpFinalExec.class)

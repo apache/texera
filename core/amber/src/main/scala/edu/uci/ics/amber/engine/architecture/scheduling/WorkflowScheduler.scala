@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.AddressInfo
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef

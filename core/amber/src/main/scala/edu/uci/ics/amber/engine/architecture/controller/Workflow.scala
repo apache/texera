@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.Address
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfigImpl, WorkerInfo}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion

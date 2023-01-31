@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
   Workflow
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerWorkloadInfo
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseSkewMitigationHandler.PauseSkewMitigation
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateOrNotifyHelperHandler.SendImmutableStateOrNotifyHelper

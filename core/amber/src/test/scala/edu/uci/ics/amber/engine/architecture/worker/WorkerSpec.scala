@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkAck,
@@ -83,7 +83,7 @@ class WorkerSpec
 
     val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
     val workerIndex = 0
-    val opExecConfig = NewOpExecConfig
+    val opExecConfig = OpExecConfig
       .oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
       .copy(inputToOrdinalMapping = Map(mockTag -> 0))
 
@@ -134,7 +134,7 @@ class WorkerSpec
 
     val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
     val workerIndex = 0
-    val opExecConfig = NewOpExecConfig.oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+    val opExecConfig = OpExecConfig.oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
 
     val worker = TestActorRef(
       new WorkflowWorker(

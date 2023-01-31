@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -16,13 +16,13 @@ object AggregateOpDesc {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     val partialLayer =
-      NewOpExecConfig.oneToOneLayer(
+      OpExecConfig.oneToOneLayer(
         makeLayer(id, "localAgg"),
         _ => new PartialAggregateOpExec[P](aggFunc)
       )
 
     val finalLayer = if (aggFunc.groupByFunc == null) {
-      NewOpExecConfig.localLayer(
+      OpExecConfig.localLayer(
         makeLayer(id, "globalAgg"),
         _ => new FinalAggregateOpExec[P](aggFunc)
       )
@@ -33,7 +33,7 @@ object AggregateOpDesc {
         .toArray
         .indices
         .toArray
-      NewOpExecConfig.hashLayer(
+      OpExecConfig.hashLayer(
         makeLayer(id, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
         partitionColumns

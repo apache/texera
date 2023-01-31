@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV1;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
@@ -82,10 +82,10 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                         batchSize
                 );
         if (PythonUDFType.supportsParallel.contains(pythonUDFType)) {
-            return NewOpExecConfig.oneToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
+            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
         } else {
             // changed it to 1 because training with Python needs all data in one node.
-            return NewOpExecConfig.manyToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
+            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
         }
     }
 

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
@@ -27,7 +27,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
 
     @Override
     public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return NewOpExecConfig.oneToOneLayer(
+        return OpExecConfig.oneToOneLayer(
                 operatorIdentifier(),
                 (OpExecFunc & Serializable) worker -> new SpecializedFilterOpExec(this),
                 ClassTag.apply(SpecializedFilterOpExec.class)

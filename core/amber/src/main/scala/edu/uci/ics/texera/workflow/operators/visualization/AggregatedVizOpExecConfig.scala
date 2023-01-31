@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
@@ -34,7 +34,7 @@ object AggregatedVizOpExecConfig {
     val aggregateOperators = AggregateOpDesc.opExecPhysicalPlan(id, aggFunc, operatorSchemaInfo)
     val tailAggregateOp = aggregateOperators.sinkOperators.last
 
-    val vizLayer = NewOpExecConfig.oneToOneLayer(makeLayer(id, "visualize"), exec)
+    val vizLayer = OpExecConfig.oneToOneLayer(makeLayer(id, "visualize"), exec)
 
     new PhysicalPlan(
       vizLayer :: aggregateOperators.operators,

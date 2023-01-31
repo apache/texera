@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -40,7 +40,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
     filePath match {
       case Some(_) =>
-        NewOpExecConfig.manyToOneLayer(operatorIdentifier, _ => new CSVOldScanSourceOpExec(this))
+        OpExecConfig.manyToOneLayer(operatorIdentifier, _ => new CSVOldScanSourceOpExec(this))
       case None =>
         throw new RuntimeException("File path is not provided.")
     }

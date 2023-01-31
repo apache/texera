@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
@@ -115,11 +115,11 @@ class PieChartOpDesc extends VisualizationOperator {
       AggregateOpDesc.opExecPhysicalPlan(this.operatorIdentifier, aggregation, operatorSchemaInfo)
     val tailAggregateOp = aggregateOperators.sinkOperators.last
 
-    val partialLayer = NewOpExecConfig.oneToOneLayer(
+    val partialLayer = OpExecConfig.oneToOneLayer(
       makeLayer(this.operatorIdentifier, "localPieChartProcessor"),
       _ => new PieChartOpPartialExec(nameColumn, dataColumn)
     )
-    val finalLayer = NewOpExecConfig.localLayer(
+    val finalLayer = OpExecConfig.localLayer(
       makeLayer(this.operatorIdentifier, "globalPieChartProcessor"),
       _ => new PieChartOpFinalExec(pruneRatio, dataColumn)
     )

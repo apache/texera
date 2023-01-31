@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -44,7 +44,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     // TODO: use multiple workers
-    NewOpExecConfig.manyToOneLayer(
+    OpExecConfig.manyToOneLayer(
       operatorIdentifier,
       _ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
     )

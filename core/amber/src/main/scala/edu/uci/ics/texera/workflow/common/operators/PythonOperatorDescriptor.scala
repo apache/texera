@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
@@ -12,7 +12,7 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
     if (asSource()) {
-      NewOpExecConfig
+      OpExecConfig
         .localLayer(
           operatorIdentifier,
           _ =>
@@ -23,7 +23,7 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
         )
         .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
     } else {
-      NewOpExecConfig
+      OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
           _ =>

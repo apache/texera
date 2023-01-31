@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV2
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -65,14 +65,14 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1)
-      NewOpExecConfig
+      OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
         .copy(numWorkers = workers, derivePartition = _ => UnknownPartition())
     else
-      NewOpExecConfig
+      OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)

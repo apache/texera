@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
-import akka.actor.{ActorContext, ActorRef, Address, Deploy}
+import akka.actor.{ActorContext, ActorRef, Address, Deploy, Props}
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
   AddressInfo,
   LocationPreference,
@@ -46,7 +46,7 @@ import scala.reflect.{ClassTag, classTag}
 
 trait OpExecFunc[T] extends (((Int, OpExecConfig)) => T) with java.io.Serializable
 
-object NewOpExecConfig {
+object OpExecConfig {
   type OpExecConfig = OpExecConfigImpl[_ <: IOperatorExecutor]
 
   def oneToOneLayer[T <: IOperatorExecutor: ClassTag](
@@ -144,7 +144,8 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
   // workers of this operator
   var workers: Map[ActorVirtualIdentity, WorkerInfo] =
     Map[ActorVirtualIdentity, WorkerInfo]()
-  val workerActorGen = new mutable.HashMap[ActorVirtualIdentity, (Address) => ActorRef]()
+  // actor props of each worker, it's not constructed as an actor yet for recovery purposes
+  val workerToActorProps = new mutable.HashMap[ActorVirtualIdentity, Props]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
@@ -155,12 +156,12 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
    */
 
   // creates a copy with the specified port information
-  def withPorts(operatorInfo: OperatorInfo) = {
+  def withPorts(operatorInfo: OperatorInfo): OpExecConfigImpl[T] = {
     this.copy(inputPorts = operatorInfo.inputPorts, outputPorts = operatorInfo.outputPorts)
   }
 
   // creates a copy with an additional input operator specified on an input port
-  def addInput(from: LayerIdentity, port: Int) = {
+  def addInput(from: LayerIdentity, port: Int): OpExecConfigImpl[T] = {
     assert(port < this.inputPorts.size, s"cannot add input on port $port, all ports: $inputPorts")
     this.copy(inputToOrdinalMapping =
       inputToOrdinalMapping + (LinkIdentity(from, this.id) -> port)
@@ -168,7 +169,7 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
   }
 
   // creates a copy with an additional output operator specified on an output port
-  def addOutput(to: LayerIdentity, port: Int) = {
+  def addOutput(to: LayerIdentity, port: Int): OpExecConfigImpl[T] = {
     assert(
       port < this.outputPorts.size,
       s"cannot add output on port $port, all ports: $outputPorts"
@@ -179,20 +180,20 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
   }
 
   // creates a copy with a removed input operator
-  def removeInput(from: LayerIdentity) = {
+  def removeInput(from: LayerIdentity): OpExecConfigImpl[T] = {
     this.copy(inputToOrdinalMapping = inputToOrdinalMapping - LinkIdentity(from, this.id))
   }
 
   // creates a copy with a removed output operator
-  def removeOutput(to: LayerIdentity) = {
+  def removeOutput(to: LayerIdentity): OpExecConfigImpl[T] = {
     this.copy(outputToOrdinalMapping = outputToOrdinalMapping - LinkIdentity(this.id, to))
   }
 
   // creates a copy with the new ID
-  def withId(id: LayerIdentity) = this.copy(id = id)
+  def withId(id: LayerIdentity): OpExecConfigImpl[T] = this.copy(id = id)
 
   // creates a copy with the number of workers specified
-  def withNumWorkers(numWorkers: Int) = this.copy(numWorkers = numWorkers)
+  def withNumWorkers(numWorkers: Int): OpExecConfigImpl[T] = this.copy(numWorkers = numWorkers)
 
   // return the runtime class of the corresponding OperatorExecutor
   def opExecClass: Class[_] = classTag[T].runtimeClass
@@ -315,40 +316,25 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
   ): Unit = {
     workers = (0 until numWorkers)
       .map(i => {
-        //        val operatorExecutor: IOperatorExecutor = initIOperatorExecutor((i, this))
         val workerId: ActorVirtualIdentity =
           ActorVirtualIdentity(s"Worker:WF${id.workflow}-${id.operator}-${id.layerID}-$i")
         val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
         val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, i)
 
-        val allUpstreamLinkIds = inputToOrdinalMapping.keySet
-        val actorGen = (address: Address) => {
-          context.actorOf(
-            if (this.opExecClass == classOf[PythonUDFOpExecV2]) {
-              PythonWorkflowWorker
-                .props(
-                  workerId,
-                  i,
-                  this,
-                  parentNetworkCommunicationActorRef
-                )
-                .withDeploy(Deploy(scope = RemoteScope(address)))
-            } else {
-              WorkflowWorker
-                .props(
-                  workerId,
-                  i,
-                  this,
-                  parentNetworkCommunicationActorRef,
-                  controllerConf.supportFaultTolerance
-                )
-                .withDeploy(Deploy(scope = RemoteScope(address)))
-            }
+        val workflowWorker = if (this.opExecClass == classOf[PythonUDFOpExecV2]) {
+          PythonWorkflowWorker.props(workerId, i, this, parentNetworkCommunicationActorRef)
+        } else {
+          WorkflowWorker.props(
+            workerId,
+            i,
+            this,
+            parentNetworkCommunicationActorRef,
+            controllerConf.supportFaultTolerance
           )
         }
-
-        val ref = actorGen(preferredAddress)
-//        workerActorGen(workerId) = actorGen
+        workerToActorProps(workerId) = workflowWorker
+        val ref =
+          context.actorOf(workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress))))
 
         parentNetworkCommunicationActorRef ! RegisterActorRef(workerId, ref)
         workerToLayer(workerId) = this
@@ -365,9 +351,10 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
       .toMap
   }
 
-  def recover(actorVirtualIdentity: ActorVirtualIdentity, address: Address): ActorRef = {
-    val newRef = workerActorGen(actorVirtualIdentity)(address)
-    workers(actorVirtualIdentity).ref = newRef
+  def recover(actorId: ActorVirtualIdentity, address: Address, context: ActorContext): ActorRef = {
+    val newRef =
+      context.actorOf(workerToActorProps(actorId).withDeploy(Deploy(scope = RemoteScope(address))))
+    workers(actorId).ref = newRef
     newRef
   }
 }

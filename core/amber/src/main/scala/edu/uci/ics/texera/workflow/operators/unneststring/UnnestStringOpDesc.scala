@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.unneststring
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -38,7 +38,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
     )
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    NewOpExecConfig.oneToOneLayer(
+    OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new UnnestStringOpExec(this, operatorSchemaInfo)
     )

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.ActorContext
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.logging.EmptyLogManagerImpl
 import edu.uci.ics.amber.engine.architecture.logging.storage.{
   DeterminantLogStorage,
@@ -135,7 +135,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      NewOpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -177,7 +177,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      NewOpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -230,7 +230,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      NewOpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -264,7 +264,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      NewOpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -297,7 +297,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "process only control commands while paused" in {
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      NewOpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     (operator.open _).expects().once()
     val ctx: ActorContext = null
     val batchToTupleConverter = mock[BatchToTupleConverter]
@@ -385,7 +385,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       }
     }
     val opExecConfig =
-      NewOpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
 
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)

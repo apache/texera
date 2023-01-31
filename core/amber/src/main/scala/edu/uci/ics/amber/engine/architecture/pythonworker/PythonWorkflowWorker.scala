@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker

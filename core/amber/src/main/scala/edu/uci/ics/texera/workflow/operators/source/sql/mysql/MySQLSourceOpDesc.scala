@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -17,7 +17,7 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    NewOpExecConfig.localLayer(
+    OpExecConfig.localLayer(
       this.operatorIdentifier,
       _ =>
         new MySQLSourceOpExec(

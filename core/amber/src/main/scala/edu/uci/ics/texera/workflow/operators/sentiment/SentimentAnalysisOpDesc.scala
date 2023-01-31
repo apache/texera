@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.sentiment
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -35,7 +35,7 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     if (attribute == null)
       throw new RuntimeException("sentiment analysis: attribute is null")
-    NewOpExecConfig.oneToOneLayer(
+    OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new SentimentAnalysisOpExec(this, operatorSchemaInfo)
     )

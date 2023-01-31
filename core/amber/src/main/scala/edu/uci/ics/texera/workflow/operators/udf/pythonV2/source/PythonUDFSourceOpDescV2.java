@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
@@ -72,10 +72,10 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return NewOpExecConfig.oneToOneLayer(operatorIdentifier(), exec,
+            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec,
                     ClassTag.apply(PythonUDFSourceOpExecV2.class)).withNumWorkers(workers);
         } else {
-            return NewOpExecConfig.manyToOneLayer(operatorIdentifier(), exec,
+            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec,
                     ClassTag.apply(PythonUDFSourceOpExecV2.class));
         }
 

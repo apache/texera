@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.Constants;
@@ -75,7 +75,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if(isGeometric){
             numWorkers = 1;
         }
-        return NewOpExecConfig.oneToOneLayer(this.operatorIdentifier(),
+        return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
                 (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo),
                 ClassTag.apply(ScatterplotOpExec.class));
     }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
@@ -44,7 +44,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
         val totalBytes: Long = new File(path).length()
         val numWorkers: Int = Constants.currentWorkerNum
 
-        NewOpExecConfig.oneToOneLayer(
+        OpExecConfig.oneToOneLayer(
           operatorIdentifier,
           p => {
             val i = p._1
