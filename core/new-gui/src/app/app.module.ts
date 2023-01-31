@@ -59,8 +59,7 @@ import { NgbdModalAddWorkflowComponent } from "./dashboard/component/feature-con
 import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
-import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
-import { UserIconComponent } from "./dashboard/component/top-bar/user-icon/user-icon.component";
+import { UserIconComponent } from "./dashboard/component/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
@@ -136,7 +135,6 @@ registerLocaleData(en);
     ResultPanelComponent,
     OperatorLabelComponent,
     DashboardComponent,
-    TopBarComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
