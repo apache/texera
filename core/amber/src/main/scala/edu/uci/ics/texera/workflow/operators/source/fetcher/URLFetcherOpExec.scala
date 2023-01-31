@@ -23,7 +23,7 @@ class URLFetcherOpExec(
     if (decodingMethod == DecodingMethod.UTF_8) {
       builder.addSequentially(Array(IOUtils.toString(input, "UTF-8")))
     } else {
-      builder.addSequentially(Array(input.readAllBytes()))
+      builder.addSequentially(Array(IOUtils.toByteArray(input)))
     }
     Iterator(builder.build())
   }
