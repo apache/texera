@@ -29,7 +29,7 @@ class SplitOpExecConfig(
       Array(
         new WorkerLayer(
           makeLayer(id, "main"),
-          i => new SplitOpExec(i, splitOpDesc, outputToOrdinalMapping),
+          i => new SplitOpExec(i, splitOpDesc),
           Constants.currentWorkerNum,
           FollowPrevious(),
           RoundRobinDeployment(),

@@ -2,23 +2,21 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+import scala.reflect.ClassTag;
 
-
-import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
-
-import static scala.collection.JavaConverters.mapAsScalaMap;
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
     @JsonProperty(value = "predicates", required = true)
@@ -26,12 +24,11 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public List<FilterPredicate> predicates;
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return new OneToOneOpExecConfig(
+    public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+        return NewOpExecConfig.oneToOneLayer(
                 operatorIdentifier(),
                 worker -> new SpecializedFilterOpExec(this),
-                Constants.currentWorkerNum(),
-                mapAsScalaMap(Collections.emptyMap())
+                ClassTag.apply(SpecializedFilterOpExec.class)
         );
     }
 

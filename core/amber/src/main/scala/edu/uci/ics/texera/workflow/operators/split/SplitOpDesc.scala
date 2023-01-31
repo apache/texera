@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.split
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
@@ -25,8 +26,8 @@ class SplitOpDesc extends OperatorDescriptor {
   @JsonIgnore
   val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new SplitOpExecConfig(operatorIdentifier, this)
+  override def newOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    NewOpExecConfig.oneToOneLayer(operatorIdentifier, i => new SplitOpExec(i._1, this))
   }
 
   override def operatorInfo: OperatorInfo = {
