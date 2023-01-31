@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -13,6 +14,7 @@ import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import scala.reflect.ClassTag;
 
+import java.io.Serializable;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -27,7 +29,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return NewOpExecConfig.oneToOneLayer(
                 operatorIdentifier(),
-                worker -> new SpecializedFilterOpExec(this),
+                (OpExecFunc & Serializable) worker -> new SpecializedFilterOpExec(this),
                 ClassTag.apply(SpecializedFilterOpExec.class)
         );
     }

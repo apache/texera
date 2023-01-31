@@ -6,6 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
@@ -24,6 +25,8 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.reflect.ClassTag;
+
+import java.io.Serializable;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
@@ -73,14 +76,14 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
         OpExecConfigImpl partialLayer = NewOpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
-                i -> new WordCloudOpPartialExec(textColumn),
+                (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn),
                 ClassTag.apply(WordCloudOpPartialExec.class)
         ).withId(partialId);
 
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
         OpExecConfigImpl finalLayer = NewOpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
-                i -> new WordCloudOpFinalExec(topN),
+                (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN),
                 ClassTag.apply(WordCloudOpFinalExec.class)
         ).withId(finalId);
 

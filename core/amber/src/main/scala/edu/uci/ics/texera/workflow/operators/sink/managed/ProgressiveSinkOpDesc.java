@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -18,6 +18,8 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.collection.immutable.List;
 import scala.reflect.ClassTag;
+
+import java.io.Serializable;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
 import static java.util.Collections.singletonList;
@@ -44,7 +46,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return NewOpExecConfig.localLayer(
                 operatorIdentifier(),
-                p -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()),
+                (OpExecFunc<ProgressiveSinkOpExec> & Serializable) p -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()),
                 ClassTag.apply(ProgressiveSinkOpExec.class)
         ).withPorts(this.operatorInfo());
     }

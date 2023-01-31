@@ -6,6 +6,7 @@ import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -17,6 +18,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.reflect.ClassTag;
 
+import java.io.Serializable;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -33,7 +35,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
         return NewOpExecConfig.oneToOneLayer(operatorIdentifier(),
-                worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]),
+                (OpExecFunc & Serializable) worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]),
                 ClassTag.apply(TypeCastingOpExec.class));
     }
 

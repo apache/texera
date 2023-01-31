@@ -44,6 +44,8 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.{ClassTag, classTag}
 
+trait OpExecFunc[T] extends (((Int, NewOpExecConfig)) => T) with java.io.Serializable
+
 object NewOpExecConfig {
   type NewOpExecConfig = OpExecConfigImpl[_ <: IOperatorExecutor]
 
@@ -157,7 +159,7 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
     this.copy(inputPorts = operatorInfo.inputPorts, outputPorts = operatorInfo.outputPorts)
   }
 
-  // creates a copy with an additional input port
+  // creates a copy with an additional input operator specified on an input port
   def addInput(from: LayerIdentity, port: Int) = {
     assert(port < this.inputPorts.size, s"cannot add input on port $port, all ports: $inputPorts")
     this.copy(inputToOrdinalMapping =
@@ -165,7 +167,7 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
     )
   }
 
-  // creates a copy with an additional input port
+  // creates a copy with an additional output operator specified on an output port
   def addOutput(to: LayerIdentity, port: Int) = {
     assert(
       port < this.outputPorts.size,
@@ -174,6 +176,16 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
     this.copy(outputToOrdinalMapping =
       outputToOrdinalMapping + (LinkIdentity(this.id, to) -> port)
     )
+  }
+
+  // creates a copy with a removed input operator
+  def removeInput(from: LayerIdentity) = {
+    this.copy(inputToOrdinalMapping = inputToOrdinalMapping - LinkIdentity(from, this.id))
+  }
+
+  // creates a copy with a removed output operator
+  def removeOutput(to: LayerIdentity) = {
+    this.copy(outputToOrdinalMapping = outputToOrdinalMapping - LinkIdentity(this.id, to))
   }
 
   // creates a copy with the new ID
@@ -336,7 +348,7 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
         }
 
         val ref = actorGen(preferredAddress)
-        workerActorGen(workerId) = actorGen
+//        workerActorGen(workerId) = actorGen
 
         parentNetworkCommunicationActorRef ! RegisterActorRef(workerId, ref)
         workerToLayer(workerId) = this

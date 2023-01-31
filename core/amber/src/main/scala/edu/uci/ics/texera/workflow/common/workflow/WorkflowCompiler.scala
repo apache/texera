@@ -70,7 +70,10 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       new MaterializationRewriter(context, opResultStorage)
     ).buildPipelinedRegions()
 
-    new Workflow(workflowId, physicalPlan1)
+    // assign link strategies
+    val physicalPlan2 = new PartitionEnforcer(physicalPlan1).enforcePartition()
+
+    new Workflow(workflowId, physicalPlan2)
   }
 
 }

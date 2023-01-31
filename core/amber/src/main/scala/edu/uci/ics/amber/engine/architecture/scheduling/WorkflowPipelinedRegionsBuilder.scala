@@ -115,8 +115,8 @@ class WorkflowPipelinedRegionsBuilder(
     )
     var regionCount = 1
     sourceOperators.foreach(sourceOp => {
-      var operatorsInRegion = dagWithoutBlockingEdges.getDescendants(sourceOp)
-      operatorsInRegion = sourceOp :: operatorsInRegion
+      val operatorsInRegion =
+        dagWithoutBlockingEdges.getDescendants(sourceOp) :+ sourceOp
       val regionId = PipelinedRegionIdentity(workflowId, regionCount.toString)
       pipelinedRegionsDAG.addVertex(PipelinedRegion(regionId, operatorsInRegion.toSet.toArray))
       regionCount += 1
@@ -129,14 +129,14 @@ class WorkflowPipelinedRegionsBuilder(
         // For operators like HashJoin that have an order among their blocking and pipelined inputs
         val inputProcessingOrderForOp = physicalPlan.operatorMap(opId).getInputProcessingOrder()
         if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
-          for (i <- 1 to inputProcessingOrderForOp.length - 1) {
+          for (i <- 1 until inputProcessingOrderForOp.length) {
             try {
               addEdgeBetweenRegions(
                 inputProcessingOrderForOp(i - 1).from,
                 inputProcessingOrderForOp(i).from
               )
             } catch {
-              case e: java.lang.IllegalArgumentException =>
+              case _: java.lang.IllegalArgumentException =>
                 // edge causes a cycle
                 this.physicalPlan = materializationRewriter
                   .addMaterializationToLink(physicalPlan, logicalPlan, inputProcessingOrderForOp(i))
@@ -148,25 +148,17 @@ class WorkflowPipelinedRegionsBuilder(
         // For operators that have only blocking input links. e.g. Sort, Groupby
         val upstreamOps = physicalPlan.getUpstream(opId)
         val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
-          physicalPlan
-            .operatorMap(opId)
-            .isInputBlocking(
-              LinkIdentity(
-                physicalPlan.operatorMap(upstreamOp).id,
-                physicalPlan.operatorMap(opId).id
-              )
-            )
+          physicalPlan.operatorMap(opId).isInputBlocking(LinkIdentity(upstreamOp, opId))
         )
         if (allInputBlocking)
           upstreamOps.foreach(upstreamOp => {
             try {
               addEdgeBetweenRegions(upstreamOp, opId)
             } catch {
-              case e: java.lang.IllegalArgumentException =>
+              case _: java.lang.IllegalArgumentException =>
                 // edge causes a cycle. Code shouldn't reach here.
                 throw new WorkflowRuntimeException(
-                  s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${upstreamOp
-                    .toString()} and ${opId.toString()}"
+                  s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${upstreamOp.toString} and ${opId.toString}"
                 )
             }
           })
@@ -177,7 +169,7 @@ class WorkflowPipelinedRegionsBuilder(
       try {
         addEdgeBetweenRegions(writer, reader)
       } catch {
-        case e: java.lang.IllegalArgumentException =>
+        case _: java.lang.IllegalArgumentException =>
           // edge causes a cycle. Code shouldn't reach here.
           throw new WorkflowRuntimeException(
             s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${writer.operator} and ${reader.operator}"

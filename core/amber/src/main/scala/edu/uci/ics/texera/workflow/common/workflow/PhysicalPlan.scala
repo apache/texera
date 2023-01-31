@@ -127,6 +127,20 @@ case class PhysicalPlan(
     this.copy(operators = newOperators.values.toList, links = newLinks)
   }
 
+  // returns a new physical plan with the edges removed
+  def removeEdge(
+      edge: LinkIdentity
+  ): PhysicalPlan = {
+    val from = edge.from
+    val to = edge.to
+    val newOperators = operatorMap +
+      (from -> operatorMap(from).removeOutput(to)) +
+      (to -> operatorMap(to).removeInput(from))
+
+    val newLinks = links.filter(l => l != LinkIdentity(from, to))
+    this.copy(operators = newOperators.values.toList, links = newLinks)
+  }
+
   def setOperator(newOp: NewOpExecConfig): PhysicalPlan = {
     this.copy(operators = (operatorMap + (newOp.id -> newOp)).values.toList)
   }

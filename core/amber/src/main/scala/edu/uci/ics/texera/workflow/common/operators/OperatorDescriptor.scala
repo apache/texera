@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor.getOpId
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
@@ -62,6 +63,17 @@ import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
+
+object OperatorDescriptor {
+
+  var nextOpId = 0
+
+  def getOpId = {
+    nextOpId += 1
+    nextOpId
+  }
+
+}
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -129,7 +141,7 @@ abstract class OperatorDescriptor extends Serializable {
   var context: WorkflowContext = _
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
-  var operatorID: String = UUID.randomUUID.toString
+  var operatorID: String = getClass.getSimpleName + "-" + getOpId
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()

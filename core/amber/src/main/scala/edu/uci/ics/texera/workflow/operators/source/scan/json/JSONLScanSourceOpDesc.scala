@@ -37,16 +37,18 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
         val numWorkers = Constants.currentWorkerNum
 
-        NewOpExecConfig.localLayer(
-          operatorIdentifier,
-          p => {
-            val i = p._1
-            val startOffset: Int = offsetValue + count / numWorkers * i
-            val endOffset: Int =
-              offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
-            new JSONLScanSourceOpExec(this, startOffset, endOffset)
-          }
-        )
+        NewOpExecConfig
+          .localLayer(
+            operatorIdentifier,
+            p => {
+              val i = p._1
+              val startOffset: Int = offsetValue + count / numWorkers * i
+              val endOffset: Int =
+                offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
+              new JSONLScanSourceOpExec(this, startOffset, endOffset)
+            }
+          )
+          .copy(numWorkers = numWorkers)
 
       case None =>
         throw new RuntimeException("File path is not provided.")

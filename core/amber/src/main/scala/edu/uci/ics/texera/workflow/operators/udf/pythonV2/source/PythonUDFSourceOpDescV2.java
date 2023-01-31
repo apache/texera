@@ -6,6 +6,7 @@ import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -19,6 +20,7 @@ import scala.Function1;
 import scala.Tuple2;
 import scala.reflect.ClassTag;
 
+import java.io.Serializable;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -66,7 +68,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @Override
     public OpExecConfigImpl<? extends IOperatorExecutor> newOperatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        Function1<Tuple2<Object, OpExecConfigImpl<? extends IOperatorExecutor>>, IOperatorExecutor> exec = (i) ->
+        OpExecFunc exec = (OpExecFunc & Serializable) (i) ->
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {

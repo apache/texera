@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -20,6 +21,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstant
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.reflect.ClassTag;
 
+import java.io.Serializable;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -74,7 +76,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
             numWorkers = 1;
         }
         return NewOpExecConfig.oneToOneLayer(this.operatorIdentifier(),
-                p -> new ScatterplotOpExec(this, operatorSchemaInfo),
+                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo),
                 ClassTag.apply(ScatterplotOpExec.class));
     }
 
