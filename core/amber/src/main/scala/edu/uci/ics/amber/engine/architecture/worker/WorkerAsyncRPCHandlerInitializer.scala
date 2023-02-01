@@ -24,7 +24,7 @@ class WorkerAsyncRPCHandlerInitializer(
     val dataInputPort: NetworkInputPort[DataPayload],
     val controlOutputPort: NetworkOutputPort[ControlPayload],
     val dataOutputPort: NetworkOutputPort[DataPayload],
-    val tupleToBatchConverter: OutputManager,
+    val outputManager: OutputManager,
     val batchToTupleConverter: BatchToTupleConverter,
     val upstreamLinkStatus: UpstreamLinkStatus,
     val pauseManager: PauseManager,

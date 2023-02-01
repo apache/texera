@@ -53,7 +53,7 @@ trait SharePartitionHandler {
   }
   registerHandler { (cmd: SharePartition, sender) =>
     sharePartition(
-      tupleToBatchConverter,
+      outputManager,
       cmd.skewedReceiverId,
       cmd.helperReceiverId,
       cmd.tuplesToRedirectNumerator,

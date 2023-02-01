@@ -98,7 +98,7 @@ class WorkerSpec
           NetworkSenderActorRef(null),
           false
         ) {
-          override lazy val batchProducer: OutputManager = mockTupleToBatchConverter
+          override lazy val outputManager: OutputManager = mockTupleToBatchConverter
           override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
             mockControlOutputPort
         }
