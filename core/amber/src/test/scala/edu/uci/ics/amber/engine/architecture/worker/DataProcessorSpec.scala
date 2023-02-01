@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   NetworkInputPort,
   NetworkOutputPort,
-  TupleToBatchConverter
+  OutputManager
 }
 import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
@@ -67,7 +67,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     new NetworkOutputPort[DataPayload](identifier, mockDataOutputHandler)
   lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
     new NetworkOutputPort[ControlPayload](identifier, mockControlOutputHandler)
-  lazy val batchProducer: TupleToBatchConverter = mock[TupleToBatchConverter]
+  lazy val batchProducer: OutputManager = mock[OutputManager]
   lazy val breakpointManager: BreakpointManager = mock[BreakpointManager]
   val operatorIdentity: OperatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
   var workerIndex: Int = 0

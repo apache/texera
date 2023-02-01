@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
+class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   private val mockHandler =
     mock[(ActorVirtualIdentity, ActorVirtualIdentity, Long, DataPayload) => Unit]
   private val identifier = ActorVirtualIdentity("batch producer mock")
@@ -26,7 +26,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
   }
 
   "TupleToBatchConverter" should "aggregate tuples and output" in {
-    val batchProducer = wire[TupleToBatchConverter]
+    val batchProducer = wire[OutputManager]
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     val fakeID = ActorVirtualIdentity("testReceiver")
     inSequence {
@@ -47,7 +47,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
   }
 
   "TupleToBatchConverter" should "not output tuples when there is no partitioning" in {
-    val tupleToBatchConverter = wire[TupleToBatchConverter]
+    val tupleToBatchConverter = wire[OutputManager]
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     (mockHandler.apply _).expects(*, *, *, *).never()
     tuples.foreach { t =>
