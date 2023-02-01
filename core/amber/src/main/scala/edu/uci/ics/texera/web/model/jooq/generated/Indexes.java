@@ -62,7 +62,7 @@ public class Indexes {
 
     private static class Indexes0 {
         public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[] { File.FILE.FID }, true);
-        public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[] { File.FILE.UID, File.FILE.NAME }, true);
+        public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[] { File.FILE.OWNER_UID, File.FILE.NAME }, true);
         public static Index FILE_OF_PROJECT_PID = Internal.createIndex("pid", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.PID }, false);
         public static Index FILE_OF_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID }, true);
         public static Index USER_GOOGLE_ID = Internal.createIndex("google_id", User.USER, new OrderField[] { User.USER.GOOGLE_ID }, true);

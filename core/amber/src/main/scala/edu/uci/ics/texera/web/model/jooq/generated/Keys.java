@@ -109,7 +109,7 @@ public class Keys {
     }
 
     private static class UniqueKeys0 {
-        public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, "KEY_file_uid", File.FILE.UID, File.FILE.NAME);
+        public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, "KEY_file_uid", File.FILE.OWNER_UID, File.FILE.NAME);
         public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
         public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = Internal.createUniqueKey(FileOfProject.FILE_OF_PROJECT, "KEY_file_of_project_PRIMARY", FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID);
         public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
@@ -127,7 +127,7 @@ public class Keys {
     }
 
     private static class ForeignKeys0 {
-        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
+        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.OWNER_UID);
         public static final ForeignKey<FileOfProjectRecord, FileRecord> FILE_OF_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_1", FileOfProject.FILE_OF_PROJECT.FID);
         public static final ForeignKey<FileOfProjectRecord, UserProjectRecord> FILE_OF_PROJECT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PROJECT_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_2", FileOfProject.FILE_OF_PROJECT.PID);
         public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserConfig.USER_CONFIG, "user_config_ibfk_1", UserConfig.USER_CONFIG.UID);
