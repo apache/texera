@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
@@ -62,7 +61,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         AttributeType xType = operatorSchemaInfo.inputSchemas()[0].getAttribute(xColumn).getType();
         AttributeType yType = operatorSchemaInfo.inputSchemas()[0].getAttribute(yColumn).getType();
         Set<AttributeType> allowedAttributeTypesNumbersOnly = EnumSet.of(DOUBLE, INTEGER); //currently, the frontend has limitation it doesn't accept axes of type long
@@ -76,8 +75,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
             numWorkers = 1;
         }
         return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
-                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo),
-                ClassTag.apply(ScatterplotOpExec.class));
+                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo));
     }
 
     @Override

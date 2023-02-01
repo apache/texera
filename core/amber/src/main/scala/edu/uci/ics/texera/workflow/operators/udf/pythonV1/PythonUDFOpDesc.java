@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -70,8 +69,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        OpExecFunc<PythonUDFOpExec> exec = (OpExecFunc<PythonUDFOpExec> & Serializable) (i) ->
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+        OpExecFunc exec = (OpExecFunc & Serializable) (i) ->
                 new PythonUDFOpExec(
                         pythonScriptText,
                         pythonScriptFile,
@@ -82,10 +81,10 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                         batchSize
                 );
         if (PythonUDFType.supportsParallel.contains(pythonUDFType)) {
-            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
+            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec);
         } else {
             // changed it to 1 because training with Python needs all data in one node.
-            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec, ClassTag.apply(PythonUDFOpExec.class));
+            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec);
         }
     }
 

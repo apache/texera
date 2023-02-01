@@ -4,7 +4,6 @@ import akka.actor.{ActorContext, ActorRef, Address, Deploy, Props}
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
   AddressInfo,
   LocationPreference,
@@ -42,33 +41,22 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.{ClassTag, classTag}
 
-trait OpExecFunc[T] extends (((Int, OpExecConfig)) => T) with java.io.Serializable
+trait OpExecFunc extends (((Int, OpExecConfig)) => IOperatorExecutor) with java.io.Serializable
 
 object OpExecConfig {
-  type OpExecConfig = OpExecConfigImpl[_ <: IOperatorExecutor]
 
-  def oneToOneLayer[T <: IOperatorExecutor: ClassTag](
-      opId: OperatorIdentity,
-      opExec: ((Int, OpExecConfig)) => T
-  ): OpExecConfigImpl[T] = oneToOneLayer(layerId = makeLayer(opId, "main"), opExec)
+  def oneToOneLayer(opId: OperatorIdentity, opExec: OpExecFunc): OpExecConfig =
+    oneToOneLayer(layerId = makeLayer(opId, "main"), opExec)
 
-  def oneToOneLayer[T <: IOperatorExecutor: ClassTag](
-      layerId: LayerIdentity,
-      opExec: ((Int, OpExecConfig)) => T
-  ): OpExecConfigImpl[T] = OpExecConfigImpl(layerId, initIOperatorExecutor = opExec)
+  def oneToOneLayer(layerId: LayerIdentity, opExec: OpExecFunc): OpExecConfig =
+    OpExecConfig(layerId, initIOperatorExecutor = opExec)
 
-  def manyToOneLayer[T <: IOperatorExecutor: ClassTag](
-      opId: OperatorIdentity,
-      opExec: ((Int, OpExecConfig)) => T
-  ): OpExecConfigImpl[T] = manyToOneLayer(makeLayer(opId, "main"), opExec)
+  def manyToOneLayer(opId: OperatorIdentity, opExec: OpExecFunc): OpExecConfig =
+    manyToOneLayer(makeLayer(opId, "main"), opExec)
 
-  def manyToOneLayer[T <: IOperatorExecutor: ClassTag](
-      layerId: LayerIdentity,
-      opExec: ((Int, OpExecConfig)) => T
-  ): OpExecConfigImpl[T] = {
-    OpExecConfigImpl(
+  def manyToOneLayer(layerId: LayerIdentity, opExec: OpExecFunc): OpExecConfig = {
+    OpExecConfig(
       layerId,
       initIOperatorExecutor = opExec,
       numWorkers = 1,
@@ -77,30 +65,25 @@ object OpExecConfig {
     )
   }
 
-  def localLayer[T <: IOperatorExecutor: ClassTag](
-      opId: OperatorIdentity,
-      opExec: ((Int, OpExecConfig)) => T
-  ): OpExecConfigImpl[T] = localLayer(makeLayer(opId, "main"), opExec)
+  def localLayer(opId: OperatorIdentity, opExec: OpExecFunc): OpExecConfig =
+    localLayer(makeLayer(opId, "main"), opExec)
 
-  def localLayer[T <: IOperatorExecutor: ClassTag](
-      layerId: LayerIdentity,
-      opExec: ((Int, OpExecConfig)) => T
-  ): OpExecConfigImpl[T] = {
+  def localLayer(layerId: LayerIdentity, opExec: OpExecFunc): OpExecConfig = {
     manyToOneLayer(layerId, opExec).copy(locationPreference = Option(new PreferController()))
   }
 
-  def hashLayer[T <: IOperatorExecutor: ClassTag](
+  def hashLayer(
       opId: OperatorIdentity,
-      opExec: ((Int, OpExecConfig)) => T,
+      opExec: OpExecFunc,
       hashColumnIndices: Array[Int]
-  ): OpExecConfigImpl[T] = hashLayer(makeLayer(opId, "main"), opExec, hashColumnIndices)
+  ): OpExecConfig = hashLayer(makeLayer(opId, "main"), opExec, hashColumnIndices)
 
-  def hashLayer[T <: IOperatorExecutor: ClassTag](
+  def hashLayer(
       layerId: LayerIdentity,
-      opExec: ((Int, OpExecConfig)) => T,
+      opExec: OpExecFunc,
       hashColumnIndices: Array[Int]
-  ): OpExecConfigImpl[T] = {
-    OpExecConfigImpl[T](
+  ): OpExecConfig = {
+    OpExecConfig(
       id = layerId,
       initIOperatorExecutor = opExec,
       partitionRequirement = List(Option(HashPartition(hashColumnIndices))),
@@ -110,11 +93,11 @@ object OpExecConfig {
 
 }
 
-case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
+case class OpExecConfig(
     id: LayerIdentity,
     // function to create an operator executor instance
     // parameters: 1: worker index, 2: this worker layer object
-    initIOperatorExecutor: ((Int, OpExecConfigImpl[_ <: IOperatorExecutor])) => T,
+    initIOperatorExecutor: OpExecFunc,
     // preference of parallelism (number of workers)
     numWorkers: Int = Constants.numWorkerPerNode,
     // preference of worker placement
@@ -137,6 +120,10 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
     dependency: Map[Int, Int] = Map()
 ) {
 
+  // return the runtime class of the corresponding OperatorExecutor
+  lazy val opExecClass: Class[_] =
+    initIOperatorExecutor((0, this)).getClass
+
   /*
    * Variables related to runtime information
    */
@@ -156,12 +143,12 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
    */
 
   // creates a copy with the specified port information
-  def withPorts(operatorInfo: OperatorInfo): OpExecConfigImpl[T] = {
+  def withPorts(operatorInfo: OperatorInfo): OpExecConfig = {
     this.copy(inputPorts = operatorInfo.inputPorts, outputPorts = operatorInfo.outputPorts)
   }
 
   // creates a copy with an additional input operator specified on an input port
-  def addInput(from: LayerIdentity, port: Int): OpExecConfigImpl[T] = {
+  def addInput(from: LayerIdentity, port: Int): OpExecConfig = {
     assert(port < this.inputPorts.size, s"cannot add input on port $port, all ports: $inputPorts")
     this.copy(inputToOrdinalMapping =
       inputToOrdinalMapping + (LinkIdentity(from, this.id) -> port)
@@ -169,7 +156,7 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
   }
 
   // creates a copy with an additional output operator specified on an output port
-  def addOutput(to: LayerIdentity, port: Int): OpExecConfigImpl[T] = {
+  def addOutput(to: LayerIdentity, port: Int): OpExecConfig = {
     assert(
       port < this.outputPorts.size,
       s"cannot add output on port $port, all ports: $outputPorts"
@@ -180,23 +167,20 @@ case class OpExecConfigImpl[T <: IOperatorExecutor: ClassTag](
   }
 
   // creates a copy with a removed input operator
-  def removeInput(from: LayerIdentity): OpExecConfigImpl[T] = {
+  def removeInput(from: LayerIdentity): OpExecConfig = {
     this.copy(inputToOrdinalMapping = inputToOrdinalMapping - LinkIdentity(from, this.id))
   }
 
   // creates a copy with a removed output operator
-  def removeOutput(to: LayerIdentity): OpExecConfigImpl[T] = {
+  def removeOutput(to: LayerIdentity): OpExecConfig = {
     this.copy(outputToOrdinalMapping = outputToOrdinalMapping - LinkIdentity(this.id, to))
   }
 
   // creates a copy with the new ID
-  def withId(id: LayerIdentity): OpExecConfigImpl[T] = this.copy(id = id)
+  def withId(id: LayerIdentity): OpExecConfig = this.copy(id = id)
 
   // creates a copy with the number of workers specified
-  def withNumWorkers(numWorkers: Int): OpExecConfigImpl[T] = this.copy(numWorkers = numWorkers)
-
-  // return the runtime class of the corresponding OperatorExecutor
-  def opExecClass: Class[_] = classTag[T].runtimeClass
+  def withNumWorkers(numWorkers: Int): OpExecConfig = this.copy(numWorkers = numWorkers)
 
   // returns all input links on a specific input port
   def getInputLinks(portIndex: Int): List[LinkIdentity] = {

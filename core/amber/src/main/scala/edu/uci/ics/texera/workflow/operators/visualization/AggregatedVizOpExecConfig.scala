@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecFunc}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
@@ -24,10 +23,10 @@ object AggregatedVizOpExecConfig {
     * @param operatorSchemaInfo The descriptor's OperatorSchemaInfo.
     * @tparam P The type of the aggregation data.
     */
-  def opExecPhysicalPlan[P <: AnyRef, T <: IOperatorExecutor: ClassTag](
+  def opExecPhysicalPlan[P <: AnyRef](
       id: OperatorIdentity,
       aggFunc: DistributedAggregation[P],
-      exec: ((Int, OpExecConfig)) => T,
+      exec: OpExecFunc,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
 

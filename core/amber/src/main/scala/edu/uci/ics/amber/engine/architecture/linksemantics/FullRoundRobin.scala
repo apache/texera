@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
   Partitioning,
   RoundRobinPartitioning

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -16,8 +15,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Function1;
-import scala.Tuple2;
 import scala.reflect.ClassTag;
 
 import java.io.Serializable;
@@ -67,16 +64,14 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public List<Attribute> columns;
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         OpExecFunc exec = (OpExecFunc & Serializable) (i) ->
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec,
-                    ClassTag.apply(PythonUDFSourceOpExecV2.class)).withNumWorkers(workers);
+            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec).withNumWorkers(workers);
         } else {
-            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec,
-                    ClassTag.apply(PythonUDFSourceOpExecV2.class));
+            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec);
         }
 
     }

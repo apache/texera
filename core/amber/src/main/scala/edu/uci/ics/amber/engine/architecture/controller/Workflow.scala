@@ -1,8 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.Address
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfigImpl, WorkerInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, WorkerInfo}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.virtualidentity._
@@ -139,11 +138,10 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   def getPythonWorkerToOperatorExec(
       pythonOperators: Array[LayerIdentity]
-  ): Iterable[(ActorVirtualIdentity, OpExecConfigImpl[PythonUDFOpExecV2])] = {
+  ): Iterable[(ActorVirtualIdentity, OpExecConfig)] = {
     pythonOperators
       .map(opId => physicalPlan.operatorMap(opId))
       .filter(op => op.opExecClass == classOf[PythonUDFOpExecV2])
-      .map(op => op.asInstanceOf[OpExecConfigImpl[PythonUDFOpExecV2]])
       .flatMap(op => op.getAllWorkers.map(worker => (worker, op)))
       .toList
   }

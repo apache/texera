@@ -5,7 +5,6 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity;
@@ -63,7 +62,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
             .add(partialAggregateSchema).build();
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer");
     }
 
@@ -74,20 +73,18 @@ public class WordCloudOpDesc extends VisualizationOperator {
         }
 
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
-        OpExecConfigImpl partialLayer = OpExecConfig.oneToOneLayer(
+        OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn),
-                ClassTag.apply(WordCloudOpPartialExec.class)
+                (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn)
         ).withId(partialId);
 
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
-        OpExecConfigImpl finalLayer = OpExecConfig.manyToOneLayer(
+        OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN),
-                ClassTag.apply(WordCloudOpFinalExec.class)
+                (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN)
         ).withId(finalId);
 
-        OpExecConfigImpl[] layers = { partialLayer, finalLayer };
+        OpExecConfig[] layers = { partialLayer, finalLayer };
         LinkIdentity[] links = { new LinkIdentity(partialLayer.id(), finalLayer.id()) };
 
         return PhysicalPlan.apply(layers, links);

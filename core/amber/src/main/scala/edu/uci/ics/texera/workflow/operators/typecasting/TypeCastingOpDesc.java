@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfigImpl;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -32,11 +31,10 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public List<TypeCastingUnit> typeCastingUnits;
 
     @Override
-    public OpExecConfigImpl<? extends IOperatorExecutor> operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
         return OpExecConfig.oneToOneLayer(operatorIdentifier(),
-                (OpExecFunc & Serializable) worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]),
-                ClassTag.apply(TypeCastingOpExec.class));
+                (OpExecFunc & Serializable) worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]));
     }
 
     @Override
