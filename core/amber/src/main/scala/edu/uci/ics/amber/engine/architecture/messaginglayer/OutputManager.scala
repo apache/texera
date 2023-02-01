@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import akka.actor.{ActorContext, Cancellable}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
   FlushNetworkBuffer,
+  getBatchSize,
   toPartitioner
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
@@ -48,6 +49,15 @@ object OutputManager {
     }
   }
 
+  def getBatchSize(partitioning: Partitioning): Int = {
+    partitioning match {
+      case p: OneToOnePartitioning          => p.batchSize
+      case p: RoundRobinPartitioning        => p.batchSize
+      case p: HashBasedShufflePartitioning  => p.batchSize
+      case p: RangeBasedShufflePartitioning => p.batchSize
+      case _                                => throw new RuntimeException(s"partitioning $partitioning not supported")
+    }
+  }
 }
 
 /** This class is a container of all the transfer partitioners.
@@ -75,7 +85,7 @@ class OutputManager(
     val partitioner = toPartitioner(partitioning)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
-      val buffer = new NetworkOutputBuffer(receiver, dataOutputPort)
+      val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
     })
   }

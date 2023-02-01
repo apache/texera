@@ -31,6 +31,7 @@ class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
   // A bucket corresponds to a partition. When Reshape is not enabled, a bucket has just one receiver.
   // Reshape divides a skewed partition onto multiple workers. So, with Reshape, a bucket can have
   // multiple receivers. First receiver in the bucket is the original receiver for that partition.
+  val numBuckets = receivers.length
   var bucketsToReceivers = new mutable.HashMap[Int, ArrayBuffer[ActorVirtualIdentity]]()
   var bucketsToSharingEnabled =
     new mutable.HashMap[Int, Boolean]() // Buckets to whether its inputs is redirected to helper.
@@ -43,19 +44,18 @@ class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
   // `numerator` tuples are redirected to the numerator. The `position index` is used to track how many tuples
   // have been redirected.
 
-  val reshapeMetrics = new ReshapeMetrics(partitioner.allReceivers)
+  val samplingSize =
+    Constants.reshapeWorkloadSampleSize // For every `samplingSize` tuples, record the tuple count to each receiver.
+  var tupleIndexForSampling = 0 // goes from 0 to `samplingSize` and then resets to 0
+  var receiverToWorkloadSamples = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
+  @volatile var currentSampleCollectionIndex =
+    0 // the index in `receiverToWorkloadSamples` array where sample is being recorded for a receiver
+  var maxSamples = Constants.reshapeMaxWorkloadSamplesInWorker
 
-  initializeInternalState()
+  initializeInternalState(receivers)
 
-  def recordSampleAndGetReceiverForReshape(bucket: Int): ActorVirtualIdentity = {
-    reshapeMetrics.recordSample(bucketsToReceivers(bucket)(0))
-    if (bucketsToSharingEnabled.contains(bucket) && bucketsToSharingEnabled(bucket)) {
-      // if skew mitigation (either first or second phase) is happening
-      getAndIncrementReceiverForBucket(bucket)
-    } else {
-      bucketsToReceivers(bucket)(0)
-    }
-  }
+  def getDefaultReceiverForBucket(bucket: Int): ActorVirtualIdentity =
+    bucketsToReceivers(bucket)(0)
 
   /**
     * For a bucket in which the input is shared, this function chooses the receiver worker for
@@ -138,57 +138,36 @@ class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
     true
   }
 
-  private[this] def initializeInternalState(): Unit = {
-    for (i <- receivers.indices) {
-      bucketsToReceivers(i) = ArrayBuffer[ActorVirtualIdentity](receivers(i))
-    }
-  }
-
-}
-
-/**
-  * Metric collection component of the reshape partitioner.
-  */
-class ReshapeMetrics(val receivers: Seq[ActorVirtualIdentity]) {
-  // For every `samplingSize` tuples, record the tuple count to each receiver.
-  val samplingSize: Int = Constants.reshapeWorkloadSampleSize
-  // maximum number of samples kept in history per receiver
-  val maxSamples: Int = Constants.reshapeMaxWorkloadSamplesInWorker
-
-  // goes from 0 to `samplingSize` and then resets to 0
-  var tupleIndexForSampling = 0
-  // the index in `receiverToWorkloadSamples` array where sample is being recorded for a receiver
-  var currentSampleCollectionIndex = 0
-
-  var receiverToWorkloadSamples: mutable.Map[ActorVirtualIdentity, ArrayBuffer[Long]] =
-    initializeSampleCollection()
-
-  def initializeSampleCollection(): mutable.Map[ActorVirtualIdentity, ArrayBuffer[Long]] =
-    collection.mutable.Map(receivers.map(k => (k, new ArrayBuffer[Long]())): _*)
-
   /**
     * Used to return the workload samples to the controller.
     */
   def getWorkloadHistory(): Map[ActorVirtualIdentity, List[Long]] = {
-    if (!Constants.reshapeSkewHandlingEnabled) {
-      return Map[ActorVirtualIdentity, List[Long]]()
+    if (Constants.reshapeSkewHandlingEnabled) {
+      val collectedTillNow = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
+      receiverToWorkloadSamples.keys.foreach(rec => {
+        collectedTillNow(rec) = new ArrayBuffer[Long]()
+        for (i <- 0 to receiverToWorkloadSamples(rec).size - 1) {
+          collectedTillNow(rec).append(receiverToWorkloadSamples(rec)(i))
+        }
+      })
+
+      currentSampleCollectionIndex = 0
+      for (i <- 0 until numBuckets) {
+        receiverToWorkloadSamples(receivers(i)) = ArrayBuffer[Long](0)
+      }
+      collectedTillNow.mapValues(_.toList).toMap
+    } else {
+      Map[ActorVirtualIdentity, List[Long]]()
     }
-
-    // reset sample history
-    val currentSamples = receiverToWorkloadSamples
-    currentSampleCollectionIndex = 0
-    receiverToWorkloadSamples = initializeSampleCollection()
-
-    currentSamples.mapValues(_.toList).toMap
   }
 
   /**
-    * Record a sample when the input is sent to a receiver
+    * Record the sample when the input is received for a bucket
     */
-  def recordSample(receiver: ActorVirtualIdentity): Unit = {
+  def recordSample(bucket: Int): Unit = {
     // the first receiver in a bucket is the actual receiver for the partition
     // when there is no mitigation done by Reshape
-    val storedSamples = receiverToWorkloadSamples(receiver)
+    val storedSamples = receiverToWorkloadSamples(bucketsToReceivers(bucket)(0))
     storedSamples(currentSampleCollectionIndex) = storedSamples(currentSampleCollectionIndex) + 1
     tupleIndexForSampling += 1
     if (tupleIndexForSampling % samplingSize == 0) {
@@ -209,6 +188,23 @@ class ReshapeMetrics(val receivers: Seq[ActorVirtualIdentity]) {
         receiverToWorkloadSamples(rec)(currentSampleCollectionIndex) = 0
       )
       tupleIndexForSampling = 0
+    }
+  }
+
+  def recordSampleAndGetReceiverForReshape(bucket: Int): ActorVirtualIdentity = {
+    recordSample(bucket)
+    if (bucketsToSharingEnabled.contains(bucket) && bucketsToSharingEnabled(bucket)) {
+      // if skew mitigation (either first or second phase) is happening
+      getAndIncrementReceiverForBucket(bucket)
+    } else {
+      getDefaultReceiverForBucket(bucket)
+    }
+  }
+
+  private[this] def initializeInternalState(_receivers: Seq[ActorVirtualIdentity]): Unit = {
+    for (i <- 0 until numBuckets) {
+      bucketsToReceivers(i) = ArrayBuffer[ActorVirtualIdentity](receivers(i))
+      receiverToWorkloadSamples(_receivers(i)) = ArrayBuffer[Long](0)
     }
   }
 
