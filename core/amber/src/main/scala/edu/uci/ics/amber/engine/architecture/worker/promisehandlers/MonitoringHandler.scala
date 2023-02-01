@@ -36,7 +36,7 @@ trait MonitoringHandler {
       if (partitioner.isInstanceOf[ReshapePartitioner]) {
         // Reshape only needs samples from workers that shuffle data across nodes
         allDownstreamSamples.append(
-          partitioner.asInstanceOf[ReshapePartitioner].reshapeMetrics.getWorkloadHistory()
+          partitioner.asInstanceOf[ReshapePartitioner].getWorkloadHistory()
         )
       }
     })

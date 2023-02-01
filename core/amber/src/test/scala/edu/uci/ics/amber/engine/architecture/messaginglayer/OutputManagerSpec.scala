@@ -25,8 +25,8 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     LayerIdentity("" + counter, "" + counter, "" + counter)
   }
 
-  "TupleToBatchConverter" should "aggregate tuples and output" in {
-    val batchProducer = wire[OutputManager]
+  "OutputManager" should "aggregate tuples and output" in {
+    val outputManager = wire[OutputManager]
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     val fakeID = ActorVirtualIdentity("testReceiver")
     inSequence {
@@ -39,22 +39,24 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       LinkIdentity(layerID(), layerID())
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
-    batchProducer.addPartitionerWithPartitioning(fakeLink, OneToOnePartitioning(10, fakeReceiver))
+    outputManager.addPartitionerWithPartitioning(fakeLink, OneToOnePartitioning(10, fakeReceiver))
     tuples.foreach { t =>
-      batchProducer.passTupleToDownstream(t, fakeLink)
+      outputManager.passTupleToDownstream(t, fakeLink)
     }
-    batchProducer.emitEndOfUpstream()
+    outputManager.emitEndOfUpstream()
   }
 
-  "TupleToBatchConverter" should "not output tuples when there is no partitioning" in {
-    val tupleToBatchConverter = wire[OutputManager]
+  "OutputManager" should "not output tuples when there is no partitioning" in {
+    val outputManager = wire[OutputManager]
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     (mockHandler.apply _).expects(*, *, *, *).never()
     val fakeLink = LinkIdentity(layerID(), layerID())
-    tuples.foreach { t =>
-      tupleToBatchConverter.passTupleToDownstream(t, fakeLink)
+    assertThrows[Exception] {
+      tuples.foreach { t =>
+        outputManager.passTupleToDownstream(t, fakeLink)
+      }
+      outputManager.emitEndOfUpstream()
     }
-    tupleToBatchConverter.emitEndOfUpstream()
   }
 
 }
