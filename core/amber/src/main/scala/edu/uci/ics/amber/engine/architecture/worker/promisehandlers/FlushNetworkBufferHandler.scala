@@ -7,6 +7,6 @@ trait FlushNetworkBufferHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (flush: FlushNetworkBuffer, sender) =>
-    tupleToBatchConverter.flushAll()
+    outputManager.flushAll()
   }
 }
