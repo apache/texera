@@ -56,6 +56,7 @@ class WorkerAsyncRPCHandlerInitializer(
     with BackpressureHandler
     with SaveSkewedWorkerInfoHandler
     with AcceptMutableStateHandler
-    with SchedulerTimeSlotEventHandler {
+    with SchedulerTimeSlotEventHandler
+    with FlushNetworkBufferHandler {
   var lastReportTime = 0L
 }

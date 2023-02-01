@@ -1,14 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.logging.{
   LogManager,
   ProcessControlMessage,
@@ -53,6 +52,7 @@ class DataProcessor( // dependencies:
     val recoveryManager: LocalRecoveryManager,
     val recoveryQueue: RecoveryQueue,
     val actorId: ActorVirtualIdentity,
+    val actorContext: ActorContext, // context of this actor
     val opExecConfig: OpExecConfig
 ) extends WorkerInternalQueue
     with AmberLogging {
@@ -220,6 +220,7 @@ class DataProcessor( // dependencies:
     if (breakpointManager.evaluateTuple(outputTuple)) {
       pauseManager.recordRequest(PauseType.UserPause, true)
       disableDataQueue()
+      outputManager.adaptiveBatchingMonitor.pauseAdaptiveBatching()
       stateManager.transitTo(PAUSED)
     } else {
       outputTupleCount += 1
@@ -235,6 +236,7 @@ class DataProcessor( // dependencies:
       case InputTuple(from, tuple) =>
         if (stateManager.getCurrentState == READY) {
           stateManager.transitTo(RUNNING)
+          outputManager.adaptiveBatchingMonitor.enableAdaptiveBatching(actorContext)
           asyncRPCClient.send(
             WorkerStateUpdated(stateManager.getCurrentState),
             CONTROLLER
@@ -266,6 +268,7 @@ class DataProcessor( // dependencies:
           disableDataQueue()
           operator.close() // close operator
           asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
+          outputManager.adaptiveBatchingMonitor.pauseAdaptiveBatching()
           stateManager.transitTo(COMPLETED)
         }
       case ControlElement(payload, from) =>
