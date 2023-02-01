@@ -17,15 +17,16 @@ import scala.collection.mutable.ArrayBuffer
   */
 class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
 
-  override def getPartition(tuple: ITuple): ActorVirtualIdentity = {
-    val bucketIndex = receiverIndexMapping(partitioner.getPartition(tuple))
-    recordSampleAndGetReceiverForReshape(bucketIndex)
+  override def getBucketIndex(tuple: ITuple): Int = {
+    val bucketIndex = partitioner.getBucketIndex(tuple)
+    val newDestReceiver = recordSampleAndGetReceiverForReshape(bucketIndex)
+    originalReceiverIndexMapping(newDestReceiver)
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioner.allReceivers
 
   val receivers: Seq[ActorVirtualIdentity] = partitioner.allReceivers
-  val receiverIndexMapping: Map[ActorVirtualIdentity, Int] = receivers.zipWithIndex.toMap
+  val originalReceiverIndexMapping: Map[ActorVirtualIdentity, Int] = receivers.zipWithIndex.toMap
 
   // A bucket corresponds to a partition. When Reshape is not enabled, a bucket has just one receiver.
   // Reshape divides a skewed partition onto multiple workers. So, with Reshape, a bucket can have

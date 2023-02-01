@@ -5,15 +5,12 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.collection.mutable
 
 object OutputManager {
-
-  final case class FlushNetworkBuffer() extends ControlCommand[Unit]
 
   // create a corresponding partitioner for the given partitioning policy
   def toPartitioner(partitioning: Partitioning): Partitioner = {
@@ -82,7 +79,8 @@ class OutputManager(
   ): Unit = {
     val partitioner =
       partitioners.getOrElse(outputPort, throw new RuntimeException("output port not found"))
-    val destination = partitioner.getPartition(tuple)
+    val bucketIndex = partitioner.getBucketIndex(tuple)
+    val destination = partitioner.allReceivers(bucketIndex)
     networkOutputBuffers((outputPort, destination)).addTuple(tuple)
   }
 

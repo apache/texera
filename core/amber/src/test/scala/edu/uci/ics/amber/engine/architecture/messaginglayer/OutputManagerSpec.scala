@@ -41,7 +41,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
 
     batchProducer.addPartitionerWithPartitioning(fakeLink, OneToOnePartitioning(10, fakeReceiver))
     tuples.foreach { t =>
-      batchProducer.passTupleToDownstream(t)
+      batchProducer.passTupleToDownstream(t, fakeLink)
     }
     batchProducer.emitEndOfUpstream()
   }
@@ -50,8 +50,9 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     val tupleToBatchConverter = wire[OutputManager]
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     (mockHandler.apply _).expects(*, *, *, *).never()
+    val fakeLink = LinkIdentity(layerID(), layerID())
     tuples.foreach { t =>
-      tupleToBatchConverter.passTupleToDownstream(t)
+      tupleToBatchConverter.passTupleToDownstream(t, fakeLink)
     }
     tupleToBatchConverter.emitEndOfUpstream()
   }

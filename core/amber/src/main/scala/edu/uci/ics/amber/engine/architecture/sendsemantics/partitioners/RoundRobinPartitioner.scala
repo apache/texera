@@ -4,13 +4,12 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRo
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-case class RoundRobinPartitioner(partitioning: RoundRobinPartitioning)
-    extends ReshapePartitioner(partitioning.batchSize, partitioning.receivers) {
+case class RoundRobinPartitioner(partitioning: RoundRobinPartitioning) extends Partitioner {
   var roundRobinIndex = 0
 
-  override def getPartition(tuple: ITuple): ActorVirtualIdentity = {
+  override def getBucketIndex(tuple: ITuple): Int = {
     roundRobinIndex = (roundRobinIndex + 1) % partitioning.receivers.length
-    allReceivers(roundRobinIndex)
+    roundRobinIndex
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers

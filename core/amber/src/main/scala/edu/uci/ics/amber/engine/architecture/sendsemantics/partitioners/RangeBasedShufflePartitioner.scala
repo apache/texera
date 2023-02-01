@@ -12,7 +12,7 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
   val keysPerReceiver =
     ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length).toLong + 1
 
-  override def getPartition(tuple: ITuple): ActorVirtualIdentity = {
+  override def getBucketIndex(tuple: ITuple): Int = {
     // Do range partitioning only on the first attribute in `rangeColumnIndices`.
     val fieldType = tuple
       .asInstanceOf[Tuple]
@@ -32,14 +32,13 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
         throw new RuntimeException("unsupported attribute type: " + fieldType.toString())
     }
 
-    val bucket = if (fieldVal < partitioning.rangeMin) {
-      0
-    } else if (fieldVal > partitioning.rangeMax) {
-      partitioning.receivers.length - 1
-    } else {
-      ((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt
+    if (fieldVal < partitioning.rangeMin) {
+      return 0
     }
-    allReceivers(bucket)
+    if (fieldVal > partitioning.rangeMax) {
+      return partitioning.receivers.length - 1
+    }
+    ((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers
