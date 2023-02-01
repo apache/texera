@@ -67,7 +67,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     new NetworkOutputPort[DataPayload](identifier, mockDataOutputHandler)
   lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
     new NetworkOutputPort[ControlPayload](identifier, mockControlOutputHandler)
-  lazy val batchProducer: OutputManager = mock[OutputManager]
+  lazy val outputManager: OutputManager = mock[OutputManager]
   lazy val breakpointManager: BreakpointManager = mock[BreakpointManager]
   val operatorIdentity: OperatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
   var workerIndex: Int = 0
@@ -147,7 +147,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     upstreamLinkStatus.registerInput(senderID, linkID)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     inAnyOrder {
-      (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
+      (outputManager.emitEndOfUpstream _).expects().anyNumberOfTimes()
       (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
       inSequence {
         (operator.open _).expects().once()
@@ -209,7 +209,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         (asyncRPCServer.receive _)
           .expects(*, *)
           .anyNumberOfTimes() // process controls before execution completes
-        (batchProducer.emitEndOfUpstream _).expects().once()
+        (outputManager.emitEndOfUpstream _).expects().once()
         (asyncRPCServer.receive _)
           .expects(*, *)
           .anyNumberOfTimes() // process controls after execution
@@ -324,7 +324,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.processTuple _).expects(*, *, *, *).once()
       (mockControlOutputHandler.apply _).expects(*, *, *, *).repeat(4)
       (operator.processTuple _).expects(*, *, *, *).repeat(4)
-      (batchProducer.emitEndOfUpstream _).expects().once()
+      (outputManager.emitEndOfUpstream _).expects().once()
       (operator.close _).expects().once()
     }
     operator.open()

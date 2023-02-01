@@ -52,7 +52,7 @@ trait MonitoringHandler {
         controlInputPort.getStashedMessageCount()
       )
 
-      val samples = getWorkloadHistory(tupleToBatchConverter)
+      val samples = getWorkloadHistory(outputManager)
       (workloadMetrics, samples)
     } catch {
       case exception: Exception =>

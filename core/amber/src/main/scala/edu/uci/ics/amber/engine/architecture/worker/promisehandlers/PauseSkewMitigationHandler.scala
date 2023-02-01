@@ -48,7 +48,7 @@ trait PauseSkewMitigationHandler {
 
   registerHandler { (cmd: PauseSkewMitigation, sender) =>
     pauseSkewMitigation(
-      tupleToBatchConverter,
+      outputManager,
       cmd.skewedReceiverId,
       cmd.helperReceiverId
     )

@@ -68,7 +68,7 @@ class WorkflowWorker(
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
   lazy val dataOutputPort: NetworkOutputPort[DataPayload] =
     new NetworkOutputPort[DataPayload](this.actorId, this.outputDataPayload)
-  lazy val batchProducer: OutputManager = wire[OutputManager]
+  lazy val outputManager: OutputManager = wire[OutputManager]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
   implicit val ec: ExecutionContext = context.dispatcher
