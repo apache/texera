@@ -133,6 +133,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process data messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
       OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
@@ -175,6 +176,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "prioritize control messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
       OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
@@ -228,6 +230,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process control command without inputting data" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
       OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
@@ -262,6 +265,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "write determinant to log" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
       OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
@@ -299,7 +303,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val opExecConfig =
       OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     (operator.open _).expects().once()
-    val ctx: ActorContext = null
+    val actorContext: ActorContext = null
     val batchToTupleConverter = mock[BatchToTupleConverter]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
@@ -360,6 +364,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "reduce credits" in {
     Constants.flowControlEnabled = true
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
