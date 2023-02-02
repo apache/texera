@@ -30,7 +30,7 @@ trait ModifyLogicHandler {
     {
       val operatorUUID = msg.operatorDescriptor.operatorID
       val operatorId = new OperatorIdentity(msg.operatorDescriptor.context.jobId, operatorUUID)
-      val operator = workflow.getOperator(operatorId)
+      val operator = workflow.physicalPlan.getSingleLayerOfLogicalOperator(operatorId)
       val modifyOperatorLogic: ModifyOperatorLogic = msg.operatorDescriptor match {
         case desc: PythonUDFOpDescV2 =>
           ModifyOperatorLogic(desc.code, isSource = false)
