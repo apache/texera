@@ -7,9 +7,11 @@ import { PublicInterfaceOf } from "../../util/stub";
 
 export const MOCK_USER_ID = 1;
 export const MOCK_USER_NAME = "testUser";
+export const MOCK_USER_EMAIL = "testUser@testemail.com";
 export const MOCK_USER = {
-  name: MOCK_USER_NAME,
   uid: MOCK_USER_ID,
+  name: MOCK_USER_NAME,
+  email: MOCK_USER_EMAIL,
   googleId: undefined,
 };
 
