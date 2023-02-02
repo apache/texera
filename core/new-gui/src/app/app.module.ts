@@ -53,7 +53,6 @@ import { UserFileUploadService } from "./dashboard/service/user-file/user-file-u
 import { UserFileService } from "./dashboard/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
-import { FeatureContainerComponent } from "./dashboard/component/feature-container/feature-container.component";
 import { NgbdModalAddWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component";
 import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
@@ -137,7 +136,6 @@ registerLocaleData(en);
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
-    FeatureContainerComponent,
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
     UserFileSectionComponent,
