@@ -121,8 +121,9 @@ export class AuthService {
     this.registerAutoLogout();
     this.registerAutoRefreshToken();
     return {
-      uid: this.jwtHelperService.decodeToken(token).uid,
+      uid: this.jwtHelperService.decodeToken(token).userId,
       name: sub,
+      email: this.jwtHelperService.decodeToken(token).email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
       role: role,
     };
