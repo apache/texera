@@ -112,7 +112,7 @@ class WorkflowWorker(
   }
 
   def receiveAndProcessMessages: Receive =
-    forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
+    acceptDirectInvocations orElse forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
       case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
         dataInputPort.handleMessage(
           this.sender(),
@@ -136,6 +136,11 @@ class WorkflowWorker(
       case other =>
         throw new WorkflowRuntimeException(s"unhandled message: $other")
     }
+
+  def acceptDirectInvocations: Receive = {
+    case invocation: ControlInvocation =>
+      this.handleControlPayload(SELF, invocation)
+  }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
     tupleProducer.processDataPayload(from, dataPayload)
