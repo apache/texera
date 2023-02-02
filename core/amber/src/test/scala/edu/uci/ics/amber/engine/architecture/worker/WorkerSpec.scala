@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkAck,
@@ -28,7 +29,11 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -76,17 +81,21 @@ class WorkerSpec
 
     val mockTag = LinkIdentity(null, null)
 
+    val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+    val workerIndex = 0
+    val opExecConfig = OpExecConfig
+      .oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+      .copy(inputToOrdinalMapping = Map(mockTag -> 0))
+
     val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
     val worker =
       TestActorRef(
         new WorkflowWorker(
           identifier1,
-          mockOpExecutor,
-          Map[LinkIdentity, Int](),
-          new mutable.HashMap[LinkIdentity, Int](),
+          workerIndex,
+          opExecConfig,
           NetworkSenderActorRef(null),
-          Set(mockTag),
           false
         ) {
           override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
@@ -123,14 +132,16 @@ class WorkerSpec
       ): Iterator[(ITuple, Option[Int])] = { return Iterator() }
     }
 
+    val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+    val workerIndex = 0
+    val opExecConfig = OpExecConfig.oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+
     val worker = TestActorRef(
       new WorkflowWorker(
         identifier1,
-        mockOpExecutor,
-        Map[LinkIdentity, Int](),
-        new mutable.HashMap[LinkIdentity, Int](),
+        workerIndex,
+        opExecConfig,
         NetworkSenderActorRef(probe.ref),
-        Set(),
         false
       )
     )
