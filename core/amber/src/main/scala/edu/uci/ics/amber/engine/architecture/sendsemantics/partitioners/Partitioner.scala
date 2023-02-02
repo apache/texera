@@ -1,23 +1,44 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-abstract class Partitioner() {
-  val partitioning: Partitioning
+import scala.collection.mutable.ArrayBuffer
 
-  /**
-    * Keeps on adding tuples to the batch. When the batch_size is reached, the batch is returned along with the receiver
-    * to send the batch to.
-    * @param tuple ITuple to be added.
-    * @return When return condition is met, return the (to: ActorVirtualIdentity, payload:
-    */
-  def addTupleToBatch(tuple: ITuple): Option[(ActorVirtualIdentity, DataPayload)]
+trait Partitioner extends Serializable {
+  def getBucketIndex(tuple: ITuple): Int
 
-  def noMore(): Array[(ActorVirtualIdentity, DataPayload)]
+  def allReceivers: Seq[ActorVirtualIdentity]
+}
 
-  def reset(): Unit
+class NetworkOutputBuffer(
+    val to: ActorVirtualIdentity,
+    val dataOutputPort: NetworkOutputPort[DataPayload],
+    val batchSize: Int = Constants.defaultBatchSize
+) {
+
+  var buffer = new ArrayBuffer[ITuple]()
+
+  def addTuple(tuple: ITuple): Unit = {
+    buffer.append(tuple)
+    if (buffer.size >= batchSize) {
+      flush()
+    }
+  }
+
+  def noMore(): Unit = {
+    flush()
+    dataOutputPort.sendTo(to, EndOfUpstream())
+  }
+
+  def flush(): Unit = {
+    if (buffer.nonEmpty) {
+      dataOutputPort.sendTo(to, DataFrame(buffer.toArray))
+      buffer = new ArrayBuffer[ITuple]()
+    }
+  }
 
 }

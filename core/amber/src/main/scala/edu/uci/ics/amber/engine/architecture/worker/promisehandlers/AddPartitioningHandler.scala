@@ -17,7 +17,7 @@ trait AddPartitioningHandler {
 
   registerHandler { (msg: AddPartitioning, sender) =>
     stateManager.assertState(READY, RUNNING, PAUSED)
-    tupleToBatchConverter.addPartitionerWithPartitioning(msg.tag, msg.partitioning)
+    outputManager.addPartitionerWithPartitioning(msg.tag, msg.partitioning)
   }
 
 }

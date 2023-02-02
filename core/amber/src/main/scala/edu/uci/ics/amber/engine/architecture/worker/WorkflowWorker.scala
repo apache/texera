@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   NetworkInputPort,
   NetworkOutputPort,
-  TupleToBatchConverter
+  OutputManager
 }
 import edu.uci.ics.amber.engine.architecture.recovery.RecoveryQueue
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
@@ -68,7 +68,7 @@ class WorkflowWorker(
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
   lazy val dataOutputPort: NetworkOutputPort[DataPayload] =
     new NetworkOutputPort[DataPayload](this.actorId, this.outputDataPayload)
-  lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
+  lazy val outputManager: OutputManager = wire[OutputManager]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
   implicit val ec: ExecutionContext = context.dispatcher

@@ -11,20 +11,12 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   NetworkSenderActorRef,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkInputPort,
-  NetworkOutputPort,
-  TupleToBatchConverter
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkOutputPort, OutputManager}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowControlMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -63,7 +55,7 @@ class WorkerSpec
     val identifier = ActorVirtualIdentity("worker mock")
     val mockControlOutputPort: NetworkOutputPort[ControlPayload] =
       new NetworkOutputPort[ControlPayload](identifier, mockHandler)
-    val mockTupleToBatchConverter = mock[TupleToBatchConverter]
+    val mockOutputManager = mock[OutputManager]
     val identifier1 = ActorVirtualIdentity("worker-1")
     val identifier2 = ActorVirtualIdentity("worker-2")
     val mockOpExecutor = new IOperatorExecutor {
@@ -98,12 +90,12 @@ class WorkerSpec
           NetworkSenderActorRef(null),
           false
         ) {
-          override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
+          override lazy val outputManager: OutputManager = mockOutputManager
           override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
             mockControlOutputPort
         }
       )
-    (mockTupleToBatchConverter.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
     (mockHandler.apply _).expects(*, *, *, *).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
     worker ! NetworkMessage(
