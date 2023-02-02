@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.architecture.logging.{
   ProcessControlMessage,
   SenderActorChange
 }
-import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
+import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -40,7 +40,7 @@ import scala.collection.mutable
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
     asyncRPCClient: AsyncRPCClient, // to send controls
-    batchProducer: TupleToBatchConverter, // to send output tuples
+    outputManager: OutputManager, // to send output tuples
     val pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
@@ -122,12 +122,12 @@ class DataProcessor( // dependencies:
     else opExecConfig.inputToOrdinalMapping(inputLink)
   }
 
-  def getOutputLinkByPort(outputPort: Option[Int]): Option[List[LinkIdentity]] = {
-    if (outputPort.isEmpty)
-      return Option.empty
-    val outLinks =
+  def getOutputLinkByPort(outputPort: Option[Int]): List[LinkIdentity] = {
+    if (outputPort.isEmpty) {
+      opExecConfig.outputToOrdinalMapping.keySet.toList
+    } else {
       opExecConfig.outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
-    Option.apply(outLinks)
+    }
   }
 
   // dp thread stats:
@@ -222,13 +222,7 @@ class DataProcessor( // dependencies:
     } else {
       outputTupleCount += 1
       val outLinks = getOutputLinkByPort(outputPortOpt)
-      if (outLinks.isEmpty) {
-        batchProducer.passTupleToDownstream(outputTuple, Option.empty)
-      } else {
-        outLinks.get.foreach(outLink => {
-          batchProducer.passTupleToDownstream(outputTuple, Option.apply(outLink))
-        })
-      }
+      outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
     }
   }
 
@@ -264,7 +258,7 @@ class DataProcessor( // dependencies:
           asyncRPCClient.send(LinkCompleted(currentLink), CONTROLLER)
         }
         if (upstreamLinkStatus.isAllEOF) {
-          batchProducer.emitEndOfUpstream()
+          outputManager.emitEndOfUpstream()
           // Send Completed signal to worker actor.
           logger.info(s"$operator completed")
           disableDataQueue()
