@@ -62,6 +62,7 @@ public class Keys {
     public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
     public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_FILE_OF_PROJECT_PRIMARY;
     public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = UniqueKeys0.KEY_USER_PRIMARY;
+    public static final UniqueKey<UserRecord> KEY_USER_EMAIL = UniqueKeys0.KEY_USER_EMAIL;
     public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = UniqueKeys0.KEY_USER_GOOGLE_ID;
     public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = UniqueKeys0.KEY_USER_CONFIG_PRIMARY;
     public static final UniqueKey<UserFileAccessRecord> KEY_USER_FILE_ACCESS_PRIMARY = UniqueKeys0.KEY_USER_FILE_ACCESS_PRIMARY;
@@ -113,6 +114,7 @@ public class Keys {
         public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
         public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = Internal.createUniqueKey(FileOfProject.FILE_OF_PROJECT, "KEY_file_of_project_PRIMARY", FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID);
         public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
+        public static final UniqueKey<UserRecord> KEY_USER_EMAIL = Internal.createUniqueKey(User.USER, "KEY_user_email", User.USER.EMAIL);
         public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = Internal.createUniqueKey(User.USER, "KEY_user_google_id", User.USER.GOOGLE_ID);
         public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = Internal.createUniqueKey(UserConfig.USER_CONFIG, "KEY_user_config_PRIMARY", UserConfig.USER_CONFIG.UID, UserConfig.USER_CONFIG.KEY);
         public static final UniqueKey<UserFileAccessRecord> KEY_USER_FILE_ACCESS_PRIMARY = Internal.createUniqueKey(UserFileAccess.USER_FILE_ACCESS, "KEY_user_file_access_PRIMARY", UserFileAccess.USER_FILE_ACCESS.UID, UserFileAccess.USER_FILE_ACCESS.FID);

@@ -32,7 +32,7 @@ object AuthResource {
       SqlServer.createDSLContext
         .select()
         .from(USER)
-        .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
+        .where(USER.NAME.eq(name))
         .fetchOneInto(classOf[User])
     ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
   }

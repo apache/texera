@@ -36,7 +36,7 @@ object WorkflowPipelinedRegionsBuilder {
     graph
       .incomingEdgesOf(oldVertex)
       .forEach(edge => {
-        graph.addEdge(graph.getEdgeSource(edge), oldVertex)
+        graph.addEdge(graph.getEdgeSource(edge), newVertex)
       })
     graph.removeVertex(oldVertex)
   }
