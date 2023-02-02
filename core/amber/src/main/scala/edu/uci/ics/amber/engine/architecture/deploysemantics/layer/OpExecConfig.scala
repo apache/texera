@@ -305,7 +305,7 @@ case class OpExecConfig(
         val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
         val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, i)
 
-        val workflowWorker = if (this.opExecClass == classOf[PythonUDFOpExecV2]) {
+        val workflowWorker = if (classOf[PythonUDFOpExecV2].isAssignableFrom(this.opExecClass)) {
           PythonWorkflowWorker.props(workerId, i, this, parentNetworkCommunicationActorRef)
         } else {
           WorkflowWorker.props(
