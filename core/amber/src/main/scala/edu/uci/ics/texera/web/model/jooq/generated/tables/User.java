@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -1528483348;
+    private static final long serialVersionUID = 1011987398;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -120,7 +120,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY);
+        return Arrays.<Index>asList(Indexes.USER_EMAIL, Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY);
     }
 
     @Override
@@ -135,7 +135,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<UniqueKey<UserRecord>> getKeys() {
-        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_GOOGLE_ID);
+        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_EMAIL, Keys.KEY_USER_GOOGLE_ID);
     }
 
     @Override
