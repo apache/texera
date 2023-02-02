@@ -4,26 +4,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
-import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig;
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Function1;
+import scala.reflect.ClassTag;
 
-import java.util.Collections;
+import java.io.Serializable;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
-import static scala.collection.JavaConverters.mapAsScalaMap;
 
 
 public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
@@ -67,13 +65,13 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        Function1<Object, IOperatorExecutor> exec = (i) ->
+        OpExecFunc exec = (OpExecFunc & Serializable) (i) ->
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return new OneToOneOpExecConfig(operatorIdentifier(), exec, workers, mapAsScalaMap(Collections.emptyMap()));
+            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec).withNumWorkers(workers);
         } else {
-            return new ManyToOneOpExecConfig(operatorIdentifier(), exec, mapAsScalaMap(Collections.emptyMap()));
+            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec);
         }
 
     }

@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   NetworkInputPort,
   NetworkOutputPort,
-  TupleToBatchConverter
+  OutputManager
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
@@ -24,7 +24,7 @@ class WorkerAsyncRPCHandlerInitializer(
     val dataInputPort: NetworkInputPort[DataPayload],
     val controlOutputPort: NetworkOutputPort[ControlPayload],
     val dataOutputPort: NetworkOutputPort[DataPayload],
-    val tupleToBatchConverter: TupleToBatchConverter,
+    val outputManager: OutputManager,
     val batchToTupleConverter: BatchToTupleConverter,
     val upstreamLinkStatus: UpstreamLinkStatus,
     val pauseManager: PauseManager,
@@ -56,6 +56,7 @@ class WorkerAsyncRPCHandlerInitializer(
     with BackpressureHandler
     with SaveSkewedWorkerInfoHandler
     with AcceptMutableStateHandler
-    with SchedulerTimeSlotEventHandler {
+    with SchedulerTimeSlotEventHandler
+    with FlushNetworkBufferHandler {
   var lastReportTime = 0L
 }
