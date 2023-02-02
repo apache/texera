@@ -43,7 +43,7 @@ export class UserService {
   }
 
   public isAdmin(): boolean {
-    return this.currentUser?.role == Role.ADMIN;
+    return this.currentUser?.role === Role.ADMIN;
   }
 
   public userChanged(): Observable<User | undefined> {
