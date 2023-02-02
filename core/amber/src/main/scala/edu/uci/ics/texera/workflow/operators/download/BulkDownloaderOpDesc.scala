@@ -19,7 +19,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 
-class BulkDownloadOpDesc extends OperatorDescriptor {
+class BulkDownloaderOpDesc extends OperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL Attribute")
@@ -41,8 +41,8 @@ class BulkDownloadOpDesc extends OperatorDescriptor {
     new OneToOneOpExecConfig(
       operatorIdentifier,
       _ =>
-        new BulkDownloadOpExec(
-          context.userId.get,
+        new BulkDownloaderOpExec(
+          context,
           urlAttribute,
           resultAttribute,
           operatorSchemaInfo

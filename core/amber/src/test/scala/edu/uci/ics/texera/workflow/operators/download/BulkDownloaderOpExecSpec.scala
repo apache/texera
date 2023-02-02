@@ -1,16 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.download
 
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import org.jooq.types.UInteger
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-class BulkDownloadOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class BulkDownloaderOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
     .newBuilder()
     .add(new Attribute("url", AttributeType.STRING))
@@ -34,10 +30,10 @@ class BulkDownloadOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("url", AttributeType.STRING), "https://www.google.com")
       .build()
 
-  var opExec: BulkDownloadOpExec = _
+  var opExec: BulkDownloaderOpExec = _
   before {
-    opExec = new BulkDownloadOpExec(
-      UInteger.valueOf(1),
+    opExec = new BulkDownloaderOpExec(
+      new WorkflowContext("job1",Some(UInteger.valueOf(1)), 1, 1),
       "url",
       "url result",
       OperatorSchemaInfo(Array(tupleSchema), Array(resultSchema))

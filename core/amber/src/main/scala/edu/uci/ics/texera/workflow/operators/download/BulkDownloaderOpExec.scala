@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
@@ -21,8 +22,8 @@ import scala.concurrent.duration._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-class BulkDownloadOpExec(
-    val uid: UInteger,
+class BulkDownloaderOpExec(
+    val workflowContext: WorkflowContext,
     val urlAttribute: String,
     val resultAttribute: String,
     val operatorSchemaInfo: OperatorSchemaInfo
@@ -92,14 +93,15 @@ class BulkDownloadOpExec(
     try {
       Await.result(
         Future {
-          val input = new URL(url).openStream()
+          val urlObj = new URL(url)
+          val input = urlObj.openStream()
           if (input.available() > 0) {
             UserFileResource
               .saveUserFileSafe(
-                uid,
-                s"${UUID.randomUUID()}.download",
+                workflowContext.userId.get,
+                s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost}.download",
                 input,
-                "downloaded by execution"
+                s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
               )
           } else {
             throw new RuntimeException(s"content is not available for $url")
