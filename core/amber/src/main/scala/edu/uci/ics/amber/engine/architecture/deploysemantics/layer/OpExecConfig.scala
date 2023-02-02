@@ -124,6 +124,9 @@ case class OpExecConfig(
   lazy val opExecClass: Class[_] =
     initIOperatorExecutor((0, this)).getClass
 
+  def isPythonOperator(): Boolean =
+    classOf[PythonUDFOpExecV2].isAssignableFrom(opExecClass)
+
   /*
    * Variables related to runtime information
    */
@@ -305,7 +308,7 @@ case class OpExecConfig(
         val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
         val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, i)
 
-        val workflowWorker = if (classOf[PythonUDFOpExecV2].isAssignableFrom(this.opExecClass)) {
+        val workflowWorker = if (this.isPythonOperator()) {
           PythonWorkflowWorker.props(workerId, i, this, parentNetworkCommunicationActorRef)
         } else {
           WorkflowWorker.props(
