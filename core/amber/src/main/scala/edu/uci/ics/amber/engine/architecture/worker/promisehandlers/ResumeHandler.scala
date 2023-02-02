@@ -20,6 +20,7 @@ trait ResumeHandler {
         dataProcessor.enableDataQueue()
       }
       stateManager.transitTo(RUNNING)
+      outputManager.adaptiveBatchingMonitor.enableAdaptiveBatching(actorContext)
     }
     stateManager.getCurrentState
   }
