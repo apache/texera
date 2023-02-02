@@ -1,4 +1,10 @@
-import { OperatorPredicate, CommentBox, Comment, Point, PortDescription } from "../../../types/workflow-common.interface";
+import {
+  OperatorPredicate,
+  CommentBox,
+  Comment,
+  Point,
+  PortDescription,
+} from "../../../types/workflow-common.interface";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
@@ -114,23 +120,23 @@ export class WorkflowUtilService {
 
     for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
       const portID = "input-" + i.toString();
-      const portInfo = operatorSchema.additionalMetadata.inputPorts[i]
+      const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
       inputPorts.push({
-        portID, 
-        displayName: portInfo.displayName ?? "", 
-        allowMultiInputs: portInfo.allowMultiInputs ?? false, 
-        isDynamicPort: false
+        portID,
+        displayName: portInfo.displayName ?? "",
+        allowMultiInputs: portInfo.allowMultiInputs ?? false,
+        isDynamicPort: false,
       });
     }
 
     for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
       const portID = "output-" + i.toString();
-      const portInfo = operatorSchema.additionalMetadata.outputPorts[i]
+      const portInfo = operatorSchema.additionalMetadata.outputPorts[i];
       outputPorts.push({
-        portID, 
-        displayName: portInfo.displayName ?? "", 
-        allowMultiInputs: false, 
-        isDynamicPort: false
+        portID,
+        displayName: portInfo.displayName ?? "",
+        allowMultiInputs: false,
+        isDynamicPort: false,
       });
     }
 
