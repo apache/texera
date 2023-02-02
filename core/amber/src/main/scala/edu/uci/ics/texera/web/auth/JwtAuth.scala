@@ -39,7 +39,7 @@ object JwtAuth {
   def jwtClaims(user: User, expireInDays: Int): JwtClaims = {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
-    claims.setClaim("uid", user.getUid)
+    claims.setClaim("userId", user.getUid)
     claims.setClaim("googleId", user.getGoogleId)
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
