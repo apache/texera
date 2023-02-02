@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -55,7 +55,7 @@ class BarChartOpDesc extends VisualizationOperator {
 
   def resultAttributeNames: List[String] = if (noDataCol) List("count") else dataColumns
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo) = {
     if (nameColumn == null || nameColumn == "") {
       throw new RuntimeException("bar chart: name column is null or empty")
     }
@@ -98,10 +98,10 @@ class BarChartOpDesc extends VisualizationOperator {
           },
           groupByFunc()
         )
-    new AggregatedVizOpExecConfig(
+    AggregatedVizOpExecConfig.opExecPhysicalPlan(
       operatorIdentifier,
       aggregation,
-      new BarChartOpExec(this, operatorSchemaInfo),
+      _ => new BarChartOpExec(this, operatorSchemaInfo),
       operatorSchemaInfo
     )
   }
@@ -166,5 +166,9 @@ class BarChartOpDesc extends VisualizationOperator {
       }
       groupBySchema
     }
+  }
+
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    throw new UnsupportedOperationException("multi layer operators use operatorExecutorMultiLayer")
   }
 }

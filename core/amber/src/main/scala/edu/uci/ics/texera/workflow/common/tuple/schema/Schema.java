@@ -45,6 +45,10 @@ public class Schema implements Serializable {
         return JavaConverters.asScalaBuffer(attributes).toList();
     }
 
+    public scala.collection.immutable.List<String> getAttributeNamesScala() {
+        return JavaConverters.asScalaBuffer(getAttributeNames()).toList();
+    }
+
     @JsonIgnore
     public List<String> getAttributeNames() {
         return attributes.stream().map(attr -> attr.getName()).collect(Collectors.toList());

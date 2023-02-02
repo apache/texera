@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   UNINITIALIZED
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LinkIdentity,
@@ -20,18 +19,16 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
+  LogicalPlan,
   OperatorLink,
   OperatorPort,
-  WorkflowCompiler,
-  LogicalPlan
+  WorkflowCompiler
 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
 
 import scala.collection.immutable.ListMap
-import scala.collection.mutable
 
 class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
 
@@ -43,7 +40,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     context.jobId = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      LogicalPlan(operators, links, List[BreakpointInfo]()),
+      LogicalPlan(operators, links, List()),
       context
     )
     texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"), new OpResultStorage())
@@ -69,13 +66,13 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     )
     val scheduler =
       new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
-    workflow
-      .getOperator(headerlessCsvOpDesc.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(
+        new OperatorIdentity(workflow.workflowId.id, headerlessCsvOpDesc.operatorID)
+      )
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"Scan worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"Scan worker $i")) = l
           ActorVirtualIdentity(s"Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Scan worker $i"),
             UNINITIALIZED,
@@ -84,13 +81,13 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
         }: _*)
       })
-    workflow
-      .getOperator(keywordOpDesc.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(
+        new OperatorIdentity(workflow.workflowId.id, keywordOpDesc.operatorID)
+      )
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"Keyword worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"Keyword worker $i")) = l
           ActorVirtualIdentity(s"Keyword worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Keyword worker $i"),
             UNINITIALIZED,
@@ -99,13 +96,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
         }: _*)
       })
-    workflow
-      .getOperator(sink.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, sink.operatorID))
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"Sink worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"Sink worker $i")) = l
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
             UNINITIALIZED,
@@ -115,10 +110,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         }: _*)
       })
     Set(headerlessCsvOpDesc.operatorID, keywordOpDesc.operatorID, sink.operatorID).foreach(opID => {
-      workflow
-        .getOperator(opID)
-        .topology
-        .layers
+      workflow.physicalPlan
+        .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, opID))
         .foreach(l => {
           l.workers.keys.foreach(wid => {
             l.workers(wid).state = COMPLETED
@@ -175,13 +168,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     val scheduler =
       new WorkflowScheduler(Array(), null, null, null, logger, workflow, ControllerConfig.default)
 
-    workflow
-      .getOperator(buildCsv.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, buildCsv.operatorID))
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"Build Scan worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"Build Scan worker $i")) = l
           ActorVirtualIdentity(s"Build Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Build Scan worker $i"),
             UNINITIALIZED,
@@ -190,13 +181,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
         }: _*)
       })
-    workflow
-      .getOperator(probeCsv.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, probeCsv.operatorID))
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"Probe Scan worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"Probe Scan worker $i")) = l
           ActorVirtualIdentity(s"Probe Scan worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Probe Scan worker $i"),
             UNINITIALIZED,
@@ -205,13 +194,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
         }: _*)
       })
-    workflow
-      .getOperator(hashJoin1.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, hashJoin1.operatorID))
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"HashJoin1 worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"HashJoin1 worker $i")) = l
           ActorVirtualIdentity(s"HashJoin1 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin1 worker $i"),
             UNINITIALIZED,
@@ -220,13 +207,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
         }: _*)
       })
-    workflow
-      .getOperator(hashJoin2.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, hashJoin2.operatorID))
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"HashJoin2 worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"HashJoin2 worker $i")) = l
           ActorVirtualIdentity(s"HashJoin2 worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"HashJoin2 worker $i"),
             UNINITIALIZED,
@@ -235,13 +220,11 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
         }: _*)
       })
-    workflow
-      .getOperator(sink.operatorID)
-      .topology
-      .layers
+    workflow.physicalPlan
+      .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, sink.operatorID))
       .foreach(l => {
         l.workers = ListMap((0 until 1).map { i =>
-          workflow.workerToLayer(ActorVirtualIdentity(s"Sink worker $i")) = l
+          workflow.workerToOpExecConfig(ActorVirtualIdentity(s"Sink worker $i")) = l
           ActorVirtualIdentity(s"Sink worker $i") -> WorkerInfo(
             ActorVirtualIdentity(s"Sink worker $i"),
             UNINITIALIZED,
@@ -253,10 +236,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
 
     scheduler.schedulingPolicy.addToRunningRegions(scheduler.schedulingPolicy.startWorkflow())
     Set(buildCsv.operatorID).foreach(opID => {
-      workflow
-        .getOperator(opID)
-        .topology
-        .layers
+      workflow.physicalPlan
+        .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, opID))
         .foreach(l => {
           l.workers.keys.foreach(wid => {
             l.workers(wid).state = COMPLETED
@@ -270,15 +251,35 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
 
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
-        workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
-        workflow.getOperator(hashJoin1.operatorID).topology.layers.head.id
+        workflow.physicalPlan
+          .layersOfLogicalOperator(
+            new OperatorIdentity(workflow.workflowId.id, buildCsv.operatorID)
+          )
+          .last
+          .id,
+        workflow.physicalPlan
+          .layersOfLogicalOperator(
+            new OperatorIdentity(workflow.workflowId.id, hashJoin1.operatorID)
+          )
+          .head
+          .id
       )
     )
     assert(nextRegions.isEmpty)
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       LinkIdentity(
-        workflow.getOperator(buildCsv.operatorID).topology.layers.last.id,
-        workflow.getOperator(hashJoin2.operatorID).topology.layers.head.id
+        workflow.physicalPlan
+          .layersOfLogicalOperator(
+            new OperatorIdentity(workflow.workflowId.id, buildCsv.operatorID)
+          )
+          .last
+          .id,
+        workflow.physicalPlan
+          .layersOfLogicalOperator(
+            new OperatorIdentity(workflow.workflowId.id, hashJoin2.operatorID)
+          )
+          .head
+          .id
       )
     )
     assert(nextRegions.nonEmpty)
@@ -286,10 +287,8 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     scheduler.schedulingPolicy.addToRunningRegions(nextRegions)
     Set(probeCsv.operatorID, hashJoin1.operatorID, hashJoin2.operatorID, sink.operatorID).foreach(
       opID => {
-        workflow
-          .getOperator(opID)
-          .topology
-          .layers
+        workflow.physicalPlan
+          .layersOfLogicalOperator(new OperatorIdentity(workflow.workflowId.id, opID))
           .foreach(l => {
             l.workers.keys.foreach(wid => {
               l.workers(wid).state = COMPLETED

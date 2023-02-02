@@ -1,27 +1,21 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler._
 import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
   Workflow
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.{
-  ControllerInitiateSkewDetection,
-  getPreviousWorkerLayer,
-  getSkewedAndFreeWorkersEligibleForPauseMitigationPhase,
-  getSkewedAndFreeWorkersEligibleForSecondPhase,
-  getSkewedAndHelperWorkersEligibleForFirstPhase,
-  predictedWorkload
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerWorkloadInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerWorkloadInfo
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseSkewMitigationHandler.PauseSkewMitigation
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateOrNotifyHelperHandler.SendImmutableStateOrNotifyHelper
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SharePartitionHandler.SharePartition
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExecConfig
-import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
+import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionOpExec
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -237,25 +231,19 @@ object SkewDetectionHandler {
     * Get the worker layer from the previous operator where the partitioning logic will be changed
     * by Reshape.
     */
-  def getPreviousWorkerLayer(opId: OperatorIdentity, workflow: Workflow): WorkerLayer = {
-    workflow.getOperator(opId) match {
-      case value: HashJoinOpExecConfig[_] =>
-        workflow
-          .getUpStreamConnectedWorkerLayers(opId)
-          .values
-          .find(layer =>
-            layer.id != value
-              .getBuildTableLinkId()
-              .from
-          )
-          .get
-      case _ =>
-        // Should be sort operator
-        workflow
-          .getUpStreamConnectedWorkerLayers(opId)
-          .values
-          .toList
-          .head
+  def getPreviousWorkerLayer(opId: LayerIdentity, workflow: Workflow): OpExecConfig = {
+    val upstreamLayers = workflow.getUpStreamConnectedWorkerLayers(opId).values.toList
+
+    if (workflow.getOperator(opId).opExecClass == classOf[HashJoinOpExec[_]]) {
+      upstreamLayers
+        .find(layer => {
+          val buildTableLinkId = layer.inputToOrdinalMapping.find(input => input._2 == 0).get._1
+          layer.id != buildTableLinkId.from
+        })
+        .get
+    } else {
+      // Should be sort operator
+      upstreamLayers(0)
     }
   }
 
@@ -283,7 +271,7 @@ trait SkewDetectionHandler {
     * `skewedAndHelperWorkersList`.
     */
   private def implementFirstPhasePartitioning[T](
-      prevWorkerLayer: WorkerLayer,
+      prevWorkerLayer: OpExecConfig,
       skewedWorker: ActorVirtualIdentity,
       helperWorker: ActorVirtualIdentity
   ): Future[Seq[Boolean]] = {
@@ -307,7 +295,7 @@ trait SkewDetectionHandler {
   }
 
   private def implementSecondPhasePartitioning[T](
-      prevWorkerLayer: WorkerLayer,
+      prevWorkerLayer: OpExecConfig,
       skewedWorker: ActorVirtualIdentity,
       helperWorker: ActorVirtualIdentity
   ): Future[Seq[Boolean]] = {
@@ -352,7 +340,7 @@ trait SkewDetectionHandler {
   }
 
   private def implementPauseMitigation[T](
-      prevWorkerLayer: WorkerLayer,
+      prevWorkerLayer: OpExecConfig,
       skewedWorker: ActorVirtualIdentity,
       helperWorker: ActorVirtualIdentity
   ): Future[Seq[Boolean]] = {
@@ -374,8 +362,8 @@ trait SkewDetectionHandler {
 
       workflow.getAllOperators.foreach(opConfig => {
         if (
-          opConfig.isInstanceOf[HashJoinOpExecConfig[_]] || opConfig
-            .isInstanceOf[SortPartitionsOpExecConfig]
+          opConfig.opExecClass == classOf[HashJoinOpExec[_]] ||
+          opConfig.opExecClass == classOf[SortPartitionOpExec]
         ) {
           // Skew handling is only for hash-join operator for now.
           // 1: Find the skewed and helper worker that need first phase.

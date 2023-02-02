@@ -13,12 +13,8 @@ import scala.util.Random
 
 class SplitOpExec(
     val actor: Int,
-    val opDesc: SplitOpDesc,
-    val outputMapping: mutable.HashMap[LinkIdentity, (Int, String)]
+    val opDesc: SplitOpDesc
 ) extends OperatorExecutor {
-
-  val outputLinkMapping: Map[String, LinkIdentity] =
-    this.outputMapping.toMap.mapValues(v => v._2).map(_.swap);
 
   val random = new Random(opDesc.seeds(actor))
 

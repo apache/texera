@@ -5,9 +5,8 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.logging.{
   LogManager,
   ProcessControlMessage,
@@ -52,10 +51,7 @@ class DataProcessor( // dependencies:
     val recoveryManager: LocalRecoveryManager,
     val recoveryQueue: RecoveryQueue,
     val actorId: ActorVirtualIdentity,
-    val inputToOrdinalMapping: Map[LinkIdentity, Int],
-    //  use two different types for the wire library to do dependency injection
-    // temporary workaround, will be refactored soon
-    val outputToOrdinalMapping: mutable.Map[LinkIdentity, Int]
+    val opExecConfig: OpExecConfig
 ) extends WorkerInternalQueue
     with AmberLogging {
   // initialize dp thread upon construction
@@ -122,14 +118,15 @@ class DataProcessor( // dependencies:
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
     val inputLink = getInputLink(identifier)
     if (inputLink == null) 0
-    else if (!inputToOrdinalMapping.contains(inputLink)) 0
-    else inputToOrdinalMapping(inputLink)
+    else if (!opExecConfig.inputToOrdinalMapping.contains(inputLink)) 0
+    else opExecConfig.inputToOrdinalMapping(inputLink)
   }
 
   def getOutputLinkByPort(outputPort: Option[Int]): Option[List[LinkIdentity]] = {
     if (outputPort.isEmpty)
       return Option.empty
-    val outLinks = outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
+    val outLinks =
+      opExecConfig.outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
     Option.apply(outLinks)
   }
 

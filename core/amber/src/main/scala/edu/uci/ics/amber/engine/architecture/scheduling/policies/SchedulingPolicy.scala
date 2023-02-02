@@ -36,10 +36,10 @@ object SchedulingPolicy {
 abstract class SchedulingPolicy(workflow: Workflow) {
 
   protected val regionsScheduleOrder: mutable.Buffer[PipelinedRegion] =
-    new TopologicalOrderIterator(workflow.getPipelinedRegionsDAG()).asScala.toBuffer
+    new TopologicalOrderIterator(workflow.physicalPlan.pipelinedRegionsDAG).asScala.toBuffer
 
   // regions sent by the policy to be scheduled at least once
-  protected val sentToBeScheduledRegions = new mutable.HashSet[PipelinedRegion]()
+  protected val scheduledRegions = new mutable.HashSet[PipelinedRegion]()
   protected val completedRegions = new mutable.HashSet[PipelinedRegion]()
   // regions currently running
   protected val runningRegions = new mutable.HashSet[PipelinedRegion]()
@@ -48,7 +48,7 @@ abstract class SchedulingPolicy(workflow: Workflow) {
 
   protected def isRegionCompleted(region: PipelinedRegion): Boolean = {
     workflow
-      .getBlockingOutlinksOfRegion(region)
+      .getBlockingOutLinksOfRegion(region)
       .subsetOf(completedLinksOfRegion.getOrElse(region, new mutable.HashSet[LinkIdentity]())) &&
     region
       .getOperators()
@@ -70,9 +70,8 @@ abstract class SchedulingPolicy(workflow: Workflow) {
   /**
     * A link's region is the region of the source operator of the link.
     */
-  protected def getRegion(linkId: LinkIdentity): Option[PipelinedRegion] = {
-    val upstreamOpId = OperatorIdentity(linkId.from.workflow, linkId.from.operator)
-    runningRegions.find(r => r.getOperators().contains(upstreamOpId))
+  protected def getRegion(link: LinkIdentity): Option[PipelinedRegion] = {
+    runningRegions.find(r => r.getOperators().contains(link.from))
   }
 
   // gets the ready regions that is not currently running
@@ -100,16 +99,16 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     getNextSchedulingWork()
   }
 
-  def onLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
-    val region = getRegion(linkId)
-    if (region == null) {
+  def onLinkCompletion(link: LinkIdentity): Set[PipelinedRegion] = {
+    val region = getRegion(link)
+    if (region.isEmpty) {
       throw new WorkflowRuntimeException(
-        s"WorkflowScheduler: Link ${linkId.toString()} completed from a non-running region"
+        s"WorkflowScheduler: Link ${link.toString} completed from a non-running region"
       )
     } else {
       val completedLinks =
         completedLinksOfRegion.getOrElseUpdate(region.get, new mutable.HashSet[LinkIdentity]())
-      completedLinks.add(linkId)
+      completedLinks.add(link)
       completedLinksOfRegion(region.get) = completedLinks
       checkRegionCompleted(region.get)
     }

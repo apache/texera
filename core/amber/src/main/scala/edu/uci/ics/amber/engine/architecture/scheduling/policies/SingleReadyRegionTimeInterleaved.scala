@@ -69,12 +69,13 @@ class SingleReadyRegionTimeInterleaved(
     breakable {
       while (regionsScheduleOrder.nonEmpty) {
         val nextRegion = regionsScheduleOrder.head
-        val upstreamRegions = asScalaSet(workflow.getPipelinedRegionsDAG().getAncestors(nextRegion))
+        val upstreamRegions =
+          asScalaSet(workflow.physicalPlan.pipelinedRegionsDAG.getAncestors(nextRegion))
         if (upstreamRegions.forall(completedRegions.contains)) {
-          assert(!sentToBeScheduledRegions.contains(nextRegion))
+          assert(!scheduledRegions.contains(nextRegion))
           currentlyExecutingRegions.add(nextRegion)
           regionsScheduleOrder.remove(0)
-          sentToBeScheduledRegions.add(nextRegion)
+          scheduledRegions.add(nextRegion)
         } else {
           break
         }

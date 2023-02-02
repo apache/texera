@@ -62,13 +62,7 @@ case class LogicalPlan(
       .filter(op => operatorMap(op).isInstanceOf[SinkOpDesc])
       .toList
 
-  lazy val inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
-    val (schemaMap, errorList) = propagateWorkflowSchema()
-    if (errorList.nonEmpty) {
-      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
-    }
-    schemaMap
-  }
+  lazy val (inputSchemaMap, errorList) = propagateWorkflowSchema()
 
   lazy val outputSchemaMap: Map[OperatorIdentity, List[Schema]] =
     operatorMap.values
@@ -183,8 +177,75 @@ case class LogicalPlan(
       context: WorkflowContext,
       opResultStorage: OpResultStorage
   ): PhysicalPlan = {
-    // to be implemented after physical plan implementation are all added
-    throw new NotImplementedError("to be implemented in later refactoring PRs")
+
+    if (errorList.nonEmpty) {
+      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
+    }
+
+    // assign storage to texera-managed sinks before generating exec config
+    operators.foreach {
+      case o @ (sink: ProgressiveSinkOpDesc) =>
+        sink.getCachedUpstreamId match {
+          case Some(upstreamId) =>
+            sink.setStorage(
+              opResultStorage.create(upstreamId, outputSchemaMap(o.operatorIdentifier).head)
+            )
+          case None =>
+            sink.setStorage(
+              opResultStorage.create(o.operatorID, outputSchemaMap(o.operatorIdentifier).head)
+            )
+        }
+      case _ =>
+    }
+
+    var physicalPlan = PhysicalPlan(List(), List())
+
+    operators.foreach(o => {
+      val inputSchemas: Array[Schema] =
+        if (!o.isInstanceOf[SourceOperatorDescriptor])
+          inputSchemaMap(o.operatorIdentifier).map(s => s.get).toArray
+        else Array()
+      val outputSchemas = outputSchemaMap(o.operatorIdentifier).toArray
+
+      var ops =
+        o.operatorExecutorMultiLayer(OperatorSchemaInfo(inputSchemas, outputSchemas))
+
+      // make sure the input/output ports of the physical operators are set properly
+      val firstOp = ops.layersOfLogicalOperator(o.operatorIdentifier).head
+      ops = ops.setOperator(firstOp.copy(inputPorts = o.operatorInfo.inputPorts))
+      val lastOp = ops.layersOfLogicalOperator(o.operatorIdentifier).last
+      ops = ops.setOperator(lastOp.copy(outputPorts = o.operatorInfo.outputPorts))
+
+      assert(
+        ops.layersOfLogicalOperator(o.operatorIdentifier).head.inputPorts ==
+          o.operatorInfo.inputPorts
+      )
+      assert(
+        ops.layersOfLogicalOperator(o.operatorIdentifier).last.outputPorts ==
+          o.operatorInfo.outputPorts
+      )
+
+      // add all physical operators to physical DAG
+      ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
+      // connect intra-operator links
+      ops.links.foreach(l => physicalPlan = physicalPlan.addEdge(l.from, l.to))
+
+    })
+
+    // connect inter-operator links
+    links.foreach(link => {
+      val fromLogicalOp = operatorMap(link.origin.operatorID).operatorIdentifier
+      val fromLayer = physicalPlan.layersOfLogicalOperator(fromLogicalOp).last.id
+      val fromPort = link.origin.portOrdinal
+
+      val toLogicalOp = operatorMap(link.destination.operatorID).operatorIdentifier
+      val toLayer = physicalPlan.layersOfLogicalOperator(toLogicalOp).head.id
+      val toPort = link.destination.portOrdinal
+
+      physicalPlan = physicalPlan.addEdge(fromLayer, toLayer, fromPort, toPort)
+    })
+
+    physicalPlan
   }
 
 }
