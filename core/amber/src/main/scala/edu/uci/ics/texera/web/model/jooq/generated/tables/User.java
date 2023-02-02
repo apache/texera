@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 856159309;
+    private static final long serialVersionUID = 1723998860;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -58,7 +58,7 @@ public class User extends TableImpl<UserRecord> {
     /**
      * The column <code>texera_db.user.name</code>.
      */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32), this, "");
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user.email</code>.
@@ -120,7 +120,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY);
+        return Arrays.<Index>asList(Indexes.USER_EMAIL, Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY);
     }
 
     @Override
@@ -135,7 +135,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<UniqueKey<UserRecord>> getKeys() {
-        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_GOOGLE_ID);
+        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_EMAIL, Keys.KEY_USER_GOOGLE_ID);
     }
 
     @Override

@@ -36,6 +36,7 @@ public class Indexes {
     public static final Index FILE_UID = Indexes0.FILE_UID;
     public static final Index FILE_OF_PROJECT_PID = Indexes0.FILE_OF_PROJECT_PID;
     public static final Index FILE_OF_PROJECT_PRIMARY = Indexes0.FILE_OF_PROJECT_PRIMARY;
+    public static final Index USER_EMAIL = Indexes0.USER_EMAIL;
     public static final Index USER_GOOGLE_ID = Indexes0.USER_GOOGLE_ID;
     public static final Index USER_PRIMARY = Indexes0.USER_PRIMARY;
     public static final Index USER_CONFIG_PRIMARY = Indexes0.USER_CONFIG_PRIMARY;
@@ -65,6 +66,7 @@ public class Indexes {
         public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[] { File.FILE.UID, File.FILE.NAME }, true);
         public static Index FILE_OF_PROJECT_PID = Internal.createIndex("pid", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.PID }, false);
         public static Index FILE_OF_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID }, true);
+        public static Index USER_EMAIL = Internal.createIndex("email", User.USER, new OrderField[] { User.USER.EMAIL }, true);
         public static Index USER_GOOGLE_ID = Internal.createIndex("google_id", User.USER, new OrderField[] { User.USER.GOOGLE_ID }, true);
         public static Index USER_PRIMARY = Internal.createIndex("PRIMARY", User.USER, new OrderField[] { User.USER.UID }, true);
         public static Index USER_CONFIG_PRIMARY = Internal.createIndex("PRIMARY", UserConfig.USER_CONFIG, new OrderField[] { UserConfig.USER_CONFIG.UID, UserConfig.USER_CONFIG.KEY }, true);
