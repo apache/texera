@@ -38,7 +38,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   }
 
   isAdmin(): boolean {
-    return this.user?.role == Role.ADMIN;
+    return this.user?.role === Role.ADMIN;
   }
 
   login(username: string, password: string): Observable<void> {
