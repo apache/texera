@@ -69,7 +69,7 @@ object UserFileResource {
     val fid = context
       .select(FILE.FID)
       .from(FILE)
-      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileNameStored)))
+      .where(FILE.OWNER_UID.eq(uid).and(FILE.NAME.eq(fileNameStored)))
       .fetchOneInto(FILE)
       .getFid
     UserFileAccessResource.grantAccess(uid, fid, "write")
@@ -181,7 +181,7 @@ class UserFileResource {
       .join(FILE)
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
       .join(USER)
-      .on(FILE.UID.eq(USER.UID))
+      .on(FILE.OWNER_UID.eq(USER.UID))
       .where(USER_FILE_ACCESS.UID.eq(user.getUid))
       .fetch()
 
@@ -285,7 +285,7 @@ class UserFileResource {
     context.fetchExists(
       context
         .selectFrom(FILE)
-        .where(FILE.UID.equal(userID).and(FILE.NAME.equal(fileName)))
+        .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
     )
 
   @GET
@@ -357,7 +357,7 @@ class UserFileResource {
     if (hasWriteAccess == false) {
       throw new ForbiddenException("No sufficient access privilege.")
     }
-    if (validationRes.getLeft == false) {
+    if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
     } else {
       val userFile = fileDao.fetchOneByFid(fid)
