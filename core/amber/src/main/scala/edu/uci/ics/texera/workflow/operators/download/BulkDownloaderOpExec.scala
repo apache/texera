@@ -99,7 +99,7 @@ class BulkDownloaderOpExec(
             UserFileResource
               .saveUserFileSafe(
                 workflowContext.userId.get,
-                s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost.replace(".","")}.download",
+                s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost.replace(".", "")}.download",
                 input,
                 s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
               )
