@@ -1,169 +1,30 @@
-@import "@angular/material/prebuilt-themes/deeppurple-amber.css";
+$dashboard-navigation-height: 71px;
 
-$bgColorBar: #0e5df0;
-$bthColor: #f5f5f5;
-
-@mixin htmlSet {
-  height: 100%;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-html {
-  @include htmlSet;
-  margin: 0;
-}
-
-body {
-  @include htmlSet;
-  -webkit-box-sizing: border-box;
-  -moz-box-sizing: border-box;
-  overflow: hidden;
+.navbar {
+  height: 70px;
 }
 
 button {
-  border-radius: 5px;
   border: none;
 }
 
-/**
-* this css forces the texera user-interface
-* to cover the entire browser window
-**/
-.grid-container {
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
+.logo {
+  width: 70px;
 }
 
-/**
-* this css is used for creating a 2*2 grid area for the 3 main
-* sub-components. The percentages define the size of each
-* column and row.
-*              ******************
-*              *                *
-*              ******************
-*              *   *            *
-*              *   *            *
-*              *   *            *
-*              *   *            *
-*              ******************
-**/
-$dashboard-navigation-height: 56px;
-
-.dashboard-grid-container {
-  display: grid;
-  grid-template-columns: 14% 86%;
-  grid-template-rows:
-    $dashboard-navigation-height
-    calc((100% - #{$dashboard-navigation-height}));
+.layout {
+  height: calc(100vh - 70px);
 }
 
-/**
-* the grid of the top bar which contains the logo and user account
-* icon. The position of the top bar is fix. no adaptation
-**/
-.dashboard-top-bar {
-  grid-column-start: 1;
-  grid-column-end: 3;
-  grid-row-start: 1;
-  grid-row-end: 2;
+.ant-layout-content {
+  background-color: white;
+  border: 1px solid #f0f0f0;
 }
 
-/**
-* the grid of the feature bar which contains the button directing to
-* various feature. The height of the top bar is flex, filling the browser.
-* Also set the right border color.
-**/
-.dashboard-feature-bar {
-  grid-column-start: 1;
-  grid-column-end: 2;
-  grid-row-start: 2;
-  grid-row-end: 3;
-  overflow: auto;
+.ant-menu-item {
+  height: 80px;
 }
 
-/**
-* the grid of the feature box which presents the feature various
-* feature. The height of the top bar is flex, filling the browser
-**/
-.dashboard-feature-box {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 2;
-  grid-row-end: 3;
-  overflow: auto;
-}
-
-/**
-* the classes below are used to stylize the scroll bar inside different
-* windows. The color is set to gray. UserDictionary and SavedProject
-* utilized scroll class.
-**/
-.scroll {
-  position: absolute;
-  height: 73%;
-  width: 97.1%;
-  overflow-y: scroll;
-
-  &::-webkit-scrollbar-track {
-    border-radius: 10px;
-  }
-
-  &::-webkit-scrollbar {
-    width: 9px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 10px;
-  }
-}
-
-.scroll:hover {
-  position: absolute;
-  height: 73%;
-  width: 97.1%;
-  overflow-y: scroll;
-
-  &::-webkit-scrollbar-track {
-    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
-    background-color: $bthColor;
-  }
-
-  &::-webkit-scrollbar {
-    width: 9px;
-    background-color: $bthColor;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 10px;
-    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-    background-color: rgb(156, 155, 155);
-  }
-}
-
-.scrolli {
-  position: absolute;
-  overflow-y: scroll;
-}
-
-/**
-* for all the add button in component, default background-color should be green
-**/
-.add-button {
-  background-color: rgba(35, 241, 35, 0.411);
-}
-
-.warning-note {
-  color: red;
-  font-family: Roboto, Arial, sans-serif;
-  padding-top: 15px;
-}
-
-/////////////////////////////////////
-router-outlet {
-  height: 515px;
-  text-align: center;
+.ant-menu-item span {
+  font-size: 20px;
 }

@@ -53,14 +53,11 @@ import { UserFileUploadService } from "./dashboard/service/user-file/user-file-u
 import { UserFileService } from "./dashboard/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
-import { FeatureBarComponent } from "./dashboard/component/feature-bar/feature-bar.component";
-import { FeatureContainerComponent } from "./dashboard/component/feature-container/feature-container.component";
 import { NgbdModalAddWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component";
 import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
-import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
-import { UserIconComponent } from "./dashboard/component/top-bar/user-icon/user-icon.component";
+import { UserIconComponent } from "./dashboard/component/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
@@ -136,12 +133,9 @@ registerLocaleData(en);
     ResultPanelComponent,
     OperatorLabelComponent,
     DashboardComponent,
-    TopBarComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
-    FeatureBarComponent,
-    FeatureContainerComponent,
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
     UserFileSectionComponent,

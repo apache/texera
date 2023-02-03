@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { UserIconComponent } from "./user-icon.component";
-import { UserService } from "../../../../common/service/user/user.service";
+import { UserService } from "../../../common/service/user/user.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { StubUserService } from "../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 
 describe("UserIconComponent", () => {
