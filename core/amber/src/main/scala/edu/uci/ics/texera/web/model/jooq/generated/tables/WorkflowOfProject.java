@@ -33,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
 
-    private static final long serialVersionUID = 1260758827;
+    private static final long serialVersionUID = 644137750;
 
     /**
      * The reference instance of <code>texera_db.workflow_of_project</code>
@@ -120,8 +120,8 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
         return new Workflow(this, Keys.WORKFLOW_OF_PROJECT_IBFK_1);
     }
 
-    public UserProject userProject() {
-        return new UserProject(this, Keys.WORKFLOW_OF_PROJECT_IBFK_2);
+    public Project project() {
+        return new Project(this, Keys.WORKFLOW_OF_PROJECT_IBFK_2);
     }
 
     @Override
