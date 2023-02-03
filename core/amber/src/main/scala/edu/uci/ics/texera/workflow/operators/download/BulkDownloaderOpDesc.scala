@@ -20,10 +20,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 
-class DownloadOpDesc extends OperatorDescriptor {
+class BulkDownloaderOpDesc extends OperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL Attribute")
+  @JsonPropertyDescription(
+    "Only accepts standard URL format"
+  )
   @AutofillAttributeName
   var urlAttribute: String = _
 
@@ -34,17 +37,24 @@ class DownloadOpDesc extends OperatorDescriptor {
   )
   var resultAttribute: String = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    assert(context.userId.isDefined)
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      _ => new DownloadOpExec(urlAttribute, resultAttribute, operatorSchemaInfo)
+      _ =>
+        new BulkDownloaderOpExec(
+          context,
+          urlAttribute,
+          resultAttribute,
+          operatorSchemaInfo
+        )
     )
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      userFriendlyName = "Download",
-      operatorDescription = "Download a url in a string column",
+      userFriendlyName = "Bulk Downloader",
+      operatorDescription = "Download urls in a string column",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())

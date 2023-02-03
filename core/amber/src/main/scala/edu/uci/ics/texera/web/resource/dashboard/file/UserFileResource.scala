@@ -47,7 +47,6 @@ object UserFileResource {
       uid: UInteger,
       fileName: String,
       uploadedInputStream: InputStream,
-      size: UInteger,
       description: String
   ): String = {
 
@@ -58,7 +57,7 @@ object UserFileResource {
       new File(
         uid,
         null,
-        size,
+        UInteger.valueOf(UserFileUtils.getFilePath(uid, fileNameStored).toFile.length()),
         fileNameStored,
         UserFileUtils.getFilePath(uid, fileNameStored).toString,
         description,
@@ -121,7 +120,7 @@ class UserFileResource {
         .entity(validationResult.getRight)
         .build()
     }
-    saveUserFileSafe(uid, fileName, uploadedInputStream, size, description)
+    saveUserFileSafe(uid, fileName, uploadedInputStream, description)
     Response.ok().build()
   }
 
