@@ -3,8 +3,10 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.amber.engine.common.Constants;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -12,14 +14,18 @@ import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
+import scala.reflect.ClassTag;
+
+import java.io.Serializable;
 import java.util.EnumSet;
 import java.util.Set;
 
-import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.*;
+import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.DOUBLE;
+import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.INTEGER;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -68,7 +74,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if(isGeometric){
             numWorkers = 1;
         }
-        return new ScatterplotOpExecConfig(this.operatorIdentifier(),this, numWorkers, operatorSchemaInfo);
+        return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
+                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo));
     }
 
     @Override
