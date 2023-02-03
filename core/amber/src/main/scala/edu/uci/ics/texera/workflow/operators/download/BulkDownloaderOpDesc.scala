@@ -53,7 +53,7 @@ class BulkDownloaderOpDesc extends OperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      userFriendlyName = "Bulk Download",
+      userFriendlyName = "Bulk Downloader",
       operatorDescription = "Download urls in a string column",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
