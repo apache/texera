@@ -33,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class FileOfProject extends TableImpl<FileOfProjectRecord> {
 
-    private static final long serialVersionUID = -1671894997;
+    private static final long serialVersionUID = 1715925782;
 
     /**
      * The reference instance of <code>texera_db.file_of_project</code>
@@ -120,8 +120,8 @@ public class FileOfProject extends TableImpl<FileOfProjectRecord> {
         return new File(this, Keys.FILE_OF_PROJECT_IBFK_1);
     }
 
-    public UserProject userProject() {
-        return new UserProject(this, Keys.FILE_OF_PROJECT_IBFK_2);
+    public Project project() {
+        return new Project(this, Keys.FILE_OF_PROJECT_IBFK_2);
     }
 
     @Override

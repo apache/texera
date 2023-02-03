@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
-DROP TABLE IF EXISTS `user_project`;
+DROP TABLE IF EXISTS `project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS workflow_version
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
-CREATE TABLE IF NOT EXISTS user_project
+CREATE TABLE IF NOT EXISTS project
 (
     `pid`             INT UNSIGNED AUTO_INCREMENT      NOT NULL,
     `name`            VARCHAR(128)                     NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS workflow_of_project
      `pid`            INT UNSIGNED                     NOT NULL,
      PRIMARY KEY (`wid`, `pid`),
      FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
-     FOREIGN KEY (`pid`) REFERENCES `user_project` (`pid`)  ON DELETE CASCADE
+     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS file_of_project
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS file_of_project
      `pid`            INT UNSIGNED                     NOT NULL,
      PRIMARY KEY (`fid`, `pid`),
      FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)     ON DELETE CASCADE,
-     FOREIGN KEY (`pid`) REFERENCES `user_project` (`pid`)  ON DELETE CASCADE
+     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS workflow_executions
