@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
-import edu.uci.ics.texera.workflow.operators.download.DownloadOpDesc
+import edu.uci.ics.texera.workflow.operators.download.BulkDownloaderOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
@@ -33,6 +33,7 @@ import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
   TwitterFullArchiveSearchSourceOpDesc,
   TwitterSearchSourceOpDesc
 }
+import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csvOld.CSVOldScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
@@ -119,7 +120,8 @@ import java.util.UUID
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
-    new Type(value = classOf[DownloadOpDesc], name = "Download")
+    new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
+    new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
