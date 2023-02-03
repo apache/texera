@@ -4,8 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.common.Constants;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
+import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.util;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -16,8 +20,12 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
+import scala.reflect.ClassTag;
+
+import java.io.Serializable;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
@@ -55,11 +63,31 @@ public class WordCloudOpDesc extends VisualizationOperator {
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+        throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer");
+    }
+
+    @Override
+    public PhysicalPlan operatorExecutorMultiLayer(OperatorSchemaInfo operatorSchemaInfo) {
         if (topN == null) {
             topN = 100;
         }
 
-        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.currentWorkerNum(), textColumn, topN, partialAggregateSchema);
+        LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
+        OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
+                this.operatorIdentifier(),
+                (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn)
+        ).withId(partialId);
+
+        LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
+        OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
+                this.operatorIdentifier(),
+                (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN)
+        ).withId(finalId);
+
+        OpExecConfig[] layers = { partialLayer, finalLayer };
+        LinkIdentity[] links = { new LinkIdentity(partialLayer.id(), finalLayer.id()) };
+
+        return PhysicalPlan.apply(layers, links);
     }
 
     @Override
