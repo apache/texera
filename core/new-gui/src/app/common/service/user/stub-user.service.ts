@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 
 import { Observable, of, ReplaySubject, Subject } from "rxjs";
-import { User } from "../../type/user";
+import { Role, User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
 
@@ -35,6 +35,10 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
 
   isLogin(): boolean {
     return this.user !== undefined;
+  }
+
+  isAdmin(): boolean {
+    return this.user?.role === Role.ADMIN;
   }
 
   login(username: string, password: string): Observable<void> {
