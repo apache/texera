@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -22,6 +23,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.asScalaSetConverter
 
 class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
@@ -54,7 +56,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 1)
   }
 
@@ -86,43 +88,26 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
 
-    var buildRegion: PipelinedRegion = null
-    pipelinedRegions
+    val buildRegion = pipelinedRegions
       .vertexSet()
-      .forEach(p =>
-        if (
-          p.getOperators()
-            .contains(
-              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID)
-            )
-        ) {
-          buildRegion = p
-        }
-      )
-
-    var probeRegion: PipelinedRegion = null
-    pipelinedRegions
+      .asScala
+      .find(v => v.operators.toList.exists(op => op.operator == headerlessCsvOpDesc1.operatorID))
+      .get
+    val probeRegion = pipelinedRegions
       .vertexSet()
-      .forEach(p =>
-        if (
-          p.getOperators()
-            .contains(
-              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID)
-            )
-        ) {
-          probeRegion = p
-        }
-      )
+      .asScala
+      .find(v => v.operators.toList.exists(op => op.operator == headerlessCsvOpDesc2.operatorID))
+      .get
 
     assert(pipelinedRegions.getAncestors(probeRegion).size() == 1)
     assert(pipelinedRegions.getAncestors(probeRegion).contains(buildRegion))
-    assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.length == 1)
+    assert(buildRegion.blockingDownstreamOperatorsInOtherRegions.length == 1)
     assert(
-      buildRegion.blockingDowstreamOperatorsInOtherRegions.contains(
-        OperatorIdentity(workflow.getWorkflowId().id, joinOpDesc.operatorID)
+      buildRegion.blockingDownstreamOperatorsInOtherRegions.exists(op =>
+        op.operator == joinOpDesc.operatorID
       )
     )
   }
@@ -132,7 +117,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    var workflow = buildWorkflow(
+    val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
         keywordOpDesc,
@@ -158,7 +143,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
@@ -199,7 +184,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
@@ -240,7 +225,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
