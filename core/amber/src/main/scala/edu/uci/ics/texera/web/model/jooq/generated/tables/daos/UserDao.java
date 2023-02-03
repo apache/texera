@@ -75,12 +75,6 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
         return fetch(User.USER.NAME, values);
     }
 
-    /**
-     * Fetch a unique record that has <code>name = value</code>
-     */
-    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByName(String value) {
-        return fetchOne(User.USER.NAME, value);
-    }
 
     /**
      * Fetch records that have <code>email BETWEEN lowerInclusive AND upperInclusive</code>
