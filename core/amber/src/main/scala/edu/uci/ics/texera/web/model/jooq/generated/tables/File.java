@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File extends TableImpl<FileRecord> {
 
-    private static final long serialVersionUID = -357495722;
+    private static final long serialVersionUID = 1036017326;
 
     /**
      * The reference instance of <code>texera_db.file</code>
@@ -125,7 +125,7 @@ public class File extends TableImpl<FileRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.FILE_PRIMARY, Indexes.FILE_UID);
+        return Arrays.<Index>asList(Indexes.FILE_OWNER_UID, Indexes.FILE_PRIMARY);
     }
 
     @Override
@@ -140,7 +140,7 @@ public class File extends TableImpl<FileRecord> {
 
     @Override
     public List<UniqueKey<FileRecord>> getKeys() {
-        return Arrays.<UniqueKey<FileRecord>>asList(Keys.KEY_FILE_UID, Keys.KEY_FILE_PRIMARY);
+        return Arrays.<UniqueKey<FileRecord>>asList(Keys.KEY_FILE_OWNER_UID, Keys.KEY_FILE_PRIMARY);
     }
 
     @Override
