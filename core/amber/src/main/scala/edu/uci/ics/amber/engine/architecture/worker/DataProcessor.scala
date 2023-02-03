@@ -1,19 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.logging.service.TimeService
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.logging.{
   LogManager,
   ProcessControlMessage,
   SenderActorChange
 }
-import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
+import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -41,7 +41,7 @@ import scala.collection.mutable
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
     asyncRPCClient: AsyncRPCClient, // to send controls
-    batchProducer: TupleToBatchConverter, // to send output tuples
+    outputManager: OutputManager, // to send output tuples
     val pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
@@ -52,10 +52,8 @@ class DataProcessor( // dependencies:
     val recoveryManager: LocalRecoveryManager,
     val recoveryQueue: RecoveryQueue,
     val actorId: ActorVirtualIdentity,
-    val inputToOrdinalMapping: Map[LinkIdentity, Int],
-    //  use two different types for the wire library to do dependency injection
-    // temporary workaround, will be refactored soon
-    val outputToOrdinalMapping: mutable.Map[LinkIdentity, Int]
+    val actorContext: ActorContext, // context of this actor
+    val opExecConfig: OpExecConfig
 ) extends WorkerInternalQueue
     with AmberLogging {
   // initialize dp thread upon construction
@@ -122,15 +120,16 @@ class DataProcessor( // dependencies:
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
     val inputLink = getInputLink(identifier)
     if (inputLink == null) 0
-    else if (!inputToOrdinalMapping.contains(inputLink)) 0
-    else inputToOrdinalMapping(inputLink)
+    else if (!opExecConfig.inputToOrdinalMapping.contains(inputLink)) 0
+    else opExecConfig.inputToOrdinalMapping(inputLink)
   }
 
-  def getOutputLinkByPort(outputPort: Option[Int]): Option[List[LinkIdentity]] = {
-    if (outputPort.isEmpty)
-      return Option.empty
-    val outLinks = outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
-    Option.apply(outLinks)
+  def getOutputLinkByPort(outputPort: Option[Int]): List[LinkIdentity] = {
+    if (outputPort.isEmpty) {
+      opExecConfig.outputToOrdinalMapping.keySet.toList
+    } else {
+      opExecConfig.outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
+    }
   }
 
   // dp thread stats:
@@ -221,17 +220,12 @@ class DataProcessor( // dependencies:
     if (breakpointManager.evaluateTuple(outputTuple)) {
       pauseManager.recordRequest(PauseType.UserPause, true)
       disableDataQueue()
+      outputManager.adaptiveBatchingMonitor.pauseAdaptiveBatching()
       stateManager.transitTo(PAUSED)
     } else {
       outputTupleCount += 1
       val outLinks = getOutputLinkByPort(outputPortOpt)
-      if (outLinks.isEmpty) {
-        batchProducer.passTupleToDownstream(outputTuple, Option.empty)
-      } else {
-        outLinks.get.foreach(outLink => {
-          batchProducer.passTupleToDownstream(outputTuple, Option.apply(outLink))
-        })
-      }
+      outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
     }
   }
 
@@ -242,6 +236,7 @@ class DataProcessor( // dependencies:
       case InputTuple(from, tuple) =>
         if (stateManager.getCurrentState == READY) {
           stateManager.transitTo(RUNNING)
+          outputManager.adaptiveBatchingMonitor.enableAdaptiveBatching(actorContext)
           asyncRPCClient.send(
             WorkerStateUpdated(stateManager.getCurrentState),
             CONTROLLER
@@ -267,12 +262,13 @@ class DataProcessor( // dependencies:
           asyncRPCClient.send(LinkCompleted(currentLink), CONTROLLER)
         }
         if (upstreamLinkStatus.isAllEOF) {
-          batchProducer.emitEndOfUpstream()
+          outputManager.emitEndOfUpstream()
           // Send Completed signal to worker actor.
           logger.info(s"$operator completed")
           disableDataQueue()
           operator.close() // close operator
           asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
+          outputManager.adaptiveBatchingMonitor.pauseAdaptiveBatching()
           stateManager.transitTo(COMPLETED)
         }
       case ControlElement(payload, from) =>

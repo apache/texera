@@ -1,15 +1,17 @@
 import { Injectable } from "@angular/core";
 
 import { Observable, of, ReplaySubject, Subject } from "rxjs";
-import { User } from "../../type/user";
+import { Role, User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
 
 export const MOCK_USER_ID = 1;
 export const MOCK_USER_NAME = "testUser";
+export const MOCK_USER_EMAIL = "testUser@testemail.com";
 export const MOCK_USER = {
-  name: MOCK_USER_NAME,
   uid: MOCK_USER_ID,
+  name: MOCK_USER_NAME,
+  email: MOCK_USER_EMAIL,
   googleId: undefined,
 };
 
@@ -33,6 +35,10 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
 
   isLogin(): boolean {
     return this.user !== undefined;
+  }
+
+  isAdmin(): boolean {
+    return this.user?.role === Role.ADMIN;
   }
 
   login(username: string, password: string): Observable<void> {

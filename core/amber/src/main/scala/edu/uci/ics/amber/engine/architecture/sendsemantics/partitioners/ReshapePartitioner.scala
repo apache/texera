@@ -1,23 +1,38 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorVirtualIdentity])
-    extends Partitioner {
+/**
+  * The reshape partitioner wraps a regular partitioner (round-robin, hash, or range)
+  *   and provides alternative routing decisions based on reshape skew handling.
+  *
+  * For each tuple, the reshape partitioner invokes the wrapped partitioner
+  *   to get a virtual "bucket index". Reshape builds another routing table that maps the virtual
+  *   "bucket index" to the actual receivers, which might be different from the original receivers.
+  */
+class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
+
+  override def getBucketIndex(tuple: ITuple): Int = {
+    val bucketIndex = partitioner.getBucketIndex(tuple)
+    val newDestReceiver = recordSampleAndGetReceiverForReshape(bucketIndex)
+    originalReceiverIndexMapping(newDestReceiver)
+  }
+
+  override def allReceivers: Seq[ActorVirtualIdentity] = partitioner.allReceivers
+
+  val receivers: Seq[ActorVirtualIdentity] = partitioner.allReceivers
+  val originalReceiverIndexMapping: Map[ActorVirtualIdentity, Int] = receivers.zipWithIndex.toMap
 
   // A bucket corresponds to a partition. When Reshape is not enabled, a bucket has just one receiver.
   // Reshape divides a skewed partition onto multiple workers. So, with Reshape, a bucket can have
   // multiple receivers. First receiver in the bucket is the original receiver for that partition.
   val numBuckets = receivers.length
   var bucketsToReceivers = new mutable.HashMap[Int, ArrayBuffer[ActorVirtualIdentity]]()
-  var receiverToBatch = new mutable.HashMap[ActorVirtualIdentity, Array[ITuple]]()
-  var receiverToCurrBatchSize = new mutable.HashMap[ActorVirtualIdentity, Int]()
   var bucketsToSharingEnabled =
     new mutable.HashMap[Int, Boolean]() // Buckets to whether its inputs is redirected to helper.
   var bucketsToRedirectRatio =
@@ -38,8 +53,6 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
   var maxSamples = Constants.reshapeMaxWorkloadSamplesInWorker
 
   initializeInternalState(receivers)
-
-  def selectBatchingIndex(tuple: ITuple): Int
 
   def getDefaultReceiverForBucket(bucket: Int): ActorVirtualIdentity =
     bucketsToReceivers(bucket)(0)
@@ -188,51 +201,10 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
     }
   }
 
-  override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
-    val receiversAndBatches = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
-
-    for ((receiver, currSize) <- receiverToCurrBatchSize) {
-      if (currSize > 0) {
-        receiversAndBatches.append(
-          (receiver, DataFrame(receiverToBatch(receiver).slice(0, currSize)))
-        )
-      }
-      receiversAndBatches.append((receiver, EndOfUpstream()))
-    }
-    receiversAndBatches.toArray
-  }
-
-  override def addTupleToBatch(
-      tuple: ITuple
-  ): Option[(ActorVirtualIdentity, DataPayload)] = {
-    val index = selectBatchingIndex(tuple)
-    var receiver: ActorVirtualIdentity = null
-    if (Constants.reshapeSkewHandlingEnabled) {
-      receiver = recordSampleAndGetReceiverForReshape(index)
-    } else {
-      receiver = getDefaultReceiverForBucket(index)
-    }
-    receiverToBatch(receiver)(receiverToCurrBatchSize(receiver)) = tuple
-    receiverToCurrBatchSize(receiver) += 1
-    if (receiverToCurrBatchSize(receiver) == batchSize) {
-      receiverToCurrBatchSize(receiver) = 0
-      val retBatch = receiverToBatch(receiver)
-      receiverToBatch(receiver) = new Array[ITuple](batchSize)
-      return Some((receiver, DataFrame(retBatch)))
-    }
-    None
-  }
-
-  override def reset(): Unit = {
-    initializeInternalState(receivers)
-  }
-
   private[this] def initializeInternalState(_receivers: Seq[ActorVirtualIdentity]): Unit = {
     for (i <- 0 until numBuckets) {
       bucketsToReceivers(i) = ArrayBuffer[ActorVirtualIdentity](receivers(i))
       receiverToWorkloadSamples(_receivers(i)) = ArrayBuffer[Long](0)
-      receiverToBatch(_receivers(i)) = new Array[ITuple](batchSize)
-      receiverToCurrBatchSize(_receivers(i)) = 0
     }
   }
 

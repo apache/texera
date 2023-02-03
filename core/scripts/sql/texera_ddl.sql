@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
-DROP TABLE IF EXISTS `user_project`;
+DROP TABLE IF EXISTS `project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
