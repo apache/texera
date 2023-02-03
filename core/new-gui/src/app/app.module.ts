@@ -115,7 +115,7 @@ import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wr
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { HomeComponent } from "./home/component/home.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
-import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
+import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
 import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";

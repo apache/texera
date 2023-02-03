@@ -13,6 +13,7 @@ export const MOCK_USER = {
   name: MOCK_USER_NAME,
   email: MOCK_USER_EMAIL,
   googleId: undefined,
+  role: Role.REGULAR,
 };
 
 /**
@@ -25,6 +26,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   public user: User | undefined;
 
   constructor() {
+    this.user = MOCK_USER;
     this.userChangeSubject.next(this.user);
   }
 

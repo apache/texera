@@ -1,6 +1,6 @@
 ﻿import { Injectable } from "@angular/core";
 import { Router, CanActivate } from "@angular/router";
-import { UserService } from "../user/user.service";
+import { UserService } from "./user.service";
 import { environment } from "../../../../environments/environment";
 
 /**

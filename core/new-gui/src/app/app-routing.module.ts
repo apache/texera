@@ -8,7 +8,7 @@ import { UserProjectSectionComponent } from "./dashboard/component/feature-conta
 import { UserProjectListComponent } from "./dashboard/component/feature-container/user-project-list/user-project-list.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { HomeComponent } from "./home/component/home.component";
-import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
+import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 /*
