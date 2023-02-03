@@ -42,10 +42,6 @@ export class UserService {
     return this.currentUser !== undefined;
   }
 
-  public isAdmin(): boolean {
-    return this.currentUser?.role == Role.ADMIN;
-  }
-
   public userChanged(): Observable<User | undefined> {
     return this.userChangeSubject.asObservable();
   }
