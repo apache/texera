@@ -23,21 +23,21 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Record7<UInteger, UInteger, UInteger, String, String, String, Timestamp>, IFile {
 
-    private static final long serialVersionUID = 1921013672;
+    private static final long serialVersionUID = -681257427;
 
     /**
-     * Setter for <code>texera_db.file.uid</code>.
+     * Setter for <code>texera_db.file.owner_uid</code>.
      */
     @Override
-    public void setUid(UInteger value) {
+    public void setOwnerUid(UInteger value) {
         set(0, value);
     }
 
     /**
-     * Getter for <code>texera_db.file.uid</code>.
+     * Getter for <code>texera_db.file.owner_uid</code>.
      */
     @Override
-    public UInteger getUid() {
+    public UInteger getOwnerUid() {
         return (UInteger) get(0);
     }
 
@@ -162,7 +162,7 @@ public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Recor
 
     @Override
     public Field<UInteger> field1() {
-        return File.FILE.UID;
+        return File.FILE.OWNER_UID;
     }
 
     @Override
@@ -197,7 +197,7 @@ public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Recor
 
     @Override
     public UInteger component1() {
-        return getUid();
+        return getOwnerUid();
     }
 
     @Override
@@ -232,7 +232,7 @@ public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Recor
 
     @Override
     public UInteger value1() {
-        return getUid();
+        return getOwnerUid();
     }
 
     @Override
@@ -267,7 +267,7 @@ public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Recor
 
     @Override
     public FileRecord value1(UInteger value) {
-        setUid(value);
+        setOwnerUid(value);
         return this;
     }
 
@@ -325,7 +325,7 @@ public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Recor
 
     @Override
     public void from(IFile from) {
-        setUid(from.getUid());
+        setOwnerUid(from.getOwnerUid());
         setFid(from.getFid());
         setSize(from.getSize());
         setName(from.getName());
@@ -354,10 +354,10 @@ public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Recor
     /**
      * Create a detached, initialised FileRecord
      */
-    public FileRecord(UInteger uid, UInteger fid, UInteger size, String name, String path, String description, Timestamp uploadTime) {
+    public FileRecord(UInteger ownerUid, UInteger fid, UInteger size, String name, String path, String description, Timestamp uploadTime) {
         super(File.FILE);
 
-        set(0, uid);
+        set(0, ownerUid);
         set(1, fid);
         set(2, size);
         set(3, name);

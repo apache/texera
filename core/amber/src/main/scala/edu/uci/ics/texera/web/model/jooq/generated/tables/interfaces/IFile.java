@@ -17,14 +17,14 @@ import org.jooq.types.UInteger;
 public interface IFile extends Serializable {
 
     /**
-     * Setter for <code>texera_db.file.uid</code>.
+     * Setter for <code>texera_db.file.owner_uid</code>.
      */
-    public void setUid(UInteger value);
+    public void setOwnerUid(UInteger value);
 
     /**
-     * Getter for <code>texera_db.file.uid</code>.
+     * Getter for <code>texera_db.file.owner_uid</code>.
      */
-    public UInteger getUid();
+    public UInteger getOwnerUid();
 
     /**
      * Setter for <code>texera_db.file.fid</code>.

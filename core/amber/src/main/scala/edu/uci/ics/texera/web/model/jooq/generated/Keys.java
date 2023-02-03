@@ -58,7 +58,7 @@ public class Keys {
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final UniqueKey<FileRecord> KEY_FILE_UID = UniqueKeys0.KEY_FILE_UID;
+    public static final UniqueKey<FileRecord> KEY_FILE_OWNER_UID = UniqueKeys0.KEY_FILE_OWNER_UID;
     public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
     public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_FILE_OF_PROJECT_PRIMARY;
     public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = UniqueKeys0.KEY_PROJECT_PRIMARY;
@@ -110,7 +110,7 @@ public class Keys {
     }
 
     private static class UniqueKeys0 {
-        public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, "KEY_file_uid", File.FILE.UID, File.FILE.NAME);
+        public static final UniqueKey<FileRecord> KEY_FILE_OWNER_UID = Internal.createUniqueKey(File.FILE, "KEY_file_owner_uid", File.FILE.OWNER_UID, File.FILE.NAME);
         public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
         public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = Internal.createUniqueKey(FileOfProject.FILE_OF_PROJECT, "KEY_file_of_project_PRIMARY", FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID);
         public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = Internal.createUniqueKey(Project.PROJECT, "KEY_project_PRIMARY", Project.PROJECT.PID);
@@ -129,7 +129,7 @@ public class Keys {
     }
 
     private static class ForeignKeys0 {
-        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
+        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.OWNER_UID);
         public static final ForeignKey<FileOfProjectRecord, FileRecord> FILE_OF_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_1", FileOfProject.FILE_OF_PROJECT.FID);
         public static final ForeignKey<FileOfProjectRecord, ProjectRecord> FILE_OF_PROJECT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_2", FileOfProject.FILE_OF_PROJECT.PID);
         public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Project.PROJECT, "project_ibfk_1", Project.PROJECT.OWNER_ID);

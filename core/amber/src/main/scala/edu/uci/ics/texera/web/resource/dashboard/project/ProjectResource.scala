@@ -134,7 +134,7 @@ object ProjectResource {
       val fid = context
         .select(FILE.FID)
         .from(FILE)
-        .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileName)))
+        .where(FILE.OWNER_UID.eq(uid).and(FILE.NAME.eq(fileName)))
         .fetchOneInto(FILE)
         .getFid
 
@@ -286,7 +286,7 @@ class ProjectResource {
       .leftJoin(USER_FILE_ACCESS)
       .on(USER_FILE_ACCESS.FID.eq(FILE_OF_PROJECT.FID))
       .leftJoin(USER)
-      .on(USER.UID.eq(FILE.UID))
+      .on(USER.UID.eq(FILE.OWNER_UID))
       .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
       .fetch()
     fileEntries

@@ -34,7 +34,7 @@ object UserFileAccessResource {
     val file = context
       .select(FILE.FID)
       .from(FILE)
-      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileName)))
+      .where(FILE.OWNER_UID.eq(uid).and(FILE.NAME.eq(fileName)))
       .fetch()
     file.getValue(0, 0).asInstanceOf[UInteger]
   }

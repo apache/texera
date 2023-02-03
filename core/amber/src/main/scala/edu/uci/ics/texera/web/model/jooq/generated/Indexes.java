@@ -32,8 +32,8 @@ public class Indexes {
     // INDEX definitions
     // -------------------------------------------------------------------------
 
+    public static final Index FILE_OWNER_UID = Indexes0.FILE_OWNER_UID;
     public static final Index FILE_PRIMARY = Indexes0.FILE_PRIMARY;
-    public static final Index FILE_UID = Indexes0.FILE_UID;
     public static final Index FILE_OF_PROJECT_PID = Indexes0.FILE_OF_PROJECT_PID;
     public static final Index FILE_OF_PROJECT_PRIMARY = Indexes0.FILE_OF_PROJECT_PRIMARY;
     public static final Index PROJECT_OWNER_ID = Indexes0.PROJECT_OWNER_ID;
@@ -62,8 +62,8 @@ public class Indexes {
     // -------------------------------------------------------------------------
 
     private static class Indexes0 {
+        public static Index FILE_OWNER_UID = Internal.createIndex("owner_uid", File.FILE, new OrderField[] { File.FILE.OWNER_UID, File.FILE.NAME }, true);
         public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[] { File.FILE.FID }, true);
-        public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[] { File.FILE.UID, File.FILE.NAME }, true);
         public static Index FILE_OF_PROJECT_PID = Internal.createIndex("pid", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.PID }, false);
         public static Index FILE_OF_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID }, true);
         public static Index PROJECT_OWNER_ID = Internal.createIndex("owner_id", Project.PROJECT, new OrderField[] { Project.PROJECT.OWNER_ID, Project.PROJECT.NAME }, true);

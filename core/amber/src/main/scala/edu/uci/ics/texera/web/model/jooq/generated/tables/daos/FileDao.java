@@ -41,17 +41,17 @@ public class FileDao extends DAOImpl<FileRecord, edu.uci.ics.texera.web.model.jo
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>owner_uid BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchRangeOfUid(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(File.FILE.UID, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchRangeOfOwnerUid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(File.FILE.OWNER_UID, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>uid IN (values)</code>
+     * Fetch records that have <code>owner_uid IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchByUid(UInteger... values) {
-        return fetch(File.FILE.UID, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchByOwnerUid(UInteger... values) {
+        return fetch(File.FILE.OWNER_UID, values);
     }
 
     /**
