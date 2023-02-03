@@ -1,6 +1,6 @@
 import { Component } from "@angular/core";
-import { UserService } from "../../../../common/service/user/user.service";
-import { User } from "../../../../common/type/user";
+import { UserService } from "../../../common/service/user/user.service";
+import { User } from "../../../common/type/user";
 import { UntilDestroy } from "@ngneat/until-destroy";
 /**
  * UserIconComponent is used to control user system on the top right corner
