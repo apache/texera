@@ -8,7 +8,7 @@ import org.jasypt.util.password.StrongPasswordEncryptor
 import org.jooq.types.UInteger
 
 import java.util
-import javax.annotation.security.PermitAll
+import javax.annotation.security.{PermitAll, RolesAllowed}
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
@@ -18,8 +18,7 @@ object AdminUserResource {
 }
 
 @Path("/admin/user")
-@PermitAll
-@Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("ADMIN"))
 class AdminUserResource {
 
   /**
@@ -29,6 +28,7 @@ class AdminUserResource {
     */
   @GET
   @Path("/list")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def listUser(): util.List[User] = {
     userDao.fetchRangeOfUid(UInteger.MIN, UInteger.MAX)
   }
