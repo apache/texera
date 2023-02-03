@@ -75,7 +75,6 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
         return fetch(User.USER.NAME, values);
     }
 
-
     /**
      * Fetch records that have <code>email BETWEEN lowerInclusive AND upperInclusive</code>
      */
