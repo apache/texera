@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS user_file_access
 CREATE TABLE IF NOT EXISTS workflow
 (
     `name`               VARCHAR(128)                NOT NULL,
-    `description`        VARCHAR(500),
+	`description`        VARCHAR(500),
     `wid`                INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `content`            TEXT                        NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -124,20 +124,20 @@ CREATE TABLE IF NOT EXISTS project
 
 CREATE TABLE IF NOT EXISTS workflow_of_project
 (
-    `wid`            INT UNSIGNED                     NOT NULL,
-    `pid`            INT UNSIGNED                     NOT NULL,
-    PRIMARY KEY (`wid`, `pid`),
-    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
-    FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
+     `wid`            INT UNSIGNED                     NOT NULL,
+     `pid`            INT UNSIGNED                     NOT NULL,
+     PRIMARY KEY (`wid`, `pid`),
+     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
+     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS file_of_project
 (
-    `fid`            INT UNSIGNED                     NOT NULL,
-    `pid`            INT UNSIGNED                     NOT NULL,
-    PRIMARY KEY (`fid`, `pid`),
-    FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)     ON DELETE CASCADE,
-    FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
+     `fid`            INT UNSIGNED                     NOT NULL,
+     `pid`            INT UNSIGNED                     NOT NULL,
+     PRIMARY KEY (`fid`, `pid`),
+     FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)     ON DELETE CASCADE,
+     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS workflow_executions
