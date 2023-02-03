@@ -7,7 +7,7 @@ import org.apache.lucene.analysis.core.SimpleAnalyzer
 import org.apache.lucene.index.memory.MemoryIndex
 import org.apache.lucene.search.Query
 
-class KeywordSearchOpExec(var counter: Int, val opDesc: KeywordSearchOpDesc) extends FilterOpExec {
+class KeywordSearchOpExec(val opDesc: KeywordSearchOpDesc) extends FilterOpExec {
   @transient lazy val analyzer = new SimpleAnalyzer()
   @transient lazy val query: Query =
     new QueryParser(opDesc.attribute, analyzer).parse(opDesc.keyword)
