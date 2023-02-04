@@ -9,7 +9,7 @@ export class GoogleService {
 
   public googleInit() {
     google.accounts.id.initialize({
-      client_id: "490139017655-ebp2i1bgj3jvm1buvdm2djqaaqhus763.apps.googleusercontent.com",
+      client_id: "490139017655-jp4qg7sism7ea5pcp2glpjv045qamt2r.apps.googleusercontent.com",
       callback: auth => {
         this._googleCredentialResponse.next(auth);
       },
