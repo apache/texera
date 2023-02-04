@@ -11,6 +11,7 @@ import { mergeMap } from "rxjs/operators";
   styleUrls: ["./home.component.scss"],
 })
 export class HomeComponent implements OnInit {
+  localLogin = environment.localLogin;
   constructor(private userService: UserService, private router: Router, private googleService: GoogleService) {}
 
   ngOnInit(): void {
@@ -25,5 +26,4 @@ export class HomeComponent implements OnInit {
         }, "")
       );
   }
-  localLogin = environment.localLogin;
 }
