@@ -14,7 +14,7 @@ export class HomeComponent implements OnInit {
   constructor(private userService: UserService, private router: Router, private googleService: GoogleService) {}
 
   ngOnInit(): void {
-    this.googleService.googleInit();
+    this.googleService.googleInit(document.getElementById("googleButton"));
     this.googleService.googleCredentialResponse
       .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
       // eslint-disable-next-line rxjs-angular/prefer-takeuntil
