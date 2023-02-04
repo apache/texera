@@ -43,7 +43,6 @@
     "@ngx-formly/schematics": "~5.11.1",
     "@types/lodash-es": "~4.17.4",
     "@types/mapbox-gl": "~2.6.3",
-    "@types/google.accounts": "0.0.5",
     "ajv": "~8.10.0",
     "backbone": "~1.4.1",
     "bootstrap": "~4.6.1",

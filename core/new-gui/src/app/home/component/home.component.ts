@@ -17,6 +17,7 @@ export class HomeComponent implements OnInit {
     this.googleService.googleInit();
     this.googleService.googleCredentialResponse
       .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
       .subscribe(
         Zone.current.wrap(() => {
           // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
@@ -24,6 +25,5 @@ export class HomeComponent implements OnInit {
         }, "")
       );
   }
-
   localLogin = environment.localLogin;
 }

@@ -34,12 +34,10 @@ class GoogleAuthResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/login")
   def login(credential: String): TokenIssueResponse = {
-    System.out.println("credential:" + credential)
     val idToken = verifier.verify(credential)
     if (idToken != null) {
       val payload = idToken.getPayload
       val googleId = payload.getSubject
-      System.out.println("googleId:" + googleId)
       val googleName = payload.get("name").asInstanceOf[String]
       val googleEmail = payload.getEmail
       val user = Option(userDao.fetchOneByGoogleId(googleId)) match {
