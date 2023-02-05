@@ -132,21 +132,24 @@
         </ng-template>
       </td>
       <td style="color: #1890ff">
-        <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
-          <a (click)="startEdit(user)">Edit</a>
-        </ng-container>
-        <ng-template #editActionTemplate>
-          <a
-            nz-popconfirm=""
-            nzPopconfirmTitle="Sure to save?"
-            (nzOnConfirm)="saveEdit()"
-            >Save</a
-          >&nbsp;
-          <a (click)="stopEdit()">Cancel</a>
-        </ng-template>
+        <div *ngIf="currentUid!==user.uid">
+          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
+            <a (click)="startEdit(user)">Edit</a>
+          </ng-container>
+          <ng-template #editActionTemplate>
+            <a
+              nz-popconfirm=""
+              nzPopconfirmTitle="Sure to save?"
+              (nzOnConfirm)="saveEdit()"
+              >Save</a
+            >&nbsp;
+            <a (click)="stopEdit()">Cancel</a>
+          </ng-template>
+        </div>
       </td>
       <td>
         <nz-select
+          [nzDisabled]="currentUid===user.uid"
           [nzShowArrow]="false"
           ngModel="{{user.role}}"
           (ngModelChange)="updateRole(user,$event)"

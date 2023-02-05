@@ -3,6 +3,7 @@ import { AdminUserService } from "../service/admin-user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzTableSortFn, NzTableFilterFn } from "ng-zorro-antd/table";
 import { Role, User } from "../../../common/type/user";
+import { UserService } from "../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
@@ -21,8 +22,11 @@ export class AdminUserComponent implements OnInit {
   nameSearchVisible = false;
   emailSearchVisible = false;
   listOfDisplayUser = [...this.userList];
+  currentUid: number | undefined = 0;
 
-  constructor(private adminUserService: AdminUserService) {}
+  constructor(private adminUserService: AdminUserService, private userService: UserService) {
+    this.currentUid = this.userService.getCurrentUser()?.uid;
+  }
 
   ngOnInit() {
     this.adminUserService
