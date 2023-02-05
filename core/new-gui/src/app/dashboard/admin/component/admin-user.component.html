@@ -140,9 +140,10 @@
             <a
               nz-popconfirm=""
               nzPopconfirmTitle="Sure to save?"
-              (nzOnConfirm)="stopEdit()"
+              (nzOnConfirm)="saveEdit()"
               >Save</a
             >
+            <a (click)="stopEdit()">Cancel</a>
           </ng-template>
         </td>
         <td>

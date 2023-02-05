@@ -37,7 +37,7 @@ export class AdminUserComponent implements OnInit {
   public updateRole(user: User, role: Role): void {
     this.startEdit(user);
     this.editRole = role;
-    this.stopEdit();
+    this.saveEdit();
   }
 
   addUser(): void {
@@ -54,13 +54,17 @@ export class AdminUserComponent implements OnInit {
     this.editRole = user.role;
   }
 
-  stopEdit(): void {
+  saveEdit(): void {
     const currentUid = this.editUid;
-    this.editUid = 0;
+    this.stopEdit();
     this.adminUserService
       .updateUser(currentUid, this.editName, this.editEmail, this.editRole)
       .pipe(untilDestroyed(this))
       .subscribe(() => this.ngOnInit());
+  }
+
+  stopEdit(): void {
+    this.editUid = 0;
   }
 
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
