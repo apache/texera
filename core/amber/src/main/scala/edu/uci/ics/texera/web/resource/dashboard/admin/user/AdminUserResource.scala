@@ -6,9 +6,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import org.jasypt.util.password.StrongPasswordEncryptor
 import org.jooq.types.UInteger
-
 import java.util
-import javax.annotation.security.{PermitAll, RolesAllowed}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
