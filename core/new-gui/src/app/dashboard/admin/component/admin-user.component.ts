@@ -33,11 +33,13 @@ export class AdminUserComponent implements OnInit {
         this.reset();
       });
   }
+
   public updateRole(user: User, role: Role): void {
     this.startEdit(user);
     this.editRole = role;
     this.stopEdit();
   }
+
   addUser(): void {
     this.adminUserService
       .addUser()
