@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS project
 (
     `pid`             INT UNSIGNED AUTO_INCREMENT      NOT NULL,
     `name`            VARCHAR(128)                     NOT NULL,
-    `description`     VARCHAR(500),
+    `description`     VARCHAR(10000),
     `owner_id`        INT UNSIGNED                     NOT NULL,
     `creation_time`   TIMESTAMP                        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `color`           VARCHAR(6),

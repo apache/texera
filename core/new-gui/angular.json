@@ -43,7 +43,8 @@
               "node_modules/monaco-editor/min/vs/editor/editor.main.css"
             ],
             "scripts": [
-              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"
+              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js",
+              "node_modules/marked/marked.min.js"
             ],
             "allowedCommonJsDependencies": [
               "deep-map",

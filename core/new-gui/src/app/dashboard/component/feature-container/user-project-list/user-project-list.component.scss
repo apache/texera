@@ -21,3 +21,13 @@ button {
 .edit-description-icon:hover {
   color: skyblue;
 }
+
+.description-container {
+  border: 1px solid gainsboro;
+  border-radius: 10px;
+  padding: 2.5%;
+}
+
+.character-count {
+  text-align: right;
+}
