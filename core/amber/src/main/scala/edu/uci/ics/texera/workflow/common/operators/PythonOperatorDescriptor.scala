@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators
 
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpExecV2
@@ -9,26 +9,31 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSource
 import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends OperatorDescriptor {
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
-
-    new OneToOneOpExecConfig(
-      id = operatorIdentifier,
-      opExec = (_: Int) =>
-        if (asSource()) {
-          new PythonUDFSourceOpExecV2(
-            generatedCode,
-            operatorSchemaInfo.outputSchemas.head
-          )
-        } else {
-          new PythonUDFOpExecV2(
-            generatedCode,
-            operatorSchemaInfo.outputSchemas.head
-          )
-        },
-      numWorkers(),
-      dependency()
-    )
+    if (asSource()) {
+      OpExecConfig
+        .localLayer(
+          operatorIdentifier,
+          _ =>
+            new PythonUDFSourceOpExecV2(
+              generatedCode,
+              operatorSchemaInfo.outputSchemas.head
+            )
+        )
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+    } else {
+      OpExecConfig
+        .oneToOneLayer(
+          operatorIdentifier,
+          _ =>
+            new PythonUDFOpExecV2(
+              generatedCode,
+              operatorSchemaInfo.outputSchemas.head
+            )
+        )
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+    }
   }
 
   def numWorkers(): Int = Constants.numWorkerPerNode
