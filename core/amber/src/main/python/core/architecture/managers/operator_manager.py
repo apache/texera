@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Tuple, Optional, Mapping
 from loguru import logger
 from core.models import Operator
+from proto.edu.uci.ics.amber.engine.common import LinkIdentity
 
 
 class OperatorManager:
