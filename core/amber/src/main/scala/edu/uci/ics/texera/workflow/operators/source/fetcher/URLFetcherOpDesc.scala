@@ -51,7 +51,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
           decodingMethod,
           operatorSchemaInfo
         )
-    )
+    ).withNumWorkers(1)
   }
 
   override def operatorInfo: OperatorInfo =
