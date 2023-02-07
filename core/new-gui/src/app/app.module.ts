@@ -243,6 +243,7 @@ registerLocaleData(en);
     NgPipesModule,
     NzSwitchModule,
     NzLayoutModule,
+    MarkdownModule.forRoot(),
   ],
   providers: [
     AuthGuardService,

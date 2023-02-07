@@ -43,15 +43,17 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   }
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    OpExecConfig.oneToOneLayer(
-      operatorIdentifier,
-      _ =>
-        new URLFetcherOpExec(
-          url,
-          decodingMethod,
-          operatorSchemaInfo
-        )
-    )
+    OpExecConfig
+      .oneToOneLayer(
+        operatorIdentifier,
+        _ =>
+          new URLFetcherOpExec(
+            url,
+            decodingMethod,
+            operatorSchemaInfo
+          )
+      )
+      .withNumWorkers(1)
   }
 
   override def operatorInfo: OperatorInfo =
