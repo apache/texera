@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 
-import { Observable, of, ReplaySubject, Subject } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
@@ -13,6 +13,7 @@ export const MOCK_USER = {
   name: MOCK_USER_NAME,
   email: MOCK_USER_EMAIL,
   googleId: undefined,
+  role: Role.REGULAR,
 };
 
 /**

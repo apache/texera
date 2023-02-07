@@ -20,7 +20,7 @@ export interface User
     name: string;
     email: string;
     googleId?: string;
-    role?: Role;
+    role: Role;
     color?: string;
   }> {}
 

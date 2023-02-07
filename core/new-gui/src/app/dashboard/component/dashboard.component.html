@@ -56,6 +56,32 @@
           nzType="folder-open"></span>
         <span>Files</span>
       </li>
+
+      <li
+        nz-submenu
+        *ngIf="isAdmin">
+        <span
+          title
+          class="submenu">
+          <span
+            nz-icon
+            nzType="tool"></span>
+          <span>Admin</span>
+        </span>
+        <ul>
+          <li
+            nz-menu-item
+            routerLink="/dashboard/admin-user"
+            nzMatchRouter="true"
+            nz-tooltip="Look up the user files"
+            nzTooltipPlacement="right">
+            <span
+              nz-icon
+              nzType="user"></span>
+            <span>Users</span>
+          </li>
+        </ul>
+      </li>
     </ul>
   </nz-sider>
   <nz-layout>

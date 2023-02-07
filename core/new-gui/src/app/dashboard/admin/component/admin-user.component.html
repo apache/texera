@@ -1,0 +1,199 @@
+<nz-card
+  class="section-title"
+  style="background-color: lightcoral">
+  <h2
+    class="page-title"
+    style="color: white">
+    Users
+  </h2>
+</nz-card>
+<nz-table
+  #basicTable
+  [nzData]="listOfDisplayUser">
+  <thead>
+    <tr>
+      <th>Avatar</th>
+      <th [nzSortFn]="sortByID">ID</th>
+      <th
+        [nzSortFn]="sortByName"
+        nzCustomFilter>
+        Name
+        <nz-filter-trigger
+          [(nzVisible)]="nameSearchVisible"
+          [nzActive]="nameSearchValue.length > 0"
+          [nzDropdownMenu]="nameMenu">
+          <span
+            nz-icon
+            nzType="search"></span>
+        </nz-filter-trigger>
+      </th>
+      <th
+        [nzSortFn]="sortByEmail"
+        nzCustomFilter>
+        Email
+        <nz-filter-trigger
+          [(nzVisible)]="emailSearchVisible"
+          [nzActive]="emailSearchValue.length > 0"
+          [nzDropdownMenu]="emailMenu">
+          <span
+            nz-icon
+            nzType="search"></span>
+        </nz-filter-trigger>
+      </th>
+      <th>Action</th>
+      <th
+        [nzSortFn]="sortByRole"
+        [nzFilters]="[
+      { text: 'INACTIVE', value: 'INACTIVE' },
+      { text: 'REGULAR', value: 'REGULAR'},
+      { text: 'ADMIN', value: 'ADMIN'},
+      { text: 'RESTRICTED', value: 'RESTRICTED'}]"
+        [nzFilterFn]="filterByRole">
+        Role
+      </th>
+    </tr>
+  </thead>
+  <nz-dropdown-menu #nameMenu="nzDropdownMenu">
+    <div class="ant-table-filter-dropdown">
+      <div class="search-box">
+        <input
+          type="text"
+          nz-input
+          placeholder="Search name"
+          [(ngModel)]="nameSearchValue" />
+        <button
+          nz-button
+          nzSize="small"
+          nzType="primary"
+          (click)="searchByName()"
+          class="search-button">
+          Search
+        </button>
+        <button
+          nz-button
+          nzSize="small"
+          (click)="reset()">
+          Reset
+        </button>
+      </div>
+    </div>
+  </nz-dropdown-menu>
+  <nz-dropdown-menu #emailMenu="nzDropdownMenu">
+    <div class="ant-table-filter-dropdown">
+      <div class="search-box">
+        <input
+          type="text"
+          nz-input
+          placeholder="Search name"
+          [(ngModel)]="emailSearchValue" />
+        <button
+          nz-button
+          nzSize="small"
+          nzType="primary"
+          (click)="searchByEmail()"
+          class="search-button">
+          Search
+        </button>
+        <button
+          nz-button
+          nzSize="small"
+          (click)="reset()">
+          Reset
+        </button>
+      </div>
+    </div>
+  </nz-dropdown-menu>
+  <tbody>
+    <tr *ngFor="let user of basicTable.data">
+      <td>
+        <texera-user-avatar
+          class="user-avatar"
+          [googleId]="user.googleId"
+          [userName]="user.name"></texera-user-avatar>
+      </td>
+      <td>{{user.uid}}</td>
+      <td>
+        <ng-container *ngIf="editUid !== user.uid; else editNameTemplate"> {{user.name}} </ng-container>
+        <ng-template #editNameTemplate>
+          <input
+            type="text"
+            nz-input
+            [(ngModel)]="editName" />
+        </ng-template>
+      </td>
+      <td>
+        <ng-container *ngIf="editUid !== user.uid; else editEmailTemplate"> {{user.email}} </ng-container>
+        <ng-template #editEmailTemplate>
+          <input
+            type="email"
+            [email]="true"
+            nz-input
+            [(ngModel)]="editEmail" />
+        </ng-template>
+      </td>
+      <td style="color: #1890ff">
+        <div *ngIf="currentUid!==user.uid">
+          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
+            <a (click)="startEdit(user)">Edit</a>
+          </ng-container>
+          <ng-template #editActionTemplate>
+            <a
+              nz-popconfirm=""
+              nzPopconfirmTitle="Sure to save?"
+              (nzOnConfirm)="saveEdit()"
+              >Save</a
+            >&nbsp;
+            <a (click)="stopEdit()">Cancel</a>
+          </ng-template>
+        </div>
+      </td>
+      <td>
+        <nz-select
+          [nzDisabled]="currentUid===user.uid"
+          [nzShowArrow]="false"
+          ngModel="{{user.role}}"
+          (ngModelChange)="updateRole(user,$event)"
+          [nzCustomTemplate]="roleTemplate"
+          nzBorderless
+          class="extra-width">
+          <nz-option
+            nzValue="INACTIVE"
+            nzLabel="0"
+            nzCustomContent
+            ><span class="role c0">INACTIVE</span></nz-option
+          >
+          <nz-option
+            nzValue="REGULAR"
+            nzLabel="1"
+            nzCustomContent
+            ><span class="role c1">REGULAR</span></nz-option
+          >
+          <nz-option
+            nzValue="ADMIN"
+            nzLabel="2"
+            nzCustomContent
+            ><span class="role c2">ADMIN</span></nz-option
+          >
+          <nz-option
+            nzValue="RESTRICTED"
+            nzLabel="3"
+            nzCustomContent
+            ><span class="role c3">RESTRICTED</span></nz-option
+          >
+        </nz-select>
+        <ng-template
+          #roleTemplate
+          let-selected>
+          <span class="role c{{selected.nzLabel}}">{{selected.nzValue}}</span>
+        </ng-template>
+      </td>
+    </tr>
+  </tbody>
+  <button
+    nz-button
+    (click)="addUser()"
+    nzType="primary"
+    style="position: absolute; bottom: -49px; left: 50px">
+    Add
+  </button>
+</nz-table>
