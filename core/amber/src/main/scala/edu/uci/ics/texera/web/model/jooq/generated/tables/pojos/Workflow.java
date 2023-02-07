@@ -17,8 +17,9 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow implements IWorkflow {
 
-    private static final long serialVersionUID = -380738907;
+    private static final long serialVersionUID = 1289629122;
 
+    private UInteger  ownerUid;
     private String    name;
     private String    description;
     private UInteger  wid;
@@ -29,6 +30,7 @@ public class Workflow implements IWorkflow {
     public Workflow() {}
 
     public Workflow(IWorkflow value) {
+        this.ownerUid = value.getOwnerUid();
         this.name = value.getName();
         this.description = value.getDescription();
         this.wid = value.getWid();
@@ -38,6 +40,7 @@ public class Workflow implements IWorkflow {
     }
 
     public Workflow(
+        UInteger  ownerUid,
         String    name,
         String    description,
         UInteger  wid,
@@ -45,12 +48,23 @@ public class Workflow implements IWorkflow {
         Timestamp creationTime,
         Timestamp lastModifiedTime
     ) {
+        this.ownerUid = ownerUid;
         this.name = name;
         this.description = description;
         this.wid = wid;
         this.content = content;
         this.creationTime = creationTime;
         this.lastModifiedTime = lastModifiedTime;
+    }
+
+    @Override
+    public UInteger getOwnerUid() {
+        return this.ownerUid;
+    }
+
+    @Override
+    public void setOwnerUid(UInteger ownerUid) {
+        this.ownerUid = ownerUid;
     }
 
     @Override
@@ -117,7 +131,8 @@ public class Workflow implements IWorkflow {
     public String toString() {
         StringBuilder sb = new StringBuilder("Workflow (");
 
-        sb.append(name);
+        sb.append(ownerUid);
+        sb.append(", ").append(name);
         sb.append(", ").append(description);
         sb.append(", ").append(wid);
         sb.append(", ").append(content);
@@ -134,6 +149,7 @@ public class Workflow implements IWorkflow {
 
     @Override
     public void from(IWorkflow from) {
+        setOwnerUid(from.getOwnerUid());
         setName(from.getName());
         setDescription(from.getDescription());
         setWid(from.getWid());

@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row6;
+import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = 860337939;
+    private static final long serialVersionUID = -1269913267;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -49,6 +49,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     public Class<WorkflowRecord> getRecordType() {
         return WorkflowRecord.class;
     }
+
+    /**
+     * The column <code>texera_db.workflow.owner_uid</code>.
+     */
+    public final TableField<WorkflowRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow.name</code>.
@@ -120,7 +125,7 @@ public class Workflow extends TableImpl<WorkflowRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_PRIMARY);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_OWNER_UID, Indexes.WORKFLOW_PRIMARY);
     }
 
     @Override
@@ -136,6 +141,15 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     @Override
     public List<UniqueKey<WorkflowRecord>> getKeys() {
         return Arrays.<UniqueKey<WorkflowRecord>>asList(Keys.KEY_WORKFLOW_PRIMARY);
+    }
+
+    @Override
+    public List<ForeignKey<WorkflowRecord, ?>> getReferences() {
+        return Arrays.<ForeignKey<WorkflowRecord, ?>>asList(Keys.WORKFLOW_IBFK_1);
+    }
+
+    public User user() {
+        return new User(this, Keys.WORKFLOW_IBFK_1);
     }
 
     @Override
@@ -165,11 +179,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row6 type methods
+    // Row7 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<String, String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
-        return (Row6) super.fieldsRow();
+    public Row7<UInteger, String, String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
+        return (Row7) super.fieldsRow();
     }
 }

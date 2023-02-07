@@ -6,14 +6,9 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
   WorkflowAccess,
@@ -23,8 +18,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   DashboardWorkflowEntry,
   context,
   insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
+  workflowDao
 }
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
@@ -45,16 +39,13 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private val workflowDao = new WorkflowDao(context.configuration)
-  final private val workflowOfUserDao = new WorkflowOfUserDao(
-    context.configuration
-  )
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
 
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    workflow.setOwnerUid(user.getUid)
     workflowDao.insert(workflow)
-    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
     workflowUserAccessDao.insert(
       new WorkflowUserAccess(
         user.getUid,
@@ -62,14 +53,6 @@ object WorkflowResource {
         true, // readPrivilege
         true // writePrivilege
       )
-    )
-  }
-
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
     )
   }
 
@@ -94,15 +77,12 @@ class WorkflowResource {
   @Path("/workflow-ids")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
+    context
       .select(WORKFLOW_USER_ACCESS.WID)
       .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(sessionUser.getUser.getUid))
       .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue().toString())
+      .map(record => record.value1().toString)
       .toList
   }
 
@@ -115,20 +95,16 @@ class WorkflowResource {
   @Path("/owners")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(USER.NAME)
+    context
+      .selectDistinct(USER.NAME)
       .from(WORKFLOW_USER_ACCESS)
-      .join(WORKFLOW_OF_USER)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .join(WORKFLOW)
+      .on(WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
       .join(USER)
-      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(USER.UID)
+      .on(WORKFLOW.OWNER_UID.eq(USER.UID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(sessionUser.getUser.getUid))
       .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(USER).getName())
+      .map(record => record.value1())
       .toList
   }
 
@@ -179,7 +155,7 @@ class WorkflowResource {
 
     workflowEntries
       .map(workflowRecord => {
-        workflowRecord.into(WORKFLOW).getWid().intValue().toString()
+        workflowRecord.into(WORKFLOW).getWid.intValue().toString
       })
       .toList
   }
@@ -200,32 +176,30 @@ class WorkflowResource {
     val workflowEntries = context
       .select(
         WORKFLOW.WID,
+        WORKFLOW.OWNER_UID,
         WORKFLOW.NAME,
         WORKFLOW.DESCRIPTION,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
         USER.NAME,
         groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .on(USER.UID.eq(WORKFLOW.OWNER_UID))
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
+      .groupBy(WORKFLOW.WID, WORKFLOW.OWNER_UID)
       .fetch()
     workflowEntries
       .map(workflowRecord =>
         DashboardWorkflowEntry(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+          workflowRecord.into(WORKFLOW).getOwnerUid.eq(user.getUid),
           toAccessLevel(
             workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
           ).toString,
@@ -272,7 +246,7 @@ class WorkflowResource {
     * @return Workflow, which contains the generated wid if not provided//
     *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
     *         TODO: if the persist is triggered in parallel, the none atomic actions currently might cause an issue.
-    *             Should consider making the operations atomic
+    *         Should consider making the operations atomic
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -281,24 +255,19 @@ class WorkflowResource {
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
 
-    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-      WorkflowVersionResource.insertVersion(workflow, false)
-      // current user reading
-      workflowDao.update(workflow)
-    } else {
-      if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
-        // not owner and not access record --> new record
-        insertWorkflow(workflow, user)
-        WorkflowVersionResource.insertVersion(workflow, true)
-      } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
-        WorkflowVersionResource.insertVersion(workflow, false)
-        // not owner but has write access
-        workflowDao.update(workflow)
-      } else {
-        // not owner and no write access -> rejected
-        throw new ForbiddenException("No sufficient access privilege.")
-      }
+    // workflow wid must be not null: must be an existing workflow
+    if (workflow.getWid == null) {
+      throw new BadRequestException("workflow id is not present")
     }
+    // the user must have write access to this workflow
+    if (!WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+      throw new BadRequestException(
+        s"no write access to workflow ${workflow.getWid}: ${workflow.getName}"
+      )
+    }
+
+    workflowDao.update(workflow)
+    WorkflowVersionResource.insertVersion(workflow, false)
     workflowDao.fetchOneByWid(workflow.getWid)
 
   }
@@ -330,6 +299,7 @@ class WorkflowResource {
       workflow.getName
       createWorkflow(
         new Workflow(
+          user.getUid,
           workflow.getName + "_copy",
           workflow.getDescription,
           null,
@@ -383,11 +353,13 @@ class WorkflowResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
-    if (workflowOfUserExists(wid, user.getUid)) {
-      workflowDao.deleteById(wid)
-    } else {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+    if (!workflowDao.existsById(wid)) {
       throw new BadRequestException("The workflow does not exist.")
     }
+    workflowDao.deleteById(wid)
   }
 
   /**
@@ -405,17 +377,17 @@ class WorkflowResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     val wid = workflow.getWid
-    val name = workflow.getName
+    val workflowName = workflow.getName
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
-    } else if (!workflowOfUserExists(wid, user.getUid)) {
-      throw new BadRequestException("The workflow does not exist.")
-    } else {
-      val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setName(name)
-      workflowDao.update(userWorkflow)
     }
+    if (!workflowDao.existsById(wid)) {
+      throw new BadRequestException("The workflow does not exist.")
+    }
+    val userWorkflow = workflowDao.fetchOneByWid(wid)
+    userWorkflow.setName(workflowName)
+    workflowDao.update(userWorkflow)
   }
 
   /**

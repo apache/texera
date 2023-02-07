@@ -13,7 +13,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileOfProjectRecord;
@@ -24,7 +23,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserFileAccess
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowExecutionsRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfProjectRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfUserRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowVersionRecord;
@@ -71,7 +69,6 @@ public class Keys {
     public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = UniqueKeys0.KEY_WORKFLOW_PRIMARY;
     public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = UniqueKeys0.KEY_WORKFLOW_EXECUTIONS_PRIMARY;
     public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_PROJECT_PRIMARY;
-    public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_USER_PRIMARY;
     public static final UniqueKey<WorkflowUserAccessRecord> KEY_WORKFLOW_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_WORKFLOW_USER_ACCESS_PRIMARY;
     public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = UniqueKeys0.KEY_WORKFLOW_VERSION_PRIMARY;
 
@@ -86,12 +83,11 @@ public class Keys {
     public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = ForeignKeys0.USER_CONFIG_IBFK_1;
     public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = ForeignKeys0.USER_FILE_ACCESS_IBFK_1;
     public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = ForeignKeys0.USER_FILE_ACCESS_IBFK_2;
+    public static final ForeignKey<WorkflowRecord, UserRecord> WORKFLOW_IBFK_1 = ForeignKeys0.WORKFLOW_IBFK_1;
     public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS_IBFK_1 = ForeignKeys0.WORKFLOW_EXECUTIONS_IBFK_1;
     public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS_IBFK_2 = ForeignKeys0.WORKFLOW_EXECUTIONS_IBFK_2;
     public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT_IBFK_1 = ForeignKeys0.WORKFLOW_OF_PROJECT_IBFK_1;
     public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT_IBFK_2 = ForeignKeys0.WORKFLOW_OF_PROJECT_IBFK_2;
-    public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_1;
-    public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_2;
     public static final ForeignKey<WorkflowUserAccessRecord, UserRecord> WORKFLOW_USER_ACCESS_IBFK_1 = ForeignKeys0.WORKFLOW_USER_ACCESS_IBFK_1;
     public static final ForeignKey<WorkflowUserAccessRecord, WorkflowRecord> WORKFLOW_USER_ACCESS_IBFK_2 = ForeignKeys0.WORKFLOW_USER_ACCESS_IBFK_2;
     public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION_IBFK_1 = ForeignKeys0.WORKFLOW_VERSION_IBFK_1;
@@ -123,7 +119,6 @@ public class Keys {
         public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = Internal.createUniqueKey(Workflow.WORKFLOW, "KEY_workflow_PRIMARY", Workflow.WORKFLOW.WID);
         public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = Internal.createUniqueKey(WorkflowExecutions.WORKFLOW_EXECUTIONS, "KEY_workflow_executions_PRIMARY", WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
         public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = Internal.createUniqueKey(WorkflowOfProject.WORKFLOW_OF_PROJECT, "KEY_workflow_of_project_PRIMARY", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID, WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
-        public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, "KEY_workflow_of_user_PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID);
         public static final UniqueKey<WorkflowUserAccessRecord> KEY_WORKFLOW_USER_ACCESS_PRIMARY = Internal.createUniqueKey(WorkflowUserAccess.WORKFLOW_USER_ACCESS, "KEY_workflow_user_access_PRIMARY", WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID, WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID);
         public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = Internal.createUniqueKey(WorkflowVersion.WORKFLOW_VERSION, "KEY_workflow_version_PRIMARY", WorkflowVersion.WORKFLOW_VERSION.VID);
     }
@@ -136,12 +131,11 @@ public class Keys {
         public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserConfig.USER_CONFIG, "user_config_ibfk_1", UserConfig.USER_CONFIG.UID);
         public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_1", UserFileAccess.USER_FILE_ACCESS.UID);
         public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_2", UserFileAccess.USER_FILE_ACCESS.FID);
+        public static final ForeignKey<WorkflowRecord, UserRecord> WORKFLOW_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Workflow.WORKFLOW, "workflow_ibfk_1", Workflow.WORKFLOW.OWNER_UID);
         public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_VERSION_PRIMARY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_ibfk_1", WorkflowExecutions.WORKFLOW_EXECUTIONS.VID);
         public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_ibfk_2", WorkflowExecutions.WORKFLOW_EXECUTIONS.UID);
         public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project_ibfk_1", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID);
         public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project_ibfk_2", WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
-        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
-        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WID);
         public static final ForeignKey<WorkflowUserAccessRecord, UserRecord> WORKFLOW_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowUserAccess.WORKFLOW_USER_ACCESS, "workflow_user_access_ibfk_1", WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID);
         public static final ForeignKey<WorkflowUserAccessRecord, WorkflowRecord> WORKFLOW_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowUserAccess.WORKFLOW_USER_ACCESS, "workflow_user_access_ibfk_2", WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID);
         public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowVersion.WORKFLOW_VERSION, "workflow_version_ibfk_1", WorkflowVersion.WORKFLOW_VERSION.WID);

@@ -17,6 +17,16 @@ import org.jooq.types.UInteger;
 public interface IWorkflow extends Serializable {
 
     /**
+     * Setter for <code>texera_db.workflow.owner_uid</code>.
+     */
+    public void setOwnerUid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow.owner_uid</code>.
+     */
+    public UInteger getOwnerUid();
+
+    /**
      * Setter for <code>texera_db.workflow.name</code>.
      */
     public void setName(String value);

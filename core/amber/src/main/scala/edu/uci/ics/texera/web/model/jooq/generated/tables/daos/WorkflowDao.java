@@ -41,6 +41,20 @@ public class WorkflowDao extends DAOImpl<WorkflowRecord, edu.uci.ics.texera.web.
     }
 
     /**
+     * Fetch records that have <code>owner_uid BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchRangeOfOwnerUid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(Workflow.WORKFLOW.OWNER_UID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>owner_uid IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchByOwnerUid(UInteger... values) {
+        return fetch(Workflow.WORKFLOW.OWNER_UID, values);
+    }
+
+    /**
      * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchRangeOfName(String lowerInclusive, String upperInclusive) {

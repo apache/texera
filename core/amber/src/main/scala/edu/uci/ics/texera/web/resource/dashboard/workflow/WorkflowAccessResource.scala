@@ -4,10 +4,10 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.http.response.{AccessResponse, OwnershipResponse}
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao,
-  WorkflowOfUserDao,
+  WorkflowDao,
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
@@ -163,7 +163,7 @@ object WorkflowAccessResource {
 @Path("/workflow/access")
 class WorkflowAccessResource() {
 
-  private val workflowOfUserDao = new WorkflowOfUserDao(
+  private val workflowDao = new WorkflowDao(
     context.configuration
   )
   private val workflowUserAccessDao = new WorkflowUserAccessDao(
@@ -185,7 +185,7 @@ class WorkflowAccessResource() {
   @Path("/owner/{wid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getWorkflowOwner(@PathParam("wid") wid: UInteger): OwnershipResponse = {
-    val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
+    val uid = workflowDao.fetchByWid(wid).get(0).getOwnerUid
     val ownerName = userDao.fetchOneByUid(uid).getName
     OwnershipResponse(ownerName)
   }
@@ -222,18 +222,10 @@ class WorkflowAccessResource() {
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[AccessEntry] = {
-    val user = sessionUser.getUser
-    if (
-      workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
-      )
-    ) {
-      getGrantedWorkflowAccessList(wid, user.getUid)
-    } else {
-      throw new ForbiddenException("You are not the owner of the workflow.")
+    if (!workflowDao.existsById(wid)) {
+      throw new BadRequestException(s"workflow $wid does not exist.")
     }
+    getGrantedWorkflowAccessList(wid, sessionUser.getUser.getUid)
   }
 
   /**
@@ -259,20 +251,12 @@ class WorkflowAccessResource() {
         case _: NullPointerException =>
           throw new BadRequestException("Target user does not exist.")
       }
-    if (
-      !workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
-      )
-    ) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
-      context
-        .delete(WORKFLOW_USER_ACCESS)
-        .where(WORKFLOW_USER_ACCESS.UID.eq(uid).and(WORKFLOW_USER_ACCESS.WID.eq(wid)))
-        .execute()
-    }
+
+    context
+      .delete(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.UID.eq(uid).and(WORKFLOW_USER_ACCESS.WID.eq(wid)))
+      .execute()
+
   }
 
   /**
@@ -301,60 +285,50 @@ class WorkflowAccessResource() {
           throw new BadRequestException("Target user does not exist.")
       }
 
-    if (
-      !workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
-      )
-    ) {
-      throw new ForbiddenException("No sufficient access privilege.")
+    if (hasNoWorkflowAccessRecord(wid, uid)) {
+      accessLevel match {
+        case "read" =>
+          workflowUserAccessDao.insert(
+            new WorkflowUserAccess(
+              uid,
+              wid,
+              true, // readPrivilege
+              false // writePrivilege
+            )
+          )
+        case "write" =>
+          workflowUserAccessDao.insert(
+            new WorkflowUserAccess(
+              uid,
+              wid,
+              true, // readPrivilege
+              true // writePrivilege
+            )
+          )
+        case _ =>
+          throw new ForbiddenException("No sufficient access privilege.")
+      }
     } else {
-      if (hasNoWorkflowAccessRecord(wid, uid)) {
-        accessLevel match {
-          case "read" =>
-            workflowUserAccessDao.insert(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                false // writePrivilege
-              )
+      accessLevel match {
+        case "read" =>
+          workflowUserAccessDao.update(
+            new WorkflowUserAccess(
+              uid,
+              wid,
+              true, // readPrivilege
+              false // writePrivilege
             )
-          case "write" =>
-            workflowUserAccessDao.insert(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                true // writePrivilege
-              )
+          )
+        case "write" =>
+          workflowUserAccessDao.update(
+            new WorkflowUserAccess(
+              uid,
+              wid,
+              true, // readPrivilege
+              true // writePrivilege
             )
-          case _ =>
-            throw new ForbiddenException("No sufficient access privilege.")
-        }
-      } else {
-        accessLevel match {
-          case "read" =>
-            workflowUserAccessDao.update(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                false // writePrivilege
-              )
-            )
-          case "write" =>
-            workflowUserAccessDao.update(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                true // writePrivilege
-              )
-            )
-          case _ => throw new ForbiddenException("No sufficient access privilege.")
-        }
+          )
+        case _ => throw new ForbiddenException("No sufficient access privilege.")
       }
     }
   }

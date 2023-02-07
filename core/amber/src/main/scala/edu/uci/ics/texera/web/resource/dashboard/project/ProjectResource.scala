@@ -10,7 +10,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   PROJECT,
   WORKFLOW,
   WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
@@ -214,12 +213,12 @@ class ProjectResource {
     val workflowEntries = context
       .select(
         WORKFLOW.WID,
+        WORKFLOW.OWNER_UID,
         WORKFLOW.NAME,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
         USER.NAME
       )
       .from(WORKFLOW_OF_PROJECT)
@@ -227,16 +226,14 @@ class ProjectResource {
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .leftJoin(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .on(USER.UID.eq(WORKFLOW.OWNER_UID))
       .where(WORKFLOW_OF_PROJECT.PID.eq(pid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetch()
     workflowEntries
       .map(workflowRecord =>
         DashboardWorkflowEntry(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid),
+          workflowRecord.into(WORKFLOW).getOwnerUid.eq(uid),
           toAccessLevel(
             workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
           ).toString,
