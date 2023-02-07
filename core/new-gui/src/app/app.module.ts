@@ -104,6 +104,9 @@ import { NgbdModalRemoveProjectFileComponent } from "./dashboard/component/featu
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
+import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -114,7 +117,7 @@ import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wr
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { HomeComponent } from "./home/component/home.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
-import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
+import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
 import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
 import { MarkdownModule } from "ngx-markdown";
@@ -133,6 +136,7 @@ registerLocaleData(en);
     ResultPanelComponent,
     OperatorLabelComponent,
     DashboardComponent,
+    AdminUserComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
@@ -239,6 +243,7 @@ registerLocaleData(en);
     NzCardModule,
     NzStatisticModule,
     NzTagModule,
+    NzPopconfirmModule,
     NzAvatarModule,
     DynamicModule,
     MonacoEditorModule.forRoot(),
@@ -254,6 +259,7 @@ registerLocaleData(en);
   ],
   providers: [
     AuthGuardService,
+    AdminGuardService,
     DatePipe,
     UserService,
     UserFileService,
