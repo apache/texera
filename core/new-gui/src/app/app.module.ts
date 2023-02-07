@@ -121,6 +121,7 @@ import { GoogleLoginComponent } from "./home/component/login/google-login/google
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
+import { MarkdownModule } from "ngx-markdown";
 
 registerLocaleData(en);
 
@@ -256,6 +257,7 @@ registerLocaleData(en);
     NzSwitchModule,
     NzLayoutModule,
     NzPopconfirmModule,
+    MarkdownModule.forRoot(),
   ],
   providers: [
     AuthGuardService,
