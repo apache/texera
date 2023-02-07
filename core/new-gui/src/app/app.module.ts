@@ -117,6 +117,7 @@ import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
 import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
+import { MarkdownModule } from "ngx-markdown";
 
 registerLocaleData(en);
 
@@ -249,6 +250,7 @@ registerLocaleData(en);
     NgPipesModule,
     NzSwitchModule,
     NzLayoutModule,
+    MarkdownModule.forRoot(),
   ],
   providers: [
     AuthGuardService,
