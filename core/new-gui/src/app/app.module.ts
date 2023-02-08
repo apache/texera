@@ -40,7 +40,6 @@ import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { ColorPickerModule } from "ngx-color-picker";
-import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { CustomNgMaterialModule } from "./common/custom-ng-material.module";
@@ -72,7 +71,6 @@ import { VisualizationFrameContentComponent } from "./workspace/component/visual
 import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
 import { WorkflowEditorComponent } from "./workspace/component/workflow-editor/workflow-editor.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { GoogleApiModule, NG_GAPI_CONFIG } from "ng-gapi";
 import { NgbdModalWorkflowShareAccessComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { NgbdModalUserFileShareAccessComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { NzCardModule } from "ng-zorro-antd/card";
@@ -119,7 +117,6 @@ import { HomeComponent } from "./home/component/home.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
-import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
 import { MarkdownModule } from "ngx-markdown";
 
 registerLocaleData(en);
@@ -176,7 +173,6 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
-    GoogleLoginComponent,
     LocalLoginComponent,
     DeletePromptComponent,
     ContextMenuComponent,
@@ -208,12 +204,6 @@ registerLocaleData(en);
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
     FormlyMatDatepickerModule,
-    GoogleApiModule.forRoot({
-      provide: NG_GAPI_CONFIG,
-      useValue: {
-        client_id: environment.google.clientID,
-      },
-    }),
     NzDatePickerModule,
     NzDropDownModule,
     NzButtonModule,

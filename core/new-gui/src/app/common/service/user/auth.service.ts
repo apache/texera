@@ -1,12 +1,11 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { from, interval, Observable, Subscription } from "rxjs";
+import { interval, Observable, Subscription } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { User, Role } from "../../type/user";
 import { timer } from "rxjs";
-import { mergeMap, startWith, ignoreElements } from "rxjs/operators";
+import { startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
-import { GoogleAuthService } from "ng-gapi";
 import { NotificationService } from "../notification/notification.service";
 import { environment } from "../../../../environments/environment";
 
@@ -35,7 +34,6 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private jwtHelperService: JwtHelperService,
-    private googleAuthService: GoogleAuthService,
     private notificationService: NotificationService
   ) {}
 
@@ -60,15 +58,10 @@ export class AuthService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
 
    */
-  public googleAuth(): Observable<Readonly<{ accessToken: string }>> {
-    return this.googleAuthService.getAuth().pipe(
-      mergeMap(auth => from(auth.grantOfflineAccess())),
-      mergeMap(({ code }) =>
-        this.http.post<Readonly<{ accessToken: string }>>(
-          `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-          { authCode: code }
-        )
-      )
+  public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+      `${credential}`
     );
   }
 

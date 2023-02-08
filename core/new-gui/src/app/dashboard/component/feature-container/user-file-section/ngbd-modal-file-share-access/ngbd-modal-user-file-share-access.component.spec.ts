@@ -7,7 +7,6 @@ import { UserFileService } from "../../../../service/user-file/user-file.service
 import { DashboardUserFileEntry, UserFile } from "../../../../type/dashboard-user-file-entry";
 import { StubUserFileService } from "../../../../service/user-file/stub-user-file-service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
-import { GoogleApiService, GoogleAuthService } from "ng-gapi";
 
 describe("NgbdModalFileShareAccessComponent", () => {
   let component: NgbdModalUserFileShareAccessComponent;
@@ -44,8 +43,6 @@ describe("NgbdModalFileShareAccessComponent", () => {
         NgbActiveModal,
         HttpClient,
         HttpHandler,
-        GoogleAuthService,
-        GoogleApiService,
         StubUserService,
         {
           provide: UserFileService,

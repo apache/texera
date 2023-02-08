@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "../out-tsc/app",
     // include jqueryui type definition here because Angular does not include it if it's not imported
-    "types": ["jqueryui", "gapi.auth2", "gapi"]
+    "types": ["jqueryui"]
   },
   // ask Angular to check template error during the compilation process
   "angularCompilerOptions": {
