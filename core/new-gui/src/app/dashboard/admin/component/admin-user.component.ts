@@ -16,7 +16,6 @@ export class AdminUserComponent implements OnInit {
   editName: string = "";
   editEmail: string = "";
   editRole: Role = Role.REGULAR;
-
   nameSearchValue: string = "";
   emailSearchValue: string = "";
   nameSearchVisible = false;
@@ -72,8 +71,8 @@ export class AdminUserComponent implements OnInit {
   }
 
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
-  public sortByName: NzTableSortFn<User> = (a: User, b: User) => b.name.localeCompare(a.name);
-  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => b.email.localeCompare(a.email);
+  public sortByName: NzTableSortFn<User> = (a: User, b: User) => (b.name || "").localeCompare(a.name);
+  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => (b.email || "").localeCompare(a.email);
   public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
 
   reset(): void {
@@ -86,12 +85,12 @@ export class AdminUserComponent implements OnInit {
 
   searchByName(): void {
     this.nameSearchVisible = false;
-    this.listOfDisplayUser = this.userList.filter((user: User) => user.name.indexOf(this.nameSearchValue) !== -1);
+    this.listOfDisplayUser = this.userList.filter(user => (user.name || "").indexOf(this.nameSearchValue) !== -1);
   }
 
   searchByEmail(): void {
     this.emailSearchVisible = false;
-    this.listOfDisplayUser = this.userList.filter(user => user.email.indexOf(this.emailSearchValue) !== -1);
+    this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
   }
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
