@@ -30,15 +30,9 @@ class SingleReadyRegionTimeInterleaved(
   }
 
   override def onWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
-    val region = getRegion(workerId)
-    if (region.isEmpty) {
-      throw new WorkflowRuntimeException(
-        s"WorkflowScheduler: Worker ${workerId} completed from a non-running region"
-      )
-    } else {
-      checkRegionCompleted(region.get)
-    }
-    if (isRegionCompleted(region.get)) {
+    val regions = getRegions(workerId)
+    regions.foreach(r => checkRegionCompleted(r))
+    if (regions.exists(r => isRegionCompleted(r))) {
       getNextSchedulingWork()
     } else {
       Set()
@@ -46,19 +40,10 @@ class SingleReadyRegionTimeInterleaved(
   }
 
   override def onLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
-    val region = getRegion(linkId)
-    if (region == null) {
-      throw new WorkflowRuntimeException(
-        s"WorkflowScheduler: Link ${linkId.toString()} completed from a non-running region"
-      )
-    } else {
-      val completedLinks =
-        completedLinksOfRegion.getOrElseUpdate(region.get, new mutable.HashSet[LinkIdentity]())
-      completedLinks.add(linkId)
-      completedLinksOfRegion(region.get) = completedLinks
-      checkRegionCompleted(region.get)
-    }
-    if (isRegionCompleted(region.get)) {
+    val regions = getRegions(linkId)
+    regions.foreach(r => completedLinksOfRegion.addBinding(r, linkId))
+    regions.foreach(r => checkRegionCompleted(r))
+    if (regions.exists(r => isRegionCompleted(r))) {
       getNextSchedulingWork()
     } else {
       Set()
