@@ -49,13 +49,11 @@ class WorkerAsyncRPCHandlerInitializer(
     with AssignLocalBreakpointHandler
     with ShutdownDPThreadHandler
     with MonitoringHandler
-    with SendImmutableStateOrNotifyHelperHandler
+    with SendImmutableStateHandler
     with AcceptImmutableStateHandler
     with SharePartitionHandler
     with PauseSkewMitigationHandler
     with BackpressureHandler
-    with SaveSkewedWorkerInfoHandler
-    with AcceptMutableStateHandler
     with SchedulerTimeSlotEventHandler
     with FlushNetworkBufferHandler {
   var lastReportTime = 0L

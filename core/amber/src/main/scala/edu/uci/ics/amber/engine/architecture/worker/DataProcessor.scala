@@ -186,10 +186,6 @@ class DataProcessor( // dependencies:
       if (currentInputTuple.isLeft) {
         inputTupleCount += 1
       }
-      if (pauseManager.getPauseStatusByType(PauseType.OperatorLogicPause)) {
-        // if the operatorLogic decides to pause, we need to disable the data queue for this worker.
-        disableDataQueue()
-      }
     } catch safely {
       case e =>
         // forward input tuple to the user and pause DP thread
