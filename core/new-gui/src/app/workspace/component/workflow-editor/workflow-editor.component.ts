@@ -1474,7 +1474,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.gridOn) {
-          this.getJointPaper().setGridSize(0);
+          this.getJointPaper().setGridSize(1);
           this.gridOn = false;
         } else {
           this.getJointPaper().setGridSize(2);

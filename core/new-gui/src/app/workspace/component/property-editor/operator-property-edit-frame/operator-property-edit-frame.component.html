@@ -19,6 +19,47 @@
       nzTheme="outline"
       nzType="edit"></i>
   </button>
+  <i
+    *ngIf="currentOperatorId?.includes('PythonLambdaFunction')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Python Lambda Function Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="PythonLambdaPopContent"></i>
+
+  <ng-template #PythonLambdaPopContent>
+    You can add a new column by:
+    <ul>
+      <li>Clicking on the blue <strong>"+"</strong> button</li>
+      <li>Selecting <strong>"Add New Column"</strong> in the drop-down list of the first field</li>
+      <li>Typing in the name of the new column</li>
+      <li>Selecting the attribute type</li>
+      <li>Typing in an expression using the Python syntax</li>
+    </ul>
+    You can modify an existing column by:
+    <ul>
+      <li>Clicking on the blue <strong>"+"</strong> button</li>
+      <li>Selecting one existing column in the drop-down list of the first field</li>
+      <li>Selecting the attribute type</li>
+      <li>Typing in an expression using the Python syntax</li>
+    </ul>
+    You can get the value of any existing attribute in the expression by:
+    <ul>
+      <li>Typing in <strong>tuple_["$attributeName"]</strong> in the expression field</li>
+      <li>Replacing <strong>$attributeName</strong> with the attributeName you want to access</li>
+    </ul>
+    <br />
+    Example: Add a new column called IsExpensive where the value is True if the unit price is greater than 500<br />
+    Operations:
+    <ul>
+      <li>Clicking on the blue "+" button</li>
+      <li>Selecting "Add New Column" in the drop-down list of the first field</li>
+      <li>Typing in the name of the new column as <strong>IsExpensive</strong></li>
+      <li>Selecting the attribute type as <strong>boolean</strong></li>
+      <li>Typing in the expression as <strong>True if tuple_["Unit Price"] > 500 else False</strong></li>
+    </ul>
+  </ng-template>
 </div>
 
 <div

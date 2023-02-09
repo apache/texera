@@ -1,13 +1,4 @@
-import {
-  ChangeDetectorRef,
-  Component,
-  ComponentFactoryResolver,
-  Input,
-  OnChanges,
-  OnDestroy,
-  OnInit,
-  SimpleChanges,
-} from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { AbstractControl, FormGroup } from "@angular/forms";
@@ -50,7 +41,6 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
-import { JSONSchema7Type } from "json-schema";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -87,7 +77,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   readonly ExecutionState = ExecutionState;
 
   // whether the editor can be edited
-  interactive: boolean = this.evaluateInteractivity();
+  interactive: boolean = false;
 
   // the source event stream of form change triggered by library at each user input
   sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
@@ -96,6 +86,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   operatorPropertyChangeStream = createOutputFormChangeEventStream(this.sourceFormChangeEventStream, data =>
     this.checkOperatorProperty(data)
   );
+
+  listeningToChange: boolean = true;
 
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
@@ -233,8 +225,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId) {
       return;
     }
-    console.log("re-rendered");
-    // console.trace()
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
@@ -277,14 +267,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // execute set interactivity immediately in another task because of a formly bug
     // whenever the form model is changed, formly can only disable it after the UI is rendered
     setTimeout(() => {
-      const interactive = this.evaluateInteractivity();
-      this.setInteractivity(interactive);
+      this.setInteractivity(this.interactive);
       this.changeDetectorRef.detectChanges();
     }, 0);
-  }
-
-  evaluateInteractivity(): boolean {
-    return this.workflowActionService.checkWorkflowModificationEnabled();
   }
 
   setInteractivity(interactive: boolean) {
@@ -342,9 +327,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .getTexeraGraph()
       .getOperatorPropertyChangeStream()
       .pipe(
+        filter(_ => this.listeningToChange),
         filter(_ => this.currentOperatorId !== undefined),
-        filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId),
-        filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
+        filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
       )
       .pipe(untilDestroyed(this))
       .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
@@ -378,8 +363,30 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.operatorPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorId) {
+        this.listeningToChange = false;
+        this.typeInferenceOnLambdaFunction(formData);
         this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
+        this.listeningToChange = true;
       }
+    });
+  }
+
+  typeInferenceOnLambdaFunction(formData: any): void {
+    if (!this.currentOperatorId?.includes("PythonLambdaFunction")) {
+      return;
+    }
+    const opInputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
+    if (!opInputSchema) {
+      return;
+    }
+    const firstPortInputSchema = opInputSchema[0];
+    if (!firstPortInputSchema) {
+      return;
+    }
+    const schemaMap = new Map(firstPortInputSchema?.map(obj => [obj.attributeName, obj.attributeType]));
+    formData.lambdaAttributeUnits.forEach((unit: any, index: number, a: any) => {
+      if (unit.attributeName === "Add New Column" && !unit.newAttributeName) a[index].attributeType = "";
+      if (schemaMap.has(unit.attributeName)) a[index].attributeType = schemaMap.get(unit.attributeName);
     });
   }
 
@@ -389,8 +396,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .pipe(untilDestroyed(this))
       .subscribe(canModify => {
         if (this.currentOperatorId) {
-          const interactive = this.evaluateInteractivity();
-          this.setInteractivity(interactive);
+          this.setInteractivity(canModify);
           this.changeDetectorRef.detectChanges();
         }
       });
@@ -439,7 +445,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.hideExpression = createShouldHideFieldFunc(
           mapSource.hideTarget,
           mapSource.hideType,
-          mapSource.hideExpectedValue
+          mapSource.hideExpectedValue,
+          mapSource.hideOnNull
         );
       }
 

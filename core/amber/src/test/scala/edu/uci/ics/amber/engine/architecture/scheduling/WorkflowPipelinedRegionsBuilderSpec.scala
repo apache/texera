@@ -9,10 +9,10 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
+  LogicalPlan,
   OperatorLink,
   OperatorPort,
-  WorkflowCompiler,
-  WorkflowInfo
+  WorkflowCompiler
 }
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
@@ -23,18 +23,19 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.asScalaSetConverter
 
 class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
   def buildWorkflow(
-      operators: mutable.MutableList[OperatorDescriptor],
-      links: mutable.MutableList[OperatorLink]
+      operators: List[OperatorDescriptor],
+      links: List[OperatorLink]
   ): Workflow = {
     val context = new WorkflowContext
     context.jobId = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
+      LogicalPlan(operators, links, List[BreakpointInfo]()),
       context
     )
     texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"), new OpResultStorage())
@@ -45,8 +46,8 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
-      mutable.MutableList[OperatorLink](
+      List(headerlessCsvOpDesc, keywordOpDesc, sink),
+      List(
         OperatorLink(
           OperatorPort(headerlessCsvOpDesc.operatorID, 0),
           OperatorPort(keywordOpDesc.operatorID, 0)
@@ -55,7 +56,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 1)
   }
 
@@ -65,13 +66,13 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](
+      List(
         headerlessCsvOpDesc1,
         headerlessCsvOpDesc2,
         joinOpDesc,
         sink
       ),
-      mutable.MutableList[OperatorLink](
+      List(
         OperatorLink(
           OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
           OperatorPort(joinOpDesc.operatorID, 0)
@@ -87,43 +88,26 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
 
-    var buildRegion: PipelinedRegion = null
-    pipelinedRegions
+    val buildRegion = pipelinedRegions
       .vertexSet()
-      .forEach(p =>
-        if (
-          p.getOperators()
-            .contains(
-              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc1.operatorID)
-            )
-        ) {
-          buildRegion = p
-        }
-      )
-
-    var probeRegion: PipelinedRegion = null
-    pipelinedRegions
+      .asScala
+      .find(v => v.operators.toList.exists(op => op.operator == headerlessCsvOpDesc1.operatorID))
+      .get
+    val probeRegion = pipelinedRegions
       .vertexSet()
-      .forEach(p =>
-        if (
-          p.getOperators()
-            .contains(
-              OperatorIdentity(workflow.getWorkflowId().id, headerlessCsvOpDesc2.operatorID)
-            )
-        ) {
-          probeRegion = p
-        }
-      )
+      .asScala
+      .find(v => v.operators.toList.exists(op => op.operator == headerlessCsvOpDesc2.operatorID))
+      .get
 
     assert(pipelinedRegions.getAncestors(probeRegion).size() == 1)
     assert(pipelinedRegions.getAncestors(probeRegion).contains(buildRegion))
-    assert(buildRegion.blockingDowstreamOperatorsInOtherRegions.size == 1)
+    assert(buildRegion.blockingDownstreamOperatorsInOtherRegions.length == 1)
     assert(
-      buildRegion.blockingDowstreamOperatorsInOtherRegions.contains(
-        OperatorIdentity(workflow.getWorkflowId().id, joinOpDesc.operatorID)
+      buildRegion.blockingDownstreamOperatorsInOtherRegions.exists(op =>
+        op.operator == joinOpDesc.operatorID
       )
     )
   }
@@ -133,14 +117,14 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    var workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](
+    val workflow = buildWorkflow(
+      List(
         headerlessCsvOpDesc1,
         keywordOpDesc,
         joinOpDesc,
         sink
       ),
-      mutable.MutableList[OperatorLink](
+      List(
         OperatorLink(
           OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
           OperatorPort(joinOpDesc.operatorID, 0)
@@ -159,7 +143,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
@@ -170,14 +154,14 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     val hashJoin2 = TestOperators.joinOpDesc("column-2", "Country")
     val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](
+      List(
         buildCsv,
         probeCsv,
         hashJoin1,
         hashJoin2,
         sink
       ),
-      mutable.MutableList[OperatorLink](
+      List(
         OperatorLink(
           OperatorPort(buildCsv.operatorID, 0),
           OperatorPort(hashJoin1.operatorID, 0)
@@ -200,7 +184,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 
@@ -211,14 +195,14 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     val inference = new DualInputPortsPythonUDFOpDescV2()
     val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](
+      List(
         csv,
         split,
         training,
         inference,
         sink
       ),
-      mutable.MutableList[OperatorLink](
+      List(
         OperatorLink(
           OperatorPort(csv.operatorID, 0),
           OperatorPort(split.operatorID, 0)
@@ -241,7 +225,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.getPipelinedRegionsDAG()
+    val pipelinedRegions = workflow.physicalPlan.pipelinedRegionsDAG
     assert(pipelinedRegions.vertexSet().size == 2)
   }
 

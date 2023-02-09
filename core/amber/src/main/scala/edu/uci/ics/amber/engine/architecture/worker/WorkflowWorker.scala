@@ -1,66 +1,47 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
+import akka.actor.Props
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
-import akka.pattern.ask
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkAck,
-  NetworkMessage,
-  NetworkSenderActorRef,
-  RegisterActorRef,
-  ResendFeasibility,
-  SendRequest
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   NetworkInputPort,
   NetworkOutputPort,
-  TupleToBatchConverter
+  OutputManager
 }
 import edu.uci.ics.amber.engine.architecture.recovery.RecoveryQueue
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  CreditRequest,
-  DataPayload,
-  ResendOutputTo,
-  UpdateRecoveryStatus,
-  WorkflowControlMessage,
-  WorkflowDataMessage,
-  WorkflowRecoveryMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 
-import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
-      op: IOperatorExecutor,
+      workerIndex: Int,
+      workerLayer: OpExecConfig,
       parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-      allUpstreamLinkIds: Set[LinkIdentity],
       supportFaultTolerance: Boolean
   ): Props =
     Props(
       new WorkflowWorker(
         id,
-        op,
+        workerIndex: Int,
+        workerLayer: OpExecConfig,
         parentNetworkCommunicationActorRef,
-        allUpstreamLinkIds,
         supportFaultTolerance
       )
     )
@@ -70,11 +51,13 @@ object WorkflowWorker {
 
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
-    operator: IOperatorExecutor,
+    workerIndex: Int,
+    workerLayer: OpExecConfig,
     parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity],
     supportFaultTolerance: Boolean
 ) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {
+  lazy val operator: IOperatorExecutor =
+    workerLayer.initIOperatorExecutor((workerIndex, workerLayer))
   lazy val recoveryQueue = new RecoveryQueue(logStorage.getReader)
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val upstreamLinkStatus: UpstreamLinkStatus = wire[UpstreamLinkStatus]
@@ -85,7 +68,7 @@ class WorkflowWorker(
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
   lazy val dataOutputPort: NetworkOutputPort[DataPayload] =
     new NetworkOutputPort[DataPayload](this.actorId, this.outputDataPayload)
-  lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
+  lazy val outputManager: OutputManager = wire[OutputManager]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
   implicit val ec: ExecutionContext = context.dispatcher
@@ -129,7 +112,7 @@ class WorkflowWorker(
   }
 
   def receiveAndProcessMessages: Receive =
-    forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
+    acceptDirectInvocations orElse forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
       case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
         dataInputPort.handleMessage(
           this.sender(),
@@ -153,6 +136,11 @@ class WorkflowWorker(
       case other =>
         throw new WorkflowRuntimeException(s"unhandled message: $other")
     }
+
+  def acceptDirectInvocations: Receive = {
+    case invocation: ControlInvocation =>
+      this.handleControlPayload(SELF, invocation)
+  }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
     tupleProducer.processDataPayload(from, dataPayload)

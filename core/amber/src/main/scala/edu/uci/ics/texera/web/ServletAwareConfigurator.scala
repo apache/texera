@@ -39,8 +39,9 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
           config.getUserProperties.put(
             classOf[User].getName,
             new User(
-              claims.getSubject,
               UInteger.valueOf(claims.getClaimValue("userId").asInstanceOf[Long]),
+              claims.getSubject,
+              null,
               null,
               null,
               null

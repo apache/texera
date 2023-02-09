@@ -1,9 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.ActorContext
-import akka.testkit.TestProbe
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.logging.{EmptyLogManagerImpl, LogManager}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.logging.EmptyLogManagerImpl
 import edu.uci.ics.amber.engine.architecture.logging.storage.{
   DeterminantLogStorage,
   EmptyLogStorage
@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   NetworkInputPort,
   NetworkOutputPort,
-  TupleToBatchConverter
+  OutputManager
 }
 import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
@@ -22,10 +22,8 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
-  RUNNING,
   UNINITIALIZED
 }
-import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -36,8 +34,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
-  LinkIdentity
+  LinkIdentity,
+  OperatorIdentity
 }
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -67,12 +67,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     new NetworkOutputPort[DataPayload](identifier, mockDataOutputHandler)
   lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
     new NetworkOutputPort[ControlPayload](identifier, mockControlOutputHandler)
-  lazy val batchProducer: TupleToBatchConverter = mock[TupleToBatchConverter]
+  lazy val outputManager: OutputManager = mock[OutputManager]
   lazy val breakpointManager: BreakpointManager = mock[BreakpointManager]
+  val operatorIdentity: OperatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+  var workerIndex: Int = 0
   val linkID: LinkIdentity =
     LinkIdentity(
-      LayerIdentity("testDP", "mockOp", "src"),
-      LayerIdentity("testDP", "mockOp", "dst")
+      LayerIdentity("testWorkflow", "testUpstream", "main"),
+      LayerIdentity("testWorkflow", "testOperator", "main")
     )
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
@@ -131,27 +133,30 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process data messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
+    val opExecConfig =
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val asyncRPCServer: AsyncRPCServer = null
     val senderID = ActorVirtualIdentity("sender")
-    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
+    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(opExecConfig)
     upstreamLinkStatus.registerInput(senderID, linkID)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     inAnyOrder {
-      (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
+      (outputManager.emitEndOfUpstream _).expects().anyNumberOfTimes()
       (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
       inSequence {
         (operator.open _).expects().once()
         tuples.foreach { x =>
-          (operator.processTuple _).expects(Left(x), linkID, pauseManager, asyncRPCClient)
+          (operator.processTuple _).expects(Left(x), 0, pauseManager, asyncRPCClient)
         }
         (operator.processTuple _).expects(
           Right(InputExhausted()),
-          linkID,
+          0,
           pauseManager,
           asyncRPCClient
         )
@@ -171,13 +176,16 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "prioritize control messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
+    val opExecConfig =
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val senderID = ActorVirtualIdentity("sender")
-    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
+    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(opExecConfig)
     upstreamLinkStatus.registerInput(senderID, linkID)
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
@@ -188,20 +196,20 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         (operator.open _).expects().once()
         inAnyOrder {
           tuples.map { x =>
-            (operator.processTuple _).expects(Left(x), linkID, pauseManager, asyncRPCClient)
+            (operator.processTuple _).expects(Left(x), 0, pauseManager, asyncRPCClient)
           }
           (asyncRPCServer.receive _).expects(*, *).atLeastOnce() //process controls during execution
         }
         (operator.processTuple _).expects(
           Right(InputExhausted()),
-          linkID,
+          0,
           pauseManager,
           asyncRPCClient
         )
         (asyncRPCServer.receive _)
           .expects(*, *)
           .anyNumberOfTimes() // process controls before execution completes
-        (batchProducer.emitEndOfUpstream _).expects().once()
+        (outputManager.emitEndOfUpstream _).expects().once()
         (asyncRPCServer.receive _)
           .expects(*, *)
           .anyNumberOfTimes() // process controls after execution
@@ -222,14 +230,17 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process control command without inputting data" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
+    val opExecConfig =
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
-    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
+    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(opExecConfig)
     upstreamLinkStatus.registerInput(senderID, linkID)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -254,14 +265,17 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "write determinant to log" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
+    val opExecConfig =
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
-    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
+    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(opExecConfig)
     upstreamLinkStatus.registerInput(senderID, linkID)
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
@@ -286,15 +300,17 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process only control commands while paused" in {
     val operator = mock[OperatorExecutor]
+    val opExecConfig =
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
     (operator.open _).expects().once()
-    val ctx: ActorContext = null
+    val actorContext: ActorContext = null
     val batchToTupleConverter = mock[BatchToTupleConverter]
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
     val recoveryManager = new LocalRecoveryManager()
     val senderID = ActorVirtualIdentity("sender")
-    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
+    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(opExecConfig)
     upstreamLinkStatus.registerInput(senderID, linkID)
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     (asyncRPCClient.send _).expects(*, *).anyNumberOfTimes()
@@ -308,7 +324,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.processTuple _).expects(*, *, *, *).once()
       (mockControlOutputHandler.apply _).expects(*, *, *, *).repeat(4)
       (operator.processTuple _).expects(*, *, *, *).repeat(4)
-      (batchProducer.emitEndOfUpstream _).expects().once()
+      (outputManager.emitEndOfUpstream _).expects().once()
       (operator.close _).expects().once()
     }
     operator.open()
@@ -348,6 +364,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "reduce credits" in {
     Constants.flowControlEnabled = true
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val actorContext: ActorContext = null
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -359,10 +376,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity,
+          input: Int,
           pauseManager: PauseManager,
           asyncRPCClient: AsyncRPCClient
-      ): Iterator[(ITuple, Option[LinkIdentity])] = {
+      ): Iterator[(ITuple, Option[Int])] = {
         Await.result(
           Future {
             Thread.sleep(3000); 42
@@ -372,11 +389,13 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         return Iterator()
       }
     }
+    val opExecConfig =
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
 
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
     val senderID = ActorVirtualIdentity("sender")
-    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(Set(linkID))
+    val upstreamLinkStatus: UpstreamLinkStatus = new UpstreamLinkStatus(opExecConfig)
     upstreamLinkStatus.registerInput(senderID, linkID)
     val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
 

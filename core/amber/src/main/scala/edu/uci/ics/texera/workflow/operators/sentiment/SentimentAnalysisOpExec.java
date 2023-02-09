@@ -34,7 +34,7 @@ public class SentimentAnalysisOpExec extends MapOpExec {
     }
 
     public Tuple processTuple(Tuple t) {
-        String text = t.getField(opDesc.attribute).toString();
+        String text = t.getField(opDesc.attribute()).toString();
         Annotation documentAnnotation = new Annotation(text);
         coreNlp.get().annotate(documentAnnotation);
         // mainSentiment is calculated by the sentiment class of the longest sentence
@@ -58,7 +58,7 @@ public class SentimentAnalysisOpExec extends MapOpExec {
             sentiment = -1;
         }
 
-        return Tuple.newBuilder(operatorSchemaInfo.outputSchemas()[0]).add(t).add(opDesc.resultAttribute, AttributeType.INTEGER, sentiment).build();
+        return Tuple.newBuilder(operatorSchemaInfo.outputSchemas()[0]).add(t).add(opDesc.resultAttribute(), AttributeType.INTEGER, sentiment).build();
     }
 
 
