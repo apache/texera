@@ -2,7 +2,7 @@ import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/cor
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { remove } from "lodash-es";
-import { from, Observable, map } from "rxjs";
+import { from, Observable, map, firstValueFrom } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -149,7 +149,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     private operatorMetadataService: OperatorMetadataService,
     private modalService: NgbModal,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.registerDashboardWorkflowEntriesRefresh();
@@ -565,17 +565,17 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     if (this.selectedCtime.length != 0) {
       newFilterList.push(
         "ctime: " +
-          this.getFormattedDateString(this.selectedCtime[0]) +
-          " ~ " +
-          this.getFormattedDateString(this.selectedCtime[1])
+        this.getFormattedDateString(this.selectedCtime[0]) +
+        " ~ " +
+        this.getFormattedDateString(this.selectedCtime[1])
       );
     }
     if (this.selectedMtime.length != 0) {
       newFilterList.push(
         "mtime: " +
-          this.getFormattedDateString(this.selectedMtime[0]) +
-          " ~ " +
-          this.getFormattedDateString(this.selectedMtime[1])
+        this.getFormattedDateString(this.selectedMtime[0]) +
+        " ~ " +
+        this.getFormattedDateString(this.selectedMtime[1])
       );
     }
     this.masterFilterList = newFilterList;
@@ -597,42 +597,37 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * search value Format (must follow this):
    *  - WORKFLOWNAME owner:OWNERNAME(S) id:ID(S) operator:OPERATOR(S)
    */
-  public searchWorkflow(): void {
+  public async searchWorkflow(): Promise<void> {
     this.buildMasterFilterList();
     if (this.masterFilterList.length === 0) {
       //if there are no tags, return all workflow entries
       this.dashboardWorkflowEntries = this.allDashboardWorkflowEntries;
       return;
     }
-    if (this.selectedOperators.length > 0) {
-      this.asyncSearch();
-    } else {
-      this.dashboardWorkflowEntries = this.synchronousSearch([]);
-    }
-  }
-
-  /**
-   * backend search that is called if operators are included in search value
-   */
-  private asyncSearch() {
-    let andPathQuery: Object[] = [];
-    this.retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString())
-      .pipe(untilDestroyed(this))
-      .subscribe(list_of_wids => {
-        andPathQuery.push({ $or: this.buildOrPathQuery("id", list_of_wids, true) });
-        this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery);
-      });
+    this.dashboardWorkflowEntries = await this.search();
   }
 
   /**
    * Searches workflows with given frontend data
    * no backend calls so runs synchronously
    */
-  private synchronousSearch(andPathQuery: Object[]): ReadonlyArray<DashboardWorkflowEntry> {
+  private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
     let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
+    let andPathQuery: Object[] = [];
 
     //builds andPathQuery from arrays containing selected values
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+
+    // Old search by operator. This should be integrated into the new search endpoint in the future.
+    const idsFromOperatorSearch = await firstValueFrom(this.retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString()));
+    // New search endpoint.
+    const workflowsFromSearch = await firstValueFrom(this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames.join(" ")));
+    // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
+    // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
+    const idsFromWorkflowsSearch = workflowsFromSearch.map(w => w.workflow.wid).filter(id => id).map(id => id!.toString());
+    const wids = new Set<string>([...idsFromOperatorSearch, ...idsFromWorkflowsSearch]);
+
+    andPathQuery.push({ $or: this.buildOrPathQuery("id", [...wids], true) });
 
     if (workflowNames.length !== 0) {
       andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
@@ -826,7 +821,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             untilDestroyed(this)
           )
           .subscribe(
-            () => {},
+            () => { },
             // @ts-ignore // TODO: fix this with notification component
             (err: unknown) => alert(err.error)
           );

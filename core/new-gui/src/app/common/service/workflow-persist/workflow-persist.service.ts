@@ -11,6 +11,7 @@ import { NotificationService } from "../notification/notification.service";
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
 export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
+export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
@@ -83,11 +84,8 @@ export class WorkflowPersistService {
     );
   }
 
-  /**
-   * retrieves a list of workflows from backend database that belongs to the user in the session.
-   */
-  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`).pipe(
+  private retrieveWorkflowsBySessionUserInternal(url: string): Observable<DashboardWorkflowEntry[]> {
+    return this.http.get<DashboardWorkflowEntry[]>(url).pipe(
       map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
         dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
           return {
@@ -97,6 +95,20 @@ export class WorkflowPersistService {
         })
       )
     );
+  }
+
+  /**
+   * retrieves a list of workflows from backend database that belongs to the user in the session.
+   */
+  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
+    return this.retrieveWorkflowsBySessionUserInternal(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
+  }
+
+  /**
+   * retrieves a list of workflows from backend database that belongs to the user in the session.
+   */
+  public searchWorkflowsBySessionUser(query: string): Observable<DashboardWorkflowEntry[]> {
+    return this.retrieveWorkflowsBySessionUserInternal(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?query=${encodeURIComponent(query)}`);
   }
 
   /**
