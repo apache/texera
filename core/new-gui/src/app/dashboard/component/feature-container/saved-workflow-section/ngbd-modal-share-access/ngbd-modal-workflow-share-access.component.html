@@ -34,34 +34,42 @@
         nzBackfill
         #auto></nz-autocomplete>
       <br />
-      <label for="accessLevel"> Access Level </label>
-      <div id="accessLevel">
-        <select
-          class="custom-select"
-          formControlName="accessLevel">
-          <option
-            disabled
-            value="">
-            Choose Access Level To Be Shared
-          </option>
-          <option
-            (change)="changeType($event)"
-            *ngFor="let accessLevel of accessLevels"
-            [ngValue]="accessLevel">
-            {{ accessLevel }}
-          </option>
-        </select>
+
+      <div nz-row [nzGutter]="12">
+        <div nz-col [nzSpan]="12">
+          <nz-card nzTitle="Share">
+            <div style="height:50px;">
+              Access Level:
+              <select>
+                <option value="read">read</option>
+                <option value="read">write</option>
+              </select>
+            </div>
+            <button
+              style="width:100%;"
+              nz-button
+              nzType="primary"
+              type="submit">
+              Share
+            </button>
+          </nz-card>
+        </div>
+        <div nz-col [nzSpan]="12">
+          <nz-card nzTitle="Transfer">
+            <div style="height:50px;"></div>
+            <button
+              nzDanger
+              style="width:100%;"
+              nz-button
+              nzType="primary"
+              type="submit">
+              Transfer
+            </button>
+          </nz-card>
+        </div>
       </div>
-      <br />
-      <br />
-      <button
-        nz-button
-        nz-tooltip="share the access to the target user"
-        nzTooltipPlacement="bottom"
-        nzType="primary"
-        type="submit">
-        Share
-      </button>
+
+
     </div>
   </form>
   <br />
@@ -97,7 +105,4 @@
       </button>
     </li>
   </ul>
-</div>
-<div class="modal-footer">
-  <p>Reminder: Read Access is Read-only while Write Access Dominates</p>
 </div>
