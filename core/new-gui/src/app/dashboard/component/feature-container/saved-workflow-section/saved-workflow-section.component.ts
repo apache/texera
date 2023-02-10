@@ -629,9 +629,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
     andPathQuery.push({ $or: this.buildOrPathQuery("id", [...wids], true) });
 
-    if (workflowNames.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
-    }
     if (this.selectedOwners.length !== 0) {
       andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
     }
