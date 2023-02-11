@@ -138,7 +138,7 @@ object WorkflowAccessResource {
       .zipWithIndex
       .map({
         case (id, index) =>
-          val userName = userDao.fetchOneByUid(id.asInstanceOf[UInteger]).getName
+          val userName = userDao.fetchOneByUid(id.asInstanceOf[UInteger]).getEmail
           if (shares.getValue(index, 2) == true) {
             AccessEntry(userName, "Write")
           } else {
@@ -156,10 +156,8 @@ object WorkflowAccessResource {
   }
 }
 
-/**
-  * Provides endpoints for operations related to Workflow Access.
-  */
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow/access")
 class WorkflowAccessResource() {
 
@@ -177,41 +175,14 @@ class WorkflowAccessResource() {
 
   @GET
   @Path("/owner/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getOwner(@PathParam("wid") wid: UInteger): String = {
     val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
     userDao.fetchOneByUid(uid).getEmail
   }
 
-  /**
-    * This method identifies the user access level of the given workflow
-    *
-    * @param wid     the given workflow
-    * @return json object indicating uid, wid and access level, ex: {"level": "Write", "uid": 1, "wid": 15}
-    */
-  @GET
-  @Path("/workflow/{wid}/level")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveUserAccessLevel(
-      @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
-  ): AccessResponse = {
-    val user = sessionUser.getUser
-    val uid = user.getUid
-    val workflowAccessLevel = checkAccessLevel(wid, uid).toString
-    AccessResponse(uid, wid, workflowAccessLevel)
-  }
-
-  /**
-    * This method returns all current shared accesses of the given workflow
-    *
-    * @param wid     the given workflow
-    * @return json object indicating user with access and access type, ex: [{"Jim": "Write"}]
-    */
   @GET
   @Path("/list/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveGrantedWorkflowAccessList(
+  def getList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[AccessEntry] = {
@@ -229,63 +200,42 @@ class WorkflowAccessResource() {
     }
   }
 
-  /**
-    * This method identifies the user access level of the given workflow
-    *
-    * @param wid     the given workflow
-    * @param username the username of the use whose access is about to be removed
-    * @return message indicating a success message
-    */
   @DELETE
-  @Path("/revoke/{wid}/{username}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def revokeWorkflowAccess(
+  @Path("/revoke/{wid}/{email}")
+  def revokeAccess(
       @PathParam("wid") wid: UInteger,
-      @PathParam("username") username: String,
+      @PathParam("email") email: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    val user = sessionUser.getUser
-    val uid: UInteger =
-      try {
-        userDao.fetchByName(username).get(0).getUid
-      } catch {
-        case _: NullPointerException =>
-          throw new BadRequestException("Target user does not exist.")
-      }
     if (
       !workflowOfUserDao.existsById(
         context
           .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
+          .values(sessionUser.getUser.getUid, wid)
       )
     ) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
       context
         .delete(WORKFLOW_USER_ACCESS)
-        .where(WORKFLOW_USER_ACCESS.UID.eq(uid).and(WORKFLOW_USER_ACCESS.WID.eq(wid)))
+        .where(
+          WORKFLOW_USER_ACCESS.UID
+            .eq(userDao.fetchOneByEmail(email).getUid)
+            .and(WORKFLOW_USER_ACCESS.WID.eq(wid))
+        )
         .execute()
     }
   }
 
-  /**
-    * This method shares a workflow to a user with a specific access type
-    *
-    * @param wid     the given workflow
-    * @param email    the email which the access is given to
-    * @param accessLevel the type of Access given to the target user
-    * @return rejection if user not permitted to share the workflow or Success Message
-    */
   @PUT
   @Path("/grant/{wid}/{email}/{accessLevel}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def grantWorkflowAccess(
+  def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
       @PathParam("accessLevel") accessLevel: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    val user = sessionUser.getUser
     val uid: UInteger =
       try {
         userDao.fetchOneByEmail(email).getUid
@@ -293,12 +243,11 @@ class WorkflowAccessResource() {
         case _: IndexOutOfBoundsException =>
           throw new BadRequestException("Target user does not exist.")
       }
-
     if (
       !workflowOfUserDao.existsById(
         context
           .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
+          .values(sessionUser.getUser.getUid, wid)
       )
     ) {
       throw new ForbiddenException("No sufficient access privilege.")
