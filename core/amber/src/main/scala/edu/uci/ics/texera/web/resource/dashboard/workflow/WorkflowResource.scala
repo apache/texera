@@ -102,7 +102,7 @@ class WorkflowResource {
       .fetch()
 
     workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue().toString())
+      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid.intValue().toString)
       .toList
   }
 
@@ -117,7 +117,7 @@ class WorkflowResource {
   def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
-      .select(USER.NAME)
+      .select(USER.EMAIL)
       .from(WORKFLOW_USER_ACCESS)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
@@ -128,7 +128,7 @@ class WorkflowResource {
       .fetch()
 
     workflowEntries
-      .map(workflowRecord => workflowRecord.into(USER).getName())
+      .map(workflowRecord => workflowRecord.into(USER).getEmail)
       .toList
   }
 

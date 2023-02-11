@@ -279,23 +279,23 @@ class WorkflowAccessResource() {
     * This method shares a workflow to a user with a specific access type
     *
     * @param wid     the given workflow
-    * @param username    the user name which the access is given to
+    * @param email    the email which the access is given to
     * @param accessLevel the type of Access given to the target user
     * @return rejection if user not permitted to share the workflow or Success Message
     */
-  @POST
-  @Path("/grant/{wid}/{username}/{accessLevel}")
+  @PUT
+  @Path("/grant/{wid}/{email}/{accessLevel}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def grantWorkflowAccess(
       @PathParam("wid") wid: UInteger,
-      @PathParam("username") username: String,
+      @PathParam("email") email: String,
       @PathParam("accessLevel") accessLevel: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
     val user = sessionUser.getUser
     val uid: UInteger =
       try {
-        userDao.fetchByName(username).get(0).getUid
+        userDao.fetchOneByEmail(email).getUid
       } catch {
         case _: IndexOutOfBoundsException =>
           throw new BadRequestException("Target user does not exist.")

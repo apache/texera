@@ -14,39 +14,53 @@
 </div>
 <div class="modal-body">
   <form
-    (ngSubmit)="onClickShareWorkflow(workflow)"
-    [formGroup]="shareForm">
+    [formGroup]="validateForm"
+    (ngSubmit)="share(workflow)">
     <div class="form-group">
-      <label for="username"> Username of the target user to share </label>
-      <input
-        [(ngModel)]="ownerSearchValue"
-        nz-input
-        nzBackdrop="false"
-        class="form-control"
-        formControlName="username"
-        id="username"
-        type="text"
-        (ngModelChange)="onChange($event)"
-        [nzAutocomplete]="auto" />
-      <nz-autocomplete
-        [nzDefaultActiveFirstOption]="false"
-        [nzDataSource]="filteredOwners"
-        nzBackfill
-        #auto></nz-autocomplete>
+      <nz-card nzTitle="Target User">
+        <nz-form-item>
+          <nz-form-label
+            [nzSm]="6"
+            [nzXs]="24"
+            nzRequired
+            nzFor="email"
+            >E-mail</nz-form-label
+          >
+          <nz-form-control
+            [nzSm]="14"
+            [nzXs]="24"
+            nzErrorTip="The input is not valid E-mail!">
+            <input
+              nz-input
+              id="email"
+              type="email"
+              formControlName="email"
+              [(ngModel)]="ownerSearchValue"
+              (ngModelChange)="onChange($event)"
+              [nzAutocomplete]="auto" />
+            <nz-autocomplete
+              [nzDefaultActiveFirstOption]="false"
+              [nzDataSource]="filteredOwners"
+              nzBackfill
+              #auto></nz-autocomplete>
+          </nz-form-control>
+        </nz-form-item>
+      </nz-card>
       <br />
-
-      <div nz-row [nzGutter]="12">
-        <div nz-col [nzSpan]="12">
+      <div nz-row>
+        <div
+          nz-col
+          [nzSpan]="24">
           <nz-card nzTitle="Share">
-            <div style="height:50px;">
+            <div style="height: 50px">
               Access Level:
-              <select>
+              <select formControlName="accessLevel">
                 <option value="read">read</option>
-                <option value="read">write</option>
+                <option value="write">write</option>
               </select>
             </div>
             <button
-              style="width:100%;"
+              style="width: 100%"
               nz-button
               nzType="primary"
               type="submit">
@@ -54,27 +68,12 @@
             </button>
           </nz-card>
         </div>
-        <div nz-col [nzSpan]="12">
-          <nz-card nzTitle="Transfer">
-            <div style="height:50px;"></div>
-            <button
-              nzDanger
-              style="width:100%;"
-              nz-button
-              nzType="primary"
-              type="submit">
-              Transfer
-            </button>
-          </nz-card>
-        </div>
       </div>
-
-
     </div>
   </form>
   <br />
   <button
-    (click)="onClickGetAllSharedAccess(workflow)"
+    (click)="ngOnInit()"
     nz-button
     nz-tooltip="reload all accesses"
     nzSize="small"

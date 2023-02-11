@@ -20,12 +20,13 @@ export class WorkflowAccessService {
   /**
    * Assign a new access to/Modify an existing access of another user
    * @param workflow the workflow that is about to be shared
-   * @param username the username of target user
+   * @param email the username of target user
    * @param accessLevel the type of access offered
    * @return hashmap indicating all current accesses, ex: {"Jim": "Write"}
    */
-  public grantUserWorkflowAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
-    return this.http.post<Response>(`${WORKFLOW_ACCESS_GRANT_URL}/${workflow.wid}/${username}/${accessLevel}`, null);
+  public grantUserWorkflowAccess(workflow: Workflow, email: string, accessLevel: string): Observable<Response> {
+    console.log(email);
+    return this.http.put<Response>(`${WORKFLOW_ACCESS_GRANT_URL}/${workflow.wid}/${email}/${accessLevel}`, null);
   }
 
   /**
