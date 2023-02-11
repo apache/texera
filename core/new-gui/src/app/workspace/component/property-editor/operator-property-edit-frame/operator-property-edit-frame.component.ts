@@ -171,7 +171,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   public refreshGrantedList(workflow: Workflow): void {
     this.workflowGrantAccessService
-      .retrieveGrantedWorkflowAccessList(workflow)
+      .getList(workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe(
         (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),

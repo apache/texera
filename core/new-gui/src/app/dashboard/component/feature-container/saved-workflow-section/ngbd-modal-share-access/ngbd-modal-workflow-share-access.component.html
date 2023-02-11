@@ -15,7 +15,7 @@
 <div class="modal-body">
   <form
     [formGroup]="validateForm"
-    (ngSubmit)="share(workflow)">
+    (ngSubmit)="grantAccess()">
     <div class="form-group">
       <nz-card nzTitle="Target User">
         <nz-form-item>
@@ -87,12 +87,12 @@
   <ul
     class="current-share"
     id="current-share">
-    <li>{{ workflowOwner }} <span class="badge badge-primary">Owner</span></li>
-    <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
-      {{ userWorkflowAccess.userName }}
-      <span class="badge badge-primary">{{ userWorkflowAccess.accessLevel }}</span>
+    <li>{{ owner }} <span class="badge badge-primary">Owner</span></li>
+    <li *ngFor="let entry of accessList">
+      {{ entry.userName }}
+      <span class="badge badge-primary">{{ entry.accessLevel }}</span>
       <button
-        (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)"
+        (click)="revokeAccess(entry.userName)"
         nz-button
         nz-tooltip="revoke access"
         nzSize="small"

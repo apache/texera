@@ -175,19 +175,12 @@ class WorkflowAccessResource() {
     context = dslContext
   }
 
-  /**
-    * This method returns the owner of a workflow
-    *
-    * @param wid,     the given workflow
-    * @return ownerName,  the owner's name
-    */
   @GET
   @Path("/owner/{wid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def getWorkflowOwner(@PathParam("wid") wid: UInteger): OwnershipResponse = {
+  def getOwner(@PathParam("wid") wid: UInteger): String = {
     val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
-    val ownerName = userDao.fetchOneByUid(uid).getName
-    OwnershipResponse(ownerName)
+    userDao.fetchOneByUid(uid).getEmail
   }
 
   /**

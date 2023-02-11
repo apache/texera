@@ -2,7 +2,6 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
 import { WorkflowAccessService } from "../../../../service/workflow-access/workflow-access.service";
-import { Workflow } from "../../../../../common/type/workflow";
 import { AccessEntry } from "../../../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardUserFileEntry, UserFile } from "../../../../type/dashboard-user-file-entry";
@@ -15,7 +14,7 @@ import { UserFileService } from "../../../../service/user-file/user-file.service
   styleUrls: ["./ngbd-modal-workflow-share-access.component.scss"],
 })
 export class NgbdModalWorkflowShareAccessComponent implements OnInit {
-  @Input() workflow!: Workflow;
+  @Input() wid!: number;
   @Input() filenames!: string[];
   @Input() allOwners!: string[];
 
@@ -24,31 +23,31 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     accessLevel: ["read"],
   });
 
-  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
-  public workflowOwner: string = "";
+  public accessList: ReadonlyArray<AccessEntry> = [];
+  public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
   constructor(
     public activeModal: NgbActiveModal,
-    private workflowGrantAccessService: WorkflowAccessService,
+    private workflowAccessService: WorkflowAccessService,
     private formBuilder: FormBuilder,
     private userFileService: UserFileService
   ) {}
 
   ngOnInit(): void {
-    this.workflowGrantAccessService
-      .retrieveGrantedWorkflowAccessList(this.workflow)
+    this.workflowAccessService
+      .getList(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(
-        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
+        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.accessList = userWorkflowAccess),
         // @ts-ignore // TODO: fix this with notification component
         (err: unknown) => console.log(err.error)
       );
-    this.workflowGrantAccessService
-      .getWorkflowOwner(this.workflow)
+    this.workflowAccessService
+      .getOwner(this.wid)
       .pipe(untilDestroyed(this))
-      .subscribe(({ ownerName }) => {
-        this.workflowOwner = ownerName;
+      .subscribe(name => {
+        this.owner = name;
       });
   }
 
@@ -60,11 +59,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     }
   }
 
-  /**
-   * triggered by clicking the SUBMIT button, offers access based on the input information
-   * @param workflow target/current workflow
-   */
-  public share(workflow: Workflow): void {
+  public grantAccess(): void {
     if (this.validateForm.valid) {
       const userToShareWith = this.validateForm.get("email")?.value;
       const accessLevel = this.validateForm.get("accessLevel")?.value;
@@ -97,8 +92,8 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
         });
       }
 
-      this.workflowGrantAccessService
-        .grantUserWorkflowAccess(workflow, userToShareWith, accessLevel)
+      this.workflowAccessService
+        .grantAccess(this.wid, userToShareWith, accessLevel)
         .pipe(untilDestroyed(this))
         .subscribe(
           () => this.ngOnInit(),
@@ -108,14 +103,9 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     }
   }
 
-  /**
-   * remove any type of access of the target used
-   * @param workflow the given/target workflow
-   * @param userToRemove the target user
-   */
-  public onClickRemoveAccess(workflow: Workflow, userToRemove: string): void {
-    this.workflowGrantAccessService
-      .revokeWorkflowAccess(workflow, userToRemove)
+  public revokeAccess(userToRemove: string): void {
+    this.workflowAccessService
+      .revokeAccess(this.wid, userToRemove)
       .pipe(untilDestroyed(this))
       .subscribe(
         () => this.ngOnInit(),
