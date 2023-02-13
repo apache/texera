@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { Observable, of } from "rxjs";
 import { WorkflowAccessService } from "./workflow-access.service";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { jsonCast } from "../../../common/util/storage";
@@ -31,15 +31,15 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
   }
 
   public grantAccess(wid: number, email: string, privilege: string): Observable<Response> {
-    throw new Error("Method not implemented.");
+    return of();
   }
   public revokeAccess(wid: number, username: string): Observable<Response> {
-    throw new Error("Method not implemented.");
+    return of();
   }
   public getOwner(wid: number): Observable<string> {
-    throw new Error("Method not implemented.");
+    return of();
   }
   public getList(wid: number | undefined): Observable<readonly AccessEntry2[]> {
-    throw new Error("Method not implemented.");
+    return of();
   }
 }
