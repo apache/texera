@@ -1,17 +1,16 @@
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { of } from "rxjs";
 import { WorkflowAccessService } from "./workflow-access.service";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { jsonCast } from "../../../common/util/storage";
-import { AccessEntry } from "../../type/access.interface";
+import { AccessEntry, AccessEntry2 } from "../../type/access.interface";
 
 export const MOCK_WORKFLOW: Workflow = {
   wid: 1,
   name: "project 1",
   description: "dummy description",
   content: jsonCast<WorkflowContent>(
-    " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
+    ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}'
   ),
   creationTime: 1,
   lastModifiedTime: 2,
@@ -27,25 +26,20 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
 
   public message: string = "This is testing";
 
-  public mapString: AccessEntry[] = [];
-
   constructor() {
     this.workflow = MOCK_WORKFLOW;
   }
 
-  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<ReadonlyArray<AccessEntry>> {
-    return of(this.mapString);
+  public grantAccess(wid: number, email: string, privilege: string): Observable<Response> {
+    throw new Error("Method not implemented.");
   }
-
-  public grantUserWorkflowAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
-    return of();
+  public revokeAccess(wid: number, username: string): Observable<Response> {
+    throw new Error("Method not implemented.");
   }
-
-  public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
-    return of();
+  public getOwner(wid: number): Observable<string> {
+    throw new Error("Method not implemented.");
   }
-
-  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{ ownerName: string }>> {
-    return of();
+  public getList(wid: number | undefined): Observable<readonly AccessEntry2[]> {
+    throw new Error("Method not implemented.");
   }
 }
