@@ -20,7 +20,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   validateForm = this.formBuilder.group({
     email: [null, [Validators.email, Validators.required]],
-    accessLevel: ["read"],
+    accessLevel: ["READ"],
   });
 
   public accessList: ReadonlyArray<AccessEntry2> = [];

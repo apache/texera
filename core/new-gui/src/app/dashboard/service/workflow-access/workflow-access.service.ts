@@ -10,8 +10,8 @@ export const BASE = `${AppSettings.getApiEndpoint()}/workflow/access`;
 export class WorkflowAccessService {
   constructor(private http: HttpClient) {}
 
-  public grantAccess(wid: number, email: string, accessLevel: string): Observable<Response> {
-    return this.http.put<Response>(`${BASE}/grant/${wid}/${email}/${accessLevel}`, null);
+  public grantAccess(wid: number, email: string, privilege: string): Observable<Response> {
+    return this.http.put<Response>(`${BASE}/grant/${wid}/${email}/${privilege}`, null);
   }
 
   public revokeAccess(wid: number, username: string): Observable<Response> {

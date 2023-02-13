@@ -15,9 +15,9 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{context, userDao}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.context
 import io.dropwizard.auth.Auth
-import org.jooq.{DSLContext, Record3}
+import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
@@ -26,8 +26,7 @@ import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowAccessResource {
-  private var context: DSLContext = SqlServer.createDSLContext
-  final private val userDao = new UserDao(context.configuration())
+  final private val context: DSLContext = SqlServer.createDSLContext
 
   def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
     val access = context
@@ -59,18 +58,9 @@ object WorkflowAccessResource {
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow/access")
 class WorkflowAccessResource() {
-
-  private val workflowOfUserDao = new WorkflowOfUserDao(
-    context.configuration
-  )
-  private val workflowUserAccessDao = new WorkflowUserAccessDao(
-    context.configuration
-  )
-
-  def this(dslContext: DSLContext) {
-    this()
-    context = dslContext
-  }
+  final private val userDao = new UserDao(context.configuration())
+  final private val workflowOfUserDao = new WorkflowOfUserDao(context.configuration)
+  final private val workflowUserAccessDao = new WorkflowUserAccessDao(context.configuration)
 
   @GET
   @Path("/owner/{wid}")
@@ -139,12 +129,12 @@ class WorkflowAccessResource() {
   }
 
   @PUT
-  @Path("/grant/{wid}/{email}/{accessLevel}")
+  @Path("/grant/{wid}/{email}/{privilege}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("accessLevel") accessLevel: String,
+      @PathParam("privilege") privilege: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
     val uid: UInteger =
@@ -163,24 +153,9 @@ class WorkflowAccessResource() {
     ) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
-      accessLevel match {
-        case "read" =>
-          workflowUserAccessDao.merge(
-            new WorkflowUserAccess(
-              uid,
-              wid,
-              WorkflowUserAccessPrivilege.READ
-            )
-          )
-        case "write" =>
-          workflowUserAccessDao.merge(
-            new WorkflowUserAccess(
-              uid,
-              wid,
-              WorkflowUserAccessPrivilege.WRITE
-            )
-          )
-      }
+      workflowUserAccessDao.merge(
+        new WorkflowUserAccess(uid, wid, WorkflowUserAccessPrivilege.valueOf(privilege))
+      )
     }
   }
 }
