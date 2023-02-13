@@ -33,13 +33,15 @@ class AggregationOperation() {
   var resultAttribute: String = _
 
   @JsonIgnore
-  def getAggregationAttribute: Attribute = {
+  def getAggregationAttribute(schema: Schema): Attribute = {
     if (this.aggFunction == AggregationFunction.COUNT)
       new Attribute(resultAttribute, AttributeType.INTEGER)
     else if (this.aggFunction == AggregationFunction.CONCAT)
       new Attribute(resultAttribute, AttributeType.STRING)
-    else
+    else if (this.aggFunction == AggregationFunction.AVERAGE)
       new Attribute(resultAttribute, AttributeType.DOUBLE)
+    else
+      new Attribute(resultAttribute, schema.getAttribute(attribute).getType)
   }
 
   @JsonIgnore
@@ -47,39 +49,49 @@ class AggregationOperation() {
       finalAggValueSchema: Schema,
       groupByFunc: Schema => Schema
   ): DistributedAggregation[_ <: AnyRef] = {
+    val attributeType = finalAggValueSchema.getAttribute(resultAttribute).getType
     aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg(finalAggValueSchema, groupByFunc)
       case AggregationFunction.COUNT   => countAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.MAX     => maxAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.MIN     => minAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.SUM     => sumAgg(finalAggValueSchema, groupByFunc)
+      case AggregationFunction.MAX     => maxAgg(finalAggValueSchema, groupByFunc, attributeType)
+      case AggregationFunction.MIN     => minAgg(finalAggValueSchema, groupByFunc, attributeType)
+      case AggregationFunction.SUM     => sumAgg(finalAggValueSchema, groupByFunc, attributeType)
       case AggregationFunction.CONCAT  => concatAgg(finalAggValueSchema, groupByFunc)
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
   }
 
+  private def cast(value: java.lang.Double, attributeType: AttributeType): Object = {
+    attributeType match {
+      case AttributeType.INTEGER => Integer.valueOf(value.intValue)
+      case AttributeType.LONG => java.lang.Long.valueOf(value.longValue)
+      case AttributeType.STRING => value.toString
+      case _ => value
+    }
+  }
+
   private def sumAgg(
       finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[java.lang.Double] = {
-    new DistributedAggregation[java.lang.Double](
-      () => 0,
-      (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        partial + (if (value.isDefined) value.get else 0)
-
-      },
-      (partial1, partial2) => partial1 + partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
-        Tuple
-          .newBuilder(schema)
-          .add(resultAttribute, AttributeType.DOUBLE, partial)
-          .build()
-      },
-      groupByFunc
-    )
+      groupByFunc: Schema => Schema,
+      attributeType: AttributeType
+  ): DistributedAggregation[_ <: AnyRef] = {
+      new DistributedAggregation[java.lang.Double](
+        () => 0,
+        (partial, tuple) => {
+          val value = getNumericalValue(tuple)
+          partial + (if (value.isDefined) value.get else 0)
+        },
+        (partial1, partial2) => partial1 + partial2,
+        (partial) => {
+          val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
+          Tuple
+            .newBuilder(schema)
+            .add(resultAttribute, attributeType, cast(partial, attributeType))
+            .build()
+        },
+        groupByFunc
+      )
   }
 
   private def countAgg(
@@ -138,7 +150,8 @@ class AggregationOperation() {
 
   private def minAgg(
       finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
+      groupByFunc: Schema => Schema,
+      attributeType: AttributeType
   ): DistributedAggregation[java.lang.Double] = {
     new DistributedAggregation[java.lang.Double](
       () => Double.MaxValue,
@@ -148,13 +161,13 @@ class AggregationOperation() {
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
       (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
+        val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
         Tuple
           .newBuilder(schema)
           .add(
             resultAttribute,
-            AttributeType.DOUBLE,
-            if (partial == Double.MaxValue) null else partial
+            attributeType,
+            if (partial == Double.MaxValue) null else cast(partial, attributeType)
           )
           .build()
       },
@@ -164,7 +177,8 @@ class AggregationOperation() {
 
   private def maxAgg(
       finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
+      groupByFunc: Schema => Schema,
+      attributeType: AttributeType
   ): DistributedAggregation[java.lang.Double] = {
     new DistributedAggregation[java.lang.Double](
       () => Double.MinValue,
@@ -174,13 +188,13 @@ class AggregationOperation() {
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
       (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
+        val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
         Tuple
           .newBuilder(schema)
           .add(
             resultAttribute,
-            AttributeType.DOUBLE,
-            if (partial == Double.MinValue) null else partial
+            attributeType,
+            if (partial == Double.MinValue) null else cast(partial, attributeType)
           )
           .build()
       },

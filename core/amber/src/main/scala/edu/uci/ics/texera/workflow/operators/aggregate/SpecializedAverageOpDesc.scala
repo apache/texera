@@ -51,7 +51,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     }
 
     var groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
-    val finalAggValueSchema = getFinalAggValueSchema
+    val finalAggValueSchema = getFinalAggValueSchema(operatorSchemaInfo.inputSchemas)
 
     val groupByFunc: Schema => Schema = {
       if (this.groupByKeys == null) null
@@ -88,10 +88,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       .build()
   }
 
-  private def getFinalAggValueSchema: Schema = {
+  private def getFinalAggValueSchema(schemas: Array[Schema]): Schema = {
     Schema
       .newBuilder()
-      .add(aggregations.map(_.getAggregationAttribute).asJava)
+      .add(aggregations.map(_.getAggregationAttribute(schemas(0))).asJava)
       .build()
   }
 
@@ -113,7 +113,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     Schema
       .newBuilder()
       .add(getGroupByKeysSchema(schemas).getAttributes)
-      .add(getFinalAggValueSchema.getAttributes)
+      .add(getFinalAggValueSchema(schemas).getAttributes)
       .build()
   }
 
