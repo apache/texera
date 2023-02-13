@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
 import { WorkflowAccessService } from "../../../../service/workflow-access/workflow-access.service";
-import { AccessEntry } from "../../../../type/access.interface";
+import { AccessEntry2 } from "../../../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardUserFileEntry, UserFile } from "../../../../type/dashboard-user-file-entry";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
@@ -23,7 +23,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     accessLevel: ["read"],
   });
 
-  public accessList: ReadonlyArray<AccessEntry> = [];
+  public accessList: ReadonlyArray<AccessEntry2> = [];
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
@@ -38,11 +38,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     this.workflowAccessService
       .getList(this.wid)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.accessList = userWorkflowAccess),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => console.log(err.error)
-      );
+      .subscribe(access => (this.accessList = access));
     this.workflowAccessService
       .getOwner(this.wid)
       .pipe(untilDestroyed(this))
@@ -85,21 +81,14 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
           this.userFileService
             .grantUserFileAccess(dashboardUserFileEntry, userToShareWith, "read")
             .pipe(untilDestroyed(this))
-            .subscribe(
-              // @ts-ignore // TODO: fix this with notification component
-              (err: unknown) => alert(err.error)
-            );
+            .subscribe();
         });
       }
 
       this.workflowAccessService
         .grantAccess(this.wid, userToShareWith, accessLevel)
         .pipe(untilDestroyed(this))
-        .subscribe(
-          () => this.ngOnInit(),
-          // @ts-ignore // TODO: fix this with notification component
-          (err: unknown) => alert(err.error)
-        );
+        .subscribe(() => this.ngOnInit());
     }
   }
 
@@ -107,10 +96,6 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     this.workflowAccessService
       .revokeAccess(this.wid, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.ngOnInit(),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => alert(err.error)
-      );
+      .subscribe(() => this.ngOnInit());
   }
 }

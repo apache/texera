@@ -89,10 +89,10 @@
     id="current-share">
     <li>{{ owner }} <span class="badge badge-primary">Owner</span></li>
     <li *ngFor="let entry of accessList">
-      {{ entry.userName }}
-      <span class="badge badge-primary">{{ entry.accessLevel }}</span>
+      {{ entry.email }} ({{ entry.name }})
+      <span class="badge badge-primary">{{ entry.privilege }}</span>
       <button
-        (click)="revokeAccess(entry.userName)"
+        (click)="revokeAccess(entry.email)"
         nz-button
         nz-tooltip="revoke access"
         nzSize="small"

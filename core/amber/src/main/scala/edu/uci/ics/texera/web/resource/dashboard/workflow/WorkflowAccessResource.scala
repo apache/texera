@@ -2,157 +2,56 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.http.response.{AccessResponse, OwnershipResponse}
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.common.AccessEntry2
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  checkAccessLevel,
-  context,
-  getGrantedWorkflowAccessList,
-  hasNoWorkflowAccessRecord,
-  userDao
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{context, userDao}
 import io.dropwizard.auth.Auth
-import org.jooq.DSLContext
+import org.jooq.{DSLContext, Record3}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.JavaConverters._
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
-/**
-  * An enum class identifying the specific workflow access level
-  *
-  * READ indicates read-only
-  * WRITE indicates write access (which dominates)
-  * NONE indicates having an access record, but either read or write access is granted
-  * NO_RECORD indicates having no record in the table
-  */
-
-/**
-  * Helper functions for retrieving access level based on given information
-  */
 object WorkflowAccessResource {
-
-  private lazy val userDao = new UserDao(context.configuration())
   private var context: DSLContext = SqlServer.createDSLContext
+  final private val userDao = new UserDao(context.configuration())
 
-  /**
-    * Identifies whether the given user has read-only access over the given workflow
-    *
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.READ)
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
-  }
-
-  /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
-  }
-
-  /**
-    * Returns an Access Object based on given wid and uid
-    * Searches in database for the given uid-wid pair, and returns Access Object based on search result
-    *
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return Access Object indicating the access level
-    */
-  def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
-    val workflowUserAccess = context
-      .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
+  def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
+    val access = context
+      .select()
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[WorkflowUserAccess])
-    toAccessLevel(workflowUserAccess)
-  }
-
-  def toAccessLevel(workflowUserAccess: WorkflowUserAccess): WorkflowAccess.Value = {
-    if (workflowUserAccess == null) return WorkflowAccess.NO_RECORD
-    if (workflowUserAccess.getWritePrivilege == true) {
-      WorkflowAccess.WRITE
-    } else if (workflowUserAccess.getReadPrivilege == true) {
-      WorkflowAccess.READ
+    if (access == null) {
+      WorkflowUserAccessPrivilege.NONE
     } else {
-      WorkflowAccess.NONE
+      access.getPrivilege
     }
   }
 
-  /**
-    * Identifies whether the given user has no access record over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccessRecord(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NO_RECORD)
+  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
+    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ)
   }
 
-  /**
-    * Returns information about all current shared access of the given workflow
-    *
-    * @param wid     workflow id
-    * @param uid     user id of current user, used to identify ownership
-    * @return a List with corresponding information Ex: [{"Jim": "Read"}]
-    */
-  def getGrantedWorkflowAccessList(wid: UInteger, uid: UInteger): List[AccessEntry] = {
-    val shares = context
-      .select(
-        WORKFLOW_USER_ACCESS.UID,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE
-      )
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.notEqual(uid)))
-      .fetch()
-
-    shares
-      .getValues(0)
-      .asScala
-      .toList
-      .zipWithIndex
-      .map({
-        case (id, index) =>
-          val userName = userDao.fetchOneByUid(id.asInstanceOf[UInteger]).getEmail
-          if (shares.getValue(index, 2) == true) {
-            AccessEntry(userName, "Write")
-          } else {
-            AccessEntry(userName, "Read")
-          }
-      })
+  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
+    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.WRITE)
   }
 
-  object WorkflowAccess extends Enumeration {
-    type Access = Value
-    val READ: WorkflowAccess.Value = Value("Read")
-    val WRITE: WorkflowAccess.Value = Value("Write")
-    val NONE: WorkflowAccess.Value = Value("None")
-    val NO_RECORD: WorkflowAccess.Value = Value("NoRecord")
+  def hasAccess(wid: UInteger, uid: UInteger): Boolean = {
+    hasReadAccess(wid, uid) || hasWriteAccess(wid, uid)
   }
 }
 
@@ -185,7 +84,7 @@ class WorkflowAccessResource() {
   def getList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
-  ): List[AccessEntry] = {
+  ): List[AccessEntry2] = {
     val user = sessionUser.getUser
     if (
       workflowOfUserDao.existsById(
@@ -194,7 +93,19 @@ class WorkflowAccessResource() {
           .values(user.getUid, wid)
       )
     ) {
-      getGrantedWorkflowAccessList(wid, user.getUid)
+      context
+        .select(
+          USER.EMAIL,
+          USER.NAME,
+          WORKFLOW_USER_ACCESS.PRIVILEGE
+        )
+        .from(WORKFLOW_USER_ACCESS)
+        .join(USER)
+        .on(USER.UID.eq(WORKFLOW_USER_ACCESS.UID))
+        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.notEqual(user.getUid)))
+        .fetch()
+        .map(access => { access.into(classOf[AccessEntry2]) })
+        .toList
     } else {
       throw new ForbiddenException("You are not the owner of the workflow.")
     }
@@ -252,51 +163,23 @@ class WorkflowAccessResource() {
     ) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
-      if (hasNoWorkflowAccessRecord(wid, uid)) {
-        accessLevel match {
-          case "read" =>
-            workflowUserAccessDao.insert(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                false // writePrivilege
-              )
+      accessLevel match {
+        case "read" =>
+          workflowUserAccessDao.merge(
+            new WorkflowUserAccess(
+              uid,
+              wid,
+              WorkflowUserAccessPrivilege.READ
             )
-          case "write" =>
-            workflowUserAccessDao.insert(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                true // writePrivilege
-              )
+          )
+        case "write" =>
+          workflowUserAccessDao.merge(
+            new WorkflowUserAccess(
+              uid,
+              wid,
+              WorkflowUserAccessPrivilege.WRITE
             )
-          case _ =>
-            throw new ForbiddenException("No sufficient access privilege.")
-        }
-      } else {
-        accessLevel match {
-          case "read" =>
-            workflowUserAccessDao.update(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                false // writePrivilege
-              )
-            )
-          case "write" =>
-            workflowUserAccessDao.update(
-              new WorkflowUserAccess(
-                uid,
-                wid,
-                true, // readPrivilege
-                true // writePrivilege
-              )
-            )
-          case _ => throw new ForbiddenException("No sufficient access privilege.")
-        }
+          )
       }
     }
   }

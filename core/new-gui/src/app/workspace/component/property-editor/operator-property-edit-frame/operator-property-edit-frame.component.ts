@@ -33,7 +33,7 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { AccessEntry } from "../../../../dashboard/type/access.interface";
+import { AccessEntry, AccessEntry2 } from "../../../../dashboard/type/access.interface";
 import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
 import { Workflow } from "../../../../common/type/workflow";
 import { QuillBinding } from "y-quill";
@@ -111,7 +111,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
   public lockGranted: boolean = true;
-  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
+  public allUserWorkflowAccess: ReadonlyArray<AccessEntry2> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -173,11 +173,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.workflowGrantAccessService
       .getList(workflow.wid)
       .pipe(untilDestroyed(this))
-      .subscribe(
-        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => console.log(err.error)
-      );
+      .subscribe((access: ReadonlyArray<AccessEntry2>) => (this.allUserWorkflowAccess = access));
   }
 
   async ngOnDestroy() {
@@ -206,7 +202,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               isOwner: true,
               projectIDs: [],
             },
-            userWorkflowAccess.userName,
+            userWorkflowAccess.email,
             "read"
           )
           .pipe(untilDestroyed(this))
