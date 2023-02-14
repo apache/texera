@@ -453,9 +453,11 @@ class WorkflowResource {
     * @return A list of workflows that match the search term.
     */
   @GET
-  @Path(“/search”)
-  def searchWorkflow(@Auth sessionUser: SessionUser, @QueryParam(“keywords”) keywords: String)
-  : List[Workflow] = {
+  @Path("/search")
+  def searchWorkflow(
+      @Auth sessionUser: SessionUser,
+      @QueryParam("query") query: String
+  ): List[Workflow] = {
     val user = sessionUser.getUser
     val workflowEntries = context
       .select(
@@ -469,7 +471,7 @@ class WorkflowResource {
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME,
-        groupConcat(WORKFLOW_OF_PROJECT.PID).as(“projects”)
+        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -480,7 +482,10 @@ class WorkflowResource {
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid) and(“MATCH(content) AGAINST(?) IN NATURAL LANGUAGE MODE”, keywords))
+      .where(
+        WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
+          and ("(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(? IN NATURAL LANGUAGE MODE))", query)
+      )
       .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
     workflowEntries

@@ -1,2 +1,2 @@
 USE `texera_db`;
-alter table workflow add fulltext(content);
+CREATE FULLTEXT INDEX `idx_workflow_name_description_content`  ON `texera_db`.`workflow` (name, description, content);
