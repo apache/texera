@@ -149,7 +149,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     private operatorMetadataService: OperatorMetadataService,
     private modalService: NgbModal,
     private router: Router
-  ) { }
+  ) {}
 
   ngOnInit() {
     this.registerDashboardWorkflowEntriesRefresh();
@@ -565,17 +565,17 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     if (this.selectedCtime.length != 0) {
       newFilterList.push(
         "ctime: " +
-        this.getFormattedDateString(this.selectedCtime[0]) +
-        " ~ " +
-        this.getFormattedDateString(this.selectedCtime[1])
+          this.getFormattedDateString(this.selectedCtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedCtime[1])
       );
     }
     if (this.selectedMtime.length != 0) {
       newFilterList.push(
         "mtime: " +
-        this.getFormattedDateString(this.selectedMtime[0]) +
-        " ~ " +
-        this.getFormattedDateString(this.selectedMtime[1])
+          this.getFormattedDateString(this.selectedMtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedMtime[1])
       );
     }
     this.masterFilterList = newFilterList;
@@ -619,12 +619,19 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
 
     // Old search by operator. This should be integrated into the new search endpoint in the future.
-    const idsFromOperatorSearch = await firstValueFrom(this.retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString()));
+    const idsFromOperatorSearch = await firstValueFrom(
+      this.retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString())
+    );
     // New search endpoint.
-    const workflowsFromSearch = await firstValueFrom(this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames.join(" ")));
+    const workflowsFromSearch = await firstValueFrom(
+      this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames.join(" "))
+    );
     // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
     // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
-    const idsFromWorkflowsSearch = workflowsFromSearch.map(w => w.workflow.wid).filter(id => id).map(id => id!.toString());
+    const idsFromWorkflowsSearch = workflowsFromSearch
+      .map(w => w.workflow.wid)
+      .filter(id => id)
+      .map(id => id!.toString());
     const wids = new Set<string>([...idsFromOperatorSearch, ...idsFromWorkflowsSearch]);
 
     andPathQuery.push({ $or: this.buildOrPathQuery("id", [...wids], true) });
@@ -818,7 +825,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             untilDestroyed(this)
           )
           .subscribe(
-            () => { },
+            () => {},
             // @ts-ignore // TODO: fix this with notification component
             (err: unknown) => alert(err.error)
           );
