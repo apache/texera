@@ -443,4 +443,48 @@ class WorkflowResource {
       workflowDao.update(userWorkflow)
     }
   }
+
+  /**
+    * This method performs a full-text search in the content column of the
+    * workflow table for workflows that match the specified keywords.
+    *
+    * @param sessionUser The authenticated user.
+    * @param keywords    The search keywords.
+    * @return A list of workflows that match the search term.
+    */
+  @GET
+  @Path(“/search”)
+  def searchWorkflow(@Auth sessionUser: SessionUser, @QueryParam(“keywords”) keywords: String)
+  : List[Workflow] = {
+    val user = sessionUser.getUser
+    val workflowEntries = context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CONTENT,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME,
+        groupConcat(WORKFLOW_OF_PROJECT.PID).as(“projects”)
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid) and(“MATCH(content) AGAINST(?) IN NATURAL LANGUAGE MODE”, keywords))
+      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
+      .fetch()
+    workflowEntries
+      .map(workflowRecord => workflowRecord.into(classOf[Workflow]))
+      .toList
+  }
 }
