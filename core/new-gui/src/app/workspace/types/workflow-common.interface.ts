@@ -17,12 +17,23 @@ export interface OperatorPort
     portID: string;
   }> {}
 
+export type PartitionInfo =
+  | Readonly<{ type: "hash"; columnIndices: number[] }>
+  | Readonly<{ type: "range"; columnIndices: number[]; rangeMin: number; rangeMax: number }>
+  | Readonly<{ type: "single" }>;
+
+export interface OperatorPortSchema
+  extends Readonly<{
+    jsonSchema: Readonly<JSONSchema7>;
+  }> {}
+
 export interface PortDescription
   extends Readonly<{
     portID: string;
     displayName?: string;
     allowMultiInputs?: boolean;
     isDynamicPort?: boolean;
+    partitionRequirement?: PartitionInfo;
   }> {}
 
 export interface OperatorPredicate

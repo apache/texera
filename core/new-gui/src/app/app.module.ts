@@ -121,6 +121,7 @@ import { DragDropModule } from "@angular/cdk/drag-drop";
 import { AuthInterceptor } from "./common/service/user/auth.interceptor";
 import { UserWorkflowListItemComponent } from "./dashboard/user/component/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectListItemComponent } from "./dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component";
+import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 
 registerLocaleData(en);
 
@@ -183,6 +184,7 @@ registerLocaleData(en);
     HomeComponent,
     UserWorkflowListItemComponent,
     UserProjectListItemComponent,
+    PortPropertyEditFrameComponent,
   ],
   imports: [
     BrowserModule,

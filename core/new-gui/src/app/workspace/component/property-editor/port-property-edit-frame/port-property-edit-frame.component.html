@@ -1,0 +1,41 @@
+<div
+  *ngIf="!editingTitle"
+  id="formly-title">
+  <h3
+    *ngIf="!editingTitle && formTitle"
+    class="texera-workspace-property-editor-title">
+    {{ formTitle }}
+  </h3>
+  <button
+    (click)="editingTitle=true; connectQuillToText()"
+    nz-button
+    nz-tooltip="Customize Port Name"
+    nzSize="small"
+    nzTooltipPlacement="bottom"
+    nzType="text"
+    [disabled]="!interactive">
+    <i
+      nz-icon
+      nzTheme="outline"
+      nzType="edit"></i>
+  </button>
+</div>
+
+<div
+  id="customName"
+  [hidden]="!editingTitle"
+  (focusout)="disconnectQuillFromText()"
+  (keyup.enter)="disconnectQuillFromText()"></div>
+
+<form
+  *ngIf="formlyFields && formlyFormGroup"
+  [formGroup]="formlyFormGroup"
+  class="texera-workspace-property-editor-form">
+  <formly-form
+    (modelChange)="onFormChanges($event)"
+    [fields]="formlyFields"
+    [form]="formlyFormGroup"
+    [model]="formData"
+    [options]="formlyOptions">
+  </formly-form>
+</form>

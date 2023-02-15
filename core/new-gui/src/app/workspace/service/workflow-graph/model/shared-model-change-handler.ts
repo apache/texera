@@ -6,6 +6,7 @@ import {
   CommentBox,
   OperatorLink,
   OperatorPredicate,
+  PartitionInfo,
   Point,
   PortDescription,
 } from "../../../types/workflow-common.interface";
@@ -82,6 +83,7 @@ export class SharedModelChangeHandler {
               links: this.jointGraphWrapper.getCurrentHighlightedLinkIDs(),
               groups: [],
               commentBoxes: [],
+              operatorPorts: this.jointGraphWrapper.getCurrentHighlightedOperatorPortIDs(),
             });
           }
           this.jointGraph.getCell(key).remove();
@@ -327,6 +329,40 @@ export class SharedModelChangeHandler {
             }
           } else if (event.path.includes("operatorProperties")) {
             this.onOperatorPropertyChanged(operatorID, event.transaction.local);
+          } else if (event.path.includes("inputPorts") && event.path.includes("displayName")) {
+            this.texeraGraph.operatorPortDisplayNameChangedSubject.next({
+              operatorID: event.path[0] as string,
+              portID: this.texeraGraph.getOperator(event.path[0] as string).inputPorts[event.path[2] as number].portID,
+              newDisplayName: event.target.toJSON() as unknown as string,
+            });
+          } else if (event.path.includes("outputPorts") && event.path.includes("displayName")) {
+            this.texeraGraph.operatorPortDisplayNameChangedSubject.next({
+              operatorID: event.path[0] as string,
+              portID: this.texeraGraph.getOperator(event.path[0] as string).outputPorts[event.path[2] as number].portID,
+              newDisplayName: event.target.toJSON() as unknown as string,
+            });
+          } else if (event.path.includes("inputPorts") && event.path.length === 3) {
+            const newOperatorPortDescription = this.texeraGraph.getOperator(event.path[0] as string).inputPorts[
+              event.path[2] as number
+            ];
+            this.texeraGraph.operatorPortPropertyChangedSubject.next({
+              operatorPortID: {
+                operatorID: event.path[0] as string,
+                portID: newOperatorPortDescription.portID,
+              },
+              newProperty: newOperatorPortDescription.partitionRequirement as PartitionInfo,
+            });
+          } else if (event.path.includes("outputPorts") && event.path.length === 3) {
+            const newOperatorPortDescription = this.texeraGraph.getOperator(event.path[0] as string).outputPorts[
+              event.path[2] as number
+            ];
+            this.texeraGraph.operatorPortPropertyChangedSubject.next({
+              operatorPortID: {
+                operatorID: event.path[0] as string,
+                portID: newOperatorPortDescription.portID,
+              },
+              newProperty: newOperatorPortDescription.partitionRequirement as PartitionInfo,
+            });
           }
         }
       });

@@ -1,6 +1,6 @@
 import { fromEvent, merge, Observable, ReplaySubject, Subject } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { Point } from "../../../types/workflow-common.interface";
+import { OperatorPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
@@ -9,8 +9,7 @@ import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
 import Selectors = dia.Cell.Selectors;
-
-type operatorIDsType = { operatorIDs: string[] };
+import * as _ from "lodash";
 type linkIDType = { linkID: string };
 
 type JointModelEventInfo = {
@@ -46,6 +45,7 @@ export type JointHighlights = Readonly<{
   groups: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
+  operatorPorts: readonly OperatorPort[];
 }>;
 
 export type JointGraphContextType = Readonly<{
@@ -100,6 +100,7 @@ export class JointGraphWrapper {
     groups: [],
     links: [],
     commentBoxes: [],
+    operatorPorts: [],
   };
 
   // the currently highlighted operators' IDs
@@ -123,6 +124,10 @@ export class JointGraphWrapper {
 
   private jointCommentBoxUnhighlightStream = new Subject<readonly string[]>();
 
+  private jointOperatorPortHighlightStream = new Subject<readonly OperatorPort[]>();
+
+  private jointOperatorPortUnhighlightStream = new Subject<readonly OperatorPort[]>();
+
   private currentHighlightedCommentBoxes: string[] = [];
 
   // event stream of zooming the jointJS paper
@@ -139,6 +144,9 @@ export class JointGraphWrapper {
   // the currently highlighted links' ids
   private currentHighlightedLinks: string[] = [];
   // the linkIDs of those links with a breakpoint
+
+  private currentHighlightedOperatorPorts: OperatorPort[] = [];
+  // the IDs of ports currently being edited
   private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
@@ -265,6 +273,10 @@ export class JointGraphWrapper {
     return this.currentHighlightedLinks;
   }
 
+  public getCurrentHighlightedOperatorPortIDs(): readonly OperatorPort[] {
+    return this.currentHighlightedOperatorPorts;
+  }
+
   public getCurrentHighlightedCommentBoxIDs(): readonly string[] {
     return this.currentHighlightedCommentBoxes;
   }
@@ -275,6 +287,7 @@ export class JointGraphWrapper {
       groups: this.currentHighlightedGroups,
       links: this.currentHighlightedLinks,
       commentBoxes: this.currentHighlightedCommentBoxes,
+      operatorPorts: this.currentHighlightedOperatorPorts,
     };
   }
 
@@ -345,6 +358,7 @@ export class JointGraphWrapper {
     this.highlightGroups(...elements.groups);
     this.highlightLinks(...elements.links);
     this.highlightCommentBoxes(...elements.commentBoxes);
+    this.highlightOperatorPorts(...elements.operatorPorts);
   }
 
   public unhighlightElements(elements: JointHighlights): void {
@@ -352,6 +366,7 @@ export class JointGraphWrapper {
     this.unhighlightGroups(...elements.groups);
     this.unhighlightLinks(...elements.links);
     this.unhighlightCommentBoxes(...elements.commentBoxes);
+    this.unhighlightOperatorPorts(...elements.operatorPorts);
   }
 
   /**
@@ -469,6 +484,30 @@ export class JointGraphWrapper {
       this.jointCommentBoxUnhighlightStream.next(unhighlightedCommentBoxesIDs);
     }
   }
+
+  public highlightOperatorPorts(...operatorPortIDs: OperatorPort[]): void {
+    const highlightedOperatorPortIDs: OperatorPort[] = [];
+    operatorPortIDs
+      .filter(operatorPortID => _.find(this.currentHighlightedOperatorPorts, operatorPortID) === undefined)
+      .forEach(operatorPortID => {
+        if (!this.multiSelect) this.unhighlightOperatorPorts(...this.currentHighlightedOperatorPorts);
+        this.currentHighlightedOperatorPorts.push(operatorPortID);
+        highlightedOperatorPortIDs.push(operatorPortID);
+      });
+    this.jointOperatorPortHighlightStream.next(highlightedOperatorPortIDs);
+  }
+
+  public unhighlightOperatorPorts(...operatorPortIDs: OperatorPort[]): void {
+    const unhighlightedOperatorPortIDs: OperatorPort[] = [];
+    operatorPortIDs
+      .filter(operatorPortID => _.find(this.currentHighlightedOperatorPorts, operatorPortID) !== undefined)
+      .forEach(operatorPortID => {
+        this.currentHighlightedOperatorPorts.splice(_.indexOf(this.currentHighlightedOperatorPorts, operatorPortID), 1);
+        unhighlightedOperatorPortIDs.push(operatorPortID);
+      });
+    this.jointOperatorPortUnhighlightStream.next(unhighlightedOperatorPortIDs);
+  }
+
   /**
    * Gets the event stream of an operator being highlighted.
    */
@@ -541,6 +580,15 @@ export class JointGraphWrapper {
   public getJointCommentBoxUnhighlightStream(): Observable<readonly string[]> {
     return this.jointCommentBoxUnhighlightStream.asObservable();
   }
+
+  public getJointOperatorPortHighlightStream(): Observable<readonly OperatorPort[]> {
+    return this.jointOperatorPortHighlightStream.asObservable();
+  }
+
+  public getJointOperatorPortUnhighlightStream(): Observable<readonly OperatorPort[]> {
+    return this.jointOperatorPortUnhighlightStream.asObservable();
+  }
+
   /**
    * Gets the event stream of an element being dragged.
    */
@@ -898,6 +946,7 @@ export class JointGraphWrapper {
       this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
       this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
+      this.unhighlightOperatorPorts(...this.getCurrentHighlightedOperatorPortIDs());
     }
     // highlight the element and add it to the list of highlighted elements
     currentHighlightedElements.push(elementID);

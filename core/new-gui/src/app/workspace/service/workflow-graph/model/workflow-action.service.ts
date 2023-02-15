@@ -439,6 +439,12 @@ export class WorkflowActionService {
     });
   }
 
+  public setOperatorPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.setOperatorPortProperty(operatorPortID, newProperty);
+    });
+  }
+
   /**
    * set a given link's breakpoint properties to specific values
    */
@@ -506,6 +512,15 @@ export class WorkflowActionService {
   public highlightCommentBoxes(multiSelect: boolean, ...commentBoxIDs: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightCommentBoxes(...commentBoxIDs);
+  }
+
+  public highlightOperatorPorts(multiSelect: boolean, ...ports: OperatorPort[]): void {
+    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
+    this.getJointGraphWrapper().highlightOperatorPorts(...ports);
+  }
+
+  public unhighlightOperatorPorts(...ports: OperatorPort[]): void {
+    this.getJointGraphWrapper().unhighlightOperatorPorts(...ports);
   }
 
   public disableOperators(ops: readonly string[]): void {

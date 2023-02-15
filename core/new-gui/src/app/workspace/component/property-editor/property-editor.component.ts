@@ -11,11 +11,13 @@ import {
 } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { VersionsDisplayFrameComponent } from "./versions-display/versions-display-frame.component";
 import { filter } from "rxjs/operators";
+import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 
 export type PropertyEditFrameComponent =
   | OperatorPropertyEditFrameComponent
   | BreakpointPropertyEditFrameComponent
-  | VersionsDisplayFrameComponent;
+  | VersionsDisplayFrameComponent
+  | PortPropertyEditFrameComponent;
 
 export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
@@ -72,6 +74,8 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorPortHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorPortUnhighlightStream(),
       this.workflowVersionService.workflowVersionsDisplayObservable()
     )
       .pipe(
@@ -86,12 +90,22 @@ export class PropertyEditorComponent implements OnInit {
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
+         this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
+        const highlightedOperatorPorts = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedOperatorPortIDs();
         if (isDisplayWorkflowVersions) {
           this.switchFrameComponent({
             component: VersionsDisplayFrameComponent,
           });
-        } else if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+        } else if (
+          highlightedOperators.length === 1 &&
+          highlightedGroups.length === 0 &&
+          highlightLinks.length === 0 &&
+          highlightedOperatorPorts.length === 0
+        ) {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] },
@@ -100,6 +114,15 @@ export class PropertyEditorComponent implements OnInit {
           this.switchFrameComponent({
             component: BreakpointPropertyEditFrameComponent,
             componentInputs: { currentLinkId: highlightLinks[0] },
+          });
+        } else if (
+          highlightedOperatorPorts.length === 1 &&
+          highlightedGroups.length === 0 &&
+          highlightLinks.length === 0
+        ) {
+          this.switchFrameComponent({
+            component: PortPropertyEditFrameComponent,
+            componentInputs: { currentOperatorPortID: highlightedOperatorPorts[0] },
           });
         } else {
           this.switchFrameComponent(undefined);

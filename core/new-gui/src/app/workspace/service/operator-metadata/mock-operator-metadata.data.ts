@@ -1,5 +1,5 @@
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { BreakpointSchema } from "../../types/workflow-common.interface";
+import { BreakpointSchema, OperatorPortSchema } from "../../types/workflow-common.interface";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
 
@@ -324,6 +324,36 @@ export const mockBreakpointSchema: BreakpointSchema = {
           },
         },
         required: ["count"],
+      },
+    ],
+  },
+};
+
+export const mockOperatorPortSchema: OperatorPortSchema = {
+  jsonSchema: {
+    type: "object",
+    oneOf: [
+      {
+        title: "hash",
+        properties: {
+          type: { const: "hash" },
+          columnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+        },
+      },
+      {
+        title: "range",
+        properties: {
+          type: { const: "range" },
+          columnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+          rangeMin: { type: "integer", title: "range min" },
+          rangeMax: { type: "integer", title: "range max" },
+        },
+      },
+      {
+        title: "single",
+        properties: {
+          type: { const: "single" },
+        },
       },
     ],
   },
