@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
@@ -9,6 +10,12 @@ import java.io.{BufferedReader, FileReader}
 import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
 class TextScanSourceOpDesc extends ScanSourceOpDesc{
+
+  @JsonProperty(required = true)
+  @JsonPropertyDescription("scan text file into single output tuple")
+  var outputAsSingleTuple: Boolean = false
+
+  fileTypeName = Option("Text")
 
   @Override
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
@@ -29,7 +36,7 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc{
           val startOffset: Int = offsetValue + count / numWorkers * i
           val endOffset: Int =
             offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
-          new TextScanSourceOpExec(this, startOffset, endOffset)
+          new TextScanSourceOpExec(this, startOffset, endOffset, outputAsSingleTuple)
         })
       case None =>
         throw new RuntimeException("File path is not provided.")

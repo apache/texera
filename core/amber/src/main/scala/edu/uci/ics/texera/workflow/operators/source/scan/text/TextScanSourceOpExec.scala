@@ -7,15 +7,19 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import java.io.{BufferedReader, FileReader}
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
-class TextScanSourceOpExec private[text] (val desc: TextScanSourceOpDesc, val startOffset: Int, val endOffset: Int) extends SourceOperatorExecutor{
+class TextScanSourceOpExec private[text] (val desc: TextScanSourceOpDesc, val startOffset: Int, val endOffset: Int, val outputAsSingleTuple: Boolean) extends SourceOperatorExecutor{
   private var schema: Schema = _
   private var reader: BufferedReader = _
   private var rows: Iterator[String] = _
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    rows.map(line => {
-      Tuple.newBuilder(schema).add(schema.getAttribute("line"), line).build()
-    })
+    if (outputAsSingleTuple) {
+      Iterator(Tuple.newBuilder(schema).add(schema.getAttribute("line"), rows.mkString).build())
+    } else {
+      rows.map(line => {
+        Tuple.newBuilder(schema).add(schema.getAttribute("line"), line).build()
+      })
+    }
   }
 
   override def open(): Unit = {
