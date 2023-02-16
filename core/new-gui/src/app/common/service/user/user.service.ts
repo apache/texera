@@ -34,8 +34,8 @@ export class UserService {
       .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
-  public googleLogin(): Observable<void> {
-    return this.authService.googleAuth().pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
+  public googleLogin(credential: string): Observable<void> {
+    return this.authService.googleAuth(credential).pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public isLogin(): boolean {

@@ -40,7 +40,6 @@ import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { ColorPickerModule } from "ngx-color-picker";
-import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { CustomNgMaterialModule } from "./common/custom-ng-material.module";
@@ -53,7 +52,6 @@ import { UserFileUploadService } from "./dashboard/service/user-file/user-file-u
 import { UserFileService } from "./dashboard/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
-import { NgbdModalAddWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component";
 import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
@@ -73,7 +71,6 @@ import { VisualizationFrameContentComponent } from "./workspace/component/visual
 import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
 import { WorkflowEditorComponent } from "./workspace/component/workflow-editor/workflow-editor.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { GoogleApiModule, NG_GAPI_CONFIG } from "ng-gapi";
 import { NgbdModalWorkflowShareAccessComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { NgbdModalUserFileShareAccessComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { NzCardModule } from "ng-zorro-antd/card";
@@ -105,6 +102,9 @@ import { NgbdModalRemoveProjectFileComponent } from "./dashboard/component/featu
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
+import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { DeletePromptComponent } from "./dashboard/component/delete-prompt/delete-prompt.component";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -115,9 +115,9 @@ import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wr
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { HomeComponent } from "./home/component/home.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
-import { AuthGuardService } from "./common/service/auth-guard/auth-guard.service";
+import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
-import { GoogleLoginComponent } from "./home/component/login/google-login/google-login.component";
+import { MarkdownModule } from "ngx-markdown";
 
 registerLocaleData(en);
 
@@ -133,11 +133,11 @@ registerLocaleData(en);
     ResultPanelComponent,
     OperatorLabelComponent,
     DashboardComponent,
+    AdminUserComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
     SavedWorkflowSectionComponent,
-    NgbdModalAddWorkflowComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
     RowModalComponent,
@@ -173,7 +173,6 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
-    GoogleLoginComponent,
     LocalLoginComponent,
     DeletePromptComponent,
     ContextMenuComponent,
@@ -205,12 +204,6 @@ registerLocaleData(en);
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
     FormlyMatDatepickerModule,
-    GoogleApiModule.forRoot({
-      provide: NG_GAPI_CONFIG,
-      useValue: {
-        client_id: environment.google.clientID,
-      },
-    }),
     NzDatePickerModule,
     NzDropDownModule,
     NzButtonModule,
@@ -240,6 +233,7 @@ registerLocaleData(en);
     NzCardModule,
     NzStatisticModule,
     NzTagModule,
+    NzPopconfirmModule,
     NzAvatarModule,
     DynamicModule,
     MonacoEditorModule.forRoot(),
@@ -251,9 +245,11 @@ registerLocaleData(en);
     NgPipesModule,
     NzSwitchModule,
     NzLayoutModule,
+    MarkdownModule.forRoot(),
   ],
   providers: [
     AuthGuardService,
+    AdminGuardService,
     DatePipe,
     UserService,
     UserFileService,

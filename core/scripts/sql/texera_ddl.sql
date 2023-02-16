@@ -43,16 +43,16 @@ CREATE TABLE IF NOT EXISTS user_config
 
 CREATE TABLE IF NOT EXISTS file
 (
-    `uid`         INT UNSIGNED                NOT NULL,
+    `owner_uid`   INT UNSIGNED                NOT NULL,
     `fid`         INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `size`        INT UNSIGNED                NOT NULL,
     `name`        VARCHAR(128)                NOT NULL,
     `path`        VARCHAR(512)                NOT NULL,
     `description` VARCHAR(512)                NOT NULL,
     `upload_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (`uid`, `name`),
+    UNIQUE (`owner_uid`, `name`),
     PRIMARY KEY (`fid`),
-    FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
+    FOREIGN KEY (`owner_uid`) REFERENCES user (`uid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS user_file_access
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS workflow
     `name`               VARCHAR(128)                NOT NULL,
 	`description`        VARCHAR(500),
     `wid`                INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `content`            TEXT                        NOT NULL,
+    `content`            MEDIUMTEXT                  NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `last_modified_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`wid`)
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS project
 (
     `pid`             INT UNSIGNED AUTO_INCREMENT      NOT NULL,
     `name`            VARCHAR(128)                     NOT NULL,
-    `description`     VARCHAR(500),
+    `description`     VARCHAR(10000),
     `owner_id`        INT UNSIGNED                     NOT NULL,
     `creation_time`   TIMESTAMP                        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `color`           VARCHAR(6),
