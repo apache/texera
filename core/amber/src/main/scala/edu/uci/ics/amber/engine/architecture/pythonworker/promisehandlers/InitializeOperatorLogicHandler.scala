@@ -8,10 +8,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 object InitializeOperatorLogicHandler {
   final case class InitializeOperatorLogic(
       code: String,
-    id: LayerIdentity,
-    inputOrdinalMapping: Seq[LinkOrdinal],
-    outputOrdinalMapping: Seq[LinkOrdinal],
-    isSource: Boolean,
+      id: LayerIdentity,
+      inputOrdinalMapping: Seq[LinkOrdinal],
+      outputOrdinalMapping: Seq[LinkOrdinal],
+      isSource: Boolean,
       outputSchema: Schema
   ) extends ControlCommand[Unit]
 }
