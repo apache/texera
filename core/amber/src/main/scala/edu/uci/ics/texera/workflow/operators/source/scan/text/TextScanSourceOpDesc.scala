@@ -37,7 +37,7 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc{
           val endOffset: Int =
             offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
           new TextScanSourceOpExec(this, startOffset, endOffset, outputAsSingleTuple)
-        })
+        }).withNumWorkers(numWorkers = numWorkers)
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
