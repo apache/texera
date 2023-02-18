@@ -7,7 +7,12 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import java.io.{BufferedReader, FileReader}
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
-class TextScanSourceOpExec private[text] (val desc: TextScanSourceOpDesc, val startOffset: Int, val endOffset: Int, val outputAsSingleTuple: Boolean) extends SourceOperatorExecutor{
+class TextScanSourceOpExec private[text] (
+    val desc: TextScanSourceOpDesc,
+    val startOffset: Int,
+    val endOffset: Int,
+    val outputAsSingleTuple: Boolean
+) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedReader = _
   private var rows: Iterator[String] = _
