@@ -29,15 +29,12 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc{
         val count: Int = lines.map(_ => 1).sum
         reader.close()
 
-        val numWorkers = if (outputAsSingleTuple) 1 else Constants.currentWorkerNum
-
-        OpExecConfig.localLayer(operatorIdentifier, p => {
-          val i = p._1
-          val startOffset: Int = offsetValue + count / numWorkers * i
-          val endOffset: Int =
-            offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
+        // using only 1 worker for text scan to maintain proper ordering
+        OpExecConfig.localLayer(operatorIdentifier, _ => {
+          val startOffset: Int = offsetValue
+          val endOffset: Int = offsetValue + count
           new TextScanSourceOpExec(this, startOffset, endOffset, outputAsSingleTuple)
-        }).withNumWorkers(numWorkers = numWorkers)
+        })
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
