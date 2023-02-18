@@ -29,7 +29,7 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc{
         val count: Int = lines.map(_ => 1).sum
         reader.close()
 
-        val numWorkers = Constants.currentWorkerNum
+        val numWorkers = if (outputAsSingleTuple) 1 else Constants.currentWorkerNum
 
         OpExecConfig.localLayer(operatorIdentifier, p => {
           val i = p._1
