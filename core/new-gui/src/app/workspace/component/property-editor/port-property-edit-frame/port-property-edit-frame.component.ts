@@ -14,9 +14,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
-import { YType } from "../../../types/shared-editing.interface";
 import QuillCursors from "quill-cursors";
-import { mockOperatorPortSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
+import { mockPortSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -27,7 +26,7 @@ Quill.register("modules/cursors", QuillCursors);
   styleUrls: ["./port-property-edit-frame.component.scss"],
 })
 export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
-  @Input() currentOperatorPortID: OperatorPort | undefined;
+  @Input() currentPortID: OperatorPort | undefined;
 
   // whether the editor can be edited
   interactive: boolean = true;
@@ -49,21 +48,21 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
   sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
 
   // the output form change event stream after debounce time and filtering out values
-  operatorPortPropertyChangeStream = createOutputFormChangeEventStream(this.sourceFormChangeEventStream, data =>
-    this.checkOperatorPort(data)
+  portPropertyChangeStream = createOutputFormChangeEventStream(this.sourceFormChangeEventStream, data =>
+    this.checkPort(data)
   );
 
   constructor(private formlyJsonschema: FormlyJsonschema, private workflowActionService: WorkflowActionService) {}
 
   ngOnInit(): void {
-    this.registerOperatorPortPropertyChangeHandler();
-    this.registerOperatorPortDisplayNameChangeHandler();
+    this.registerPortPropertyChangeHandler();
+    this.registerPortDisplayNameChangeHandler();
     this.registerOnFormChangeHandler();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.currentOperatorPortID = changes.currentOperatorPortID.currentValue;
-    if (this.currentOperatorPortID) this.showOperatorPortPropertyEditor(this.currentOperatorPortID);
+    this.currentPortID = changes.currentPortID.currentValue;
+    if (this.currentPortID) this.showPortPropertyEditor(this.currentPortID);
   }
 
   /**
@@ -81,10 +80,10 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
    */
   connectQuillToText() {
     this.registerQuillBinding();
-    if (!this.currentOperatorPortID) return;
+    if (!this.currentPortID) return;
     const currentPortDescriptorSharedType = this.workflowActionService
       .getTexeraGraph()
-      .getsharedOperatorPortDescriptionType(this.currentOperatorPortID);
+      .getSharedPortDescriptionType(this.currentPortID);
     if (currentPortDescriptorSharedType === undefined) return;
     if (!currentPortDescriptorSharedType.has("displayName"))
       currentPortDescriptorSharedType.set("displayName", new Y.Text());
@@ -105,33 +104,30 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
     this.editingTitle = false;
   }
 
-  private showOperatorPortPropertyEditor(operatorPortID: OperatorPort): void {
-    if (!this.workflowActionService.getTexeraGraph().hasOperatorPort(operatorPortID)) {
+  private showPortPropertyEditor(operatorPortID: OperatorPort): void {
+    if (!this.workflowActionService.getTexeraGraph().hasPort(operatorPortID)) {
       throw new Error(
         `change property editor: operator port ${operatorPortID.operatorID}, ${operatorPortID.portID}} does not exist`
       );
     }
-    this.currentOperatorPortID = operatorPortID;
+    this.currentPortID = operatorPortID;
     const portDescriptor = this.workflowActionService
       .getTexeraGraph()
-      .getOperatorPort(operatorPortID) as PortDescription;
+      .getPortDescription(operatorPortID) as PortDescription;
     this.formTitle = portDescriptor.displayName;
-    if (!this.currentOperatorPortID.operatorID.includes("PythonUDF")) return;
+    if (!this.currentPortID.operatorID.includes("PythonUDF")) return;
 
     const portInfo = portDescriptor?.partitionRequirement;
     this.formData = portInfo !== undefined ? cloneDeep(portInfo) : {};
-    const portSchema = mockOperatorPortSchema.jsonSchema;
+    const portSchema = mockPortSchema.jsonSchema;
     this.setFormlyFormBinding(portSchema);
   }
 
-  private checkOperatorPort(formData: Record<string, unknown>): boolean {
+  private checkPort(formData: Record<string, unknown>): boolean {
     // check if the component is displaying the port
-    if (!this.currentOperatorPortID) return false;
-    if (!this.workflowActionService.getTexeraGraph().hasOperatorPort(this.currentOperatorPortID)) return false;
-    const operatorPortDescription = this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorPort(this.currentOperatorPortID);
-    console.log(formData, operatorPortDescription?.partitionRequirement);
+    if (!this.currentPortID) return false;
+    if (!this.workflowActionService.getTexeraGraph().hasPort(this.currentPortID)) return false;
+    const operatorPortDescription = this.workflowActionService.getTexeraGraph().getPortDescription(this.currentPortID);
     return !isEqual(formData, operatorPortDescription?.partitionRequirement);
   }
 
@@ -139,10 +135,10 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
    * This method handles the form change event
    */
   private registerOnFormChangeHandler(): void {
-    this.operatorPortPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
-      if (this.currentOperatorPortID) {
+    this.portPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
+      if (this.currentPortID) {
         this.listeningToChange = false;
-        this.workflowActionService.setOperatorPortProperty(this.currentOperatorPortID, cloneDeep(formData));
+        this.workflowActionService.setPortProperty(this.currentPortID, cloneDeep(formData));
         this.listeningToChange = true;
       }
     });
@@ -155,14 +151,14 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
    * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
    *  invalid fields, this form will capture those events.
    */
-  private registerOperatorPortPropertyChangeHandler(): void {
+  private registerPortPropertyChangeHandler(): void {
     this.workflowActionService
       .getTexeraGraph()
-      .getOperatorPortPropertyChangedStream()
+      .getPortPropertyChangedStream()
       .pipe(
         filter(_ => this.listeningToChange),
-        filter(_ => this.currentOperatorPortID !== undefined),
-        filter(event => isEqual(event.operatorPortID, this.currentOperatorPortID)),
+        filter(_ => this.currentPortID !== undefined),
+        filter(event => isEqual(event.operatorPortID, this.currentPortID)),
         filter(event => !isEqual(this.formData, event.newProperty))
       )
       .pipe(untilDestroyed(this))
@@ -239,13 +235,13 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
     });
   }
 
-  private registerOperatorPortDisplayNameChangeHandler(): void {
+  private registerPortDisplayNameChangeHandler(): void {
     this.workflowActionService
       .getTexeraGraph()
-      .getOperatorPortDisplayNameChangedSubject()
+      .getPortDisplayNameChangedSubject()
       .pipe(untilDestroyed(this))
       .subscribe(({ operatorID, portID, newDisplayName }) => {
-        if (operatorID === this.currentOperatorPortID?.operatorID && portID === this.currentOperatorPortID?.portID)
+        if (operatorID === this.currentPortID?.operatorID && portID === this.currentPortID?.portID)
           this.formTitle = newDisplayName;
       });
   }

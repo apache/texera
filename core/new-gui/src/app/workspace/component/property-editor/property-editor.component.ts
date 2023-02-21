@@ -74,8 +74,8 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorPortHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorPortUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointPortHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointPortUnhighlightStream(),
       this.workflowVersionService.workflowVersionsDisplayObservable()
     )
       .pipe(
@@ -93,9 +93,7 @@ export class PropertyEditorComponent implements OnInit {
          this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
-        const highlightedOperatorPorts = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorPortIDs();
+        const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
         if (isDisplayWorkflowVersions) {
           this.switchFrameComponent({
             component: VersionsDisplayFrameComponent,
@@ -104,7 +102,7 @@ export class PropertyEditorComponent implements OnInit {
           highlightedOperators.length === 1 &&
           highlightedGroups.length === 0 &&
           highlightLinks.length === 0 &&
-          highlightedOperatorPorts.length === 0
+          highlightedPorts.length === 0
         ) {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
@@ -115,14 +113,10 @@ export class PropertyEditorComponent implements OnInit {
             component: BreakpointPropertyEditFrameComponent,
             componentInputs: { currentLinkId: highlightLinks[0] },
           });
-        } else if (
-          highlightedOperatorPorts.length === 1 &&
-          highlightedGroups.length === 0 &&
-          highlightLinks.length === 0
-        ) {
+        } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.switchFrameComponent({
             component: PortPropertyEditFrameComponent,
-            componentInputs: { currentOperatorPortID: highlightedOperatorPorts[0] },
+            componentInputs: { currentPortID: highlightedPorts[0] },
           });
         } else {
           this.switchFrameComponent(undefined);

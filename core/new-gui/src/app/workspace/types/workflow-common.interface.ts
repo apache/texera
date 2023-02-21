@@ -22,7 +22,7 @@ export type PartitionInfo =
   | Readonly<{ type: "range"; columnIndices: number[]; rangeMin: number; rangeMax: number }>
   | Readonly<{ type: "single" }>;
 
-export interface OperatorPortSchema
+export interface PortSchema
   extends Readonly<{
     jsonSchema: Readonly<JSONSchema7>;
   }> {}

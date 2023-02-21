@@ -45,7 +45,7 @@ export type JointHighlights = Readonly<{
   groups: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
-  operatorPorts: readonly OperatorPort[];
+  ports: readonly OperatorPort[];
 }>;
 
 export type JointGraphContextType = Readonly<{
@@ -100,7 +100,7 @@ export class JointGraphWrapper {
     groups: [],
     links: [],
     commentBoxes: [],
-    operatorPorts: [],
+    ports: [],
   };
 
   // the currently highlighted operators' IDs
@@ -124,9 +124,9 @@ export class JointGraphWrapper {
 
   private jointCommentBoxUnhighlightStream = new Subject<readonly string[]>();
 
-  private jointOperatorPortHighlightStream = new Subject<readonly OperatorPort[]>();
+  private jointPortHighlightStream = new Subject<readonly OperatorPort[]>();
 
-  private jointOperatorPortUnhighlightStream = new Subject<readonly OperatorPort[]>();
+  private jointPortUnhighlightStream = new Subject<readonly OperatorPort[]>();
 
   private currentHighlightedCommentBoxes: string[] = [];
 
@@ -145,7 +145,7 @@ export class JointGraphWrapper {
   private currentHighlightedLinks: string[] = [];
   // the linkIDs of those links with a breakpoint
 
-  private currentHighlightedOperatorPorts: OperatorPort[] = [];
+  private currentHighlightedPorts: OperatorPort[] = [];
   // the IDs of ports currently being edited
   private linksWithBreakpoints: string[] = [];
 
@@ -273,8 +273,8 @@ export class JointGraphWrapper {
     return this.currentHighlightedLinks;
   }
 
-  public getCurrentHighlightedOperatorPortIDs(): readonly OperatorPort[] {
-    return this.currentHighlightedOperatorPorts;
+  public getCurrentHighlightedPortIDs(): readonly OperatorPort[] {
+    return this.currentHighlightedPorts;
   }
 
   public getCurrentHighlightedCommentBoxIDs(): readonly string[] {
@@ -287,7 +287,7 @@ export class JointGraphWrapper {
       groups: this.currentHighlightedGroups,
       links: this.currentHighlightedLinks,
       commentBoxes: this.currentHighlightedCommentBoxes,
-      operatorPorts: this.currentHighlightedOperatorPorts,
+      ports: this.currentHighlightedPorts,
     };
   }
 
@@ -358,7 +358,7 @@ export class JointGraphWrapper {
     this.highlightGroups(...elements.groups);
     this.highlightLinks(...elements.links);
     this.highlightCommentBoxes(...elements.commentBoxes);
-    this.highlightOperatorPorts(...elements.operatorPorts);
+    this.highlightPorts(...elements.ports);
   }
 
   public unhighlightElements(elements: JointHighlights): void {
@@ -366,7 +366,7 @@ export class JointGraphWrapper {
     this.unhighlightGroups(...elements.groups);
     this.unhighlightLinks(...elements.links);
     this.unhighlightCommentBoxes(...elements.commentBoxes);
-    this.unhighlightOperatorPorts(...elements.operatorPorts);
+    this.unhighlightPorts(...elements.ports);
   }
 
   /**
@@ -485,27 +485,27 @@ export class JointGraphWrapper {
     }
   }
 
-  public highlightOperatorPorts(...operatorPortIDs: OperatorPort[]): void {
+  public highlightPorts(...operatorPortIDs: OperatorPort[]): void {
     const highlightedOperatorPortIDs: OperatorPort[] = [];
     operatorPortIDs
-      .filter(operatorPortID => _.find(this.currentHighlightedOperatorPorts, operatorPortID) === undefined)
+      .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) === undefined)
       .forEach(operatorPortID => {
-        if (!this.multiSelect) this.unhighlightOperatorPorts(...this.currentHighlightedOperatorPorts);
-        this.currentHighlightedOperatorPorts.push(operatorPortID);
+        if (!this.multiSelect) this.unhighlightPorts(...this.currentHighlightedPorts);
+        this.currentHighlightedPorts.push(operatorPortID);
         highlightedOperatorPortIDs.push(operatorPortID);
       });
-    this.jointOperatorPortHighlightStream.next(highlightedOperatorPortIDs);
+    this.jointPortHighlightStream.next(highlightedOperatorPortIDs);
   }
 
-  public unhighlightOperatorPorts(...operatorPortIDs: OperatorPort[]): void {
+  public unhighlightPorts(...operatorPortIDs: OperatorPort[]): void {
     const unhighlightedOperatorPortIDs: OperatorPort[] = [];
     operatorPortIDs
-      .filter(operatorPortID => _.find(this.currentHighlightedOperatorPorts, operatorPortID) !== undefined)
+      .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) !== undefined)
       .forEach(operatorPortID => {
-        this.currentHighlightedOperatorPorts.splice(_.indexOf(this.currentHighlightedOperatorPorts, operatorPortID), 1);
+        this.currentHighlightedPorts.splice(_.indexOf(this.currentHighlightedPorts, operatorPortID), 1);
         unhighlightedOperatorPortIDs.push(operatorPortID);
       });
-    this.jointOperatorPortUnhighlightStream.next(unhighlightedOperatorPortIDs);
+    this.jointPortUnhighlightStream.next(unhighlightedOperatorPortIDs);
   }
 
   /**
@@ -581,12 +581,12 @@ export class JointGraphWrapper {
     return this.jointCommentBoxUnhighlightStream.asObservable();
   }
 
-  public getJointOperatorPortHighlightStream(): Observable<readonly OperatorPort[]> {
-    return this.jointOperatorPortHighlightStream.asObservable();
+  public getJointPortHighlightStream(): Observable<readonly OperatorPort[]> {
+    return this.jointPortHighlightStream.asObservable();
   }
 
-  public getJointOperatorPortUnhighlightStream(): Observable<readonly OperatorPort[]> {
-    return this.jointOperatorPortUnhighlightStream.asObservable();
+  public getJointPortUnhighlightStream(): Observable<readonly OperatorPort[]> {
+    return this.jointPortUnhighlightStream.asObservable();
   }
 
   /**
@@ -946,7 +946,7 @@ export class JointGraphWrapper {
       this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
       this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
-      this.unhighlightOperatorPorts(...this.getCurrentHighlightedOperatorPortIDs());
+      this.unhighlightPorts(...this.getCurrentHighlightedPortIDs());
     }
     // highlight the element and add it to the list of highlighted elements
     currentHighlightedElements.push(elementID);

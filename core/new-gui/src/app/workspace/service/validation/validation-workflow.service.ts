@@ -169,7 +169,7 @@ export class ValidationWorkflowService {
     // capture the port change event and validate the operator of this port
     this.workflowActionService
       .getTexeraGraph()
-      .getOperatorPortChangeStream()
+      .getPortAddedOrDeletedStream()
       .subscribe(portChange => {
         this.updateValidationState(
           portChange.newOperator.operatorID,

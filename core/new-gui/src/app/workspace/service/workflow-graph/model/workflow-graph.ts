@@ -110,7 +110,7 @@ export class WorkflowGraph {
     oldBreakpoint: object | undefined;
     linkID: string;
   }>();
-  public readonly operatorPortChangedSubject = new Subject<{
+  public readonly portAddedOrDeletedSubject = new Subject<{
     newOperator: OperatorPredicate;
   }>();
   public readonly commentBoxAddSubject = new Subject<CommentBox>();
@@ -119,13 +119,13 @@ export class WorkflowGraph {
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
 
-  public readonly operatorPortDisplayNameChangedSubject = new Subject<{
+  public readonly portDisplayNameChangedSubject = new Subject<{
     operatorID: string;
     portID: string;
     newDisplayName: string;
   }>();
 
-  public readonly operatorPortPropertyChangedSubject = new Subject<{
+  public readonly portPropertyChangedSubject = new Subject<{
     operatorPortID: OperatorPort;
     newProperty: PartitionInfo;
   }>();
@@ -179,7 +179,7 @@ export class WorkflowGraph {
     return this.getSharedOperatorType(operatorID).get("operatorProperties") as YType<OperatorPropertiesType>;
   }
 
-  public getsharedOperatorPortDescriptionType(operatorPortID: OperatorPort): YType<PortDescription> | undefined {
+  public getSharedPortDescriptionType(operatorPortID: OperatorPort): YType<PortDescription> | undefined {
     const isInput = operatorPortID?.portID.includes("input");
     const portListObject = isInput
       ? this.getOperator(operatorPortID.operatorID).inputPorts
@@ -578,7 +578,7 @@ export class WorkflowGraph {
     }
   }
 
-  public hasOperatorPort(operatorPortID: OperatorPort): boolean {
+  public hasPort(operatorPortID: OperatorPort): boolean {
     if (!this.hasOperator(operatorPortID.operatorID)) return false;
     const operator = this.getOperator(operatorPortID.operatorID);
     if (operatorPortID.portID.includes("input")) {
@@ -592,8 +592,8 @@ export class WorkflowGraph {
     } else return false;
   }
 
-  public getOperatorPort(operatorPortID: OperatorPort): PortDescription | undefined {
-    if (!this.hasOperatorPort(operatorPortID))
+  public getPortDescription(operatorPortID: OperatorPort): PortDescription | undefined {
+    if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
     const operator = this.getOperator(operatorPortID.operatorID);
     if (operatorPortID.portID.includes("input")) {
@@ -757,10 +757,10 @@ export class WorkflowGraph {
     updateYTypeFromObject(previousProperty, newProperty);
   }
 
-  public setOperatorPortProperty(operatorPortID: OperatorPort, newProperty: object) {
-    if (!this.hasOperatorPort(operatorPortID))
+  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+    if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
-    const portDescriptionSharedType = this.getsharedOperatorPortDescriptionType(operatorPortID);
+    const portDescriptionSharedType = this.getSharedPortDescriptionType(operatorPortID);
     if (portDescriptionSharedType === undefined) return;
     portDescriptionSharedType.set(
       "partitionRequirement",
@@ -915,25 +915,25 @@ export class WorkflowGraph {
     return this.breakpointChangeStream.asObservable();
   }
 
-  public getOperatorPortChangeStream(): Observable<{
+  public getPortAddedOrDeletedStream(): Observable<{
     newOperator: OperatorPredicate;
   }> {
-    return this.operatorPortChangedSubject.asObservable();
+    return this.portAddedOrDeletedSubject.asObservable();
   }
 
-  public getOperatorPortDisplayNameChangedSubject(): Observable<{
+  public getPortDisplayNameChangedSubject(): Observable<{
     operatorID: string;
     portID: string;
     newDisplayName: string;
   }> {
-    return this.operatorPortDisplayNameChangedSubject;
+    return this.portDisplayNameChangedSubject;
   }
 
-  public getOperatorPortPropertyChangedStream(): Observable<{
+  public getPortPropertyChangedStream(): Observable<{
     operatorPortID: OperatorPort;
     newProperty: PartitionInfo;
   }> {
-    return this.operatorPortPropertyChangedSubject.asObservable();
+    return this.portPropertyChangedSubject.asObservable();
   }
 
   /**

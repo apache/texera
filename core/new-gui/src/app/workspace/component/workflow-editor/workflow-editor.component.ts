@@ -22,7 +22,7 @@ import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, OperatorPort, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { OperatorLink, OperatorPort, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, buffer, debounceTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -133,13 +133,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewDeleteLink();
     this.handleViewAddPort();
     this.handleViewRemovePort();
-    this.handleOperatorPortClick();
+    this.handlePortClick();
     this.handlePaperPan();
     this.handleGroupResize();
     this.handleViewMouseoverOperator();
     this.handleViewMouseoutOperator();
-    this.handleOperatorPortHighlightEvent();
-    this.registerOperatorPortDisplayNameChangeHandler();
+    this.handlePortHighlightEvent();
+    this.registerPortDisplayNameChangeHandler();
 
     if (environment.executionStatusEnabled) {
       this.handleOperatorStatisticsUpdate();
@@ -577,10 +577,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  private registerOperatorPortDisplayNameChangeHandler(): void {
+  private registerPortDisplayNameChangeHandler(): void {
     this.workflowActionService
       .getTexeraGraph()
-      .getOperatorPortDisplayNameChangedSubject()
+      .getPortDisplayNameChangedSubject()
       .pipe(untilDestroyed(this))
       .subscribe(({ operatorID, portID, newDisplayName }) => {
         const operatorJointElement = <joint.dia.Element>this.workflowActionService.getJointGraph().getCell(operatorID);
@@ -752,10 +752,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       );
   }
 
-  private handleOperatorPortHighlightEvent(): void {
+  private handlePortHighlightEvent(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .getJointOperatorPortHighlightStream()
+      .getJointPortHighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(operatorPortIDs => {
         operatorPortIDs.forEach(operatorPortID => {
@@ -772,7 +772,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
     this.workflowActionService
       .getJointGraphWrapper()
-      .getJointOperatorPortUnhighlightStream()
+      .getJointPortUnhighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(operatorPortIDs => {
         operatorPortIDs.forEach(operatorPortID => {
@@ -952,33 +952,33 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  private handleOperatorPortClick(): void {
+  private handlePortClick(): void {
     fromJointPaperEvent(this.getJointPaper(), "element:magnet:pointerclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         // set the multi-select mode
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
 
-        const clickedOperatorPortID: OperatorPort = {
+        const clickedPortID: OperatorPort = {
           operatorID: event[0].model.id as string,
           portID: event[2].getAttribute("port") as string,
         };
-        const currentlyHighlightedOperatorPortIDs = this.workflowActionService
+        const currentlyHighlightedPortIDs = this.workflowActionService
           .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorPortIDs();
+          .getCurrentHighlightedPortIDs();
 
         if (event[1].shiftKey) {
-          if (_.find(currentlyHighlightedOperatorPortIDs, clickedOperatorPortID) !== undefined) {
+          if (_.find(currentlyHighlightedPortIDs, clickedPortID) !== undefined) {
             // if the link being clicked is already highlighted, unhighlight it
-            this.workflowActionService.unhighlightOperatorPorts(clickedOperatorPortID);
-          } else if (this.workflowActionService.getTexeraGraph().hasOperator(clickedOperatorPortID.operatorID)) {
+            this.workflowActionService.unhighlightPorts(clickedPortID);
+          } else if (this.workflowActionService.getTexeraGraph().hasOperator(clickedPortID.operatorID)) {
             // highlight the link if the link has not already been highlighted
-            this.workflowActionService.highlightOperatorPorts(<boolean>event[1].shiftKey, clickedOperatorPortID);
+            this.workflowActionService.highlightPorts(<boolean>event[1].shiftKey, clickedPortID);
           }
         } else {
           // if user doesn't click on the shift key, highlight only a single port
-          if (this.workflowActionService.getTexeraGraph().hasOperator(clickedOperatorPortID.operatorID)) {
-            this.workflowActionService.highlightOperatorPorts(<boolean>event[1].shiftKey, clickedOperatorPortID);
+          if (this.workflowActionService.getTexeraGraph().hasOperator(clickedPortID.operatorID)) {
+            this.workflowActionService.highlightPorts(<boolean>event[1].shiftKey, clickedPortID);
           }
         }
       });
