@@ -19,11 +19,19 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textScanSourceOpDesc.filePath = Some(TestTextFilePath)
   }
 
-  it should "always infer schema with single column representing each line of text" in {
+  it should "infer schema with single column representing each line of text in normal text scan mode" in {
     val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
+  }
+
+  it should "infer schema with single column representing entire file in outputAsSingleTuple mode" in {
+    textScanSourceOpDesc.outputAsSingleTuple = true
+    val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
+
+    assert(inferredSchema.getAttributes.length == 1)
+    assert(inferredSchema.getAttribute("file").getType == AttributeType.STRING)
   }
 
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
@@ -44,13 +52,19 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text file into a single output tuple" in {
     val outputAsSingleTuple: Boolean = true
+    textScanSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
     val textScanSourceOpExec =
       new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, outputAsSingleTuple)
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
-    assert(processedTuple.next().getField("line").equals("line1line2line3line4line5"))
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+    assert(
+      processedTuple
+        .next()
+        .getField("file")
+        .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
+    )
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("file"))
     textScanSourceOpExec.close()
   }
 }
