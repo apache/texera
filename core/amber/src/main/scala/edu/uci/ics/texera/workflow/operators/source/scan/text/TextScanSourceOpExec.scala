@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import java.io.{BufferedReader, FileReader, IOException}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
 class TextScanSourceOpExec private[text] (
@@ -42,7 +42,7 @@ class TextScanSourceOpExec private[text] (
   override def open(): Unit = {
     schema = desc.inferSchema()
     if (outputAsSingleTuple) {
-      path = Path.of(desc.filePath.get)
+      path = Paths.get(desc.filePath.get)
     } else {
       reader = new BufferedReader(new FileReader(desc.filePath.get))
       rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
