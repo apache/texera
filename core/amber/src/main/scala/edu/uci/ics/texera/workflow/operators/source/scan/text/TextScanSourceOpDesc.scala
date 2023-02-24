@@ -15,8 +15,10 @@ import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
 class TextScanSourceOpDesc extends ScanSourceOpDesc {
 
-  @JsonProperty(required = true)
-  @JsonPropertyDescription("scan text file into single output tuple")
+  @JsonProperty(defaultValue = "false")
+  @JsonPropertyDescription(
+    "scan entire text file into single output tuple, ignoring any offsets and limits"
+  )
   var outputAsSingleTuple: Boolean = false
 
   fileTypeName = Option("Text")
@@ -25,7 +27,7 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     filePath match {
       case Some(path) =>
-        // count lines and partition the task to each worker
+        // get offset and max line values
         val reader = new BufferedReader(new FileReader(path))
         val offsetValue = offset.getOrElse(0)
         var lines = reader.lines().iterator().drop(offsetValue)
@@ -49,6 +51,9 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc {
 
   @Override
   override def inferSchema(): Schema = {
-    Schema.newBuilder().add(new Attribute("line", AttributeType.STRING)).build()
+    Schema
+      .newBuilder()
+      .add(new Attribute(if (outputAsSingleTuple) "file" else "line", AttributeType.STRING))
+      .build()
   }
 }
