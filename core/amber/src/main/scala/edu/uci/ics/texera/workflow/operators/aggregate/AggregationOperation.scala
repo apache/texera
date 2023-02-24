@@ -3,10 +3,18 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpExecConfig, DistributedAggregation}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{
+  AggregateOpExecConfig,
+  DistributedAggregation
+}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.aggregate.PartialObj.zero
 
 import java.io.Serializable
@@ -17,7 +25,7 @@ case class PartialObj(value: Object, attributeType: AttributeType) {
   def get: Object = {
     attributeType match {
       case AttributeType.TIMESTAMP => new java.sql.Timestamp(value.asInstanceOf[java.lang.Long])
-      case _ => value
+      case _                       => value
     }
   }
 
@@ -31,11 +39,17 @@ case class PartialObj(value: Object, attributeType: AttributeType) {
     }
     attributeType match {
       case AttributeType.INTEGER => a.asInstanceOf[Integer].compareTo(b.asInstanceOf[Integer])
-      case AttributeType.DOUBLE => a.asInstanceOf[java.lang.Double].compareTo(b.asInstanceOf[java.lang.Double])
-      case AttributeType.LONG => a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
+      case AttributeType.DOUBLE =>
+        a.asInstanceOf[java.lang.Double].compareTo(b.asInstanceOf[java.lang.Double])
+      case AttributeType.LONG =>
+        a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
       // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
-      case _ => throw new UnsupportedOperationException("Unsupported attribute type for comparison: " + attributeType)
+      case AttributeType.TIMESTAMP =>
+        a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
+      case _ =>
+        throw new UnsupportedOperationException(
+          "Unsupported attribute type for comparison: " + attributeType
+        )
     }
   }
 
@@ -54,12 +68,21 @@ case class PartialObj(value: Object, attributeType: AttributeType) {
       return a
     }
     attributeType match {
-      case AttributeType.INTEGER => Integer.valueOf(a.asInstanceOf[Integer] + b.asInstanceOf[Integer])
-      case AttributeType.DOUBLE => java.lang.Double.valueOf(a.asInstanceOf[java.lang.Double] + b.asInstanceOf[java.lang.Double])
-      case AttributeType.LONG => java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
+      case AttributeType.INTEGER =>
+        Integer.valueOf(a.asInstanceOf[Integer] + b.asInstanceOf[Integer])
+      case AttributeType.DOUBLE =>
+        java.lang.Double.valueOf(
+          a.asInstanceOf[java.lang.Double] + b.asInstanceOf[java.lang.Double]
+        )
+      case AttributeType.LONG =>
+        java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
       // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
-      case _ => throw new UnsupportedOperationException("Unsupported attribute type for addition: " + attributeType)
+      case AttributeType.TIMESTAMP =>
+        java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
+      case _ =>
+        throw new UnsupportedOperationException(
+          "Unsupported attribute type for addition: " + attributeType
+        )
     }
   }
   def +(that: PartialObj): PartialObj = PartialObj(add(this.value, that.value), attributeType)
@@ -68,34 +91,52 @@ case class PartialObj(value: Object, attributeType: AttributeType) {
 
 object PartialObj {
   def maxValue(attributeType: AttributeType): PartialObj =
-    PartialObj(attributeType match {
-      case AttributeType.INTEGER => Integer.MAX_VALUE.asInstanceOf[Object]
-      case AttributeType.DOUBLE => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
-      case AttributeType.LONG => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
-      case _ => throw new UnsupportedOperationException("Unsupported attribute type for max value: " + attributeType)
-    }, attributeType)
+    PartialObj(
+      attributeType match {
+        case AttributeType.INTEGER => Integer.MAX_VALUE.asInstanceOf[Object]
+        case AttributeType.DOUBLE  => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
+        case AttributeType.LONG    => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
+        // java.sql.Timestamp is not comparable
+        case AttributeType.TIMESTAMP => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
+        case _ =>
+          throw new UnsupportedOperationException(
+            "Unsupported attribute type for max value: " + attributeType
+          )
+      },
+      attributeType
+    )
 
   def minValue(attributeType: AttributeType): PartialObj =
-    PartialObj(attributeType match {
-      case AttributeType.INTEGER => Integer.MIN_VALUE.asInstanceOf[Object]
-      case AttributeType.DOUBLE => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
-      case AttributeType.LONG => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
-      case _ => throw new UnsupportedOperationException("Unsupported attribute type for min value: " + attributeType)
-    }, attributeType)
+    PartialObj(
+      attributeType match {
+        case AttributeType.INTEGER => Integer.MIN_VALUE.asInstanceOf[Object]
+        case AttributeType.DOUBLE  => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
+        case AttributeType.LONG    => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
+        // java.sql.Timestamp is not comparable
+        case AttributeType.TIMESTAMP => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
+        case _ =>
+          throw new UnsupportedOperationException(
+            "Unsupported attribute type for min value: " + attributeType
+          )
+      },
+      attributeType
+    )
 
   def zero(attributeType: AttributeType): PartialObj =
-    PartialObj(attributeType match {
-      case AttributeType.INTEGER => Integer.valueOf(0).asInstanceOf[Object]
-      case AttributeType.DOUBLE => java.lang.Double.valueOf(0).asInstanceOf[Object]
-      case AttributeType.LONG => java.lang.Long.valueOf(0).asInstanceOf[Object]
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => java.lang.Long.valueOf(0).asInstanceOf[Object]
-      case _ => throw new UnsupportedOperationException("Unsupported attribute type for zero value: " + attributeType)
-    }, attributeType)
+    PartialObj(
+      attributeType match {
+        case AttributeType.INTEGER => Integer.valueOf(0).asInstanceOf[Object]
+        case AttributeType.DOUBLE  => java.lang.Double.valueOf(0).asInstanceOf[Object]
+        case AttributeType.LONG    => java.lang.Long.valueOf(0).asInstanceOf[Object]
+        // java.sql.Timestamp is not comparable
+        case AttributeType.TIMESTAMP => java.lang.Long.valueOf(0).asInstanceOf[Object]
+        case _ =>
+          throw new UnsupportedOperationException(
+            "Unsupported attribute type for zero value: " + attributeType
+          )
+      },
+      attributeType
+    )
 }
 
 class AggregationOperation() {
@@ -147,28 +188,31 @@ class AggregationOperation() {
   private def sumAgg(groupByFunc: Schema => Schema, attributeType: AttributeType) = {
     if (
       attributeType != AttributeType.INTEGER &&
-        attributeType != AttributeType.DOUBLE &&
-        attributeType != AttributeType.LONG &&
-        attributeType != AttributeType.TIMESTAMP
+      attributeType != AttributeType.DOUBLE &&
+      attributeType != AttributeType.LONG &&
+      attributeType != AttributeType.TIMESTAMP
     ) {
-      throw new UnsupportedOperationException("Unsupported attribute type for sum aggregation: " + attributeType)
-    }
-      new DistributedAggregation[PartialObj](
-        () => PartialObj.zero(attributeType),
-        (partial, tuple) => {
-          val value: Object = tuple.getField(attribute)
-          partial + (if (value != null) PartialObj(value, attributeType) else PartialObj.zero(attributeType))
-        },
-        (partial1, partial2) => partial1 + partial2,
-        (partial) => {
-          val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
-          Tuple
-            .newBuilder(schema)
-            .add(resultAttribute, attributeType, partial.get)
-            .build()
-        },
-        groupByFunc
+      throw new UnsupportedOperationException(
+        "Unsupported attribute type for sum aggregation: " + attributeType
       )
+    }
+    new DistributedAggregation[PartialObj](
+      () => PartialObj.zero(attributeType),
+      (partial, tuple) => {
+        val value: Object = tuple.getField(attribute)
+        partial + (if (value != null) PartialObj(value, attributeType)
+                   else PartialObj.zero(attributeType))
+      },
+      (partial1, partial2) => partial1 + partial2,
+      (partial) => {
+        val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
+        Tuple
+          .newBuilder(schema)
+          .add(resultAttribute, attributeType, partial.get)
+          .build()
+      },
+      groupByFunc
+    )
   }
 
   private def countAgg(groupByFunc: Schema => Schema) = {
@@ -226,13 +270,17 @@ class AggregationOperation() {
       attributeType != AttributeType.LONG &&
       attributeType != AttributeType.TIMESTAMP
     ) {
-      throw new UnsupportedOperationException("Unsupported attribute type for min aggregation: " + attributeType)
+      throw new UnsupportedOperationException(
+        "Unsupported attribute type for min aggregation: " + attributeType
+      )
     }
     new DistributedAggregation[PartialObj](
       () => PartialObj.maxValue(attributeType),
       (partial, tuple) => {
         val value: Object = tuple.getField(attribute)
-        if (value != null && PartialObj(value, attributeType) < partial) PartialObj(value, attributeType) else partial
+        if (value != null && PartialObj(value, attributeType) < partial)
+          PartialObj(value, attributeType)
+        else partial
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
       (partial) => {
@@ -257,13 +305,17 @@ class AggregationOperation() {
       attributeType != AttributeType.LONG &&
       attributeType != AttributeType.TIMESTAMP
     ) {
-      throw new UnsupportedOperationException("Unsupported attribute type for max aggregation: " + attributeType)
+      throw new UnsupportedOperationException(
+        "Unsupported attribute type for max aggregation: " + attributeType
+      )
     }
     new DistributedAggregation[PartialObj](
       () => PartialObj.minValue(attributeType),
       (partial, tuple) => {
         val value: Object = tuple.getField(attribute)
-        if (value != null && PartialObj(value, attributeType) > partial) PartialObj(value, attributeType) else partial
+        if (value != null && PartialObj(value, attributeType) > partial)
+          PartialObj(value, attributeType)
+        else partial
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
       (partial) => {
@@ -280,8 +332,6 @@ class AggregationOperation() {
       groupByFunc
     )
   }
-
-
 
   private def averageAgg(groupByFunc: Schema => Schema) = {
     new DistributedAggregation[AveragePartialObj](
