@@ -18,9 +18,10 @@ export interface OperatorPort
   }> {}
 
 export type PartitionInfo =
-  | Readonly<{ type: "hash"; columnIndices: number[] }>
-  | Readonly<{ type: "range"; columnIndices: number[]; rangeMin: number; rangeMax: number }>
-  | Readonly<{ type: "single" }>;
+  | Readonly<{ type: "hash"; hashColumnIndices: number[] }>
+  | Readonly<{ type: "range"; rangeColumnIndices: number[]; rangeMin: number; rangeMax: number }>
+  | Readonly<{ type: "single" }>
+  | Readonly<{ type: "none" }>;
 
 export interface PortSchema
   extends Readonly<{

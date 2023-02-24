@@ -11,14 +11,15 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.operators.CustomPortOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
+import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor {
+class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescriptor {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -65,36 +66,58 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
+    val opInfo = this.operatorInfo
+    val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
+      inputPorts.map(p => Option(p.partitionRequirement))
+    } else {
+      opInfo.inputPorts.map(_ => None)
+    }
     if (workers > 1)
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(numWorkers = workers, derivePartition = _ => UnknownPartition(), isOneToManyOp = true)
+        .copy(numWorkers = workers, derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
+          inputPorts = opInfo.inputPorts, outputPorts = opInfo.outputPorts,
+          partitionRequirement = partitionRequirement)
     else
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(derivePartition = _ => UnknownPartition(), isOneToManyOp = true)
+        .copy(derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
+          inputPorts = opInfo.inputPorts, outputPorts = opInfo.outputPorts,
+          partitionRequirement = partitionRequirement)
   }
 
-  override def operatorInfo: OperatorInfo =
+  override def operatorInfo: OperatorInfo = {
+    val inputPortInfo = if (inputPorts != null) {
+      inputPorts.map(p => InputPort(p.displayName, p.allowMultiInputs))
+    } else {
+      List(InputPort("", allowMultiInputs = true))
+    }
+    val outputPortInfo = if (outputPorts != null) {
+      outputPorts.map(p => OutputPort(p.displayName))
+    } else {
+      List(OutputPort(""))
+    }
+
     OperatorInfo(
       "Python UDF",
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
-      asScalaBuffer(singletonList(new InputPort("", true))).toList,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList,
+      inputPortInfo,
+      outputPortInfo,
       dynamicInputPorts = true,
       dynamicOutputPorts = true,
       supportReconfiguration = true
     )
+  }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
+//    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
     val outputSchemaBuilder = Schema.newBuilder
     // keep the same schema from input

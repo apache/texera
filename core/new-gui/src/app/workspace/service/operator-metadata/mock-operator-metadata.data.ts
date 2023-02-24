@@ -334,17 +334,23 @@ export const mockPortSchema: PortSchema = {
     type: "object",
     oneOf: [
       {
+        title: "none",
+        properties: {
+          type: { const: "none" },
+        },
+      },
+      {
         title: "hash",
         properties: {
           type: { const: "hash" },
-          columnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+          hashColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
         },
       },
       {
         title: "range",
         properties: {
           type: { const: "range" },
-          columnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+          rangeColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
           rangeMin: { type: "integer", title: "range min" },
           rangeMax: { type: "integer", title: "range max" },
         },
