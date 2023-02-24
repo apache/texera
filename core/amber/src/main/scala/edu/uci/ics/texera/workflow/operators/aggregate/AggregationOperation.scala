@@ -14,7 +14,7 @@ import java.io.Serializable
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
 case class PartialObj(value: Object, attributeType: AttributeType) {
-  def getValue: Object = {
+  def get: Object = {
     attributeType match {
       case AttributeType.TIMESTAMP => new java.sql.Timestamp(value.asInstanceOf[java.lang.Long])
       case _ => value
@@ -47,7 +47,7 @@ case class PartialObj(value: Object, attributeType: AttributeType) {
 
   private def add(a: Object, b: Object): Object = {
     if (a == null && b == null) {
-      return zero(attributeType)
+      return zero(attributeType).get
     } else if (a == null) {
       return b
     } else if (b == null) {
@@ -133,22 +133,18 @@ class AggregationOperation() {
   ): DistributedAggregation[_ <: AnyRef] = {
     val attributeType = finalAggValueSchema.getAttribute(resultAttribute).getType
     aggFunction match {
-      case AggregationFunction.AVERAGE => averageAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.COUNT   => countAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.MAX     => maxAgg(finalAggValueSchema, groupByFunc, attributeType)
-      case AggregationFunction.MIN     => minAgg(finalAggValueSchema, groupByFunc, attributeType)
-      case AggregationFunction.SUM     => sumAgg(finalAggValueSchema, groupByFunc, attributeType)
-      case AggregationFunction.CONCAT  => concatAgg(finalAggValueSchema, groupByFunc)
+      case AggregationFunction.AVERAGE => averageAgg(groupByFunc)
+      case AggregationFunction.COUNT   => countAgg(groupByFunc)
+      case AggregationFunction.MAX     => maxAgg(groupByFunc, attributeType)
+      case AggregationFunction.MIN     => minAgg(groupByFunc, attributeType)
+      case AggregationFunction.SUM     => sumAgg(groupByFunc, attributeType)
+      case AggregationFunction.CONCAT  => concatAgg(groupByFunc)
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
   }
 
-  private def sumAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema,
-      attributeType: AttributeType
-  ): DistributedAggregation[PartialObj] = {
+  private def sumAgg(groupByFunc: Schema => Schema, attributeType: AttributeType) = {
     if (
       attributeType != AttributeType.INTEGER &&
         attributeType != AttributeType.DOUBLE &&
@@ -168,17 +164,14 @@ class AggregationOperation() {
           val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
           Tuple
             .newBuilder(schema)
-            .add(resultAttribute, attributeType, partial.getValue)
+            .add(resultAttribute, attributeType, partial.get)
             .build()
         },
         groupByFunc
       )
   }
 
-  private def countAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[Integer] = {
+  private def countAgg(groupByFunc: Schema => Schema) = {
     new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
@@ -196,10 +189,7 @@ class AggregationOperation() {
     )
   }
 
-  private def concatAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[String] = {
+  private def concatAgg(groupByFunc: Schema => Schema) = {
     new DistributedAggregation[String](
       () => "",
       (partial, tuple) => {
@@ -229,11 +219,7 @@ class AggregationOperation() {
     )
   }
 
-  private def minAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema,
-      attributeType: AttributeType
-  ): DistributedAggregation[PartialObj] = {
+  private def minAgg(groupByFunc: Schema => Schema, attributeType: AttributeType) = {
     if (
       attributeType != AttributeType.INTEGER &&
       attributeType != AttributeType.DOUBLE &&
@@ -256,7 +242,7 @@ class AggregationOperation() {
           .add(
             resultAttribute,
             attributeType,
-            if (partial == PartialObj.maxValue(attributeType)) null else partial.getValue
+            if (partial == PartialObj.maxValue(attributeType)) null else partial.get
           )
           .build()
       },
@@ -264,11 +250,7 @@ class AggregationOperation() {
     )
   }
 
-  private def maxAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema,
-      attributeType: AttributeType
-  ): DistributedAggregation[PartialObj] = {
+  private def maxAgg(groupByFunc: Schema => Schema, attributeType: AttributeType) = {
     if (
       attributeType != AttributeType.INTEGER &&
       attributeType != AttributeType.DOUBLE &&
@@ -291,7 +273,7 @@ class AggregationOperation() {
           .add(
             resultAttribute,
             attributeType,
-            if (partial == PartialObj.minValue(attributeType)) null else partial.getValue
+            if (partial == PartialObj.minValue(attributeType)) null else partial.get
           )
           .build()
       },
@@ -301,10 +283,7 @@ class AggregationOperation() {
 
 
 
-  private def averageAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[AveragePartialObj] = {
+  private def averageAgg(groupByFunc: Schema => Schema) = {
     new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
