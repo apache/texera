@@ -10,7 +10,10 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.operators.{
+
+  OperatorDescriptor
+, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.operators.CustomPortOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
@@ -78,18 +81,25 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(numWorkers = workers, derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts, outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement)
+        .copy(
+          numWorkers = workers,
+          derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
+          inputPorts = opInfo.inputPorts,
+          outputPorts = opInfo.outputPorts,
+          partitionRequirement = partitionRequirement
+        )
     else
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts, outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement)
+        .copy(
+          derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
+          inputPorts = opInfo.inputPorts,
+          outputPorts = opInfo.outputPorts,
+          partitionRequirement = partitionRequirement
+        )
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -112,7 +122,8 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
       outputPortInfo,
       dynamicInputPorts = true,
       dynamicOutputPorts = true,
-      supportReconfiguration = true
+      supportReconfiguration = true,
+      allowPortCustomization = true
     )
   }
 

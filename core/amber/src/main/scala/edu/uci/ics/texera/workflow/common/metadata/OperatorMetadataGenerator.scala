@@ -16,7 +16,7 @@ import scala.collection.JavaConverters.asScalaIterator
 
 case class InputPort(
     displayName: String = null,
-    allowMultiInputs: Boolean = false,
+    allowMultiInputs: Boolean = false
 )
 
 case class OutputPort(
@@ -32,7 +32,7 @@ case class OperatorInfo(
     dynamicInputPorts: Boolean = false,
     dynamicOutputPorts: Boolean = false,
     supportReconfiguration: Boolean = false,
-    allowPortCustomization: Boolean = false,
+    allowPortCustomization: Boolean = false
 )
 
 case class OperatorMetadata(

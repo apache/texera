@@ -445,20 +445,20 @@ export class ExecuteWorkflowService {
         ...op.operatorProperties,
         operatorID: op.operatorID,
         operatorType: op.operatorType,
-      }
+      };
       if (op.inputPorts.some(p => p.isDynamicPort)) {
         logicalOp = {
           ...logicalOp,
           inputPorts: op.inputPorts,
-        }
+        };
       }
       if (op.outputPorts.some(p => p.isDynamicPort)) {
         logicalOp = {
           ...logicalOp,
           outputPorts: op.outputPorts,
-        }
+        };
       }
-      return logicalOp
+      return logicalOp;
     });
 
     const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => ({

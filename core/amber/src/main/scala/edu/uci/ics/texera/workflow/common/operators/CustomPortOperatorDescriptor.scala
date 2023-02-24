@@ -12,18 +12,19 @@ object pdtest {
     val v = PortDescription("12", "dis", true, true, SinglePartition())
     println(Utils.objectMapper.writeValueAsString(v))
 
-    val t = "{\"portID\":\"12\",\"displayName\":\"dis\",\"allowMultiInputs\":true,\"isDynamicPort\":true,\"partitionRequirement\":{\"type\":\"single\"}}"
+    val t =
+      "{\"portID\":\"12\",\"displayName\":\"dis\",\"allowMultiInputs\":true,\"isDynamicPort\":true,\"partitionRequirement\":{\"type\":\"single\"}}"
     val v2 = Utils.objectMapper.readValue[PortDescription](t, classOf[PortDescription])
     println(Utils.objectMapper.writeValueAsString(v2))
   }
 }
 
 case class PortDescription(
-  portID: String,
-  displayName: String,
-  allowMultiInputs: Boolean,
-  isDynamicPort: Boolean,
-  partitionRequirement: PartitionInfo,
+    portID: String,
+    displayName: String,
+    allowMultiInputs: Boolean,
+    isDynamicPort: Boolean,
+    partitionRequirement: PartitionInfo
 )
 
 trait CustomPortOperatorDescriptor extends OperatorDescriptor {

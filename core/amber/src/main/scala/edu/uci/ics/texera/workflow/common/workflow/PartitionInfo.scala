@@ -8,13 +8,14 @@ import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
   * The base interface of partition information in the compiler layer.
   */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(Array(
-  new Type(value = classOf[HashPartition], name = "hash"),
-  new Type(value = classOf[RangePartition], name = "range"),
-  new Type(value = classOf[SinglePartition], name = "single"),
-  new Type(value = classOf[UnknownPartition], name = "none"),
-
-))
+@JsonSubTypes(
+  Array(
+    new Type(value = classOf[HashPartition], name = "hash"),
+    new Type(value = classOf[RangePartition], name = "range"),
+    new Type(value = classOf[SinglePartition], name = "single"),
+    new Type(value = classOf[UnknownPartition], name = "none")
+  )
+)
 sealed abstract class PartitionInfo {
 
   // whether this partition satisfies the other partition
