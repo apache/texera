@@ -29,8 +29,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 import java.io.Serializable
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 
-case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
-
 class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   @JsonProperty(value = "aggregations", required = true)
