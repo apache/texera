@@ -2,33 +2,15 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, USER_PROJECT, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
-  DashboardWorkflowEntry,
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
-import org.jooq.impl.DSL.{groupConcat, noCondition}
+import org.jooq.impl.DSL.{field, groupConcat, index, noCondition}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
@@ -411,10 +393,86 @@ class WorkflowResource {
     */
   @GET
   @Path("/search")
-  def searchWorkflow(
+  def searchWorkflows(
       @Auth sessionUser: SessionUser,
       @QueryParam("query") query: String
-  ): List[DashboardWorkflowEntry] = search(sessionUser, query)
+  ): List[DashboardWorkflowEntry] = {
+    val user = sessionUser.getUser
+    val splitKeys = query.split("\\+")
+    var matchQuery: String = ""
+    for (idx <- 0 to splitKeys.length - 1) {
+      val key: String = splitKeys(idx)
+      matchQuery += s"(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST('+${key}' IN BOOLEAN mode) OR " +
+        s"MATCH(texera_db.user.name) AGAINST ('+${key}' IN BOOLEAN mode) " +
+        s"OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST ('+${key}' IN BOOLEAN mode)) "
+      if (idx != splitKeys.length - 1) {
+        matchQuery += "AND"
+      }
+    }
+    val workflowEntries = context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME,
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+      .leftJoin(USER_PROJECT)
+      .on(USER_PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
+      .where(matchQuery)
+      .andExists(
+        context
+          .select(
+            WORKFLOW.WID,
+            WORKFLOW_OF_USER.UID
+          )
+          .from(WORKFLOW)
+          .leftJoin(WORKFLOW_USER_ACCESS)
+          .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+          .leftJoin(WORKFLOW_OF_USER)
+          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+          .leftJoin(USER)
+          .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+          .leftJoin(WORKFLOW_OF_PROJECT)
+          .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+          .where(
+            WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
+          ).and(
+          WORKFLOW.WID.eq(WORKFLOW.WID)
+          ).and(
+          WORKFLOW_OF_USER.UID.eq(WORKFLOW_OF_USER.UID)
+          )
+          .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
+      )
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflowEntry(
+          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+          toAccessLevel(
+            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+          ).toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          List[UInteger]() //
+        )
+      )
+      .toList
+  }
 
   private def search(sessionUser: SessionUser, query: String) = {
     val user = sessionUser.getUser
