@@ -624,7 +624,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     );
     // New search endpoint.
     const workflowsFromSearch = await firstValueFrom(
-      this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames.join(" "))
+      this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
     );
     // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
     // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.

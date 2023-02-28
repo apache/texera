@@ -395,20 +395,12 @@ class WorkflowResource {
   @Path("/search")
   def searchWorkflows(
       @Auth sessionUser: SessionUser,
-      @QueryParam("query") query: String
+      @QueryParam("query") keywords: java.util.List[String]
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
-    val splitKeys = query.split("\\+")
-    var matchQuery: String = ""
-    for (idx <- 0 to splitKeys.length - 1) {
-      val key: String = splitKeys(idx)
-      matchQuery += s"(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST('+${key}' IN BOOLEAN mode) OR " +
-        s"MATCH(texera_db.user.name) AGAINST ('+${key}' IN BOOLEAN mode) " +
-        s"OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST ('+${key}' IN BOOLEAN mode)) "
-      if (idx != splitKeys.length - 1) {
-        matchQuery += "AND"
-      }
-    }
+    val matchQuery = keywords.map((key) => "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST('+\"" + key + "\"' IN BOOLEAN mode) OR " +
+      "MATCH(texera_db.user.name) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode) " +
+      "OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode)) ").mkString(" AND ")
     val workflowEntries = context
       .select(
         WORKFLOW.WID,
