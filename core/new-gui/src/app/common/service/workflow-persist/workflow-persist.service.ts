@@ -107,8 +107,9 @@ export class WorkflowPersistService {
   /**
    * Search workflows by a text query from backend database that belongs to the user in the session.
    */
+  // mock this
   public searchWorkflowsBySessionUser(keywords: string[]): Observable<DashboardWorkflowEntry[]> {
-    const query = keywords.map(q => `query=${encodeURIComponent(q)}`).join('&');
+    const query = keywords.map(q => `query=${encodeURIComponent(q)}`).join("&");
     return this.retrieveWorkflowsBySessionUserInternal(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${query}`
     );
