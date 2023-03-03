@@ -4,11 +4,20 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
+import {
+  MonacoLanguageClient,
+  CloseAction,
+  ErrorAction,
+  MessageTransports,
+  MonacoServices,
+} from "monaco-languageclient";
+import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
+import { createUrl } from "../../../common/util/url";
 
 declare const monaco: any;
 
@@ -32,6 +41,7 @@ declare const monaco: any;
 })
 export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
   editorOptions = {
+    model: monaco.editor.createModel(this.code, "python", monaco.Uri.parse(MODEL_URI)),
     theme: "vs-dark",
     language: "python",
     fontSize: "11",
@@ -58,6 +68,24 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
   }
 
+  createLanguageClient(transports: MessageTransports): MonacoLanguageClient {
+    return new MonacoLanguageClient({
+      name: "Python UDF Language Client",
+      clientOptions: {
+        documentSelector: ["python"],
+        errorHandler: {
+          error: () => ({ action: ErrorAction.Continue }),
+          closed: () => ({ action: CloseAction.DoNotRestart }),
+        },
+      },
+      connectionProvider: {
+        get: () => {
+          return Promise.resolve(transports);
+        },
+      },
+    });
+  }
+
   ngAfterViewInit() {
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
@@ -77,6 +105,23 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     ).get("code") as YText;
 
     this.initMonaco();
+
+    MonacoServices.install();
+
+    const url = createUrl(WEB_SOCKET_HOST, LANGUAGE_SERVER_PORT, PYTHON_LANGUAGE_SERVER);
+    const webSocket = new WebSocket(url);
+
+    webSocket.onopen = () => {
+      const socket = toSocket(webSocket);
+      const reader = new WebSocketMessageReader(socket);
+      const writer = new WebSocketMessageWriter(socket);
+      const languageClient = this.createLanguageClient({
+        reader,
+        writer,
+      });
+      languageClient.start();
+      reader.onClose(() => languageClient.stop());
+    };
     this.handleDisabledStatusChange();
   }
 
@@ -123,3 +168,13 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     });
   }
 }
+
+/**
+ * should refactor this, as this is not the right place to create a websocket connection.
+ * putting this now, so the new features of enhanced-python-udf can branch off from this
+ * one and start working parallely.
+ *  */
+const WEB_SOCKET_HOST = "localhost";
+const PYTHON_LANGUAGE_SERVER = "/python-language-server";
+const LANGUAGE_SERVER_PORT = 3000;
+const MODEL_URI = "inmemory://model.py";
