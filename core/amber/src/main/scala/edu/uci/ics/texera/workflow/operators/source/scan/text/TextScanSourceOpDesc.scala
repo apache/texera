@@ -1,7 +1,18 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{
+  JsonIgnoreProperties,
+  JsonProperty,
+  JsonPropertyDescription
+}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaString,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -13,7 +24,34 @@ import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import java.io.{BufferedReader, FileReader}
 import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
+@JsonIgnoreProperties(value = Array("limit", "offset"))
 class TextScanSourceOpDesc extends ScanSourceOpDesc {
+
+  @JsonProperty()
+  @JsonSchemaTitle("Limit")
+  @JsonPropertyDescription("max output count")
+  @JsonDeserialize(contentAs = classOf[Int])
+  @JsonSchemaInject(
+    strings = Array(
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "outputAsSingleTuple"),
+      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
+    )
+  )
+  var limitHideable: Option[Int] = None
+
+  @JsonProperty()
+  @JsonSchemaTitle("Offset")
+  @JsonPropertyDescription("starting point of output")
+  @JsonDeserialize(contentAs = classOf[Int])
+  @JsonSchemaInject(
+    strings = Array(
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "outputAsSingleTuple"),
+      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
+    )
+  )
+  var offsetHideable: Option[Int] = None
 
   @JsonProperty(defaultValue = "false")
   @JsonPropertyDescription(
@@ -29,9 +67,9 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc {
       case Some(path) =>
         // get offset and max line values
         val reader = new BufferedReader(new FileReader(path))
-        val offsetValue = offset.getOrElse(0)
+        val offsetValue = offsetHideable.getOrElse(0)
         var lines = reader.lines().iterator().drop(offsetValue)
-        if (limit.isDefined) lines = lines.take(limit.get)
+        if (limitHideable.isDefined) lines = lines.take(limitHideable.get)
         val count: Int = lines.map(_ => 1).sum
         reader.close()
 
