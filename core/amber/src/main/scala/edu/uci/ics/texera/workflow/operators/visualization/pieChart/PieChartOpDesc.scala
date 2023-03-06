@@ -115,14 +115,18 @@ class PieChartOpDesc extends VisualizationOperator {
       AggregateOpDesc.opExecPhysicalPlan(this.operatorIdentifier, aggregation, operatorSchemaInfo)
     val tailAggregateOp = aggregateOperators.sinkOperators.last
 
-    val partialLayer = OpExecConfig.oneToOneLayer(
-      makeLayer(this.operatorIdentifier, "localPieChartProcessor"),
-      _ => new PieChartOpPartialExec(nameColumn, dataColumn)
-    )
-    val finalLayer = OpExecConfig.localLayer(
-      makeLayer(this.operatorIdentifier, "globalPieChartProcessor"),
-      _ => new PieChartOpFinalExec(pruneRatio, dataColumn)
-    )
+    val partialLayer = OpExecConfig
+      .oneToOneLayer(
+        makeLayer(this.operatorIdentifier, "localPieChartProcessor"),
+        _ => new PieChartOpPartialExec(nameColumn, dataColumn)
+      )
+      .copy(isOneToManyOp = true)
+    val finalLayer = OpExecConfig
+      .localLayer(
+        makeLayer(this.operatorIdentifier, "globalPieChartProcessor"),
+        _ => new PieChartOpFinalExec(pruneRatio, dataColumn)
+      )
+      .copy(isOneToManyOp = true)
 
     new PhysicalPlan(
       aggregateOperators.operators :+ partialLayer :+ finalLayer,

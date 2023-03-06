@@ -76,6 +76,14 @@ case class PhysicalPlan(
     ops.head
   }
 
+  // returns a sub-plan that contains the specified operators and the links connected within these operators
+  def subPlan(subOperators: Set[LayerIdentity]): PhysicalPlan = {
+    val newOps = operators.filter(op => subOperators.contains(op.id))
+    val newLinks =
+      links.filter(link => subOperators.contains(link.from) && subOperators.contains(link.to))
+    PhysicalPlan(newOps, newLinks)
+  }
+
   def getLayer(layer: LayerIdentity): OpExecConfig = operatorMap(layer)
 
   def getUpstream(opID: LayerIdentity): List[LayerIdentity] = {
@@ -96,6 +104,10 @@ case class PhysicalPlan(
 
   def topologicalIterator(): Iterator[LayerIdentity] = {
     new TopologicalOrderIterator(dag).asScala
+  }
+
+  def getAllRegions(): List[PipelinedRegion] = {
+    asScalaIterator(pipelinedRegionsDAG.iterator()).toList
   }
 
   def getOperatorsInRegion(region: PipelinedRegion): PhysicalPlan = {

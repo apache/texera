@@ -26,18 +26,16 @@ object AggregatedVizOpExecConfig {
   def opExecPhysicalPlan[P <: AnyRef](
       id: OperatorIdentity,
       aggFunc: DistributedAggregation[P],
-      exec: OpExecFunc,
+      vizExec: OpExecConfig,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
 
     val aggregateOperators = AggregateOpDesc.opExecPhysicalPlan(id, aggFunc, operatorSchemaInfo)
     val tailAggregateOp = aggregateOperators.sinkOperators.last
 
-    val vizLayer = OpExecConfig.oneToOneLayer(makeLayer(id, "visualize"), exec)
-
     new PhysicalPlan(
-      vizLayer :: aggregateOperators.operators,
-      LinkIdentity(tailAggregateOp, vizLayer.id) :: aggregateOperators.links
+      vizExec :: aggregateOperators.operators,
+      LinkIdentity(tailAggregateOp, vizExec.id) :: aggregateOperators.links
     )
   }
 

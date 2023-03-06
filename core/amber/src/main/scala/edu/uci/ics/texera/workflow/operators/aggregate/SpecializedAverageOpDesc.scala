@@ -52,7 +52,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @JsonIgnore
   private var finalAggValueSchema: Schema = _
 
-  override def operatorExecutorMultiLayer(
+  override def aggregateOperatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)

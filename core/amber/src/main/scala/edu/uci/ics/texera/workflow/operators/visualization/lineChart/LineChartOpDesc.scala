@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.lineChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -96,10 +97,15 @@ class LineChartOpDesc extends VisualizationOperator {
           },
           groupByFunc()
         )
+
+    val lineChartOpExec = OpExecConfig.oneToOneLayer(
+      makeLayer(operatorIdentifier, "visualize"),
+      _ => new LineChartOpExec(this, operatorSchemaInfo)
+    )
     AggregatedVizOpExecConfig.opExecPhysicalPlan(
       operatorIdentifier,
       aggregation,
-      _ => new LineChartOpExec(this, operatorSchemaInfo),
+      lineChartOpExec,
       operatorSchemaInfo
     )
   }
