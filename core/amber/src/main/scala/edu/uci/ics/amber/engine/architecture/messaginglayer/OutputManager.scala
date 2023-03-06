@@ -8,8 +8,13 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.InputEpochMarker
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
+import edu.uci.ics.amber.engine.common.Constants.{
+  adaptiveBufferingTimeoutMs,
+  enableAdaptiveNetworkBuffering
+}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataPayload, EpochMarker}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -106,6 +111,17 @@ class OutputManager(
     networkOutputBuffers((outputPort, destination)).addTuple(tuple)
   }
 
+  def emitEpochMarker(epochMarker: EpochMarker): Unit = {
+    // find the network output ports within the scope of the marker
+    val outputsWithinScope =
+      networkOutputBuffers.filter(out => epochMarker.scope.links.contains(out._1._1))
+    // flush all network buffers of this operator, emit epoch marker to network
+    outputsWithinScope.foreach(kv => {
+      kv._2.flush()
+      kv._2.addEpochMarker(epochMarker)
+    })
+  }
+
   /**
     * Send the last batch and EOU marker to all down streams
     */
@@ -127,13 +143,16 @@ class AdaptiveBatchingMonitor {
   var adaptiveBatchingHandle: Option[Cancellable] = None
 
   def enableAdaptiveBatching(context: ActorContext): Unit = {
+    if (!enableAdaptiveNetworkBuffering) {
+      return
+    }
     if (this.adaptiveBatchingHandle.nonEmpty || context == null) {
       return
     }
     this.adaptiveBatchingHandle = Some(
       context.system.scheduler.scheduleAtFixedRate(
         0.milliseconds,
-        FiniteDuration.apply(500, MILLISECONDS),
+        FiniteDuration.apply(adaptiveBufferingTimeoutMs, MILLISECONDS),
         context.self,
         ControlInvocation(
           AsyncRPCClient.IgnoreReplyAndDoNotLog,

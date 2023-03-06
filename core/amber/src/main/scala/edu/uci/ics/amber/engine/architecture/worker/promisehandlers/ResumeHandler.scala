@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.{PauseType, WorkerAsyncRPCHandlerInitializer}
+import edu.uci.ics.amber.engine.architecture.worker.{
+  PauseType,
+  UserPause,
+  WorkerAsyncRPCHandlerInitializer
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, RUNNING}
@@ -15,10 +19,7 @@ trait ResumeHandler {
 
   registerHandler { (msg: ResumeWorker, sender) =>
     if (stateManager.getCurrentState == PAUSED) {
-      pauseManager.recordRequest(PauseType.UserPause, false)
-      if (!pauseManager.isPaused()) {
-        dataProcessor.enableDataQueue()
-      }
+      pauseManager.resume(UserPause)
       stateManager.transitTo(RUNNING)
       outputManager.adaptiveBatchingMonitor.enableAdaptiveBatching(actorContext)
     }

@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -98,10 +99,14 @@ class BarChartOpDesc extends VisualizationOperator {
           },
           groupByFunc()
         )
+    val barChartViz = OpExecConfig.oneToOneLayer(
+      makeLayer(operatorIdentifier, "visualize"),
+      _ => new BarChartOpExec(this, operatorSchemaInfo)
+    )
     AggregatedVizOpExecConfig.opExecPhysicalPlan(
       operatorIdentifier,
       aggregation,
-      _ => new BarChartOpExec(this, operatorSchemaInfo),
+      barChartViz,
       operatorSchemaInfo
     )
   }

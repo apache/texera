@@ -49,7 +49,8 @@ class ControllerAsyncRPCHandlerInitializer(
     with MonitoringHandler
     with SkewDetectionHandler
     with RegionsTimeSlotExpiredHandler
-    with DebugCommandHandler {
+    with DebugCommandHandler
+    with EpochMarkerHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
 

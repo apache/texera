@@ -36,6 +36,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       operatorDescription = "Search for keyword(s) in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 }

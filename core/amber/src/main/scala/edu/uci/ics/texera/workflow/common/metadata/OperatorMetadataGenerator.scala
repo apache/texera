@@ -30,7 +30,8 @@ case class OperatorInfo(
     inputPorts: List[InputPort],
     outputPorts: List[OutputPort],
     dynamicInputPorts: Boolean = false,
-    dynamicOutputPorts: Boolean = false
+    dynamicOutputPorts: Boolean = false,
+    supportReconfiguration: Boolean = false
 )
 
 case class OperatorMetadata(

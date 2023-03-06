@@ -46,8 +46,9 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       "Sentiment Analysis",
       "analysis the sentiment of a text using machine learning",
       OperatorGroupConstants.ANALYTICS_GROUP,
-      asScalaBuffer(singletonList(new InputPort("", false))).toList,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList
+      List(InputPort("")),
+      List(OutputPort("")),
+      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

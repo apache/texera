@@ -43,7 +43,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       "Matches tuples if they appear in a given dictionary",
       OperatorGroupConstants.SEARCH_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

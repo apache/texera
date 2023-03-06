@@ -96,7 +96,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                 OperatorGroupConstants.UDF_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false);
+                false, false,
+                true);
     }
 
     @Override

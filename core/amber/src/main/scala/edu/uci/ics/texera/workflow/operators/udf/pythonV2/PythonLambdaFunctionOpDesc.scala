@@ -54,7 +54,8 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
       "Modify or add a new column with more ease",
       OperatorGroupConstants.UDF_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {

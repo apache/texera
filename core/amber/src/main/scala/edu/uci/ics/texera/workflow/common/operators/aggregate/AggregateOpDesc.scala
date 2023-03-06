@@ -16,16 +16,20 @@ object AggregateOpDesc {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     val partialLayer =
-      OpExecConfig.oneToOneLayer(
-        makeLayer(id, "localAgg"),
-        _ => new PartialAggregateOpExec[P](aggFunc)
-      )
+      OpExecConfig
+        .oneToOneLayer(
+          makeLayer(id, "localAgg"),
+          _ => new PartialAggregateOpExec[P](aggFunc)
+        )
+        .copy(isOneToManyOp = true)
 
     val finalLayer = if (aggFunc.groupByFunc == null) {
-      OpExecConfig.localLayer(
-        makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec[P](aggFunc)
-      )
+      OpExecConfig
+        .localLayer(
+          makeLayer(id, "globalAgg"),
+          _ => new FinalAggregateOpExec[P](aggFunc)
+        )
+        .copy(isOneToManyOp = true)
     } else {
       val partitionColumns = aggFunc
         .groupByFunc(operatorSchemaInfo.inputSchemas(0))
@@ -33,11 +37,13 @@ object AggregateOpDesc {
         .toArray
         .indices
         .toArray
-      OpExecConfig.hashLayer(
-        makeLayer(id, "globalAgg"),
-        _ => new FinalAggregateOpExec(aggFunc),
-        partitionColumns
-      )
+      OpExecConfig
+        .hashLayer(
+          makeLayer(id, "globalAgg"),
+          _ => new FinalAggregateOpExec(aggFunc),
+          partitionColumns
+        )
+        .copy(isOneToManyOp = true)
     }
 
     new PhysicalPlan(
@@ -53,5 +59,13 @@ abstract class AggregateOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     throw new UnsupportedOperationException("multi-layer op should use operatorExecutorMultiLayer")
   }
+
+  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
+    var plan = aggregateOperatorExecutor(operatorSchemaInfo)
+    plan.operators.foreach(op => plan = plan.setOperator(op.copy(isOneToManyOp = true)))
+    plan
+  }
+
+  def aggregateOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan
 
 }

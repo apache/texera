@@ -70,14 +70,14 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(numWorkers = workers, derivePartition = _ => UnknownPartition())
+        .copy(numWorkers = workers, derivePartition = _ => UnknownPartition(), isOneToManyOp = true)
     else
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(derivePartition = _ => UnknownPartition())
+        .copy(derivePartition = _ => UnknownPartition(), isOneToManyOp = true)
   }
 
   override def operatorInfo: OperatorInfo =

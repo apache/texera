@@ -53,13 +53,14 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
     res
   }
 
-  def drainAllStashedElements(
-      dataQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue,
-      controlQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue
-  ): Unit = {
+  def drainAllStashedElements(internalQueue: WorkerInternalQueue): Unit = {
     if (!cleaned) {
-      getAllStashedInputs.foreach(dataQueue.add)
-      getAllStashedControls.foreach(controlQueue.add)
+      getAllStashedInputs.foreach(inputElem => {
+        internalQueue.dataQueues(inputElem.from.name).add(inputElem)
+      })
+      getAllStashedControls.foreach(controlElem => {
+        internalQueue.controlQueue.add(controlElem)
+      })
       cleaned = true
     }
   }

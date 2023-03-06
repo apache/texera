@@ -72,6 +72,13 @@ class WorkflowWebsocketResource extends LazyLogging {
           workflowStateOpt.foreach(state =>
             send(session, state.exportService.exportResult(uidOpt.get, resultExportRequest))
           )
+        case modifyLogicRequest: ModifyLogicRequest =>
+          if (workflowStateOpt.isDefined) {
+            val jobService = workflowStateOpt.get.jobService.getValue
+            val modifyLogicResponse =
+              jobService.jobReconfigurationService.modifyOperatorLogic(modifyLogicRequest)
+            send(session, modifyLogicResponse)
+          }
         case other =>
           workflowStateOpt match {
             case Some(workflow) => workflow.wsInput.onNext(other, uidOpt)

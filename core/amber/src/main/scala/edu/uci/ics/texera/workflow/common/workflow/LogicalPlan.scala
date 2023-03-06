@@ -1,9 +1,11 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_OP
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.metadata.InputPort
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -96,6 +98,16 @@ case class LogicalPlan(
       .outgoingEdgesOf(operatorID)
       .forEach(e => downstream += operatorMap(e.destination.operatorID))
     downstream.toList
+  }
+
+  def opSchemaInfo(operatorID: String): OperatorSchemaInfo = {
+    val op = operatorMap(operatorID)
+    val inputSchemas: Array[Schema] =
+      if (!op.isInstanceOf[SourceOperatorDescriptor])
+        inputSchemaMap(op.operatorIdentifier).map(s => s.get).toArray
+      else Array()
+    val outputSchemas = outputSchemaMap(op.operatorIdentifier).toArray
+    OperatorSchemaInfo(inputSchemas, outputSchemas)
   }
 
   def propagateWorkflowSchema(): (Map[OperatorIdentity, List[Option[Schema]]], List[Throwable]) = {
@@ -201,14 +213,7 @@ case class LogicalPlan(
     var physicalPlan = PhysicalPlan(List(), List())
 
     operators.foreach(o => {
-      val inputSchemas: Array[Schema] =
-        if (!o.isInstanceOf[SourceOperatorDescriptor])
-          inputSchemaMap(o.operatorIdentifier).map(s => s.get).toArray
-        else Array()
-      val outputSchemas = outputSchemaMap(o.operatorIdentifier).toArray
-
-      var ops =
-        o.operatorExecutorMultiLayer(OperatorSchemaInfo(inputSchemas, outputSchemas))
+      var ops = o.operatorExecutorMultiLayer(opSchemaInfo(o.operatorID))
 
       // make sure the input/output ports of the physical operators are set properly
       val firstOp = ops.layersOfLogicalOperator(o.operatorIdentifier).head
@@ -224,6 +229,17 @@ case class LogicalPlan(
         ops.layersOfLogicalOperator(o.operatorIdentifier).last.outputPorts ==
           o.operatorInfo.outputPorts
       )
+
+      // special case for source operators, add an input port from a virtual operator
+      val sourceOps = ops.operators
+        .filter(op => op.isSourceOperator)
+        .map(op =>
+          op.copy(
+            inputPorts = List(InputPort()),
+            inputToOrdinalMapping = Map(LinkIdentity(SOURCE_STARTER_OP, op.id) -> 0)
+          )
+        )
+      sourceOps.foreach(op => ops = ops.setOperator(op))
 
       // add all physical operators to physical DAG
       ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))

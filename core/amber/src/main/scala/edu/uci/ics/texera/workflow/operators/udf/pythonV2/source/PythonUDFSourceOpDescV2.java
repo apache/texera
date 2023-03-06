@@ -69,9 +69,10 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec).withNumWorkers(workers);
+            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec).withNumWorkers(workers)
+                    .withIsOneToManyOp(true);
         } else {
-            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec);
+            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec).withIsOneToManyOp(true);
         }
 
     }
@@ -85,7 +86,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 scala.collection.immutable.List.<InputPort>empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
                 false,
-                false
+                false,
+                true
         );
     }
 
