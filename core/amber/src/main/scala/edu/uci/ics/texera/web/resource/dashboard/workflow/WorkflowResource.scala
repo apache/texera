@@ -29,7 +29,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
 }
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
-import org.jooq.impl.DSL.{field, groupConcat, index, noCondition}
+import org.jooq.impl.DSL.{condition, field, groupConcat, index, noCondition}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
@@ -417,13 +417,15 @@ class WorkflowResource {
       @QueryParam("query") keywords: java.util.List[String]
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
-    val matchQuery = keywords
-      .map((key) =>
-        "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST('+\"" + key + "\"' IN BOOLEAN mode) OR " +
-          "MATCH(texera_db.user.name) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode) " +
-          "OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode)) "
-      )
-      .mkString(" AND ")
+
+
+    var matchQuery: Condition = noCondition()
+    for (key <- keywords) {
+      matchQuery = matchQuery.and("(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0} IN BOOLEAN mode) OR " +
+        "MATCH(texera_db.user.name) AGAINST (+{0} IN BOOLEAN mode) " +
+        "OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST (+{0} IN BOOLEAN mode))",  '"' + key + '"')
+    }
+
     val workflowEntries = context
       .select(
         WORKFLOW.WID,
