@@ -46,7 +46,7 @@
               "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"
             ],
             "customWebpackConfig": {
-              "path": "./custom-webpack-config.js"
+              "path": "./custom-webpack-config.mjs"
             },
             "allowedCommonJsDependencies": [
               "deep-map",
