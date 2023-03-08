@@ -34,7 +34,6 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 export const WORKFLOW_BASE_URL = "workflow";
-export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
 export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
@@ -331,23 +330,23 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * updates selectedOwners array to match owners checked in dropdown menu
    */
-  public updateSelectedOwners(): void {
+  public async updateSelectedOwners(): Promise<void> {
     this.selectedOwners = this.owners.filter(owner => owner.checked).map(owner => owner.userName);
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
    * updates selectedIDs array to match worfklow ids checked in dropdown menu
    */
-  public updateSelectedIDs(): void {
+  public async updateSelectedIDs(): Promise<void> {
     this.selectedIDs = this.wids.filter(wid => wid.checked).map(wid => wid.id);
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
    * updates selectedOperators array to match operators checked in dropdown menu
    */
-  public updateSelectedOperators(): void {
+  public async updateSelectedOperators(): Promise<void> {
     const filteredOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
     Array.from(this.operators.values())
       .flat()
@@ -361,19 +360,19 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         }
       });
     this.selectedOperators = filteredOperators;
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
    * updates selectedProjects array to match projects checked in dropdown menu
    */
-  public updateSelectedProjects(): void {
+  public async updateSelectedProjects(): Promise<void> {
     this.selectedProjects = this.userProjectsDropdown
       .filter(proj => proj.checked)
       .map(proj => {
         return { name: proj.name, pid: proj.pid };
       });
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
@@ -620,12 +619,16 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
     // Old search by operator. This should be integrated into the new search endpoint in the future.
     const idsFromOperatorSearch = await firstValueFrom(
-      this.retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString())
+      this.workflowPersistService.retrieveWorkflowByOperator(
+        this.selectedOperators.map(operator => operator.operatorType).toString()
+      )
     );
+
     // New search endpoint.
     const workflowsFromSearch = await firstValueFrom(
       this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
     );
+
     // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
     // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
     const idsFromWorkflowsSearch = workflowsFromSearch
@@ -665,14 +668,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         }
       });
     }
+    //console.log(" we return search output " + JSON.stringify(searchOutput));
     return searchOutput;
-  }
-
-  /**
-   * retrieves the workflow ids of workflows with the operator(s) specified
-   */
-  public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
   }
 
   /**

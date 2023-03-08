@@ -16,6 +16,7 @@ export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
+export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
@@ -105,9 +106,15 @@ export class WorkflowPersistService {
   }
 
   /**
+   * retrieves the workflow ids of workflows with the operator(s) specified
+   */
+  public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
+  }
+
+  /**
    * Search workflows by a text query from backend database that belongs to the user in the session.
    */
-  // mock this
   public searchWorkflowsBySessionUser(keywords: string[]): Observable<DashboardWorkflowEntry[]> {
     const query = keywords.map(q => `query=${encodeURIComponent(q)}`).join("&");
     return this.retrieveWorkflowsBySessionUserInternal(

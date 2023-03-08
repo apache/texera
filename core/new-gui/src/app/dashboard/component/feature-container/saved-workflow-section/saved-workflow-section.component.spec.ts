@@ -7,6 +7,7 @@ import {
   WORKFLOW_BASE_URL,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { StubWorkflowPersistService } from "../../../../common/service/workflow-persist/stub-workflow-persist.service";
 import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
@@ -195,7 +196,8 @@ describe("SavedWorkflowSectionComponent", () => {
     TestBed.configureTestingModule({
       declarations: [SavedWorkflowSectionComponent, NgbdModalWorkflowShareAccessComponent],
       providers: [
-        WorkflowPersistService,
+        //WorkflowPersistService,
+        { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         NgbActiveModal,
         HttpClient,
         NgbActiveModal,
@@ -300,44 +302,44 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(SortedCase).toEqual(["workflow 5", "workflow 4", "workflow 3", "workflow 2", "workflow 1"]);
   });
 
-  it("searchNoInput", () => {
+  it("searchNoInput", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
     expect(component.masterFilterList).toEqual([]);
   });
 
-  it("searchByWorkflowName", () => {
+  it("searchByWorkflowName", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
-    component.masterFilterList = ["5"];
+    component.masterFilterList = ["workflow 5"];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
-    component.searchWorkflow();
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 5"]);
-    expect(component.masterFilterList).toEqual(["5"]);
+    expect(component.masterFilterList).toEqual(["workflow 5"]);
   });
 
-  it("searchByOwners", () => {
+  it("searchByOwners", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.owners[0].checked = true;
-    component.updateSelectedOwners(); // calls searchWorkflow()
+    await component.updateSelectedOwners(); // calls searchWorkflow()
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2"]);
     expect(component.masterFilterList).toEqual(["owner: Texera"]);
   });
 
-  it("searchByIDs", () => {
+  it("searchByIDs", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -346,46 +348,46 @@ describe("SavedWorkflowSectionComponent", () => {
     component.wids[0].checked = true;
     component.wids[1].checked = true;
     component.wids[2].checked = true;
-    component.updateSelectedIDs(); // calls searchWorkflow()
+    await component.updateSelectedIDs(); // calls searchWorkflow()
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.masterFilterList).toEqual(["id: 1", "id: 2", "id: 3"]);
   });
 
-  it("searchByProjects", () => {
+  it("searchByProjects", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.userProjectsDropdown[0].checked = true;
-    component.updateSelectedProjects(); // calls searchWorkflow()
+    await component.updateSelectedProjects(); // calls searchWorkflow()
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.masterFilterList).toEqual(["project: Project1"]);
   });
 
-  it("searchByCreationTime", () => {
+  it("searchByCreationTime", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
-    component.searchWorkflow();
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
     expect(component.masterFilterList).toEqual(["ctime: 1970-01-03 ~ 1981-03-13"]);
   });
 
-  it("searchByModifyTime", () => {
+  it("searchByModifyTime", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = [];
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
-    component.searchWorkflow();
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
     expect(component.masterFilterList).toEqual(["mtime: 1970-01-03 ~ 1981-03-13"]);
@@ -402,7 +404,7 @@ describe("SavedWorkflowSectionComponent", () => {
    *
    *   - See searchByManyOperators test
    */
-  it("searchByOperators", () => {
+  it("searchByOperators", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -412,7 +414,7 @@ describe("SavedWorkflowSectionComponent", () => {
     if (operatorGroup) {
       const operatorSelectionList = []; // list of operators for query
       operatorGroup[2].checked = true; // sentiment analysis
-      component.updateSelectedOperators(); // calls searchWorkflow()
+      await component.updateSelectedOperators(); // calls searchWorkflow()
       operatorSelectionList.push(operatorGroup[2].operatorType);
       const req = httpTestingController.match(`api/workflow/search-by-operators?operator=${operatorSelectionList}`);
       req[0].flush(["3"]);
@@ -422,7 +424,7 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.masterFilterList).toEqual(["operator: Sentiment Analysis"]); // userFriendlyName
   });
 
-  it("searchByManyOperators", () => {
+  it("searchByManyOperators", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -435,7 +437,7 @@ describe("SavedWorkflowSectionComponent", () => {
       const operatorSelectionList = []; // list of operators for query
       operatorGroup[2].checked = true; // sentiment analysis
       operatorGroup2[0].checked = true;
-      component.updateSelectedOperators(); // calls searchWorkflow()
+      await component.updateSelectedOperators(); // calls searchWorkflow()
       operatorSelectionList.push(operatorGroup[2].operatorType);
       operatorSelectionList.push(operatorGroup2[0].operatorType);
       const req = httpTestingController.match(`api/workflow/search-by-operators?operator=${operatorSelectionList}`);
@@ -446,7 +448,7 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.masterFilterList).toEqual(["operator: Sentiment Analysis", "operator: View Results"]); // userFriendlyName
   });
 
-  it("searchByManyParameters", () => {
+  it("searchByManyParameters", async () => {
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -457,7 +459,7 @@ describe("SavedWorkflowSectionComponent", () => {
     if (operatorGroup) {
       const operatorSelectionList = []; // list of operators for query
       operatorGroup[2].checked = true; // sentiment analysis
-      component.updateSelectedOperators();
+      await component.updateSelectedOperators();
       operatorSelectionList.push(operatorGroup[2].operatorType);
 
       component.owners[0].checked = true; //Texera
@@ -471,9 +473,9 @@ describe("SavedWorkflowSectionComponent", () => {
       component.masterFilterList.push("1");
       //add/select new search parameter here
 
-      component.updateSelectedProjects();
-      component.updateSelectedIDs();
-      component.updateSelectedOwners();
+      await component.updateSelectedProjects();
+      await component.updateSelectedIDs();
+      await component.updateSelectedOwners();
       // if adding parameters, add its respective update function here
 
       const req = httpTestingController.match(`api/workflow/search-by-operators?operator=${operatorSelectionList}`);
