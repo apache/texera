@@ -16,7 +16,7 @@ class SplitOpExec(
     val opDesc: SplitOpDesc
 ) extends OperatorExecutor {
 
-  val random = new Random(opDesc.seeds(actor))
+  lazy val random = new Random(opDesc.seeds(actor))
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
