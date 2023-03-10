@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, OnDestroy } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used:
 // 1) use `import * as jQuery` as follows, instead of using `$`,
@@ -32,6 +32,7 @@ import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dro
 import MouseMoveEvent = JQuery.MouseMoveEvent;
 import MouseLeaveEvent = JQuery.MouseLeaveEvent;
 import MouseEnterEvent = JQuery.MouseEnterEvent;
+import { ActivatedRoute, Router } from "@angular/router";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -102,7 +103,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
     private operatorMenu: OperatorMenuService,
-    private nzContextMenu: NzContextMenuService
+    private nzContextMenu: NzContextMenuService,
+    private route: ActivatedRoute,
+    private router: Router,
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -118,6 +121,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
+
+    this.router.events.subscribe(e => console.log(e))
     this._registerKeyboard();
     this.initializeJointPaper();
     this.handleDisableJointPaperInteractiveness();
@@ -162,6 +167,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     if (this.getJointPaper()) {
       this.handlePointerEvents();
     }
+
+    this.handleCommentBoxFragment();
   }
 
   private _unregisterKeyboard() {
@@ -764,6 +771,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         },
       ],
     });
+    modalRef.afterClose.subscribe(() => {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        preserveFragment: false,
+      })
+    })
+    this.router.navigate([], {
+      relativeTo: this.route,
+      preserveFragment: false,
+      fragment: commentBoxID,
+    })
   }
 
   private handleOperatorSuggestionHighlightEvent(): void {
@@ -1503,5 +1521,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .subscribe(() => {
         this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);
       });
+  }
+
+  private handleCommentBoxFragment(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getCommentBoxAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(box => {
+        if (this.route.snapshot.fragment === box.commentBoxID) {
+          this.openCommentBox(box.commentBoxID);
+        }
+      })
   }
 }
