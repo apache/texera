@@ -18,6 +18,7 @@ import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { Version as version } from "src/environments/version";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -68,7 +69,8 @@ export class ExecuteWorkflowService {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private notificationService: NotificationService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -78,12 +80,27 @@ export class ExecuteWorkflowService {
             break;
           default:
             // workflow status related event
+            this.handleReconfigurationEvent(event);
             const newState = this.handleExecutionEvent(event);
             if (newState !== undefined) {
               this.updateExecutionState(newState);
             }
         }
       });
+    }
+  }
+
+  public handleReconfigurationEvent(event: TexeraWebsocketEvent) {
+    switch (event.type) {
+      case "ModifyLogicResponse":
+        if (!event.isValid) {
+          this.notificationService.error(event.errorMessage);
+        } else {
+          this.notificationService.info("reconfiguration registered");
+        }
+        return;
+      case "ModifyLogicCompletedEvent":
+        this.notificationService.info("reconfiguration on operator(s) " + event.opIds + " complete");
     }
   }
 
@@ -300,6 +317,7 @@ export class ExecuteWorkflowService {
     if (!environment.amberEngineEnabled) {
       return;
     }
+    console.log("modifying operator logic " + operatorID);
     if (
       this.currentState.state !== ExecutionState.BreakpointTriggered &&
       this.currentState.state !== ExecutionState.Paused
