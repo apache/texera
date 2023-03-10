@@ -49,5 +49,6 @@ class TextScanSourceOpExec private[text] (
     }
   }
 
+  // in outputAsSingleTuple mode, Files.readAllBytes handles the closing of file
   override def close(): Unit = if (!outputAsSingleTuple) reader.close()
 }

@@ -69,7 +69,9 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc {
         val reader = new BufferedReader(new FileReader(path))
         val offsetValue = offsetHideable.getOrElse(0)
         var lines = reader.lines().iterator().drop(offsetValue)
-        if (limitHideable.isDefined) lines = lines.take(limitHideable.get)
+        if (limitHideable.isDefined) {
+          lines = lines.take(limitHideable.get)
+        }
         val count: Int = lines.map(_ => 1).sum
         reader.close()
 
