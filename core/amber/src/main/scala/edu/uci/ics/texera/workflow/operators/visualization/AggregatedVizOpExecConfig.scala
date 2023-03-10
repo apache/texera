@@ -1,17 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.visualization
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecFunc}
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   AggregateOpDesc,
   DistributedAggregation
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
-
-import scala.reflect.ClassTag
 
 object AggregatedVizOpExecConfig {
 
@@ -23,14 +19,17 @@ object AggregatedVizOpExecConfig {
     * @param operatorSchemaInfo The descriptor's OperatorSchemaInfo.
     * @tparam P The type of the aggregation data.
     */
-  def opExecPhysicalPlan[P <: AnyRef](
+  def opExecPhysicalPlan(
       id: OperatorIdentity,
-      aggFunc: DistributedAggregation[P],
+      aggFunc: DistributedAggregation[Object],
+      groupByKeys: List[String],
+      finalAggValueSchema: Schema,
       vizExec: OpExecConfig,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
 
-    val aggregateOperators = AggregateOpDesc.opExecPhysicalPlan(id, aggFunc, operatorSchemaInfo)
+    val aggregateOperators =
+      AggregateOpDesc.opExecPhysicalPlan(id, List(aggFunc), groupByKeys, operatorSchemaInfo)
     val tailAggregateOp = aggregateOperators.sinkOperators.last
 
     new PhysicalPlan(
