@@ -99,7 +99,7 @@ trait StateTransferFunc
     new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
-//    new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
+    new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),

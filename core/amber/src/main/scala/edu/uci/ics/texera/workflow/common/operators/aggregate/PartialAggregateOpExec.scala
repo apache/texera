@@ -56,7 +56,7 @@ class PartialAggregateOpExec(
       case Left(t) =>
         val key =
           if (groupByKeys == null || groupByKeys.isEmpty) List()
-          else groupByKeys.map(k => t.getField(k))
+          else groupByKeys.map(k => t.getField[Object](k))
 
         if (!partialObjectsPerKey.contains(key))
           partialObjectsPerKey.put(key, aggFuncs.map(aggFunc => aggFunc.init()))

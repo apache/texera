@@ -33,7 +33,7 @@ object AggregateOpDesc {
     } else {
       val partitionColumns: Array[Int] =
         if (groupByKeys == null) Array()
-        else groupByKeys.map(k => schema.inputSchemas(0).getIndex(k).toInt).toArray
+        else groupByKeys.indices.toArray // group by columns are always placed in the beginning
 
       OpExecConfig
         .hashLayer(

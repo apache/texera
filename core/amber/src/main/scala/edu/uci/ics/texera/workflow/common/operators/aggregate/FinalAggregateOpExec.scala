@@ -41,17 +41,18 @@ class FinalAggregateOpExec(
       case Left(t) =>
         val key =
           if (groupByKeys == null || groupByKeys.isEmpty) List()
-          else groupByKeys.map(k => t.getField(k))
+          else groupByKeys.map(k => t.getField[Object](k))
 
-        val partialObjects = (0 to aggFuncs.length).map(i => t.getField(internalAggObjKey(i)))
+        val partialObjects =
+          aggFuncs.indices.map(i => t.getField[Object](internalAggObjKey(i))).toList
         if (!partialObjectsPerKey.contains(key)) {
-          partialObjectsPerKey.put(key, partialObjects.toList)
+          partialObjectsPerKey.put(key, partialObjects)
         } else {
           val updatedPartialObjects = aggFuncs.indices
             .map(i => {
               val aggFunc = aggFuncs(i)
-              val partial1 = partialObjectsPerKey(key)
-              val partial2 = partialObjects
+              val partial1 = partialObjectsPerKey(key)(i)
+              val partial2 = partialObjects(i)
               aggFunc.merge(partial1, partial2)
             })
             .toList
@@ -63,8 +64,8 @@ class FinalAggregateOpExec(
           val finalAggValues = aggFuncs.indices.map(i => aggFuncs(i).finalAgg(pair._2(i)))
 
           val tupleBuilder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
-          tupleBuilder.addSequentially(pair._1.toArray) // add group by keys
-          tupleBuilder.addSequentially(finalAggValues.toArray) // add final agg values
+          // add group by keys and final agg values
+          tupleBuilder.addSequentially((pair._1 ++ finalAggValues).toArray)
 
           tupleBuilder.build()
         })

@@ -62,6 +62,8 @@ class BarChartOpDesc extends VisualizationOperator {
     }
 
     val aggOperator = new SpecializedAggregateOpDesc()
+    aggOperator.context = this.context
+    aggOperator.operatorID = this.operatorID
     if (noDataCol) {
       val aggOperation = new AggregationOperation()
       aggOperation.aggFunction = AggregationFunction.COUNT

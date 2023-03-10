@@ -45,7 +45,7 @@ class PieChartOpDesc extends VisualizationOperator {
   @JsonPropertyDescription("column of name (for chart label)")
   @AutofillAttributeName var nameColumn: String = _
 
-  @JsonProperty(value = "data column")
+  @JsonProperty(value = "data column", required = false)
   @JsonPropertyDescription("column of data")
   @AutofillAttributeName var dataColumn: String = _
 
@@ -74,6 +74,8 @@ class PieChartOpDesc extends VisualizationOperator {
     def dataColumns: List[String] = List(dataColumn)
 
     val aggOperator = new SpecializedAggregateOpDesc()
+    aggOperator.context = this.context
+    aggOperator.operatorID = this.operatorID
     if (noDataCol) {
       val aggOperation = new AggregationOperation()
       aggOperation.aggFunction = AggregationFunction.COUNT
