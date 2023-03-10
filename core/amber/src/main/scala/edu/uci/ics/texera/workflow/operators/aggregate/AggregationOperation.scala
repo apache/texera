@@ -3,18 +3,10 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{
-  AggregateOpExecConfig,
-  DistributedAggregation
-}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
 
 class AggregationOperation() {
 
@@ -43,26 +35,21 @@ class AggregationOperation() {
   }
 
   @JsonIgnore
-  def getAggFunc(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[_ <: AnyRef] = {
-    aggFunction match {
-      case AggregationFunction.AVERAGE => averageAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.COUNT   => countAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.MAX     => maxAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.MIN     => minAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.SUM     => sumAgg(finalAggValueSchema, groupByFunc)
-      case AggregationFunction.CONCAT  => concatAgg(finalAggValueSchema, groupByFunc)
+  def getAggFunc(): DistributedAggregation[Object] = {
+    val aggFunc = aggFunction match {
+      case AggregationFunction.AVERAGE => averageAgg()
+      case AggregationFunction.COUNT   => countAgg()
+      case AggregationFunction.MAX     => maxAgg()
+      case AggregationFunction.MIN     => minAgg()
+      case AggregationFunction.SUM     => sumAgg()
+      case AggregationFunction.CONCAT  => concatAgg()
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
+    aggFunc.asInstanceOf[DistributedAggregation[Object]]
   }
 
-  private def sumAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[java.lang.Double] = {
+  private def sumAgg(): DistributedAggregation[java.lang.Double] = {
     new DistributedAggregation[java.lang.Double](
       () => 0,
       (partial, tuple) => {
@@ -71,42 +58,26 @@ class AggregationOperation() {
 
       },
       (partial1, partial2) => partial1 + partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
-        Tuple
-          .newBuilder(schema)
-          .add(resultAttribute, AttributeType.DOUBLE, partial)
-          .build()
-      },
-      groupByFunc
+      partial => partial
     )
   }
 
-  private def countAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[Integer] = {
+  private def countAgg(): DistributedAggregation[Integer] = {
     new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
-        partial + (if (tuple.getField(attribute) != null) 1 else 0)
+        val inc =
+          if (attribute == null) 1
+          else if (tuple.getField(attribute) != null) 1
+          else 0
+        partial + inc
       },
       (partial1, partial2) => partial1 + partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.INTEGER).build()
-        Tuple
-          .newBuilder(schema)
-          .add(resultAttribute, AttributeType.INTEGER, partial)
-          .build()
-      },
-      groupByFunc
+      partial => partial
     )
   }
 
-  private def concatAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[String] = {
+  private def concatAgg(): DistributedAggregation[String] = {
     new DistributedAggregation[String](
       () => "",
       (partial, tuple) => {
@@ -125,21 +96,11 @@ class AggregationOperation() {
           partial1 + partial2
         }
       },
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.STRING).build()
-        Tuple
-          .newBuilder(schema)
-          .add(resultAttribute, AttributeType.STRING, partial)
-          .build()
-      },
-      groupByFunc
+      partial => partial
     )
   }
 
-  private def minAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[java.lang.Double] = {
+  private def minAgg(): DistributedAggregation[java.lang.Double] = {
     new DistributedAggregation[java.lang.Double](
       () => Double.MaxValue,
       (partial, tuple) => {
@@ -147,25 +108,11 @@ class AggregationOperation() {
         if (value.isDefined && value.get < partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
-        Tuple
-          .newBuilder(schema)
-          .add(
-            resultAttribute,
-            AttributeType.DOUBLE,
-            if (partial == Double.MaxValue) null else partial
-          )
-          .build()
-      },
-      groupByFunc
+      partial => if (partial == Double.MaxValue) null else partial
     )
   }
 
-  private def maxAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[java.lang.Double] = {
+  private def maxAgg(): DistributedAggregation[java.lang.Double] = {
     new DistributedAggregation[java.lang.Double](
       () => Double.MinValue,
       (partial, tuple) => {
@@ -173,18 +120,7 @@ class AggregationOperation() {
         if (value.isDefined && value.get > partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
-        Tuple
-          .newBuilder(schema)
-          .add(
-            resultAttribute,
-            AttributeType.DOUBLE,
-            if (partial == Double.MinValue) null else partial
-          )
-          .build()
-      },
-      groupByFunc
+      partial => if (partial == Double.MinValue) null else partial
     )
   }
 
@@ -198,10 +134,7 @@ class AggregationOperation() {
     else Option(value.toString.toDouble)
   }
 
-  private def averageAgg(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[AveragePartialObj] = {
+  private def averageAgg(): DistributedAggregation[AveragePartialObj] = {
     new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
@@ -213,18 +146,10 @@ class AggregationOperation() {
       },
       (partial1, partial2) =>
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
-        Tuple
-          .newBuilder(schema)
-          .add(
-            resultAttribute,
-            AttributeType.DOUBLE,
-            if (partial.count == 0) null else partial.sum / partial.count
-          )
-          .build()
-      },
-      groupByFunc
+      partial => {
+        val ret: java.lang.Double = if (partial.count == 0d) null else partial.sum / partial.count
+        ret
+      }
     )
   }
 

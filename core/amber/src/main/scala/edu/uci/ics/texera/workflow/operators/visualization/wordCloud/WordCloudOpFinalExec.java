@@ -77,7 +77,7 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         if (tuple.isLeft()) {
             String term = tuple.left().get().getString(0);
             int frequency = tuple.left().get().getInt(1);

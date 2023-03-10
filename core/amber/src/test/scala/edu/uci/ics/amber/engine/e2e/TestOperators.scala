@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.e2e
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregationFunction,
   AggregationOperation,
-  SpecializedAverageOpDesc
+  SpecializedAggregateOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
@@ -80,8 +80,8 @@ object TestOperators {
       attributeToAggregate: String,
       aggFunction: AggregationFunction,
       groupByAttributes: List[String]
-  ): SpecializedAverageOpDesc = {
-    val aggOp = new SpecializedAverageOpDesc()
+  ): SpecializedAggregateOpDesc = {
+    val aggOp = new SpecializedAggregateOpDesc()
     val aggFunc = new AggregationOperation()
     aggFunc.aggFunction = aggFunction
     aggFunc.attribute = attributeToAggregate

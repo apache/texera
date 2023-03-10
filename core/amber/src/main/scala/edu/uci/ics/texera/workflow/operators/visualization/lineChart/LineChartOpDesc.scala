@@ -1,7 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.lineChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -20,6 +21,11 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   AttributeType,
   OperatorSchemaInfo,
   Schema
+}
+import edu.uci.ics.texera.workflow.operators.aggregate.{
+  AggregationFunction,
+  AggregationOperation,
+  SpecializedAggregateOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.visualization.{
   AggregatedVizOpExecConfig,
@@ -53,56 +59,45 @@ class LineChartOpDesc extends VisualizationOperator {
 
   def resultAttributeNames: List[String] = if (noDataCol) List("count") else dataColumns
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo) = {
     if (nameColumn == null || nameColumn == "") {
       throw new RuntimeException("line chart: name column is null or empty")
     }
 
-    this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
-    this.finalAggValueSchema = getFinalAggValueSchema
+    val aggOperator = new SpecializedAggregateOpDesc()
+    if (noDataCol) {
+      val aggOperation = new AggregationOperation()
+      aggOperation.aggFunction = AggregationFunction.COUNT
+      aggOperation.attribute = nameColumn
+      aggOperation.resultAttribute = resultAttributeNames.head
+      aggOperator.aggregations = List(aggOperation)
+      aggOperator.groupByKeys = List(nameColumn)
+    } else {
+      val aggOperations = dataColumns.map(dataCol => {
+        val aggOperation = new AggregationOperation()
+        aggOperation.aggFunction = AggregationFunction.SUM
+        aggOperation.attribute = dataCol
+        aggOperation.resultAttribute = dataCol
+        aggOperation
+      })
+      aggOperator.aggregations = aggOperations
+      aggOperator.groupByKeys = List(nameColumn)
+    }
 
-    val aggregation =
-      if (noDataCol)
-        new DistributedAggregation[Integer](
-          () => 0,
-          (partial, tuple) => {
-            partial + (if (tuple.getField(nameColumn) != null) 1 else 0)
-          },
-          (partial1, partial2) => partial1 + partial2,
-          (partial) => {
-            Tuple
-              .newBuilder(finalAggValueSchema)
-              .add(resultAttributeNames.head, AttributeType.INTEGER, partial)
-              .build()
-          },
-          groupByFunc()
-        )
-      else
-        new DistributedAggregation[Array[Double]](
-          () => Array.fill(dataColumns.length)(0),
-          (partial, tuple) => {
-            for (i <- dataColumns.indices) {
-              partial(i) = partial(i) + getNumericalValue(tuple, dataColumns(i))
-            }
-            partial
-          },
-          (partial1, partial2) => partial1.zip(partial2).map { case (x, y) => x + y },
-          (partial) => {
-            val resultBuilder = Tuple.newBuilder(finalAggValueSchema)
-            for (i <- dataColumns.indices) {
-              resultBuilder.add(resultAttributeNames(i), AttributeType.DOUBLE, partial(i))
-            }
-            resultBuilder.build()
-          },
-          groupByFunc()
-        )
-    new AggregatedVizOpExecConfig(
-      operatorIdentifier,
-      aggregation,
-      finalAggValueSchema,
-      new LineChartOpExec(this, operatorSchemaInfo),
-      operatorSchemaInfo
+    val aggPlan = aggOperator.aggregateOperatorExecutor(
+      OperatorSchemaInfo(
+        operatorSchemaInfo.inputSchemas,
+        Array(aggOperator.getOutputSchema(operatorSchemaInfo.inputSchemas))
+      )
     )
+
+    val lineChartOpExec = OpExecConfig.oneToOneLayer(
+      makeLayer(operatorIdentifier, "visualize"),
+      _ => new LineChartOpExec(this, operatorSchemaInfo)
+    )
+
+    val finalAggOp = aggPlan.sinkOperators.head
+    aggPlan.addOperator(lineChartOpExec).addEdge(finalAggOp, lineChartOpExec.id)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -166,4 +161,9 @@ class LineChartOpDesc extends VisualizationOperator {
       groupBySchema
     }
   }
+
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    throw new UnsupportedOperationException("implemented in operatorExecutorMultiLayer")
+  }
+
 }
