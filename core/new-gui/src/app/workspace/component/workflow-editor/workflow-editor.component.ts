@@ -121,7 +121,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
-    this.router.events.subscribe(e => console.log(e));
     this._registerKeyboard();
     this.initializeJointPaper();
     this.handleDisableJointPaperInteractiveness();
@@ -167,7 +166,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       this.handlePointerEvents();
     }
 
-    this.handleCommentBoxFragment();
+    this.handleCommentBoxURLFragment();
   }
 
   private _unregisterKeyboard() {
@@ -770,7 +769,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         },
       ],
     });
-    modalRef.afterClose.subscribe(() => {
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => {
       this.router.navigate([], {
         relativeTo: this.route,
         preserveFragment: false,
@@ -1522,7 +1521,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  private handleCommentBoxFragment(): void {
+  private handleCommentBoxURLFragment(): void {
     this.workflowActionService
       .getTexeraGraph()
       .getCommentBoxAddStream()
