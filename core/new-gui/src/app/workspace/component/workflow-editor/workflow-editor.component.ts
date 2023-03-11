@@ -105,7 +105,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private operatorMenu: OperatorMenuService,
     private nzContextMenu: NzContextMenuService,
     private route: ActivatedRoute,
-    private router: Router,
+    private router: Router
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -121,8 +121,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
-
-    this.router.events.subscribe(e => console.log(e))
+    this.router.events.subscribe(e => console.log(e));
     this._registerKeyboard();
     this.initializeJointPaper();
     this.handleDisableJointPaperInteractiveness();
@@ -775,13 +774,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       this.router.navigate([], {
         relativeTo: this.route,
         preserveFragment: false,
-      })
-    })
+      });
+    });
     this.router.navigate([], {
       relativeTo: this.route,
       preserveFragment: false,
       fragment: commentBoxID,
-    })
+    });
   }
 
   private handleOperatorSuggestionHighlightEvent(): void {
@@ -1532,6 +1531,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         if (this.route.snapshot.fragment === box.commentBoxID) {
           this.openCommentBox(box.commentBoxID);
         }
-      })
+      });
   }
 }
