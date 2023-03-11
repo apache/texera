@@ -8,12 +8,16 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  BatchToTupleConverter,
   NetworkInputPort,
   NetworkOutputPort,
   OutputManager
 }
 import edu.uci.ics.amber.engine.architecture.recovery.RecoveryQueue
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  EndMarker,
+  InputEpochMarker,
+  InputTuple
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
@@ -59,7 +63,6 @@ class WorkflowWorker(
   lazy val operator: IOperatorExecutor =
     workerLayer.initIOperatorExecutor((workerIndex, workerLayer))
   lazy val recoveryQueue = new RecoveryQueue(logStorage.getReader)
-  lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val upstreamLinkStatus: UpstreamLinkStatus = wire[UpstreamLinkStatus]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
@@ -69,11 +72,13 @@ class WorkflowWorker(
   lazy val dataOutputPort: NetworkOutputPort[DataPayload] =
     new NetworkOutputPort[DataPayload](this.actorId, this.outputDataPayload)
   lazy val outputManager: OutputManager = wire[OutputManager]
-  lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
+  lazy val internalQueue: WorkerInternalQueue = dataProcessor.internalQueue
+  lazy val pauseManager: PauseManager = dataProcessor.pauseManager
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   val workerStateManager: WorkerStateManager = new WorkerStateManager()
+  val epochManager: EpochManager = wire[EpochManager]
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[WorkerAsyncRPCHandlerInitializer]
 
@@ -84,7 +89,7 @@ class WorkflowWorker(
   override def getLogName: String = getWorkerLogName(actorId)
 
   def getSenderCredits(sender: ActorVirtualIdentity) = {
-    tupleProducer.getSenderCredits(sender)
+    internalQueue.getSenderCredits(sender)
   }
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
@@ -143,7 +148,18 @@ class WorkflowWorker(
   }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-    tupleProducer.processDataPayload(from, dataPayload)
+    dataPayload match {
+      case DataFrame(payload) =>
+        payload.foreach { i =>
+          internalQueue.appendElement(InputTuple(from, i))
+        }
+      case EndOfUpstream() =>
+        internalQueue.appendElement(EndMarker(from))
+      case marker @ EpochMarker(_, _, _) =>
+        internalQueue.appendElement(InputEpochMarker(from, marker))
+      case _ =>
+        throw new NotImplementedError()
+    }
   }
 
   def handleControlPayload(
@@ -153,7 +169,7 @@ class WorkflowWorker(
     // let dp thread process it
     controlPayload match {
       case controlCommand @ (ControlInvocation(_, _) | ReturnInvocation(_, _)) =>
-        dataProcessor.enqueueCommand(controlCommand, from)
+        internalQueue.enqueueCommand(controlCommand, from)
       case _ =>
         throw new WorkflowRuntimeException(s"unhandled control payload: $controlPayload")
     }
@@ -172,7 +188,7 @@ class WorkflowWorker(
   override def postStop(): Unit = {
     // shutdown dp thread by sending a command
     val shutdown = ShutdownDPThread()
-    dataProcessor.enqueueCommand(
+    internalQueue.enqueueCommand(
       ControlInvocation(AsyncRPCClient.IgnoreReply, shutdown),
       SELF
     )

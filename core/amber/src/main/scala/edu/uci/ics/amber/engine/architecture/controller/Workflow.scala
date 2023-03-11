@@ -132,7 +132,7 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
   def getPythonOperators(fromOperatorsList: Array[LayerIdentity]): Array[LayerIdentity] = {
     fromOperatorsList.filter(opId =>
       physicalPlan.operatorMap(opId).getAllWorkers.nonEmpty &&
-        physicalPlan.operatorMap(opId).isPythonOperator()
+        physicalPlan.operatorMap(opId).isPythonOperator
     )
   }
 
@@ -141,7 +141,7 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
   ): Iterable[(ActorVirtualIdentity, OpExecConfig)] = {
     pythonOperators
       .map(opId => physicalPlan.operatorMap(opId))
-      .filter(op => op.isPythonOperator())
+      .filter(op => op.isPythonOperator)
       .flatMap(op => op.getAllWorkers.map(worker => (worker, op)))
       .toList
   }
