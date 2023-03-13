@@ -3,12 +3,7 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
@@ -31,14 +26,14 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
   var groupByKeys: List[String] = _
 
   override def aggregateOperatorExecutor(
-      operatorSchemaInfo: OperatorSchemaInfo
+    operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     if (aggregations.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
     AggregateOpDesc.opExecPhysicalPlan(
       operatorIdentifier,
-      aggregations.map(agg => agg.getAggFunc()),
+      aggregations.map(agg => agg.getAggFunc(operatorSchemaInfo.inputSchemas(0))),
       groupByKeys,
       operatorSchemaInfo
     )
@@ -51,13 +46,6 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     Schema
       .newBuilder()
       .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
-      .build()
-  }
-
-  private def getFinalAggValueSchema: Schema = {
-    Schema
-      .newBuilder()
-      .add(aggregations.map(_.getAggregationAttribute).asJava)
       .build()
   }
 
@@ -79,7 +67,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     Schema
       .newBuilder()
       .add(getGroupByKeysSchema(schemas).getAttributes)
-      .add(getFinalAggValueSchema.getAttributes)
+      .add(aggregations.map(agg => agg.getAggregationAttribute(schemas(0))).asJava)
       .build()
   }
 
