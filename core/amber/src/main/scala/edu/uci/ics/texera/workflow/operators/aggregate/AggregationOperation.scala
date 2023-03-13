@@ -8,6 +8,8 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
+import java.sql.Timestamp
+
 class AggregationOperation() {
 
   @JsonProperty(required = true)
@@ -151,7 +153,7 @@ class AggregationOperation() {
       )
     }
     new DistributedAggregation[Object](
-      () => maxValue(attributeType),
+      () => minValue(attributeType),
       (partial, tuple) => {
         val value = tuple.getField[Object](attribute)
         val comp = compare(value, partial, attributeType)
@@ -210,9 +212,8 @@ class AggregationOperation() {
         a.asInstanceOf[java.lang.Double].compareTo(b.asInstanceOf[java.lang.Double])
       case AttributeType.LONG =>
         a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
-      // java.sql.Timestamp is not comparable
       case AttributeType.TIMESTAMP =>
-        a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
+        a.asInstanceOf[Timestamp].getTime.compareTo(b.asInstanceOf[Timestamp].getTime)
       case _ =>
         throw new UnsupportedOperationException(
           "Unsupported attribute type for comparison: " + attributeType
@@ -237,9 +238,8 @@ class AggregationOperation() {
         )
       case AttributeType.LONG =>
         java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
-      // java.sql.Timestamp is not comparable
       case AttributeType.TIMESTAMP =>
-        java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
+        new Timestamp(a.asInstanceOf[Timestamp].getTime + b.asInstanceOf[Timestamp].getTime)
       case _ =>
         throw new UnsupportedOperationException(
           "Unsupported attribute type for addition: " + attributeType
@@ -249,11 +249,10 @@ class AggregationOperation() {
 
   def zero(attributeType: AttributeType): Object =
     attributeType match {
-      case AttributeType.INTEGER => Integer.valueOf(0)
-      case AttributeType.DOUBLE  => java.lang.Double.valueOf(0)
-      case AttributeType.LONG    => java.lang.Long.valueOf(0)
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => java.lang.Long.valueOf(0)
+      case AttributeType.INTEGER   => java.lang.Integer.valueOf(0)
+      case AttributeType.DOUBLE    => java.lang.Double.valueOf(0)
+      case AttributeType.LONG      => java.lang.Long.valueOf(0)
+      case AttributeType.TIMESTAMP => new Timestamp(0)
       case _ =>
         throw new UnsupportedOperationException(
           "Unsupported attribute type for zero value: " + attributeType
@@ -262,11 +261,10 @@ class AggregationOperation() {
 
   def maxValue(attributeType: AttributeType): Object =
     attributeType match {
-      case AttributeType.INTEGER => Integer.MAX_VALUE.asInstanceOf[Object]
-      case AttributeType.DOUBLE  => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
-      case AttributeType.LONG    => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.INTEGER   => Integer.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.DOUBLE    => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.LONG      => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.TIMESTAMP => new Timestamp(java.lang.Long.MAX_VALUE)
       case _ =>
         throw new UnsupportedOperationException(
           "Unsupported attribute type for max value: " + attributeType
@@ -275,11 +273,10 @@ class AggregationOperation() {
 
   def minValue(attributeType: AttributeType): Object =
     attributeType match {
-      case AttributeType.INTEGER => Integer.MIN_VALUE.asInstanceOf[Object]
-      case AttributeType.DOUBLE  => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
-      case AttributeType.LONG    => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.INTEGER   => Integer.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.DOUBLE    => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.LONG      => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.TIMESTAMP => new Timestamp(0)
       case _ =>
         throw new UnsupportedOperationException(
           "Unsupported attribute type for min value: " + attributeType
