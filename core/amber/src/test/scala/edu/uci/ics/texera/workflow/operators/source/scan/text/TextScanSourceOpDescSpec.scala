@@ -11,6 +11,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var textScanSourceOpDesc: TextScanSourceOpDesc = _
 
   val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
+  val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"
   val StartOffset: Int = 0
   val EndOffset: Int = 5
 
@@ -35,6 +36,23 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
+    val outputAsSingleTuple: Boolean = false
+    val textScanSourceOpExec =
+      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, outputAsSingleTuple)
+    textScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+
+    assert(processedTuple.next().getField("line").equals("line1"))
+    assert(processedTuple.next().getField("line").equals("line2"))
+    assert(processedTuple.next().getField("line").equals("line3"))
+    assert(processedTuple.next().getField("line").equals("line4"))
+    assert(processedTuple.next().getField("line").equals("line5"))
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+    textScanSourceOpExec.close()
+  }
+
+  it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
+    textScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     val outputAsSingleTuple: Boolean = false
     val textScanSourceOpExec =
       new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, outputAsSingleTuple)
