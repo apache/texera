@@ -29,6 +29,10 @@ class TextScanSourceOpExec private[text] (
           .add(
             schema.getAttribute("file"),
             new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
+            // currently using UTF_8 encoding, which will support all files
+            // that can be represented using Unicode characters
+            // NOTE : currently this mode may not support all binary files,
+            // as not all possible binary characters can necessarily be converted to valid UTF-8 strings
           )
           .build()
       )

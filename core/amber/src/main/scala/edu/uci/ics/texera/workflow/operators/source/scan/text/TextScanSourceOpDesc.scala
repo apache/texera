@@ -24,8 +24,13 @@ import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import java.io.{BufferedReader, FileReader}
 import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
+/* ignoring inherited limit and offset properties because they are not hideable */
 @JsonIgnoreProperties(value = Array("limit", "offset"))
 class TextScanSourceOpDesc extends ScanSourceOpDesc {
+
+  /* create new, identical limit and offset fields
+      with additional annotations to make hideable
+      TODO: to be considered in potential future refactor */
 
   @JsonProperty()
   @JsonSchemaTitle("Limit")
