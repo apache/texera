@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -10,37 +9,36 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object AggregateOpDesc {
 
-  def opExecPhysicalPlan[P <: AnyRef](
+  def opExecPhysicalPlan(
       id: OperatorIdentity,
-      aggFunc: DistributedAggregation[P],
-      operatorSchemaInfo: OperatorSchemaInfo
+      aggFuncs: List[DistributedAggregation[Object]],
+      groupByKeys: List[String],
+      schema: OperatorSchemaInfo
   ): PhysicalPlan = {
     val partialLayer =
       OpExecConfig
         .oneToOneLayer(
           makeLayer(id, "localAgg"),
-          _ => new PartialAggregateOpExec[P](aggFunc)
+          _ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schema)
         )
         .copy(isOneToManyOp = true)
 
-    val finalLayer = if (aggFunc.groupByFunc == null) {
+    val finalLayer = if (groupByKeys == null || groupByKeys.isEmpty) {
       OpExecConfig
         .localLayer(
           makeLayer(id, "globalAgg"),
-          _ => new FinalAggregateOpExec[P](aggFunc)
+          _ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schema)
         )
         .copy(isOneToManyOp = true)
     } else {
-      val partitionColumns = aggFunc
-        .groupByFunc(operatorSchemaInfo.inputSchemas(0))
-        .getAttributes
-        .toArray
-        .indices
-        .toArray
+      val partitionColumns: Array[Int] =
+        if (groupByKeys == null) Array()
+        else groupByKeys.indices.toArray // group by columns are always placed in the beginning
+
       OpExecConfig
         .hashLayer(
           makeLayer(id, "globalAgg"),
-          _ => new FinalAggregateOpExec(aggFunc),
+          _ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schema),
           partitionColumns
         )
         .copy(isOneToManyOp = true)

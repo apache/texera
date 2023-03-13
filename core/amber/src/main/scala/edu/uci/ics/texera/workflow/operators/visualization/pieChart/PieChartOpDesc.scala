@@ -2,20 +2,14 @@ package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{
-  AggregateOpDesc,
-  DistributedAggregation
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
@@ -26,6 +20,11 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.texera.workflow.operators.aggregate.{
+  AggregationFunction,
+  AggregationOperation,
+  SpecializedAggregateOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
@@ -33,7 +32,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
-import scala.reflect.ClassTag
 
 /**
   * PieChart is a visualization operator that can be used to get tuples for pie chart.
@@ -47,7 +45,7 @@ class PieChartOpDesc extends VisualizationOperator {
   @JsonPropertyDescription("column of name (for chart label)")
   @AutofillAttributeName var nameColumn: String = _
 
-  @JsonProperty(value = "data column")
+  @JsonProperty(value = "data column", required = false)
   @JsonPropertyDescription("column of data")
   @AutofillAttributeName var dataColumn: String = _
 
@@ -75,44 +73,35 @@ class PieChartOpDesc extends VisualizationOperator {
     this.finalAggValueSchema = getFinalAggValueSchema
     def dataColumns: List[String] = List(dataColumn)
 
-    val aggregation =
-      if (noDataCol)
-        new DistributedAggregation[Integer](
-          () => 0,
-          (partial, tuple) => {
-            partial + (if (tuple.getField(nameColumn) != null) 1 else 0)
-          },
-          (partial1, partial2) => partial1 + partial2,
-          partial => {
-            Tuple
-              .newBuilder(finalAggValueSchema)
-              .add(resultAttributeNames.head, AttributeType.INTEGER, partial)
-              .build
-          },
-          groupByFunc()
-        )
-      else
-        new DistributedAggregation[Array[Double]](
-          () => Array.fill(dataColumns.length)(0),
-          (partial, tuple) => {
-            for (i <- dataColumns.indices) {
-              partial(i) = partial(i) + getNumericalValue(tuple, dataColumns(i))
-            }
-            partial
-          },
-          (partial1, partial2) => partial1.zip(partial2).map { case (x, y) => x + y },
-          partial => {
-            val resultBuilder = Tuple.newBuilder(finalAggValueSchema)
-            for (i <- dataColumns.indices) {
-              resultBuilder.add(resultAttributeNames(i), AttributeType.DOUBLE, partial(i))
-            }
-            resultBuilder.build()
-          },
-          groupByFunc()
-        )
+    val aggOperator = new SpecializedAggregateOpDesc()
+    aggOperator.context = this.context
+    aggOperator.operatorID = this.operatorID
+    if (noDataCol) {
+      val aggOperation = new AggregationOperation()
+      aggOperation.aggFunction = AggregationFunction.COUNT
+      aggOperation.attribute = nameColumn
+      aggOperation.resultAttribute = resultAttributeNames.head
+      aggOperator.aggregations = List(aggOperation)
+      aggOperator.groupByKeys = List(nameColumn)
+    } else {
+      val aggOperations = dataColumns.map(dataCol => {
+        val aggOperation = new AggregationOperation()
+        aggOperation.aggFunction = AggregationFunction.SUM
+        aggOperation.attribute = dataCol
+        aggOperation.resultAttribute = dataCol
+        aggOperation
+      })
+      aggOperator.aggregations = aggOperations
+      aggOperator.groupByKeys = List(nameColumn)
+    }
 
-    val aggregateOperators =
-      AggregateOpDesc.opExecPhysicalPlan(this.operatorIdentifier, aggregation, operatorSchemaInfo)
+    val aggregateOperators = aggOperator.aggregateOperatorExecutor(
+      OperatorSchemaInfo(
+        operatorSchemaInfo.inputSchemas,
+        Array(aggOperator.getOutputSchema(operatorSchemaInfo.inputSchemas))
+      )
+    )
+
     val tailAggregateOp = aggregateOperators.sinkOperators.last
 
     val partialLayer = OpExecConfig
