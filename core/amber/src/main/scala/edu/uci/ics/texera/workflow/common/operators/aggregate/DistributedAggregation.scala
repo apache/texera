@@ -18,9 +18,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
   * merge:    adds up all partial results:  sum += partialSum, count += partialCount
   * finalAgg: calculates final result:      average = sum / count
   *
-  * Optionally, a group by function can be specified,
-  * which will cause the aggregation to be calculated per group
-  *
   * These function definitions are from
   * "Distributed Aggregation for Data-Parallel Computing: Interfaces and Implementations"
   * https://www.sigops.org/s/conferences/sosp/2009/papers/yu-sosp09.pdf
@@ -33,7 +30,5 @@ case class DistributedAggregation[P <: AnyRef](
     // PartialObject + PartialObject => PartialObject
     merge: (P, P) => P,
     // PartialObject => Tuple with one column, later be combined into FinalObject
-    finalAgg: (P) => Tuple,
-    // optional: group by function, calculate a group by key for a tuple
-    groupByFunc: Schema => Schema = null
+    finalAgg: (P) => Object
 )

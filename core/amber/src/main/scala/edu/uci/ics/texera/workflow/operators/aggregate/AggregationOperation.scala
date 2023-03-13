@@ -3,141 +3,10 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{
-  AggregateOpExecConfig,
-  DistributedAggregation
-}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.operators.aggregate.PartialObj.zero
-
-import java.io.Serializable
-
-case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
-
-case class PartialObj(value: Object, attributeType: AttributeType) {
-  def get: Object = {
-    attributeType match {
-      case AttributeType.TIMESTAMP => new java.sql.Timestamp(value.asInstanceOf[java.lang.Long])
-      case _                       => value
-    }
-  }
-
-  private def compare(a: Object, b: Object): Int = {
-    if (a == null && b == null) {
-      return 0
-    } else if (a == null) {
-      return -1
-    } else if (b == null) {
-      return 1
-    }
-    attributeType match {
-      case AttributeType.INTEGER => a.asInstanceOf[Integer].compareTo(b.asInstanceOf[Integer])
-      case AttributeType.DOUBLE =>
-        a.asInstanceOf[java.lang.Double].compareTo(b.asInstanceOf[java.lang.Double])
-      case AttributeType.LONG =>
-        a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP =>
-        a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
-      case _ =>
-        throw new UnsupportedOperationException(
-          "Unsupported attribute type for comparison: " + attributeType
-        )
-    }
-  }
-
-  def <(that: PartialObj): Boolean = compare(this.value, that.value) < 0
-
-  def >(that: PartialObj): Boolean = compare(this.value, that.value) > 0
-
-  def ==(that: PartialObj): Boolean = compare(this.value, that.value) == 0
-
-  private def add(a: Object, b: Object): Object = {
-    if (a == null && b == null) {
-      return zero(attributeType).get
-    } else if (a == null) {
-      return b
-    } else if (b == null) {
-      return a
-    }
-    attributeType match {
-      case AttributeType.INTEGER =>
-        Integer.valueOf(a.asInstanceOf[Integer] + b.asInstanceOf[Integer])
-      case AttributeType.DOUBLE =>
-        java.lang.Double.valueOf(
-          a.asInstanceOf[java.lang.Double] + b.asInstanceOf[java.lang.Double]
-        )
-      case AttributeType.LONG =>
-        java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
-      // java.sql.Timestamp is not comparable
-      case AttributeType.TIMESTAMP =>
-        java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
-      case _ =>
-        throw new UnsupportedOperationException(
-          "Unsupported attribute type for addition: " + attributeType
-        )
-    }
-  }
-  def +(that: PartialObj): PartialObj = PartialObj(add(this.value, that.value), attributeType)
-
-}
-
-object PartialObj {
-  def maxValue(attributeType: AttributeType): PartialObj =
-    PartialObj(
-      attributeType match {
-        case AttributeType.INTEGER => Integer.MAX_VALUE.asInstanceOf[Object]
-        case AttributeType.DOUBLE  => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
-        case AttributeType.LONG    => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
-        // java.sql.Timestamp is not comparable
-        case AttributeType.TIMESTAMP => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
-        case _ =>
-          throw new UnsupportedOperationException(
-            "Unsupported attribute type for max value: " + attributeType
-          )
-      },
-      attributeType
-    )
-
-  def minValue(attributeType: AttributeType): PartialObj =
-    PartialObj(
-      attributeType match {
-        case AttributeType.INTEGER => Integer.MIN_VALUE.asInstanceOf[Object]
-        case AttributeType.DOUBLE  => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
-        case AttributeType.LONG    => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
-        // java.sql.Timestamp is not comparable
-        case AttributeType.TIMESTAMP => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
-        case _ =>
-          throw new UnsupportedOperationException(
-            "Unsupported attribute type for min value: " + attributeType
-          )
-      },
-      attributeType
-    )
-
-  def zero(attributeType: AttributeType): PartialObj =
-    PartialObj(
-      attributeType match {
-        case AttributeType.INTEGER => Integer.valueOf(0).asInstanceOf[Object]
-        case AttributeType.DOUBLE  => java.lang.Double.valueOf(0).asInstanceOf[Object]
-        case AttributeType.LONG    => java.lang.Long.valueOf(0).asInstanceOf[Object]
-        // java.sql.Timestamp is not comparable
-        case AttributeType.TIMESTAMP => java.lang.Long.valueOf(0).asInstanceOf[Object]
-        case _ =>
-          throw new UnsupportedOperationException(
-            "Unsupported attribute type for zero value: " + attributeType
-          )
-      },
-      attributeType
-    )
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
 
 class AggregationOperation() {
 
@@ -156,84 +25,59 @@ class AggregationOperation() {
   var resultAttribute: String = _
 
   @JsonIgnore
-  def getAggregationAttribute(schema: Schema): Attribute = {
+  def getAggregationAttribute: Attribute = {
     if (this.aggFunction == AggregationFunction.COUNT)
       new Attribute(resultAttribute, AttributeType.INTEGER)
     else if (this.aggFunction == AggregationFunction.CONCAT)
       new Attribute(resultAttribute, AttributeType.STRING)
-    else if (this.aggFunction == AggregationFunction.AVERAGE)
-      new Attribute(resultAttribute, AttributeType.DOUBLE)
     else
-      new Attribute(resultAttribute, schema.getAttribute(attribute).getType)
+      new Attribute(resultAttribute, AttributeType.DOUBLE)
   }
 
   @JsonIgnore
-  def getAggFunc(
-      finalAggValueSchema: Schema,
-      groupByFunc: Schema => Schema
-  ): DistributedAggregation[_ <: AnyRef] = {
-    val attributeType = finalAggValueSchema.getAttribute(resultAttribute).getType
-    aggFunction match {
-      case AggregationFunction.AVERAGE => averageAgg(groupByFunc)
-      case AggregationFunction.COUNT   => countAgg(groupByFunc)
-      case AggregationFunction.MAX     => maxAgg(groupByFunc, attributeType)
-      case AggregationFunction.MIN     => minAgg(groupByFunc, attributeType)
-      case AggregationFunction.SUM     => sumAgg(groupByFunc, attributeType)
-      case AggregationFunction.CONCAT  => concatAgg(groupByFunc)
+  def getAggFunc(): DistributedAggregation[Object] = {
+    val aggFunc = aggFunction match {
+      case AggregationFunction.AVERAGE => averageAgg()
+      case AggregationFunction.COUNT   => countAgg()
+      case AggregationFunction.MAX     => maxAgg()
+      case AggregationFunction.MIN     => minAgg()
+      case AggregationFunction.SUM     => sumAgg()
+      case AggregationFunction.CONCAT  => concatAgg()
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
+    aggFunc.asInstanceOf[DistributedAggregation[Object]]
   }
 
-  private def sumAgg(groupByFunc: Schema => Schema, attributeType: AttributeType) = {
-    if (
-      attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
-    ) {
-      throw new UnsupportedOperationException(
-        "Unsupported attribute type for sum aggregation: " + attributeType
-      )
-    }
-    new DistributedAggregation[PartialObj](
-      () => PartialObj.zero(attributeType),
+  private def sumAgg(): DistributedAggregation[java.lang.Double] = {
+    new DistributedAggregation[java.lang.Double](
+      () => 0,
       (partial, tuple) => {
-        val value: Object = tuple.getField(attribute)
-        partial + (if (value != null) PartialObj(value, attributeType)
-                   else PartialObj.zero(attributeType))
+        val value = getNumericalValue(tuple)
+        partial + (if (value.isDefined) value.get else 0)
+
       },
       (partial1, partial2) => partial1 + partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
-        Tuple
-          .newBuilder(schema)
-          .add(resultAttribute, attributeType, partial.get)
-          .build()
-      },
-      groupByFunc
+      partial => partial
     )
   }
 
-  private def countAgg(groupByFunc: Schema => Schema) = {
+  private def countAgg(): DistributedAggregation[Integer] = {
     new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
-        partial + (if (tuple.getField(attribute) != null) 1 else 0)
+        val inc =
+          if (attribute == null) 1
+          else if (tuple.getField(attribute) != null) 1
+          else 0
+        partial + inc
       },
       (partial1, partial2) => partial1 + partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.INTEGER).build()
-        Tuple
-          .newBuilder(schema)
-          .add(resultAttribute, AttributeType.INTEGER, partial)
-          .build()
-      },
-      groupByFunc
+      partial => partial
     )
   }
 
-  private def concatAgg(groupByFunc: Schema => Schema) = {
+  private def concatAgg(): DistributedAggregation[String] = {
     new DistributedAggregation[String](
       () => "",
       (partial, tuple) => {
@@ -252,111 +96,31 @@ class AggregationOperation() {
           partial1 + partial2
         }
       },
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.STRING).build()
-        Tuple
-          .newBuilder(schema)
-          .add(resultAttribute, AttributeType.STRING, partial)
-          .build()
-      },
-      groupByFunc
+      partial => partial
     )
   }
 
-  private def minAgg(groupByFunc: Schema => Schema, attributeType: AttributeType) = {
-    if (
-      attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
-    ) {
-      throw new UnsupportedOperationException(
-        "Unsupported attribute type for min aggregation: " + attributeType
-      )
-    }
-    new DistributedAggregation[PartialObj](
-      () => PartialObj.maxValue(attributeType),
-      (partial, tuple) => {
-        val value: Object = tuple.getField(attribute)
-        if (value != null && PartialObj(value, attributeType) < partial)
-          PartialObj(value, attributeType)
-        else partial
-      },
-      (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
-        Tuple
-          .newBuilder(schema)
-          .add(
-            resultAttribute,
-            attributeType,
-            if (partial == PartialObj.maxValue(attributeType)) null else partial.get
-          )
-          .build()
-      },
-      groupByFunc
-    )
-  }
-
-  private def maxAgg(groupByFunc: Schema => Schema, attributeType: AttributeType) = {
-    if (
-      attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
-    ) {
-      throw new UnsupportedOperationException(
-        "Unsupported attribute type for max aggregation: " + attributeType
-      )
-    }
-    new DistributedAggregation[PartialObj](
-      () => PartialObj.minValue(attributeType),
-      (partial, tuple) => {
-        val value: Object = tuple.getField(attribute)
-        if (value != null && PartialObj(value, attributeType) > partial)
-          PartialObj(value, attributeType)
-        else partial
-      },
-      (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, attributeType).build()
-        Tuple
-          .newBuilder(schema)
-          .add(
-            resultAttribute,
-            attributeType,
-            if (partial == PartialObj.minValue(attributeType)) null else partial.get
-          )
-          .build()
-      },
-      groupByFunc
-    )
-  }
-
-  private def averageAgg(groupByFunc: Schema => Schema) = {
-    new DistributedAggregation[AveragePartialObj](
-      () => AveragePartialObj(0, 0),
+  private def minAgg(): DistributedAggregation[java.lang.Double] = {
+    new DistributedAggregation[java.lang.Double](
+      () => Double.MaxValue,
       (partial, tuple) => {
         val value = getNumericalValue(tuple)
-        AveragePartialObj(
-          partial.sum + (if (value.isDefined) value.get else 0),
-          partial.count + (if (value.isDefined) 1 else 0)
-        )
+        if (value.isDefined && value.get < partial) value.get else partial
       },
-      (partial1, partial2) =>
-        AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
-      (partial) => {
-        val schema = Schema.newBuilder().add(resultAttribute, AttributeType.DOUBLE).build()
-        Tuple
-          .newBuilder(schema)
-          .add(
-            resultAttribute,
-            AttributeType.DOUBLE,
-            if (partial.count == 0) null else partial.sum / partial.count
-          )
-          .build()
+      (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
+      partial => if (partial == Double.MaxValue) null else partial
+    )
+  }
+
+  private def maxAgg(): DistributedAggregation[java.lang.Double] = {
+    new DistributedAggregation[java.lang.Double](
+      () => Double.MinValue,
+      (partial, tuple) => {
+        val value = getNumericalValue(tuple)
+        if (value.isDefined && value.get > partial) value.get else partial
       },
-      groupByFunc
+      (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
+      partial => if (partial == Double.MinValue) null else partial
     )
   }
 
@@ -369,4 +133,24 @@ class AggregationOperation() {
       Option(parseTimestamp(value.toString).getTime.toDouble)
     else Option(value.toString.toDouble)
   }
+
+  private def averageAgg(): DistributedAggregation[AveragePartialObj] = {
+    new DistributedAggregation[AveragePartialObj](
+      () => AveragePartialObj(0, 0),
+      (partial, tuple) => {
+        val value = getNumericalValue(tuple)
+        AveragePartialObj(
+          partial.sum + (if (value.isDefined) value.get else 0),
+          partial.count + (if (value.isDefined) 1 else 0)
+        )
+      },
+      (partial1, partial2) =>
+        AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
+      partial => {
+        val ret: java.lang.Double = if (partial.count == 0d) null else partial.sum / partial.count
+        ret
+      }
+    )
+  }
+
 }
