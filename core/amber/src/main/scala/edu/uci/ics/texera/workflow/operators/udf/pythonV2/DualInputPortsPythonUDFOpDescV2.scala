@@ -71,6 +71,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
         )
         .copy(
           numWorkers = workers,
+          blockingInputs = List(0),
           dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()
         )
@@ -80,7 +81,11 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(dependency = Map(1 -> 0), derivePartition = _ => UnknownPartition())
+        .copy(
+          blockingInputs = List(0),
+          dependency = Map(1 -> 0),
+          derivePartition = _ => UnknownPartition()
+        )
   }
 
   override def operatorInfo: OperatorInfo =

@@ -129,6 +129,9 @@ case class OpExecConfig(
     isOneToManyOp: Boolean = false
 ) {
 
+  // all the "dependee" links are also blocking inputs
+  lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
+
   // return the runtime class of the corresponding OperatorExecutor
   lazy private val tempOperatorInstance: IOperatorExecutor = initIOperatorExecutor((0, this))
   lazy val opExecClass: Class[_ <: IOperatorExecutor] =
@@ -224,7 +227,7 @@ case class OpExecConfig(
     * outputs all its tuples
     */
   def isInputBlocking(input: LinkIdentity): Boolean = {
-    inputToOrdinalMapping.get(input).exists(port => blockingInputs.contains(port))
+    inputToOrdinalMapping.get(input).exists(port => realBlockingInputs.contains(port))
   }
 
   /**
