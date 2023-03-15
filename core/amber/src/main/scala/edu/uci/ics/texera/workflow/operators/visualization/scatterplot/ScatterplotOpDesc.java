@@ -75,7 +75,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
             numWorkers = 1;
         }
         return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
-                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo));
+                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo))
+                .withIsOneToManyOp(true);
     }
 
     @Override
@@ -86,7 +87,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false);
+                false, false, false);
     }
 
     @Override

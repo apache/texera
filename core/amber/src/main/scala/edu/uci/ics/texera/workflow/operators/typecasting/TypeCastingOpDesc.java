@@ -45,7 +45,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 OperatorGroupConstants.UTILITY_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false);
+                false, false, false);
     }
 
     @Override

@@ -3,13 +3,14 @@ package edu.uci.ics.texera.workflow.common.operators
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
-import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
+import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
@@ -61,6 +62,11 @@ import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOp
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
+import scala.util.Try
+
+trait StateTransferFunc
+    extends ((IOperatorExecutor, IOperatorExecutor) => Unit)
+    with java.io.Serializable
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -89,7 +95,7 @@ import java.util.UUID
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
-    new Type(value = classOf[SpecializedAverageOpDesc], name = "Aggregate"),
+    new Type(value = classOf[SpecializedAggregateOpDesc], name = "Aggregate"),
     new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
@@ -174,6 +180,15 @@ abstract class OperatorDescriptor extends Serializable {
 
   def setContext(workflowContext: WorkflowContext): Unit = {
     this.context = workflowContext
+  }
+
+  def runtimeReconfiguration(
+      newOpDesc: OperatorDescriptor,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
+    throw new UnsupportedOperationException(
+      "operator " + getClass.getSimpleName + " does not support reconfiguration"
+    )
   }
 
 }

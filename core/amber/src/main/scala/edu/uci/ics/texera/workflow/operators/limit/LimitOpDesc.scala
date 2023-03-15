@@ -10,9 +10,11 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
+
+import scala.util.{Success, Try}
 
 class LimitOpDesc extends OperatorDescriptor {
 
@@ -32,8 +34,22 @@ class LimitOpDesc extends OperatorDescriptor {
       "Limit the number of output rows",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort("")),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
+
+  override def runtimeReconfiguration(
+      newOpDesc: OperatorDescriptor,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
+    val newOpExecConfig = newOpDesc.operatorExecutor(operatorSchemaInfo)
+    val stateTransferFunc: StateTransferFunc = (oldOp, newOp) => {
+      val oldLimitOp = oldOp.asInstanceOf[LimitOpExec]
+      val newLimitOp = newOp.asInstanceOf[LimitOpExec]
+      newLimitOp.count = oldLimitOp.count
+    }
+    Success(newOpExecConfig, Some(stateTransferFunc))
+  }
 }

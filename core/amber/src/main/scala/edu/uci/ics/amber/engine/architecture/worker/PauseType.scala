@@ -1,5 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-object PauseType extends Enumeration {
-  val UserPause, BackpressurePause, OperatorLogicPause, SchedulerTimeSlotExpiredPause = Value
-}
+sealed trait PauseType
+
+object UserPause extends PauseType
+
+object BackpressurePause extends PauseType
+
+object OperatorLogicPause extends PauseType
+
+object SchedulerTimeSlotExpiredPause extends PauseType
+
+case class EpochMarkerPause(id: String) extends PauseType
