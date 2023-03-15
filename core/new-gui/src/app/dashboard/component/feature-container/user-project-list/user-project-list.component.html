@@ -86,6 +86,8 @@
               </ng-template>
             </div>
           </nz-list-item-meta-avatar>
+
+          <!-- editable name of saved workflow -->
           <nz-list-item-meta-title>
             <ng-container
               *ngIf="userProjectEntriesIsEditingName.indexOf(dashboardUserProjectEntry.pid) === -1;else editingProject">
@@ -102,22 +104,103 @@
                 nzSize="small"
                 nzType="text">
                 <i
+                  class="edit-name-icon"
                   nz-icon
                   nzTheme="outline"
                   nzType="edit"></i>
+              </button>
+              <button
+                (click)="userProjectEntriesIsEditingDescription.push(dashboardUserProjectEntry.pid)"
+                nz-button
+                nz-tooltip="Add / Edit Description"
+                nzTooltipPlacement="top"
+                nzSize="small"
+                nzType="text">
+                <i
+                  class="edit-description-icon"
+                  nz-icon
+                  nzTheme="outline"
+                  nzType="plus-square"></i>
+              </button>
+              <button
+                *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim() && collapsedProjectDescriptions.indexOf(dashboardUserProjectEntry.pid) === -1"
+                (click)="collapsedProjectDescriptions.push(dashboardUserProjectEntry.pid)"
+                nz-button
+                nz-tooltip="Collapse Description"
+                nzTooltipPlacement="top"
+                nzSize="small"
+                nzType="text">
+                <i
+                  nz-icon
+                  nzType="up-square"
+                  nzTheme="outline"></i>
+              </button>
+              <button
+                *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim() && collapsedProjectDescriptions.indexOf(dashboardUserProjectEntry.pid) !== -1"
+                (click)="removeCollapsedProjectDescriptionStatus(dashboardUserProjectEntry.pid)"
+                nz-button
+                nz-tooltip="Expand Description"
+                nzTooltipPlacement="top"
+                nzSize="small"
+                nzType="text">
+                <i
+                  nz-icon
+                  nzType="down-square"
+                  nzTheme="outline"></i>
               </button>
             </ng-container>
 
             <ng-template #editingProject>
               <input
                 #editedName
-                (focusout)="removeEditStatus(dashboardUserProjectEntry.pid)"
+                (focusout)="removeEditNameStatus(dashboardUserProjectEntry.pid)"
                 (keyup.enter)="saveProjectName(dashboardUserProjectEntry, editedName.value)"
                 placeholder="{{ dashboardUserProjectEntry.name }}"
                 value="{{ dashboardUserProjectEntry.name }}" />
             </ng-template>
           </nz-list-item-meta-title>
 
+          <!-- editable project description -->
+          <nz-list-item-meta-description>
+            <ng-container
+              *ngIf="userProjectEntriesIsEditingDescription.indexOf(dashboardUserProjectEntry.pid) === -1;else editingDescription">
+              <div
+                class="description-container"
+                *ngIf="dashboardUserProjectEntry.description && dashboardUserProjectEntry.description.trim() && collapsedProjectDescriptions.indexOf(dashboardUserProjectEntry.pid) === -1">
+                <markdown [data]="dashboardUserProjectEntry.description"></markdown>
+              </div>
+            </ng-container>
+
+            <ng-template #editingDescription>
+              <nz-input-group
+                [nzSuffix]="saveDescriptionIcon"
+                class="ant-input-affix-wrapper-textarea-with-clear-btn">
+                <textarea
+                  #descriptionBox
+                  nz-input
+                  placeholder="Enter project description"
+                  nzAutosize
+                  [attr.maxlength]="MAX_PROJECT_DESCRIPTION_CHAR_COUNT"
+                  (focusout)="saveProjectDescription(dashboardUserProjectEntry, descriptionBox.value, i)">
+{{dashboardUserProjectEntry.description}}</textarea
+                >
+              </nz-input-group>
+              <div class="character-count">{{descriptionBox.value.length}}/{{MAX_PROJECT_DESCRIPTION_CHAR_COUNT}}</div>
+              <ng-template #saveDescriptionIcon>
+                <span
+                  nz-icon
+                  class="ant-input-clear-icon"
+                  nzTheme="fill"
+                  nzType="check-circle"
+                  nz-tooltip="Save"
+                  nzTooltipPlacement="top"
+                  *ngIf="descriptionBox.value !== dashboardUserProjectEntry.description"
+                  (click)="removeEditDescriptionStatus(dashboardUserProjectEntry.pid)"></span>
+              </ng-template>
+            </ng-template>
+          </nz-list-item-meta-description>
+
+          <!-- created time of project -->
           <nz-list-item-meta-description>
             <p>Created: {{dashboardUserProjectEntry.creationTime | date: "yyyy-MM-dd HH:mm"}}</p>
           </nz-list-item-meta-description>

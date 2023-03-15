@@ -16,10 +16,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = 1019071732;
+    private static final long serialVersionUID = 2055626456;
 
-    private String   name;
     private UInteger uid;
+    private String   name;
+    private String   email;
     private String   password;
     private String   googleId;
     private UserRole role;
@@ -27,25 +28,38 @@ public class User implements IUser {
     public User() {}
 
     public User(IUser value) {
-        this.name = value.getName();
         this.uid = value.getUid();
+        this.name = value.getName();
+        this.email = value.getEmail();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
         this.role = value.getRole();
     }
 
     public User(
-        String   name,
         UInteger uid,
+        String   name,
+        String   email,
         String   password,
         String   googleId,
         UserRole role
     ) {
-        this.name = name;
         this.uid = uid;
+        this.name = name;
+        this.email = email;
         this.password = password;
         this.googleId = googleId;
         this.role = role;
+    }
+
+    @Override
+    public UInteger getUid() {
+        return this.uid;
+    }
+
+    @Override
+    public void setUid(UInteger uid) {
+        this.uid = uid;
     }
 
     @Override
@@ -59,13 +73,13 @@ public class User implements IUser {
     }
 
     @Override
-    public UInteger getUid() {
-        return this.uid;
+    public String getEmail() {
+        return this.email;
     }
 
     @Override
-    public void setUid(UInteger uid) {
-        this.uid = uid;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     @Override
@@ -102,8 +116,9 @@ public class User implements IUser {
     public String toString() {
         StringBuilder sb = new StringBuilder("User (");
 
-        sb.append(name);
-        sb.append(", ").append(uid);
+        sb.append(uid);
+        sb.append(", ").append(name);
+        sb.append(", ").append(email);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
         sb.append(", ").append(role);
@@ -118,8 +133,9 @@ public class User implements IUser {
 
     @Override
     public void from(IUser from) {
-        setName(from.getName());
         setUid(from.getUid());
+        setName(from.getName());
+        setEmail(from.getEmail());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
         setRole(from.getRole());

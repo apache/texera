@@ -27,7 +27,7 @@ import java.nio.file.Paths
 import java.sql.Timestamp
 import java.time.Instant
 import java.util
-import javax.annotation.security.PermitAll
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import javax.ws.rs.{WebApplicationException, _}
 import scala.collection.JavaConverters._
@@ -47,7 +47,6 @@ object UserFileResource {
       uid: UInteger,
       fileName: String,
       uploadedInputStream: InputStream,
-      size: UInteger,
       description: String
   ): String = {
 
@@ -58,7 +57,7 @@ object UserFileResource {
       new File(
         uid,
         null,
-        size,
+        UInteger.valueOf(UserFileUtils.getFilePath(uid, fileNameStored).toFile.length()),
         fileNameStored,
         UserFileUtils.getFilePath(uid, fileNameStored).toString,
         description,
@@ -70,7 +69,7 @@ object UserFileResource {
     val fid = context
       .select(FILE.FID)
       .from(FILE)
-      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileNameStored)))
+      .where(FILE.OWNER_UID.eq(uid).and(FILE.NAME.eq(fileNameStored)))
       .fetchOneInto(FILE)
       .getFid
     UserFileAccessResource.grantAccess(uid, fid, "write")
@@ -85,11 +84,9 @@ object UserFileResource {
       projectIDs: List[UInteger]
   )
 }
-
-@PermitAll
-@Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/user/file")
 class UserFileResource {
   final private val fileDao = new FileDao(context.configuration)
   final private val userFileAccessDao = new UserFileAccessDao(
@@ -103,8 +100,9 @@ class UserFileResource {
     * @return
     */
   @POST
-  @Path("/upload")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
+  @Path("/upload")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def uploadFile(
       @FormDataParam("file") uploadedInputStream: InputStream,
       @FormDataParam("file") fileDetail: FormDataContentDisposition,
@@ -122,7 +120,7 @@ class UserFileResource {
         .entity(validationResult.getRight)
         .build()
     }
-    saveUserFileSafe(uid, fileName, uploadedInputStream, size, description)
+    saveUserFileSafe(uid, fileName, uploadedInputStream, description)
     Response.ok().build()
   }
 
@@ -133,6 +131,7 @@ class UserFileResource {
     */
   @GET
   @Path("/list")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listUserFiles(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
     val user = sessionUser.getUser
     getUserFileRecord(user)
@@ -140,6 +139,7 @@ class UserFileResource {
 
   @GET
   @Path("/autocomplete/{query:.*}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def autocompleteUserFiles(
       @Auth sessionUser: SessionUser,
       @PathParam("query") q: String
@@ -181,7 +181,7 @@ class UserFileResource {
       .join(FILE)
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
       .join(USER)
-      .on(FILE.UID.eq(USER.UID))
+      .on(FILE.OWNER_UID.eq(USER.UID))
       .where(USER_FILE_ACCESS.UID.eq(user.getUid))
       .fetch()
 
@@ -227,6 +227,7 @@ class UserFileResource {
     */
   @DELETE
   @Path("/delete/{fileName}/{ownerName}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteUserFile(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String,
@@ -256,8 +257,9 @@ class UserFileResource {
   }
 
   @POST
-  @Path("/validate")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
+  @Path("/validate")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def validateUserFile(
       @FormDataParam("name") fileName: String,
       @Auth sessionUser: SessionUser
@@ -283,11 +285,12 @@ class UserFileResource {
     context.fetchExists(
       context
         .selectFrom(FILE)
-        .where(FILE.UID.equal(userID).and(FILE.NAME.equal(fileName)))
+        .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
     )
 
   @GET
   @Path("/download/{fileId}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def downloadFile(
       @PathParam("fileId") fileId: UInteger,
       @Auth sessionUser: SessionUser
@@ -335,9 +338,10 @@ class UserFileResource {
     * @return the updated userFile
     */
   @POST
-  @Path("/update/name")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/update/name")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def changeUserFileName(file: File, @Auth sessionUser: SessionUser): Unit = {
     val userId = sessionUser.getUser.getUid
     val fid = file.getFid
@@ -353,7 +357,7 @@ class UserFileResource {
     if (hasWriteAccess == false) {
       throw new ForbiddenException("No sufficient access privilege.")
     }
-    if (validationRes.getLeft == false) {
+    if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
     } else {
       val userFile = fileDao.fetchOneByFid(fid)
@@ -378,9 +382,10 @@ class UserFileResource {
     * @return the updated userFile
     */
   @POST
-  @Path("/update/description")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/update/description")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def changeUserFileDescription(file: File, @Auth sessionUser: SessionUser): Unit = {
     val userId = sessionUser.getUser.getUid
     val fid = file.getFid

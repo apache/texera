@@ -14,7 +14,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class HashJoinOpExec[K](
-    val buildTable: LinkIdentity,
     val buildAttributeName: String,
     val probeAttributeName: String,
     val joinType: JoinType,
@@ -69,7 +68,7 @@ class HashJoinOpExec[K](
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
@@ -79,7 +78,7 @@ class HashJoinOpExec[K](
         // small input port comes first. So, it is assigned the inputNum 0. Similarly
         // the large input is assigned the inputNum 1.
 
-        if (input == buildTable) {
+        if (input == 0) {
           // building phase
           building(tuple)
           Iterator()
@@ -106,7 +105,7 @@ class HashJoinOpExec[K](
 
         }
       case Right(_) =>
-        if (input == buildTable && !isBuildTableFinished) {
+        if (input == 0 && !isBuildTableFinished) {
           // the first input is exhausted, building phase finished
           isBuildTableFinished = true
           Iterator()

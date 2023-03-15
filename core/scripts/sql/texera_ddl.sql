@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
-DROP TABLE IF EXISTS `user_project`;
+DROP TABLE IF EXISTS `project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
@@ -18,8 +18,9 @@ SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
 CREATE TABLE IF NOT EXISTS user
 (
-    `name`       VARCHAR(32)                 NOT NULL,
     `uid`        INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `name`       VARCHAR(256)                NOT NULL,
+    `email`      VARCHAR(256) UNIQUE,
     `password`   VARCHAR(256),
     `google_id`  VARCHAR(256) UNIQUE,
     `role`       ENUM('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN') NOT NULL DEFAULT 'INACTIVE',
@@ -42,16 +43,16 @@ CREATE TABLE IF NOT EXISTS user_config
 
 CREATE TABLE IF NOT EXISTS file
 (
-    `uid`         INT UNSIGNED                NOT NULL,
+    `owner_uid`   INT UNSIGNED                NOT NULL,
     `fid`         INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `size`        INT UNSIGNED                NOT NULL,
     `name`        VARCHAR(128)                NOT NULL,
     `path`        VARCHAR(512)                NOT NULL,
     `description` VARCHAR(512)                NOT NULL,
     `upload_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (`uid`, `name`),
+    UNIQUE (`owner_uid`, `name`),
     PRIMARY KEY (`fid`),
-    FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
+    FOREIGN KEY (`owner_uid`) REFERENCES user (`uid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS user_file_access
@@ -70,7 +71,7 @@ CREATE TABLE IF NOT EXISTS workflow
     `name`               VARCHAR(128)                NOT NULL,
 	`description`        VARCHAR(500),
     `wid`                INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `content`            TEXT                        NOT NULL,
+    `content`            MEDIUMTEXT                  NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `last_modified_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`wid`)
@@ -107,10 +108,11 @@ CREATE TABLE IF NOT EXISTS workflow_version
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
-CREATE TABLE IF NOT EXISTS user_project
+CREATE TABLE IF NOT EXISTS project
 (
     `pid`             INT UNSIGNED AUTO_INCREMENT      NOT NULL,
     `name`            VARCHAR(128)                     NOT NULL,
+    `description`     VARCHAR(10000),
     `owner_id`        INT UNSIGNED                     NOT NULL,
     `creation_time`   TIMESTAMP                        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `color`           VARCHAR(6),
@@ -126,7 +128,7 @@ CREATE TABLE IF NOT EXISTS workflow_of_project
      `pid`            INT UNSIGNED                     NOT NULL,
      PRIMARY KEY (`wid`, `pid`),
      FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
-     FOREIGN KEY (`pid`) REFERENCES `user_project` (`pid`)  ON DELETE CASCADE
+     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS file_of_project
@@ -135,7 +137,7 @@ CREATE TABLE IF NOT EXISTS file_of_project
      `pid`            INT UNSIGNED                     NOT NULL,
      PRIMARY KEY (`fid`, `pid`),
      FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)     ON DELETE CASCADE,
-     FOREIGN KEY (`pid`) REFERENCES `user_project` (`pid`)  ON DELETE CASCADE
+     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS workflow_executions
