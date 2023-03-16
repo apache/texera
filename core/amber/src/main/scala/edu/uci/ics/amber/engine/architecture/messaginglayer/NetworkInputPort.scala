@@ -35,7 +35,7 @@ class NetworkInputPort[T](
       case Some(iterable) =>
         iterable.foreach(v => handler.apply(from, v))
       case None =>
-          // could be stashed or deduplicated
+      // could be stashed or deduplicated
     }
   }
 

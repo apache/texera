@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 
-object OrderingEnforcer  extends AmberLogging {
+object OrderingEnforcer extends AmberLogging {
   def reorderMessage[V](
       seqMap: mutable.AnyRefMap[ActorVirtualIdentity, OrderingEnforcer[V]],
       sender: ActorVirtualIdentity,
@@ -17,7 +17,9 @@ object OrderingEnforcer  extends AmberLogging {
       logger.info(s"receive a duplicated message: $payload from $sender")
       None
     } else if (entry.isAhead(seq)) {
-      logger.info(s"receive a message that is ahead of the current, stashing: $payload from $sender")
+      logger.info(
+        s"receive a message that is ahead of the current, stashing: $payload from $sender"
+      )
       entry.stash(seq, payload)
       None
     } else {
