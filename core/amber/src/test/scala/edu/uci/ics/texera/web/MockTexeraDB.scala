@@ -18,7 +18,9 @@ trait MockTexeraDB {
     dslContext match {
       case Some(value) => value
       case None =>
-        throw new RuntimeException("test database is not initialized. Did you call initialize()?")
+        throw new RuntimeException(
+          "test database is not initialized. Did you call initializeDBAndReplaceDSLContext()?"
+        )
     }
   }
 
