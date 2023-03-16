@@ -1,24 +1,19 @@
 package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager;
 import edu.uci.ics.amber.engine.common.Constants;
-import edu.uci.ics.amber.engine.common.InputExhausted;
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient;
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
+import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
-import scala.collection.Iterator;
-import scala.collection.JavaConverters;
-import scala.util.Either;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 
 /**
  * Scatterplot operator to visualize the result as a scatterplot
  */
-public class ScatterplotOpExec implements OperatorExecutor {
+public class ScatterplotOpExec extends FlatMapOpExec {
     private final ScatterplotOpDesc opDesc;
     private final OperatorSchemaInfo operatorSchemaInfo;
     private boolean[][] pixelGrid;
@@ -27,16 +22,17 @@ public class ScatterplotOpExec implements OperatorExecutor {
     public ScatterplotOpExec(ScatterplotOpDesc opDesc, OperatorSchemaInfo operatorSchemaInfo) {
         this.opDesc = opDesc;
         this.operatorSchemaInfo = operatorSchemaInfo;
+        this.setFlatMapFuncJava(this::process);
     }
 
-    private List<Tuple> processTuple(Tuple t) {
+    private Iterator<Tuple> process(Tuple t) {
         result.clear();
 
         if (opDesc.isGeometric) {
             int row_index = (int) Math.floor(lngX(t.getField(opDesc.xColumn)) * Constants.MAX_RESOLUTION_ROWS());
             int column_index = (int) Math.floor(latY(t.getField(opDesc.yColumn)) * Constants.MAX_RESOLUTION_COLUMNS());
             if (pixelGrid[row_index][column_index]) {
-                return result;
+                return result.iterator();
             }
             pixelGrid[row_index][column_index] = true;
         }
@@ -44,7 +40,7 @@ public class ScatterplotOpExec implements OperatorExecutor {
         resultObjects[0] = t.getField(opDesc.xColumn);
         resultObjects[1] = t.getField(opDesc.yColumn);
         result.add(Tuple.newBuilder(operatorSchemaInfo.outputSchemas()[0]).addSequentially(resultObjects).build());
-        return result;
+        return result.iterator();
     }
 
     // longitude to spherical mercator in [0..1] range
@@ -73,12 +69,4 @@ public class ScatterplotOpExec implements OperatorExecutor {
         result = null;
     }
 
-    @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
-        if (tuple.isLeft()) {
-            return JavaConverters.asScalaIterator(processTuple(tuple.left().get()).iterator());
-        } else { // input exhausted
-            return JavaConverters.asScalaIterator(Collections.emptyIterator());
-        }
-    }
 }
