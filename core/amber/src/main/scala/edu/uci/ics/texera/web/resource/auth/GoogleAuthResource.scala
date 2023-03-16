@@ -20,7 +20,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 object GoogleAuthResource {
   final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  private lazy val verifier =
+  private val verifier =
     new GoogleIdTokenVerifier.Builder(new NetHttpTransport, new JacksonFactory)
       .setAudience(
         Collections.singletonList(ConfigFactory.load("google_api").getString("google.clientId"))
