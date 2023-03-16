@@ -35,8 +35,7 @@ class NetworkInputPort[T](
       case Some(iterable) =>
         iterable.foreach(v => handler.apply(from, v))
       case None =>
-        // discard duplicate
-        logger.info(s"receive duplicated: $payload from $from")
+          // could be stashed or deduplicated
     }
   }
 
