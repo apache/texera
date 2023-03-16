@@ -11,7 +11,7 @@ import java.io._
 import java.nio.file.{Files, Path, Paths}
 
 object UserFileUtils {
-  private lazy val FILE_CONTAINER_PATH: Path = {
+  private val FILE_CONTAINER_PATH: Path = {
     Utils.amberHomePath.resolve("user-resources").resolve("files")
   }
   private lazy val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
