@@ -15,6 +15,7 @@ public final class SqlServer {
     public static final SQLDialect SQL_DIALECT = SQLDialect.MYSQL;
     private static final MysqlDataSource dataSource;
     public static Config jdbcConfig;
+    public static DSLContext context;
 
     static {
         // TODO: do not use hardcoded value
@@ -26,9 +27,14 @@ public final class SqlServer {
         dataSource.setUrl(jdbcConfig.getString("jdbc.url"));
         dataSource.setUser(jdbcConfig.getString("jdbc.username"));
         dataSource.setPassword(jdbcConfig.getString("jdbc.password"));
+        context = DSL.using(dataSource, SQL_DIALECT);
     }
 
     public static DSLContext createDSLContext() {
-        return DSL.using(dataSource, SQL_DIALECT);
+        return context;
+    }
+
+    public static void replaceDSLContext(DSLContext newContext){
+        context = newContext;
     }
 }
