@@ -39,6 +39,6 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 OperatorGroupConstants.SEARCH_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false);
+                false, false, true);
     }
 }

@@ -3,12 +3,10 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AcceptImmutableStateHandler.AcceptImmutableState
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SaveSkewedWorkerInfoHandler.SaveSkewedWorkerInfo
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateOrNotifyHelperHandler.SendImmutableStateOrNotifyHelper
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateHandler.SendImmutableState
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
-import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionOpExec
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -19,22 +17,18 @@ import scala.collection.mutable.ArrayBuffer
   * a skewed worker of HashJoin operator to send its build hash map
   * to `helperReceiverId` worker.
   *
-  * For mutable state operators such as sort, it just notifies the skewed worker about its
-  * helper. The skewed worker saves this info and later uses this to ask for final results
-  * from the helper.
-  *
   * Possible sender: Controller (SkewDetectionHandler).
   */
-object SendImmutableStateOrNotifyHelperHandler {
-  final case class SendImmutableStateOrNotifyHelper(
+object SendImmutableStateHandler {
+  final case class SendImmutableState(
       helperReceiverId: ActorVirtualIdentity
   ) extends ControlCommand[Boolean]
 }
 
-trait SendImmutableStateOrNotifyHelperHandler {
+trait SendImmutableStateHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (cmd: SendImmutableStateOrNotifyHelper, sender) =>
+  registerHandler { (cmd: SendImmutableState, sender) =>
     dataProcessor.getOperatorExecutor() match {
       case joinOpExec: HashJoinOpExec[_] =>
         // Returns true if the build table was replicated successfully in case of HashJoin.
@@ -67,11 +61,8 @@ trait SendImmutableStateOrNotifyHelperHandler {
             logger.error("Reshape exception: ", exception)
             Future.False
         }
-      case exec: SortPartitionOpExec =>
-        exec.waitingForTuplesFromHelper = true
-        exec.helperWorkerIdentity = cmd.helperReceiverId
-        send(SaveSkewedWorkerInfo(actorId), cmd.helperReceiverId).map(response => response)
       case _ =>
+        // This case shouldn't happen
         Future.False
     }
   }
