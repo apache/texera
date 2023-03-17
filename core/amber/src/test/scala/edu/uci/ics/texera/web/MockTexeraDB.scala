@@ -5,6 +5,8 @@ import com.mysql.cj.jdbc.MysqlDataSource
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
+import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.texera.Utils
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -40,12 +42,13 @@ trait MockTexeraDB {
     val database: String = "texera_db"
     val username: String = "root"
     val password: String = ""
-    val ddlPath =
-      Paths.get("..").resolve("scripts").resolve("sql").resolve("texera_ddl.sql").toRealPath()
+    val ddlPath = {
+      Utils.amberHomePath.resolve("../scripts/sql/texera_ddl.sql").toRealPath()
+    }
     val content = new String(Files.readAllBytes(ddlPath), StandardCharsets.UTF_8)
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
-      .addArg("--default-time-zone=+0:00")
+      .addArg("--default-time-zone=-8:00")
       .setSecurityDisabled(true)
       .setDeletingTemporaryBaseAndDataDirsOnShutdown(true)
       .build()
