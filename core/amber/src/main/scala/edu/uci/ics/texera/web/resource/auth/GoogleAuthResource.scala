@@ -19,12 +19,13 @@ import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 object GoogleAuthResource {
-  final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  private val verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport, new JacksonFactory)
-    .setAudience(
-      Collections.singletonList(ConfigFactory.load("google_api").getString("google.clientId"))
-    )
-    .build()
+  final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+  private val verifier =
+    new GoogleIdTokenVerifier.Builder(new NetHttpTransport, new JacksonFactory)
+      .setAudience(
+        Collections.singletonList(ConfigFactory.load("google_api").getString("google.clientId"))
+      )
+      .build()
 }
 
 @Path("/auth/google")

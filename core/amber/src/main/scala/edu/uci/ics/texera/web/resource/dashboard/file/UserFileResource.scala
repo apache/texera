@@ -40,8 +40,8 @@ import java.net.URLDecoder
   */
 
 object UserFileResource {
-  private val context: DSLContext = SqlServer.createDSLContext
-  private val fileDao = new FileDao(context.configuration)
+  private lazy val context: DSLContext = SqlServer.createDSLContext
+  private lazy val fileDao = new FileDao(context.configuration)
 
   def saveUserFileSafe(
       uid: UInteger,

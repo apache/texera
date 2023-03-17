@@ -14,7 +14,7 @@ object UserFileUtils {
   private val FILE_CONTAINER_PATH: Path = {
     Utils.amberHomePath.resolve("user-resources").resolve("files")
   }
-  private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
+  private lazy val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
 
   def storeFile(fileStream: InputStream, fileName: String, userID: UInteger): Unit = {
     createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))

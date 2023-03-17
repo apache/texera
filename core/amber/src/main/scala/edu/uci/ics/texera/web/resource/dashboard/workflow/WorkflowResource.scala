@@ -44,11 +44,11 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
-  final private val workflowDao = new WorkflowDao(context.configuration)
-  final private val workflowOfUserDao = new WorkflowOfUserDao(
+  final private lazy val workflowDao = new WorkflowDao(context.configuration)
+  final private lazy val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
   )
-  final private val workflowUserAccessDao = new WorkflowUserAccessDao(
+  final private lazy val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
 
