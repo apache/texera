@@ -412,12 +412,8 @@ describe("SavedWorkflowSectionComponent", () => {
     component.fuse.setCollection(component.allDashboardWorkflowEntries);
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
-      const operatorSelectionList = []; // list of operators for query
       operatorGroup[2].checked = true; // sentiment analysis
-      await component.updateSelectedOperators(); // calls searchWorkflow()
-      operatorSelectionList.push(operatorGroup[2].operatorType);
-      const req = httpTestingController.match(`api/workflow/search-by-operators?operator=${operatorSelectionList}`);
-      req[0].flush(["3"]);
+      await component.updateSelectedOperators();
     }
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 3"]);
@@ -434,14 +430,9 @@ describe("SavedWorkflowSectionComponent", () => {
     const operatorGroup2 = component.operators.get("View Results");
     if (operatorGroup && operatorGroup2) {
       console.log(component.operators);
-      const operatorSelectionList = []; // list of operators for query
       operatorGroup[2].checked = true; // sentiment analysis
       operatorGroup2[0].checked = true;
       await component.updateSelectedOperators(); // calls searchWorkflow()
-      operatorSelectionList.push(operatorGroup[2].operatorType);
-      operatorSelectionList.push(operatorGroup2[0].operatorType);
-      const req = httpTestingController.match(`api/workflow/search-by-operators?operator=${operatorSelectionList}`);
-      req[0].flush(["1", "2", "3"]);
     }
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
@@ -457,10 +448,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
-      const operatorSelectionList = []; // list of operators for query
       operatorGroup[2].checked = true; // sentiment analysis
       await component.updateSelectedOperators();
-      operatorSelectionList.push(operatorGroup[2].operatorType);
 
       component.owners[0].checked = true; //Texera
       component.owners[1].checked = true; //Angular
@@ -476,11 +465,6 @@ describe("SavedWorkflowSectionComponent", () => {
       await component.updateSelectedProjects();
       await component.updateSelectedIDs();
       await component.updateSelectedOwners();
-      // if adding parameters, add its respective update function here
-
-      const req = httpTestingController.match(`api/workflow/search-by-operators?operator=${operatorSelectionList}`);
-      req[0].flush(["1", "2", "3"]);
-      //triggers backend call
     }
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]);
