@@ -5,29 +5,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 
-object OrderingEnforcer extends AmberLogging {
-  def reorderMessage[V](
-      seqMap: mutable.AnyRefMap[ActorVirtualIdentity, OrderingEnforcer[V]],
-      sender: ActorVirtualIdentity,
-      seq: Long,
-      payload: V
-  ): Option[Iterable[V]] = {
-    val entry = seqMap.getOrElseUpdate(sender, new OrderingEnforcer[V]())
-    if (entry.isDuplicated(seq)) { // discard duplicate
-      logger.info(s"receive a duplicated message: $payload from $sender")
-      None
-    } else if (entry.isAhead(seq)) {
-      logger.info(
-        s"receive a message that is ahead of the current, stashing: $payload from $sender"
-      )
-      entry.stash(seq, payload)
-      None
-    } else {
-      Some(entry.enforceFIFO(seq, payload))
-    }
-  }
-}
-
 /* The abstracted FIFO/exactly-once logic */
 class OrderingEnforcer[T] {
 
@@ -47,7 +24,7 @@ class OrderingEnforcer[T] {
     ofoMap(sequenceNumber) = data
   }
 
-  def enforceFIFO(sequenceNumber: Long, data: T): List[T] = {
+  def enforceFIFO(data: T): List[T] = {
     val res = mutable.ArrayBuffer[T](data)
     current += 1
     while (ofoMap.contains(current)) {

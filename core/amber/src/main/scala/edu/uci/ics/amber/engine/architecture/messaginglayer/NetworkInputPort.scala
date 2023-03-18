@@ -25,17 +25,16 @@ class NetworkInputPort[T](
       payload: T
   ): Unit = {
     sender ! NetworkAck(messageID, Some(senderCredits))
-
-    OrderingEnforcer.reorderMessage[T](
-      idToOrderingEnforcers,
-      from,
-      sequenceNumber,
-      payload
-    ) match {
-      case Some(iterable) =>
-        iterable.foreach(v => handler.apply(from, v))
-      case None =>
-      // could be stashed or deduplicated
+    val entry = idToOrderingEnforcers.getOrElseUpdate(from, new OrderingEnforcer[T]())
+    if (entry.isDuplicated(sequenceNumber)) { // discard duplicate
+      logger.info(s"receive a duplicated message: $payload from $sender")
+    } else if (entry.isAhead(sequenceNumber)) {
+      logger.info(
+        s"receive a message that is ahead of the current, stashing: $payload from $sender"
+      )
+      entry.stash(sequenceNumber, payload)
+    } else {
+      entry.enforceFIFO(payload).foreach(v => handler.apply(from, v))
     }
   }
 
@@ -48,7 +47,7 @@ class NetworkInputPort[T](
   }
 
   def getStashedMessageCount(): Long = {
-    if (idToOrderingEnforcers.size == 0) { return 0 }
+    if (idToOrderingEnforcers.isEmpty) { return 0 }
     idToOrderingEnforcers.values.map(ordEnforcer => ordEnforcer.ofoMap.size).sum
   }
 
