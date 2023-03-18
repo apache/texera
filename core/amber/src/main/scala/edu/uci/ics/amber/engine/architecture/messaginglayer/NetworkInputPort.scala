@@ -27,10 +27,12 @@ class NetworkInputPort[T](
     sender ! NetworkAck(messageID, Some(senderCredits))
     val entry = idToOrderingEnforcers.getOrElseUpdate(from, new OrderingEnforcer[T]())
     if (entry.isDuplicated(sequenceNumber)) { // discard duplicate
-      logger.info(s"receive a duplicated message: $payload from $sender")
+      logger.info(
+        s"receive a duplicated message: $payload from $sender with seqNum = $sequenceNumber while current = ${entry.current}"
+      )
     } else if (entry.isAhead(sequenceNumber)) {
       logger.info(
-        s"receive a message that is ahead of the current, stashing: $payload from $sender"
+        s"receive a message that is ahead of the current, stashing: $payload from $sender with seqNum = $sequenceNumber"
       )
       entry.stash(sequenceNumber, payload)
     } else {
