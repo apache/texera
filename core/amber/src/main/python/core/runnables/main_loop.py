@@ -32,7 +32,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerExecutionCompletedV2,
     WorkerState,
     LinkCompletedV2,
-    PythonConsoleMessageV2,
+    PythonConsoleMessageV2, WorkerDebugCommandV2,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -98,6 +98,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
         self.context.state_manager.transit_to(WorkerState.READY)
 
+
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
         """
@@ -108,6 +109,24 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     1. a ControlElement;
                     2. a DataElement.
         """
+        if isinstance(next_entry, DataElement) and \
+                self.context.state_manager.confirm_state(WorkerState.READY):
+            control_command = set_one_of(
+                ControlCommandV2,
+                WorkerDebugCommandV2(
+                    cmd=f"b 13, 'doesnotexist' in tuple_['text'] and doc['positive'] == -1"
+
+                ),
+            )
+            self._async_rpc_client.send(
+                ActorVirtualIdentity(name="SELF"), control_command
+            )
+            self._pause_dp()
+            self._check_and_process_control()
+            self._switch_context()
+
+
+
         match(
             next_entry,
             DataElement,
@@ -117,7 +136,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
 
     def process_control_payload(
-        self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
+            self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
     ) -> None:
         """
         Process the given ControlPayload with the tag.
@@ -151,8 +170,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.cast_tuple_to_match_schema(output_tuple, schema)
                 self.context.statistics_manager.increase_output_tuple_count()
                 for (
-                    to,
-                    batch,
+                        to,
+                        batch,
                 ) in self.context.tuple_to_batch_converter.tuple_to_batch(output_tuple):
                     batch.schema = self.context.operator_manager.operator.output_schema
                     self._output_queue.put(DataElement(tag=to, payload=batch))
@@ -213,7 +232,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
     def _process_sender_change_marker(
-        self, sender_change_marker: SenderChangeMarker
+            self, sender_change_marker: SenderChangeMarker
     ) -> None:
         """
         Upon receipt of a SenderChangeMarker, change the current input link to the
@@ -250,6 +269,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # Update state to RUNNING
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
+
+
+
 
         self.context.tuple_processing_manager.current_input_tuple_iter = (
             self.context.batch_to_tuple_converter.process_data_payload(
@@ -366,6 +388,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _check_and_report_debug_event(self) -> None:
         if self.context.debug_manager.has_debug_event():
             debug_event = self.context.debug_manager.get_debug_event()
+            control_command = set_one_of(
+                ControlCommandV2,
+                WorkerDebugCommandV2(
+                    cmd="c"
+                ),
+            )
+            self._async_rpc_client.send(
+                ActorVirtualIdentity(name="SELF"), control_command
+            )
             self._send_console_message(
                 PythonConsoleMessageV2(
                     timestamp=datetime.datetime.now(),
@@ -374,12 +405,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     message=debug_event,
                 )
             )
+
+
+
             self._pause_dp()
-            if self.breakpoints_to_add:
-                self.breakpoints_to_add -= 1
-                logger.info("putting c")
-                self.context.debug_manager.put_debug_command("c")
-                self._resume_dp()
+            self._check_and_process_control()
+            self._switch_context()
+
+
+
 
     def _check_and_report_exception(self) -> None:
         if self.context.exception_manager.has_exception():

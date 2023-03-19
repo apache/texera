@@ -88,6 +88,7 @@ object ControlCommandConvertUtils {
       case PythonConsoleMessageV2(timestamp, msgType, source, message) =>
         PythonConsoleMessage(timestamp, msgType, source, message)
       case LinkCompletedV2(link) => LinkCompleted(link)
+      case WorkerDebugCommandV2(cmd) => WorkerDebugCommand(cmd)
       case _ =>
         throw new UnsupportedOperationException(
           s"V2 controlCommand $controlCommand cannot be converted to V1"
