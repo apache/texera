@@ -607,33 +607,54 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.dashboardWorkflowEntries = await this.search();
   }
 
-  private async asyncSearch(): Promise<string[] | "NoSearchKeywordProvided"> {
-    //builds andPathQuery from arrays containing selected values
-    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-
-    if (this.selectedOperators.length == 0 && workflowNames.length == 0) {
+  private async asyncSearch(): Promise<number[] | "NoSearchKeywordProvided"> {
+    const idsFromOperatorSearch = await this.asyncSearchByOperator();
+    const idsFromKeywordSearch = await this.asyncSearchByKeywords();
+    if (idsFromOperatorSearch == "NoSearchKeywordProvided" && idsFromKeywordSearch == "NoSearchKeywordProvided") {
       return "NoSearchKeywordProvided"
     }
+    else if (idsFromOperatorSearch != "NoSearchKeywordProvided" && idsFromKeywordSearch != "NoSearchKeywordProvided") {
+      var intersection = new Set<number>();
+      var idsFromKeywordSearchSet = new Set<number>(idsFromKeywordSearch);
+      for (var x of idsFromOperatorSearch) {
+        if (idsFromKeywordSearchSet.has(x)) {
+          intersection.add(x);
+        }
+      }
+      return [...intersection]
+    }
+    else if (idsFromOperatorSearch != "NoSearchKeywordProvided") {
+      return idsFromOperatorSearch;
+    }
+    else if (idsFromKeywordSearch != "NoSearchKeywordProvided") {
+      return idsFromKeywordSearch;
+    }
+    throw new Error("Unreachable code.");
+  }
 
-    const idsFromOperatorSearch = this.selectedOperators.length > 0 ? await firstValueFrom(
-      this.workflowPersistService.retrieveWorkflowByOperator(
-        this.selectedOperators.map(operator => operator.operatorType).toString()
-      )
-    ) : [];
-    // Old search by operator. This should be integrated into the new search endpoint in the future.
+  private async asyncSearchByOperator(): Promise<number[] | "NoSearchKeywordProvided"> {
+    if (this.selectedOperators.length == 0) {
+      return "NoSearchKeywordProvided"
+    }
+    return (await firstValueFrom(this.workflowPersistService.retrieveWorkflowByOperator(
+      this.selectedOperators.map(operator => operator.operatorType).toString()
+    ))).map(id => Number(id))
+  }
 
-    // New search endpoint.
-    const workflowsFromSearch = workflowNames.length > 0 ? await firstValueFrom(
+  private async asyncSearchByKeywords(): Promise<number[] | "NoSearchKeywordProvided"> {
+    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+    if (workflowNames.length == 0) {
+      return "NoSearchKeywordProvided"
+    }
+    const workflowsFromSearch = await firstValueFrom(
       this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
-    ) : [];
+    )
 
     // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
     // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
-    const idsFromWorkflowsSearch = workflowsFromSearch
+    return workflowsFromSearch
       .map(w => w.workflow.wid)
-      .filter(id => id)
-      .map(id => id!.toString());
-    return [...new Set<string>([...idsFromOperatorSearch, ...idsFromWorkflowsSearch])];
+      .filter((id): id is number => Boolean(id))
   }
 
   /**
@@ -646,7 +667,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
     const asyncSearchResult = await this.asyncSearch();
     if (asyncSearchResult != "NoSearchKeywordProvided") {
-      andPathQuery.push({ $or: this.buildOrPathQuery("id", asyncSearchResult, true) });
+      andPathQuery.push({ $or: this.buildOrPathQuery("id", asyncSearchResult.map(id => id.toString()), true) });
     }
 
     if (this.selectedOwners.length !== 0) {

@@ -451,7 +451,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
-      operatorGroup[2].checked = true; // sentiment analysis
+      operatorGroup[3].checked = true; // Aggregation operator
       await component.updateSelectedOperators();
 
       component.owners[0].checked = true; //Texera
@@ -478,7 +478,7 @@ describe("SavedWorkflowSectionComponent", () => {
       "id: 1",
       "id: 2",
       "id: 3",
-      "operator: Sentiment Analysis",
+      "operator: Aggregation",
       "project: Project1",
       "ctime: 1970-01-01 ~ 1973-03-11",
       "mtime: 1970-01-01 ~ 1982-04-14",

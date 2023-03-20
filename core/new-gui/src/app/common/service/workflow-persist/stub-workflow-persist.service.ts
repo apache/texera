@@ -12,7 +12,7 @@ export class StubWorkflowPersistService {
   constructor(private testWorkflows: DashboardWorkflowEntry[]) { }
 
   public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
-    if (operator === "NlpSentiment,SimpleSink") {
+    if (operator === "NlpSentiment,SimpleSink" || operator === "Aggregation") {
       return new Observable(observer => observer.next(["1", "2", "3"]));  
     }
     if (operator === "NlpSentiment") {
