@@ -16,7 +16,7 @@ describe("WorkflowAccessService", () => {
     name: "project 1",
     description: "dummy description",
     content: jsonCast<WorkflowContent>(
-      ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}'
+      " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
     ),
     creationTime: 1,
     lastModifiedTime: 2,
