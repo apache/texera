@@ -3,9 +3,7 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { SavedWorkflowSectionComponent } from "./saved-workflow-section.component";
-import {
-  WorkflowPersistService,
-} from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "../../../../common/service/workflow-persist/stub-workflow-persist.service";
 import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
@@ -207,7 +205,7 @@ describe("SavedWorkflowSectionComponent", () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
         { provide: NZ_I18N, useValue: en_US },
-        { provide: FileSaverService, useValue: fileSaverServiceSpy }
+        { provide: FileSaverService, useValue: fileSaverServiceSpy },
       ],
       imports: [
         MatDividerModule,
@@ -488,9 +486,9 @@ describe("SavedWorkflowSectionComponent", () => {
   it("sends http request to backend to retrieve export json", () => {
     component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledOnceWith(
-      new Blob([JSON.stringify(testWorkflowEntries[0].workflow.content)], 
-      { type: "text/plain;charset=utf-8" }), 
-      'workflow 1.json');
+      new Blob([JSON.stringify(testWorkflowEntries[0].workflow.content)], { type: "text/plain;charset=utf-8" }),
+      "workflow 1.json"
+    );
   });
 
   it("adds selected workflow to the downloadListWorkflow", () => {

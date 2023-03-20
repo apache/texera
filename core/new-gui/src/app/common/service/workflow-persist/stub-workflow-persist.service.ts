@@ -9,11 +9,11 @@ export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
 
 @Injectable()
 export class StubWorkflowPersistService {
-  constructor(private testWorkflows: DashboardWorkflowEntry[]) { }
+  constructor(private testWorkflows: DashboardWorkflowEntry[]) {}
 
   public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
     if (operator === "NlpSentiment,SimpleSink" || operator === "Aggregation") {
-      return new Observable(observer => observer.next(["1", "2", "3"]));  
+      return new Observable(observer => observer.next(["1", "2", "3"]));
     }
     if (operator === "NlpSentiment") {
       return new Observable(observer => observer.next(["3"]));

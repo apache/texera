@@ -149,7 +149,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     private modalService: NgbModal,
     private router: Router,
     private fileSaverService: FileSaverService
-  ) { }
+  ) {}
 
   ngOnInit() {
     this.registerDashboardWorkflowEntriesRefresh();
@@ -565,17 +565,17 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     if (this.selectedCtime.length != 0) {
       newFilterList.push(
         "ctime: " +
-        this.getFormattedDateString(this.selectedCtime[0]) +
-        " ~ " +
-        this.getFormattedDateString(this.selectedCtime[1])
+          this.getFormattedDateString(this.selectedCtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedCtime[1])
       );
     }
     if (this.selectedMtime.length != 0) {
       newFilterList.push(
         "mtime: " +
-        this.getFormattedDateString(this.selectedMtime[0]) +
-        " ~ " +
-        this.getFormattedDateString(this.selectedMtime[1])
+          this.getFormattedDateString(this.selectedMtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedMtime[1])
       );
     }
     this.masterFilterList = newFilterList;
@@ -611,9 +611,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     const idsFromOperatorSearch = await this.asyncSearchByOperator();
     const idsFromKeywordSearch = await this.asyncSearchByKeywords();
     if (idsFromOperatorSearch == "NoSearchKeywordProvided" && idsFromKeywordSearch == "NoSearchKeywordProvided") {
-      return "NoSearchKeywordProvided"
-    }
-    else if (idsFromOperatorSearch != "NoSearchKeywordProvided" && idsFromKeywordSearch != "NoSearchKeywordProvided") {
+      return "NoSearchKeywordProvided";
+    } else if (
+      idsFromOperatorSearch != "NoSearchKeywordProvided" &&
+      idsFromKeywordSearch != "NoSearchKeywordProvided"
+    ) {
       var intersection = new Set<number>();
       var idsFromKeywordSearchSet = new Set<number>(idsFromKeywordSearch);
       for (var x of idsFromOperatorSearch) {
@@ -621,12 +623,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           intersection.add(x);
         }
       }
-      return [...intersection]
-    }
-    else if (idsFromOperatorSearch != "NoSearchKeywordProvided") {
+      return [...intersection];
+    } else if (idsFromOperatorSearch != "NoSearchKeywordProvided") {
       return idsFromOperatorSearch;
-    }
-    else if (idsFromKeywordSearch != "NoSearchKeywordProvided") {
+    } else if (idsFromKeywordSearch != "NoSearchKeywordProvided") {
       return idsFromKeywordSearch;
     }
     throw new Error("Unreachable code.");
@@ -634,27 +634,29 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   private async asyncSearchByOperator(): Promise<number[] | "NoSearchKeywordProvided"> {
     if (this.selectedOperators.length == 0) {
-      return "NoSearchKeywordProvided"
+      return "NoSearchKeywordProvided";
     }
-    return (await firstValueFrom(this.workflowPersistService.retrieveWorkflowByOperator(
-      this.selectedOperators.map(operator => operator.operatorType).toString()
-    ))).map(id => Number(id))
+    return (
+      await firstValueFrom(
+        this.workflowPersistService.retrieveWorkflowByOperator(
+          this.selectedOperators.map(operator => operator.operatorType).toString()
+        )
+      )
+    ).map(id => Number(id));
   }
 
   private async asyncSearchByKeywords(): Promise<number[] | "NoSearchKeywordProvided"> {
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
     if (workflowNames.length == 0) {
-      return "NoSearchKeywordProvided"
+      return "NoSearchKeywordProvided";
     }
     const workflowsFromSearch = await firstValueFrom(
       this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
-    )
+    );
 
     // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
     // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
-    return workflowsFromSearch
-      .map(w => w.workflow.wid)
-      .filter((id): id is number => Boolean(id))
+    return workflowsFromSearch.map(w => w.workflow.wid).filter((id): id is number => Boolean(id));
   }
 
   /**
@@ -667,7 +669,13 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
     const asyncSearchResult = await this.asyncSearch();
     if (asyncSearchResult != "NoSearchKeywordProvided") {
-      andPathQuery.push({ $or: this.buildOrPathQuery("id", asyncSearchResult.map(id => id.toString()), true) });
+      andPathQuery.push({
+        $or: this.buildOrPathQuery(
+          "id",
+          asyncSearchResult.map(id => id.toString()),
+          true
+        ),
+      });
     }
 
     if (this.selectedOwners.length !== 0) {
@@ -853,7 +861,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
             untilDestroyed(this)
           )
           .subscribe(
-            () => { },
+            () => {},
             // @ts-ignore // TODO: fix this with notification component
             (err: unknown) => alert(err.error)
           );
