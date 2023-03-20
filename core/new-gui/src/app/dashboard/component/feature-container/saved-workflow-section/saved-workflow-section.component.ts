@@ -26,8 +26,8 @@ import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "src/app/common/app-setting";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
-import { saveAs } from "file-saver";
 import * as JSZip from "jszip";
+import { FileSaverService } from "src/app/dashboard/service/user-file/file-saver.service";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -147,7 +147,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     private notificationService: NotificationService,
     private operatorMetadataService: OperatorMetadataService,
     private modalService: NgbModal,
-    private router: Router
+    private router: Router,
+    private fileSaverService: FileSaverService
   ) { }
 
   ngOnInit() {
@@ -224,7 +225,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           };
           const workflowJson = JSON.stringify(workflowCopy.content);
           const fileName = workflowCopy.name + ".json";
-          saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
+          this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
         });
     }
   }
@@ -1132,12 +1133,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * Download selected workflow as zip file
    */
-  public onClickOpenDownloadZip() {
+  public async onClickOpenDownloadZip() {
     let dateTime = new Date();
     let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
-    this.zip.generateAsync({ type: "blob" }).then(function (content) {
-      saveAs(content, filename);
-    });
+    const content = await this.zip.generateAsync({ type: "blob" });
+    this.fileSaverService.saveAs(content, filename);
   }
 
   /**

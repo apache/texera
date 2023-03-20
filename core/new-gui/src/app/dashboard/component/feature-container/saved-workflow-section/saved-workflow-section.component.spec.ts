@@ -4,7 +4,6 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { SavedWorkflowSectionComponent } from "./saved-workflow-section.component";
 import {
-  WORKFLOW_BASE_URL,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "../../../../common/service/workflow-persist/stub-workflow-persist.service";
@@ -41,6 +40,7 @@ import { animationFrameScheduler } from "rxjs";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { FileSaverService } from "src/app/dashboard/service/user-file/file-saver.service";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: SavedWorkflowSectionComponent;
@@ -191,6 +191,8 @@ describe("SavedWorkflowSectionComponent", () => {
     },
   });
 
+  const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
+
   // must use waitForAsync for configureTestingModule in components with virtual scroll
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
@@ -205,6 +207,7 @@ describe("SavedWorkflowSectionComponent", () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
         { provide: NZ_I18N, useValue: en_US },
+        { provide: FileSaverService, useValue: fileSaverServiceSpy }
       ],
       imports: [
         MatDividerModule,
@@ -484,8 +487,10 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("sends http request to backend to retrieve export json", () => {
     component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${testWorkflowEntries[0]}`);
-    httpTestingController.expectOne("api/workflow/1");
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledOnceWith(
+      new Blob([JSON.stringify(testWorkflowEntries[0].workflow.content)], 
+      { type: "text/plain;charset=utf-8" }), 
+      'workflow 1.json');
   });
 
   it("adds selected workflow to the downloadListWorkflow", () => {

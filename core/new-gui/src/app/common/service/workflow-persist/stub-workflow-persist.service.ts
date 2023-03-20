@@ -30,7 +30,7 @@ export class StubWorkflowPersistService {
       if (keywords.length == 0) {
         return observer.next([]);
       }
-      return observer.next(this.testWorkflows.filter(e => keywords.some(k => k == e.workflow.name)));
+      return observer.next(this.testWorkflows.filter(e => keywords.some(k => e.workflow.name.indexOf(k) !== -1)));
     });
   }
 }
