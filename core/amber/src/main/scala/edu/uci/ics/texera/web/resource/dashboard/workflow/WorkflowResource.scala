@@ -2,12 +2,32 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, USER_PROJECT, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  USER_PROJECT,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
+  WorkflowAccess,
+  toAccessLevel
+}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
+  DashboardWorkflowEntry,
+  context,
+  insertWorkflow,
+  workflowDao,
+  workflowOfUserExists
+}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL.{field, groupConcat, index, noCondition}
@@ -178,7 +198,7 @@ class WorkflowResource {
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = search(sessionUser, "")
 
-    /**
+  /**
     * This method handles the client request to get a specific workflow to be displayed in canvas
     * at current design, it only takes the workflowID and searches within the database for the matching workflow
     * for future design, it should also take userID as an parameter.
@@ -398,9 +418,13 @@ class WorkflowResource {
       @QueryParam("query") keywords: java.util.List[String]
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
-    val matchQuery = keywords.map((key) => "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST('+\"" + key + "\"' IN BOOLEAN mode) OR " +
-      "MATCH(texera_db.user.name) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode) " +
-      "OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode)) ").mkString(" AND ")
+    val matchQuery = keywords
+      .map((key) =>
+        "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST('+\"" + key + "\"' IN BOOLEAN mode) OR " +
+          "MATCH(texera_db.user.name) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode) " +
+          "OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST ('+\"" + key + "\"' IN BOOLEAN mode)) "
+      )
+      .mkString(" AND ")
     val workflowEntries = context
       .select(
         WORKFLOW.WID,
@@ -411,7 +435,7 @@ class WorkflowResource {
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
         WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME,
+        USER.NAME
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -442,10 +466,12 @@ class WorkflowResource {
           .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
           .where(
             WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
-          ).and(
-          WORKFLOW.WID.eq(WORKFLOW.WID)
-          ).and(
-          WORKFLOW_OF_USER.UID.eq(WORKFLOW_OF_USER.UID)
+          )
+          .and(
+            WORKFLOW.WID.eq(WORKFLOW.WID)
+          )
+          .and(
+            WORKFLOW_OF_USER.UID.eq(WORKFLOW_OF_USER.UID)
           )
           .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       )
@@ -494,7 +520,10 @@ class WorkflowResource {
         if (query.isEmpty)
           WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
         else
-          WORKFLOW_USER_ACCESS.UID.eq(user.getUid) and("(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(? IN NATURAL LANGUAGE MODE))", query))
+          WORKFLOW_USER_ACCESS.UID.eq(
+            user.getUid
+          ) and ("(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(? IN NATURAL LANGUAGE MODE))", query)
+      )
       .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
     workflowEntries
