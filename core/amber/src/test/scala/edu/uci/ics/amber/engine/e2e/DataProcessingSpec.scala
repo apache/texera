@@ -68,7 +68,8 @@ class DataProcessingSpec
     val completion = Promise[Unit]
     client
       .registerCallback[WorkflowCompleted](evt => {
-        results = workflow.getEndOperators
+        results = workflow.physicalPlan.getSinkOperators
+          .map(sinkOpId => workflow.physicalPlan.operatorMap(sinkOpId))
           .filter(op => resultStorage.contains(op.id.operator))
           .map { op => (op.id.operator, resultStorage.get(op.id.operator).getAll.toList) }
           .toMap

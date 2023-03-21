@@ -16,10 +16,11 @@ export enum Role {
 
 export interface User
   extends Readonly<{
-    name: string;
     uid: number;
+    name: string;
+    email: string;
     googleId?: string;
-    role?: Role;
+    role: Role;
     color?: string;
   }> {}
 

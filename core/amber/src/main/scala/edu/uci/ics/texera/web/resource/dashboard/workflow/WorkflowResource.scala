@@ -46,11 +46,11 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
-  final private val workflowDao = new WorkflowDao(context.configuration)
-  final private val workflowOfUserDao = new WorkflowOfUserDao(
+  final private lazy val workflowDao = new WorkflowDao(context.configuration)
+  final private lazy val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
   )
-  final private val workflowUserAccessDao = new WorkflowUserAccessDao(
+  final private lazy val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
 
@@ -446,8 +446,6 @@ class WorkflowResource {
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(USER_PROJECT)
-      .on(USER_PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
       .where(matchQuery)
       .andExists(
         context

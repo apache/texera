@@ -24,8 +24,12 @@ import scala.concurrent.duration._
 
 object NetworkCommunicationActor {
 
-  def props(parentSender: ActorRef, actorId: ActorVirtualIdentity): Props =
-    Props(new NetworkCommunicationActor(parentSender, actorId))
+  def props(
+      parentSender: ActorRef,
+      actorId: ActorVirtualIdentity,
+      supportFaultTolerance: Boolean
+  ): Props =
+    Props(new NetworkCommunicationActor(parentSender, actorId, supportFaultTolerance))
 
   /** to distinguish between main actor self ref and
     * network sender actor
@@ -82,8 +86,11 @@ object NetworkCommunicationActor {
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualIdentity)
-    extends Actor
+class NetworkCommunicationActor(
+    parentRef: ActorRef,
+    val actorId: ActorVirtualIdentity,
+    supportFaultTolerance: Boolean
+) extends Actor
     with AmberLogging {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
@@ -91,7 +98,12 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   val queriedActorVirtualIdentities = new mutable.HashSet[ActorVirtualIdentity]()
   val messageStash = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
-  var sentMessages = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
+  var sentMessages: mutable.Map[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]] =
+    if (supportFaultTolerance) {
+      new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
+    } else {
+      null
+    }
   val resendForRecoveryQueueLimit: Long =
     AmberUtils.amberConfig.getLong("fault-tolerance.max-supported-resend-queue-length")
   // register timer for resending messages

@@ -196,7 +196,6 @@ describe("SavedWorkflowSectionComponent", () => {
     TestBed.configureTestingModule({
       declarations: [SavedWorkflowSectionComponent, NgbdModalWorkflowShareAccessComponent],
       providers: [
-        //WorkflowPersistService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         NgbActiveModal,
         HttpClient,

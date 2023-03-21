@@ -15,8 +15,7 @@ object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
       edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity,
-      edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity,
-      edu.uci.ics.amber.engine.common.virtualidentity.WorkerIdentity
+      edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
     )
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
@@ -28,10 +27,7 @@ object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
   W9uLkxheWVySWRlbnRpdHlCDOI/CRIEZnJvbfABAVIEZnJvbRJKCgJ0bxgCIAEoCzIuLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZ
   S5jb21tb24uTGF5ZXJJZGVudGl0eUIK4j8HEgJ0b/ABAVICdG8iaAoQT3BlcmF0b3JJZGVudGl0eRIpCgh3b3JrZmxvdxgBIAEoC
   UIN4j8KEgh3b3JrZmxvd1IId29ya2Zsb3cSKQoIb3BlcmF0b3IYAiABKAlCDeI/ChIIb3BlcmF0b3JSCG9wZXJhdG9yIisKEFdvc
-  mtmbG93SWRlbnRpdHkSFwoCaWQYASABKAlCB+I/BBICaWRSAmlkIsoBCg5Xb3JrZXJJZGVudGl0eRJcCghvcGVyYXRvchgBIAEoC
-  zIuLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5jb21tb24uTGF5ZXJJZGVudGl0eUIQ4j8NEghvcGVyYXRvcvABAVIIb3BlcmF0b
-  3ISWgoFYWN0b3IYAiABKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yVmlydHVhbElkZW50aXR5Qg3iP
-  woSBWFjdG9y8AEBUgVhY3RvckIJ4j8GSABYAHgBYgZwcm90bzM="""
+  mtmbG93SWRlbnRpdHkSFwoCaWQYASABKAlCB+I/BBICaWRSAmlkQgniPwZIAFgAeAFiBnByb3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)

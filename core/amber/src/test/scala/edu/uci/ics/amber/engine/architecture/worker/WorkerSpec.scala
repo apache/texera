@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkAck,
@@ -10,25 +11,21 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   NetworkSenderActorRef,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkInputPort,
-  NetworkOutputPort,
-  TupleToBatchConverter
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkOutputPort, OutputManager}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowControlMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -58,7 +55,7 @@ class WorkerSpec
     val identifier = ActorVirtualIdentity("worker mock")
     val mockControlOutputPort: NetworkOutputPort[ControlPayload] =
       new NetworkOutputPort[ControlPayload](identifier, mockHandler)
-    val mockTupleToBatchConverter = mock[TupleToBatchConverter]
+    val mockOutputManager = mock[OutputManager]
     val identifier1 = ActorVirtualIdentity("worker-1")
     val identifier2 = ActorVirtualIdentity("worker-2")
     val mockOpExecutor = new IOperatorExecutor {
@@ -76,25 +73,29 @@ class WorkerSpec
 
     val mockTag = LinkIdentity(null, null)
 
+    val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+    val workerIndex = 0
+    val opExecConfig = OpExecConfig
+      .oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+      .copy(inputToOrdinalMapping = Map(mockTag -> 0))
+
     val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
     val worker =
       TestActorRef(
         new WorkflowWorker(
           identifier1,
-          mockOpExecutor,
-          Map[LinkIdentity, Int](),
-          new mutable.HashMap[LinkIdentity, Int](),
+          workerIndex,
+          opExecConfig,
           NetworkSenderActorRef(null),
-          Set(mockTag),
           false
         ) {
-          override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
+          override lazy val outputManager: OutputManager = mockOutputManager
           override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
             mockControlOutputPort
         }
       )
-    (mockTupleToBatchConverter.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
     (mockHandler.apply _).expects(*, *, *, *).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
     worker ! NetworkMessage(
@@ -123,14 +124,16 @@ class WorkerSpec
       ): Iterator[(ITuple, Option[Int])] = { return Iterator() }
     }
 
+    val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+    val workerIndex = 0
+    val opExecConfig = OpExecConfig.oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+
     val worker = TestActorRef(
       new WorkflowWorker(
         identifier1,
-        mockOpExecutor,
-        Map[LinkIdentity, Int](),
-        new mutable.HashMap[LinkIdentity, Int](),
+        workerIndex,
+        opExecConfig,
         NetworkSenderActorRef(probe.ref),
-        Set(),
         false
       )
     )
