@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference
 
 import akka.actor.Address
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.NewOpExecConfig.NewOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 
 case class AddressInfo(
     // the addresses of all worker nodes
@@ -14,7 +14,7 @@ trait LocationPreference extends Serializable {
 
   def getPreferredLocation(
       addressInfo: AddressInfo,
-      workerLayer: NewOpExecConfig,
+      workerLayer: OpExecConfig,
       workerIndex: Int
   ): Address
 
@@ -23,7 +23,7 @@ trait LocationPreference extends Serializable {
 class PreferController extends LocationPreference {
   override def getPreferredLocation(
       addressInfo: AddressInfo,
-      workerLayer: NewOpExecConfig,
+      workerLayer: OpExecConfig,
       workerIndex: Int
   ): Address = {
     addressInfo.controllerAddress
@@ -33,7 +33,7 @@ class PreferController extends LocationPreference {
 class RoundRobinPreference extends LocationPreference {
   override def getPreferredLocation(
       addressInfo: AddressInfo,
-      workerLayer: NewOpExecConfig,
+      workerLayer: OpExecConfig,
       workerIndex: Int
   ): Address = {
     addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)

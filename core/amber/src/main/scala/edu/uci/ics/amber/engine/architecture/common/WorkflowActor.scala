@@ -48,7 +48,11 @@ abstract class WorkflowActor(
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     // create a network communication actor on the same machine as the WorkflowActor itself
     context.actorOf(
-      NetworkCommunicationActor.props(parentNetworkCommunicationActorRef.ref, actorId)
+      NetworkCommunicationActor.props(
+        parentNetworkCommunicationActorRef.ref,
+        actorId,
+        supportFaultTolerance
+      )
     )
   )
   val logStorage: DeterminantLogStorage = {

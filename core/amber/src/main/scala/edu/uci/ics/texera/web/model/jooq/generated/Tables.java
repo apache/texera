@@ -6,10 +6,10 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
@@ -35,6 +35,11 @@ public class Tables {
     public static final FileOfProject FILE_OF_PROJECT = FileOfProject.FILE_OF_PROJECT;
 
     /**
+     * The table <code>texera_db.project</code>.
+     */
+    public static final Project PROJECT = Project.PROJECT;
+
+    /**
      * The table <code>texera_db.user</code>.
      */
     public static final User USER = User.USER;
@@ -48,11 +53,6 @@ public class Tables {
      * The table <code>texera_db.user_file_access</code>.
      */
     public static final UserFileAccess USER_FILE_ACCESS = UserFileAccess.USER_FILE_ACCESS;
-
-    /**
-     * The table <code>texera_db.user_project</code>.
-     */
-    public static final UserProject USER_PROJECT = UserProject.USER_PROJECT;
 
     /**
      * The table <code>texera_db.workflow</code>.
