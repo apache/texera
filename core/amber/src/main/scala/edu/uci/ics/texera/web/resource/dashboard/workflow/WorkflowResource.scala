@@ -446,8 +446,6 @@ class WorkflowResource {
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(USER_PROJECT)
-      .on(USER_PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
       .where(matchQuery)
       .andExists(
         context
