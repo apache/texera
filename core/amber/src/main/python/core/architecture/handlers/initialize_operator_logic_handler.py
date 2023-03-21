@@ -13,4 +13,6 @@ class InitializeOperatorLogicHandler(Handler):
         context.batch_to_tuple_converter.update_all_upstream_link_ids(
             set(command.upstream_link_ids)
         )
+        context.tuple_processing_manager.input_link_map = \
+            dict((kv.link_id, kv.port_ordinal for kv in command.input_ordinal_mapping))
         return None

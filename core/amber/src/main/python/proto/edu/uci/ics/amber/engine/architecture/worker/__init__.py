@@ -146,12 +146,20 @@ class LocalOperatorExceptionV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class LinkOrdinal(betterproto.Message):
+    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+    port_ordinal: int = betterproto.int64_field(2)
+
+
+@dataclass(eq=False, repr=False)
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
-    upstream_link_ids: List["__common__.LinkIdentity"] = betterproto.message_field(2)
-    is_source: bool = betterproto.bool_field(3)
+    id: "__common__.LayerIdentity" = betterproto.message_field(2)
+    input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
+    output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
+    is_source: bool = betterproto.bool_field(5)
     output_schema: Dict[str, str] = betterproto.map_field(
-        4, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        6, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 

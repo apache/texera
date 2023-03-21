@@ -52,10 +52,12 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, allUpstreamLinkIds, isSource, schema) =>
+      case InitializeOperatorLogic(code, id, inputMapping, outputMapping, isSource, schema) =>
         InitializeOperatorLogicV2(
           code,
-          allUpstreamLinkIds,
+          id,
+          inputMapping,
+          outputMapping,
           isSource,
           schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
         )
