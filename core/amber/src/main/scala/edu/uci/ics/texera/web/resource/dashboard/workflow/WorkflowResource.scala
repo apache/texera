@@ -4,7 +4,6 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
-  USER_PROJECT,
   WORKFLOW,
   WORKFLOW_OF_PROJECT,
   WORKFLOW_OF_USER,
