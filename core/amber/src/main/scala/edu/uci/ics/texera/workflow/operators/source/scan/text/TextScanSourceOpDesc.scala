@@ -37,7 +37,7 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
           _ => {
             val startOffset: Int = offsetValue
             val endOffset: Int = offsetValue + count
-            new TextScanSourceOpExec(this, startOffset, endOffset, outputAsSingleTuple)
+            new TextScanSourceOpExec(this, startOffset, endOffset)
           }
         )
       case None =>

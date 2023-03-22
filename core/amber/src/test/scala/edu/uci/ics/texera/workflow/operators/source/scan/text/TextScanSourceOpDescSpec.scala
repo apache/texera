@@ -28,7 +28,8 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with single column representing entire file in outputAsSingleTuple mode" in {
-    textScanSourceOpDesc.outputAsSingleTuple = true
+    val outputAsSingleTuple: Boolean = true
+    textScanSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
     val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
@@ -38,7 +39,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
     val outputAsSingleTuple: Boolean = false
     val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, outputAsSingleTuple)
+      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset)
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
@@ -55,7 +56,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     val outputAsSingleTuple: Boolean = false
     val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, outputAsSingleTuple)
+      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset)
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
@@ -72,7 +73,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputAsSingleTuple: Boolean = true
     textScanSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
     val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, outputAsSingleTuple)
+      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset)
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
