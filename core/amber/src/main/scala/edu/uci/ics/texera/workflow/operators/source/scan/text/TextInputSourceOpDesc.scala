@@ -35,7 +35,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val offsetValue: Int = offsetHideable.getOrElse(0)
-    val count: Int = countNumLines(textInput.lines().iterator(), offsetValue)
+    val count: Int = countNumLines(textInput.linesIterator, offsetValue)
 
     OpExecConfig.localLayer(
       operatorIdentifier,

@@ -9,8 +9,6 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 }
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 
-import scala.collection.convert.ImplicitConversions.`iterator asScala`
-
 /**
   * TextSourceOpDesc is a trait holding commonly used properties and functions
   * used for variations of text input processing
@@ -51,7 +49,7 @@ trait TextSourceOpDesc {
   )
   var outputAsSingleTuple: Boolean = false
 
-  def countNumLines(linesIterator: java.util.Iterator[String], offsetValue: Int): Int = {
+  def countNumLines(linesIterator: Iterator[String], offsetValue: Int): Int = {
     var lines = linesIterator.drop(offsetValue)
     if (limitHideable.isDefined) {
       lines = lines.take(limitHideable.get)

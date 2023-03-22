@@ -4,8 +4,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-import scala.jdk.CollectionConverters.asScalaIteratorConverter
-
 class TextInputSourceOpExec private[text] (
     val desc: TextInputSourceOpDesc,
     val startOffset: Int,
@@ -27,7 +25,7 @@ class TextInputSourceOpExec private[text] (
   override def open(): Unit = {
     schema = desc.sourceSchema()
     if (!desc.outputAsSingleTuple)
-      rows = desc.textInput.lines().iterator().asScala.slice(startOffset, endOffset)
+      rows = desc.textInput.linesIterator.slice(startOffset, endOffset)
   }
 
   override def close(): Unit = {}

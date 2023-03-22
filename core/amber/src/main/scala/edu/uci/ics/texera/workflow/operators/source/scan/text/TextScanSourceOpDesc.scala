@@ -11,6 +11,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{BufferedReader, FileReader}
+import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
 /* ignoring inherited limit and offset properties because they are not hideable
  *   new, identical limit and offset fields with additinoal annotations to make hideable
@@ -28,7 +29,7 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         // get offset and max line values
         val reader = new BufferedReader(new FileReader(path))
         val offsetValue = offsetHideable.getOrElse(0)
-        val count: Int = countNumLines(reader.lines().iterator(), offsetValue)
+        val count: Int = countNumLines(reader.lines().iterator().asScala, offsetValue)
         reader.close()
 
         // using only 1 worker for text scan to maintain proper ordering
