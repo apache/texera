@@ -29,7 +29,8 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with single column representing entire input in outputAsSingleTuple mode" in {
-    textInputSourceOpDesc.outputAsSingleTuple = true
+    val outputAsSingleTuple: Boolean = true
+    textInputSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
