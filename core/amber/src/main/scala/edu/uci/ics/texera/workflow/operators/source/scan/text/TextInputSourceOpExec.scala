@@ -1,0 +1,34 @@
+package edu.uci.ics.texera.workflow.operators.source.scan.text
+
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+
+import scala.jdk.CollectionConverters.asScalaIteratorConverter
+
+class TextInputSourceOpExec private[text] (
+    val desc: TextInputSourceOpDesc,
+    val startOffset: Int,
+    val endOffset: Int
+) extends SourceOperatorExecutor {
+  private var schema: Schema = _
+  private var rows: Iterator[String] = _
+
+  override def produceTexeraTuple(): Iterator[Tuple] = {
+    if (desc.outputAsSingleTuple) {
+      Iterator(Tuple.newBuilder(schema).add(schema.getAttribute("text"), desc.textInput).build())
+    } else {
+      rows.map(line => {
+        Tuple.newBuilder(schema).add(schema.getAttribute("line"), line).build()
+      })
+    }
+  }
+
+  override def open(): Unit = {
+    schema = desc.sourceSchema()
+    if (!desc.outputAsSingleTuple)
+      rows = desc.textInput.lines().iterator().asScala.slice(startOffset, endOffset)
+  }
+
+  override def close(): Unit = {}
+}
