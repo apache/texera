@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  PROJECT,
   USER,
   WORKFLOW,
   WORKFLOW_OF_PROJECT,
@@ -421,94 +422,95 @@ class WorkflowResource {
     val user = sessionUser.getUser
     // make sure keywords don't end with "+-@()<>~*\"", these are reserved for SQL full-text boolean operator
     val forbiddenChars: Set[Char] = "+-@()<>~*\"".toSet
-    val modifiedKeywords: List[String] = keywords.map { keyword =>
+    val modifiedKeywords: Iterable[String] = keywords.map { keyword =>
       // remove all reserved characters in keyword
       keyword.filterNot(forbiddenChars.contains)
-
-      var matchQuery: Condition = noCondition()
-      for (key:String <- modifiedKeywords) {
-        val words = key.split("\\s+")
-        if (words.length > 1 || key.contains('@')) {
-          matchQuery = matchQuery.and(
-            "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}'*' IN BOOLEAN mode) OR " +
-              "MATCH(texera_db.user.name) AGAINST (+{0}'*' IN BOOLEAN mode) " +
-              "OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST (+{0}'*' IN BOOLEAN mode))",
-            '"' + key + '"'
-          )
-        } else {
-          matchQuery = matchQuery.and(
-            "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}'*' IN BOOLEAN mode) OR " +
-              "MATCH(texera_db.user.name) AGAINST (+{0}'*' IN BOOLEAN mode) " +
-              "OR MATCH(texera_db.user_project.name, texera_db.user_project.description) AGAINST (+{0}'*' IN BOOLEAN mode))",
-            key
-          )
-        }
-
-      }
-      val workflowEntries = context
-        .select(
-          WORKFLOW.WID,
-          WORKFLOW.NAME,
-          WORKFLOW.DESCRIPTION,
-          WORKFLOW.CREATION_TIME,
-          WORKFLOW.LAST_MODIFIED_TIME,
-          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-          WORKFLOW_OF_USER.UID,
-          USER.NAME
-        )
-        .from(WORKFLOW)
-        .leftJoin(WORKFLOW_USER_ACCESS)
-        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-        .leftJoin(WORKFLOW_OF_USER)
-        .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-        .leftJoin(USER)
-        .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-        .leftJoin(WORKFLOW_OF_PROJECT)
-        .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-        .where(matchQuery)
-        .andExists(
-          context
-            .select(
-              WORKFLOW.WID,
-              WORKFLOW_OF_USER.UID
-            )
-            .from(WORKFLOW)
-            .leftJoin(WORKFLOW_USER_ACCESS)
-            .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-            .leftJoin(WORKFLOW_OF_USER)
-            .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-            .leftJoin(USER)
-            .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-            .leftJoin(WORKFLOW_OF_PROJECT)
-            .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-            .where(
-              WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
-            )
-            .and(
-              WORKFLOW.WID.eq(WORKFLOW.WID)
-            )
-            .and(
-              WORKFLOW_OF_USER.UID.eq(WORKFLOW_OF_USER.UID)
-            )
-            .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
-        )
-        .fetch()
-
-      workflowEntries
-        .map(workflowRecord =>
-          DashboardWorkflowEntry(
-            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-            toAccessLevel(
-              workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-            ).toString,
-            workflowRecord.into(USER).getName,
-            workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-            List[UInteger]() //
-          )
-        )
-        .toList
     }
+    var matchQuery: Condition = noCondition()
+    for (key: String <- modifiedKeywords) {
+      val words = key.split("\\s+")
+      if (words.length > 1 || key.contains('@')) {
+        matchQuery = matchQuery.and(
+          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}'*' IN BOOLEAN mode) OR " +
+            "MATCH(texera_db.user.name) AGAINST (+{0}'*' IN BOOLEAN mode) " +
+            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}'*' IN BOOLEAN mode))",
+          '"' + key + '"'
+        )
+      } else {
+        matchQuery = matchQuery.and(
+          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}'*' IN BOOLEAN mode) OR " +
+            "MATCH(texera_db.user.name) AGAINST (+{0}'*' IN BOOLEAN mode) " +
+            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}'*' IN BOOLEAN mode))",
+          key
+        )
+      }
+
+    }
+    val workflowEntries = context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+      .leftJoin(PROJECT)
+      .on(PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
+      .where(matchQuery)
+      .andExists(
+        context
+          .select(
+            WORKFLOW.WID,
+            WORKFLOW_OF_USER.UID
+          )
+          .from(WORKFLOW)
+          .leftJoin(WORKFLOW_USER_ACCESS)
+          .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+          .leftJoin(WORKFLOW_OF_USER)
+          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+          .leftJoin(USER)
+          .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+          .leftJoin(WORKFLOW_OF_PROJECT)
+          .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+          .where(
+            WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
+          )
+          .and(
+            WORKFLOW.WID.eq(WORKFLOW.WID)
+          )
+          .and(
+            WORKFLOW_OF_USER.UID.eq(WORKFLOW_OF_USER.UID)
+          )
+          .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
+      )
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflowEntry(
+          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+          toAccessLevel(
+            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+          ).toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          List[UInteger]() //
+        )
+      )
+      .toList
   }
 
   private def search(sessionUser: SessionUser, query: String) = {

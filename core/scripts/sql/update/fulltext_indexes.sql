@@ -5,4 +5,4 @@ CREATE FULLTEXT INDEX `idx_user_name`
 			ON `texera_db`.`user` (name);
 
 CREATE FULLTEXT INDEX `idx_user_project_name_description`  
-			ON `texera_db`.`user_project` (name, description);
+			ON `texera_db`.`project` (name, description);
