@@ -13,7 +13,7 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
 import java.util
 
-class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB{
+class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
 
   private val testUser: User = {
     val user = new User

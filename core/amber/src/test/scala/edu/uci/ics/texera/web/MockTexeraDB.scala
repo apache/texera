@@ -62,7 +62,8 @@ trait MockTexeraDB {
     val fulltextIndexPath = {
       Utils.amberHomePath.resolve("../scripts/sql/update/fulltext_indexes.sql").toRealPath()
     }
-    val buildFulltextIndex = new String(Files.readAllBytes(fulltextIndexPath), StandardCharsets.UTF_8)
+    val buildFulltextIndex =
+      new String(Files.readAllBytes(fulltextIndexPath), StandardCharsets.UTF_8)
     db.run(buildFulltextIndex)
 
     val dataSource = new MysqlDataSource
