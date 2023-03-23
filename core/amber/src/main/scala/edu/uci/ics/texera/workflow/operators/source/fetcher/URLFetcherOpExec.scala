@@ -30,7 +30,7 @@ class URLFetcherOpExec(
       }
     } catch {
       case e: Throwable =>
-        builder.addSequentially(Array(e.getMessage))
+        throw e
     }
     Iterator(builder.build())
   }
