@@ -90,16 +90,22 @@ class BulkDownloaderOpExec(
         Future {
           val urlObj = new URL(url)
           val input = getInputStreamFromURL(urlObj)
-          if (input.available() > 0) {
-            UserFileResource
-              .saveUserFileSafe(
-                workflowContext.userId.get,
-                s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost.replace(".", "")}.download",
-                input,
-                s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
-              )
-          } else {
-            throw new RuntimeException(s"content is not available for $url")
+          input match {
+            case Some(contentStream) =>
+              if (contentStream.available() > 0) {
+                UserFileResource
+                  .saveUserFileSafe(
+                    workflowContext.userId.get,
+                    s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
+                      .replace(".", "")}.download",
+                    contentStream,
+                    s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
+                  )
+              } else {
+                throw new RuntimeException(s"content is not available for $url")
+              }
+            case None =>
+              throw new RuntimeException(s"fetch content failed for $url")
           }
         },
         5.seconds
