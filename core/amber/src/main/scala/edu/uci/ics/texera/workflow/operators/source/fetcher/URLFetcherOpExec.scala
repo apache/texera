@@ -3,23 +3,10 @@ package edu.uci.ics.texera.workflow.operators.source.fetcher
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpExec.getInputStreamFromURL
+import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 import org.apache.commons.io.IOUtils
 
-import java.io.InputStream
 import java.net.URL
-
-object URLFetcherOpExec {
-
-  val defaultUserAgent =
-    "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.4; en-US; rv:1.9.2.2) Gecko/20100316 Firefox/3.6.2"
-
-  def getInputStreamFromURL(urlObj: URL): InputStream = {
-    val request = urlObj.openConnection()
-    request.setRequestProperty("User-Agent", defaultUserAgent)
-    request.getInputStream
-  }
-}
 
 class URLFetcherOpExec(
     val url: String,

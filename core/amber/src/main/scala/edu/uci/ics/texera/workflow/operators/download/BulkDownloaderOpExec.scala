@@ -8,17 +8,11 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
-import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpExec
-import org.jooq.types.UInteger
+import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
-import java.io.{BufferedWriter, File, FileWriter}
 import java.net.URL
-import java.util
-import java.util.UUID
-import java.util.concurrent.LinkedBlockingQueue
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.io.Source
 import scala.concurrent.duration._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -95,7 +89,7 @@ class BulkDownloaderOpExec(
       Await.result(
         Future {
           val urlObj = new URL(url)
-          val input = URLFetcherOpExec.getInputStreamFromURL(urlObj)
+          val input = getInputStreamFromURL(urlObj)
           if (input.available() > 0) {
             UserFileResource
               .saveUserFileSafe(
