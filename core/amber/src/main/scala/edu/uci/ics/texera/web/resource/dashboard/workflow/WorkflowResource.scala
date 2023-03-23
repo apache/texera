@@ -420,6 +420,9 @@ class WorkflowResource {
       @QueryParam("query") keywords: java.util.List[String]
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
+    if (keywords.size() == 0) {
+      return List.empty[DashboardWorkflowEntry]
+    }
     // make sure keywords don't end with "+-@()<>~*\"", these are reserved for SQL full-text boolean operator
     val forbiddenChars: Set[Char] = "+-@()<>~*\"".toSet
     val modifiedKeywords: Iterable[String] = keywords.map { keyword =>

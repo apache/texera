@@ -46,6 +46,7 @@ trait MockTexeraDB {
       Utils.amberHomePath.resolve("../scripts/sql/texera_ddl.sql").toRealPath()
     }
     val content = new String(Files.readAllBytes(ddlPath), StandardCharsets.UTF_8)
+
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
       .addArg("--default-time-zone=-8:00")
@@ -56,6 +57,13 @@ trait MockTexeraDB {
     val db = DB.newEmbeddedDB(config)
     db.start()
     db.run(content)
+
+    // build fulltext indexes
+    val fulltextIndexPath = {
+      Utils.amberHomePath.resolve("../scripts/sql/update/fulltext_indexes.sql").toRealPath()
+    }
+    val buildFulltextIndex = new String(Files.readAllBytes(fulltextIndexPath), StandardCharsets.UTF_8)
+    db.run(buildFulltextIndex)
 
     val dataSource = new MysqlDataSource
     dataSource.setUrl(config.getURL(database))
