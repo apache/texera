@@ -196,7 +196,43 @@ class WorkflowResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
-  ): List[DashboardWorkflowEntry] = search(sessionUser, "")
+  ): List[DashboardWorkflowEntry] = {
+    val user = sessionUser.getUser
+    val workflowEntries = context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
+      .fetch()
+
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflowEntry(
+          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+          toAccessLevel(workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])).toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          List[UInteger]()
+        )
+      )
+      .toList
+  }
 
   /**
     * This method handles the client request to get a specific workflow to be displayed in canvas
@@ -488,15 +524,9 @@ class WorkflowResource {
           .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
           .leftJoin(WORKFLOW_OF_PROJECT)
           .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-          .where(
-            WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
-          )
-          .and(
-            WORKFLOW.WID.eq(WORKFLOW.WID)
-          )
-          .and(
-            WORKFLOW_OF_USER.UID.eq(WORKFLOW_OF_USER.UID)
-          )
+          .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+          .and(WORKFLOW.WID.eq(WORKFLOW.WID))
+          .and(WORKFLOW_OF_USER.UID.eq(WORKFLOW_OF_USER.UID))
           .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       )
       .fetch()
@@ -505,63 +535,10 @@ class WorkflowResource {
       .map(workflowRecord =>
         DashboardWorkflowEntry(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ).toString,
+          toAccessLevel(workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])).toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          List[UInteger]() //
-        )
-      )
-      .toList
-  }
-
-  private def search(sessionUser: SessionUser, query: String) = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.DESCRIPTION,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
-        USER.NAME,
-        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
-      )
-      .from(WORKFLOW)
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .leftJoin(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .where(
-        if (query.isEmpty)
-          WORKFLOW_USER_ACCESS.UID.eq(user.getUid)
-        else
-          WORKFLOW_USER_ACCESS.UID.eq(
-            user.getUid
-          ) and ("(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(? IN NATURAL LANGUAGE MODE))", query)
-      )
-      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
-      .fetch()
-    workflowEntries
-      .map(workflowRecord =>
-        DashboardWorkflowEntry(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ).toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component10() == null) List[UInteger]()
-          else
-            workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+          List[UInteger]()
         )
       )
       .toList
