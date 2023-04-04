@@ -68,8 +68,6 @@ trait MockTexeraDB {
     db.start()
     db.run(content)
 
-   
-
     val dataSource = new MysqlDataSource
     dataSource.setUrl(config.getURL(database))
     dataSource.setUser(username)

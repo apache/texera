@@ -76,7 +76,7 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     val buildFulltextIndex =
       new String(Files.readAllBytes(fulltextIndexPath), StandardCharsets.UTF_8)
     db.run(buildFulltextIndex)
-    
+
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(testUser)

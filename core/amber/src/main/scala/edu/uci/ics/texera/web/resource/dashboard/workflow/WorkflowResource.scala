@@ -476,9 +476,9 @@ class WorkflowResource {
       val words = key.split("\\s+")
       if (words.length > 1 || key.contains('@')) {
         matchQuery = matchQuery.and(
-          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}'*' IN BOOLEAN mode) OR " +
-            "MATCH(texera_db.user.name) AGAINST (+{0}'*' IN BOOLEAN mode) " +
-            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}'*' IN BOOLEAN mode))",
+          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0} IN BOOLEAN mode) OR " +
+            "MATCH(texera_db.user.name) AGAINST (+{0} IN BOOLEAN mode) " +
+            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0} IN BOOLEAN mode))",
           '"' + key + '"'
         )
       } else {
