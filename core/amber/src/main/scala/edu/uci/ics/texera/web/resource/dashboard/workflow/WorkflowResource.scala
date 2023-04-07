@@ -465,16 +465,32 @@ class WorkflowResource {
     if (keywords.size() == 0) {
       return List.empty[DashboardWorkflowEntry]
     }
-    // make sure keywords don't end with "+-()<>~*\"", these are reserved for SQL full-text boolean operator
-    val forbiddenChars: Set[Char] = "+-()<>~*\"".toSet
-    val modifiedKeywords: Iterable[String] = keywords.map { keyword =>
-      // remove all reserved characters in keyword
-      keyword.filterNot(forbiddenChars.contains)
+    // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
+    val forbiddenChars: Set[Char] = "+-()<>~*@\"".toSet
+    var modifiedKeywords = List.empty[String]
+    for (word <- keywords) {
+      var foundForbiddenChar = false
+      var sanitizedWord = ""
+      for (char <- word) {
+        // if contain forbiddenChars, replace with space
+        if (forbiddenChars.contains(char)) {
+          foundForbiddenChar = true
+          sanitizedWord += " "
+        } else {
+          sanitizedWord += char
+        }
+      }
+      // if work contain forbidden characters, split them into multiple keywords and add to modifiedKeywords
+      if (foundForbiddenChar) {
+        modifiedKeywords = modifiedKeywords ++ sanitizedWord.split("\\s+").toList
+      } else {
+        modifiedKeywords = modifiedKeywords :+ sanitizedWord
+      }
     }
     var matchQuery: Condition = noCondition()
     for (key: String <- modifiedKeywords) {
       val words = key.split("\\s+")
-      if (words.length > 1 || key.contains('@')) {
+      if (words.length > 1) {
         matchQuery = matchQuery.and(
           "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0} IN BOOLEAN mode) OR " +
             "MATCH(texera_db.user.name) AGAINST (+{0} IN BOOLEAN mode) " +
