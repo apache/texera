@@ -44,7 +44,7 @@ let loadPromise: Promise<void>;
 })
 export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
   editorOptions = {
-    model: monaco.editor.createModel(this.code, "python", monaco.Uri.parse(MODEL_URI)),
+    model: this.getOrCreateModel(),
     theme: "vs-dark",
     language: "python",
     fontSize: "11",
@@ -87,6 +87,20 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         },
       },
     });
+  }
+
+  getOrCreateModel() {
+    const uri = this.getModelURI();
+    return (monaco.editor.getModel( monaco.Uri.parse(uri)))
+     || monaco.editor.createModel(this.code, "python", monaco.Uri.parse(uri));
+  }
+
+  getModelURI() {
+    const currentOperatorId: string = this.workflowActionService
+    .getJointGraphWrapper()
+    .getCurrentHighlightedOperatorIDs()[0];
+    console.log(currentOperatorId);
+    return `inmemory://${currentOperatorId}.py`
   }
 
   ngAfterViewInit() {
@@ -152,7 +166,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       provideDefinition(model: any, position: any, toen: any) {
         return [
           {
-            uri: monaco.Uri.file(MODEL_URI),
+            uri: monaco.Uri.file(this.getModelURI()),
             range: {
               startLineNumber: 69,
               endLineNumber: 69,
@@ -311,4 +325,3 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 const WEB_SOCKET_HOST = "localhost";
 const PYTHON_LANGUAGE_SERVER = "/python-language-server";
 const LANGUAGE_SERVER_PORT = 3000;
-const MODEL_URI = "inmemory://modal.py";
