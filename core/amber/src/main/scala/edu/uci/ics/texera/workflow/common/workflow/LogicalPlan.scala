@@ -200,7 +200,7 @@ case class LogicalPlan(
       case o @ (sink: ProgressiveSinkOpDesc) =>
         val storageKey = sink.getCachedUpstreamId.getOrElse(o.operatorID)
         // due to the size limit of single document in mongoDB (16MB)
-        // for sinks showing charts which could possibly be large in size, we always use the memory storage.
+        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
         val storageType =
           if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
           else OpResultStorage.defaultStorageMode
