@@ -197,16 +197,19 @@ case class LogicalPlan(
     // assign storage to texera-managed sinks before generating exec config
     operators.foreach {
       case o @ (sink: ProgressiveSinkOpDesc) =>
-        sink.getCachedUpstreamId match {
-          case Some(upstreamId) =>
-            sink.setStorage(
-              opResultStorage.create(upstreamId, outputSchemaMap(o.operatorIdentifier).head)
-            )
-          case None =>
-            sink.setStorage(
-              opResultStorage.create(o.operatorID, outputSchemaMap(o.operatorIdentifier).head)
-            )
-        }
+        val storageKey = sink.getCachedUpstreamId.getOrElse(o.operatorID)
+        // due to the size limit of single document in mongoDB (16MB)
+        // for sinks showing charts which could possibly be large in size, we always use the memory storage.
+        val storageType =
+          if (sink.getChartType.isDefined) OpResultStorage.MEMORY
+          else OpResultStorage.defaultStorageMode
+        sink.setStorage(
+          opResultStorage.create(
+            storageKey,
+            outputSchemaMap(o.operatorIdentifier).head,
+            storageType
+          )
+        )
       case _ =>
     }
 
