@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.mutable
@@ -201,7 +202,7 @@ case class LogicalPlan(
         // due to the size limit of single document in mongoDB (16MB)
         // for sinks showing charts which could possibly be large in size, we always use the memory storage.
         val storageType =
-          if (sink.getChartType.isDefined) OpResultStorage.MEMORY
+          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
           else OpResultStorage.defaultStorageMode
         sink.setStorage(
           opResultStorage.create(
