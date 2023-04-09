@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.storage
 
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MemoryStorage,
@@ -9,10 +10,17 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.{
   SinkStorageReader
 }
 
+object OpResultStorage {
+  val defaultStorageMode: String = AmberUtils.amberConfig.getString("storage.mode").toLowerCase
+  val MEMORY = "memory"
+  val MONGODB = "mongodb"
+}
+
 /**
   * Public class of operator result storage.
+  * One execution links one instance of OpResultStorage, both have the same lifecycle.
   */
-class OpResultStorage(mode: String = "memory") extends Serializable with LazyLogging {
+class OpResultStorage extends Serializable with LazyLogging {
 
   val cache: ConcurrentHashMap[String, SinkStorageReader] =
     new ConcurrentHashMap[String, SinkStorageReader]()
@@ -27,7 +35,7 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
     cache.get(key)
   }
 
-  def create(key: String, schema: Schema): SinkStorageReader = {
+  def create(key: String, schema: Schema, mode: String): SinkStorageReader = {
     val storage: SinkStorageReader =
       if (mode == "memory") {
         new MemoryStorage(schema)
