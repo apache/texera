@@ -18,6 +18,7 @@ object OpResultStorage {
 
 /**
   * Public class of operator result storage.
+  * One execution links one instance of OpResultStorage, both have the same lifecycle.
   */
 class OpResultStorage extends Serializable with LazyLogging {
 
