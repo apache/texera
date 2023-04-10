@@ -42,7 +42,7 @@ import scala.collection.JavaConverters._
 object WorkflowAccessResource {
 
   private lazy val userDao = new UserDao(context.configuration())
-  private var context: DSLContext = SqlServer.createDSLContext
+  private lazy val context: DSLContext = SqlServer.createDSLContext
 
   /**
     * Identifies whether the given user has read-only access over the given workflow
@@ -169,11 +169,6 @@ class WorkflowAccessResource() {
   private val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration
   )
-
-  def this(dslContext: DSLContext) {
-    this()
-    context = dslContext
-  }
 
   /**
     * This method returns the owner of a workflow
