@@ -10,7 +10,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfUserDao,
@@ -30,7 +29,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
 }
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
-import org.jooq.impl.DSL.{condition, field, groupConcat, index, noCondition}
+import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
@@ -467,24 +466,23 @@ class WorkflowResource {
     }
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]"))
-    
+
     var matchQuery: Condition = noCondition()
     for (key: String <- splitKeywords) {
       val words = key.split("\\s+")
-      if (words.length > 1) {
-        matchQuery = matchQuery.and(
-          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0} IN BOOLEAN mode) OR " +
-            "MATCH(texera_db.user.name) AGAINST (+{0} IN BOOLEAN mode) " +
-            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0} IN BOOLEAN mode))",
-          '"' + key + '"'
-        )
+      def getSearchQuery(subStringSearchEnabled: Boolean): String =
+        "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}" +
+          (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) OR " +
+          "MATCH(texera_db.user.name) AGAINST (+{0}" +
+          (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) " +
+          "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}" +
+          (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode))"
+      if (words.length == 1) {
+        // Use "*" to enable sub-string search.
+        matchQuery = matchQuery.and(getSearchQuery(true), key)
       } else {
-        matchQuery = matchQuery.and(
-          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}'*' IN BOOLEAN mode) OR " +
-            "MATCH(texera_db.user.name) AGAINST (+{0}'*' IN BOOLEAN mode) " +
-            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}'*' IN BOOLEAN mode))",
-          key
-        )
+        // When the search query contains multiple words, sub-string search is not supported by MySQL.
+        matchQuery = matchQuery.and(getSearchQuery(false), '"' + key + '"')
       }
 
     }
