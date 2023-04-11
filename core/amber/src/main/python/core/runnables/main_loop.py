@@ -32,7 +32,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerExecutionCompletedV2,
     WorkerState,
     LinkCompletedV2,
-    PythonConsoleMessageV2, WorkerDebugCommandV2,
+    PythonConsoleMessageV2, WorkerDebugCommandV2, StateRequestV2, StateReturn,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -40,7 +40,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     ControlPayloadV2,
     ReturnInvocationV2,
 )
-
+import time
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(self, input_queue: InternalQueue, output_queue: InternalQueue):
@@ -58,7 +58,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
         self.breakpoints_to_add = 1
-
+        self.main_loop_start_time = time.time()
     def complete(self) -> None:
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the
@@ -75,6 +75,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
             ActorVirtualIdentity(name="CONTROLLER"), control_command
         )
         self.context.close()
+        import bdb
+        logger.info("total time in eval: " + str(bdb.total_time))
+        logger.info("total time of operator: "+ str(time.time() - self.main_loop_start_time))
 
     def _check_and_process_control(self) -> None:
         """
@@ -87,8 +90,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         stage while processing a DataElement.
         """
         while (
-            not self._input_queue.is_control_empty()
-            or self.context.pause_manager.is_paused()
+                not self._input_queue.is_control_empty()
+                or self.context.pause_manager.is_paused()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -97,7 +100,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def pre_start(self) -> None:
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
         self.context.state_manager.transit_to(WorkerState.READY)
-
 
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
@@ -111,10 +113,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         if isinstance(next_entry, DataElement) and \
                 self.context.state_manager.confirm_state(WorkerState.READY):
+            # add breakpoint:
             control_command = set_one_of(
                 ControlCommandV2,
                 WorkerDebugCommandV2(
-                    cmd=f"b 13, 'doesnotexist' in tuple_['text'] and doc['positive'] == -1"
+                    cmd=f"b 20, 'doesnotexist' in tuple_['text'] and 'hello' in tokens"
 
                 ),
             )
@@ -124,9 +127,52 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._pause_dp()
             self._check_and_process_control()
             self._switch_context()
-
-
-
+            # if 'TypeCasting' in self.context.tuple_processing_manager.my_upstream_id \
+            #         .operator:  # second UDF
+            #     # control_command = set_one_of(
+            #     #     ControlCommandV2,
+            #     #     WorkerDebugCommandV2(
+            #     #         cmd=f"rs 12 22 tokens"
+            #     #
+            #     #     ),
+            #     # )
+            #     # self._async_rpc_client.send(
+            #     #     ActorVirtualIdentity(name="SELF"), control_command
+            #     # )
+            #     # self._pause_dp()
+            #     # self._check_and_process_control()
+            #     # self._switch_context()
+            #     pass
+            # if 'Filter-operator-83cbcb7e-4c55-44b0-bab2-89e27904d657' in \
+            #     self.context.tuple_processing_manager.my_upstream_id.operator:  # first UDF
+            # # control_command = set_one_of(
+            # #     ControlCommandV2,
+            # #     WorkerDebugCommandV2(
+            # #         cmd=f"as 22 tokens"
+            # #
+            # #     ),
+            # # )
+            # # self._async_rpc_client.send(
+            # #     ActorVirtualIdentity(name="SELF"), control_command
+            # # )
+            # # self._pause_dp()
+            # # self._check_and_process_control()
+            # # self._switch_context()
+            # logger.info("ss for first UDF")
+            # control_command = set_one_of(
+            #     ControlCommandV2,
+            #     WorkerDebugCommandV2(
+            #         cmd=f"ss 22 tokens"
+            #
+            #     ),
+            # )
+            # self._async_rpc_client.send(
+            #     ActorVirtualIdentity(name="SELF"), control_command
+            # )
+            # self._pause_dp()
+            # self._check_and_process_control()
+            # self._switch_context()
+            pass
         match(
             next_entry,
             DataElement,
@@ -162,7 +208,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         if isinstance(self.context.tuple_processing_manager.current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
-
+        self.context.operator_manager.apply_available_code_update()
         for output_tuple in self.process_tuple_with_udf():
             self._check_and_process_control()
             if output_tuple is not None:
@@ -191,7 +237,52 @@ class MainLoop(StoppableQueueBlockingRunnable):
         while not finished_current.is_set():
             self._check_and_process_control()
             self._switch_context()
-            yield self.context.tuple_processing_manager.get_output_tuple()
+            output = self.context.tuple_processing_manager.get_output_tuple()
+            if isinstance(output, str) and 'request(' in output:
+                line_no, state_name = output.strip('request(').strip(')').split(',')
+
+                control_command = set_one_of(
+                    ControlCommandV2,
+                    StateRequestV2(
+                        tuple_id=str(self.context.tuple_processing_manager
+                                     .current_input_tuple['id']),
+                        line_no=int(line_no),
+                        state_name=state_name.strip()
+                    ),
+                )
+                upstream = self.context.tuple_processing_manager.my_upstream_id
+                id = f'Worker:WF{upstream.workflow}-{"PythonUDFV2-operator-7a02dd1f-a97f-4590-85b8-cfff5d02ed99"}-main-0'
+                self._async_rpc_client.send(
+                    ActorVirtualIdentity(name=id),
+                    control_command
+                ).add_done_callback(
+                    lambda x: self.handle_state_return(state_name, x.result(
+
+                    ).state_return)
+                )
+                self._pause_dp()
+                self._check_and_process_control()
+
+            elif isinstance(output, str) and 'store(' in output:
+                lineno, state_name = output.strip('store(').strip(')').split(',')
+                state_name = state_name.strip()
+
+                tuple_id = str(
+                    self.context.tuple_processing_manager.current_input_tuple[
+                        'id'])
+                self.context.debug_manager.states[(tuple_id, lineno, state_name)] = \
+                    self.context.tuple_processing_manager.output_iterator.gi_frame.f_locals[
+                        state_name] * 100
+                # print(self.context.debug_manager.states)
+
+            else:
+                yield output
+
+    def handle_state_return(self, state_name, state_return: StateReturn):
+        import pickle
+        self.context.tuple_processing_manager.output_iterator.gi_frame.f_locals[
+            state_name] = eval(state_return.bytes)
+        self._resume_dp()
 
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
@@ -270,9 +361,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
-
-
-
         self.context.tuple_processing_manager.current_input_tuple_iter = (
             self.context.batch_to_tuple_converter.process_data_payload(
                 data_element.tag, data_element.payload
@@ -334,7 +422,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         self._check_and_report_print(force_flush=True)
         if self.context.state_manager.confirm_state(
-            WorkerState.RUNNING, WorkerState.READY
+                WorkerState.RUNNING, WorkerState.READY
         ):
             self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
             self._input_queue.disable_data()
@@ -406,14 +494,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
             )
 
-
-
             self._pause_dp()
             self._check_and_process_control()
             self._switch_context()
-
-
-
 
     def _check_and_report_exception(self) -> None:
         if self.context.exception_manager.has_exception():

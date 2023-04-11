@@ -39,6 +39,7 @@ class AsyncRPCClient:
             ControlPayloadV2,
             ControlInvocationV2(self._send_sequences[to], command=control_command),
         )
+        # logger.info("sent " + str(payload) + " to " + str(to))
         self._output_queue.put(ControlElement(tag=to, payload=payload))
         return self._create_future(to)
 
@@ -85,9 +86,18 @@ class AsyncRPCClient:
         future: Future = self._unfulfilled_promises.get((from_, command_id))
         if future is not None:
             future.set_result(control_return)
+            # logger.info("fulfilled " + str(command_id) + " from " + str(from_))
             del self._unfulfilled_promises[(from_, command_id)]
         else:
-            logger.warning(
-                f"received unknown ControlReturn {control_return}, no corresponding"
-                " ControlCommand found."
-            )
+            # try search self
+            from_ = ActorVirtualIdentity("SELF")
+            future: Future = self._unfulfilled_promises.get((from_, command_id))
+            if future is not None:
+                # logger.info("fulfilled " + str(command_id) + " from " + str(from_))
+                future.set_result(control_return)
+                del self._unfulfilled_promises[(from_, command_id)]
+            else:
+                logger.warning(
+                    f"received unknown ControlReturn {control_return}, no corresponding"
+                    " ControlCommand found."
+                )

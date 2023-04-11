@@ -9,14 +9,29 @@ class WorkerDebugCommandHandler(Handler):
     cmd = WorkerDebugCommandV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        # translate the command with the context.
-        translated_command = self.translate_debug_command(command, context)
+        if command.cmd[:2]  in ["ss", 'ks', 'rs' , 'as']:
+            handle_by_pdb = False
+        else:
+            handle_by_pdb = True
 
-        # send the translated command to debugger to consume later.
-        context.debug_manager.put_debug_command(translated_command)
 
-        # allow MainLoop to switch into DataProcessor.
-        context.main_loop._resume_dp()
+        if handle_by_pdb:
+            # translate the command with the context.
+            translated_command = self.translate_debug_command(command, context)
+
+
+
+
+            # send the translated command to debugger to consume later.
+            context.debug_manager.put_debug_command(translated_command)
+
+            # allow MainLoop to switch into DataProcessor.
+            context.main_loop._resume_dp()
+
+        else:
+            context.operator_manager.schedule_update_code("tuple", command.cmd)
+
+            context.main_loop._resume_dp()
 
     @staticmethod
     def translate_debug_command(command: cmd, context: Context) -> str:

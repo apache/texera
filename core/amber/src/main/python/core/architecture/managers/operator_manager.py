@@ -17,6 +17,7 @@ class OperatorManager:
         self.operator_module_name: Optional[str] = None
         self.operator_version: int = 0  # incremental only
         self._static = False
+        self.operator_source_code = ""
 
         # create a tmp fs for storing source code, which will be removed when the
         # workflow is completed.
@@ -69,6 +70,7 @@ class OperatorManager:
             operator_module = importlib.reload(operator_module)
         else:
             operator_module = importlib.import_module(module_name)
+        logger.info("new code:\n" + code)
         self.operator_source_code = code
         self.operator_module_name = module_name
 
@@ -155,12 +157,76 @@ class OperatorManager:
         print(new_code, file=sys.stdout)
         return new_code
 
-    def schedule_update_code(self, when: str, code: str, is_source: bool):
-        self.scheduled_updates[when] = (code, is_source)
+    def add_ss(self, lineno, state):
+        lineno = lineno
+
+        old_code = self.operator_source_code.splitlines()
+        target_line = old_code[lineno - 1]
+        code_before = old_code[:lineno - 1]
+        code_after = old_code[lineno:]
+
+        indentation = " " * (len(target_line) - len(target_line.lstrip()))
+        bp_line = f"{indentation}tuple_['{state}'] = {state}*100"
+
+        new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+        return new_code
+
+    def add_rs(self, lineno, req_lineno, req_state):
+        lineno = lineno
+
+        old_code = self.operator_source_code.splitlines()
+        target_line = old_code[lineno - 1]
+        code_before = old_code[:lineno - 1]
+        code_after = old_code[lineno:]
+
+        indentation = " " * (len(target_line) - len(target_line.lstrip()))
+        bp_line = f"{indentation}import random\n{indentation}if random.random() > " \
+                  f"0.999: yield 'request({req_lineno}, {req_state})'"
+
+        new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+        # print(new_code, file=sys.stdout)
+        return new_code
+
+    def add_as(self, lineno, state):
+        old_code = self.operator_source_code.splitlines()
+        target_line = old_code[lineno - 1]
+        code_before = old_code[:lineno - 1]
+        code_after = old_code[lineno:]
+
+        indentation = " " * (len(target_line) - len(target_line.lstrip()))
+        bp_line = f"{indentation}yield 'store({lineno}, {state})'"
+
+        new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+        # print(new_code, file=sys.stdout)
+        return new_code
+
+    def schedule_update_code(self, when: str, change: str):
+        logger.info("schedule update code")
+        if change[:2] == "ss":
+            logger.info(change)
+
+            ss, lineno, state = change.split()
+            self.scheduled_updates[when] = (self.add_ss(int(lineno), state),
+                                            self.operator.is_source)
+        if change[:2] == "rs":
+            logger.info(change)
+            ss, lineno, req_lineno, req_state = change.split()
+            self.scheduled_updates[when] = (self.add_rs(int(lineno), int(req_lineno),
+                                            req_state),
+                                            self.operator.is_source)
+
+        if change[:2] == "as":
+            logger.info(change)
+            ss, lineno, state = change.split()
+            self.scheduled_updates[when] = (self.add_as(int(lineno),state),
+                                            self.operator.is_source)
+        logger.info("updated code:\n" + self.scheduled_updates[when][0])
 
     def apply_available_code_update(self):
         if self.scheduled_updates:
-            self.update_operator(*self.scheduled_updates["asap"])
+            logger.info("applying change")
+            self.update_operator(*self.scheduled_updates["tuple"])
+            del self.scheduled_updates["tuple"]
 
     def add_operator_with_bp(self, code, is_source):
         original_internal_state = self._operator.__dict__
@@ -176,3 +242,5 @@ class OperatorManager:
             return self._operator_with_bp
         else:
             return self._operator
+
+

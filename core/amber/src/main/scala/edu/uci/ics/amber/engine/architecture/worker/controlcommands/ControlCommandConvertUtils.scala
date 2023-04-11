@@ -8,9 +8,10 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Evalua
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.StateRequestHandler.StateRequest
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{ControlReturnV2, StateReturn}
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
@@ -71,6 +72,8 @@ object ControlCommandConvertUtils {
         WorkerDebugCommandV2(cmd)
       case QuerySelfWorkloadMetrics() =>
         QuerySelfWorkloadMetricsV2()
+      case StateRequest(tupleId, lineNo, stateName) =>
+        StateRequestV2(tupleId, lineNo, stateName)
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"
@@ -91,6 +94,7 @@ object ControlCommandConvertUtils {
         PythonConsoleMessage(timestamp, msgType, source, message)
       case LinkCompletedV2(link) => LinkCompleted(link)
       case WorkerDebugCommandV2(cmd) => WorkerDebugCommand(cmd)
+      case StateRequestV2(tupleId, lineNo, stateName) => StateRequest(tupleId, lineNo, stateName)
       case _ =>
         throw new UnsupportedOperationException(
           s"V2 controlCommand $controlCommand cannot be converted to V1"
@@ -127,6 +131,9 @@ object ControlCommandConvertUtils {
         ControlReturnV2(
           ControlReturnV2.Value.WorkerStatistics(workerStatistics)
         )
+      case stateReturn : StateReturn => ControlReturnV2(
+        ControlReturnV2.Value.StateReturn(stateReturn)
+      )
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlReturn $controlReturn cannot be converted to V2"

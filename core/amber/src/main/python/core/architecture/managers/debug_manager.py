@@ -26,6 +26,7 @@ class DebugManager:
         self.debugger.prompt = ""
         self.breakpoints_managed = set()
         self.line_mapping = dict()
+        self.states = dict()
 
     def has_debug_command(self) -> bool:
         return self._debug_in.value is not None
@@ -91,7 +92,7 @@ class DebugManager:
                 logger.info(local_condition)
                 self.pulled_conditions[bp_num] = data_condition
                 self.debugger.get_bpbynumber(bp_num).cond = local_condition
-                logger.info(self.debugger.get_bpbynumber(bp_num).cond)
+                # logger.info(self.debugger.get_bpbynumber(bp_num).cond)
 
         self.check_data_conditions(tuple_)
 
@@ -99,10 +100,10 @@ class DebugManager:
         disabled_bps = list()
         for id, cond in self.pulled_conditions.items():
             if eval(cond, {'tuple_': tuple_}):
-                logger.info("enable 1")
+                # logger.info("enable 1")
                 self.debugger.get_bpbynumber(id).enable()
             else:
-                logger.info("disable 1")
+                # logger.info("disable 1")
                 self.debugger.get_bpbynumber(id).disable()
                 disabled_bps.append(id)
 
@@ -112,9 +113,9 @@ class DebugManager:
             # can disable debugger
 
             if self.trace_disabled:
-                logger.info("trace removed")
+                # logger.info("trace removed")
                 return
-            logger.info("remove tracing")
+            # logger.info("remove tracing")
             self.breaks_backup = self.debugger.breaks
             self.debugger.breaks = []
 
@@ -127,7 +128,7 @@ class DebugManager:
             # logger.info(self._context.debug_manager.debugger.breaks)
         else:
 
-            logger.info("add tracing back")
+            # logger.info("add tracing back")
             self.debugger.breaks = self.breaks_backup
             frame = sys._getframe().f_back
 

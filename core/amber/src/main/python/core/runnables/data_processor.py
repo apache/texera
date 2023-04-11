@@ -10,6 +10,7 @@ from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
 
+
 # breakpoint = f"b {m}:13, 'doesnotexist' in tuple_['text'] and doc['positive'] == -1"
 
 class DataProcessor(Runnable, Stoppable):
@@ -36,15 +37,12 @@ class DataProcessor(Runnable, Stoppable):
 
                 start_time = time.time()
                 # opt1
-                if isinstance(
-                        self._context.tuple_processing_manager.current_input_tuple,
-                        Tuple
-                ) :
-                    self._context.debug_manager.disable_unnecessary_breakpoints(
-                        self._context.tuple_processing_manager.current_input_tuple)
-
-
-
+                # if isinstance(
+                #         self._context.tuple_processing_manager.current_input_tuple,
+                #         Tuple
+                # ):
+                #     self._context.debug_manager.disable_unnecessary_breakpoints(
+                #         self._context.tuple_processing_manager.current_input_tuple)
 
                 # #op1B + op2
                 # if isinstance(
@@ -59,7 +57,6 @@ class DataProcessor(Runnable, Stoppable):
                 #         self._context.operator_manager._static = True
                 # self._context.debug_manager.check_and_swap_for_static_breakpoints()
 
-
                 operator = self._context.operator_manager.operator
                 tuple_ = self._context.tuple_processing_manager.current_input_tuple
                 link = self._context.tuple_processing_manager.current_input_link
@@ -70,15 +67,17 @@ class DataProcessor(Runnable, Stoppable):
                                     f"not in input mapping {self._context.tuple_processing_manager.input_link_map}")
                 port = self._context.tuple_processing_manager.input_link_map[link]
 
-                output_iterator = (
+                self._context.tuple_processing_manager.output_iterator = (
                     operator.process_tuple(tuple_, port)
                     if isinstance(tuple_, Tuple)
                     else operator.on_finish(port)
                 )
                 with replace_print(self._context.console_message_manager.print_buf):
-                    for output in output_iterator:
+                    for output in self._context.tuple_processing_manager.output_iterator:
                         self._context.tuple_processing_manager.current_output_tuple = (
-                            None if output is None else Tuple(output)
+                            output if output is None or isinstance(output,
+                                                                   str) else Tuple(
+                                output)
                         )
                         self._switch_context()
 

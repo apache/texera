@@ -75,6 +75,11 @@ class EvaluatedValue(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class StateReturn(betterproto.Message):
+    bytes: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class ControlReturnV2(betterproto.Message):
     control_exception: "ControlException" = betterproto.message_field(1, group="value")
     worker_statistics: "WorkerStatistics" = betterproto.message_field(2, group="value")
@@ -86,6 +91,7 @@ class ControlReturnV2(betterproto.Message):
     self_workload_return: "SelfWorkloadReturn" = betterproto.message_field(
         6, group="value"
     )
+    state_return: "StateReturn" = betterproto.message_field(7, group="value")
 
 
 @dataclass(eq=False, repr=False)
@@ -193,6 +199,13 @@ class WorkerDebugCommandV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class StateRequestV2(betterproto.Message):
+    tuple_id: str = betterproto.string_field(1)
+    line_no: int = betterproto.int32_field(2)
+    state_name: str = betterproto.string_field(3)
+
+
+@dataclass(eq=False, repr=False)
 class QuerySelfWorkloadMetricsV2(betterproto.Message):
     pass
 
@@ -249,6 +262,9 @@ class ControlCommandV2(betterproto.Message):
     )
     worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
         81, group="sealed_value"
+    )
+    state_request: "StateRequestV2" = betterproto.message_field(
+        82, group="sealed_value"
     )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")

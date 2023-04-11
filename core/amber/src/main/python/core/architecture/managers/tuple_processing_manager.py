@@ -2,7 +2,7 @@ from threading import Event, Condition
 from typing import Optional, Union, Tuple, Iterator, Mapping
 
 from core.models import InputExhausted
-from proto.edu.uci.ics.amber.engine.common import LinkIdentity
+from proto.edu.uci.ics.amber.engine.common import LinkIdentity, LayerIdentity
 
 
 class TupleProcessingManager:
@@ -18,6 +18,8 @@ class TupleProcessingManager:
         self._context_switch_condition_with_no_pdb: Condition = Condition()
         self.finished_current: Event = Event()
         self.with_pdb = True
+        self.my_id = None
+        self.my_upstream_id :LayerIdentity= None
 
     def get_output_tuple(self) -> Optional[Tuple]:
         ret, self.current_output_tuple = self.current_output_tuple, None

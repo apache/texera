@@ -24,6 +24,7 @@ from core.architecture.handlers.replay_current_tuple_handler import (
 )
 from core.architecture.handlers.resume_worker_handler import ResumeWorkerHandler
 from core.architecture.handlers.start_worker_handler import StartWorkerHandler
+from core.architecture.handlers.state_request_handler import StateRequestHandler
 from core.architecture.handlers.update_input_linking_handler import (
     UpdateInputLinkingHandler,
 )
@@ -66,6 +67,7 @@ class AsyncRPCServer:
         self.register(MonitoringHandler())
         self.register(SchedulerTimeSlotEventHandler())
         self.register(WorkerDebugCommandHandler())
+        self.register(StateRequestHandler())
 
     def receive(
         self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2
