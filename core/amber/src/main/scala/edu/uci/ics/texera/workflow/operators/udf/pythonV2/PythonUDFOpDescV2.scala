@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
@@ -83,9 +88,9 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       OperatorGroupConstants.UDF_GROUP,
       asScalaBuffer(singletonList(new InputPort("", true))).toList,
       asScalaBuffer(singletonList(new OutputPort(""))).toList,
-      true,
-      true,
-      true
+      dynamicInputPorts = true,
+      dynamicOutputPorts = true,
+      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -109,8 +114,8 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
   }
 
   override def runtimeReconfiguration(
-    newOpDesc: OperatorDescriptor,
-    operatorSchemaInfo: OperatorSchemaInfo
+      newOpDesc: OperatorDescriptor,
+      operatorSchemaInfo: OperatorSchemaInfo
   ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
     Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
   }
