@@ -466,29 +466,10 @@ class WorkflowResource {
       return List.empty[DashboardWorkflowEntry]
     }
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
-    val forbiddenChars: Set[Char] = "+-()<>~*@\"".toSet
-    var modifiedKeywords = List.empty[String]
-    for (word <- keywords) {
-      var foundForbiddenChar = false
-      var sanitizedWord = ""
-      for (char <- word) {
-        // if contain forbiddenChars, replace with space
-        if (forbiddenChars.contains(char)) {
-          foundForbiddenChar = true
-          sanitizedWord += " "
-        } else {
-          sanitizedWord += char
-        }
-      }
-      // if work contain forbidden characters, split them into multiple keywords and add to modifiedKeywords
-      if (foundForbiddenChar) {
-        modifiedKeywords = modifiedKeywords ++ sanitizedWord.split("\\s+").toList
-      } else {
-        modifiedKeywords = modifiedKeywords :+ sanitizedWord
-      }
-    }
+    val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]"))
+    
     var matchQuery: Condition = noCondition()
-    for (key: String <- modifiedKeywords) {
+    for (key: String <- splitKeywords) {
       val words = key.split("\\s+")
       if (words.length > 1) {
         matchQuery = matchQuery.and(
