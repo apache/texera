@@ -62,10 +62,10 @@ import javax.annotation.security.RolesAllowed
   */
 
 object ProjectResource {
-  final private val context = SqlServer.createDSLContext()
-  final private val userProjectDao = new ProjectDao(context.configuration)
-  final private val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
-  final private val fileOfProjectDao = new FileOfProjectDao(context.configuration)
+  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val userProjectDao = new ProjectDao(context.configuration)
+  final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
+  final private lazy val fileOfProjectDao = new FileOfProjectDao(context.configuration)
 
   private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
     workflowOfProjectDao.existsById(
