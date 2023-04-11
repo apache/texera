@@ -99,7 +99,7 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty                                                        => Unit
+      case Empty                                                        => ()
       case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
       case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
         // TODO: convert real samples back from PythonUDF.
