@@ -10,12 +10,13 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
+import scala.util.{Success, Try}
 
 class PythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonProperty(
@@ -87,8 +88,9 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       OperatorGroupConstants.UDF_GROUP,
       asScalaBuffer(singletonList(new InputPort("", true))).toList,
       asScalaBuffer(singletonList(new OutputPort(""))).toList,
-      true,
-      true
+      dynamicInputPorts = true,
+      dynamicOutputPorts = true,
+      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -109,5 +111,12 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       outputSchemaBuilder.add(outputColumns.asJava).build
     }
     outputSchemaBuilder.build
+  }
+
+  override def runtimeReconfiguration(
+      newOpDesc: OperatorDescriptor,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
+    Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
   }
 }

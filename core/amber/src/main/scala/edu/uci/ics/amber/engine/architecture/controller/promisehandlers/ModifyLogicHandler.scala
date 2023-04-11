@@ -40,7 +40,7 @@ trait ModifyLogicHandler {
 
       val workerCommand = if (operator.isPythonOperator) {
         ModifyPythonOperatorLogic(
-          operator.getPythonCode,
+          msg.newOp.getPythonCode,
           isSource = operator.opExecClass.isAssignableFrom(classOf[PythonUDFSourceOpExecV2])
         )
       } else {
