@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { BreakpointTriggerInfo, ConsoleMessage } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -18,6 +18,7 @@ import { WorkflowWebsocketService } from "../../../service/workflow-websocket/wo
 export class ConsoleFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
   @ViewChild(CdkVirtualScrollViewport) viewPort?: CdkVirtualScrollViewport;
+  @ViewChild("consoleList", { read: ElementRef }) listElement?: ElementRef;
 
   // display error message:
   errorMessages?: Readonly<Record<string, string>>;
@@ -132,8 +133,13 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   displayConsoleMessages(operatorId: string): void {
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
-  }
 
+    setTimeout(() => {
+      if (this.listElement) {
+        this.listElement.nativeElement.scrollTop = this.listElement.nativeElement.scrollHeight;
+      }
+    }, 0);
+  }
   submitDebugCommand(): void {
     if (!isDefined(this.operatorId)) {
       return;
@@ -155,7 +161,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   workerIdToAbbr(workerId: string): string {
-    return "Worker-" + this.getWorkerIndex(workerId);
+    return "W" + this.getWorkerIndex(workerId);
   }
 
   getWorkerColor(workerIndex: number): string {
