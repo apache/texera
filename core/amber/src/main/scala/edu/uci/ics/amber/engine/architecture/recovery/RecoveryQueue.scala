@@ -45,7 +45,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
   }
 
   def isReplayCompleted: Boolean = {
-    val res = !records.hasNext
+    val res = !records.hasNext && nextRecordToEmit == null
     if (res && !endCallbackTriggered) {
       endCallbackTriggered = true
       callbacksOnEnd.foreach(callback => callback())
@@ -132,6 +132,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
         .take()
     } else {
       val res = nextRecordToEmit
+      nextRecordToEmit = null
       processInternalEventsTillNextControl()
       res
     }
