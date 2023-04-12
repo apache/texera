@@ -14,7 +14,7 @@ abstract class Partitioner() {
     * @param tuple ITuple to be added.
     * @return When return condition is met, return the (to: ActorVirtualIdentity, payload:
     */
-  def addTupleToBatch(tuple: ITuple): Option[(ActorVirtualIdentity, DataPayload)]
+  def addTupleToBatch(tuple: ITuple): Iterator[(ActorVirtualIdentity, DataPayload)]
 
   def noMore(): Array[(ActorVirtualIdentity, DataPayload)]
 

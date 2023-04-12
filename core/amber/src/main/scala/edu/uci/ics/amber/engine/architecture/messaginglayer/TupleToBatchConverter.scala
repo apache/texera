@@ -6,7 +6,8 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.{
   ParallelBatchingPartitioner,
   Partitioner,
   RangeBasedShufflePartitioner,
-  RoundRobinPartitioner
+  RoundRobinPartitioner,
+  BroadcastPartitioner,
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
@@ -119,6 +120,8 @@ class TupleToBatchConverter(
         HashBasedShufflePartitioner(hashBasedShufflePartitioning)
       case rangeBasedShufflePartitioning: RangeBasedShufflePartitioning =>
         RangeBasedShufflePartitioner(rangeBasedShufflePartitioning)
+      case broadcastPartitioning: BroadcastPartitioning =>
+        BroadcastPartitioner(broadcastPartitioning)
       case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
 

@@ -204,7 +204,7 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
 
   override def addTupleToBatch(
       tuple: ITuple
-  ): Option[(ActorVirtualIdentity, DataPayload)] = {
+  ): Iterator[(ActorVirtualIdentity, DataPayload)] = {
     val index = selectBatchingIndex(tuple)
     var receiver: ActorVirtualIdentity = null
     if (Constants.reshapeSkewHandlingEnabled) {
@@ -218,9 +218,9 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
       receiverToCurrBatchSize(receiver) = 0
       val retBatch = receiverToBatch(receiver)
       receiverToBatch(receiver) = new Array[ITuple](batchSize)
-      return Some((receiver, DataFrame(retBatch)))
+      return Iterator((receiver, DataFrame(retBatch)))
     }
-    None
+    Iterator()
   }
 
   override def reset(): Unit = {
