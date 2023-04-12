@@ -41,7 +41,7 @@ object AmberUtils {
 
   def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(amberConfig)
 
-  def amberConfig: Config = ConfigFactory.load("application")
+  def amberConfig: Config = ConfigFactory.load()
 
   def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 

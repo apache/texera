@@ -19,6 +19,7 @@ export class UserProjectListComponent implements OnInit {
   public userProjectEntries: UserProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
   public userProjectEntriesIsEditingDescription: number[] = [];
+  public collapsedProjectDescriptions: number[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
 
@@ -29,6 +30,7 @@ export class UserProjectListComponent implements OnInit {
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
 
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
+  public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
 
   constructor(
     private userProjectService: UserProjectService,
@@ -73,6 +75,10 @@ export class UserProjectListComponent implements OnInit {
     this.userProjectEntriesIsEditingDescription = this.userProjectEntriesIsEditingDescription.filter(
       index => index != pid
     );
+  }
+
+  public removeCollapsedProjectDescriptionStatus(pid: number) {
+    this.collapsedProjectDescriptions = this.collapsedProjectDescriptions.filter(index => index != pid);
   }
 
   public saveProjectDescription(project: UserProject, newDescr: string, index: number): void {

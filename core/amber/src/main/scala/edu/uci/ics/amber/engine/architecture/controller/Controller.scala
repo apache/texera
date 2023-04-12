@@ -180,7 +180,7 @@ class Controller(
           }
           logger.info("Global Recovery: triggering worker respawn")
           infoIter.foreach { info =>
-            val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+            val ref = workflow.getOperator(info.id).recover(info.id, deployNodes.head, context)
             logger.info("Global Recovery: respawn " + info.id)
             val vidSet = infoIter.map(_.id).toSet
             // wait for some secs to re-send output

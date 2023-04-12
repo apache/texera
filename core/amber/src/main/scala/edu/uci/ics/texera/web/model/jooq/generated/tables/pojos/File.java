@@ -17,9 +17,9 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File implements IFile {
 
-    private static final long serialVersionUID = 822479773;
+    private static final long serialVersionUID = 1773920374;
 
-    private UInteger  uid;
+    private UInteger  ownerUid;
     private UInteger  fid;
     private UInteger  size;
     private String    name;
@@ -30,7 +30,7 @@ public class File implements IFile {
     public File() {}
 
     public File(IFile value) {
-        this.uid = value.getUid();
+        this.ownerUid = value.getOwnerUid();
         this.fid = value.getFid();
         this.size = value.getSize();
         this.name = value.getName();
@@ -40,7 +40,7 @@ public class File implements IFile {
     }
 
     public File(
-        UInteger  uid,
+        UInteger  ownerUid,
         UInteger  fid,
         UInteger  size,
         String    name,
@@ -48,7 +48,7 @@ public class File implements IFile {
         String    description,
         Timestamp uploadTime
     ) {
-        this.uid = uid;
+        this.ownerUid = ownerUid;
         this.fid = fid;
         this.size = size;
         this.name = name;
@@ -58,13 +58,13 @@ public class File implements IFile {
     }
 
     @Override
-    public UInteger getUid() {
-        return this.uid;
+    public UInteger getOwnerUid() {
+        return this.ownerUid;
     }
 
     @Override
-    public void setUid(UInteger uid) {
-        this.uid = uid;
+    public void setOwnerUid(UInteger ownerUid) {
+        this.ownerUid = ownerUid;
     }
 
     @Override
@@ -131,7 +131,7 @@ public class File implements IFile {
     public String toString() {
         StringBuilder sb = new StringBuilder("File (");
 
-        sb.append(uid);
+        sb.append(ownerUid);
         sb.append(", ").append(fid);
         sb.append(", ").append(size);
         sb.append(", ").append(name);
@@ -149,7 +149,7 @@ public class File implements IFile {
 
     @Override
     public void from(IFile from) {
-        setUid(from.getUid());
+        setOwnerUid(from.getOwnerUid());
         setFid(from.getFid());
         setSize(from.getSize());
         setName(from.getName());
