@@ -39,7 +39,8 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
 
   private val keywordInWorkflow1Content = "keyword_in_workflow1_content"
 
-  private val exampleContent = "{\"x\":5,\"y\":\"" + keywordInWorkflow1Content + "\",\"z\":\"text phrases\"}"
+  private val exampleContent =
+    "{\"x\":5,\"y\":\"" + keywordInWorkflow1Content + "\",\"z\":\"text phrases\"}"
 
   private val testWorkflow1: Workflow = {
     val workflow = new Workflow()
@@ -129,11 +130,13 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     // search
-    var DashboardWorkflowEntryList = workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
+    var DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
     assert(DashboardWorkflowEntryList.head.ownerName.equals(testUser.getName))
     assert(DashboardWorkflowEntryList.length == 1)
     assertSameWorkflow(testWorkflow1, DashboardWorkflowEntryList.head)
-    DashboardWorkflowEntryList = workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
+    DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
     assert(DashboardWorkflowEntryList.head.ownerName.equals(testUser.getName))
     assert(DashboardWorkflowEntryList.length == 1)
     assertSameWorkflow(testWorkflow1, DashboardWorkflowEntryList.head)
@@ -143,7 +146,8 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     // populate sample workflow data
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
-    val DashboardWorkflowEntryList = workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
+    val DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
     assert(DashboardWorkflowEntryList.length == 1)
     assertSameWorkflow(testWorkflow1, DashboardWorkflowEntryList.head)
   }
@@ -197,7 +201,8 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
 
     def test(user: SessionUser, workflow: Workflow): Unit = {
       // search with reserved characters in keywords
-      val DashboardWorkflowEntryList = workflowResource.searchWorkflows(user, getKeywordsArray(workflow.getDescription))
+      val DashboardWorkflowEntryList =
+        workflowResource.searchWorkflows(user, getKeywordsArray(workflow.getDescription))
       assert(DashboardWorkflowEntryList.size == 1)
       assert(DashboardWorkflowEntryList.head.ownerName.equals(user.getName()))
       assertSameWorkflow(workflow, DashboardWorkflowEntryList.head)
@@ -209,7 +214,8 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
   it should "search for keywords containing special characters" in {
     workflowResource.persistWorkflow(testWorkflowWithSpecialCharacters, sessionUser1)
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
-    val DashboardWorkflowEntryList = workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(exampleEmailAddress))
+    val DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(exampleEmailAddress))
     assert(DashboardWorkflowEntryList.size == 1)
     assertSameWorkflow(testWorkflowWithSpecialCharacters, DashboardWorkflowEntryList.head)
   }
