@@ -259,10 +259,6 @@ class JobResultService(
           (id, OperatorResultMetadata(count, changeDetector))
       }.toMap
       oldState.withOperatorInfo(newInfo)
-//      oldState.withOperatorInfo(progressiveResults.map {
-//        case (id, service) =>
-//          (id, OperatorResultMetadata(service.sink.getStorage.getCount.toInt))
-//      }.toMap)
     }
   }
 
