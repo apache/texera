@@ -109,6 +109,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
 
   private def processInternalEventsTillNextControl(): Unit = {
     var stop = false
+    step = 0
     while (records.hasNext && !stop) {
       records.next() match {
         case StepDelta(steps) =>
