@@ -18,4 +18,5 @@ message WorkflowResultStore{
 
 message OperatorResultMetadata{
   int32 tuple_count = 1;
+  string change_detector = 2;
 }

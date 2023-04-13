@@ -20,12 +20,14 @@ import edu.uci.ics.texera.web.workflowresultstate.OperatorResultMetadata
 import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
+import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
+import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
@@ -246,10 +248,17 @@ class JobResultService(
 
   def onResultUpdate(): Unit = {
     workflowStateStore.resultStore.updateState { oldState =>
-      oldState.withOperatorInfo(progressiveResults.map {
+      val newInfo: Map[String, OperatorResultMetadata] = progressiveResults.map {
         case (id, service) =>
-          (id, OperatorResultMetadata(service.sink.getStorage.getCount.toInt))
-      }.toMap)
+          val count = service.sink.getStorage.getCount.toInt
+          val mode = service.sink.getOutputMode
+          val changeDetector =
+            if (mode == IncrementalOutputMode.SET_SNAPSHOT) {
+              UUID.randomUUID.toString
+            } else ""
+          (id, OperatorResultMetadata(count, changeDetector))
+      }.toMap
+      oldState.withOperatorInfo(newInfo)
     }
   }
 

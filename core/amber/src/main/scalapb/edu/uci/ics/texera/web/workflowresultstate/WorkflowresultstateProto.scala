@@ -21,8 +21,9 @@ object WorkflowresultstateProto extends _root_.scalapb.GeneratedFileObject {
   WNpLmljcy50ZXhlcmEud2ViLldvcmtmbG93UmVzdWx0U3RvcmUuT3BlcmF0b3JJbmZvRW50cnlCEeI/DhIMb3BlcmF0b3JJbmZvU
   gxvcGVyYXRvckluZm8ahQEKEU9wZXJhdG9ySW5mb0VudHJ5EhoKA2tleRgBIAEoCUII4j8FEgNrZXlSA2tleRJQCgV2YWx1ZRgCI
   AEoCzIuLmVkdS51Y2kuaWNzLnRleGVyYS53ZWIuT3BlcmF0b3JSZXN1bHRNZXRhZGF0YUIK4j8HEgV2YWx1ZVIFdmFsdWU6AjgBI
-  koKFk9wZXJhdG9yUmVzdWx0TWV0YWRhdGESMAoLdHVwbGVfY291bnQYASABKAVCD+I/DBIKdHVwbGVDb3VudFIKdHVwbGVDb3Vud
-  EIJ4j8GSABYAHgAYgZwcm90bzM="""
+  ogBChZPcGVyYXRvclJlc3VsdE1ldGFkYXRhEjAKC3R1cGxlX2NvdW50GAEgASgFQg/iPwwSCnR1cGxlQ291bnRSCnR1cGxlQ291b
+  nQSPAoPY2hhbmdlX2RldGVjdG9yGAIgASgJQhPiPxASDmNoYW5nZURldGVjdG9yUg5jaGFuZ2VEZXRlY3RvckIJ4j8GSABYAHgAY
+  gZwcm90bzM="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
