@@ -5,7 +5,7 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member}
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
+import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
 import edu.uci.ics.texera.web.service.WorkflowService
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.ABORTED
 
@@ -51,7 +51,7 @@ class ClusterListener extends Actor with AmberLogging {
 
   private def updateClusterStatus(evt: MemberEvent): Unit = {
     evt match {
-      case MemberRemoved(member, previousStatus) =>
+      case MemberExited(member) =>
         logger.info("Cluster node " + member + " is down! Trigger recovery process.")
         val futures = new ArrayBuffer[Future[Any]]
         WorkflowService.getAllWorkflowService.foreach { workflow =>
