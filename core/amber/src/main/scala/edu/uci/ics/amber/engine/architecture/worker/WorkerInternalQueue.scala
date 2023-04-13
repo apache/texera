@@ -111,21 +111,21 @@ class WorkerInternalQueue(
   }
 
   def getElement: InternalQueueElement = {
-    if (recoveryQueue.isReplayCompleted) {
-      val elem = lbmq.take()
-      if (Constants.flowControlEnabled) {
-        elem match {
-          case InputTuple(from, _) =>
-            inputTuplesTakenOutOfQueue(from) =
-              inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + 1
-          case _ =>
-          // do nothing
-        }
-      }
-      elem
+    val elem = if (recoveryQueue.isReplayCompleted) {
+      lbmq.take()
     } else {
       recoveryQueue.get()
     }
+    if (Constants.flowControlEnabled) {
+      elem match {
+        case InputTuple(from, _) =>
+          inputTuplesTakenOutOfQueue(from) =
+            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + 1
+        case _ =>
+        // do nothing
+      }
+    }
+    elem
   }
 
   def getDataQueueLength: Int = dataQueues.values.map(q => q.size()).sum

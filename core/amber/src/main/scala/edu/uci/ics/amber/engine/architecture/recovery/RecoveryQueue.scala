@@ -126,6 +126,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
   }
 
   def get(): InternalQueueElement = {
+    step -= 1
     if (step > 0) {
       //wait until input[targetVId] available
       inputMapping
