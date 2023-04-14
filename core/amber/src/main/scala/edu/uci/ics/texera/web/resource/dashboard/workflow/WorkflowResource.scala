@@ -2,33 +2,14 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT,
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
-  DashboardWorkflowEntry,
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
+import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
@@ -465,26 +446,35 @@ class WorkflowResource {
       return List.empty[DashboardWorkflowEntry]
     }
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
-    val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]"))
-
+    val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
+    println("keywords: " + splitKeywords)
     var matchQuery: Condition = noCondition()
     for (key: String <- splitKeywords) {
-      val words = key.split("\\s+")
-      def getSearchQuery(subStringSearchEnabled: Boolean): String =
-        "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}" +
-          (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) OR " +
-          "MATCH(texera_db.user.name) AGAINST (+{0}" +
-          (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) " +
-          "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}" +
-          (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode))"
-      if (words.length == 1) {
-        // Use "*" to enable sub-string search.
-        matchQuery = matchQuery.and(getSearchQuery(true), key)
-      } else {
-        // When the search query contains multiple words, sub-string search is not supported by MySQL.
-        matchQuery = matchQuery.and(getSearchQuery(false), '"' + key + '"')
-      }
+      if (key != "") {
+        val words = key.split("\\s+")
 
+        def getSearchQuery(subStringSearchEnabled: Boolean): String =
+          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}" +
+            (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) OR " +
+            "MATCH(texera_db.user.name) AGAINST (+{0}" +
+            (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) " +
+            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}" +
+            (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode))"
+
+        if (words.length == 1) {
+          // Use "*" to enable sub-string search.
+          matchQuery = matchQuery.and(getSearchQuery(true), key)
+        } else {
+          // When the search query contains multiple words, sub-string search is not supported by MySQL.
+          matchQuery = matchQuery.and(getSearchQuery(false), '"' + key + '"')
+        }
+      }
+    }
+
+    // When input contains only reserved keywords like "+-()<>~*\""
+    // the api should return empty list
+    if (matchQuery == DSL.noCondition()) {
+      return List.empty[DashboardWorkflowEntry]
     }
     val workflowEntries = context
       .select(
