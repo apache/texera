@@ -26,6 +26,16 @@ trait MockTexeraDB {
     }
   }
 
+  def getDBInstance: DB = {
+    dbInstance match {
+      case Some(value) => value
+      case None =>
+        throw new RuntimeException(
+          "test database is not initialized. Did you call initializeDBAndReplaceDSLContext()?"
+        )
+    }
+  }
+
   def shutdownDB(): Unit = {
     dbInstance match {
       case Some(value) =>
@@ -46,6 +56,7 @@ trait MockTexeraDB {
       Utils.amberHomePath.resolve("../scripts/sql/texera_ddl.sql").toRealPath()
     }
     val content = new String(Files.readAllBytes(ddlPath), StandardCharsets.UTF_8)
+
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
       .addArg("--default-time-zone=-8:00")
