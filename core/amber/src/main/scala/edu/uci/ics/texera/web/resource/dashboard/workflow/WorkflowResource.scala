@@ -465,9 +465,10 @@ class WorkflowResource {
     if (keywords.size() == 0) {
       return List.empty[DashboardWorkflowEntry]
     }
+    //check if fulltext indexes exist
+
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
-    println("keywords: " + splitKeywords)
     var matchQuery: Condition = noCondition()
     for (key: String <- splitKeywords) {
       if (key != "") {
@@ -496,60 +497,70 @@ class WorkflowResource {
     if (matchQuery == DSL.noCondition()) {
       return List.empty[DashboardWorkflowEntry]
     }
-    val workflowEntries = context
-      .select(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.DESCRIPTION,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
-        USER.NAME,
-        groupConcat(PROJECT.PID).as("projects")
-      )
-      .from(WORKFLOW)
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .join(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(PROJECT)
-      .on(PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
-      .where(matchQuery)
-      .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.DESCRIPTION,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
-        USER.NAME
-      )
-      .fetch()
-
-    workflowEntries
-      .map(workflowRecord =>
-        DashboardWorkflowEntry(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ).toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component10() == null) List[UInteger]()
-          else
-            workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+    try {
+      val workflowEntries = context
+        .select(
+          WORKFLOW.WID,
+          WORKFLOW.NAME,
+          WORKFLOW.DESCRIPTION,
+          WORKFLOW.CREATION_TIME,
+          WORKFLOW.LAST_MODIFIED_TIME,
+          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_OF_USER.UID,
+          USER.NAME,
+          groupConcat(PROJECT.PID).as("projects")
         )
-      )
-      .toList
+        .from(WORKFLOW)
+        .leftJoin(WORKFLOW_USER_ACCESS)
+        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+        .leftJoin(WORKFLOW_OF_USER)
+        .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+        .join(USER)
+        .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+        .leftJoin(WORKFLOW_OF_PROJECT)
+        .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+        .leftJoin(PROJECT)
+        .on(PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
+        .where(matchQuery)
+        .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+        .groupBy(
+          WORKFLOW.WID,
+          WORKFLOW.NAME,
+          WORKFLOW.DESCRIPTION,
+          WORKFLOW.CREATION_TIME,
+          WORKFLOW.LAST_MODIFIED_TIME,
+          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_OF_USER.UID,
+          USER.NAME
+        )
+        .fetch()
+
+      workflowEntries
+        .map(workflowRecord =>
+          DashboardWorkflowEntry(
+            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+            toAccessLevel(
+              workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+            ).toString,
+            workflowRecord.into(USER).getName,
+            workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+            if (workflowRecord.component10() == null) List[UInteger]()
+            else
+              workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+          )
+        )
+        .toList
+
+    } catch {
+      case e: Exception =>
+        println(
+          "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?"
+        )
+        // return a empty list
+        List[DashboardWorkflowEntry]()
+    }
   }
 
 }
