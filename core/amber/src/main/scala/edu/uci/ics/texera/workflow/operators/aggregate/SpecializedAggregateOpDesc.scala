@@ -38,7 +38,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     }
     AggregateOpDesc.opExecPhysicalPlan(
       operatorIdentifier,
-      aggregations.map(agg => agg.getAggFunc()),
+      aggregations.map(agg => agg.getAggFunc(operatorSchemaInfo.inputSchemas(0))),
       groupByKeys,
       operatorSchemaInfo
     )
@@ -51,13 +51,6 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     Schema
       .newBuilder()
       .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
-      .build()
-  }
-
-  private def getFinalAggValueSchema: Schema = {
-    Schema
-      .newBuilder()
-      .add(aggregations.map(_.getAggregationAttribute).asJava)
       .build()
   }
 
@@ -79,7 +72,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     Schema
       .newBuilder()
       .add(getGroupByKeysSchema(schemas).getAttributes)
-      .add(getFinalAggValueSchema.getAttributes)
+      .add(aggregations.map(agg => agg.getAggregationAttribute(schemas(0))).asJava)
       .build()
   }
 
