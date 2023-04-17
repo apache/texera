@@ -23,7 +23,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Search Query")
-  @JsonSchemaDescription("Up to 1024 characters")
+  @JsonSchemaDescription("Up to 1024 characters (Limited By Twitter)")
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var searchQuery: String = _
 
