@@ -11,10 +11,10 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{
-
-  OperatorDescriptor
-, StateTransferFunc}
-import edu.uci.ics.texera.workflow.common.operators.CustomPortOperatorDescriptor
+  CustomPortOperatorDescriptor,
+  OperatorDescriptor,
+  StateTransferFunc
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
