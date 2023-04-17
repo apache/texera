@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
 DROP TABLE IF EXISTS `project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
+DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
 
