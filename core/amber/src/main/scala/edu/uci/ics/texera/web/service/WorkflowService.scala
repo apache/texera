@@ -65,9 +65,7 @@ class WorkflowService(
 ) extends SubscriptionManager
     with LazyLogging {
   // state across execution:
-  var opResultStorage: OpResultStorage = new OpResultStorage(
-    AmberUtils.amberConfig.getString("storage.mode").toLowerCase
-  )
+  var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val errorHandler: Throwable => Unit = { t =>
     {

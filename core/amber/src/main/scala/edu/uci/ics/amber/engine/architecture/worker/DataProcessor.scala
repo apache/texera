@@ -231,6 +231,7 @@ class DataProcessor( // dependencies:
   private[this] def internalQueueElementHandler(
       internalQueueElement: InternalQueueElement
   ): Unit = {
+    logManager.getDeterminantLogger.stepIncrement()
     internalQueueElement match {
       case InputTuple(from, tuple) =>
         if (stateManager.getCurrentState == READY) {
