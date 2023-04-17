@@ -12,8 +12,7 @@ import scala.jdk.CollectionConverters.asScalaIteratorConverter
 class TextScanSourceOpExec private[text] (
     val desc: TextScanSourceOpDesc,
     val startOffset: Int,
-    val endOffset: Int,
-    val outputAsSingleTuple: Boolean
+    val endOffset: Int
 ) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedReader = _
@@ -22,7 +21,7 @@ class TextScanSourceOpExec private[text] (
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (outputAsSingleTuple) {
+    if (desc.outputAsSingleTuple) {
       Iterator(
         Tuple
           .newBuilder(schema)
@@ -45,7 +44,7 @@ class TextScanSourceOpExec private[text] (
 
   override def open(): Unit = {
     schema = desc.inferSchema()
-    if (outputAsSingleTuple) {
+    if (desc.outputAsSingleTuple) {
       path = Paths.get(desc.filePath.get)
     } else {
       reader = new BufferedReader(new FileReader(desc.filePath.get))
@@ -54,5 +53,5 @@ class TextScanSourceOpExec private[text] (
   }
 
   // in outputAsSingleTuple mode, Files.readAllBytes handles the closing of file
-  override def close(): Unit = if (!outputAsSingleTuple) reader.close()
+  override def close(): Unit = if (!desc.outputAsSingleTuple) reader.close()
 }
