@@ -28,7 +28,7 @@ import scala.collection.JavaConverters.asScalaBuffer
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text Input")
-  @JsonSchemaDescription("Up to 1024 characters")
+  @JsonSchemaDescription("Up to 1024 characters.  Example input : \"line1\\nline2\\nline3\" ")
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   @Size(max = 1024)
   var textInput: String = _
