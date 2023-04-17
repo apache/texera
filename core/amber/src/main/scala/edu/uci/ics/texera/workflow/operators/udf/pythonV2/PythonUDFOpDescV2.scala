@@ -18,7 +18,6 @@ import edu.uci.ics.texera.workflow.common.operators.CustomPortOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
-import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
