@@ -84,7 +84,7 @@ trait StateTransferFunc
     // new Type(value = classOf[ParallelCSVScanSourceOpDesc], name = "ParallelCSVFileScan"),
     new Type(value = classOf[JSONLScanSourceOpDesc], name = "JSONLFileScan"),
     new Type(value = classOf[TextScanSourceOpDesc], name = "TextFileScan"),
-    new Type(value = classOf[TextInputSourceOpDesc], name = "TextInputScan"),
+    new Type(value = classOf[TextInputSourceOpDesc], name = "TextInput"),
     new Type(
       value = classOf[TwitterFullArchiveSearchSourceOpDesc],
       name = "TwitterFullArchiveSearch"

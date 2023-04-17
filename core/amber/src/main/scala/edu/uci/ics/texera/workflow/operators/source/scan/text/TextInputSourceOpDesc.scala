@@ -56,8 +56,8 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
-      userFriendlyName = "Text Input Scan",
-      operatorDescription = "Scan data from manually inputted text",
+      userFriendlyName = "Text Input",
+      operatorDescription = "Source data from manually inputted text",
       OperatorGroupConstants.SOURCE_GROUP,
       List.empty,
       asScalaBuffer(singletonList(OutputPort(""))).toList
