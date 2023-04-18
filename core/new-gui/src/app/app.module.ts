@@ -118,6 +118,7 @@ import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
+import { FileSaverService } from "./dashboard/service/user-file/file-saver.service";
 
 registerLocaleData(en);
 
@@ -254,6 +255,7 @@ registerLocaleData(en);
     UserService,
     UserFileService,
     UserFileUploadService,
+    FileSaverService,
     { provide: NZ_I18N, useValue: en_US },
     {
       provide: HTTP_INTERCEPTORS,
