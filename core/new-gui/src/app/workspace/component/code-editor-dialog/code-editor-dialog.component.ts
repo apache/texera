@@ -193,11 +193,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 }
 
-/**
- * should refactor this, as this is not the right place to create a websocket connection.
- * putting this now, so the new features of enhanced-python-udf can branch off from this
- * one and start working parallely.
- *  */
 const WEB_SOCKET_HOST = "localhost";
 const PYTHON_LANGUAGE_SERVER = "/python-language-server";
 const LANGUAGE_SERVER_PORT = 3000;

@@ -5,3 +5,5 @@ then
 else
     sbt "runMain edu.uci.ics.texera.web.TexeraWebApplication" 
 fi
+pylsp --ws --port 3000
+
