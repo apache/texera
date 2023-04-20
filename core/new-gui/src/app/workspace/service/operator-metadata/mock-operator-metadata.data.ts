@@ -332,35 +332,47 @@ export const mockBreakpointSchema: BreakpointSchema = {
 export const mockPortSchema: PortSchema = {
   jsonSchema: {
     type: "object",
-    oneOf: [
-      {
-        title: "none",
-        properties: {
-          type: { const: "none" },
-        },
+    properties: {
+      partitionInfo: {
+        type: "object",
+        oneOf: [
+          {
+            title: "none",
+            properties: {
+              type: { const: "none" },
+            },
+          },
+          {
+            title: "hash",
+            properties: {
+              type: { const: "hash" },
+              hashColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+            },
+          },
+          {
+            title: "range",
+            properties: {
+              type: { const: "range" },
+              rangeColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              rangeMin: { type: "integer", title: "range min" },
+              rangeMax: { type: "integer", title: "range max" },
+            },
+          },
+          {
+            title: "single",
+            properties: {
+              type: { const: "single" },
+            },
+          },
+        ],
+        title: "partition info",
       },
-      {
-        title: "hash",
-        properties: {
-          type: { const: "hash" },
-          hashColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
-        },
+      dependencies: {
+        type: "array",
+        items: { type: "integer" },
+        title: "dependencies",
       },
-      {
-        title: "range",
-        properties: {
-          type: { const: "range" },
-          rangeColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
-          rangeMin: { type: "integer", title: "range min" },
-          rangeMax: { type: "integer", title: "range max" },
-        },
-      },
-      {
-        title: "single",
-        properties: {
-          type: { const: "single" },
-        },
-      },
-    ],
+    },
+    required: ["partitionInfo"],
   },
 };

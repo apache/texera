@@ -16,6 +16,7 @@ import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import { mockPortSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -52,7 +53,11 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
     this.checkPort(data)
   );
 
-  constructor(private formlyJsonschema: FormlyJsonschema, private workflowActionService: WorkflowActionService) {}
+  constructor(
+    private formlyJsonschema: FormlyJsonschema,
+    private workflowActionService: WorkflowActionService,
+    private dynamicSchemaService: DynamicSchemaService
+  ) {}
 
   ngOnInit(): void {
     this.registerPortPropertyChangeHandler();
@@ -115,9 +120,15 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
       .getTexeraGraph()
       .getPortDescription(operatorPortID) as PortDescription;
     this.formTitle = portDescriptor.displayName;
-    if (!this.currentPortID.operatorID.includes("PythonUDF")) return;
+    const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentPortID.operatorID);
+    // Only specific types of operators and input ports can have the following customization.
+    if (!(currentOperatorSchema.additionalMetadata.allowPortCustomization && portDescriptor.portID.includes("input")))
+      return;
 
-    const portInfo = portDescriptor?.partitionRequirement;
+    const portInfo = {
+      partitionInfo: portDescriptor?.partitionRequirement,
+      dependencies: portDescriptor?.dependencies,
+    };
     this.formData = portInfo !== undefined ? cloneDeep(portInfo) : {};
     const portSchema = mockPortSchema.jsonSchema;
     this.setFormlyFormBinding(portSchema);

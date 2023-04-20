@@ -356,7 +356,10 @@ export class SharedModelChangeHandler {
             operatorID: operatorID,
             portID: newPortDescription.portID,
           },
-          newProperty: newPortDescription.partitionRequirement as PartitionInfo,
+          newProperty: {
+            partitionInfo: newPortDescription.partitionRequirement as PartitionInfo,
+            dependencies: newPortDescription.dependencies as number[],
+          },
         });
       } else {
         throw new Error(`undefined port operation on shared type: .${event}`);

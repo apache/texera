@@ -48,7 +48,7 @@ export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
         const yArray = new Y.Array();
         // Create YType for each array item and push
         for (const item of obj as any) {
-          if (item) yArray.push([createYTypeFromObject(item) as unknown]);
+          if (item !== undefined) yArray.push([createYTypeFromObject(item) as unknown]);
         }
         return yArray as unknown as YType<T>;
       } else if (objType === "Object") {

@@ -28,6 +28,8 @@ export interface PortSchema
     jsonSchema: Readonly<JSONSchema7>;
   }> {}
 
+export interface PortProperty extends Readonly<{ partitionInfo: PartitionInfo; dependencies: number[] }> {}
+
 export interface PortDescription
   extends Readonly<{
     portID: string;
