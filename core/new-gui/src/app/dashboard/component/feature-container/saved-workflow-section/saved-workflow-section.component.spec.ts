@@ -303,6 +303,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchNoInput", async () => {
+    // When no search input is provided, it should show all workflows.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -315,6 +316,8 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByWorkflowName", async () => {
+    // If the name "workflow 5" is entered as a single phrase, only workflow 5 should be returned, rather
+    // than all containing the keyword "workflow".
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -327,6 +330,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByOwners", async () => {
+    // If the owner filter is applied, only those workflow ownered by that user should be returned.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -340,6 +344,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByIDs", async () => {
+    // If the ID filter is applied, only those workflows should be returned.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -355,6 +360,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByProjects", async () => {
+    // If the project filter is applied, only those workflows belonging to those projects should be returned.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -368,6 +374,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByCreationTime", async () => {
+    // If the creation time filter is applied, only those workflows matching the date range should be returned.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -381,6 +388,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByModifyTime", async () => {
+    // If the modified time filter is applied, only those workflows matching the date range should be returned.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -405,6 +413,7 @@ describe("SavedWorkflowSectionComponent", () => {
    *   - See searchByManyOperators test
    */
   it("searchByOperators", async () => {
+    // If a single operator filter is provided, only the workflows containing that operator should be returned.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -421,6 +430,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByManyOperators", async () => {
+    // If a multiple operator filters are provided, workflows containing any of the provided operators should be returned.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -440,6 +450,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByManyParameters", async () => {
+    // Apply the project, ID, owner, and operator filter all at once.
     component.dashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = [];
     component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
@@ -483,6 +494,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("sends http request to backend to retrieve export json", () => {
+    // Test the workflow download button.
     component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledOnceWith(
       new Blob([JSON.stringify(testWorkflowEntries[0].workflow.content)], { type: "text/plain;charset=utf-8" }),
@@ -491,6 +503,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("adds selected workflow to the downloadListWorkflow", () => {
+    // Test workflow download with multiple workflows selected.
     component.dashboardWorkflowEntries = [];
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.onClickAddToDownload(testWorkflowEntries[0], checked);
@@ -500,6 +513,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("remove unchecked workflow from the downloadListWorkflow", () => {
+    // Allow removal of items in the pending download list.
     component.dashboardWorkflowEntries = [];
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.onClickAddToDownload(testWorkflowEntries[0], checked);
@@ -511,6 +525,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("detects conflict filename and resolves it", () => {
+    // If multiple workflows in a single batch download have name conflicts, rename them as workflow-1, workflow-2, etc.
     component.dashboardWorkflowEntries = [];
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowFileNameConflictEntries);
     component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], checked);
@@ -586,8 +601,7 @@ describe("SavedWorkflowSectionComponent", () => {
   }));
 
   function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
-    // editableDescriptionInput.dispatchEvent(new Event("focus"));
-    // fixture.detectChanges();
+    // Helper function to change the workflow description textbox.
     editableDescriptionInput.value = text;
     editableDescriptionInput.dispatchEvent(new Event("input"));
     fixture.detectChanges();
