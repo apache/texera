@@ -2,7 +2,7 @@ import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/cor
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { remove } from "lodash-es";
-import { from, Observable, map } from "rxjs";
+import { from, Observable, map, firstValueFrom } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -26,15 +26,14 @@ import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "src/app/common/app-setting";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
-import { saveAs } from "file-saver";
 import * as JSZip from "jszip";
+import { FileSaverService } from "src/app/dashboard/service/user-file/file-saver.service";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 export const WORKFLOW_BASE_URL = "workflow";
-export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
 export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
@@ -148,7 +147,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     private notificationService: NotificationService,
     private operatorMetadataService: OperatorMetadataService,
     private modalService: NgbModal,
-    private router: Router
+    private router: Router,
+    private fileSaverService: FileSaverService
   ) {}
 
   ngOnInit() {
@@ -225,7 +225,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
           };
           const workflowJson = JSON.stringify(workflowCopy.content);
           const fileName = workflowCopy.name + ".json";
-          saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
+          this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
         });
     }
   }
@@ -331,23 +331,23 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * updates selectedOwners array to match owners checked in dropdown menu
    */
-  public updateSelectedOwners(): void {
+  public async updateSelectedOwners(): Promise<void> {
     this.selectedOwners = this.owners.filter(owner => owner.checked).map(owner => owner.userName);
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
    * updates selectedIDs array to match worfklow ids checked in dropdown menu
    */
-  public updateSelectedIDs(): void {
+  public async updateSelectedIDs(): Promise<void> {
     this.selectedIDs = this.wids.filter(wid => wid.checked).map(wid => wid.id);
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
    * updates selectedOperators array to match operators checked in dropdown menu
    */
-  public updateSelectedOperators(): void {
+  public async updateSelectedOperators(): Promise<void> {
     const filteredOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
     Array.from(this.operators.values())
       .flat()
@@ -361,19 +361,19 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         }
       });
     this.selectedOperators = filteredOperators;
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
    * updates selectedProjects array to match projects checked in dropdown menu
    */
-  public updateSelectedProjects(): void {
+  public async updateSelectedProjects(): Promise<void> {
     this.selectedProjects = this.userProjectsDropdown
       .filter(proj => proj.checked)
       .map(proj => {
         return { name: proj.name, pid: proj.pid };
       });
-    this.searchWorkflow();
+    await this.searchWorkflow();
   }
 
   /**
@@ -597,46 +597,87 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * search value Format (must follow this):
    *  - WORKFLOWNAME owner:OWNERNAME(S) id:ID(S) operator:OPERATOR(S)
    */
-  public searchWorkflow(): void {
+  public async searchWorkflow(): Promise<void> {
     this.buildMasterFilterList();
     if (this.masterFilterList.length === 0) {
       //if there are no tags, return all workflow entries
       this.dashboardWorkflowEntries = this.allDashboardWorkflowEntries;
       return;
     }
-    if (this.selectedOperators.length > 0) {
-      this.asyncSearch();
-    } else {
-      this.dashboardWorkflowEntries = this.synchronousSearch([]);
-    }
+    this.dashboardWorkflowEntries = await this.search();
   }
 
-  /**
-   * backend search that is called if operators are included in search value
-   */
-  private asyncSearch() {
-    let andPathQuery: Object[] = [];
-    this.retrieveWorkflowByOperator(this.selectedOperators.map(operator => operator.operatorType).toString())
-      .pipe(untilDestroyed(this))
-      .subscribe(list_of_wids => {
-        andPathQuery.push({ $or: this.buildOrPathQuery("id", list_of_wids, true) });
-        this.dashboardWorkflowEntries = this.synchronousSearch(andPathQuery);
-      });
+  private async asyncSearch(): Promise<number[] | "NoSearchKeywordProvided"> {
+    const idsFromOperatorSearch = await this.asyncSearchByOperator();
+    const idsFromKeywordSearch = await this.asyncSearchByKeywords();
+    if (idsFromOperatorSearch == "NoSearchKeywordProvided" && idsFromKeywordSearch == "NoSearchKeywordProvided") {
+      return "NoSearchKeywordProvided";
+    } else if (
+      idsFromOperatorSearch != "NoSearchKeywordProvided" &&
+      idsFromKeywordSearch != "NoSearchKeywordProvided"
+    ) {
+      var intersection = new Set<number>();
+      var idsFromKeywordSearchSet = new Set<number>(idsFromKeywordSearch);
+      for (var x of idsFromOperatorSearch) {
+        if (idsFromKeywordSearchSet.has(x)) {
+          intersection.add(x);
+        }
+      }
+      return [...intersection];
+    } else if (idsFromOperatorSearch != "NoSearchKeywordProvided") {
+      return idsFromOperatorSearch;
+    } else if (idsFromKeywordSearch != "NoSearchKeywordProvided") {
+      return idsFromKeywordSearch;
+    }
+    throw new Error("Unreachable code.");
+  }
+
+  private async asyncSearchByOperator(): Promise<number[] | "NoSearchKeywordProvided"> {
+    if (this.selectedOperators.length == 0) {
+      return "NoSearchKeywordProvided";
+    }
+    return (
+      await firstValueFrom(
+        this.workflowPersistService.retrieveWorkflowByOperator(
+          this.selectedOperators.map(operator => operator.operatorType).toString()
+        )
+      )
+    ).map(id => Number(id));
+  }
+
+  private async asyncSearchByKeywords(): Promise<number[] | "NoSearchKeywordProvided"> {
+    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+    if (workflowNames.length == 0) {
+      return "NoSearchKeywordProvided";
+    }
+    const workflowsFromSearch = await firstValueFrom(
+      this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
+    );
+
+    // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
+    // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
+    return workflowsFromSearch.map(w => w.workflow.wid).filter((id): id is number => Boolean(id));
   }
 
   /**
    * Searches workflows with given frontend data
    * no backend calls so runs synchronously
    */
-  private synchronousSearch(andPathQuery: Object[]): ReadonlyArray<DashboardWorkflowEntry> {
+  private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
     let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
+    let andPathQuery: Object[] = [];
 
-    //builds andPathQuery from arrays containing selected values
-    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-
-    if (workflowNames.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("workflowName", workflowNames) });
+    const asyncSearchResult = await this.asyncSearch();
+    if (asyncSearchResult != "NoSearchKeywordProvided") {
+      andPathQuery.push({
+        $or: this.buildOrPathQuery(
+          "id",
+          asyncSearchResult.map(id => id.toString()),
+          true
+        ),
+      });
     }
+
     if (this.selectedOwners.length !== 0) {
       andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
     }
@@ -666,14 +707,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         }
       });
     }
+    //console.log(" we return search output " + JSON.stringify(searchOutput));
     return searchOutput;
-  }
-
-  /**
-   * retrieves the workflow ids of workflows with the operator(s) specified
-   */
-  public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
   }
 
   /**
@@ -1127,12 +1162,11 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   /**
    * Download selected workflow as zip file
    */
-  public onClickOpenDownloadZip() {
+  public async onClickOpenDownloadZip() {
     let dateTime = new Date();
     let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
-    this.zip.generateAsync({ type: "blob" }).then(function (content) {
-      saveAs(content, filename);
-    });
+    const content = await this.zip.generateAsync({ type: "blob" });
+    this.fileSaverService.saveAs(content, filename);
   }
 
   /**
