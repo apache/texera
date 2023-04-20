@@ -8,6 +8,7 @@ import {
   OperatorPort,
   OperatorPredicate,
   PartitionInfo,
+  PortProperty,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
@@ -127,7 +128,7 @@ export class WorkflowGraph {
 
   public readonly portPropertyChangedSubject = new Subject<{
     operatorPortID: OperatorPort;
-    newProperty: PartitionInfo;
+    newProperty: PortProperty;
   }>();
 
   private syncTexeraGraph = true;
@@ -758,13 +759,18 @@ export class WorkflowGraph {
   }
 
   public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+    newProperty = newProperty as PortProperty;
     if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
     const portDescriptionSharedType = this.getSharedPortDescriptionType(operatorPortID);
     if (portDescriptionSharedType === undefined) return;
     portDescriptionSharedType.set(
       "partitionRequirement",
-      createYTypeFromObject<PartitionInfo>(newProperty as PartitionInfo) as unknown as PartitionInfo
+      createYTypeFromObject<PartitionInfo>((newProperty as PortProperty).partitionInfo) as unknown as PartitionInfo
+    );
+    portDescriptionSharedType.set(
+      "dependencies",
+      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
     );
   }
 
@@ -931,7 +937,7 @@ export class WorkflowGraph {
 
   public getPortPropertyChangedStream(): Observable<{
     operatorPortID: OperatorPort;
-    newProperty: PartitionInfo;
+    newProperty: PortProperty;
   }> {
     return this.portPropertyChangedSubject.asObservable();
   }
