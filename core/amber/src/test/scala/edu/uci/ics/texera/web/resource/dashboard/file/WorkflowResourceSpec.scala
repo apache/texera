@@ -303,4 +303,30 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     assert(DashboardWorkflowEntryList.size == 1)
     assertSameWorkflow(testWorkflowWithSpecialCharacters, DashboardWorkflowEntryList.head)
   }
+
+
+  it should "query at most 20 workflows for each page" in {
+    // each page can contain at most 20 workflows
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    for (i <- 1 to 19) {
+      workflowResource.duplicateWorkflow(testWorkflow1, sessionUser1)
+    }
+
+    var DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
+    assert(DashboardWorkflowEntryList.size == 20)
+
+    workflowResource.duplicateWorkflow(testWorkflow1, sessionUser1)
+    DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content))
+    assert(DashboardWorkflowEntryList.size == 20)
+
+    DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content), 2)
+    assert(DashboardWorkflowEntryList.size == 1)
+
+    DashboardWorkflowEntryList =
+      workflowResource.searchWorkflows(sessionUser1, getKeywordsArray(keywordInWorkflow1Content), 3)
+    assert(DashboardWorkflowEntryList.size == 0)
+  }
 }

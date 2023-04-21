@@ -2,37 +2,18 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT,
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
-  DashboardWorkflowEntry,
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
+import java.util.Optional
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -459,14 +440,14 @@ class WorkflowResource {
   @Path("/search")
   def searchWorkflows(
       @Auth sessionUser: SessionUser,
-      @QueryParam("query") keywords: java.util.List[String]
+      @QueryParam("query") keywords: java.util.List[String],
+      @QueryParam("page") page: Int = 1,
+      @QueryParam("pageSize") pageSize: Int = 20
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
     if (keywords.size() == 0) {
       return List.empty[DashboardWorkflowEntry]
     }
-    //check if fulltext indexes exist
-
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
     var matchQuery: Condition = noCondition()
@@ -498,6 +479,9 @@ class WorkflowResource {
       return List.empty[DashboardWorkflowEntry]
     }
     try {
+      // Add offset calculation for pagination
+      val offset = (page - 1) * pageSize
+
       val workflowEntries = context
         .select(
           WORKFLOW.WID,
@@ -535,6 +519,8 @@ class WorkflowResource {
           WORKFLOW_OF_USER.UID,
           USER.NAME
         )
+        .limit(pageSize)
+        .offset(offset)
         .fetch()
 
       workflowEntries
