@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
+import com.github.nscala_time.time.Imports.LocalDate
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
@@ -13,6 +14,8 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
+import java.sql.Timestamp
+import java.text.SimpleDateFormat
 import java.util.Optional
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -442,7 +445,10 @@ class WorkflowResource {
       @Auth sessionUser: SessionUser,
       @QueryParam("query") keywords: java.util.List[String],
       @QueryParam("page") page: Int = 1,
-      @QueryParam("pageSize") pageSize: Int = 20
+      @QueryParam("pageSize") pageSize: Int = 20,
+      @QueryParam("startDate") startDate: String = "",
+      @QueryParam("endDate") endDate: String = "",
+      @QueryParam("author") author: String = ""
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
     if (keywords.size() == 0) {
@@ -471,6 +477,23 @@ class WorkflowResource {
           matchQuery = matchQuery.and(getSearchQuery(false), '"' + key + '"')
         }
       }
+    }
+
+    // Apply CREATION_TIME date filter
+    var dateFilter: Condition = DSL.noCondition()
+    if (startDate.nonEmpty || endDate.nonEmpty) {
+      val start = if (startDate.nonEmpty) startDate else "1970-01-01"
+      val end = if (endDate.nonEmpty) endDate else "9999-12-31"
+      val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+      val startTimestamp = new Timestamp(dateFormat.parse(start + " 00:00:00").getTime)
+      val endTimestamp = new Timestamp(dateFormat.parse(end + " 23:59:59").getTime)
+      dateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
+    }
+
+    // Apply author filter
+    var authorFilter: Condition = DSL.noCondition()
+    if (author.nonEmpty) {
+      authorFilter = USER.NAME.eq(author)
     }
 
     // When input contains only reserved keywords like "+-()<>~*\""
@@ -506,7 +529,7 @@ class WorkflowResource {
         .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
         .leftJoin(PROJECT)
         .on(PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
-        .where(matchQuery)
+        .where(matchQuery.and(dateFilter).and(authorFilter))
         .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
         .groupBy(
           WORKFLOW.WID,
