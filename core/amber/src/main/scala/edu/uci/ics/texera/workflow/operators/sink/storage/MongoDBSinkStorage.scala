@@ -73,7 +73,11 @@ class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
 
   override def getRange(from: Int, to: Int): Iterable[Tuple] = {
     val cursor =
-      collectionMgr.accessDocuments.sort(Sorts.ascending("_id")).limit(to - from).skip(from).cursor()
+      collectionMgr.accessDocuments
+        .sort(Sorts.ascending("_id"))
+        .limit(to - from)
+        .skip(from)
+        .cursor()
     mkTupleIterable(cursor)
   }
 
