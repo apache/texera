@@ -16,7 +16,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompile
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
   DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2,
+  PythonUDFOpDescV2
 }
 
 class WorkflowJobService(
