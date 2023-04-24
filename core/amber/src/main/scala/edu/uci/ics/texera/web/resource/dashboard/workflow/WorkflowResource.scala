@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  PROJECT,
   USER,
   WORKFLOW,
   WORKFLOW_OF_PROJECT,
@@ -28,10 +29,11 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
 }
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
+import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -44,11 +46,11 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
-  final private val workflowDao = new WorkflowDao(context.configuration)
-  final private val workflowOfUserDao = new WorkflowOfUserDao(
+  final private lazy val workflowDao = new WorkflowDao(context.configuration)
+  final private lazy val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
   )
-  final private val workflowUserAccessDao = new WorkflowUserAccessDao(
+  final private lazy val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
 
@@ -81,10 +83,8 @@ object WorkflowResource {
       projectIDs: List[UInteger]
   )
 }
-
-@PermitAll
-@Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/workflow")
 class WorkflowResource {
 
   /**
@@ -94,6 +94,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/workflow-ids")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
@@ -114,6 +115,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/owners")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
@@ -139,6 +141,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/search-by-operators")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
       @Auth sessionUser: SessionUser
@@ -188,9 +191,9 @@ class WorkflowResource {
     *
     * @return Workflow[]
     */
-
   @GET
   @Path("/list")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
@@ -247,6 +250,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/{wid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -272,8 +276,9 @@ class WorkflowResource {
     *             Should consider making the operations atomic
     */
   @POST
-  @Path("/persist")
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Path("/persist")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
 
@@ -306,8 +311,9 @@ class WorkflowResource {
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
-  @Path("/duplicate")
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Path("/duplicate")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def duplicateWorkflow(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
@@ -346,9 +352,10 @@ class WorkflowResource {
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
-  @Path("/create")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/create")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflowEntry = {
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
@@ -374,6 +381,7 @@ class WorkflowResource {
     */
   @DELETE
   @Path("/{wid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
     if (workflowOfUserExists(wid, user.getUid)) {
@@ -389,9 +397,10 @@ class WorkflowResource {
     * @return Response
     */
   @POST
-  @Path("/update/name")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/update/name")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateWorkflowName(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
@@ -416,9 +425,10 @@ class WorkflowResource {
     * @return Response
     */
   @POST
-  @Path("/update/description")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/update/description")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateWorkflowDescription(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
@@ -434,4 +444,123 @@ class WorkflowResource {
       workflowDao.update(userWorkflow)
     }
   }
+
+  /**
+    * This method performs a full-text search in the content column of the
+    * workflow table for workflows that match the specified keywords.
+    *
+    * This method utilizes MySQL Boolean Full-Text Searches
+    * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
+    * @param sessionUser The authenticated user.
+    * @param keywords    The search keywords.
+    * @return A list of workflows that match the search term.
+    */
+  @GET
+  @Path("/search")
+  def searchWorkflows(
+      @Auth sessionUser: SessionUser,
+      @QueryParam("query") keywords: java.util.List[String]
+  ): List[DashboardWorkflowEntry] = {
+    val user = sessionUser.getUser
+    if (keywords.size() == 0) {
+      return List.empty[DashboardWorkflowEntry]
+    }
+    //check if fulltext indexes exist
+
+    // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
+    val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
+    var matchQuery: Condition = noCondition()
+    for (key: String <- splitKeywords) {
+      if (key != "") {
+        val words = key.split("\\s+")
+
+        def getSearchQuery(subStringSearchEnabled: Boolean): String =
+          "(MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}" +
+            (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) OR " +
+            "MATCH(texera_db.user.name) AGAINST (+{0}" +
+            (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) " +
+            "OR MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}" +
+            (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode))"
+
+        if (words.length == 1) {
+          // Use "*" to enable sub-string search.
+          matchQuery = matchQuery.and(getSearchQuery(true), key)
+        } else {
+          // When the search query contains multiple words, sub-string search is not supported by MySQL.
+          matchQuery = matchQuery.and(getSearchQuery(false), '"' + key + '"')
+        }
+      }
+    }
+
+    // When input contains only reserved keywords like "+-()<>~*\""
+    // the api should return empty list
+    if (matchQuery == DSL.noCondition()) {
+      return List.empty[DashboardWorkflowEntry]
+    }
+    try {
+      val workflowEntries = context
+        .select(
+          WORKFLOW.WID,
+          WORKFLOW.NAME,
+          WORKFLOW.DESCRIPTION,
+          WORKFLOW.CREATION_TIME,
+          WORKFLOW.LAST_MODIFIED_TIME,
+          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_OF_USER.UID,
+          USER.NAME,
+          groupConcat(PROJECT.PID).as("projects")
+        )
+        .from(WORKFLOW)
+        .leftJoin(WORKFLOW_USER_ACCESS)
+        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+        .leftJoin(WORKFLOW_OF_USER)
+        .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+        .join(USER)
+        .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+        .leftJoin(WORKFLOW_OF_PROJECT)
+        .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+        .leftJoin(PROJECT)
+        .on(PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
+        .where(matchQuery)
+        .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+        .groupBy(
+          WORKFLOW.WID,
+          WORKFLOW.NAME,
+          WORKFLOW.DESCRIPTION,
+          WORKFLOW.CREATION_TIME,
+          WORKFLOW.LAST_MODIFIED_TIME,
+          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_OF_USER.UID,
+          USER.NAME
+        )
+        .fetch()
+
+      workflowEntries
+        .map(workflowRecord =>
+          DashboardWorkflowEntry(
+            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+            toAccessLevel(
+              workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+            ).toString,
+            workflowRecord.into(USER).getName,
+            workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+            if (workflowRecord.component10() == null) List[UInteger]()
+            else
+              workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+          )
+        )
+        .toList
+
+    } catch {
+      case e: Exception =>
+        println(
+          "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?"
+        )
+        // return a empty list
+        List[DashboardWorkflowEntry]()
+    }
+  }
+
 }

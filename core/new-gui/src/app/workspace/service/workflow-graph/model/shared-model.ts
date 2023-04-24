@@ -64,7 +64,7 @@ export class SharedModel {
     this.clientId = this.awareness.clientID.toString();
     if (this.user) {
       const userState: CoeditorState = {
-        coeditor: { ...this.user, clientId: this.clientId },
+        user: { ...this.user, clientId: this.clientId },
         isActive: true,
         userCursor: { x: 0, y: 0 },
       };

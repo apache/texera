@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.Props
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
-import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.Utils
 
 import java.io.IOException
@@ -23,23 +23,30 @@ import scala.sys.process.{BasicIO, Process}
 object PythonWorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
-      op: IOperatorExecutor,
-      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-      allUpstreamLinkIds: Set[LinkIdentity]
+      workerIndex: Int,
+      workerLayer: OpExecConfig,
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef
   ): Props =
-    Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
+    Props(
+      new PythonWorkflowWorker(
+        id,
+        workerIndex,
+        workerLayer,
+        parentNetworkCommunicationActorRef
+      )
+    )
 }
 
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity,
-    operator: IOperatorExecutor,
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity]
+    workerIndex: Int,
+    workerLayer: OpExecConfig,
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef
 ) extends WorkflowWorker(
       actorId,
-      operator,
+      workerIndex,
+      workerLayer,
       parentNetworkCommunicationActorRef,
-      allUpstreamLinkIds,
       false
     ) {
 

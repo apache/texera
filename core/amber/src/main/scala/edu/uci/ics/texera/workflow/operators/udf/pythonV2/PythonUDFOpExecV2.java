@@ -16,9 +16,9 @@ public class PythonUDFOpExecV2 implements OperatorExecutor {
     private final String code;
     private final Schema outputSchema;
 
-
     public PythonUDFOpExecV2(String code, Schema outputSchema) {
         this.code = code;
+        // TODO: support multiple output Schemas
         this.outputSchema = outputSchema;
     }
 
@@ -32,7 +32,7 @@ public class PythonUDFOpExecV2 implements OperatorExecutor {
 
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         // Will not be used. The real implementation is in the Python UDF.
         return null;
     }

@@ -6,12 +6,7 @@ import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
-import {
-  operatorCoeditorChangedPropertyBGClass,
-  operatorCoeditorChangedPropertyClass,
-  operatorCoeditorEditingBGClass,
-  operatorCoeditorEditingClass,
-} from "../../joint-ui/joint-ui.service";
+import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
 import Selectors = dia.Cell.Selectors;
 
@@ -457,11 +452,9 @@ export class JointGraphWrapper {
 
   public highlightCommentBoxes(...commentBoxIDs: string[]): void {
     const highlightedCommentBoxesIDs: string[] = [];
-    this.unhighlightCommentBoxes(...this.currentHighlightedCommentBoxes);
     commentBoxIDs.forEach(commentBoxID =>
       this.highlightElement(commentBoxID, this.currentHighlightedCommentBoxes, highlightedCommentBoxesIDs)
     );
-
     if (highlightedCommentBoxesIDs.length > 0) {
       this.jointCommentBoxHighlightStream.next(highlightedCommentBoxesIDs);
     }
@@ -945,29 +938,6 @@ export class JointGraphWrapper {
     });
   }
 
-  // Modifies an observable to buffer output while the jointgraph
-  // is in an async context
-  public createContextAwareStream<T>(source: Observable<T>) {
-    // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
-    // Retrieved on 02/06/2022
-
-    const BufferOnOffStream = this.jointGraphContext
-      .getChangeContextStream()
-      .pipe(map(([_, context]) => context.async));
-
-    const startBuffer = BufferOnOffStream.pipe(filter(async => async == true));
-
-    const stopBuffer = BufferOnOffStream.pipe(
-      filter(async => async == false),
-      map(x => true)
-    );
-
-    return merge(
-      source.pipe(bufferToggle(startBuffer, () => stopBuffer)),
-      source.pipe(windowToggle(stopBuffer, () => startBuffer))
-    ).pipe(mergeMap(x => x));
-  }
-
   public static jointGraphContextFactory() {
     class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
       private static jointPaper: joint.dia.Paper | undefined;
@@ -979,34 +949,33 @@ export class JointGraphWrapper {
       // Custom RXJS operator to buffer output while the jointgraph
       // is in an async context
       public static bufferWhileAsync<T>(source: Observable<T>): Observable<T> {
-        // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
-        // Retrieved on 02/06/2022
+        const subject = new Subject<T>();
+        const buffer: T[] = [];
+        const clearBuffer = () => {
+          while (buffer.length > 0) {
+            subject.next(buffer.pop() as T);
+          }
+        };
 
-        const BufferOnOffStream = JointGraphContext.getChangeContextStream().pipe(map(([_, context]) => context.async));
-
-        const startBuffer = BufferOnOffStream.pipe(filter(async => async == true));
-
-        const stopBuffer = BufferOnOffStream.pipe(
-          filter(async => async == false),
-          map(x => true)
-        );
-
-        // Either buffertoggle or windowtoggle must be signalled to start first.
-        // Afterwards, they will start when the other stops.
-        // see Code adapted citation for more info.
-        let startBuffer_BT, stopBuffer_WT: Observable<boolean>;
-        if (JointGraphContext.async() == true) {
-          startBuffer_BT = startBuffer.pipe(startWith(true));
-          stopBuffer_WT = stopBuffer;
-        } else {
-          startBuffer_BT = startBuffer;
-          stopBuffer_WT = stopBuffer.pipe(startWith(true));
-        }
-
-        return merge(
-          source.pipe(bufferToggle(startBuffer_BT, () => stopBuffer)),
-          source.pipe(windowToggle(stopBuffer_WT, () => startBuffer))
-        ).pipe(mergeMap(x => x));
+        source.subscribe({
+          next: evt => {
+            if (JointGraphContext.async()) {
+              buffer.push(evt);
+            } else {
+              clearBuffer();
+              subject.next(evt);
+            }
+          },
+          error: (err: unknown) => {
+            clearBuffer();
+            subject.error(err);
+          },
+          complete: () => {
+            clearBuffer();
+            subject.complete();
+          },
+        });
+        return subject;
       }
 
       public static attachPaper(jointPaper: joint.dia.Paper) {
@@ -1116,10 +1085,6 @@ export class JointGraphWrapper {
           fill: color,
           visibility: "visible",
         },
-        [`.${operatorCoeditorEditingBGClass}`]: {
-          text: statusText,
-          visibility: "visible",
-        },
       });
     // "Animation"
     const getCurrentlyEditingText = (): string => {
@@ -1144,9 +1109,6 @@ export class JointGraphWrapper {
             [`.${operatorCoeditorEditingClass}`]: {
               text: nextText,
             },
-            [`.${operatorCoeditorEditingBGClass}`]: {
-              text: nextText,
-            },
           });
       }
     }, 300);
@@ -1158,10 +1120,6 @@ export class JointGraphWrapper {
       ?.getModelById(previousEditing)
       .attr({
         [`.${operatorCoeditorEditingClass}`]: {
-          text: "",
-          visibility: "hidden",
-        },
-        [`.${operatorCoeditorEditingBGClass}`]: {
           text: "",
           visibility: "hidden",
         },
@@ -1180,10 +1138,6 @@ export class JointGraphWrapper {
           fill: color,
           visibility: "visible",
         },
-        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
-          text: statusText,
-          visibility: "visible",
-        },
       });
   }
 
@@ -1192,10 +1146,6 @@ export class JointGraphWrapper {
       ?.getModelById(currentChanged)
       .attr({
         [`.${operatorCoeditorChangedPropertyClass}`]: {
-          text: "",
-          visibility: "hidden",
-        },
-        [`.${operatorCoeditorChangedPropertyBGClass}`]: {
           text: "",
           visibility: "hidden",
         },

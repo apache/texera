@@ -1,7 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
-import { EMPTY, merge, Observable } from "rxjs";
+import { EMPTY, merge, Observable, Subject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
@@ -30,9 +30,9 @@ export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
   providedIn: "root",
 })
 export class SchemaPropagationService {
-  private operatorInputSchemaMap: Readonly<{
-    [key: string]: OperatorInputSchema;
-  }> = {};
+  private operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>> = {};
+
+  private operatorInputSchemaChangedStream = new Subject<void>();
 
   constructor(
     private httpClient: HttpClient,
@@ -61,8 +61,13 @@ export class SchemaPropagationService {
       )
       .subscribe(response => {
         this.operatorInputSchemaMap = response.result;
+        this.operatorInputSchemaChangedStream.next();
         this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
+  }
+
+  public getOperatorInputSchemaMap(): Readonly<Record<string, OperatorInputSchema>> {
+    return this.operatorInputSchemaMap;
   }
 
   public getOperatorInputSchema(operatorID: string): OperatorInputSchema | undefined {
@@ -195,7 +200,11 @@ export class SchemaPropagationService {
       if (!inputAttrAtPort) {
         return undefined;
       }
-      return inputAttrAtPort.map(attr => attr.attributeName);
+      const attrNames: string[] = inputAttrAtPort.map(attr => attr.attributeName);
+      if (v.additionalEnumValue) {
+        attrNames.push(v.additionalEnumValue);
+      }
+      return attrNames;
     };
 
     newJsonSchema = DynamicSchemaService.mutateProperty(
@@ -263,6 +272,10 @@ export class SchemaPropagationService {
       ...operatorSchema,
       jsonSchema: newJsonSchema,
     };
+  }
+
+  public getOperatorInputSchemaChangedStream(): Observable<void> {
+    return this.operatorInputSchemaChangedStream.asObservable();
   }
 }
 

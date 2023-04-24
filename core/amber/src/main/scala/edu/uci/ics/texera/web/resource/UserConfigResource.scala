@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserConfigDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, UserConfig}
 import io.dropwizard.auth.Auth
 
-import javax.annotation.security.PermitAll
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core._
 import scala.jdk.CollectionConverters.asScalaBuffer
@@ -18,11 +18,11 @@ import scala.jdk.CollectionConverters.asScalaBuffer
   * This is accomplished using a mysql table called user_dictionary.
   * The details of user_dictionary can be found in /core/scripts/sql/texera_ddl.sql
   */
-@PermitAll
 @Path("/user/config")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Consumes(Array(MediaType.TEXT_PLAIN))
 class UserConfigResource {
-  final private val userDictionaryDao = new UserConfigDao(
+  final private lazy val userDictionaryDao = new UserConfigDao(
     SqlServer.createDSLContext.configuration
   )
 

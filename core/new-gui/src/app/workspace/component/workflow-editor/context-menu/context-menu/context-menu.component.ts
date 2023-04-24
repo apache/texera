@@ -1,16 +1,20 @@
-import { Component, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
-  selector: "context-menu",
+  selector: "texera-context-menu",
   templateUrl: "./context-menu.component.html",
   styleUrls: ["./context-menu.component.scss"],
 })
-export class ContextMenuComponent implements OnInit {
-  constructor(public workflowActionService: WorkflowActionService, public operatorMenu: OperatorMenuService) {}
+export class ContextMenuComponent {
+  public isWorkflowModifiable: boolean = false;
 
-  ngOnInit(): void {}
+  constructor(public workflowActionService: WorkflowActionService, public operatorMenu: OperatorMenuService) {
+    this.registerWorkflowModifiableChangedHandler();
+  }
 
   public onCopy(): void {
     this.operatorMenu.saveHighlightedElements();
@@ -28,6 +32,19 @@ export class ContextMenuComponent implements OnInit {
   public onDelete(): void {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+    const highlightedCommentBoxIDs = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedCommentBoxIDs();
     this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+    highlightedCommentBoxIDs.forEach(highlightedCommentBoxID =>
+      this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
+    );
+  }
+
+  private registerWorkflowModifiableChangedHandler() {
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
   }
 }

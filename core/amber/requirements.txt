@@ -9,7 +9,7 @@ loguru==0.5.3
 packaging==20.9
 pluggy==0.13.1
 py==1.10.0
-pyarrow==9.0.0
+pyarrow==10.0.0
 pyparsing==2.4.7
 pytest==6.2.4
 python-dateutil==2.8.1
@@ -27,3 +27,5 @@ typing_extensions
 pytest-reraise
 dataclasses
 Deprecated~=1.2.13
+fs==2.4.16
+praw~=7.6.1

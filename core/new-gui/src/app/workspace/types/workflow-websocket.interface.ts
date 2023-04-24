@@ -8,7 +8,7 @@ import {
   OperatorStatsUpdate,
 } from "./execute-workflow.interface";
 import { IndexableObject } from "./result-table.interface";
-import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
+import { BreakpointFaultedTuple, BreakpointTriggerInfo, ConsoleUpdateEvent } from "./workflow-common.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -140,6 +140,27 @@ export type PythonExpressionEvaluateResponse = Readonly<{
   values: EvaluatedValue[];
 }>;
 
+export type WorkerAssignmentUpdateEvent = Readonly<{
+  operatorId: string;
+  workerIds: readonly string[];
+}>;
+
+export type ModifyLogicResponse = Readonly<{
+  opId: string;
+  isValid: boolean;
+  errorMessage: string;
+}>;
+
+export type ModifyLogicCompletedEvent = Readonly<{
+  opIds: readonly string[];
+}>;
+
+export type DebugCommandRequest = Readonly<{
+  operatorId: string;
+  workerId: string;
+  cmd: string;
+}>;
+
 export type WorkflowStateInfo = Readonly<{
   state: ExecutionState;
 }>;
@@ -159,6 +180,7 @@ export type TexeraWebsocketRequestTypeMap = {
   WorkflowPauseRequest: {};
   WorkflowResumeRequest: {};
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
+  DebugCommandRequest: DebugCommandRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -170,7 +192,7 @@ export type TexeraWebsocketEventTypeMap = {
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
-  PythonPrintTriggeredEvent: PythonPrintTriggerInfo;
+  ConsoleUpdateEvent: ConsoleUpdateEvent;
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   WorkflowExecutionErrorEvent: WorkflowExecutionError;
@@ -178,6 +200,9 @@ export type TexeraWebsocketEventTypeMap = {
   WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
   CacheStatusUpdateEvent: CacheStatusUpdateEvent;
   PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
+  WorkerAssignmentUpdateEvent: WorkerAssignmentUpdateEvent;
+  ModifyLogicResponse: ModifyLogicResponse;
+  ModifyLogicCompletedEvent: ModifyLogicCompletedEvent;
 };
 
 // helper type definitions to generate the request and event types

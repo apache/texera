@@ -3,11 +3,15 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import akka.actor.{ActorContext, Address}
 import com.twitter.util.Future
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.AddressInfo
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
@@ -17,14 +21,14 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTim
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  LinkIdentity,
-  OperatorIdentity
+  LayerIdentity,
+  LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
@@ -45,9 +49,9 @@ class WorkflowScheduler(
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built
-  private val builtOperators = new mutable.HashSet[OperatorIdentity]()
-  private val openedOperators = new mutable.HashSet[OperatorIdentity]()
-  private val initializedPythonOperators = new mutable.HashSet[OperatorIdentity]()
+  private val builtOperators = new mutable.HashSet[LayerIdentity]()
+  private val openedOperators = new mutable.HashSet[LayerIdentity]()
+  private val initializedPythonOperators = new mutable.HashSet[LayerIdentity]()
   private val activatedLink = new mutable.HashSet[LinkIdentity]()
 
   private val constructingRegions = new mutable.HashSet[PipelinedRegionIdentity]()
@@ -102,35 +106,30 @@ class WorkflowScheduler(
   }
 
   private def constructRegion(region: PipelinedRegion): Unit = {
-    val builtOpsInRegion = new mutable.HashSet[OperatorIdentity]()
-    var frontier: Iterable[OperatorIdentity] = workflow.getSourcesOfRegion(region)
+    val builtOpsInRegion = new mutable.HashSet[LayerIdentity]()
+    var frontier: Iterable[LayerIdentity] = workflow.getSourcesOfRegion(region)
     while (frontier.nonEmpty) {
-      frontier.foreach { (op: OperatorIdentity) =>
-        val prev: Array[(OperatorIdentity, WorkerLayer)] =
-          workflow
-            .getDirectUpstreamOperators(op)
+      frontier.foreach { (op: LayerIdentity) =>
+        val prev: Array[(LayerIdentity, OpExecConfig)] =
+          workflow.physicalPlan
+            .getUpstream(op)
             .filter(upStreamOp =>
               builtOperators.contains(upStreamOp) && region.getOperators().contains(upStreamOp)
             )
-            .map(upStreamOp =>
-              (
-                upStreamOp,
-                workflow.getOperator(upStreamOp).topology.layers.last
-              )
-            )
+            .map(upStreamOp => (upStreamOp, workflow.getOperator(upStreamOp)))
             .toArray // Last layer of upstream operators in the same region.
         if (!builtOperators.contains(op)) {
-          buildOperator(prev, op)
+          buildOperator(op, controllerConf)
           builtOperators.add(op)
         }
         builtOpsInRegion.add(op)
       }
 
       frontier = (region
-        .getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions)
+        .getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions)
         .filter(opId => {
-          !builtOpsInRegion.contains(opId) && workflow
-            .getDirectUpstreamOperators(opId)
+          !builtOpsInRegion.contains(opId) && workflow.physicalPlan
+            .getUpstream(opId)
             .filter(region.getOperators().contains)
             .forall(builtOperators.contains)
         })
@@ -138,64 +137,21 @@ class WorkflowScheduler(
   }
 
   private def buildOperator(
-      prev: Array[(OperatorIdentity, WorkerLayer)], // used to decide deployment of workers
-      operatorIdentity: OperatorIdentity
+      operatorIdentity: LayerIdentity,
+      controllerConf: ControllerConfig
   ): Unit = {
-    val opExecConfig = workflow.getOperator(operatorIdentity)
-    if (opExecConfig.topology.links.isEmpty) {
-      opExecConfig.topology.layers.foreach(workerLayer => {
-        workerLayer.build(
-          prev.map(pair => (workflow.getOperator(pair._1), pair._2)),
-          availableNodes,
-          networkCommunicationActor,
-          ctx,
-          workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
-          workflow.workerToLayer,
-          workflow.workerToOperatorExec,
-          controllerConf.supportFaultTolerance
-        )
-      })
-    } else {
-      val operatorInLinks: Map[WorkerLayer, Set[WorkerLayer]] =
-        opExecConfig.topology.links.groupBy(_.to).map(x => (x._1, x._2.map(_.from).toSet))
-      var layers: Iterable[WorkerLayer] =
-        opExecConfig.topology.links
-          .filter(linkStrategy => opExecConfig.topology.links.forall(_.to != linkStrategy.from))
-          .map(_.from) // the first layers in topological order in the operator
-      layers.foreach(workerLayer => {
-        workerLayer.build(
-          prev.map(pair => (workflow.getOperator(pair._1), pair._2)),
-          availableNodes,
-          networkCommunicationActor,
-          ctx,
-          workflow.getInlinksIdsToWorkerLayer(workerLayer.id),
-          workflow.workerToLayer,
-          workflow.workerToOperatorExec,
-          controllerConf.supportFaultTolerance
-        )
-      })
-      layers = operatorInLinks.filter(x => x._2.forall(_.isBuilt)).keys
-      while (layers.nonEmpty) {
-        layers.foreach((layer: WorkerLayer) => {
-          layer.build(
-            operatorInLinks(layer).map(y => (null, y)).toArray,
-            availableNodes,
-            networkCommunicationActor,
-            ctx,
-            workflow.getInlinksIdsToWorkerLayer(layer.id),
-            workflow.workerToLayer,
-            workflow.workerToOperatorExec,
-            controllerConf.supportFaultTolerance
-          )
-        })
-        layers = operatorInLinks.filter(x => !x._1.isBuilt && x._2.forall(_.isBuilt)).keys
-      }
-    }
+    val workerLayer = workflow.getOperator(operatorIdentity)
+    workerLayer.build(
+      AddressInfo(availableNodes, ctx.self.path.address),
+      networkCommunicationActor,
+      ctx,
+      workflow.workerToOpExecConfig,
+      controllerConf
+    )
   }
-
   private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
     val uninitializedPythonOperators = workflow.getPythonOperators(
       allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
     )
@@ -203,23 +159,25 @@ class WorkflowScheduler(
       .collect(
         // initialize python operator code
         workflow
-          .getPythonWorkerToOperatorExec(
-            uninitializedPythonOperators
-          )
-          .map {
-            case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-              asyncRPCClient.send(
-                InitializeOperatorLogic(
-                  pythonOperatorExec.getCode,
-                  workflow
-                    .getInlinksIdsToWorkerLayer(workflow.workerToLayer(workerID).id)
-                    .toArray,
-                  pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
-                  pythonOperatorExec.getOutputSchema
-                ),
-                workerID
-              )
-          }
+          .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
+          .map(p => {
+            val workerID = p._1
+            val pythonUDFOpExecConfig = p._2
+            val pythonUDFOpExec = pythonUDFOpExecConfig
+              .initIOperatorExecutor((0, pythonUDFOpExecConfig))
+              .asInstanceOf[PythonUDFOpExecV2]
+            asyncRPCClient.send(
+              InitializeOperatorLogic(
+                pythonUDFOpExec.getCode,
+                workflow
+                  .getInlinksIdsToWorkerLayer(workflow.workerToOpExecConfig(workerID).id)
+                  .toArray,
+                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
+                pythonUDFOpExec.getOutputSchema
+              ),
+              workerID
+            )
+          })
           .toSeq
       )
       .onSuccess(_ =>
@@ -234,18 +192,14 @@ class WorkflowScheduler(
 
   private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
     Future.collect(
       // activate all links
-      workflow.getAllLinks
+      workflow.physicalPlan.linkStrategies.values
         .filter(link => {
           !activatedLink.contains(link.id) &&
-            allOperatorsInRegion.contains(
-              OperatorIdentity(link.from.id.workflow, link.from.id.operator)
-            ) &&
-            allOperatorsInRegion.contains(
-              OperatorIdentity(link.to.id.workflow, link.to.id.operator)
-            )
+            allOperatorsInRegion.contains(link.from.id) &&
+            allOperatorsInRegion.contains(link.to.id)
         })
         .map { link: LinkStrategy =>
           asyncRPCClient
@@ -258,7 +212,7 @@ class WorkflowScheduler(
 
   private def openAllOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
     val allNotOpenedOperators =
       allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
     Future
@@ -275,7 +229,8 @@ class WorkflowScheduler(
 
   private def startRegion(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDowstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
+
     allOperatorsInRegion
       .filter(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED)
       .foreach(opId => workflow.getOperator(opId).setAllWorkerState(READY))
@@ -304,7 +259,17 @@ class WorkflowScheduler(
 
   private def prepareAndStartRegion(region: PipelinedRegion): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-    Future()
+    asyncRPCClient.sendToClient(
+      WorkerAssignmentUpdate(
+        workflow.getOperatorToWorkers
+          .map({
+            case (opId: LayerIdentity, workerIds: Seq[ActorVirtualIdentity]) =>
+              opId.operator -> workerIds.map(_.name)
+          })
+          .toMap
+      )
+    )
+    Future(())
       .flatMap(_ => initializePythonOperators(region))
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
@@ -341,7 +306,7 @@ class WorkflowScheduler(
 
   private def scheduleRegion(region: PipelinedRegion): Future[Unit] = {
     if (constructingRegions.contains(region.getId())) {
-      return Future()
+      return Future(())
     }
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())

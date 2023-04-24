@@ -28,7 +28,10 @@ case class OperatorInfo(
     operatorDescription: String,
     operatorGroupName: String,
     inputPorts: List[InputPort],
-    outputPorts: List[OutputPort]
+    outputPorts: List[OutputPort],
+    dynamicInputPorts: Boolean = false,
+    dynamicOutputPorts: Boolean = false,
+    supportReconfiguration: Boolean = false
 )
 
 case class OperatorMetadata(

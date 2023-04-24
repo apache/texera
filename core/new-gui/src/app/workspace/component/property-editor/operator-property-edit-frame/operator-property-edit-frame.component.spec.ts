@@ -28,6 +28,7 @@ import { SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
+import { COLLAB_DEBOUNCE_TIME_MS } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {
@@ -35,32 +36,30 @@ describe("OperatorPropertyEditFrameComponent", () => {
   let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [OperatorPropertyEditFrameComponent],
-        providers: [
-          WorkflowActionService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          DatePipe,
-        ],
-        imports: [
-          BrowserAnimationsModule,
-          FormsModule,
-          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-          // formly ng zorro module has a bug that doesn't display field description,
-          // FormlyNgZorroAntdModule,
-          // use formly material module instead
-          FormlyMaterialModule,
-          ReactiveFormsModule,
-          HttpClientTestingModule,
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [OperatorPropertyEditFrameComponent],
+      providers: [
+        WorkflowActionService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        DatePipe,
+      ],
+      imports: [
+        BrowserAnimationsModule,
+        FormsModule,
+        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+        // formly ng zorro module has a bug that doesn't display field description,
+        // FormlyNgZorroAntdModule,
+        // use formly material module instead
+        FormlyMaterialModule,
+        ReactiveFormsModule,
+        HttpClientTestingModule,
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
@@ -80,7 +79,10 @@ describe("OperatorPropertyEditFrameComponent", () => {
   it("should change the content of property editor from an empty panel correctly", () => {
     // check if the changePropertyEditor called after the operator
     //  is highlighted has correctly updated the variables
-    const predicate = mockScanPredicate;
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "" },
+    };
 
     // add and highlight an operator
     workflowActionService.addOperator(predicate, mockPoint);
@@ -122,6 +124,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
     });
     fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
 
     // stimulate a form change by the user
     const formChangeValue = { tableName: "twitter_sample" };

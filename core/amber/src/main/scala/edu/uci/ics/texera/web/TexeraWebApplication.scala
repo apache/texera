@@ -21,11 +21,11 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
   WorkflowResource,
-  WorkflowVersionResource,
-  WorkflowSnapshotResource
+  WorkflowVersionResource
 }
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource
 import edu.uci.ics.texera.web.resource._
+import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -174,12 +174,12 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[UserConfigResource])
     environment.jersey.register(classOf[UserFileAccessResource])
     environment.jersey.register(classOf[UserFileResource])
+    environment.jersey.register(classOf[AdminUserResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])
-    environment.jersey.register(classOf[WorkflowSnapshotResource])
   }
 
 }

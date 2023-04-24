@@ -5,11 +5,22 @@ import { Point } from "../../workspace/types/workflow-common.interface";
  * Such information is used to identify users and to save their data
  * Corresponds to `core/amber/src/main/scala/edu/uci/ics/texera/web/resource/auth/UserResource.scala`
  */
+
+// Please check Role at \core\amber\src\main\scala\edu\uci\ics\texera\web\model\jooq\generated\enums\UserRole.java
+export enum Role {
+  INACTIVE = "INACTIVE",
+  RESTRICTED = "RESTRICTED",
+  REGULAR = "REGULAR",
+  ADMIN = "ADMIN",
+}
+
 export interface User
   extends Readonly<{
-    name: string;
     uid: number;
+    name: string;
+    email: string;
     googleId?: string;
+    role: Role;
     color?: string;
   }> {}
 
@@ -24,7 +35,7 @@ export interface Coeditor extends User {
  * This interface is for user-presence information in shared-editing.
  */
 export interface CoeditorState {
-  coeditor: Coeditor;
+  user: Coeditor;
   isActive: boolean;
   userCursor: Point;
   highlighted?: readonly string[];
