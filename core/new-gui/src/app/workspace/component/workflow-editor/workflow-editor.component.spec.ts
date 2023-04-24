@@ -250,9 +250,7 @@ describe("WorkflowEditorComponent", () => {
           },
         ],
       });
-      spyOn(nzModalService, "create")
-        .and
-        .returnValue(modalRef);
+      spyOn(nzModalService, "create").and.returnValue(modalRef);
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
