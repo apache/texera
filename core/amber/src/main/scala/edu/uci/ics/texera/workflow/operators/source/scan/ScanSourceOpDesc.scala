@@ -70,7 +70,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
         .getFilePathByInfo(
           ownerName = splitNames.apply(0),
           fileName = splitNames.apply(1),
-          context.userId.get
+          context.userId.get,
+          context.wId
         )
         .map(_.toString)
 

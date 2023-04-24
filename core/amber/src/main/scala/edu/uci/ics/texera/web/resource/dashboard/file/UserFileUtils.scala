@@ -15,6 +15,7 @@ object UserFileUtils {
     Utils.amberHomePath.resolve("user-resources").resolve("files")
   }
   private lazy val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
+  private lazy val file_of_workflowDao = new FileDao(SqlServer.createDSLContext.configuration)
 
   def storeFile(fileStream: InputStream, fileName: String, userID: UInteger): Unit = {
     createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
@@ -74,19 +75,15 @@ object UserFileUtils {
     IOUtils.closeQuietly(outputStream)
   }
 
-  def getFilePathByInfo(ownerName: String, fileName: String, uid: UInteger): Option[Path] = {
+  def getFilePathByInfo(ownerName: String, fileName: String, uid: UInteger, wid: Int): Option[Path] = {
     val fid = UserFileAccessResource.getFileId(ownerName, fileName)
-    getFilePathByIds(uid, fid)
-  }
-
-  def getFilePathByIds(uid: UInteger, fid: UInteger): Option[Path] = {
     if (UserFileAccessResource.hasAccessTo(uid, fid)) {
-      val path = fileDao.fetchByFid(fid).get(0).getPath
-      Some(Paths.get(path))
+      Some(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     } else {
       None
     }
   }
+
 
   @throws[FileIOException]
   def deleteFile(filePath: Path): Unit = {
