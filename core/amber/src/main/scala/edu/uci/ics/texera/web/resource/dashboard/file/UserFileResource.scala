@@ -296,8 +296,13 @@ class UserFileResource {
       @Auth sessionUser: SessionUser
   ): Response = {
     val user = sessionUser.getUser
-    val filePath: Option[java.nio.file.Path] =
-      UserFileUtils.getFilePathByIds(user.getUid, fileId)
+    val filePath: Option[java.nio.file.Path] = {
+      if (UserFileAccessResource.hasAccessTo(user.getUid, fileId)) {
+        Some(Paths.get(fileDao.fetchOneByFid(fileId).getPath))
+      } else {
+        None
+      }
+    }
     if (filePath.isDefined) {
       val fileObject = filePath.get.toFile
 

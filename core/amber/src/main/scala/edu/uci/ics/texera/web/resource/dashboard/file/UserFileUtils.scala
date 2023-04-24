@@ -3,10 +3,10 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.FileDao
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao,FileOfWorkflowDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.FileOfWorkflow
 import org.apache.commons.io.IOUtils
 import org.jooq.types.UInteger
-
 import java.io._
 import java.nio.file.{Files, Path, Paths}
 
@@ -15,18 +15,8 @@ object UserFileUtils {
     Utils.amberHomePath.resolve("user-resources").resolve("files")
   }
   private lazy val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
-  private lazy val file_of_workflowDao = new FileDao(SqlServer.createDSLContext.configuration)
+  private lazy val file_of_workflowDao = new FileOfWorkflowDao(SqlServer.createDSLContext.configuration)
 
-  def storeFile(fileStream: InputStream, fileName: String, userID: UInteger): Unit = {
-    createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
-    checkFileDuplicate(UserFileUtils.getFilePath(userID, fileName))
-    writeToFile(UserFileUtils.getFilePath(userID, fileName), fileStream)
-  }
-
-  @throws[FileIOException]
-  private def checkFileDuplicate(filePath: Path): Unit = {
-    if (Files.exists(filePath)) throw FileIOException("File already exists.")
-  }
 
   def storeFileSafe(fileStream: InputStream, fileName: String, userID: UInteger): String = {
     createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
@@ -75,9 +65,10 @@ object UserFileUtils {
     IOUtils.closeQuietly(outputStream)
   }
 
-  def getFilePathByInfo(ownerName: String, fileName: String, uid: UInteger, wid: Int): Option[Path] = {
+  def getFilePathByInfo(ownerName: String, fileName: String, uid: UInteger, wid: UInteger): Option[Path] = {
     val fid = UserFileAccessResource.getFileId(ownerName, fileName)
     if (UserFileAccessResource.hasAccessTo(uid, fid)) {
+      file_of_workflowDao.insert(new FileOfWorkflow(fid, wid))
       Some(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     } else {
       None
