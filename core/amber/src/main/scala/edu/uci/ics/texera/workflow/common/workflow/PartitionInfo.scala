@@ -72,3 +72,9 @@ case class SinglePartition() extends PartitionInfo {}
   * Represents there is no specific partitioning scheme of the input stream.
   */
 case class UnknownPartition() extends PartitionInfo {}
+
+case class BroadcastPartition() extends PartitionInfo {
+  override def merge(other: PartitionInfo): PartitionInfo = {
+    BroadcastPartition()
+  }
+}
