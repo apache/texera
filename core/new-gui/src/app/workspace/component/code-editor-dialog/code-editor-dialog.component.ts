@@ -5,13 +5,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
-import {
-  MonacoLanguageClient,
-  CloseAction,
-  ErrorAction,
-  MessageTransports,
-  MonacoServices,
-} from "monaco-languageclient";
+import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
 import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
@@ -55,7 +49,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
-  private socket?: any;
+  socket?: any;
 
   constructor(
     private sanitizer: DomSanitizer,
@@ -95,19 +89,21 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
   getOrCreateModel() {
     const uri = this.getModelURI();
-    return (monaco.editor.getModel( monaco.Uri.parse(uri)))
-     || monaco.editor.createModel(this.code, "python", monaco.Uri.parse(uri));
+    return (
+      monaco.editor.getModel(monaco.Uri.parse(uri)) ||
+      monaco.editor.createModel(this.code, "python", monaco.Uri.parse(uri))
+    );
   }
 
   getModelURI() {
     const currentOperatorId: string = this.workflowActionService
-    .getJointGraphWrapper()
-    .getCurrentHighlightedOperatorIDs()[0];
-    return `inmemory://${currentOperatorId}.py`
+      .getJointGraphWrapper()
+      .getCurrentHighlightedOperatorIDs()[0];
+    return `inmemory://${currentOperatorId}.py`;
   }
 
   ngAfterViewInit() {
-    this.initMonaco()
+    this.initMonaco();
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
@@ -164,7 +160,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    */
   private connectLanguageServer() {
     const url = createUrl(WEB_SOCKET_HOST, LANGUAGE_SERVER_PORT, PYTHON_LANGUAGE_SERVER);
-    if(!this.socket) {
+    if (!this.socket) {
       this.socket = new WebSocket(url);
       this.socket.onopen = () => {
         const socket = toSocket(this.socket);

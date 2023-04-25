@@ -120,7 +120,10 @@
             "karmaConfig": "./karma.conf.js",
             "main": "src/test.ts",
             "polyfills": "src/polyfills.ts",
-            "scripts": [],
+            "scripts": [
+              "node_modules/monaco-editor/min/vs/loader.js",
+              "node_modules/monaco-editor/min/vs/editor/editor.main.js"
+            ],
             "styles": [
               "node_modules/jointjs/css/layout.css",
               "node_modules/jointjs/css/themes/material.css",
