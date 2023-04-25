@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MemoryStorage,
-  MongoDBStorage,
+  MongoDBSinkStorage,
   SinkStorageReader
 }
 
@@ -41,7 +41,7 @@ class OpResultStorage extends Serializable with LazyLogging {
         new MemoryStorage(schema)
       } else {
         try {
-          new MongoDBStorage(key, schema)
+          new MongoDBSinkStorage(key, schema)
         } catch {
           case t: Throwable =>
             t.printStackTrace()
