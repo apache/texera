@@ -13,7 +13,7 @@ import org.jooq.Condition
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
-
+import javax.ws.rs.DefaultValue
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Optional
@@ -444,11 +444,18 @@ class WorkflowResource {
   def searchWorkflows(
       @Auth sessionUser: SessionUser,
       @QueryParam("query") keywords: java.util.List[String],
-      @QueryParam("page") page: Int = 1,
-      @QueryParam("pageSize") pageSize: Int = 20,
-      @QueryParam("startDate") startDate: String = "",
-      @QueryParam("endDate") endDate: String = "",
-      @QueryParam("author") author: String = ""
+//      @QueryParam("page") page: Int = 1,
+//      @QueryParam("pageSize") pageSize: Int = 20,
+//      @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
+//      @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
+//      @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
+//      @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
+      @QueryParam("owner") owners: java.util.List[String] = new java.util.ArrayList[String](),
+      @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
+//      @QueryParam("operators") operators: java.util.List[String] =
+//        new java.util.ArrayList[String](),
+//      @QueryParam("projectId") projectIds: java.util.List[UInteger] =
+//        new java.util.ArrayList[UInteger]()
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
     if (keywords.size() == 0) {
@@ -479,22 +486,28 @@ class WorkflowResource {
       }
     }
 
-    // Apply CREATION_TIME date filter
-    var dateFilter: Condition = DSL.noCondition()
-    if (startDate.nonEmpty || endDate.nonEmpty) {
-      val start = if (startDate.nonEmpty) startDate else "1970-01-01"
-      val end = if (endDate.nonEmpty) endDate else "9999-12-31"
-      val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-      val startTimestamp = new Timestamp(dateFormat.parse(start + " 00:00:00").getTime)
-      val endTimestamp = new Timestamp(dateFormat.parse(end + " 23:59:59").getTime)
-      dateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
-    }
+    // Apply creation_time date filter
+//    val creationDateFilter = getCreationDateFilter(creationStartDate, creationEndDate)
+//    // Apply lastModified_time date filter
+//    val modifiedDateFilter = getModifiedDateFilter(modifiedStartDate, modifiedEndDate)
+//    // Apply workflowID filter
+    val workflowIdFilter = getWorkflowIdFilter(workflowIDs)
+    // Apply owner filter
+    val ownerFilter = getOwnerFilter(owners)
+//    // Apply operators filter
+//    val operatorsFilter = getOperatorsFilter(operators)
+//    // Apply projectId filter
+//    val projectIdFilter = getProjectFilter(projectIds)
 
-    // Apply author filter
-    var authorFilter: Condition = DSL.noCondition()
-    if (author.nonEmpty) {
-      authorFilter = USER.NAME.eq(author)
-    }
+    // combine all filters with AND
+    var optionalFilters: Condition = noCondition()
+    optionalFilters = optionalFilters
+//      .and(creationDateFilter)
+//      .and(modifiedDateFilter)
+      .and(ownerFilter)
+      .and(workflowIdFilter)
+//      .and(operatorsFilter)
+//      .and(projectIdFilter)
 
     // When input contains only reserved keywords like "+-()<>~*\""
     // the api should return empty list
@@ -503,7 +516,7 @@ class WorkflowResource {
     }
     try {
       // Add offset calculation for pagination
-      val offset = (page - 1) * pageSize
+//      val offset = (page - 1) * pageSize
 
       val workflowEntries = context
         .select(
@@ -529,7 +542,7 @@ class WorkflowResource {
         .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
         .leftJoin(PROJECT)
         .on(PROJECT.PID.eq(WORKFLOW_OF_PROJECT.PID))
-        .where(matchQuery.and(dateFilter).and(authorFilter))
+        .where(matchQuery.and(optionalFilters))
         .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
         .groupBy(
           WORKFLOW.WID,
@@ -542,8 +555,8 @@ class WorkflowResource {
           WORKFLOW_OF_USER.UID,
           USER.NAME
         )
-        .limit(pageSize)
-        .offset(offset)
+//        .limit(pageSize)
+//        .offset(offset)
         .fetch()
 
       workflowEntries
@@ -570,6 +583,130 @@ class WorkflowResource {
         // return a empty list
         List[DashboardWorkflowEntry]()
     }
+  }
+
+  /**
+    * Helper function to retrieve the owner filter.
+    * Applies a filter based on the specified owner names.
+    *
+    * @param owners The list of owner names to filter by.
+    * @return The owner filter.
+    */
+  def getOwnerFilter(owners: java.util.List[String]): Condition = {
+    var ownerFilter: Condition = noCondition()
+    if (owners != null && !owners.isEmpty) {
+      for (owner <- owners) {
+        ownerFilter = ownerFilter.or(USER.NAME.eq(owner))
+      }
+    }
+    ownerFilter
+  }
+
+  /**
+    * Helper function to retrieve the project filter.
+    * Applies a filter based on the specified project IDs.
+    *
+    * @param projectIds The list of owner names to filter by.
+    * @return The projectId filter.
+    */
+  def getProjectFilter(projectIds: java.util.List[UInteger]): Condition = {
+    var projectIdFilter: Condition = noCondition()
+    if (projectIds.nonEmpty) {
+      for (projectId <- projectIds) {
+        projectIdFilter = projectIdFilter.or(WORKFLOW_OF_PROJECT.PID.eq(projectId))
+      }
+    }
+    projectIdFilter
+  }
+
+  /**
+    * Helper function to retrieve the workflowID filter.
+    * Applies a filter based on the specified workflow IDs.
+    * @param workflowIDs The list of workflow IDs to filter by.
+    * @return The workflowID filter.
+    */
+  def getWorkflowIdFilter(workflowIDs: java.util.List[UInteger]): Condition = {
+    var workflowIdFilter: Condition = noCondition()
+    if (workflowIDs != null && !workflowIDs.isEmpty) {
+      for (workflowID <- workflowIDs) {
+        workflowIdFilter = workflowIdFilter.or(WORKFLOW.WID.eq(workflowID))
+      }
+    }
+    workflowIdFilter
+  }
+
+  /**
+    * Helper function to retrieve the creation date filter.
+    * Applies a filter based on the specified creation start and end dates.
+    *
+    * @param creationStartDate The start date to filter by.
+    * @param creationEndDate   The end date to filter by.
+    * @return The creation date filter.
+    */
+  def getCreationDateFilter(
+      creationStartDate: String,
+      creationEndDate: String
+  ): Condition = {
+    var creationDateFilter: Condition = noCondition()
+    if (creationStartDate.nonEmpty || creationEndDate.nonEmpty) {
+      val start = if (creationStartDate.nonEmpty) creationStartDate else "1970-01-01"
+      val end = if (creationEndDate.nonEmpty) creationEndDate else "9999-12-31"
+      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+      val endTimestamp = new Timestamp(dateFormat.parse(end).getTime)
+      creationDateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
+    }
+    creationDateFilter
+  }
+
+  /**
+    * Helper function to retrieve the modified date filter.
+    * Applies a filter based on the specified modified start and end dates.
+    * @param modifiedStartDate The modified start date to filter by.
+    * @param modifiedEndDate   The modified end date to filter by.
+    * @return The modified date filter.
+    */
+  def getModifiedDateFilter(modifiedStartDate: String, modifiedEndDate: String): Condition = {
+    var modifiedDateFilter: Condition = noCondition()
+    if (modifiedStartDate.nonEmpty || modifiedEndDate.nonEmpty) {
+      val start = if (modifiedStartDate.nonEmpty) modifiedStartDate else "1970-01-01"
+      val end = if (modifiedEndDate.nonEmpty) modifiedEndDate else "9999-12-31"
+      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+      val endTimestamp = new Timestamp(dateFormat.parse(end).getTime)
+      modifiedDateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
+    }
+    modifiedDateFilter
+  }
+
+  /**
+    * Helper function to retrieve the operators filter.
+    * Applies a filter based on the specified operators.
+    *
+    * @param operators The list of operators to filter by.
+    * @return The operators filter.
+    */
+  def getOperatorsFilter(operators: java.util.List[String]): Condition = {
+    var operatorsFilter: Condition = noCondition()
+    if (operators.nonEmpty) {
+      for (operator <- operators) {
+        val quotes = "\""
+        val operatorArray =
+          operator.replaceAllLiterally(" ", "").stripPrefix("[").stripSuffix("]").split(',')
+        for (i <- operatorArray.indices) {
+          val operatorName = operatorArray(i)
+          operatorsFilter = operatorsFilter.or(
+            WORKFLOW.CONTENT
+              .likeIgnoreCase(
+                "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operatorName" + quotes + "%"
+                //gives error when I try to combine escape character with formatted string
+                //may be due to old scala version bug
+              )
+          )
+        }
+      }
+    }
+    operatorsFilter
   }
 
 }
