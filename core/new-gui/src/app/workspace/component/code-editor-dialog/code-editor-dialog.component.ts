@@ -1,4 +1,3 @@
-/// <reference path="../../../../../node_modules/monaco-editor/monaco.d.ts" />
 import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild, OnInit } from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -12,7 +11,7 @@ import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
-import { createUrl } from "../../../common/util/url";
+import { createUrl, getWebsocketUrl } from "../../../common/util/url";
 
 declare const monaco: any;
 
@@ -28,7 +27,6 @@ declare const monaco: any;
  * The dialogue can be closed with ESC key or by clicking on areas outside
  * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
  */
-
 @UntilDestroy()
 @Component({
   selector: "texera-code-editor-dialog",
@@ -160,6 +158,8 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    */
   private connectLanguageServer() {
     const url = createUrl(WEB_SOCKET_HOST, LANGUAGE_SERVER_PORT, PYTHON_LANGUAGE_SERVER);
+    console.log("asd");
+    console.log(getWebsocketUrl(PYTHON_LANGUAGE_SERVER));
     if (!this.socket) {
       this.socket = new WebSocket(url);
       this.socket.onopen = () => {
@@ -181,7 +181,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * @private
    */
   private handleDisabledStatusChange(): void {
-    this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe((_: any) => {
+    this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
       this.editor.updateOptions({
         readOnly: this.formControl.disabled,
       });
