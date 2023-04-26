@@ -158,8 +158,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    */
   private connectLanguageServer() {
     const url = createUrl(WEB_SOCKET_HOST, LANGUAGE_SERVER_PORT, PYTHON_LANGUAGE_SERVER);
-    console.log("asd");
-    console.log(getWebsocketUrl(PYTHON_LANGUAGE_SERVER));
     if (!this.socket) {
       this.socket = new WebSocket(url);
       this.socket.onopen = () => {
