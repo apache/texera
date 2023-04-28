@@ -7,11 +7,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 case class BroadcastPartitioner(partitioning: BroadcastPartitioning) extends Partitioner {
 
   override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
-    val it = Iterator[Int]()
-    for (i <- partitioning.receivers.indices) {
-      it ++ Iterator(i)
-    }
-    it
+    partitioning.receivers.indices.toIterator
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers

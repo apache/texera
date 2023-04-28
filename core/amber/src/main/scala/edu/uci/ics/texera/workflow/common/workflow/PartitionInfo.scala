@@ -69,12 +69,15 @@ case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax
 case class SinglePartition() extends PartitionInfo {}
 
 /**
-  * Represents there is no specific partitioning scheme of the input stream.
+  * Represents the input stream needs to send to every node
   */
-case class UnknownPartition() extends PartitionInfo {}
-
 case class BroadcastPartition() extends PartitionInfo {
   override def merge(other: PartitionInfo): PartitionInfo = {
     BroadcastPartition()
   }
 }
+
+/**
+  * Represents there is no specific partitioning scheme of the input stream.
+  */
+case class UnknownPartition() extends PartitionInfo {}

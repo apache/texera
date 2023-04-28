@@ -23,7 +23,7 @@ class BroadcastPartitioner(Partitioner):
 
     @overrides
     def add_tuple_to_batch(
-            self, tuple_: Tuple
+        self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         self.batch.append(tuple_)
         if len(self.batch) == self.batch_size:

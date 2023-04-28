@@ -22,8 +22,8 @@ class Partitioning(betterproto.Message):
     range_based_shuffle_partitioning: "RangeBasedShufflePartitioning" = (
         betterproto.message_field(4, group="sealed_value")
     )
-    broadcast_partitioning: "BroadcastPartitioning" = (
-        betterproto.message_field(5, group="sealed_value")
+    broadcast_partitioning: "BroadcastPartitioning" = betterproto.message_field(
+        5, group="sealed_value"
     )
 
 

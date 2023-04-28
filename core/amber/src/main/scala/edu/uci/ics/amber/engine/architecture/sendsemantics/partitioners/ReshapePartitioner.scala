@@ -19,12 +19,9 @@ class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
 
   override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
     val it = partitioner.getBucketIndex(tuple)
-    val itMapping = Iterator()
-    for (bucketIndex <- it) {
-      val newDestReceiver = recordSampleAndGetReceiverForReshape(bucketIndex)
-      itMapping ++ Iterator(originalReceiverIndexMapping(newDestReceiver))
-    }
-    it
+    it.map(bucketIndex =>
+      originalReceiverIndexMapping(recordSampleAndGetReceiverForReshape(bucketIndex))
+    )
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioner.allReceivers

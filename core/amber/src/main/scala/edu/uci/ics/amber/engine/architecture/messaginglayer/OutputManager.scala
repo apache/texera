@@ -109,10 +109,9 @@ class OutputManager(
     val partitioner =
       partitioners.getOrElse(outputPort, throw new RuntimeException("output port not found"))
     val it = partitioner.getBucketIndex(tuple)
-    for (bucketIndex <- it) {
-      val destination = partitioner.allReceivers(bucketIndex)
-      networkOutputBuffers((outputPort, destination)).addTuple(tuple)
-    }
+    it.foreach(bucketIndex =>
+      networkOutputBuffers((outputPort, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
+    )
   }
 
   def emitEpochMarker(epochMarker: EpochMarker): Unit = {
