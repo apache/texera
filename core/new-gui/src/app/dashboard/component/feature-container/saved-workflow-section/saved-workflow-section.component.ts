@@ -578,7 +578,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.selectedOwners, 
       this.selectedIDs,
       this.selectedOperators.map(o => o.operatorType),
-      this.selectedProjects.map(p => p.pid)));    
+      this.selectedProjects.map(p => p.pid)));
   }
 
   /**

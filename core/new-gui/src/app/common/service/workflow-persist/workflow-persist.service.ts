@@ -128,7 +128,7 @@ export class WorkflowPersistService {
   ): Observable<DashboardWorkflowEntry[]> {
     function* getQueryParameters(): Iterable<[name: string, value: string]> {
       if (keywords) {
-        for (const keyword in keywords) {
+        for (const keyword of keywords) {
           yield ["query", keyword];
         }
       }
@@ -136,17 +136,17 @@ export class WorkflowPersistService {
       if (createDateEnd) yield ["createDateEnd", createDateEnd.toISOString().split("T")[0]];
       if (modifiedDateStart) yield ["modifiedDateStart", modifiedDateStart.toISOString().split("T")[0]];
       if (modifiedDateEnd) yield ["modifiedDateEnd", modifiedDateEnd.toISOString().split("T")[0]];
-      for (const owner in owners) {
+      for (const owner of owners) {
         yield ["owner", owner];
       }
-      for (const id in ids) {
+      for (const id of ids) {
         yield ["id", id];
       }
-      for (const operator in operators) {
+      for (const operator of operators) {
         yield ["operator", operator];
       }
-      for (const id in projectIds) {
-        yield ["projectIds", id];
+      for (const id of projectIds) {
+        yield ["projectId", id.toString()];
       }
     }
     const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
