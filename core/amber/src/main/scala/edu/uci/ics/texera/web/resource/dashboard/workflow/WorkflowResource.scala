@@ -480,9 +480,9 @@ class WorkflowResource {
         new java.util.ArrayList[UInteger]()
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
-    if (keywords.size() == 0) {
-      return List.empty[DashboardWorkflowEntry]
-    }
+//    if (keywords.size() == 0) {
+//      return List.empty[DashboardWorkflowEntry]
+//    }
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
     var matchQuery: Condition = noCondition()
@@ -533,9 +533,9 @@ class WorkflowResource {
 
     // When input contains only reserved keywords like "+-()<>~*\""
     // the api should return empty list
-    if (matchQuery == DSL.noCondition()) {
-      return List.empty[DashboardWorkflowEntry]
-    }
+//    if (matchQuery == DSL.noCondition()) {
+//      return List.empty[DashboardWorkflowEntry]
+//    }
     try {
       // Add offset calculation for pagination
 //      val offset = (page - 1) * pageSize
