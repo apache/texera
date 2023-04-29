@@ -85,7 +85,7 @@ export class WorkflowPersistService {
     );
   }
 
-  private retrieveWorkflowsBySessionUserInternal(url: string): Observable<DashboardWorkflowEntry[]> {
+  private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflowEntry[]> {
     return this.http.get<DashboardWorkflowEntry[]>(url).pipe(
       map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
         dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
@@ -102,7 +102,7 @@ export class WorkflowPersistService {
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */
   public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
-    return this.retrieveWorkflowsBySessionUserInternal(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
+    return this.makeRequestAndFormatWorkflowResponse(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
   }
 
   /**
@@ -115,10 +115,44 @@ export class WorkflowPersistService {
   /**
    * Search workflows by a text query from backend database that belongs to the user in the session.
    */
-  public searchWorkflowsBySessionUser(keywords: string[]): Observable<DashboardWorkflowEntry[]> {
-    const query = keywords.map(q => `query=${encodeURIComponent(q)}`).join("&");
-    return this.retrieveWorkflowsBySessionUserInternal(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${query}`
+  public searchWorkflows(
+    keywords: string[],
+    createDateStart: Date | null,
+    createDateEnd: Date | null,
+    modifiedDateStart: Date | null,
+    modifiedDateEnd: Date | null,
+    owners: string[],
+    ids: string[],
+    projectIds: number[]
+  ): Observable<DashboardWorkflowEntry[]> {
+    function* getQueryParameters(): Iterable<[name: string, value: string]> {
+      if (keywords) {
+        for (const keyword in keywords) {
+          yield ["query", keyword];
+        }
+      }
+      if (createDateStart) yield ["createDateStart", createDateStart.toISOString().split("T")[0]];
+      if (createDateEnd) yield ["createDateEnd", createDateEnd.toISOString().split("T")[0]];
+      if (modifiedDateStart) yield ["modifiedDateStart", modifiedDateStart.toISOString().split("T")[0]];
+      if (modifiedDateEnd) yield ["modifiedDateEnd", modifiedDateEnd.toISOString().split("T")[0]];
+      for (const owner in owners) {
+        yield ["owner", owner];
+      }
+      for (const id in ids) {
+        yield ["id", id];
+      }
+      for (const id in projectIds) {
+        yield ["projectIds", id];
+      }
+    }
+    const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
+      [...queryStrings]
+        .filter(q => q[1])
+        .map(([name, value]) => name + "=" + encodeURIComponent(value))
+        .join("&");
+    const queryString = concatenateQueryStrings(getQueryParameters());
+    return this.makeRequestAndFormatWorkflowResponse(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${queryString}`
     );
   }
 
