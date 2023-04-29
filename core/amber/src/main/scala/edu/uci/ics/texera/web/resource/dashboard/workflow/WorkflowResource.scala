@@ -3,20 +3,42 @@ package edu.uci.ics.texera.web.resource.dashboard.workflow
 import com.github.nscala_time.time.Imports.LocalDate
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  PROJECT,
+  USER,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
+  WorkflowAccess,
+  toAccessLevel
+}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
+  DashboardWorkflowEntry,
+  context,
+  insertWorkflow,
+  workflowDao,
+  workflowOfUserExists
+}
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
+
 import javax.ws.rs.DefaultValue
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Optional
+import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -446,16 +468,16 @@ class WorkflowResource {
       @QueryParam("query") keywords: java.util.List[String],
 //      @QueryParam("page") page: Int = 1,
 //      @QueryParam("pageSize") pageSize: Int = 20,
-//      @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
-//      @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
-//      @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
-//      @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
+      @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
+      @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
+      @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
+      @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
       @QueryParam("owner") owners: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
-//      @QueryParam("operators") operators: java.util.List[String] =
-//        new java.util.ArrayList[String](),
-//      @QueryParam("projectId") projectIds: java.util.List[UInteger] =
-//        new java.util.ArrayList[UInteger]()
+      @QueryParam("operators") operators: java.util.List[String] =
+        new java.util.ArrayList[String](),
+      @QueryParam("projectId") projectIds: java.util.List[UInteger] =
+        new java.util.ArrayList[UInteger]()
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
     if (keywords.size() == 0) {
@@ -487,27 +509,27 @@ class WorkflowResource {
     }
 
     // Apply creation_time date filter
-//    val creationDateFilter = getCreationDateFilter(creationStartDate, creationEndDate)
-//    // Apply lastModified_time date filter
-//    val modifiedDateFilter = getModifiedDateFilter(modifiedStartDate, modifiedEndDate)
-//    // Apply workflowID filter
+    val creationDateFilter = getCreationDateFilter(creationStartDate, creationEndDate)
+    // Apply lastModified_time date filter
+    val modifiedDateFilter = getModifiedDateFilter(modifiedStartDate, modifiedEndDate)
+    // Apply workflowID filter
     val workflowIdFilter = getWorkflowIdFilter(workflowIDs)
     // Apply owner filter
     val ownerFilter = getOwnerFilter(owners)
-//    // Apply operators filter
-//    val operatorsFilter = getOperatorsFilter(operators)
-//    // Apply projectId filter
-//    val projectIdFilter = getProjectFilter(projectIds)
+    // Apply operators filter
+    val operatorsFilter = getOperatorsFilter(operators)
+    // Apply projectId filter
+    val projectIdFilter = getProjectFilter(projectIds)
 
     // combine all filters with AND
     var optionalFilters: Condition = noCondition()
     optionalFilters = optionalFilters
-//      .and(creationDateFilter)
-//      .and(modifiedDateFilter)
+      .and(creationDateFilter)
+      .and(modifiedDateFilter)
       .and(ownerFilter)
       .and(workflowIdFilter)
-//      .and(operatorsFilter)
-//      .and(projectIdFilter)
+      .and(operatorsFilter)
+      .and(projectIdFilter)
 
     // When input contains only reserved keywords like "+-()<>~*\""
     // the api should return empty list
@@ -653,7 +675,9 @@ class WorkflowResource {
       val end = if (creationEndDate.nonEmpty) creationEndDate else "9999-12-31"
       val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
       val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
-      val endTimestamp = new Timestamp(dateFormat.parse(end).getTime)
+      val endTimestamp = new Timestamp(
+        dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
+      )
       creationDateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
     }
     creationDateFilter
@@ -673,8 +697,10 @@ class WorkflowResource {
       val end = if (modifiedEndDate.nonEmpty) modifiedEndDate else "9999-12-31"
       val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
       val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
-      val endTimestamp = new Timestamp(dateFormat.parse(end).getTime)
-      modifiedDateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
+      val endTimestamp = new Timestamp(
+        dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
+      )
+      modifiedDateFilter = WORKFLOW.LAST_MODIFIED_TIME.between(startTimestamp, endTimestamp)
     }
     modifiedDateFilter
   }
