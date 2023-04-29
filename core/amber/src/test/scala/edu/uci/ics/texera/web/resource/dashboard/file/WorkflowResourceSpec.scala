@@ -124,7 +124,7 @@ class WorkflowResourceSpec
     // Clean up environment after each test case if necessary
     // delete all workflows in the database
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
-    for (workflow <- workflows){
+    for (workflow <- workflows) {
       workflowResource.deleteWorkflow(workflow.workflow.getWid(), sessionUser1)
     }
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
