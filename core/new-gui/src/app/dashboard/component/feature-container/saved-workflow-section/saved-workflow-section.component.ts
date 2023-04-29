@@ -563,26 +563,12 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     this.dashboardWorkflowEntries = await this.search();
   }
 
-  private async asyncSearchByOperator(): Promise<number[] | "NoSearchKeywordProvided"> {
-    if (this.selectedOperators.length == 0) {
-      return "NoSearchKeywordProvided";
-    }
-    return (
-      await firstValueFrom(
-        this.workflowPersistService.retrieveWorkflowByOperator(
-          this.selectedOperators.map(operator => operator.operatorType).toString()
-        )
-      )
-    ).map(id => Number(id));
-  }
-
   /**
-   * Searches workflows with given frontend data
-   * no backend calls so runs synchronously
+   * Searches workflows with keywords and filters given in the masterFilterList. 
+   * @returns 
    */
   private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    const idsFromOperatorSearch = await this.asyncSearchByOperator();
     return await firstValueFrom(this.workflowPersistService.searchWorkflows(
       workflowNames, 
       this.selectedCtime.length > 0 ? this.selectedCtime[0] : null,
@@ -591,8 +577,8 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
       this.selectedMtime.length > 0 ? this.selectedMtime[1] : null,
       this.selectedOwners, 
       this.selectedIDs,
-      this.selectedProjects.map(p => p.pid)));
-    
+      this.selectedOperators.map(o => o.operatorType),
+      this.selectedProjects.map(p => p.pid)));    
   }
 
   /**

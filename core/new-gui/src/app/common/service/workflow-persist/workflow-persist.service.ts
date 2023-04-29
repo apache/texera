@@ -123,6 +123,7 @@ export class WorkflowPersistService {
     modifiedDateEnd: Date | null,
     owners: string[],
     ids: string[],
+    operators: string[],
     projectIds: number[]
   ): Observable<DashboardWorkflowEntry[]> {
     function* getQueryParameters(): Iterable<[name: string, value: string]> {
@@ -140,6 +141,9 @@ export class WorkflowPersistService {
       }
       for (const id in ids) {
         yield ["id", id];
+      }
+      for (const operator in operators) {
+        yield ["operator", operator];
       }
       for (const id in projectIds) {
         yield ["projectIds", id];
