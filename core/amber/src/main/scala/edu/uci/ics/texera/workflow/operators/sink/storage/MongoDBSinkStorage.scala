@@ -14,6 +14,11 @@ import collection.JavaConverters._
 
 class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
 
+  // For backward compatibility of old mongoDB(version < 5)
+  schema.getAttributeNames.stream.forEach(name =>
+    assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
+  )
+
   val commitBatchSize: Int = AmberUtils.amberConfig.getInt("storage.mongodb.commit-batch-size")
   MongoDatabaseManager.dropCollection(id)
   val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)

@@ -47,7 +47,7 @@ class WorkflowJobService(
         case other                              => false
       }
     ) {
-      conf.supportFaultTolerance = true
+      conf.supportFaultTolerance = false
     }
     conf
   }
