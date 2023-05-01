@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
 import { WorkflowAccessService } from "../../../../service/workflow-access/workflow-access.service";
-import { AccessEntry2 } from "../../../../type/access.interface";
+import { WorkflowAccessEntry } from "../../../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardUserFileEntry, UserFile } from "../../../../type/dashboard-user-file-entry";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
@@ -23,7 +23,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     accessLevel: ["READ"],
   });
 
-  public accessList: ReadonlyArray<AccessEntry2> = [];
+  public accessList: ReadonlyArray<WorkflowAccessEntry> = [];
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;

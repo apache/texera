@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { Observable, of } from "rxjs";
 import { WorkflowAccessService } from "./workflow-access.service";
-import { AccessEntry2 } from "../../type/access.interface";
+import { WorkflowAccessEntry } from "../../type/access.interface";
 
 type PublicInterfaceOf<Class> = {
   [Member in keyof Class]: Class[Member];
@@ -22,7 +22,7 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
   public getOwner(wid: number): Observable<string> {
     return of();
   }
-  public getList(wid: number | undefined): Observable<readonly AccessEntry2[]> {
+  public getList(wid: number | undefined): Observable<readonly WorkflowAccessEntry[]> {
     return of();
   }
 }

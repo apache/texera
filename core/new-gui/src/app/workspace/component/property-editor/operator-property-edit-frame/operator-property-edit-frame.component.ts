@@ -33,7 +33,7 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { AccessEntry, AccessEntry2 } from "../../../../dashboard/type/access.interface";
+import { AccessEntry, WorkflowAccessEntry } from "../../../../dashboard/type/access.interface";
 import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
 import { Workflow } from "../../../../common/type/workflow";
 import { QuillBinding } from "y-quill";
@@ -111,7 +111,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
   public lockGranted: boolean = true;
-  public allUserWorkflowAccess: ReadonlyArray<AccessEntry2> = [];
+  public allUserWorkflowAccess: ReadonlyArray<WorkflowAccessEntry> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -173,7 +173,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.workflowGrantAccessService
       .getList(workflow.wid)
       .pipe(untilDestroyed(this))
-      .subscribe((access: ReadonlyArray<AccessEntry2>) => (this.allUserWorkflowAccess = access));
+      .subscribe((access: ReadonlyArray<WorkflowAccessEntry>) => (this.allUserWorkflowAccess = access));
   }
 
   async ngOnDestroy() {

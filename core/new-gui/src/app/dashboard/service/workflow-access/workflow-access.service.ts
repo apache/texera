@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { AccessEntry2 } from "../../type/access.interface";
+import { WorkflowAccessEntry } from "../../type/access.interface";
 export const BASE = `${AppSettings.getApiEndpoint()}/workflow/access`;
 @Injectable({
   providedIn: "root",
@@ -22,7 +22,7 @@ export class WorkflowAccessService {
     return this.http.get(`${BASE}/owner/${wid}`, { responseType: "text" });
   }
 
-  public getList(wid: number | undefined): Observable<ReadonlyArray<AccessEntry2>> {
-    return this.http.get<ReadonlyArray<AccessEntry2>>(`${BASE}/list/${wid}`);
+  public getList(wid: number | undefined): Observable<ReadonlyArray<WorkflowAccessEntry>> {
+    return this.http.get<ReadonlyArray<WorkflowAccessEntry>>(`${BASE}/list/${wid}`);
   }
 }
