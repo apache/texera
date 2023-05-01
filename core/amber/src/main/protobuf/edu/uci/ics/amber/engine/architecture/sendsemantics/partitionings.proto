@@ -18,6 +18,7 @@ message Partitioning{
     RoundRobinPartitioning roundRobinPartitioning = 2;
     HashBasedShufflePartitioning hashBasedShufflePartitioning = 3;
     RangeBasedShufflePartitioning rangeBasedShufflePartitioning = 4;
+    BroadcastPartitioning broadcastPartitioning = 5;
   }
 }
 
@@ -45,3 +46,7 @@ message RangeBasedShufflePartitioning {
   int64 rangeMax = 5;
 }
 
+message BroadcastPartitioning{
+  int32 batchSize = 1;
+  repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
+}

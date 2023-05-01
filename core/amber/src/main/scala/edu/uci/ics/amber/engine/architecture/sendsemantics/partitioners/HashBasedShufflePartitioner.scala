@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitioning)
     extends Partitioner {
 
-  override def getBucketIndex(tuple: ITuple): Int = {
+  override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
     val numBuckets = partitioning.receivers.length
 
     val index = (partitioning.hashColumnIndices
@@ -15,7 +15,7 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
       .toList
       .hashCode() % numBuckets + numBuckets) % numBuckets
 
-    index
+    Iterator(index)
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers

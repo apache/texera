@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import scala.collection.mutable.ArrayBuffer
 
 trait Partitioner extends Serializable {
-  def getBucketIndex(tuple: ITuple): Int
+  def getBucketIndex(tuple: ITuple): Iterator[Int]
 
   def allReceivers: Seq[ActorVirtualIdentity]
 }

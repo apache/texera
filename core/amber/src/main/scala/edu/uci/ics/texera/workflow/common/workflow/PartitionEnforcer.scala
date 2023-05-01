@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.linksemantics._
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.BroadcastPartitioner
 import edu.uci.ics.amber.engine.common.Constants.defaultBatchSize
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
 
@@ -50,6 +51,8 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
           )
         case SinglePartition() =>
           new AllToOne(inputLayer, layer, defaultBatchSize)
+        case BroadcastPartition() =>
+          new AllBroadcast(inputLayer, layer, defaultBatchSize)
         case UnknownPartition() =>
           new FullRoundRobin(inputLayer, layer, defaultBatchSize)
       }

@@ -38,6 +38,8 @@ object OutputManager {
         HashBasedShufflePartitioner(hashBasedShufflePartitioning)
       case rangeBasedShufflePartitioning: RangeBasedShufflePartitioning =>
         RangeBasedShufflePartitioner(rangeBasedShufflePartitioning)
+      case broadcastPartitioning: BroadcastPartitioning =>
+        BroadcastPartitioner(broadcastPartitioning)
       case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
 
@@ -106,9 +108,10 @@ class OutputManager(
   ): Unit = {
     val partitioner =
       partitioners.getOrElse(outputPort, throw new RuntimeException("output port not found"))
-    val bucketIndex = partitioner.getBucketIndex(tuple)
-    val destination = partitioner.allReceivers(bucketIndex)
-    networkOutputBuffers((outputPort, destination)).addTuple(tuple)
+    val it = partitioner.getBucketIndex(tuple)
+    it.foreach(bucketIndex =>
+      networkOutputBuffers((outputPort, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
+    )
   }
 
   def emitEpochMarker(epochMarker: EpochMarker): Unit = {
