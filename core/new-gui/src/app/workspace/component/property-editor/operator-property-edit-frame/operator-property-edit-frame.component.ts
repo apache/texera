@@ -111,7 +111,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
   public lockGranted: boolean = true;
-  public allUserWorkflowAccess: ReadonlyArray<WorkflowAccessEntry> = [];
+  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
