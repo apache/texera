@@ -36,7 +36,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   ngOnInit(): void {
     this.workflowAccessService
-      .getList(this.wid)
+      .getWorkflowList(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(access => (this.accessList = access));
     this.workflowAccessService
