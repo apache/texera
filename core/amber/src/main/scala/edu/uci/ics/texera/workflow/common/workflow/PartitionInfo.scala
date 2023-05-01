@@ -71,11 +71,7 @@ case class SinglePartition() extends PartitionInfo {}
 /**
   * Represents the input stream needs to send to every node
   */
-case class BroadcastPartition() extends PartitionInfo {
-  override def merge(other: PartitionInfo): PartitionInfo = {
-    BroadcastPartition()
-  }
-}
+case class BroadcastPartition() extends PartitionInfo {}
 
 /**
   * Represents there is no specific partitioning scheme of the input stream.
