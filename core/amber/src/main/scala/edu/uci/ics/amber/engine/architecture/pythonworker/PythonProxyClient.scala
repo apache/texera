@@ -134,7 +134,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
-    logger.debug(
+    logger.info(
       s"sending data with descriptor ${PythonDataHeader(from, isEnd)}, schema $schema, size of batch ${tuples.size}"
     )
     val flightListener = new SyncPutListener
