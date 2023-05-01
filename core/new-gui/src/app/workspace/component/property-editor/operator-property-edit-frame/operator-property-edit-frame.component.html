@@ -96,7 +96,10 @@
   nz-button
   nz-tooltip="Unlock the operator to change logic"
   nzTooltipPlacement="bottom"
-  [disabled]="!lockGranted">
+  [disabled]="
+  currentOperatorSchema?.additionalMetadata?.supportReconfiguration !== true
+  || currentOperatorStatus?.operatorState === OperatorState.Completed
+  ">
   Unlock for Logic Change
   <i
     nz-icon
@@ -115,8 +118,7 @@
 		this.interactive === true"
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"
-  nzTooltipPlacement="bottom"
-  [disabled]="!lockGranted">
+  nzTooltipPlacement="bottom">
   Confirm Change
 </button>
 

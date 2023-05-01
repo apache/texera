@@ -39,6 +39,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
       operatorDescription = "random sampling with given percentage",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 }
