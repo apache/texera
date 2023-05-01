@@ -496,8 +496,7 @@ class WorkflowResource {
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
           WORKFLOW.LAST_MODIFIED_TIME,
-          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME,
           groupConcat(PROJECT.PID).as("projects")
@@ -521,8 +520,7 @@ class WorkflowResource {
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
           WORKFLOW.LAST_MODIFIED_TIME,
-          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME
         )
@@ -532,14 +530,16 @@ class WorkflowResource {
         .map(workflowRecord =>
           DashboardWorkflowEntry(
             workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-            toAccessLevel(
-              workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-            ).toString,
+            workflowRecord
+              .into(WORKFLOW_USER_ACCESS)
+              .into(classOf[WorkflowUserAccess])
+              .getPrivilege
+              .toString,
             workflowRecord.into(USER).getName,
             workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-            if (workflowRecord.component10() == null) List[UInteger]()
+            if (workflowRecord.component9() == null) List[UInteger]()
             else
-              workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+              workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
           )
         )
         .toList

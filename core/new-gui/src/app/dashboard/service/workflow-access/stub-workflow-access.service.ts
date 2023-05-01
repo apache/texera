@@ -22,7 +22,7 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
   public getOwner(wid: number): Observable<string> {
     return of();
   }
-  public getList(wid: number | undefined): Observable<readonly WorkflowAccessEntry[]> {
+  public getWorkflowList(wid: number | undefined): Observable<readonly WorkflowAccessEntry[]> {
     return of();
   }
 }
