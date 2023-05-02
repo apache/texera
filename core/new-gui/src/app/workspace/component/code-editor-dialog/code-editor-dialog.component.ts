@@ -101,7 +101,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   ngAfterViewInit() {
-    this.initMonaco();
+    
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
@@ -119,6 +119,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
     this.handleDisabledStatusChange();
+    this.initMonaco();
   }
 
   /**
