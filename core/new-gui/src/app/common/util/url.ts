@@ -2,7 +2,6 @@
  * url.ts maintains common functions related to URL.
  */
 
-
 /**
  * Generate a websocket URL based on a server endpoint.
  */
