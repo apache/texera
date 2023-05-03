@@ -73,7 +73,7 @@
     "marked": "4.2.12",
     "monaco-editor": "^0.34.0",
     "monaco-editor-webpack-plugin": "^7.0.1",
-    "monaco-languageclient": "^4.0.3",
+    "monaco-languageclient": "^3.0.0",
     "ng-dynamic-component": "~10.1.0",
     "ng-zorro-antd": "13.2.2",
     "ng2-file-upload": "~1.4.0",
