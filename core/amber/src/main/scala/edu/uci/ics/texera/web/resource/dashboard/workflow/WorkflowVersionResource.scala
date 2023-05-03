@@ -31,8 +31,8 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowVersionResource {
   final private lazy val context = SqlServer.createDSLContext()
-  final private val workflowVersionDao = new WorkflowVersionDao(context.configuration)
-  final private val workflowDao = new WorkflowDao(context.configuration)
+  final private lazy val workflowVersionDao = new WorkflowVersionDao(context.configuration)
+  final private lazy val workflowDao = new WorkflowDao(context.configuration)
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
     AmberUtils.amberConfig.getInt("user-sys.version-time-limit-in-minutes") * 60000

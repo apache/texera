@@ -39,6 +39,7 @@ class RegexOpDesc extends FilterOpDesc {
       operatorDescription = "Search a regular expression in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 }

@@ -7,8 +7,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWor
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.{ModifyLogicRequest, WorkflowExecuteRequest}
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.model.websocket.response.ModifyLogicResponse
+import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READY, RUNNING}
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -20,6 +22,8 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
   PythonUDFOpDescV2,
   PythonUDFOpExecV2
 }
+
+import scala.util.{Failure, Success}
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
@@ -62,16 +66,19 @@ class WorkflowJobService(
       errorHandler
     )
   val jobBreakpointService = new JobBreakpointService(client, stateStore)
+  val jobReconfigurationService =
+    new JobReconfigurationService(client, stateStore, workflowCompiler, workflow)
   val jobStatsService = new JobStatsService(client, stateStore)
   val jobRuntimeService =
-    new JobRuntimeService(client, stateStore, wsInput, jobBreakpointService)
+    new JobRuntimeService(
+      client,
+      stateStore,
+      wsInput,
+      jobBreakpointService,
+      jobReconfigurationService
+    )
   val jobPythonService =
     new JobPythonService(client, stateStore, wsInput, jobBreakpointService)
-
-  addSubscription(wsInput.subscribe((req: ModifyLogicRequest, uidOpt) => {
-    workflowCompiler.initOperator(req.operator)
-    client.sendAsync(ModifyLogic(req.operator))
-  }))
 
   workflowContext.executionID = -1 // for every new execution,
   // reset it so that the value doesn't carry over across executions
@@ -142,6 +149,7 @@ class WorkflowJobService(
     jobRuntimeService.unsubscribeAll()
     jobPythonService.unsubscribeAll()
     jobStatsService.unsubscribeAll()
+    jobReconfigurationService.unsubscribeAll()
   }
 
 }
