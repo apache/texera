@@ -91,7 +91,7 @@
     "tinyqueue": "~2.0.3",
     "tslib": "~2.3.1",
     "uuid": "~8.3.2",
-    "vscode-ws-jsonrpc": "^2.0.2",
+    "vscode-ws-jsonrpc": "^1.0.1",
     "y-indexeddb": "^9.0.7",
     "y-monaco": "^0.1.4",
     "y-protocols": "^1.0.5",
