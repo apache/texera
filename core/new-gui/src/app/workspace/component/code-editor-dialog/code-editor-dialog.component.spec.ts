@@ -36,7 +36,7 @@ describe("CodeEditorDialogComponent", () => {
   });
 
   it("should create a websocket when the editor is opened", () => {
-    let socketInstance = component.socket;
+    let socketInstance = component.getLanguageServerSocket();
     expect(socketInstance).toBeTruthy();
   });
 });

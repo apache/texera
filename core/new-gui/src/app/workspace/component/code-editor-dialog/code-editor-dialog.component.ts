@@ -11,7 +11,7 @@ import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
-import { createUrl, getWebsocketUrl } from "../../../common/util/url";
+import { environment } from "src/environments/environment";
 
 declare const monaco: any;
 
@@ -47,7 +47,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
-  socket?: any;
+  private languageServerSocket?: any;
 
   constructor(
     private sanitizer: DomSanitizer,
@@ -61,9 +61,10 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
-    if (this.socket) {
-      this.socket.close();
-      this.socket = undefined;
+    
+    if (this.languageServerSocket !== undefined) {
+      this.languageServerSocket.close();
+      this.languageServerSocket = undefined;
     }
   }
 
@@ -91,6 +92,10 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       monaco.editor.getModel(monaco.Uri.parse(uri)) ||
       monaco.editor.createModel(this.code, "python", monaco.Uri.parse(uri))
     );
+  }
+
+  getLanguageServerSocket() {
+    return this.languageServerSocket;
   }
 
   getModelURI() {
@@ -158,11 +163,11 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * @private
    */
   private connectLanguageServer() {
-    const url = createUrl(WEB_SOCKET_HOST, LANGUAGE_SERVER_PORT, PYTHON_LANGUAGE_SERVER);
-    if (!this.socket) {
-      this.socket = new WebSocket(url);
-      this.socket.onopen = () => {
-        const socket = toSocket(this.socket);
+    const url = environment.LANGUAGE_SERVER_URL;
+    if (this.languageServerSocket === undefined) {
+      this.languageServerSocket = new WebSocket(url);
+      this.languageServerSocket.onopen = () => {
+        const socket = toSocket(this.languageServerSocket);
         const reader = new WebSocketMessageReader(socket);
         const writer = new WebSocketMessageWriter(socket);
         const languageClient = this.createLanguageClient({
@@ -188,6 +193,3 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 }
 
-const WEB_SOCKET_HOST = "localhost";
-const PYTHON_LANGUAGE_SERVER = "/python-language-server";
-const LANGUAGE_SERVER_PORT = 3000;
