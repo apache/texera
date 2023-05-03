@@ -104,7 +104,7 @@ export const defaultEnvironment = {
    */
   productionSharedEditingServer: false,
 
-  LANGUAGE_SERVER_URL: 'ws://localhost:3000/python-language-server',
+  LANGUAGE_SERVER_URL: "ws://localhost:3000/python-language-server",
 };
 
 export type AppEnv = typeof defaultEnvironment;

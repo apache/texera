@@ -61,7 +61,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
-    
+
     if (this.languageServerSocket !== undefined) {
       this.languageServerSocket.close();
       this.languageServerSocket = undefined;
@@ -106,7 +106,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   ngAfterViewInit() {
-    
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
@@ -192,4 +191,3 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     });
   }
 }
-
