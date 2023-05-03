@@ -110,19 +110,18 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
 
-    if (currentOperatorId === undefined) {
-      return;
+    if (currentOperatorId !== undefined) {
+      this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
+
+      this.code = (
+        this.workflowActionService
+          .getTexeraGraph()
+          .getSharedOperatorType(currentOperatorId)
+          .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
+      ).get("code") as YText;
+      this.handleDisabledStatusChange();
     }
 
-    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
-
-    this.code = (
-      this.workflowActionService
-        .getTexeraGraph()
-        .getSharedOperatorType(currentOperatorId)
-        .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
-    ).get("code") as YText;
-    this.handleDisabledStatusChange();
     this.initMonaco();
   }
 
@@ -163,6 +162,8 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    */
   private connectLanguageServer() {
     const url = environment.LANGUAGE_SERVER_URL;
+
+    console.log(this.languageServerSocket);
     if (this.languageServerSocket === undefined) {
       this.languageServerSocket = new WebSocket(url);
       this.languageServerSocket.onopen = () => {
