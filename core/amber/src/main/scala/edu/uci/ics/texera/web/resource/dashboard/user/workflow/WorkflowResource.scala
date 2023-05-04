@@ -6,11 +6,7 @@ import scala.collection.mutable.Set
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
@@ -18,6 +14,11 @@ import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
+import javax.ws.rs.DefaultValue
+import java.sql.Timestamp
+import java.text.{ParseException, SimpleDateFormat}
+import java.util.Optional
+import java.util.concurrent.TimeUnit
 import javax.ws.rs.DefaultValue
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
@@ -431,12 +432,14 @@ class WorkflowResource {
     }
   }
 
+
   /**
     * This method performs a full-text search in the content column of the
     * workflow table for workflows that match the specified keywords.
     *
     * This method utilizes MySQL Boolean Full-Text Searches
     * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
+    *
     *
     * @param sessionUser The authenticated user.
     * @param keywords    The search keywords.
@@ -445,19 +448,19 @@ class WorkflowResource {
   @GET
   @Path("/search")
   def searchWorkflows(
-      @Auth sessionUser: SessionUser,
-      @QueryParam("query") keywords: java.util.List[String],
-      @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
-      @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
-      @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
-      @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
-      @QueryParam("owner") owners: java.util.List[String] = new java.util.ArrayList[String](),
-      @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
-      @QueryParam("operators") operators: java.util.List[String] =
-        new java.util.ArrayList[String](),
-      @QueryParam("projectId") projectIds: java.util.List[UInteger] =
-        new java.util.ArrayList[UInteger]()
-  ): List[DashboardWorkflowEntry] = {
+                       @Auth sessionUser: SessionUser,
+                       @QueryParam("query") keywords: java.util.List[String],
+                       @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
+                       @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
+                       @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
+                       @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
+                       @QueryParam("owner") owners: java.util.List[String] = new java.util.ArrayList[String](),
+                       @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
+                       @QueryParam("operators") operators: java.util.List[String] =
+                       new java.util.ArrayList[String](),
+                       @QueryParam("projectId") projectIds: java.util.List[UInteger] =
+                       new java.util.ArrayList[UInteger]()
+                     ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
 
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
@@ -501,6 +504,19 @@ class WorkflowResource {
       // Apply projectId filter
       .and(getProjectFilter(projectIds))
 
+      // Apply creation_time date filter
+      .and(getDateFilter("creation", creationStartDate, creationEndDate))
+      // Apply lastModified_time date filter
+      .and(getDateFilter("modification", modifiedStartDate, modifiedEndDate))
+      // Apply workflowID filter
+      .and(getWorkflowIdFilter(workflowIDs))
+      // Apply owner filter
+      .and(getOwnerFilter(owners))
+      // Apply operators filter
+      .and(getOperatorsFilter(operators))
+      // Apply projectId filter
+      .and(getProjectFilter(projectIds))
+
     try {
       val workflowEntries = context
         .select(
@@ -509,7 +525,8 @@ class WorkflowResource {
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
           WORKFLOW.LAST_MODIFIED_TIME,
-          WORKFLOW_USER_ACCESS.PRIVILEGE,
+          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME,
           groupConcat(PROJECT.PID).as("projects")
@@ -533,7 +550,8 @@ class WorkflowResource {
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
           WORKFLOW.LAST_MODIFIED_TIME,
-          WORKFLOW_USER_ACCESS.PRIVILEGE,
+          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME
         )
@@ -543,16 +561,14 @@ class WorkflowResource {
         .map(workflowRecord =>
           DashboardWorkflowEntry(
             workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-            workflowRecord
-              .into(WORKFLOW_USER_ACCESS)
-              .into(classOf[WorkflowUserAccess])
-              .getPrivilege
-              .toString,
+            toAccessLevel(
+              workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+            ).toString,
             workflowRecord.into(USER).getName,
             workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-            if (workflowRecord.component9() == null) List[UInteger]()
+            if (workflowRecord.component10() == null) List[UInteger]()
             else
-              workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
+              workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
           )
         )
         .toList
@@ -577,10 +593,12 @@ class WorkflowResource {
   def getOwnerFilter(owners: java.util.List[String]): Condition = {
     var ownerFilter: Condition = noCondition()
     val ownerSet: Set[String] = Set()
+    val ownerSet: Set[String] = Set()
     if (owners != null && !owners.isEmpty) {
       for (owner <- owners) {
         if (!ownerSet(owner)) {
           ownerSet += owner
+          ownerFilter = ownerFilter.or(USER.EMAIL.eq(owner))
           ownerFilter = ownerFilter.or(USER.EMAIL.eq(owner))
         }
       }
@@ -644,10 +662,10 @@ class WorkflowResource {
     * @return A Condition object that can be used to filter workflows based on the date range and type.
     */
   def getDateFilter(
-      dateType: String,
-      startDate: String,
-      endDate: String
-  ): Condition = {
+                     dateType: String,
+                     startDate: String,
+                     endDate: String
+                   ): Condition = {
     var dateFilter: Condition = noCondition()
 
     if (startDate.nonEmpty || endDate.nonEmpty) {

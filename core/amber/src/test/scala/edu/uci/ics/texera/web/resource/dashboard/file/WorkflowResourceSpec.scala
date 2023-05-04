@@ -9,19 +9,16 @@ import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowDao}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT,
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
 
+import java.util.concurrent.TimeUnit
+import java.sql.Timestamp
+import java.text.{ParseException, SimpleDateFormat}
 import java.util.concurrent.TimeUnit
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
@@ -31,7 +28,7 @@ import java.util
 import java.util.Collections
 
 class WorkflowResourceSpec
-    extends AnyFlatSpec
+  extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
     with MockTexeraDB {
@@ -354,11 +351,13 @@ class WorkflowResourceSpec
     val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1"))
     val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").toString)
+    assert(ownerFilter.toString == USER.EMAIL.eq("owner1").toString)
   }
 
   it should "return a proper condition for multiple owners" in {
     val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2"))
     val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
+    assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
   }
 
@@ -524,5 +523,14 @@ class WorkflowResourceSpec
         .toString
     )
   }
+
+  it should "return a proper condition for multiple operators" in {
+    val operatorsList = new java.util.ArrayList[String](util.Arrays.asList("operator1", "operator2"))
+    val operatorsFilter: Condition = workflowResource.getOperatorsFilter(operatorsList)
+    val searchKey1 = "%\"operatorType\":\"operator1\"%"
+    val searchKey2 = "%\"operatorType\":\"operator2\"%"
+    assert(operatorsFilter.toString == WORKFLOW.CONTENT.likeIgnoreCase(searchKey1).or(WORKFLOW.CONTENT.likeIgnoreCase(searchKey2)).toString)
+  }
+
 
 }
