@@ -1,0 +1,4 @@
+Uri: git:<WORKSPACE>/amber/src/main/scala/edu/uci/ics/texera/web/resource/dashboard/user/workflow/WorkflowResource.scala?%7B%22path%22%3A%22%2FUsers%2Fkenlinguo%2FDesktop%2FUCI%2FSpring2023%2Fcs295%2Ftexera%2Fcore%2Famber%2Fsrc%2Fmain%2Fscala%2Fedu%2Fuci%2Fics%2Ftexera%2Fweb%2Fresource%2Fdashboard%2Fuser%2Fworkflow%2FWorkflowResource.scala%22%2C%22ref%22%3A%22%22%7D
+
+Error message: Provider "git" not installed
+Error: java.nio.file.FileSystemNotFoundException: Provider "git" not installed
