@@ -28,6 +28,11 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 object WorkflowAccessResource {
   final private val context: DSLContext = SqlServer.createDSLContext
 
+  /**
+    * @param wid workflow id
+    * @param uid user id, works with workflow id as primary keys in database
+    * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
+    */
   def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
     val access = context
       .select()
@@ -41,14 +46,34 @@ object WorkflowAccessResource {
     }
   }
 
+  /**
+    * Identifies whether the given user has read-only access over the given workflow
+    *
+    * @param wid workflow id
+    * @param uid user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
   def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
     getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ)
   }
 
+  /**
+    * Identifies whether the given user has write access over the given workflow
+    *
+    * @param wid workflow id
+    * @param uid user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
   def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
     getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.WRITE)
   }
 
+  /**
+    * Identifies whether the given user has no access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
   def hasAccess(wid: UInteger, uid: UInteger): Boolean = {
     hasReadAccess(wid, uid) || hasWriteAccess(wid, uid)
   }
@@ -62,6 +87,11 @@ class WorkflowAccessResource() {
   final private val workflowOfUserDao = new WorkflowOfUserDao(context.configuration)
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(context.configuration)
 
+  /**
+    * This method returns the owner of a workflow
+    * @param wid,  workflow id
+    * @return ownerEmail,  the owner's email
+    */
   @GET
   @Path("/owner/{wid}")
   def getOwner(@PathParam("wid") wid: UInteger): String = {
@@ -69,9 +99,14 @@ class WorkflowAccessResource() {
     userDao.fetchOneByUid(uid).getEmail
   }
 
+  /**
+    * Returns information about all current shared access of the given workflow
+    * @param wid workflow id
+    * @return a List of email/permission pair
+    */
   @GET
   @Path("/list/{wid}")
-  def getList(
+  def getAccessList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[AccessEntry2] = {
@@ -101,6 +136,13 @@ class WorkflowAccessResource() {
     }
   }
 
+  /**
+    * This method identifies the user access level of the given workflow
+    *
+    * @param wid      the given workflow
+    * @param email the email of the use whose access is about to be removed
+    * @return message indicating a success message
+    */
   @DELETE
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
@@ -128,6 +170,13 @@ class WorkflowAccessResource() {
     }
   }
 
+  /**
+    * This method shares a workflow to a user with a specific access type
+    * @param wid         the given workflow
+    * @param email    the email which the access is given to
+    * @param privilege the type of Access given to the target user
+    * @return rejection if user not permitted to share the workflow or Success Message
+    */
   @PUT
   @Path("/grant/{wid}/{email}/{privilege}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))

@@ -28,13 +28,13 @@ import {
 } from "../typecasting-display/type-casting-display.component";
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter, takeUntil } from "rxjs/operators";
+import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { AccessEntry, WorkflowAccessEntry } from "../../../../dashboard/type/access.interface";
+import { WorkflowAccessEntry } from "../../../../dashboard/type/access.interface";
 import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
 import { Workflow } from "../../../../common/type/workflow";
 import { QuillBinding } from "y-quill";
@@ -187,7 +187,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   public refreshGrantedList(workflow: Workflow): void {
     this.workflowGrantAccessService
-      .getWorkflowList(workflow.wid)
+      .getAccessList(workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe((access: ReadonlyArray<WorkflowAccessEntry>) => (this.allUserWorkflowAccess = access));
   }

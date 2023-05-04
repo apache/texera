@@ -22,7 +22,7 @@ export class WorkflowAccessService {
     return this.http.get(`${BASE}/owner/${wid}`, { responseType: "text" });
   }
 
-  public getWorkflowList(wid: number | undefined): Observable<ReadonlyArray<WorkflowAccessEntry>> {
+  public getAccessList(wid: number | undefined): Observable<ReadonlyArray<WorkflowAccessEntry>> {
     return this.http.get<ReadonlyArray<WorkflowAccessEntry>>(`${BASE}/list/${wid}`);
   }
 }
