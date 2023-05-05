@@ -47,7 +47,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
-  private languageServerSocket?: any;
+  private languageServerSocket?: WebSocket | undefined;
 
   constructor(
     private sanitizer: DomSanitizer,
@@ -162,20 +162,20 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    */
   private connectLanguageServer() {
     const url = environment.LANGUAGE_SERVER_URL;
-
-    console.log(this.languageServerSocket);
     if (this.languageServerSocket === undefined) {
       this.languageServerSocket = new WebSocket(url);
       this.languageServerSocket.onopen = () => {
-        const socket = toSocket(this.languageServerSocket);
-        const reader = new WebSocketMessageReader(socket);
-        const writer = new WebSocketMessageWriter(socket);
-        const languageClient = this.createLanguageClient({
-          reader,
-          writer,
-        });
-        languageClient.start();
-        reader.onClose(() => languageClient.stop());
+        if (this.languageServerSocket !== undefined) {
+          const socket = toSocket(this.languageServerSocket);
+          const reader = new WebSocketMessageReader(socket);
+          const writer = new WebSocketMessageWriter(socket);
+          const languageClient = this.createLanguageClient({
+            reader,
+            writer,
+          });
+          languageClient.start();
+          reader.onClose(() => languageClient.stop());
+        }
       };
     }
   }
