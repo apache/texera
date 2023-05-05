@@ -13,7 +13,14 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, USER, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  PROJECT,
+  USER,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
 
 import java.nio.file.Files
 import java.nio.charset.StandardCharsets
@@ -353,7 +360,8 @@ class WorkflowResourceSpec
   }
 
   it should "return a proper condition for multiple owners with duplicates" in {
-    val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2", "owner2"))
+    val ownerList =
+      new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2", "owner2"))
     val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
     assert(ownerFilter.toString == USER.NAME.eq("owner1").or(USER.NAME.eq("owner2")).toString)
   }

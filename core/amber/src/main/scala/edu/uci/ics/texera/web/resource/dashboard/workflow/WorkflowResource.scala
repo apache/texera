@@ -588,7 +588,7 @@ class WorkflowResource {
     val ownerSet: Set[String] = Set()
     if (owners != null && !owners.isEmpty) {
       for (owner <- owners) {
-        if (!ownerSet(owner)){
+        if (!ownerSet(owner)) {
           ownerSet += owner
           ownerFilter = ownerFilter.or(USER.NAME.eq(owner))
         }
