@@ -69,6 +69,11 @@ case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax
 case class SinglePartition() extends PartitionInfo {}
 
 /**
+  * Represents the input stream needs to send to every node
+  */
+case class BroadcastPartition() extends PartitionInfo {}
+
+/**
   * Represents there is no specific partitioning scheme of the input stream.
   */
 case class UnknownPartition() extends PartitionInfo {}
