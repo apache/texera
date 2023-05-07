@@ -1,8 +1,8 @@
-import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { remove } from "lodash-es";
-import { from, Observable, map, firstValueFrom } from "rxjs";
+import { firstValueFrom, from, map, Observable } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -16,7 +16,7 @@ import { UserProjectService } from "../../../service/user-project/user-project.s
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { concatMap, catchError } from "rxjs/operators";
+import { catchError, concatMap } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
@@ -177,23 +177,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
     modalRef.componentInstance.allOwners = this.owners.map(owner => owner.userName);
-    this.workflowPersistService
-      .retrieveWorkflow(<number>workflow.wid)
-      .pipe(untilDestroyed(this))
-      .subscribe(data => {
-        const workflowCopy: Workflow = {
-          ...data,
-          wid: undefined,
-          creationTime: undefined,
-          lastModifiedTime: undefined,
-        };
-        let filenames: string[] = [];
-        workflowCopy.content.operators.forEach(operator => {
-          const filename: string = operator.operatorProperties.fileName;
-          if (filename) filenames.push(filename);
-        });
-        modalRef.componentInstance.filenames = [...new Set(filenames)];
-      });
   }
 
   /**
@@ -527,6 +510,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *
    * @param searchType - specified fuse search parameter for path mapping
    * @param searchList - list of search parameters of the same type (owner, id, etc.)
+   * @param exactMatch
    */
   private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
     let orPathQuery: Object[] = [];

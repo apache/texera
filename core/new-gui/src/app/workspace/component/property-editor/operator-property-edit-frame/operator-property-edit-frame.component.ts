@@ -10,7 +10,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { cloneDeep, isEqual } from "lodash-es";
 import { CustomJSONSchema7, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
-import { ExecutionState, OperatorStatistics, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
+import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
   SchemaAttribute,
@@ -28,15 +28,11 @@ import {
 } from "../typecasting-display/type-casting-display.component";
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter, takeUntil } from "rxjs/operators";
+import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
-import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { AccessEntry } from "../../../../dashboard/type/access.interface";
-import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
-import { Workflow } from "../../../../common/type/workflow";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
@@ -117,7 +113,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -133,8 +128,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
-    private userFileService: UserFileService,
-    private workflowGrantAccessService: WorkflowAccessService,
     private workflowStatusSerivce: WorkflowStatusService
   ) {}
 
@@ -172,9 +165,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.registerOperatorDisplayNameChangeHandler();
 
-    let workflow = this.workflowActionService.getWorkflow();
-    if (workflow) this.refreshGrantedList(workflow);
-
     this.workflowStatusSerivce
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
@@ -183,17 +173,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorStatus = update[this.currentOperatorId];
         }
       });
-  }
-
-  public refreshGrantedList(workflow: Workflow): void {
-    this.workflowGrantAccessService
-      .retrieveGrantedWorkflowAccessList(workflow)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => console.log(err.error)
-      );
   }
 
   async ngOnDestroy() {
@@ -208,28 +187,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
-    // This assumes "fileName" to be the only key for file names in an operator property.
-    const filename: string = <string>event["fileName"];
-    if (filename) {
-      const [owner, fname] = filename.split("/", 2);
-      this.allUserWorkflowAccess.forEach(userWorkflowAccess => {
-        this.userFileService
-          .grantUserFileAccess(
-            {
-              ownerName: owner,
-              file: { fid: -1, path: "", size: -1, description: "", uploadTime: "", name: fname },
-              accessLevel: "read",
-              isOwner: true,
-              projectIDs: [],
-            },
-            userWorkflowAccess.userName,
-            "read"
-          )
-          .pipe(untilDestroyed(this))
-          .subscribe();
-      });
-    }
-
     this.sourceFormChangeEventStream.next(event);
   }
 

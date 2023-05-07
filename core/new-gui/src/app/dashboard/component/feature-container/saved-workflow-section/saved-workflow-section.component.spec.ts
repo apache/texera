@@ -1,4 +1,4 @@
-import { async, ComponentFixture, fakeAsync, flush, TestBed, tick, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -13,7 +13,7 @@ import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
-import { HttpClient, HttpClientModule } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { WorkflowAccessService } from "../../../service/workflow-access/workflow-access.service";
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -28,13 +28,9 @@ import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
-import { mockOperatorMetaData } from "src/app/workspace/service/operator-metadata/mock-operator-metadata.data";
-import { AppSettings } from "src/app/common/app-setting";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 import { NzUploadModule } from "ng-zorro-antd/upload";
-import { MatSelectModule } from "@angular/material/select";
-import { By, EVENT_MANAGER_PLUGINS } from "@angular/platform-browser";
-import { animationFrameScheduler } from "rxjs";
+import { By } from "@angular/platform-browser";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
@@ -45,8 +41,6 @@ describe("SavedWorkflowSectionComponent", () => {
   let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
 
   let httpTestingController: HttpTestingController;
-
-  let editableDescriptionInput: HTMLInputElement;
 
   //All times in test Workflows are in PST because our local machine's timezone is PST
   //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
