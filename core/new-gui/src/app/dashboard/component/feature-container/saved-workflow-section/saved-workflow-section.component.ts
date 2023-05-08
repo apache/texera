@@ -175,7 +175,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
-    modalRef.componentInstance.workflow = workflow;
+    modalRef.componentInstance.wid = workflow.wid;
     modalRef.componentInstance.allOwners = this.owners.map(owner => owner.userName);
     this.workflowPersistService
       .retrieveWorkflow(<number>workflow.wid)

@@ -14,59 +14,66 @@
 </div>
 <div class="modal-body">
   <form
-    (ngSubmit)="onClickShareWorkflow(workflow)"
-    [formGroup]="shareForm">
+    [formGroup]="validateForm"
+    (ngSubmit)="grantAccess()">
     <div class="form-group">
-      <label for="username"> Username of the target user to share </label>
-      <input
-        [(ngModel)]="ownerSearchValue"
-        nz-input
-        nzBackdrop="false"
-        class="form-control"
-        formControlName="username"
-        id="username"
-        type="text"
-        (ngModelChange)="onChange($event)"
-        [nzAutocomplete]="auto" />
-      <nz-autocomplete
-        [nzDefaultActiveFirstOption]="false"
-        [nzDataSource]="filteredOwners"
-        nzBackfill
-        #auto></nz-autocomplete>
+      <nz-card nzTitle="Target User">
+        <nz-form-item>
+          <nz-form-label
+            [nzSm]="6"
+            [nzXs]="24"
+            nzRequired
+            nzFor="email"
+            >E-mail</nz-form-label
+          >
+          <nz-form-control
+            [nzSm]="14"
+            [nzXs]="24"
+            nzErrorTip="The input is not valid E-mail!">
+            <input
+              nz-input
+              id="email"
+              type="email"
+              formControlName="email"
+              [(ngModel)]="ownerSearchValue"
+              (ngModelChange)="onChange($event)"
+              [nzAutocomplete]="auto" />
+            <nz-autocomplete
+              [nzDefaultActiveFirstOption]="false"
+              [nzDataSource]="filteredOwners"
+              nzBackfill
+              #auto></nz-autocomplete>
+          </nz-form-control>
+        </nz-form-item>
+      </nz-card>
       <br />
-      <label for="accessLevel"> Access Level </label>
-      <div id="accessLevel">
-        <select
-          class="custom-select"
-          formControlName="accessLevel">
-          <option
-            disabled
-            value="">
-            Choose Access Level To Be Shared
-          </option>
-          <option
-            (change)="changeType($event)"
-            *ngFor="let accessLevel of accessLevels"
-            [ngValue]="accessLevel">
-            {{ accessLevel }}
-          </option>
-        </select>
+      <div nz-row>
+        <div
+          nz-col
+          [nzSpan]="24">
+          <nz-card nzTitle="Share">
+            <div style="height: 50px">
+              Access Level:
+              <select formControlName="accessLevel">
+                <option value="READ">read</option>
+                <option value="WRITE">write</option>
+              </select>
+            </div>
+            <button
+              style="width: 100%"
+              nz-button
+              nzType="primary"
+              type="submit">
+              Share
+            </button>
+          </nz-card>
+        </div>
       </div>
-      <br />
-      <br />
-      <button
-        nz-button
-        nz-tooltip="share the access to the target user"
-        nzTooltipPlacement="bottom"
-        nzType="primary"
-        type="submit">
-        Share
-      </button>
     </div>
   </form>
   <br />
   <button
-    (click)="onClickGetAllSharedAccess(workflow)"
+    (click)="ngOnInit()"
     nz-button
     nz-tooltip="reload all accesses"
     nzSize="small"
@@ -80,12 +87,12 @@
   <ul
     class="current-share"
     id="current-share">
-    <li>{{ workflowOwner }} <span class="badge badge-primary">Owner</span></li>
-    <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
-      {{ userWorkflowAccess.userName }}
-      <span class="badge badge-primary">{{ userWorkflowAccess.accessLevel }}</span>
+    <li>{{ owner }} <span class="badge badge-primary">Owner</span></li>
+    <li *ngFor="let entry of accessList">
+      {{ entry.email }} ({{ entry.name }})
+      <span class="badge badge-primary">{{ entry.privilege }}</span>
       <button
-        (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)"
+        (click)="revokeAccess(entry.email)"
         nz-button
         nz-tooltip="revoke access"
         nzSize="small"
@@ -97,7 +104,4 @@
       </button>
     </li>
   </ul>
-</div>
-<div class="modal-footer">
-  <p>Reminder: Read Access is Read-only while Write Access Dominates</p>
 </div>

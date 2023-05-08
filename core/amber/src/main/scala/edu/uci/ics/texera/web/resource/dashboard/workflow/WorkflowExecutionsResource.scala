@@ -13,8 +13,6 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsReso
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL._
 import org.jooq.types.UInteger
-import org.jooq._
-
 import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -87,10 +85,7 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
-    if (
-      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
-    ) {
+    if (!WorkflowAccessResource.hasAccess(wid, user.getUid)) {
       List()
     } else {
       context
@@ -151,10 +146,7 @@ class WorkflowExecutionsResource {
 
   /** Determine if user is authorized to access the workflow, if not raise 401 */
   def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
-    if (
-      WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
-    )
+    if (!WorkflowAccessResource.hasAccess(wid, uid))
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
   }
 

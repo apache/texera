@@ -1,21 +1,7 @@
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
-import { of } from "rxjs";
+import { Observable, of } from "rxjs";
 import { WorkflowAccessService } from "./workflow-access.service";
-import { Workflow, WorkflowContent } from "../../../common/type/workflow";
-import { jsonCast } from "../../../common/util/storage";
-import { AccessEntry } from "../../type/access.interface";
-
-export const MOCK_WORKFLOW: Workflow = {
-  wid: 1,
-  name: "project 1",
-  description: "dummy description",
-  content: jsonCast<WorkflowContent>(
-    " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
-  ),
-  creationTime: 1,
-  lastModifiedTime: 2,
-};
+import { WorkflowAccessEntry } from "../../type/access.interface";
 
 type PublicInterfaceOf<Class> = {
   [Member in keyof Class]: Class[Member];
@@ -23,29 +9,20 @@ type PublicInterfaceOf<Class> = {
 
 @Injectable()
 export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAccessService> {
-  public workflow: Workflow;
-
   public message: string = "This is testing";
 
-  public mapString: AccessEntry[] = [];
+  constructor() {}
 
-  constructor() {
-    this.workflow = MOCK_WORKFLOW;
-  }
-
-  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<ReadonlyArray<AccessEntry>> {
-    return of(this.mapString);
-  }
-
-  public grantUserWorkflowAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
+  public grantAccess(wid: number, email: string, privilege: string): Observable<Response> {
     return of();
   }
-
-  public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
+  public revokeAccess(wid: number, username: string): Observable<Response> {
     return of();
   }
-
-  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{ ownerName: string }>> {
+  public getOwner(wid: number): Observable<string> {
+    return of();
+  }
+  public getAccessList(wid: number | undefined): Observable<readonly WorkflowAccessEntry[]> {
     return of();
   }
 }

@@ -11,16 +11,13 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
+import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   DashboardWorkflowEntry,
   context,
@@ -67,8 +64,7 @@ object WorkflowResource {
       new WorkflowUserAccess(
         user.getUid,
         workflow.getWid,
-        true, // readPrivilege
-        true // writePrivilege
+        WorkflowUserAccessPrivilege.WRITE
       )
     )
   }
@@ -110,7 +106,7 @@ class WorkflowResource {
       .fetch()
 
     workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid().intValue().toString())
+      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid.intValue().toString)
       .toList
   }
 
@@ -125,7 +121,7 @@ class WorkflowResource {
   def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
     val user = sessionUser.getUser
     val workflowEntries = context
-      .select(USER.NAME)
+      .select(USER.EMAIL)
       .from(WORKFLOW_USER_ACCESS)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
@@ -136,7 +132,7 @@ class WorkflowResource {
       .fetch()
 
     workflowEntries
-      .map(workflowRecord => workflowRecord.into(USER).getName())
+      .map(workflowRecord => workflowRecord.into(USER).getEmail)
       .toList
   }
 
@@ -211,8 +207,7 @@ class WorkflowResource {
         WORKFLOW.DESCRIPTION,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME,
         groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
@@ -233,14 +228,16 @@ class WorkflowResource {
       .map(workflowRecord =>
         DashboardWorkflowEntry(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ).toString,
+          workflowRecord
+            .into(WORKFLOW_USER_ACCESS)
+            .into(classOf[WorkflowUserAccess])
+            .getPrivilege
+            .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component10() == null) List[UInteger]()
+          if (workflowRecord.component9() == null) List[UInteger]()
           else
-            workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+            workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
         )
       )
       .toList
@@ -262,13 +259,10 @@ class WorkflowResource {
       @Auth sessionUser: SessionUser
   ): Workflow = {
     val user = sessionUser.getUser
-    if (
-      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
-    ) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
+    if (WorkflowAccessResource.hasAccess(wid, user.getUid)) {
       workflowDao.fetchOneByWid(wid)
+    } else {
+      throw new ForbiddenException("No sufficient access privilege.")
     }
   }
 
@@ -293,7 +287,7 @@ class WorkflowResource {
       // current user reading
       workflowDao.update(workflow)
     } else {
-      if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
+      if (!WorkflowAccessResource.hasAccess(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, true)
@@ -326,10 +320,7 @@ class WorkflowResource {
   ): DashboardWorkflowEntry = {
     val wid = workflow.getWid
     val user = sessionUser.getUser
-    if (
-      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
-    ) {
+    if (!WorkflowAccessResource.hasAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
       val workflow: Workflow = workflowDao.fetchOneByWid(wid)
@@ -371,7 +362,7 @@ class WorkflowResource {
       WorkflowVersionResource.insertVersion(workflow, true)
       DashboardWorkflowEntry(
         isOwner = true,
-        WorkflowAccess.WRITE.toString,
+        WorkflowUserAccessPrivilege.WRITE.toString,
         user.getName,
         workflowDao.fetchOneByWid(workflow.getWid),
         List[UInteger]()
@@ -518,8 +509,7 @@ class WorkflowResource {
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
           WORKFLOW.LAST_MODIFIED_TIME,
-          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME,
           groupConcat(PROJECT.PID).as("projects")
@@ -543,8 +533,7 @@ class WorkflowResource {
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
           WORKFLOW.LAST_MODIFIED_TIME,
-          WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-          WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+          WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME
         )
@@ -554,14 +543,16 @@ class WorkflowResource {
         .map(workflowRecord =>
           DashboardWorkflowEntry(
             workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-            toAccessLevel(
-              workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-            ).toString,
+            workflowRecord
+              .into(WORKFLOW_USER_ACCESS)
+              .into(classOf[WorkflowUserAccess])
+              .getPrivilege
+              .toString,
             workflowRecord.into(USER).getName,
             workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-            if (workflowRecord.component10() == null) List[UInteger]()
+            if (workflowRecord.component9() == null) List[UInteger]()
             else
-              workflowRecord.component10().split(',').map(number => UInteger.valueOf(number)).toList
+              workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
           )
         )
         .toList

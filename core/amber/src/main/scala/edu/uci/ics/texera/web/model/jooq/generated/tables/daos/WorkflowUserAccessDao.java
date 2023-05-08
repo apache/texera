@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserAccessRecord;
 
@@ -69,30 +70,16 @@ public class WorkflowUserAccessDao extends DAOImpl<WorkflowUserAccessRecord, edu
     }
 
     /**
-     * Fetch records that have <code>read_privilege BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess> fetchRangeOfReadPrivilege(Boolean lowerInclusive, Boolean upperInclusive) {
-        return fetchRange(WorkflowUserAccess.WORKFLOW_USER_ACCESS.READ_PRIVILEGE, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess> fetchRangeOfPrivilege(WorkflowUserAccessPrivilege lowerInclusive, WorkflowUserAccessPrivilege upperInclusive) {
+        return fetchRange(WorkflowUserAccess.WORKFLOW_USER_ACCESS.PRIVILEGE, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>read_privilege IN (values)</code>
+     * Fetch records that have <code>privilege IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess> fetchByReadPrivilege(Boolean... values) {
-        return fetch(WorkflowUserAccess.WORKFLOW_USER_ACCESS.READ_PRIVILEGE, values);
-    }
-
-    /**
-     * Fetch records that have <code>write_privilege BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess> fetchRangeOfWritePrivilege(Boolean lowerInclusive, Boolean upperInclusive) {
-        return fetchRange(WorkflowUserAccess.WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>write_privilege IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess> fetchByWritePrivilege(Boolean... values) {
-        return fetch(WorkflowUserAccess.WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess> fetchByPrivilege(WorkflowUserAccessPrivilege... values) {
+        return fetch(WorkflowUserAccess.WORKFLOW_USER_ACCESS.PRIVILEGE, values);
     }
 }

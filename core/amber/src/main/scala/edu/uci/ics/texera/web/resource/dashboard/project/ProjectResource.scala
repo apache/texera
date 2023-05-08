@@ -38,10 +38,7 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   workflowOfProjectExists
 }
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
-  hasNoWorkflowAccess,
-  toAccessLevel
-}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.hasAccess
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
@@ -217,8 +214,7 @@ class ProjectResource {
         WORKFLOW.NAME,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME
       )
@@ -237,9 +233,11 @@ class ProjectResource {
       .map(workflowRecord =>
         DashboardWorkflowEntry(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid),
-          toAccessLevel(
-            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-          ).toString,
+          workflowRecord
+            .into(WORKFLOW_USER_ACCESS)
+            .into(classOf[WorkflowUserAccess])
+            .getPrivilege
+            .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
           workflowOfProjectDao
@@ -367,7 +365,7 @@ class ProjectResource {
     verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(uid, userProject)
-    if (hasNoWorkflowAccess(wid, uid)) {
+    if (!hasAccess(wid, uid)) {
       throw new ForbiddenException("No sufficient access privilege to workflow.")
     }
 
