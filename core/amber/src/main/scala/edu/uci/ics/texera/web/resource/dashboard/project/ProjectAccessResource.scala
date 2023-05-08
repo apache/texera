@@ -3,10 +3,10 @@ package edu.uci.ics.texera.web.resource.dashboard.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry2
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_OF_USER, PROJECT_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, ProjectDao, ProjectUserAccessDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.ProjectUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectAccessResource.context
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
@@ -134,74 +134,46 @@ class ProjectAccessResource() {
 
 
   /**
-    * This method identifies the user access level of the given workflow
+    * This method identifies the user access level of the given project
     *
-    * @param wid      the given workflow
+    * @param pid      the given project
     * @param email the email of the use whose access is about to be removed
     * @return message indicating a success message
     */
   @DELETE
-  @Path("/revoke/{wid}/{email}")
+  @Path("/revoke/{pid}/{email}")
   def revokeAccess(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("pid") wid: UInteger,
       @PathParam("email") email: String,
-      @Auth sessionUser: SessionUser
   ): Unit = {
-    if (
-      !workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(sessionUser.getUser.getUid, wid)
-      )
-    ) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
       context
-        .delete(WORKFLOW_USER_ACCESS)
+        .delete(PROJECT_USER_ACCESS)
         .where(
-          WORKFLOW_USER_ACCESS.UID
+          PROJECT_USER_ACCESS.UID
             .eq(userDao.fetchOneByEmail(email).getUid)
-            .and(WORKFLOW_USER_ACCESS.WID.eq(wid))
+            .and(PROJECT_USER_ACCESS.PID.eq(wid))
         )
         .execute()
     }
   }
 
   /**
-    * This method shares a workflow to a user with a specific access type
-    * @param wid         the given workflow
+    * This method shares a project to a user with a specific access type
+    * @param pid      the given project
     * @param email    the email which the access is given to
     * @param privilege the type of Access given to the target user
-    * @return rejection if user not permitted to share the workflow or Success Message
+    * @return rejection if user not permitted to share the project or Success Message
     */
   @PUT
-  @Path("/grant/{wid}/{email}/{privilege}")
+  @Path("/grant/{pid}/{email}/{privilege}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def grantAccess(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("pid") pid: UInteger,
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: String,
-      @Auth sessionUser: SessionUser
   ): Unit = {
-    val uid: UInteger =
-      try {
-        userDao.fetchOneByEmail(email).getUid
-      } catch {
-        case _: IndexOutOfBoundsException =>
-          throw new BadRequestException("Target user does not exist.")
-      }
-    if (
-      !workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(sessionUser.getUser.getUid, wid)
-      )
-    ) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
-      workflowUserAccessDao.merge(
-        new WorkflowUserAccess(uid, wid, WorkflowUserAccessPrivilege.valueOf(privilege))
-      )
-    }
+    projectUserAccessDao.merge(
+      new ProjectUserAccess(userDao.fetchOneByEmail(email).getUid, pid, ProjectUserAccessPrivilege.valueOf(privilege))
+    )
   }
 }
