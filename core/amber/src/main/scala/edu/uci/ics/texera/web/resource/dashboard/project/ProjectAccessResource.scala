@@ -134,6 +134,27 @@ class ProjectAccessResource() {
 
 
   /**
+   * This method shares a project to a user with a specific access type
+   *
+   * @param pid       the given project
+   * @param email     the email which the access is given to
+   * @param privilege the type of Access given to the target user
+   * @return rejection if user not permitted to share the project or Success Message
+   */
+  @PUT
+  @Path("/grant/{pid}/{email}/{privilege}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def grantAccess(
+                   @PathParam("pid") pid: UInteger,
+                   @PathParam("email") email: String,
+                   @PathParam("privilege") privilege: String,
+                 ): Unit = {
+    projectUserAccessDao.merge(
+      new ProjectUserAccess(userDao.fetchOneByEmail(email).getUid, pid, ProjectUserAccessPrivilege.valueOf(privilege))
+    )
+  }
+
+  /**
     * This method identifies the user access level of the given project
     *
     * @param pid      the given project
@@ -143,37 +164,17 @@ class ProjectAccessResource() {
   @DELETE
   @Path("/revoke/{pid}/{email}")
   def revokeAccess(
-      @PathParam("pid") wid: UInteger,
-      @PathParam("email") email: String,
-  ): Unit = {
-      context
-        .delete(PROJECT_USER_ACCESS)
-        .where(
-          PROJECT_USER_ACCESS.UID
-            .eq(userDao.fetchOneByEmail(email).getUid)
-            .and(PROJECT_USER_ACCESS.PID.eq(wid))
-        )
-        .execute()
-    }
-  }
-
-  /**
-    * This method shares a project to a user with a specific access type
-    * @param pid      the given project
-    * @param email    the email which the access is given to
-    * @param privilege the type of Access given to the target user
-    * @return rejection if user not permitted to share the project or Success Message
-    */
-  @PUT
-  @Path("/grant/{pid}/{email}/{privilege}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def grantAccess(
       @PathParam("pid") pid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String,
   ): Unit = {
-    projectUserAccessDao.merge(
-      new ProjectUserAccess(userDao.fetchOneByEmail(email).getUid, pid, ProjectUserAccessPrivilege.valueOf(privilege))
-    )
+    context
+      .delete(PROJECT_USER_ACCESS)
+      .where(
+        PROJECT_USER_ACCESS.UID
+          .eq(userDao.fetchOneByEmail(email).getUid)
+          .and(PROJECT_USER_ACCESS.PID.eq(pid))
+      )
+      .execute()
   }
 }
+
