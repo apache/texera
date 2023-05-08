@@ -100,8 +100,19 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
+
     logger.debug(s"sending control $controlMessage")
-    flightClient.doAction(action).next()
+    // Arrow allows multiple results from the Action call return as a stream (interator).
+    // In Arrow 11, it alerts if the results are not consumed fully.
+    val results = flightClient.doAction(action)
+    // As we do our own Async RPC management, we are currently not using results from Action call.
+    // In the future, this results can include credits for flow control purpose.
+    val result = results.next()
+
+    // However, we will only expect exactly one result for now.
+    assert(!results.hasNext)
+
+    result
   }
 
   def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
