@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import edu.uci.ics.texera.web.SqlServer
+import scala.collection.mutable.Set
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   PROJECT,
@@ -33,6 +34,11 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
+import javax.ws.rs.DefaultValue
+import java.sql.Timestamp
+import java.text.SimpleDateFormat
+import java.util.Optional
+import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -459,13 +465,19 @@ class WorkflowResource {
   @Path("/search")
   def searchWorkflows(
       @Auth sessionUser: SessionUser,
-      @QueryParam("query") keywords: java.util.List[String]
+      @QueryParam("query") keywords: java.util.List[String],
+      @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
+      @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
+      @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
+      @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
+      @QueryParam("owner") owners: java.util.List[String] = new java.util.ArrayList[String](),
+      @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
+      @QueryParam("operators") operators: java.util.List[String] =
+        new java.util.ArrayList[String](),
+      @QueryParam("projectId") projectIds: java.util.List[UInteger] =
+        new java.util.ArrayList[UInteger]()
   ): List[DashboardWorkflowEntry] = {
     val user = sessionUser.getUser
-    if (keywords.size() == 0) {
-      return List.empty[DashboardWorkflowEntry]
-    }
-    //check if fulltext indexes exist
 
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
@@ -492,11 +504,12 @@ class WorkflowResource {
       }
     }
 
-    // When input contains only reserved keywords like "+-()<>~*\""
-    // the api should return empty list
-    if (matchQuery == DSL.noCondition()) {
-      return List.empty[DashboardWorkflowEntry]
-    }
+    // Apply owner filter
+    val ownerFilter = getOwnerFilter(owners)
+    // combine all filters with AND
+    var optionalFilters: Condition = noCondition()
+    optionalFilters = optionalFilters
+      .and(ownerFilter)
     try {
       val workflowEntries = context
         .select(
@@ -563,4 +576,24 @@ class WorkflowResource {
     }
   }
 
+  /**
+    * Helper function to retrieve the owner filter.
+    * Applies a filter based on the specified owner names.
+    *
+    * @param owners The list of owner names to filter by.
+    * @return The owner filter.
+    */
+  def getOwnerFilter(owners: java.util.List[String]): Condition = {
+    var ownerFilter: Condition = noCondition()
+    val ownerSet: Set[String] = Set()
+    if (owners != null && !owners.isEmpty) {
+      for (owner <- owners) {
+        if (!ownerSet(owner)) {
+          ownerSet += owner
+          ownerFilter = ownerFilter.or(USER.NAME.eq(owner))
+        }
+      }
+    }
+    ownerFilter
+  }
 }
