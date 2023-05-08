@@ -182,8 +182,8 @@
                   nzAutosize
                   [attr.maxlength]="MAX_PROJECT_DESCRIPTION_CHAR_COUNT"
                   (focusout)="saveProjectDescription(dashboardUserProjectEntry, descriptionBox.value, i)">
-{{dashboardUserProjectEntry.description}}</textarea
-                >
+{{dashboardUserProjectEntry.description}}
+                </textarea>
               </nz-input-group>
               <div class="character-count">{{descriptionBox.value.length}}/{{MAX_PROJECT_DESCRIPTION_CHAR_COUNT}}</div>
               <ng-template #saveDescriptionIcon>
@@ -207,6 +207,25 @@
         </nz-list-item-meta>
 
         <ul nz-list-item-actions>
+          <nz-list-item-action>
+          "{{dashboardUserProjectEntry.ownerID}}" {{dashboardUserProjectEntry.ownerID!==uid}}
+          </nz-list-item-action>
+          <nz-list-item-action>
+            <button
+              (click)="onClickOpenShareAccess(dashboardUserProjectEntry.pid)"
+              [disabled]="false"
+              nz-button
+              nz-tooltip="Share the project {{
+								dashboardUserProjectEntry.name
+							}} to others"
+              nzTooltipPlacement="bottom"
+              type="button">
+              <i
+                nz-icon
+                nzTheme="outline"
+                nzType="share-alt"></i>
+            </button>
+          </nz-list-item-action>
           <nz-list-item-action>
             <button
               (click)="deleteProject(dashboardUserProjectEntry.pid, dashboardUserProjectEntry.name, i)"

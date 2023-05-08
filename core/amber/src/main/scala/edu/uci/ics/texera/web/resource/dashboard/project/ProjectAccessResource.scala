@@ -1,21 +1,13 @@
-package edu.uci.ics.texera.web.resource.dashboard.workflow
+package edu.uci.ics.texera.web.resource.dashboard.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry2
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, ProjectDao, ProjectUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.context
+import edu.uci.ics.texera.web.resource.dashboard.project.ProjectAccessResource.context
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -25,7 +17,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
-object WorkflowAccessResource {
+object ProjectAccessResource {
   final private val context: DSLContext = SqlServer.createDSLContext
 
   /**
@@ -81,35 +73,38 @@ object WorkflowAccessResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
-@Path("/access/workflow")
-class WorkflowAccessResource() {
+@Path("/access/project")
+class ProjectAccessResource() {
   final private val userDao = new UserDao(context.configuration())
-  final private val workflowOfUserDao = new WorkflowOfUserDao(context.configuration)
-  final private val workflowUserAccessDao = new WorkflowUserAccessDao(context.configuration)
+  final private val projectDao = new ProjectDao(context.configuration)
+  final private val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
 
   /**
-    * This method returns the owner of a workflow
-    * @param wid,  workflow id
+    * This method returns the owner of a project
+    * @param pid,  project id
     * @return ownerEmail,  the owner's email
     */
   @GET
-  @Path("/owner/{wid}")
-  def getOwner(@PathParam("wid") wid: UInteger): String = {
-    val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
-    userDao.fetchOneByUid(uid).getEmail
+  @Path("/owner/{pid}")
+  def getOwner(@PathParam("pid") pid: UInteger): String = {
+    userDao.fetchOneByUid(projectDao.fetchOneByPid(pid).getOwnerId).getEmail
   }
 
   /**
-    * Returns information about all current shared access of the given workflow
-    * @param wid workflow id
+    * Returns information about all current shared access of the given project
+    * @param pid project id
     * @return a List of email/permission pair
     */
+
+
+/**
   @GET
-  @Path("/list/{wid}")
+  @Path("/list/{pid}")
   def getAccessList(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[AccessEntry2] = {
+
     val user = sessionUser.getUser
     if (
       workflowOfUserDao.existsById(
@@ -135,6 +130,8 @@ class WorkflowAccessResource() {
       throw new ForbiddenException("You are not the owner of the workflow.")
     }
   }
+*/
+
 
   /**
     * This method identifies the user access level of the given workflow

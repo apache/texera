@@ -1,17 +1,17 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { WorkflowAccessService } from "./workflow-access.service";
+import { AccessService } from "./access.service";
 
 describe("WorkflowAccessService", () => {
-  let service: WorkflowAccessService;
+  let service: AccessService;
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [WorkflowAccessService],
+      providers: [AccessService],
       imports: [HttpClientTestingModule],
     });
-    service = TestBed.get(WorkflowAccessService);
+    service = TestBed.get(AccessService);
     httpMock = TestBed.get(HttpTestingController);
   });
 

@@ -34,9 +34,7 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { WorkflowAccessEntry } from "../../../../dashboard/type/access.interface";
-import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
-import { Workflow } from "../../../../common/type/workflow";
+import { ShareAccessEntry } from "../../../../dashboard/type/access.interface";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
@@ -117,7 +115,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-  public allUserWorkflowAccess: ReadonlyArray<WorkflowAccessEntry> = [];
+  public allUserWorkflowAccess: ReadonlyArray<ShareAccessEntry> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -134,7 +132,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private userFileService: UserFileService,
-    private workflowGrantAccessService: WorkflowAccessService,
     private workflowStatusSerivce: WorkflowStatusService
   ) {}
 
@@ -172,9 +169,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.registerOperatorDisplayNameChangeHandler();
 
-    let workflow = this.workflowActionService.getWorkflow();
-    if (workflow) this.refreshGrantedList(workflow);
-
     this.workflowStatusSerivce
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
@@ -183,13 +177,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorStatus = update[this.currentOperatorId];
         }
       });
-  }
-
-  public refreshGrantedList(workflow: Workflow): void {
-    this.workflowGrantAccessService
-      .getAccessList(workflow.wid)
-      .pipe(untilDestroyed(this))
-      .subscribe((access: ReadonlyArray<WorkflowAccessEntry>) => (this.allUserWorkflowAccess = access));
   }
 
   async ngOnDestroy() {

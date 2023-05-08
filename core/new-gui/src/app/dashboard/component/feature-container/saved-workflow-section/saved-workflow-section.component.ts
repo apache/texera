@@ -7,7 +7,7 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { DashboardWorkflowEntry, SortMethod } from "../../../type/dashboard-workflow-entry";
@@ -174,26 +174,10 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * open the Modal based on the workflow clicked on
    */
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
-    modalRef.componentInstance.wid = workflow.wid;
+    const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.type = "workflow";
+    modalRef.componentInstance.id = workflow.wid;
     modalRef.componentInstance.allOwners = this.owners.map(owner => owner.userName);
-    this.workflowPersistService
-      .retrieveWorkflow(<number>workflow.wid)
-      .pipe(untilDestroyed(this))
-      .subscribe(data => {
-        const workflowCopy: Workflow = {
-          ...data,
-          wid: undefined,
-          creationTime: undefined,
-          lastModifiedTime: undefined,
-        };
-        let filenames: string[] = [];
-        workflowCopy.content.operators.forEach(operator => {
-          const filename: string = operator.operatorProperties.fileName;
-          if (filename) filenames.push(filename);
-        });
-        modalRef.componentInstance.filenames = [...new Set(filenames)];
-      });
   }
 
   /**

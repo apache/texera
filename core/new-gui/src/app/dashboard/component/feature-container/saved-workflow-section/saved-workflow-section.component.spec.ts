@@ -14,7 +14,7 @@ import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
 import { HttpClient, HttpClientModule } from "@angular/common/http";
-import { WorkflowAccessService } from "../../../service/workflow-access/workflow-access.service";
+import { AccessService } from "../../../service/workflow-access/access.service";
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -200,7 +200,7 @@ describe("SavedWorkflowSectionComponent", () => {
         NgbActiveModal,
         HttpClient,
         NgbActiveModal,
-        WorkflowAccessService,
+        AccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
         { provide: NZ_I18N, useValue: en_US },

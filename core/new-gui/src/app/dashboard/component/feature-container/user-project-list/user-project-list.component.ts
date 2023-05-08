@@ -7,6 +7,8 @@ import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
 import { from } from "rxjs";
+import { UserService } from "../../../../common/service/user/user.service";
+import { ShareAccessComponent } from "../../share-access/share-access.component";
 
 @UntilDestroy()
 @Component({
@@ -32,12 +34,17 @@ export class UserProjectListComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
 
+  public uid: number;
+
   constructor(
     private userProjectService: UserProjectService,
     private router: Router,
     private notificationService: NotificationService,
-    private modalService: NgbModal
-  ) {}
+    private modalService: NgbModal,
+    private userService: UserService
+  ) {
+    this.uid = this.userService.getCurrentUser()!.uid;
+  }
 
   ngOnInit(): void {
     this.getUserProjectArray();
@@ -290,5 +297,14 @@ export class UserProjectListComponent implements OnInit {
 
   public sortByNameDesc(): void {
     this.userProjectEntries.sort((p1, p2) => p2.name.toLowerCase().localeCompare(p1.name.toLowerCase()));
+  }
+
+  /**
+   * open the Modal based on the workflow clicked on
+   */
+  public onClickOpenShareAccess(id: number): void {
+    const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.type = "project";
+    modalRef.componentInstance.id = id;
   }
 }
