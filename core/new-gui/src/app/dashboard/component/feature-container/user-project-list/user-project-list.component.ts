@@ -140,16 +140,12 @@ export class UserProjectListComponent implements OnInit {
     }
   }
 
-  public deleteProject(pid: number, index: number): void {
+  public deleteProject(pid: number): void {
     if (pid != undefined) {
-      this.userProjectEntries.splice(index, 1); // update local list of projects
-
-      // remove records of this project from color data structures
-      if (this.colorBrightnessMap.has(pid)) {
-        this.colorBrightnessMap.delete(pid);
-      }
-      this.userProjectToColorInputIndexMap.delete(pid);
-      this.colorInputToggleArray.splice(index, 1);
+      this.userProjectService
+        .deleteProject(pid)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => this.getUserProjectArray());
     }
   }
 
