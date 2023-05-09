@@ -332,7 +332,6 @@
                 (nzOnConfirm)="deleteUserFileEntry(dashboardUserFileEntry)"
                 nz-popconfirm
                 nzPopconfirmTitle="Are you sure delete this file?"
-
                 [disabled]="dashboardUserFileEntry.accessLevel !== 'Write'"
                 nz-button
                 nz-tooltip="Delete the file {{
