@@ -39,10 +39,6 @@ object UserFileAccessResource {
     file.getValue(0, 0).asInstanceOf[UInteger]
   }
 
-  def getUidOfUser(username: String): UInteger = {
-    userDao.fetchByName(username).get(0).getUid
-  }
-
   def grantAccess(uid: UInteger, fid: UInteger, accessLevel: String): Unit = {
     if (UserFileAccessResource.hasAccessTo(uid, fid)) {
       if (accessLevel == "read") {
@@ -83,7 +79,7 @@ class UserFileAccessResource {
   @GET
   @Path("list/{fileName}/{ownerName}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def getAllSharedFileAccess(
+  def getAccessList(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String
   ): List[AccessEntry] = {
@@ -150,13 +146,7 @@ class UserFileAccessResource {
       @PathParam("username") username: String
   ): Unit = {
     val fid = UserFileAccessResource.getFileId(ownerName, fileName)
-    val uid: UInteger =
-      try {
-        userDao.fetchByName(username).get(0).getUid
-      } catch {
-        case _: NullPointerException =>
-          throw new BadRequestException("Target User does not exist.")
-      }
+    val uid: UInteger = userDao.fetchByName(username).get(0).getUid
     context
       .deleteFrom(USER_FILE_ACCESS)
       .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))

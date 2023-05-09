@@ -1,8 +1,8 @@
-import { Component, OnInit, Input, SimpleChanges, OnChanges } from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { remove } from "lodash-es";
-import { from, Observable, map, firstValueFrom } from "rxjs";
+import { firstValueFrom, map, Observable } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -16,12 +16,11 @@ import { UserProjectService } from "../../../service/user-project/user-project.s
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { concatMap, catchError } from "rxjs/operators";
+import { catchError, concatMap } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../../type/user-project";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
-import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
 import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "src/app/common/app-setting";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
@@ -860,29 +859,21 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    * calls the deleteProject method in service which implements backend API.
    */
   public openNgbdModalDeleteWorkflowComponent({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(DeletePromptComponent);
-    modalRef.componentInstance.deletionType = "workflow";
-    modalRef.componentInstance.deletionName = workflow.name;
-
-    from(modalRef.result)
-      .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        const wid = workflow.wid;
-        if (confirmToDelete && wid !== undefined) {
-          this.workflowPersistService
-            .deleteWorkflow(wid)
-            .pipe(untilDestroyed(this))
-            .subscribe(
-              _ => {
-                this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
-                  workflowEntry => workflowEntry.workflow.wid !== wid
-                );
-              },
-              // @ts-ignore // TODO: fix this with notification component
-              (err: unknown) => alert(err.error)
+    const wid = workflow.wid;
+    if (wid !== undefined) {
+      this.workflowPersistService
+        .deleteWorkflow(wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          _ => {
+            this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
+              workflowEntry => workflowEntry.workflow.wid !== wid
             );
-        }
-      });
+          },
+          // @ts-ignore // TODO: fix this with notification component
+          (err: unknown) => alert(err.error)
+        );
+    }
   }
 
   private registerDashboardWorkflowEntriesRefresh(): void {

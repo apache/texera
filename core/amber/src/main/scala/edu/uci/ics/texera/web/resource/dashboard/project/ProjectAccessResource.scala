@@ -3,11 +3,10 @@ package edu.uci.ics.texera.web.resource.dashboard.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry2
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_OF_USER, PROJECT_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, ProjectDao, ProjectUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, UserDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.ProjectUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.project.ProjectAccessResource.context
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -17,64 +16,11 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
-object ProjectAccessResource {
-  final private val context: DSLContext = SqlServer.createDSLContext
-
-  /**
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
-    */
-  def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
-    val access = context
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetchOneInto(classOf[WorkflowUserAccess])
-    if (access == null) {
-      WorkflowUserAccessPrivilege.NONE
-    } else {
-      access.getPrivilege
-    }
-  }
-
-  /**
-    * Identifies whether the given user has read-only access over the given workflow
-    *
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ)
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    *
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.WRITE)
-  }
-
-  /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasAccess(wid: UInteger, uid: UInteger): Boolean = {
-    hasReadAccess(wid, uid) || hasWriteAccess(wid, uid)
-  }
-}
-
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/access/project")
 class ProjectAccessResource() {
+  final private val context: DSLContext = SqlServer.createDSLContext
   final private val userDao = new UserDao(context.configuration())
   final private val projectDao = new ProjectDao(context.configuration)
   final private val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
@@ -91,46 +37,34 @@ class ProjectAccessResource() {
   }
 
   /**
-    * Returns information about all current shared access of the given project
-    * @param pid project id
-    * @return a List of email/permission pair
-    */
+   * Returns information about all current shared access of the given project
+   *
+   * @param pid project id
+   * @return a List of email/permission pair
+   */
 
-
-/**
   @GET
   @Path("/list/{pid}")
   def getAccessList(
-      @PathParam("pid") pid: UInteger,
-      @Auth sessionUser: SessionUser
-  ): List[AccessEntry2] = {
-
-    val user = sessionUser.getUser
-    if (
-      workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
+                     @PathParam("pid") pid: UInteger,
+                     @Auth sessionUser: SessionUser
+                   ): List[AccessEntry2] = {
+    context
+      .select(
+        USER.EMAIL,
+        USER.NAME,
+        PROJECT_USER_ACCESS.PRIVILEGE
       )
-    ) {
-      context
-        .select(
-          USER.EMAIL,
-          USER.NAME,
-          WORKFLOW_USER_ACCESS.PRIVILEGE
-        )
-        .from(WORKFLOW_USER_ACCESS)
-        .join(USER)
-        .on(USER.UID.eq(WORKFLOW_USER_ACCESS.UID))
-        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.notEqual(user.getUid)))
-        .fetch()
-        .map(access => { access.into(classOf[AccessEntry2]) })
-        .toList
-    } else {
-      throw new ForbiddenException("You are not the owner of the workflow.")
-    }
+      .from(PROJECT_USER_ACCESS)
+      .join(USER)
+      .on(USER.UID.eq(PROJECT_USER_ACCESS.UID))
+      .where(PROJECT_USER_ACCESS.PID.eq(pid).and(PROJECT_USER_ACCESS.UID.notEqual(sessionUser.getUser.getUid)))
+      .fetch()
+      .map(access => {
+        access.into(classOf[AccessEntry2])
+      })
+      .toList
   }
-*/
 
 
   /**

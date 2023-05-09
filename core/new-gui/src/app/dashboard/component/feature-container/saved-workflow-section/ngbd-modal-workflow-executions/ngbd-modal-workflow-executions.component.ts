@@ -1,13 +1,11 @@
-import { Component, Input, OnInit, AfterViewInit } from "@angular/core";
+import { AfterViewInit, Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbModal, NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { from } from "rxjs";
+import { NgbActiveModal, NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import * as c3 from "c3";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
-import { DeletePromptComponent } from "../../../delete-prompt/delete-prompt.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 import { ChartType } from "src/app/workspace/types/visualization.interface";
@@ -26,12 +24,9 @@ const MAX_USERNAME_SIZE = 5;
 export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewInit {
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
-  public static readonly VID_PIE_CHART_ID = "#execution-vid-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
-
   public static readonly WIDTH = 300;
   public static readonly HEIGHT = 300;
-
   public static readonly BARCHARTSIZE = 600;
 
   @Input() workflow!: Workflow;
@@ -331,55 +326,40 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /* delete a single execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
-    const modalRef = this.modalService.open(DeletePromptComponent);
-    modalRef.componentInstance.deletionType = "execution";
-    modalRef.componentInstance.deletionName = row.name;
-
-    from(modalRef.result)
-      .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && this.workflow.wid !== undefined) {
-          this.workflowExecutionsService
-            .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              complete: () => {
-                this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-                this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-                this.fuse.setCollection(this.paginatedExecutionEntries);
-              },
-            });
-        }
-      });
+    if (this.workflow.wid !== undefined) {
+      this.workflowExecutionsService
+        .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          complete: () => {
+            this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
+            this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
+            this.fuse.setCollection(this.paginatedExecutionEntries);
+          },
+        });
+    }
   }
 
   onGroupDelete() {
-    const modalRef = this.modalService.open(DeletePromptComponent);
-    let deletionName = `the ${this.setOfEid.size} executions`;
-    modalRef.componentInstance.deletionName = deletionName;
-    from(modalRef.result)
-      .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && this.workflow.wid !== undefined) {
-          this.workflowExecutionsService
-            .groupDeleteWorkflowExecutions(this.workflow.wid, Array.from(this.setOfEid))
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              complete: () => {
-                this.allExecutionEntries = this.allExecutionEntries?.filter(
-                  execution => !Array.from(this.setOfExecution).includes(execution)
-                );
-                this.paginatedExecutionEntries = this.paginatedExecutionEntries?.filter(
-                  execution => !Array.from(this.setOfExecution).includes(execution)
-                );
-                this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-                this.fuse.setCollection(this.paginatedExecutionEntries);
-                this.setOfEid.clear();
-                this.setOfExecution.clear();
-              },
-            });
-        }
-      });
+    if (this.workflow.wid !== undefined) {
+      this.workflowExecutionsService
+        .groupDeleteWorkflowExecutions(this.workflow.wid, Array.from(this.setOfEid))
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          complete: () => {
+            this.allExecutionEntries = this.allExecutionEntries?.filter(
+              execution => !Array.from(this.setOfExecution).includes(execution)
+            );
+            this.paginatedExecutionEntries = this.paginatedExecutionEntries?.filter(
+              execution => !Array.from(this.setOfExecution).includes(execution)
+            );
+            this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+            this.fuse.setCollection(this.paginatedExecutionEntries);
+            this.setOfEid.clear();
+            this.setOfExecution.clear();
+          },
+        });
+    }
   }
 
   /* rename a single execution */

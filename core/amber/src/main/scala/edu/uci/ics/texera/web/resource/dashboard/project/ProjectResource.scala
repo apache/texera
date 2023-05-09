@@ -32,7 +32,6 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
   fileOfProjectDao,
   userProjectDao,
-  verifyProjectExists,
   verifySessionUserHasProjectAccess,
   workflowOfProjectDao,
   workflowOfProjectExists
@@ -72,17 +71,7 @@ object ProjectResource {
     )
   }
 
-  /**
-    * This method verifies a project exists with the corresponding
-    * pid, throwing an exception in the case it does not.
-    *
-    * @param pid project ID
-    */
-  private def verifyProjectExists(pid: UInteger): Unit = {
-    if (!userProjectDao.existsById(pid)) {
-      throw new BadRequestException("The project does not exist.")
-    }
-  }
+
 
   /**
     * This method verifies the user with the specified uid has access to
@@ -170,7 +159,6 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): Project = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProject
@@ -205,7 +193,6 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
-    verifyProjectExists(pid)
 
     val uid = sessionUser.getUser.getUid
     val workflowEntries = context
@@ -214,6 +201,7 @@ class ProjectResource {
         WORKFLOW.NAME,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME
@@ -264,7 +252,6 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[DashboardFileEntry] = {
-    verifyProjectExists(pid)
 
     val user = sessionUser.getUser
     val fileEntries = context
@@ -362,7 +349,6 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     val uid = sessionUser.getUser.getUid
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(uid, userProject)
     if (!hasAccess(wid, uid)) {
@@ -390,7 +376,6 @@ class ProjectResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     val uid = sessionUser.getUser.getUid
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(uid, userProject)
     if (!hasAccessTo(uid, fid)) {
@@ -414,7 +399,6 @@ class ProjectResource {
       @PathParam("name") name: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
 
@@ -444,7 +428,6 @@ class ProjectResource {
       description: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
 
@@ -471,7 +454,6 @@ class ProjectResource {
       @PathParam("colorHex") colorHex: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
 
@@ -491,7 +473,6 @@ class ProjectResource {
   @Path("/{pid}/color/delete")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteProjectColor(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProject.setColor(null)
@@ -507,7 +488,6 @@ class ProjectResource {
   @Path("/delete/{pid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteProject(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProjectDao.deleteById(pid)
@@ -528,7 +508,6 @@ class ProjectResource {
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     workflowOfProjectDao.deleteById(
@@ -551,7 +530,6 @@ class ProjectResource {
       @PathParam("fid") fid: UInteger,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     fileOfProjectDao.deleteById(

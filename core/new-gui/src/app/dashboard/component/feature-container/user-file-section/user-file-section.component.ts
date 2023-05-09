@@ -1,9 +1,8 @@
 import { Component, OnInit } from "@angular/core";
-import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { DashboardUserFileEntry, UserFile, SortMethod } from "../../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, SortMethod } from "../../../type/dashboard-user-file-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -11,8 +10,6 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UserProject } from "../../../type/user-project";
 import Fuse from "fuse.js";
-import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
-import { from } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -21,24 +18,12 @@ import { from } from "rxjs";
   styleUrls: ["./user-file-section.component.scss"],
 })
 export class UserFileSectionComponent implements OnInit {
-  constructor(
-    private modalService: NgbModal,
-    private userProjectService: UserProjectService,
-    private userFileService: UserFileService,
-    private userService: UserService,
-    private notificationService: NotificationService,
-    private router: Router
-  ) {}
-
-  ngOnInit() {
-    this.registerDashboardFileEntriesRefresh();
-  }
   // variables for file editing / search / sort
   public dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   public isEditingName: number[] = [];
   public isEditingDescription: number[] = [];
   public userFileSearchValue: string = "";
-  public filteredFilenames: Array<string> = new Array();
+  public filteredFilenames: Array<string> = [];
   public isTyping: boolean = false;
   public fuse = new Fuse([] as ReadonlyArray<DashboardUserFileEntry>, {
     shouldSort: true,
@@ -49,18 +34,27 @@ export class UserFileSectionComponent implements OnInit {
     keys: ["file.name"],
   });
   public sortMethod: SortMethod = SortMethod.UploadTimeDesc;
-
   // variables for project color tags
   public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
-
   // variables for filtering files by projects
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public isSearchByProject: boolean = false; // track searching mode user currently selects
-
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
+
+  constructor(
+    private modalService: NgbModal,
+    private userProjectService: UserProjectService,
+    private userFileService: UserFileService,
+    private userService: UserService,
+    private notificationService: NotificationService
+  ) {}
+
+  ngOnInit() {
+    this.registerDashboardFileEntriesRefresh();
+  }
 
   public openFileAddComponent() {
     const modalRef = this.modalService.open(NgbdModalFileAddComponent);
@@ -91,12 +85,12 @@ export class UserFileSectionComponent implements OnInit {
     const fileArray = this.dashboardUserFileEntries;
     if (!fileArray) {
       return [];
-    } else if (this.userFileSearchValue !== "" && this.isTyping === false && !this.isSearchByProject) {
+    } else if (this.userFileSearchValue !== "" && !this.isTyping && !this.isSearchByProject) {
       this.fuse.setCollection(fileArray);
       return this.fuse.search(this.userFileSearchValue).map(item => {
         return item.item;
       });
-    } else if (this.isTyping === false && this.isSearchByProject) {
+    } else if (!this.isTyping && this.isSearchByProject) {
       let newFileEntries = fileArray.slice();
       this.projectFilterList.forEach(
         pid => (newFileEntries = newFileEntries.filter(file => file.projectIDs.includes(pid)))
@@ -107,25 +101,17 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    const modalRef = this.modalService.open(DeletePromptComponent);
-    modalRef.componentInstance.deletionType = "file";
-    modalRef.componentInstance.deletionName = userFileEntry.file.name;
-
-    from(modalRef.result)
-      .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && userFileEntry.file.fid !== undefined) {
-          this.userFileService
-            .deleteDashboardUserFileEntry(userFileEntry)
-            .pipe(untilDestroyed(this))
-            .subscribe(
-              () => this.refreshDashboardFileEntries(),
-              (err: unknown) => {
-                alert("Can't delete the file entry: " + err);
-              }
-            );
-        }
-      });
+    if (userFileEntry.file.fid !== undefined) {
+      this.userFileService
+        .deleteDashboardUserFileEntry(userFileEntry)
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          () => this.refreshDashboardFileEntries(),
+          (err: unknown) => {
+            alert("Can't delete the file entry: " + err);
+          }
+        );
+    }
   }
 
   public disableAddButton(): boolean {
@@ -226,59 +212,6 @@ export class UserFileSectionComponent implements OnInit {
       });
   }
 
-  private registerDashboardFileEntriesRefresh(): void {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.isLogin()) {
-          this.refreshUserProjects();
-          this.refreshDashboardFileEntries();
-        } else {
-          this.clearDashboardFileEntries();
-        }
-      });
-  }
-
-  private refreshUserProjects(): void {
-    this.userProjectService
-      .retrieveProjectList()
-      .pipe(untilDestroyed(this))
-      .subscribe((userProjectList: UserProject[]) => {
-        if (userProjectList != null && userProjectList.length > 0) {
-          // map project ID to project object
-          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
-
-          // calculate whether project colors are light or dark
-          const projectColorBrightnessMap: Map<number, boolean> = new Map();
-          userProjectList.forEach(userProject => {
-            if (userProject.color != null) {
-              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
-            }
-          });
-          this.colorBrightnessMap = projectColorBrightnessMap;
-
-          // store all projects containing these files
-          this.userProjectsList = userProjectList;
-          this.userProjectsLoaded = true;
-        }
-      });
-  }
-  private refreshDashboardFileEntries(): void {
-    this.userFileService
-      .retrieveDashboardUserFileEntryList()
-      .pipe(untilDestroyed(this))
-      .subscribe(dashboardUserFileEntries => {
-        this.dashboardUserFileEntries = dashboardUserFileEntries;
-        this.userFileService.updateUserFilesChangedEvent();
-      });
-  }
-
-  private clearDashboardFileEntries(): void {
-    this.dashboardUserFileEntries = [];
-    this.userFileService.updateUserFilesChangedEvent();
-  }
-
   /**
    * Sort the files according to sortMethod variable
    */
@@ -364,5 +297,59 @@ export class UserFileSectionComponent implements OnInit {
           ? parseInt(left.file.uploadTime) - parseInt(right.file.uploadTime)
           : 0
       );
+  }
+
+  private registerDashboardFileEntriesRefresh(): void {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.userService.isLogin()) {
+          this.refreshUserProjects();
+          this.refreshDashboardFileEntries();
+        } else {
+          this.clearDashboardFileEntries();
+        }
+      });
+  }
+
+  private refreshUserProjects(): void {
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe((userProjectList: UserProject[]) => {
+        if (userProjectList != null && userProjectList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+
+          // calculate whether project colors are light or dark
+          const projectColorBrightnessMap: Map<number, boolean> = new Map();
+          userProjectList.forEach(userProject => {
+            if (userProject.color != null) {
+              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+            }
+          });
+          this.colorBrightnessMap = projectColorBrightnessMap;
+
+          // store all projects containing these files
+          this.userProjectsList = userProjectList;
+          this.userProjectsLoaded = true;
+        }
+      });
+  }
+
+  private refreshDashboardFileEntries(): void {
+    this.userFileService
+      .retrieveDashboardUserFileEntryList()
+      .pipe(untilDestroyed(this))
+      .subscribe(dashboardUserFileEntries => {
+        this.dashboardUserFileEntries = dashboardUserFileEntries;
+        this.userFileService.updateUserFilesChangedEvent();
+      });
+  }
+
+  private clearDashboardFileEntries(): void {
+    this.dashboardUserFileEntries = [];
+    this.userFileService.updateUserFilesChangedEvent();
   }
 }
