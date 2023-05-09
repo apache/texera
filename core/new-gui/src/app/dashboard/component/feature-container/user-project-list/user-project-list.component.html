@@ -209,7 +209,11 @@
         <ul nz-list-item-actions>
           <nz-list-item-action>
             <button
-              (click)="deleteProject(dashboardUserProjectEntry.pid, dashboardUserProjectEntry.name, i)"
+              (nzOnConfirm)="deleteProject(dashboardUserProjectEntry.pid)"
+              nz-popconfirm
+              nzPopconfirmTitle="Are you sure delete this project?"
+
+
               nz-button
               nz-tooltip="Delete the project {{dashboardUserProjectEntry.name}}"
               nzTooltipPlacement="bottom">

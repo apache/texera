@@ -548,9 +548,10 @@
             </nz-list-item-action>
             <nz-list-item-action>
               <button
-                (click)="
-								openNgbdModalDeleteWorkflowComponent(dashboardWorkflowEntry)
-							"
+                (nzOnConfirm)="deleteWorkflow(dashboardWorkflowEntry)"
+                nz-popconfirm
+                nzPopconfirmTitle="Are you sure delete this workflow?"
+
                 [disabled]="!dashboardWorkflowEntry.isOwner"
                 class="delete-workflow-btn"
                 nz-button

@@ -5,8 +5,6 @@ import { Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
-import { from } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -135,25 +133,13 @@ export class UserProjectListComponent implements OnInit {
     }
   }
 
-  public deleteProject(pid: number, name: string, index: number): void {
-    const modalRef = this.modalService.open(DeletePromptComponent);
-    modalRef.componentInstance.deletionType = "project";
-    modalRef.componentInstance.deletionName = name;
-
-    from(modalRef.result)
-      .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && pid != undefined) {
-          this.userProjectEntries.splice(index, 1); // update local list of projects
-
-          // remove records of this project from color data structures
-          if (this.colorBrightnessMap.has(pid)) {
-            this.colorBrightnessMap.delete(pid);
-          }
-          this.userProjectToColorInputIndexMap.delete(pid);
-          this.colorInputToggleArray.splice(index, 1);
-        }
-      });
+  public deleteProject(pid: number): void {
+    if (pid != undefined) {
+      this.userProjectService
+        .deleteProject(pid)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => this.getUserProjectArray());
+    }
   }
 
   public clickCreateButton(): void {

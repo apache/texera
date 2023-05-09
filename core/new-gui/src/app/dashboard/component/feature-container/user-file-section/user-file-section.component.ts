@@ -3,7 +3,7 @@ import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { DashboardUserFileEntry, UserFile, SortMethod } from "../../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, SortMethod } from "../../../type/dashboard-user-file-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -11,8 +11,6 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UserProject } from "../../../type/user-project";
 import Fuse from "fuse.js";
-import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
-import { from } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -107,25 +105,12 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    const modalRef = this.modalService.open(DeletePromptComponent);
-    modalRef.componentInstance.deletionType = "file";
-    modalRef.componentInstance.deletionName = userFileEntry.file.name;
-
-    from(modalRef.result)
-      .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && userFileEntry.file.fid !== undefined) {
-          this.userFileService
-            .deleteDashboardUserFileEntry(userFileEntry)
-            .pipe(untilDestroyed(this))
-            .subscribe(
-              () => this.refreshDashboardFileEntries(),
-              (err: unknown) => {
-                alert("Can't delete the file entry: " + err);
-              }
-            );
-        }
-      });
+    if (userFileEntry.file.fid !== undefined) {
+      this.userFileService
+        .deleteDashboardUserFileEntry(userFileEntry)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => this.refreshDashboardFileEntries());
+    }
   }
 
   public disableAddButton(): boolean {
