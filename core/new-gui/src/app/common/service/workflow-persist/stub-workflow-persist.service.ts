@@ -25,12 +25,48 @@ export class StubWorkflowPersistService {
     return new Observable(observer => observer.next(this.testWorkflows.find(e => e.workflow.wid == wid)?.workflow));
   }
 
-  public searchWorkflowsBySessionUser(keywords: string[]): Observable<DashboardWorkflowEntry[]> {
+  public searchWorkflows(
+    keywords: string[],
+    createDateStart: Date | null,
+    createDateEnd: Date | null,
+    modifiedDateStart: Date | null,
+    modifiedDateEnd: Date | null,
+    owners: string[],
+    ids: string[],
+    operators: string[],
+    projectIds: number[]
+  ): Observable<DashboardWorkflowEntry[]> {
+    // A simple mock search implementation that only work for the test dataset.
     return new Observable(observer => {
-      if (keywords.length == 0) {
-        return observer.next([]);
+      var results = this.testWorkflows;
+      if (keywords.length > 0) {
+        results = results.filter(e => keywords.some(k => e.workflow.name.indexOf(k) !== -1))
       }
-      return observer.next(this.testWorkflows.filter(e => keywords.some(k => e.workflow.name.indexOf(k) !== -1)));
+      if (createDateStart) {
+        results = results.filter(e => e.workflow.creationTime && e.workflow.creationTime > createDateStart.getTime());
+      }
+      if (createDateEnd) {
+        results = results.filter(e => e.workflow.creationTime && e.workflow.creationTime < createDateEnd.getTime());
+      }
+      if (modifiedDateStart) {
+        results = results.filter(e => e.workflow.lastModifiedTime && e.workflow.lastModifiedTime > modifiedDateStart.getTime());
+      }
+      if (modifiedDateEnd) {
+        results = results.filter(e => e.workflow.lastModifiedTime && e.workflow.lastModifiedTime < modifiedDateEnd.getTime());
+      }
+      if (owners.length > 0) {
+        results = results.filter(e => owners.some(o => e.ownerName === o));
+      }
+      if (ids.length > 0) {
+        results = results.filter(e => ids.some(i => e.workflow.wid && e.workflow.wid.toString() === i));
+      }
+      if (operators.length > 0) {
+        results = results.filter(e => e.workflow.content.operators.some(operator => operators.some(operatorTypeFilterBy => operatorTypeFilterBy === operator.operatorType)));
+      }
+      if (projectIds.length > 0) {
+        results = results.filter(e => e.projectIDs.some(id => projectIds.some(projectIdToFilterBy => projectIdToFilterBy == id)));
+      }
+      return observer.next(results);
     });
   }
 }

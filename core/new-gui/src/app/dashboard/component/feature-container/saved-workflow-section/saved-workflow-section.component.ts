@@ -508,7 +508,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
 
   /**
    * builds the tags to be displayd in the nz-select search bar
-   * - Workflow names with ":" are not allowed due to conflparseIntict with other search parameters' format
+   * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
    */
   private buildMasterFilterList(): void {
     let newFilterList: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
