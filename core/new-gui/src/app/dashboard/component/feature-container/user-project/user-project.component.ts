@@ -8,10 +8,10 @@ import { NotificationService } from "../../../../common/service/notification/not
 @UntilDestroy()
 @Component({
   selector: "texera-user-project-list",
-  templateUrl: "./user-project-list.component.html",
-  styleUrls: ["./user-project-list.component.scss"],
+  templateUrl: "./user-project.component.html",
+  styleUrls: ["./user-project.component.scss"],
 })
-export class UserProjectListComponent implements OnInit {
+export class UserProjectComponent implements OnInit {
   // store list of projects / variables to create and edit projects
   public userProjectEntries: UserProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
