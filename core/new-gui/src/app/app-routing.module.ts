@@ -2,7 +2,7 @@ import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 import { environment } from "../environments/environment";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
-import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
+import { UserWorkflowComponent } from "./dashboard/component/feature-container/user-workflow/user-workflow.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
 import { UserProjectSectionComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/user-project-section.component";
 import { UserProjectListComponent } from "./dashboard/component/feature-container/user-project-list/user-project-list.component";
@@ -53,7 +53,7 @@ if (environment.userSystemEnabled) {
       },
       {
         path: "workflow",
-        component: SavedWorkflowSectionComponent,
+        component: UserWorkflowComponent,
       },
       {
         path: "user-file",

@@ -65,10 +65,10 @@ export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 @UntilDestroy()
 @Component({
   selector: "texera-saved-workflow-section",
-  templateUrl: "./saved-workflow-section.component.html",
-  styleUrls: ["./saved-workflow-section.component.scss", "../../dashboard.component.scss"],
+  templateUrl: "user-workflow.component.html",
+  styleUrls: ["user-workflow.component.scss", "../../dashboard.component.scss"],
 })
-export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
+export class UserWorkflowComponent implements OnInit, OnChanges {
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid: number = 0;
   @Input() public updateProjectStatus: string = ""; // track changes to user project(s) (i.e color update / removal)

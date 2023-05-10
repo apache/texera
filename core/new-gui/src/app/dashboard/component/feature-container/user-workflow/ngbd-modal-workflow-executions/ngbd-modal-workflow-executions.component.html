@@ -158,11 +158,9 @@
               </td>
               <td nzEllipsis>
                 <label
-                  class="execution-description"
+                  class="execution-description workflow-name"
                   *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow "
-                  class="workflow-name"
-                  >{{ abbreviate(row.name, true) }}</label
-                >
+                  >{{ abbreviate(row.name, true) }}</label>
                 <ng-template #customeWorkflow>
                   <input
                     #customName

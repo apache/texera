@@ -52,7 +52,9 @@ import { UserFileUploadService } from "./dashboard/service/user-file/user-file-u
 import { UserFileService } from "./dashboard/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
-import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
+import { UserWorkflowComponent } from "./dashboard/component/feature-container/user-workflow/user-workflow.component";
+import { NgbdModalWorkflowShareAccessComponent } from "./dashboard/component/feature-container/user-workflow/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
 import { UserIconComponent } from "./dashboard/component/user-icon/user-icon.component";
@@ -71,7 +73,7 @@ import { VisualizationFrameContentComponent } from "./workspace/component/visual
 import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
 import { WorkflowEditorComponent } from "./workspace/component/workflow-editor/workflow-editor.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { NgbdModalWorkflowShareAccessComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+
 import { NgbdModalUserFileShareAccessComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
@@ -105,7 +107,6 @@ import { NzCommentModule } from "ng-zorro-antd/comment";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
-import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { NzImageModule } from "ng-zorro-antd/image";
 import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
@@ -137,7 +138,7 @@ registerLocaleData(en);
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
-    SavedWorkflowSectionComponent,
+    UserWorkflowComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
     RowModalComponent,

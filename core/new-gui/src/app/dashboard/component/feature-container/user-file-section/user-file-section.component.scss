@@ -1,5 +1,5 @@
 // reuse the same layout and styling with saved workflow component
-@import "../saved-workflow-section/saved-workflow-section.component.scss";
+@import "../user-workflow/user-workflow.component.scss";
 
 /**
   * css specifically for each file item in the list (not shared by workflow items)
@@ -10,7 +10,7 @@
   padding: 5px 0 5px 0;
 
   .file-item-meta {
-    margin: 0px 20px;
+    margin: 0 20px;
   }
 
   .file-item-meta-title {
@@ -63,7 +63,7 @@
       min-width: 17ch;
       border: 0 none;
       outline: none;
-      box-shadow: 0 0 0px 2px #007bff;
+      box-shadow: 0 0 0 2px #007bff;
     }
   }
 }

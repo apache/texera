@@ -1,8 +1,8 @@
-import { async, ComponentFixture, fakeAsync, flush, TestBed, tick, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { SavedWorkflowSectionComponent } from "./saved-workflow-section.component";
+import { UserWorkflowComponent } from "./user-workflow.component";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "../../../../common/service/workflow-persist/stub-workflow-persist.service";
 import { MatDividerModule } from "@angular/material/divider";
@@ -13,7 +13,7 @@ import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
-import { HttpClient, HttpClientModule } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { WorkflowAccessService } from "../../../service/workflow-access/workflow-access.service";
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -28,21 +28,17 @@ import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
-import { mockOperatorMetaData } from "src/app/workspace/service/operator-metadata/mock-operator-metadata.data";
-import { AppSettings } from "src/app/common/app-setting";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 import { NzUploadModule } from "ng-zorro-antd/upload";
-import { MatSelectModule } from "@angular/material/select";
-import { By, EVENT_MANAGER_PLUGINS } from "@angular/platform-browser";
-import { animationFrameScheduler } from "rxjs";
+import { By } from "@angular/platform-browser";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { FileSaverService } from "src/app/dashboard/service/user-file/file-saver.service";
 
 describe("SavedWorkflowSectionComponent", () => {
-  let component: SavedWorkflowSectionComponent;
-  let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
+  let component: UserWorkflowComponent;
+  let fixture: ComponentFixture<UserWorkflowComponent>;
 
   let httpTestingController: HttpTestingController;
 
@@ -194,7 +190,7 @@ describe("SavedWorkflowSectionComponent", () => {
   // must use waitForAsync for configureTestingModule in components with virtual scroll
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [SavedWorkflowSectionComponent, NgbdModalWorkflowShareAccessComponent],
+      declarations: [UserWorkflowComponent, NgbdModalWorkflowShareAccessComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         NgbActiveModal,
@@ -234,7 +230,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
   beforeEach(() => {
     httpTestingController = TestBed.get(HttpTestingController);
-    fixture = TestBed.createComponent(SavedWorkflowSectionComponent);
+    fixture = TestBed.createComponent(UserWorkflowComponent);
 
     component = fixture.componentInstance;
     component.selectedMtime = [];
