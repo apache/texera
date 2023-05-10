@@ -305,15 +305,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
     type: String
   ): ReadonlyArray<DashboardWorkflowEntry> {
-    // eslint-disable-next-line no-unused-expressions
-    date[0].setHours(0),
-      date[0].setMinutes(0),
-      date[0].setSeconds(0),
-      date[0].setMilliseconds(0),
-      date[1].setHours(0),
-      date[1].setMinutes(0),
-      date[1].setSeconds(0),
-      date[1].setMilliseconds(0);
+    date[0].setHours(0);
+    date[0].setMinutes(0);
+    date[0].setSeconds(0);
+    date[0].setMilliseconds(0);
+    date[1].setHours(0);
+    date[1].setMinutes(0);
+    date[1].setSeconds(0);
+    date[1].setMilliseconds(0);
     //sets date time at beginning of day
     //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
@@ -373,13 +372,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         return { name: proj.name, pid: proj.pid };
       });
     await this.searchWorkflow();
-  }
-
-  /**
-   * callback function when calendar is altered
-   */
-  public calendarValueChange(value: Date): void {
-    this.searchWorkflow();
   }
 
   /**
@@ -526,6 +518,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *
    * @param searchType - specified fuse search parameter for path mapping
    * @param searchList - list of search parameters of the same type (owner, id, etc.)
+   * @param exactMatch
    */
   private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
     let orPathQuery: Object[] = [];
@@ -876,16 +869,17 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    */
   public deleteWorkflow({ workflow }: DashboardWorkflowEntry): void {
     const wid = workflow.wid;
-    if (wid !== undefined) {
-      this.workflowPersistService
-        .deleteWorkflow(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(_ => {
-          this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
-            workflowEntry => workflowEntry.workflow.wid !== wid
-          );
-        });
+    if (wid == undefined) {
+      return;
     }
+    this.workflowPersistService
+      .deleteWorkflow(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
+          workflowEntry => workflowEntry.workflow.wid !== wid
+        );
+      });
   }
 
   private registerDashboardWorkflowEntriesRefresh(): void {

@@ -1,5 +1,4 @@
 import { Component, OnInit } from "@angular/core";
-import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
@@ -24,8 +23,7 @@ export class UserFileSectionComponent implements OnInit {
     private userProjectService: UserProjectService,
     private userFileService: UserFileService,
     private userService: UserService,
-    private notificationService: NotificationService,
-    private router: Router
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit() {
@@ -36,7 +34,7 @@ export class UserFileSectionComponent implements OnInit {
   public isEditingName: number[] = [];
   public isEditingDescription: number[] = [];
   public userFileSearchValue: string = "";
-  public filteredFilenames: Array<string> = new Array();
+  public filteredFilenames: Array<string> = [];
   public isTyping: boolean = false;
   public fuse = new Fuse([] as ReadonlyArray<DashboardUserFileEntry>, {
     shouldSort: true,
@@ -89,12 +87,12 @@ export class UserFileSectionComponent implements OnInit {
     const fileArray = this.dashboardUserFileEntries;
     if (!fileArray) {
       return [];
-    } else if (this.userFileSearchValue !== "" && this.isTyping === false && !this.isSearchByProject) {
+    } else if (this.userFileSearchValue !== "" && !this.isTyping && !this.isSearchByProject) {
       this.fuse.setCollection(fileArray);
       return this.fuse.search(this.userFileSearchValue).map(item => {
         return item.item;
       });
-    } else if (this.isTyping === false && this.isSearchByProject) {
+    } else if (!this.isTyping && this.isSearchByProject) {
       let newFileEntries = fileArray.slice();
       this.projectFilterList.forEach(
         pid => (newFileEntries = newFileEntries.filter(file => file.projectIDs.includes(pid)))
@@ -105,12 +103,13 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    if (userFileEntry.file.fid !== undefined) {
-      this.userFileService
-        .deleteDashboardUserFileEntry(userFileEntry)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.refreshDashboardFileEntries());
+    if (userFileEntry.file.fid == undefined) {
+      return;
     }
+    this.userFileService
+      .deleteDashboardUserFileEntry(userFileEntry)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.refreshDashboardFileEntries());
   }
 
   public disableAddButton(): boolean {

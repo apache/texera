@@ -140,7 +140,7 @@
         <nz-range-picker
           nzInline
           [(ngModel)]="selectedMtime"
-          (ngModelChange)="calendarValueChange($event)"
+          (ngModelChange)="searchWorkflow()"
           ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 
@@ -165,7 +165,7 @@
         <nz-range-picker
           nzInline
           [(ngModel)]="selectedCtime"
-          (ngModelChange)="calendarValueChange($event)"
+          (ngModelChange)="searchWorkflow()"
           ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 

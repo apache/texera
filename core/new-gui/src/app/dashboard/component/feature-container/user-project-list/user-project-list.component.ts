@@ -3,7 +3,6 @@ import { UserProjectService } from "../../../service/user-project/user-project.s
 import { UserProject } from "../../../type/user-project";
 import { Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 @UntilDestroy()
@@ -33,8 +32,7 @@ export class UserProjectListComponent implements OnInit {
   constructor(
     private userProjectService: UserProjectService,
     private router: Router,
-    private notificationService: NotificationService,
-    private modalService: NgbModal
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -134,12 +132,13 @@ export class UserProjectListComponent implements OnInit {
   }
 
   public deleteProject(pid: number): void {
-    if (pid !== undefined) {
-      this.userProjectService
-        .deleteProject(pid)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.getUserProjectArray());
+    if (pid == undefined) {
+      return;
     }
+    this.userProjectService
+      .deleteProject(pid)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.getUserProjectArray());
   }
 
   public clickCreateButton(): void {
