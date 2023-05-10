@@ -4,7 +4,7 @@ import { NgbModal, NgbModalRef, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { CustomNgMaterialModule } from "../../../../common/custom-ng-material.module";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { MatListModule } from "@angular/material/list";
-import { UserFileSectionComponent } from "./user-file-section.component";
+import { UserFileComponent } from "./user-file.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
@@ -16,8 +16,8 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { By } from "@angular/platform-browser";
 
 describe("UserFileSectionComponent", () => {
-  let component: UserFileSectionComponent;
-  let fixture: ComponentFixture<UserFileSectionComponent>;
+  let component: UserFileComponent;
+  let fixture: ComponentFixture<UserFileComponent>;
   let modalService: NgbModal;
 
   const id = 1;
@@ -123,7 +123,7 @@ describe("UserFileSectionComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [UserFileSectionComponent],
+      declarations: [UserFileComponent],
       providers: [NgbModal, { provide: UserService, useClass: StubUserService }, UserFileService],
       imports: [
         CustomNgMaterialModule,
@@ -139,7 +139,7 @@ describe("UserFileSectionComponent", () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(UserFileSectionComponent);
+    fixture = TestBed.createComponent(UserFileComponent);
     component = fixture.componentInstance;
     modalService = TestBed.get(NgbModal);
     fixture.detectChanges();

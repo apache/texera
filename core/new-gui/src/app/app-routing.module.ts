@@ -3,7 +3,7 @@ import { RouterModule, Routes } from "@angular/router";
 import { environment } from "../environments/environment";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/feature-container/user-workflow/user-workflow.component";
-import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
+import { UserFileComponent } from "./dashboard/component/feature-container/user-file/user-file.component";
 import { UserProjectSectionComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/user-project-section.component";
 import { UserProjectListComponent } from "./dashboard/component/feature-container/user-project-list/user-project-list.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
@@ -57,7 +57,7 @@ if (environment.userSystemEnabled) {
       },
       {
         path: "user-file",
-        component: UserFileSectionComponent,
+        component: UserFileComponent,
       },
       {
         path: "admin-user",

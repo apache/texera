@@ -55,8 +55,8 @@ import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/feature-container/user-workflow/user-workflow.component";
 import { NgbdModalWorkflowShareAccessComponent } from "./dashboard/component/feature-container/user-workflow/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
-import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
-import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
+import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file/ngbd-modal-file-add/ngbd-modal-file-add.component";
+import { UserFileComponent } from "./dashboard/component/feature-container/user-file/user-file.component";
 import { UserIconComponent } from "./dashboard/component/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
@@ -73,8 +73,7 @@ import { VisualizationFrameContentComponent } from "./workspace/component/visual
 import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
 import { WorkflowEditorComponent } from "./workspace/component/workflow-editor/workflow-editor.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-
-import { NgbdModalUserFileShareAccessComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
+import { NgbdModalUserFileShareAccessComponent } from "./dashboard/component/feature-container/user-file/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
 import { NzTagModule } from "ng-zorro-antd/tag";
@@ -139,7 +138,7 @@ registerLocaleData(en);
     UserAvatarComponent,
     LocalLoginComponent,
     UserWorkflowComponent,
-    UserFileSectionComponent,
+    UserFileComponent,
     NgbdModalFileAddComponent,
     RowModalComponent,
     OperatorLabelComponent,

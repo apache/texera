@@ -11,7 +11,7 @@ import { DashboardUserFileEntry } from "../../../../type/dashboard-user-file-ent
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbdModalUserFileShareAccessComponent } from "../../user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
+import { NgbdModalUserFileShareAccessComponent } from "../../user-file/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UserProject } from "../../../../type/user-project";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";

@@ -14,10 +14,10 @@ import Fuse from "fuse.js";
 @UntilDestroy()
 @Component({
   selector: "texera-user-file-section",
-  templateUrl: "./user-file-section.component.html",
-  styleUrls: ["./user-file-section.component.scss"],
+  templateUrl: "./user-file.component.html",
+  styleUrls: ["./user-file.component.scss"],
 })
-export class UserFileSectionComponent implements OnInit {
+export class UserFileComponent implements OnInit {
   constructor(
     private modalService: NgbModal,
     private userProjectService: UserProjectService,
