@@ -160,7 +160,8 @@
                 <label
                   class="execution-description workflow-name"
                   *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow "
-                  >{{ abbreviate(row.name, true) }}</label>
+                  >{{ abbreviate(row.name, true) }}</label
+                >
                 <ng-template #customeWorkflow>
                   <input
                     #customName
