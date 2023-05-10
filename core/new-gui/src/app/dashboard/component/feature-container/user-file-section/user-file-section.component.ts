@@ -1,9 +1,8 @@
 import { Component, OnInit } from "@angular/core";
-import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { DashboardUserFileEntry, UserFile, SortMethod } from "../../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, SortMethod } from "../../../type/dashboard-user-file-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -11,8 +10,6 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UserProject } from "../../../type/user-project";
 import Fuse from "fuse.js";
-import { DeletePromptComponent } from "../../delete-prompt/delete-prompt.component";
-import { from } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -26,8 +23,7 @@ export class UserFileSectionComponent implements OnInit {
     private userProjectService: UserProjectService,
     private userFileService: UserFileService,
     private userService: UserService,
-    private notificationService: NotificationService,
-    private router: Router
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit() {
@@ -38,7 +34,7 @@ export class UserFileSectionComponent implements OnInit {
   public isEditingName: number[] = [];
   public isEditingDescription: number[] = [];
   public userFileSearchValue: string = "";
-  public filteredFilenames: Array<string> = new Array();
+  public filteredFilenames: Array<string> = [];
   public isTyping: boolean = false;
   public fuse = new Fuse([] as ReadonlyArray<DashboardUserFileEntry>, {
     shouldSort: true,
@@ -91,12 +87,12 @@ export class UserFileSectionComponent implements OnInit {
     const fileArray = this.dashboardUserFileEntries;
     if (!fileArray) {
       return [];
-    } else if (this.userFileSearchValue !== "" && this.isTyping === false && !this.isSearchByProject) {
+    } else if (this.userFileSearchValue !== "" && !this.isTyping && !this.isSearchByProject) {
       this.fuse.setCollection(fileArray);
       return this.fuse.search(this.userFileSearchValue).map(item => {
         return item.item;
       });
-    } else if (this.isTyping === false && this.isSearchByProject) {
+    } else if (!this.isTyping && this.isSearchByProject) {
       let newFileEntries = fileArray.slice();
       this.projectFilterList.forEach(
         pid => (newFileEntries = newFileEntries.filter(file => file.projectIDs.includes(pid)))
@@ -107,25 +103,13 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    const modalRef = this.modalService.open(DeletePromptComponent);
-    modalRef.componentInstance.deletionType = "file";
-    modalRef.componentInstance.deletionName = userFileEntry.file.name;
-
-    from(modalRef.result)
+    if (userFileEntry.file.fid == undefined) {
+      return;
+    }
+    this.userFileService
+      .deleteDashboardUserFileEntry(userFileEntry)
       .pipe(untilDestroyed(this))
-      .subscribe((confirmToDelete: boolean) => {
-        if (confirmToDelete && userFileEntry.file.fid !== undefined) {
-          this.userFileService
-            .deleteDashboardUserFileEntry(userFileEntry)
-            .pipe(untilDestroyed(this))
-            .subscribe(
-              () => this.refreshDashboardFileEntries(),
-              (err: unknown) => {
-                alert("Can't delete the file entry: " + err);
-              }
-            );
-        }
-      });
+      .subscribe(() => this.refreshDashboardFileEntries());
   }
 
   public disableAddButton(): boolean {

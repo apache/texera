@@ -72,12 +72,14 @@
   </ng-template>
   <ng-template #actionDelete>
     <i
+      (nzOnConfirm)="onGroupDelete()"
+      nz-popconfirm
+      nzPopconfirmTitle="Confirm to delete this execution group."
       nz-tooltip
       [nzTooltipTitle]="executionTooltip['Group Deletion']"
       *ngIf="setOfEid.size !== 0"
       nz-icon
-      nzType="delete"
-      (click)="onGroupDelete()"></i>
+      nzType="delete"></i>
   </ng-template>
 
   <div class="modal-body table-responsive">
@@ -199,13 +201,15 @@
               </td>
               <td nzEllipsis>
                 <i
+                  (nzOnConfirm)="onDelete(row)"
+                  nz-popconfirm
+                  nzPopconfirmTitle="Confirm to delete this execution."
                   nz-icon
                   nzType="delete"
                   nz-tooltip
                   nzTooltipTitle='Delete the Execution "{{row.name}}"'
                   nzTooltipPlacement="top"
-                  class="trash-icon"
-                  (click)="onDelete(row)"></i>
+                  class="trash-icon"></i>
               </td>
             </tr>
           </tbody>

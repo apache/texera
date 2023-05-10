@@ -329,7 +329,9 @@
             </nz-list-item-action>
             <nz-list-item-action>
               <button
-                (click)="deleteUserFileEntry(dashboardUserFileEntry)"
+                (nzOnConfirm)="deleteUserFileEntry(dashboardUserFileEntry)"
+                nz-popconfirm
+                nzPopconfirmTitle="Confirm to delete this file."
                 [disabled]="dashboardUserFileEntry.accessLevel !== 'Write'"
                 nz-button
                 nz-tooltip="Delete the file {{

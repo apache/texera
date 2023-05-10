@@ -140,7 +140,7 @@
         <nz-range-picker
           nzInline
           [(ngModel)]="selectedMtime"
-          (ngModelChange)="calendarValueChange($event)"
+          (ngModelChange)="searchWorkflow()"
           ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 
@@ -165,7 +165,7 @@
         <nz-range-picker
           nzInline
           [(ngModel)]="selectedCtime"
-          (ngModelChange)="calendarValueChange($event)"
+          (ngModelChange)="searchWorkflow()"
           ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 
@@ -548,9 +548,9 @@
             </nz-list-item-action>
             <nz-list-item-action>
               <button
-                (click)="
-								openNgbdModalDeleteWorkflowComponent(dashboardWorkflowEntry)
-							"
+                (nzOnConfirm)="deleteWorkflow(dashboardWorkflowEntry)"
+                nz-popconfirm
+                nzPopconfirmTitle="Confirm to delete this workflow."
                 [disabled]="!dashboardWorkflowEntry.isOwner"
                 class="delete-workflow-btn"
                 nz-button
