@@ -3,7 +3,6 @@ import { UserProjectService } from "../../../service/user-project/user-project.s
 import { UserProject } from "../../../type/user-project";
 import { Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
@@ -43,6 +42,7 @@ export class UserProjectListComponent implements OnInit {
   ) {
     this.uid = this.userService.getCurrentUser()!.uid;
   }
+
 
   ngOnInit(): void {
     this.getUserProjectArray();
@@ -141,12 +141,13 @@ export class UserProjectListComponent implements OnInit {
   }
 
   public deleteProject(pid: number): void {
-    if (pid != undefined) {
-      this.userProjectService
-        .deleteProject(pid)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.getUserProjectArray());
+    if (pid == undefined) {
+      return;
     }
+    this.userProjectService
+      .deleteProject(pid)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.getUserProjectArray());
   }
 
   public clickCreateButton(): void {

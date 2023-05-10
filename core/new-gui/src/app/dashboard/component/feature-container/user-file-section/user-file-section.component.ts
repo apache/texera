@@ -101,17 +101,13 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    if (userFileEntry.file.fid !== undefined) {
-      this.userFileService
-        .deleteDashboardUserFileEntry(userFileEntry)
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          () => this.refreshDashboardFileEntries(),
-          (err: unknown) => {
-            alert("Can't delete the file entry: " + err);
-          }
-        );
+    if (userFileEntry.file.fid == undefined) {
+      return;
     }
+    this.userFileService
+      .deleteDashboardUserFileEntry(userFileEntry)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.refreshDashboardFileEntries());
   }
 
   public disableAddButton(): boolean {

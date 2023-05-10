@@ -310,11 +310,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     if (this.setOfExecution !== undefined) {
       // isBookmarked: true if all the execution are bookmarked, false if there is one that is unbookmarked
       const isBookmarked = !Array.from(this.setOfExecution).some(execution => {
-        return execution.bookmarked === null || execution.bookmarked === false;
+        return execution.bookmarked === null || !execution.bookmarked;
       });
       // update the bookmark locally
       this.setOfExecution.forEach(execution => {
-        execution.bookmarked = isBookmarked ? false : true;
+        execution.bookmarked = !isBookmarked;
       });
       this.workflowExecutionsService
         .groupSetIsBookmarked(this.workflow.wid, Array.from(this.setOfEid), isBookmarked)
@@ -326,18 +326,19 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /* delete a single execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
-    if (this.workflow.wid !== undefined) {
-      this.workflowExecutionsService
-        .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          complete: () => {
-            this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-            this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-            this.fuse.setCollection(this.paginatedExecutionEntries);
-          },
-        });
+    if (this.workflow.wid == undefined) {
+      return;
     }
+    this.workflowExecutionsService
+      .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        complete: () => {
+          this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
+          this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
+          this.fuse.setCollection(this.paginatedExecutionEntries);
+        },
+      });
   }
 
   onGroupDelete() {
@@ -534,7 +535,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
 
   /**
    * Update the eId and row set, and check the status of the all check
-   * @param eId
+   * @param row
    * @param checked true if checked false if unchecked
    */
   onItemChecked(row: WorkflowExecutionsEntry, checked: boolean) {
@@ -583,7 +584,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
               : Object.values(executionEntry)[Object.keys(executionEntry).indexOf(searchField[0])];
         }
         if (executionInfo.toLowerCase().indexOf(executionSearchValue.toLowerCase()) !== -1) {
-          var filterQuery = "";
+          let filterQuery: string;
           if (preCondition.length !== 0) {
             filterQuery =
               executionSearchField === "executionName"

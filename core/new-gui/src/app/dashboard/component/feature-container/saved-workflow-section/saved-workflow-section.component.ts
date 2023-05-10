@@ -289,15 +289,14 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
     filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
     type: String
   ): ReadonlyArray<DashboardWorkflowEntry> {
-    // eslint-disable-next-line no-unused-expressions
-    date[0].setHours(0),
-      date[0].setMinutes(0),
-      date[0].setSeconds(0),
-      date[0].setMilliseconds(0),
-      date[1].setHours(0),
-      date[1].setMinutes(0),
-      date[1].setSeconds(0),
-      date[1].setMilliseconds(0);
+    date[0].setHours(0);
+    date[0].setMinutes(0);
+    date[0].setSeconds(0);
+    date[0].setMilliseconds(0);
+    date[1].setHours(0);
+    date[1].setMinutes(0);
+    date[1].setSeconds(0);
+    date[1].setMilliseconds(0);
     //sets date time at beginning of day
     //date obj from nz-calendar adds extraneous time
     return filteredDashboardWorkflowEntries.filter(workflow_entry => {
@@ -357,13 +356,6 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
         return { name: proj.name, pid: proj.pid };
       });
     await this.searchWorkflow();
-  }
-
-  /**
-   * callback function when calendar is altered
-   */
-  public calendarValueChange(value: Date): void {
-    this.searchWorkflow();
   }
 
   /**
@@ -510,6 +502,7 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
    *
    * @param searchType - specified fuse search parameter for path mapping
    * @param searchList - list of search parameters of the same type (owner, id, etc.)
+   * @param exactMatch
    */
   private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
     let orPathQuery: Object[] = [];
@@ -853,27 +846,25 @@ export class SavedWorkflowSectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * openNgbdModalDeleteWorkflowComponent trigger the delete workflow
+   * deleteWorkflow trigger the delete workflow
    * component. If user confirms the deletion, the method sends
    * message to frontend and delete the workflow on frontend. It
-   * calls the deleteProject method in service which implements backend API.
+   * calls the deleteWorkflow method in service which implements backend API.
    */
-  public openNgbdModalDeleteWorkflowComponent({ workflow }: DashboardWorkflowEntry): void {
+
+  public deleteWorkflow({ workflow }: DashboardWorkflowEntry): void {
     const wid = workflow.wid;
-    if (wid !== undefined) {
-      this.workflowPersistService
-        .deleteWorkflow(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          _ => {
-            this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
-              workflowEntry => workflowEntry.workflow.wid !== wid
-            );
-          },
-          // @ts-ignore // TODO: fix this with notification component
-          (err: unknown) => alert(err.error)
-        );
+    if (wid == undefined) {
+      return;
     }
+    this.workflowPersistService
+      .deleteWorkflow(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
+          workflowEntry => workflowEntry.workflow.wid !== wid
+        );
+      });
   }
 
   private registerDashboardWorkflowEntriesRefresh(): void {
