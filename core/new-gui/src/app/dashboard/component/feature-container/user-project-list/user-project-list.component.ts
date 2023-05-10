@@ -134,7 +134,7 @@ export class UserProjectListComponent implements OnInit {
   }
 
   public deleteProject(pid: number): void {
-    if (pid != undefined) {
+    if (pid !== undefined) {
       this.userProjectService
         .deleteProject(pid)
         .pipe(untilDestroyed(this))
