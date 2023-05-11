@@ -3,7 +3,7 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { DashboardUserFileEntry } from "../../../type/dashboard-user-file-entry";
-import { AccessEntry } from "../../../type/access.interface";
+import { AccessEntry } from "../../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()

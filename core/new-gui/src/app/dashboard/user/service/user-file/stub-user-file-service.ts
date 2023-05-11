@@ -5,7 +5,7 @@ import { PublicInterfaceOf } from "../../../../common/util/stub";
 import { UserFileService } from "./user-file.service";
 import { HttpClient } from "@angular/common/http";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
-import { AccessEntry } from "../../type/access.interface";
+import { AccessEntry } from "../../type/share-access.interface";
 
 @Injectable({
   providedIn: "root",

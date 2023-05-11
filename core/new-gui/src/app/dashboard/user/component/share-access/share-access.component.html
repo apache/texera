@@ -2,7 +2,7 @@
   <h4
     class="modal-title"
     id="modal-basic-title">
-    Share This Workflow With Someone
+    Share This {{type}} With Someone
   </h4>
   <button
     (click)="activeModal.dismiss('Cross click')"
@@ -14,43 +14,43 @@
 </div>
 <div class="modal-body">
   <form
-    (ngSubmit)="grantAccess()"
-    [formGroup]="validateForm">
+    [formGroup]="validateForm"
+    (ngSubmit)="grantAccess()">
     <div class="form-group">
       <nz-card nzTitle="Target User">
         <nz-form-item>
           <nz-form-label
             [nzSm]="6"
             [nzXs]="24"
-            nzFor="email"
             nzRequired
-            >E-mail
-          </nz-form-label>
+            nzFor="email"
+            >E-mail</nz-form-label
+          >
           <nz-form-control
             [nzSm]="14"
             [nzXs]="24"
             nzErrorTip="The input is not valid E-mail!">
             <input
-              (ngModelChange)="onChange($event)"
-              [(ngModel)]="ownerSearchValue"
-              [nzAutocomplete]="auto"
-              formControlName="email"
-              id="email"
               nz-input
-              type="email" />
+              id="email"
+              type="email"
+              formControlName="email"
+              [(ngModel)]="ownerSearchValue"
+              (ngModelChange)="onChange($event)"
+              [nzAutocomplete]="auto" />
             <nz-autocomplete
-              #auto
-              [nzDataSource]="filteredOwners"
               [nzDefaultActiveFirstOption]="false"
-              nzBackfill></nz-autocomplete>
+              [nzDataSource]="filteredOwners"
+              nzBackfill
+              #auto></nz-autocomplete>
           </nz-form-control>
         </nz-form-item>
       </nz-card>
       <br />
       <div nz-row>
         <div
-          [nzSpan]="24"
-          nz-col>
+          nz-col
+          [nzSpan]="24">
           <nz-card nzTitle="Share">
             <div style="height: 50px">
               Access Level:
@@ -60,9 +60,9 @@
               </select>
             </div>
             <button
+              style="width: 100%"
               nz-button
               nzType="primary"
-              style="width: 100%"
               type="submit">
               Share
             </button>

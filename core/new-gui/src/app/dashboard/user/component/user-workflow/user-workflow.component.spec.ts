@@ -14,7 +14,7 @@ import { ShareAccessComponent } from "../share-access/share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
 import { HttpClient } from "@angular/common/http";
-import { WorkflowAccessService } from "../../service/workflow-access/workflow-access.service";
+import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -34,7 +34,7 @@ import { By } from "@angular/platform-browser";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
-import { FileSaverService } from "src/app/dashboard/user/service/user-file/file-saver.service";
+import { FileSaverService } from "../../service/user-file/file-saver.service";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -193,7 +193,7 @@ describe("SavedWorkflowSectionComponent", () => {
         NgbActiveModal,
         HttpClient,
         NgbActiveModal,
-        WorkflowAccessService,
+        ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
         { provide: NZ_I18N, useValue: en_US },

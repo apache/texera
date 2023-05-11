@@ -1,21 +1,19 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
-import { WorkflowAccessService } from "../../service/workflow-access/workflow-access.service";
-import { WorkflowAccessEntry } from "../../type/access.interface";
+import { ShareAccessService } from "../../service/share-access/share-access.service";
+import { ShareAccessEntry } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
-import { UserFileService } from "../../service/user-file/user-file.service";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-ngbd-modal-share-access",
-  templateUrl: "./share-access.component.html",
-  styleUrls: ["./share-access.component.scss"],
+  templateUrl: "share-access.component.html",
+  styleUrls: ["share-access.component.scss"],
+  providers: [{ provide: "type", useValue: "workflow" }],
 })
 export class ShareAccessComponent implements OnInit {
-  @Input() wid!: number;
-  @Input() filenames!: string[];
+  @Input() type!: string;
+  @Input() id!: number;
   @Input() allOwners!: string[];
 
   validateForm = this.formBuilder.group({
@@ -23,25 +21,23 @@ export class ShareAccessComponent implements OnInit {
     accessLevel: ["READ"],
   });
 
-  public accessList: ReadonlyArray<WorkflowAccessEntry> = [];
+  public accessList: ReadonlyArray<ShareAccessEntry> = [];
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
-
   constructor(
     public activeModal: NgbActiveModal,
-    private workflowAccessService: WorkflowAccessService,
-    private formBuilder: FormBuilder,
-    private userFileService: UserFileService
+    private accessService: ShareAccessService,
+    private formBuilder: FormBuilder
   ) {}
 
   ngOnInit(): void {
-    this.workflowAccessService
-      .getAccessList(this.wid)
+    this.accessService
+      .getAccessList(this.type, this.id)
       .pipe(untilDestroyed(this))
       .subscribe(access => (this.accessList = access));
-    this.workflowAccessService
-      .getOwner(this.wid)
+    this.accessService
+      .getOwner(this.type, this.id)
       .pipe(untilDestroyed(this))
       .subscribe(name => {
         this.owner = name;
@@ -58,44 +54,21 @@ export class ShareAccessComponent implements OnInit {
 
   public grantAccess(): void {
     if (this.validateForm.valid) {
-      const userToShareWith = this.validateForm.get("email")?.value;
-      const accessLevel = this.validateForm.get("accessLevel")?.value;
-      if (this.filenames) {
-        this.filenames.forEach(filename => {
-          const [owner, fname] = filename.split("/", 2);
-          let userFile: UserFile;
-          userFile = {
-            fid: undefined!,
-            name: fname,
-            path: undefined!,
-            size: undefined!,
-            description: undefined!,
-            uploadTime: undefined!,
-          };
-          const dashboardUserFileEntry: DashboardUserFileEntry = {
-            ownerName: owner,
-            file: userFile,
-            accessLevel: "read",
-            isOwner: true,
-            projectIDs: undefined!,
-          };
-          this.userFileService
-            .grantUserFileAccess(dashboardUserFileEntry, userToShareWith, "read")
-            .pipe(untilDestroyed(this))
-            .subscribe();
-        });
-      }
-
-      this.workflowAccessService
-        .grantAccess(this.wid, userToShareWith, accessLevel)
+      this.accessService
+        .grantAccess(
+          this.type,
+          this.id,
+          this.validateForm.get("email")?.value,
+          this.validateForm.get("accessLevel")?.value
+        )
         .pipe(untilDestroyed(this))
         .subscribe(() => this.ngOnInit());
     }
   }
 
   public revokeAccess(userToRemove: string): void {
-    this.workflowAccessService
-      .revokeAccess(this.wid, userToRemove)
+    this.accessService
+      .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
       .subscribe(() => this.ngOnInit());
   }

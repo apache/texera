@@ -1,10 +1,10 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { HttpClient, HttpHandler } from "@angular/common/http";
-import { WorkflowAccessService } from "../../service/workflow-access/workflow-access.service";
+import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { ShareAccessComponent } from "./share-access.component";
-import { StubWorkflowAccessService } from "../../service/workflow-access/stub-workflow-access.service";
+import { ShareAccessComponent } from "./ngbd-modal-workflow-share-access.component";
+import { StubWorkflowAccessService } from "../../service/share-access/stub-workflow-access.service";
 
 describe("NgbdModalShareAccessComponent", () => {
   let component: ShareAccessComponent;
@@ -20,7 +20,7 @@ describe("NgbdModalShareAccessComponent", () => {
         HttpClient,
         HttpHandler,
         {
-          provide: WorkflowAccessService,
+          provide: ShareAccessService,
           useClass: StubWorkflowAccessService,
         },
       ],
@@ -30,7 +30,7 @@ describe("NgbdModalShareAccessComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(ShareAccessComponent);
     component = fixture.componentInstance;
-    service = TestBed.get(WorkflowAccessService);
+    service = TestBed.get(ShareAccessService);
     fixture.detectChanges();
   });
 

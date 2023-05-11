@@ -65,16 +65,16 @@
           nzType="file-add"></i>
       </button>
       <button
-        (click)="onClickOpenDownloadZip()"
         [disabled]="downloadListWorkflow.size === 0"
+        (click)="onClickOpenDownloadZip()"
         nz-button
         nz-tooltip="Download added workflow as a ZIP file"
         nzTooltipPlacement="bottom"
         type="button">
         <i
           nz-icon
-          nzTheme="outline"
-          nzType="cloud-download"></i>
+          nzType="cloud-download"
+          nzTheme="outline"></i>
       </button>
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
         <button
@@ -84,14 +84,14 @@
           type="button">
           <i
             nz-icon
-            nzTheme="outline"
-            nzType="cloud-upload"></i>
+            nzType="cloud-upload"
+            nzTheme="outline"></i>
         </button>
       </nz-upload>
 
       <button
-        (click)="onClickOpenAddWorkflow()"
         *ngIf="pid !== 0"
+        (click)="onClickOpenAddWorkflow()"
         nz-button
         nz-tooltip="Add workflow(s) to project"
         nzTooltipPlacement="bottom"
@@ -102,8 +102,8 @@
           nzType="plus-square"></i>
       </button>
       <button
-        (click)="onClickOpenRemoveWorkflow()"
         *ngIf="pid !== 0"
+        (click)="onClickOpenRemoveWorkflow()"
         nz-button
         nz-tooltip="Remove workflow(s) from project"
         nzTooltipPlacement="bottom"
@@ -120,82 +120,82 @@
       ngbDropdown>
       <a
         [nzDropdownMenu]="mtimeSearchOptions"
-        [nzOverlayStyle]="{'border-style': 'double'}"
-        class="modification-time-button"
         nz-dropdown
-        nzTrigger="click">
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="modification-time-button">
         <button
           id="mtimeSort"
           ngbDropdownToggle
           nz-button>
           <i
             nz-icon
-            nz-tooltip="Modification Time"
+            nzType="form"
             nzTheme="outline"
-            nzType="form"></i>
+            nz-tooltip="Modification Time"></i>
         </button>
       </a>
 
       <nz-dropdown-menu #mtimeSearchOptions="nzDropdownMenu">
         <nz-range-picker
-          (ngModelChange)="searchWorkflow()"
+          nzInline
           [(ngModel)]="selectedMtime"
-          ngDefaultControl
-          nzInline></nz-range-picker>
+          (ngModelChange)="searchWorkflow()"
+          ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
         [nzDropdownMenu]="ctimeSearchOptions"
-        [nzOverlayStyle]="{'border-style': 'double'}"
-        class="search-creation-time-button"
         nz-dropdown
-        nzTrigger="click">
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="search-creation-time-button">
         <button
           id="ctimeSort"
           ngbDropdownToggle
           nz-button>
           <i
             nz-icon
-            nz-tooltip="Creation Time"
+            nzType="calendar"
             nzTheme="outline"
-            nzType="calendar"></i>
+            nz-tooltip="Creation Time"></i>
         </button>
       </a>
       <nz-dropdown-menu #ctimeSearchOptions="nzDropdownMenu">
         <nz-range-picker
-          (ngModelChange)="searchWorkflow()"
+          nzInline
           [(ngModel)]="selectedCtime"
-          ngDefaultControl
-          nzInline></nz-range-picker>
+          (ngModelChange)="searchWorkflow()"
+          ngDefaultControl></nz-range-picker>
       </nz-dropdown-menu>
 
       <a
         [nzDropdownMenu]="ownerSearchOptions"
-        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-        class="search-owners-button"
         nz-dropdown
-        nzTrigger="click">
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-owners-button">
         <button
           id="sortOwner"
           ngbDropdownToggle
           nz-button>
           <i
             nz-icon
-            nz-tooltip="Owner"
             nzTheme="outline"
-            nzType="user"></i>
+            nzType="user"
+            nz-tooltip="Owner"></i>
         </button>
       </a>
       <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
         <ul
-          *ngFor="let owner of owners"
-          nz-menu>
+          nz-menu
+          *ngFor="let owner of owners">
           <li nz-menu-item>
             <label
-              (ngModelChange)="updateSelectedOwners()"
-              [(ngModel)]="owner.checked"
-              ngDefaultControl
               nz-checkbox
+              ngDefaultControl
+              [(ngModel)]="owner.checked"
+              (ngModelChange)="updateSelectedOwners()"
               >{{owner.userName}}</label
             >
           </li>
@@ -204,31 +204,31 @@
 
       <a
         [nzDropdownMenu]="IDSearchOptions"
-        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-        class="search-wids-button"
         nz-dropdown
-        nzTrigger="click">
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-wids-button">
         <button
           id="sortID"
           ngbDropdownToggle
           nz-button>
           <i
             nz-icon
-            nz-tooltip="Workflow ID"
             nzTheme="outline"
-            nzType="ordered-list"></i>
+            nzType="ordered-list"
+            nz-tooltip="Workflow ID"></i>
         </button>
       </a>
       <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
         <ul
-          *ngFor="let wid of wids"
-          nz-menu>
+          nz-menu
+          *ngFor="let wid of wids">
           <li nz-menu-item>
             <label
-              (ngModelChange)="updateSelectedIDs()"
-              [(ngModel)]="wid.checked"
-              ngDefaultControl
               nz-checkbox
+              ngDefaultControl
+              [(ngModel)]="wid.checked"
+              (ngModelChange)="updateSelectedIDs()"
               >{{wid.id}}</label
             >
           </li>
@@ -237,35 +237,35 @@
 
       <a
         [nzDropdownMenu]="operatorSearchOptions"
-        [nzOverlayStyle]="{'border-style': 'double'}"
-        class="search-operators-button"
         nz-dropdown
-        nzTrigger="click">
+        nzTrigger="click"
+        [nzOverlayStyle]="{'border-style': 'double'}"
+        class="search-operators-button">
         <button
           id="sortOperator"
           ngbDropdownToggle
           nz-button>
           <i
             nz-icon
-            nz-tooltip="Operators"
+            nzType="appstore"
             nzTheme="outline"
-            nzType="appstore"></i>
+            nz-tooltip="Operators"></i>
         </button>
       </a>
       <nz-dropdown-menu #operatorSearchOptions="nzDropdownMenu">
         <ul
-          *ngFor="let group of operatorGroups"
-          nz-menu>
+          nz-menu
+          *ngFor="let group of operatorGroups">
           <li
             nz-submenu
             nzTitle="{{group}}">
             <ul *ngFor="let operator of operators.get(group)">
               <li nz-menu-item>
                 <label
-                  (ngModelChange)="updateSelectedOperators()"
-                  [(ngModel)]="operator.checked"
-                  ngDefaultControl
                   nz-checkbox
+                  ngDefaultControl
+                  [(ngModel)]="operator.checked"
+                  (ngModelChange)="updateSelectedOperators()"
                   >{{operator.userFriendlyName}}</label
                 >
               </li>
@@ -276,31 +276,31 @@
 
       <a
         [nzDropdownMenu]="projectSearchOptions"
-        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-        class="search-projects-button"
         nz-dropdown
-        nzTrigger="click">
+        nzTrigger="click"
+        [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
+        class="search-projects-button">
         <button
           id="sortProject"
           ngbDropdownToggle
           nz-button>
           <i
             nz-icon
-            nz-tooltip="Projects"
+            nzType="file"
             nzTheme="outline"
-            nzType="file"></i>
+            nz-tooltip="Projects"></i>
         </button>
       </a>
       <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
         <ul
-          *ngFor="let project of userProjectsDropdown"
-          nz-menu>
+          nz-menu
+          *ngFor="let project of userProjectsDropdown">
           <li nz-menu-item>
             <label
-              (ngModelChange)="updateSelectedProjects()"
-              [(ngModel)]="project.checked"
-              ngDefaultControl
               nz-checkbox
+              ngDefaultControl
+              [(ngModel)]="project.checked"
+              (ngModelChange)="updateSelectedProjects()"
               >{{project.name}}</label
             >
           </li>
@@ -311,23 +311,23 @@
 
   <div class="section-search-bar workflow-search-bar">
     <i
-      [nzPopoverContent]="filterPopContent"
       class="search-info-box"
       nz-icon
       nz-popover
       nzPopoverTitle="Filter Instructions"
+      nzType="question-circle"
       nzTheme="outline"
-      nzType="question-circle"></i>
+      [nzPopoverContent]="filterPopContent"></i>
     <nz-select
-      (ngModelChange)="updateDropdownMenus($event)"
-      [(ngModel)]="masterFilterList"
-      [nzAllowClear]="true"
+      class="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search all workflows"
       [nzBorderless]="true"
       [nzOpen]="false"
-      class="search-input-box"
       ngDefaultControl
-      nzMode="tags"
-      nzPlaceHolder="Search all workflows">
+      [(ngModel)]="masterFilterList"
+      [nzAllowClear]="true"
+      (ngModelChange)="updateDropdownMenus($event)">
     </nz-select>
     <ng-template #filterPopContent>
       We support the following search criteria:
@@ -358,8 +358,8 @@
       .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
     -->
     <cdk-virtual-scroll-viewport
-      class="virtual-scroll-container"
-      itemSize="80">
+      itemSize="80"
+      class="virtual-scroll-container">
       <nz-list>
         <nz-list-item
           *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
@@ -367,10 +367,10 @@
           <nz-list-item-meta>
             <nz-list-item-meta-avatar>
               <label
-                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"
+                nz-checkbox
                 class="workflow-item-checkbox"
                 id="{{dashboardWorkflowEntry.workflow.wid}}"
-                nz-checkbox></label>
+                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"></label>
               <nz-avatar
                 [ngStyle]="{ 'background-color': 'grey' }"
                 [nzGap]="4"
@@ -410,20 +410,20 @@
                 </button>
                 <button
                   (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
-                  class="add-description-btn"
                   nz-button
                   nz-tooltip="Add Description"
                   nzSize="small"
                   nzTooltipPlacement="bottom"
-                  nzType="text">
+                  nzType="text"
+                  class="add-description-btn">
                   <i
                     nz-icon
                     nzTheme="outline"
                     nzType="plus-square"></i>
                 </button>
                 <i
-                  *ngIf="dashboardWorkflowEntry.isOwner"
                   class="workflow-is-owner-icon"
+                  *ngIf="dashboardWorkflowEntry.isOwner"
                   ngbTooltip="You are the owner"
                   nz-icon
                   nzTheme="outline"
@@ -443,8 +443,8 @@
             <nz-list-item-meta-description>
               <div class="workflow-item-meta-description">
                 <label
-                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
                   *ngIf="(dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1); else customWorkflowDescription "
+                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
                   class="workflow-description">
                   {{ dashboardWorkflowEntry.workflow.description }}
                 </label>
@@ -454,8 +454,8 @@
                     (focusout)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
                     (keyup.enter)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
                     class="workflow-editable-description"
-                    maxlength="500"
-                    value="{{ dashboardWorkflowEntry.workflow.description }}" />
+                    value="{{ dashboardWorkflowEntry.workflow.description }}"
+                    maxlength="500" />
                 </ng-template>
               </div>
             </nz-list-item-meta-description>
@@ -477,22 +477,22 @@
               class="project-label">
               <a
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
+                nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
+                nzTooltipPlacement="bottom"
+                class="project-label-name"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid"
-                class="project-label-name"
-                nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
-                nzTooltipPlacement="bottom">
+                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid">
                 {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
               </a>
               <div
-                (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)"
                 *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
+                nz-tooltip="Remove from project"
+                nzTooltipPlacement="bottom"
+                class="project-label-remove"
                 [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
                 [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                class="project-label-remove"
-                nz-tooltip="Remove from project"
-                nzTooltipPlacement="bottom">
+                (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)">
                 x
               </div>
             </div>
@@ -542,21 +542,21 @@
                 type="button">
                 <i
                   nz-icon
-                  nzTheme="outline"
-                  nzType="cloud-download"></i>
+                  nzType="cloud-download"
+                  nzTheme="outline"></i>
               </button>
             </nz-list-item-action>
             <nz-list-item-action>
               <button
                 (nzOnConfirm)="deleteWorkflow(dashboardWorkflowEntry)"
+                nz-popconfirm
+                nzPopconfirmTitle="Confirm to delete this workflow."
                 [disabled]="!dashboardWorkflowEntry.isOwner"
                 class="delete-workflow-btn"
                 nz-button
-                nz-popconfirm
                 nz-tooltip="Delete the workflow {{
 								dashboardWorkflowEntry.workflow.name
 							}}"
-                nzPopconfirmTitle="Confirm to delete this workflow."
                 nzTooltipPlacement="bottom">
                 <i
                   nz-icon
