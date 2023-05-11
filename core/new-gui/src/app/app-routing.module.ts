@@ -1,11 +1,11 @@
 import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 import { environment } from "../environments/environment";
-import { DashboardComponent } from "./dashboard/component/dashboard.component";
-import { UserWorkflowComponent } from "./dashboard/component/feature-container/user-workflow/user-workflow.component";
-import { UserFileComponent } from "./dashboard/component/feature-container/user-file/user-file.component";
-import { UserProjectSectionComponent } from "./dashboard/component/feature-container/user-project/user-project-section/user-project-section.component";
-import { UserProjectComponent } from "./dashboard/component/feature-container/user-project/user-project.component";
+import { DashboardComponent } from "./dashboard/user/component/dashboard.component";
+import { UserWorkflowComponent } from "./dashboard/user/component/user-workflow/user-workflow.component";
+import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
+import { UserProjectSectionComponent } from "./dashboard/user/component/user-project/user-project-section/user-project-section.component";
+import { UserProjectComponent } from "./dashboard/user/component/user-project/user-project.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { HomeComponent } from "./home/component/home.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";

@@ -14,7 +14,7 @@ import { DynamicComponentConfig } from "../../../common/type/dynamic-component-c
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
-import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
@@ -231,11 +231,7 @@ export class ResultPanelComponent implements OnInit {
     if (event.current.state === ExecutionState.BreakpointTriggered) {
       return true;
     }
-
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
-    if (event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed) {
-      return true;
-    }
-    return false;
+    return event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed;
   }
 }
