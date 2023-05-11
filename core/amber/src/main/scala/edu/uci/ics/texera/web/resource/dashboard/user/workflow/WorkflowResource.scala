@@ -16,6 +16,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable
 import scala.collection.mutable.Set
 
 /**
@@ -160,7 +161,7 @@ class WorkflowResource {
 
     workflowEntries
       .map(workflowRecord => {
-        workflowRecord.into(WORKFLOW).getWid().intValue().toString()
+        workflowRecord.into(WORKFLOW).getWid.intValue().toString
       })
       .toList
   }
@@ -260,16 +261,16 @@ class WorkflowResource {
     val user = sessionUser.getUser
 
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-      WorkflowVersionResource.insertVersion(workflow, false)
+      WorkflowVersionResource.insertVersion(workflow, insertNewFlag = false)
       // current user reading
       workflowDao.update(workflow)
     } else {
       if (!WorkflowAccessResource.hasAccess(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
-        WorkflowVersionResource.insertVersion(workflow, true)
+        WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
-        WorkflowVersionResource.insertVersion(workflow, false)
+        WorkflowVersionResource.insertVersion(workflow, insertNewFlag = false)
         // not owner but has write access
         workflowDao.update(workflow)
       } else {
@@ -336,7 +337,7 @@ class WorkflowResource {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
-      WorkflowVersionResource.insertVersion(workflow, true)
+      WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
       DashboardWorkflowEntry(
         isOwner = true,
         WorkflowUserAccessPrivilege.WRITE.toString,
@@ -553,7 +554,7 @@ class WorkflowResource {
     */
   def getOwnerFilter(owners: java.util.List[String]): Condition = {
     var ownerFilter: Condition = noCondition()
-    val ownerSet: Set[String] = Set()
+    val ownerSet: mutable.Set[String] = mutable.Set()
     if (owners != null && !owners.isEmpty) {
       for (owner <- owners) {
         if (!ownerSet(owner)) {

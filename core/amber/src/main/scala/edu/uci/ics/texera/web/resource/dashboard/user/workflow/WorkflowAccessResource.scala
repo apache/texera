@@ -3,9 +3,17 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry2
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import io.dropwizard.auth.Auth
@@ -73,7 +81,7 @@ object WorkflowAccessResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
-@Path("/workflow/access")
+@Path("/access/workflow")
 class WorkflowAccessResource() {
   final private val userDao = new UserDao(context.configuration())
   final private val workflowOfUserDao = new WorkflowOfUserDao(context.configuration)

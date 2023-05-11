@@ -2,7 +2,11 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_EXECUTIONS,
+  WORKFLOW_VERSION
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
@@ -26,7 +30,7 @@ object WorkflowExecutionsResource {
 
   /**
     * This function retrieves the latest execution id of a workflow
-    * @param wid
+    * @param wid workflow id
     * @return UInteger
     */
   def getLatestExecutionID(wid: UInteger): Option[UInteger] = {
@@ -129,22 +133,22 @@ class WorkflowExecutionsResource {
         s"where texera_db.workflow_executions.eid in $eIdArray"
       context
         .query(sqlString)
-        .execute();
+        .execute()
     } else {
       val eIdArray = request.eIds.mkString("(", ",", ")")
       val sqlString = "UPDATE texera_db.workflow_executions " +
         "SET texera_db.workflow_executions.bookmarked = 1 " +
-        s"WHERE texera_db.workflow_executions.eid IN ${eIdArray}"
+        s"WHERE texera_db.workflow_executions.eid IN $eIdArray"
       context
         .query(sqlString)
-        .execute();
+        .execute()
     }
   }
 
   /** Determine if user is authorized to access the workflow, if not raise 401 */
   def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
     if (!WorkflowAccessResource.hasAccess(wid, uid))
-      throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+      throw new WebApplicationException(Response.Status.UNAUTHORIZED)
   }
 
   /** Delete a group of executions */
@@ -160,10 +164,10 @@ class WorkflowExecutionsResource {
     /* delete the execution in sql */
     val eIdArray = request.eIds.mkString("(", ",", ")")
     val sqlString: String = "DELETE FROM texera_db.workflow_executions " +
-      s"WHERE texera_db.workflow_executions.eid IN ${eIdArray}"
+      s"WHERE texera_db.workflow_executions.eid IN $eIdArray"
     context
       .query(sqlString)
-      .execute();
+      .execute()
   }
 
   /** Name a single execution * */
