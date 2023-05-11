@@ -9,6 +9,7 @@ export enum Privilege {
   READ = "READ",
   WRITE = "WRITE",
 }
+
 export interface WorkflowAccessEntry
   extends Readonly<{
     email: string;

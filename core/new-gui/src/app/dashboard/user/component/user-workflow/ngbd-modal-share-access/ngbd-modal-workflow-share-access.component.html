@@ -14,43 +14,43 @@
 </div>
 <div class="modal-body">
   <form
-    [formGroup]="validateForm"
-    (ngSubmit)="grantAccess()">
+    (ngSubmit)="grantAccess()"
+    [formGroup]="validateForm">
     <div class="form-group">
       <nz-card nzTitle="Target User">
         <nz-form-item>
           <nz-form-label
             [nzSm]="6"
             [nzXs]="24"
-            nzRequired
             nzFor="email"
-            >E-mail</nz-form-label
-          >
+            nzRequired
+            >E-mail
+          </nz-form-label>
           <nz-form-control
             [nzSm]="14"
             [nzXs]="24"
             nzErrorTip="The input is not valid E-mail!">
             <input
-              nz-input
-              id="email"
-              type="email"
-              formControlName="email"
-              [(ngModel)]="ownerSearchValue"
               (ngModelChange)="onChange($event)"
-              [nzAutocomplete]="auto" />
+              [(ngModel)]="ownerSearchValue"
+              [nzAutocomplete]="auto"
+              formControlName="email"
+              id="email"
+              nz-input
+              type="email" />
             <nz-autocomplete
-              [nzDefaultActiveFirstOption]="false"
+              #auto
               [nzDataSource]="filteredOwners"
-              nzBackfill
-              #auto></nz-autocomplete>
+              [nzDefaultActiveFirstOption]="false"
+              nzBackfill></nz-autocomplete>
           </nz-form-control>
         </nz-form-item>
       </nz-card>
       <br />
       <div nz-row>
         <div
-          nz-col
-          [nzSpan]="24">
+          [nzSpan]="24"
+          nz-col>
           <nz-card nzTitle="Share">
             <div style="height: 50px">
               Access Level:
@@ -60,9 +60,9 @@
               </select>
             </div>
             <button
-              style="width: 100%"
               nz-button
               nzType="primary"
+              style="width: 100%"
               type="submit">
               Share
             </button>

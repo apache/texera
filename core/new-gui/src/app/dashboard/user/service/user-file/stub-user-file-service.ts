@@ -19,6 +19,13 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
     StubUserFileService.detectUserChanges();
   }
 
+  /**
+   * refresh the files in the service whenever the user changes.
+   */
+  private static detectUserChanges(): void {
+    return;
+  }
+
   public grantUserFileAccess(
     file: DashboardUserFileEntry,
     username: string,
@@ -78,13 +85,6 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
 
   downloadUserFile(targetFile: UserFile): Observable<Blob> {
     return of();
-  }
-
-  /**
-   * refresh the files in the service whenever the user changes.
-   */
-  private static detectUserChanges(): void {
-    return;
   }
 
   /**

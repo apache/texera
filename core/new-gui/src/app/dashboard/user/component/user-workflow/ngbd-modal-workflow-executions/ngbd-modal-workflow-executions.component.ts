@@ -664,6 +664,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   }
 
   /* Pagination handler */
+
   /* Assign new page index and change current list */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;

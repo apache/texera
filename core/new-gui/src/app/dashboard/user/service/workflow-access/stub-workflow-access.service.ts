@@ -16,12 +16,15 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
   public grantAccess(wid: number, email: string, privilege: string): Observable<Response> {
     return of();
   }
+
   public revokeAccess(wid: number, username: string): Observable<Response> {
     return of();
   }
+
   public getOwner(wid: number): Observable<string> {
     return of();
   }
+
   public getAccessList(wid: number | undefined): Observable<readonly WorkflowAccessEntry[]> {
     return of();
   }

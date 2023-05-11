@@ -1,7 +1,7 @@
 <div class="saved-execution-container subsection-grid-container">
   <nz-card
-    class="workflow-section-title subsection-grid-container"
-    [nzActions]="[actionstar, actionDelete]">
+    [nzActions]="[actionstar, actionDelete]"
+    class="workflow-section-title subsection-grid-container">
     <button
       (click)="activeModal.dismiss('Cross click')"
       aria-label="Close"
@@ -15,14 +15,14 @@
       [nzSuffix]="suffixIconSearch"
       class="texera-dashboard-saved-workflow-search-box-input">
       <input
+        (keyup.enter)="searchExecution()"
+        (ngModelChange)="searchInputOnChange($event)"
         [(ngModel)]="executionSearchValue"
+        [nzAutocomplete]="auto"
         autocomplete="on"
         nz-input
         placeholder="Search all executions"
-        (ngModelChange)="searchInputOnChange($event)"
-        type="text"
-        [nzAutocomplete]="auto"
-        (keyup.enter)="searchExecution()" />
+        type="text" />
       <ng-template #suffixIconSearch>
         <i
           nz-icon
@@ -46,39 +46,39 @@
       </ng-template>
       <ng-template #prefixPopoverButton>
         <i
-          style="vertical-align: baseline; margin-right: 10px"
+          [nzPopoverContent]="popContent"
           nz-icon
           nz-popover
           nzPopoverTitle="Search Instructions"
-          [nzPopoverContent]="popContent"
+          nzTheme="outline"
           nzType="question-circle"
-          nzTheme="outline"></i>
+          style="vertical-align: baseline; margin-right: 10px"></i>
       </ng-template>
       <nz-autocomplete
-        [nzDefaultActiveFirstOption]="false"
+        #auto
         [nzDataSource]="filteredExecutionInfo"
-        nzBackfill
-        #auto></nz-autocomplete>
+        [nzDefaultActiveFirstOption]="false"
+        nzBackfill></nz-autocomplete>
     </nz-input-group>
   </nz-card>
   <ng-template #actionstar>
     <i
-      nz-tooltip
-      [nzTooltipTitle]="executionTooltip['Group Bookmarking']"
+      (click)="setBookmarked()"
       *ngIf="setOfEid.size !== 0"
+      [nzTooltipTitle]="executionTooltip['Group Bookmarking']"
       nz-icon
-      nzType="star"
-      (click)="setBookmarked()"></i>
+      nz-tooltip
+      nzType="star"></i>
   </ng-template>
   <ng-template #actionDelete>
     <i
       (nzOnConfirm)="onGroupDelete()"
-      nz-popconfirm
-      nzPopconfirmTitle="Confirm to delete this execution group."
-      nz-tooltip
-      [nzTooltipTitle]="executionTooltip['Group Deletion']"
       *ngIf="setOfEid.size !== 0"
+      [nzTooltipTitle]="executionTooltip['Group Deletion']"
       nz-icon
+      nz-popconfirm
+      nz-tooltip
+      nzPopconfirmTitle="Confirm to delete this execution group."
       nzType="delete"></i>
   </ng-template>
 
@@ -86,45 +86,45 @@
     <nz-tabset nzCentered>
       <nz-tab nzTitle="Executions Details">
         <nz-table
-          *ngIf="workflowExecutionsDisplayedList"
-          [nzShowSizeChanger]="true"
-          [nzPageSizeOptions]="pageSizeOptions"
-          [nzData]="workflowExecutionsDisplayedList"
-          [nzShowPagination]="true"
-          [nzPageSize]="pageSize"
-          [nzPageIndex]="currentPageIndex"
-          [nzTotal]="numOfExecutions"
-          [nzFrontPagination]="false"
-          (nzPageSizeChange)="onPageSizeChange($event)"
           (nzPageIndexChange)="onPageIndexChange($event)"
-          [nzScroll]="{ x: '1000px' }">
+          (nzPageSizeChange)="onPageSizeChange($event)"
+          *ngIf="workflowExecutionsDisplayedList"
+          [nzData]="workflowExecutionsDisplayedList"
+          [nzFrontPagination]="false"
+          [nzPageIndex]="currentPageIndex"
+          [nzPageSizeOptions]="pageSizeOptions"
+          [nzPageSize]="pageSize"
+          [nzScroll]="{ x: '1000px' }"
+          [nzShowPagination]="true"
+          [nzShowSizeChanger]="true"
+          [nzTotal]="numOfExecutions">
           <thead>
             <tr>
               <th
-                [ngStyle]="{'width': customColumnWidth['']}"
+                (nzCheckedChange)="onAllChecked($event)"
                 [(nzChecked)]="checked"
-                (nzCheckedChange)="onAllChecked($event)"></th>
+                [ngStyle]="{'width': customColumnWidth['']}"></th>
               <th
-                [ngStyle]="{'width': customColumnWidth[column]}"
                 *ngFor="let column of executionsTableHeaders; let i=index"
-                nz-tooltip
+                [ngStyle]="{'width': customColumnWidth[column]}"
                 [nzTooltipTitle]="executionTooltip[column]"
+                nz-tooltip
                 nzTooltipPlacement="top">
                 {{column}}
                 <span *ngIf="column !== '' && column !== 'Status'">
                   <button
+                    (click)="onHit(column, i)"
                     *ngIf="this.showORhide[i]"
-                    nz-button
-                    (click)="onHit(column, i)">
+                    nz-button>
                     <i
                       nz-icon
                       nzTheme="outline"
                       nzType="sort-ascending"></i>
                   </button>
                   <button
+                    (click)="onHit(column, i)"
                     *ngIf="!this.showORhide[i]"
-                    nz-button
-                    (click)="onHit(column, i)">
+                    nz-button>
                     <i
                       nz-icon
                       nzTheme="outline"
@@ -138,16 +138,16 @@
           <tbody>
             <tr *ngFor="let row of workflowExecutionsDisplayedList; let i=index;">
               <td
-                nzEllipsis
+                (nzCheckedChange)="onItemChecked(row, $event)"
                 [nzChecked]="setOfEid.has(row.eId)"
-                (nzCheckedChange)="onItemChecked(row, $event)"></td>
+                nzEllipsis></td>
               <td nzEllipsis>
                 <i
-                  nz-icon
-                  nzType="star"
-                  class="bookmark-icon"
+                  (click)="onBookmarkToggle(row)"
                   [nzTheme]="(row.bookmarked || currentlyHoveredExecution === row) ? 'fill' : 'outline'"
-                  (click)="onBookmarkToggle(row)"></i>
+                  class="bookmark-icon"
+                  nz-icon
+                  nzType="star"></i>
               </td>
               <td nzEllipsis>
                 <nz-avatar
@@ -158,8 +158,8 @@
               </td>
               <td nzEllipsis>
                 <label
-                  class="execution-description workflow-name"
                   *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow "
+                  class="execution-description workflow-name"
                   >{{ abbreviate(row.name, true) }}</label
                 >
                 <ng-template #customeWorkflow>
@@ -172,16 +172,16 @@
                 </ng-template>
                 <button
                   (click)="workflowExecutionsIsEditingName.push(i)"
+                  class="rename-icon"
                   nz-button
                   nzSize="small"
-                  nzType="text"
-                  class="rename-icon">
+                  nzType="text">
                   <i
                     nz-icon
-                    nzTheme="outline"
                     nz-tooltip
-                    nzTooltipTitle='Rename Execution "{{row.name}}"'
+                    nzTheme="outline"
                     nzTooltipPlacement="top"
+                    nzTooltipTitle='Rename Execution "{{row.name}}"'
                     nzType="edit"></i>
                 </button>
               </td>
@@ -189,34 +189,34 @@
               <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
               <td nzEllipsis>
                 <i
-                  nz-icon
-                  nzTheme="outline"
-                  nz-tooltip
-                  [nzTooltipTitle]="getExecutionStatus(row.status)[0]"
-                  nzTooltipPlacement="top"
-                  [nzType]="getExecutionStatus(row.status)[1]"
                   [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
-                  class="status-icon"></i>
+                  [nzTooltipTitle]="getExecutionStatus(row.status)[0]"
+                  [nzType]="getExecutionStatus(row.status)[1]"
+                  class="status-icon"
+                  nz-icon
+                  nz-tooltip
+                  nzTheme="outline"
+                  nzTooltipPlacement="top"></i>
               </td>
               <td nzEllipsis>
                 <i
                   (nzOnConfirm)="onDelete(row)"
-                  nz-popconfirm
-                  nzPopconfirmTitle="Confirm to delete this execution."
+                  class="trash-icon"
                   nz-icon
-                  nzType="delete"
+                  nz-popconfirm
                   nz-tooltip
-                  nzTooltipTitle='Delete the Execution "{{row.name}}"'
+                  nzPopconfirmTitle="Confirm to delete this execution."
                   nzTooltipPlacement="top"
-                  class="trash-icon"></i>
+                  nzTooltipTitle='Delete the Execution "{{row.name}}"'
+                  nzType="delete"></i>
               </td>
             </tr>
           </tbody>
         </nz-table>
       </nz-tab>
       <nz-tab
-        nzTitle="Executions Statistic Charts"
-        nzForceRender>
+        nzForceRender
+        nzTitle="Executions Statistic Charts">
         <div
           nz-row
           nzJustify="center">

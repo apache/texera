@@ -19,9 +19,9 @@
       <tr>
         <th>
           <input
-            type="checkbox"
+            (change)="changeAll()"
             [checked]="isAllChecked()"
-            (change)="changeAll()" />
+            type="checkbox" />
         </th>
         <th scope="col">ID #</th>
         <th scope="col">Owner</th>
@@ -33,8 +33,8 @@
       <tr *ngFor="let fileEntry of unaddedFiles; let i = index">
         <td>
           <input
-            type="checkbox"
-            [(ngModel)]="checkedFiles[i]" />
+            [(ngModel)]="checkedFiles[i]"
+            type="checkbox" />
         </td>
         <td>{{fileEntry.file.fid}}</td>
         <td>{{fileEntry.ownerName}}</td>

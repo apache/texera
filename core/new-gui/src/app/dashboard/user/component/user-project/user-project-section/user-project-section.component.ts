@@ -1,7 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
-import { ActivatedRoute } from "@angular/router";
-import { Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
@@ -79,57 +78,6 @@ export class UserProjectSectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalRemoveProjectFileComponent);
     modalRef.componentInstance.addedFiles = this.getUserProjectFilesArray();
     modalRef.componentInstance.projectId = this.pid;
-  }
-
-  private getUserProjectMetadata() {
-    // TODO : temporarily removed, revert back to retrieving data for just a single project after future PR to reuse UserFileSection component
-    // this.userProjectService
-    //   .retrieveProject(this.pid)
-    //   .pipe(untilDestroyed(this))
-    //   .subscribe(project => {
-    //     this.name = project.name;
-    //     this.ownerID = project.ownerID;
-    //     this.creationTime = project.creationTime;
-    //     if (project.color != null) {
-    //       this.color = project.color;
-    //       this.inputColor = "#" + project.color;
-    //       this.colorIsBright = this.userProjectService.isLightColor(project.color);
-    //     }
-    //     this.projectDataIsLoaded = true;
-    //   });
-
-    this.userProjectService
-      .retrieveProjectList()
-      .pipe(untilDestroyed(this))
-      .subscribe(userProjectList => {
-        if (userProjectList != null && userProjectList.length > 0) {
-          // map project ID to project object
-          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
-
-          // calculate whether project colors are light or dark
-          const projectColorBrightnessMap: Map<number, boolean> = new Map();
-          userProjectList.forEach(userProject => {
-            if (userProject.color != null) {
-              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
-            }
-
-            // get single project information
-            if (userProject.pid == this.pid) {
-              this.name = userProject.name;
-              this.description = userProject.description;
-              this.ownerID = userProject.ownerID;
-              this.creationTime = userProject.creationTime;
-              if (userProject.color != null) {
-                this.color = userProject.color;
-                this.inputColor = "#" + userProject.color;
-                this.colorIsBright = this.userProjectService.isLightColor(userProject.color);
-              }
-            }
-          });
-          this.colorBrightnessMap = projectColorBrightnessMap;
-          this.projectDataIsLoaded = true;
-        }
-      });
   }
 
   public getUserProjectFilesArray(): ReadonlyArray<DashboardUserFileEntry> {
@@ -273,5 +221,56 @@ export class UserProjectSectionComponent implements OnInit {
    */
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
     this.userProjectService.deleteDashboardUserFileEntry(this.pid, userFileEntry);
+  }
+
+  private getUserProjectMetadata() {
+    // TODO : temporarily removed, revert back to retrieving data for just a single project after future PR to reuse UserFileSection component
+    // this.userProjectService
+    //   .retrieveProject(this.pid)
+    //   .pipe(untilDestroyed(this))
+    //   .subscribe(project => {
+    //     this.name = project.name;
+    //     this.ownerID = project.ownerID;
+    //     this.creationTime = project.creationTime;
+    //     if (project.color != null) {
+    //       this.color = project.color;
+    //       this.inputColor = "#" + project.color;
+    //       this.colorIsBright = this.userProjectService.isLightColor(project.color);
+    //     }
+    //     this.projectDataIsLoaded = true;
+    //   });
+
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(userProjectList => {
+        if (userProjectList != null && userProjectList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+
+          // calculate whether project colors are light or dark
+          const projectColorBrightnessMap: Map<number, boolean> = new Map();
+          userProjectList.forEach(userProject => {
+            if (userProject.color != null) {
+              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+            }
+
+            // get single project information
+            if (userProject.pid == this.pid) {
+              this.name = userProject.name;
+              this.description = userProject.description;
+              this.ownerID = userProject.ownerID;
+              this.creationTime = userProject.creationTime;
+              if (userProject.color != null) {
+                this.color = userProject.color;
+                this.inputColor = "#" + userProject.color;
+                this.colorIsBright = this.userProjectService.isLightColor(userProject.color);
+              }
+            }
+          });
+          this.colorBrightnessMap = projectColorBrightnessMap;
+          this.projectDataIsLoaded = true;
+        }
+      });
   }
 }

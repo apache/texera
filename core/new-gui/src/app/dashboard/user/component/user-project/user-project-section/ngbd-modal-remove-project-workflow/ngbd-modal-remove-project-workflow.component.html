@@ -17,26 +17,26 @@
   <table class="table">
     <colgroup>
       <col
-        span="1"
-        id="checkbox-col" />
+        id="checkbox-col"
+        span="1" />
       <col
-        span="1"
-        id="id-col" />
+        id="id-col"
+        span="1" />
       <col
-        span="1"
-        id="name-col" />
+        id="name-col"
+        span="1" />
       <col
-        span="2"
-        id="time-col" />
+        id="time-col"
+        span="2" />
     </colgroup>
 
     <thead>
       <tr>
         <th>
           <input
-            type="checkbox"
+            (change)="changeAll()"
             [checked]="isAllChecked()"
-            (change)="changeAll()" />
+            type="checkbox" />
         </th>
         <th scope="col">ID #</th>
         <th scope="col">Name</th>
@@ -48,8 +48,8 @@
       <tr *ngFor="let workflowEntry of addedWorkflows; let i = index">
         <td>
           <input
-            type="checkbox"
-            [(ngModel)]="checkedWorkflows[i]" />
+            [(ngModel)]="checkedWorkflows[i]"
+            type="checkbox" />
         </td>
         <td>{{workflowEntry.workflow.wid}}</td>
         <td>{{workflowEntry.workflow.name}}</td>

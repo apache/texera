@@ -39,30 +39,6 @@ export class UserProjectComponent implements OnInit {
     this.getUserProjectArray();
   }
 
-  private getUserProjectArray() {
-    this.userProjectService
-      .retrieveProjectList()
-      .pipe(untilDestroyed(this))
-      .subscribe(projectEntries => {
-        this.userProjectEntries = projectEntries;
-
-        // map each pid to important color information, for access in HTML template
-        let index = 0;
-        for (var project of projectEntries) {
-          // used to store each project's updated color (via color wheel)
-          this.userProjectToColorInputIndexMap.set(project.pid, index);
-          this.userProjectInputColors.push(project.color == null ? "#ffffff" : "#" + project.color);
-          this.colorInputToggleArray.push(false);
-
-          // determine whether each project's color is light or dark
-          if (project.color != null) {
-            this.colorBrightnessMap.set(project.pid, this.userProjectService.isLightColor(project.color));
-          }
-          index++;
-        }
-      });
-  }
-
   public removeEditNameStatus(pid: number) {
     this.userProjectEntriesIsEditingName = this.userProjectEntriesIsEditingName.filter(index => index != pid);
   }
@@ -179,18 +155,6 @@ export class UserProjectComponent implements OnInit {
     }
   }
 
-  private isValidNewProjectName(newName: string, oldProject?: UserProject): boolean {
-    if (typeof oldProject === "undefined") {
-      return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
-    } else {
-      return (
-        newName.length != 0 &&
-        this.userProjectEntries.filter(project => project.pid !== oldProject.pid && project.name === newName).length ===
-          0
-      );
-    }
-  }
-
   public updateProjectColor(dashboardProjectEntry: UserProject, index: number) {
     let color: string =
       this.userProjectInputColors[this.userProjectToColorInputIndexMap.get(dashboardProjectEntry.pid)!].substring(1);
@@ -275,5 +239,41 @@ export class UserProjectComponent implements OnInit {
 
   public sortByNameDesc(): void {
     this.userProjectEntries.sort((p1, p2) => p2.name.toLowerCase().localeCompare(p1.name.toLowerCase()));
+  }
+
+  private getUserProjectArray() {
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(projectEntries => {
+        this.userProjectEntries = projectEntries;
+
+        // map each pid to important color information, for access in HTML template
+        let index = 0;
+        for (var project of projectEntries) {
+          // used to store each project's updated color (via color wheel)
+          this.userProjectToColorInputIndexMap.set(project.pid, index);
+          this.userProjectInputColors.push(project.color == null ? "#ffffff" : "#" + project.color);
+          this.colorInputToggleArray.push(false);
+
+          // determine whether each project's color is light or dark
+          if (project.color != null) {
+            this.colorBrightnessMap.set(project.pid, this.userProjectService.isLightColor(project.color));
+          }
+          index++;
+        }
+      });
+  }
+
+  private isValidNewProjectName(newName: string, oldProject?: UserProject): boolean {
+    if (typeof oldProject === "undefined") {
+      return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
+    } else {
+      return (
+        newName.length != 0 &&
+        this.userProjectEntries.filter(project => project.pid !== oldProject.pid && project.name === newName).length ===
+          0
+      );
+    }
   }
 }

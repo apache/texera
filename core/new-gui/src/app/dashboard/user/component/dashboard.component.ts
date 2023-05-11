@@ -16,6 +16,7 @@ import { UserService } from "../../../common/service/user/user.service";
   providers: [WorkflowPersistService],
 })
 export class DashboardComponent {
-  constructor(private userService: UserService) {}
   isAdmin = this.userService.isAdmin();
+
+  constructor(private userService: UserService) {}
 }

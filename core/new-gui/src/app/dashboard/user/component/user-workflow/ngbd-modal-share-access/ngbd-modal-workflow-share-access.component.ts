@@ -27,6 +27,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
+
   constructor(
     public activeModal: NgbActiveModal,
     private workflowAccessService: WorkflowAccessService,

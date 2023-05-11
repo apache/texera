@@ -1,5 +1,5 @@
 import { GooglePeopleApiResponse } from "../../type/google-api-response";
-import { Component, OnInit, Input } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { HttpClient } from "@angular/common/http";
 import { environment } from "../../../../../environments/environment";
@@ -23,13 +23,12 @@ import { environment } from "../../../../../environments/environment";
  */
 export class UserAvatarComponent implements OnInit {
   public googleUserAvatarSrc: string = "";
-  private publicKey = environment.google.publicKey;
-
-  constructor(private http: HttpClient) {}
-
   @Input() googleId?: string;
   @Input() userName?: string;
   @Input() userColor?: string;
+  private publicKey = environment.google.publicKey;
+
+  constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
     if (!this.googleId && !this.userName) {

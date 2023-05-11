@@ -23,6 +23,16 @@ export class UserFileUploadService {
     this.detectUserChanges();
   }
 
+  private static createFileUploadItem(file: File): FileUploadItem {
+    return {
+      file: file,
+      name: file.name,
+      description: "",
+      uploadProgress: 0,
+      isUploadingFlag: false,
+    };
+  }
+
   /**
    * returns all pending files to be uploaded.
    */
@@ -130,15 +140,5 @@ export class UserFileUploadService {
 
   private clearUserFile(): void {
     this.filesToBeUploaded = [];
-  }
-
-  private static createFileUploadItem(file: File): FileUploadItem {
-    return {
-      file: file,
-      name: file.name,
-      description: "",
-      uploadProgress: 0,
-      isUploadingFlag: false,
-    };
   }
 }

@@ -2,6 +2,7 @@ import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
 import { UntilDestroy } from "@ngneat/until-destroy";
+
 /**
  * UserIconComponent is used to control user system on the top right corner
  * It includes the button for login/registration/logout
@@ -15,6 +16,7 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 })
 export class UserIconComponent {
   public user: User | undefined;
+
   constructor(private userService: UserService) {
     this.user = this.userService.getCurrentUser();
   }

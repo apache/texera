@@ -85,20 +85,15 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   > = new Map();
   public selectedCtime: Date[] = [];
   public selectedMtime: Date[] = [];
-  private selectedOwners: string[] = [];
-  private selectedIDs: string[] = [];
-  private selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
-  private selectedProjects: { name: string; pid: number }[] = [];
-
   public masterFilterList: string[] = [];
-
-  /* variables for workflow editing / search / sort */
-  // virtual scroll requires replacing the entire array reference in order to update view
   // see https://github.com/angular/components/issues/14635
   public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+
+  /* variables for workflow editing / search / sort */
+  // virtual scroll requires replacing the entire array reference in order to update view
   public filteredDashboardWorkflowNames: Array<string> = [];
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
     useExtendedSearch: true,
@@ -115,28 +110,27 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     ["owner", ["ownerName"]],
   ]);
   public workflowSearchValue: string = "";
-  private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
-
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
-
   // whether tracking metadata information about executions is enabled
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
-
   /* variables for project color tags */
   public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
-
   /* variables for filtering workflows by projects */
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public downloadListWorkflow = new Map<number, string>();
   public zip = new JSZip();
-
   public ROUTER_WORKFLOW_BASE_URL = ROUTER_WORKFLOW_BASE_URL;
   public ROUTER_USER_PROJECT_BASE_URL = ROUTER_USER_PROJECT_BASE_URL;
+  private selectedOwners: string[] = [];
+  private selectedIDs: string[] = [];
+  private selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
+  private selectedProjects: { name: string; pid: number }[] = [];
+  private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
 
   constructor(
     private http: HttpClient,
@@ -256,73 +250,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       if (result) {
         this.updateDashboardWorkflowEntryCache(result);
       }
-    });
-  }
-
-  /**
-   * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
-   */
-  private searchParameterBackendSetup() {
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .pipe(untilDestroyed(this))
-      .subscribe(opdata => {
-        opdata.groups.forEach(group => {
-          this.operators.set(
-            group.groupName,
-            opdata.operators
-              .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
-              .map(operator => {
-                return {
-                  userFriendlyName: operator.additionalMetadata.userFriendlyName,
-                  operatorType: operator.operatorType,
-                  operatorGroup: operator.additionalMetadata.operatorGroupName,
-                  checked: false,
-                };
-              })
-          );
-        });
-        this.operatorGroups = opdata.groups.map(group => group.groupName);
-      });
-    this.retrieveOwners()
-      .pipe(untilDestroyed(this))
-      .subscribe(list_of_owners => (this.owners = list_of_owners));
-    this.retrieveIDs()
-      .pipe(untilDestroyed(this))
-      .subscribe(list_of_ids => (this.wids = list_of_ids));
-  }
-
-  /**
-   * Search workflows based on date string
-   * String Formats:
-   *  - mtime:YYYY-MM-DD (workflows on this date)
-   *  - mtime:<YYYY-MM-DD (workflows on or before this date)
-   *  - mtime:>YYYY-MM-DD (workflows on or after this date)
-   */
-
-  private searchDate(
-    date: Date[],
-    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
-    type: String
-  ): ReadonlyArray<DashboardWorkflowEntry> {
-    date[0].setHours(0);
-    date[0].setMinutes(0);
-    date[0].setSeconds(0);
-    date[0].setMilliseconds(0);
-    date[1].setHours(0);
-    date[1].setMinutes(0);
-    date[1].setSeconds(0);
-    date[1].setMilliseconds(0);
-    //sets date time at beginning of day
-    //date obj from nz-calendar adds extraneous time
-    return filteredDashboardWorkflowEntries.filter(workflow_entry => {
-      //filters for workflows that were created on the specified date
-      let time = type === "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
-      if (time) {
-        return time >= date[0].getTime() && time < date[1].getTime() + 86400000;
-        //checks if creation time is within the range of the whole day
-      }
-      return false;
     });
   }
 
@@ -495,94 +422,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   }
 
   /**
-   * sets all dropdown menu options to unchecked
-   */
-  private setDropdownSelectionsToUnchecked(): void {
-    this.owners.forEach(owner => {
-      owner.checked = false;
-    });
-    this.wids.forEach(wid => {
-      wid.checked = false;
-    });
-    for (let operatorList of this.operators.values()) {
-      operatorList.forEach(operator => (operator.checked = false));
-    }
-    this.userProjectsDropdown.forEach(proj => {
-      proj.checked = false;
-    });
-  }
-
-  /**
-   * constructs OrPathQuery object for search values with in the same category (owner, id, operator, etc.)
-   *  -returned object is inserted into AndPathQuery
-   *
-   * @param searchType - specified fuse search parameter for path mapping
-   * @param searchList - list of search parameters of the same type (owner, id, etc.)
-   * @param exactMatch
-   */
-  private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
-    let orPathQuery: Object[] = [];
-    searchList
-      .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter))
-      .forEach(pathQuery => orPathQuery.push(pathQuery));
-    return orPathQuery;
-  }
-
-  // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
-  private buildAndPathQuery(
-    workflowSearchField: string,
-    workflowSearchValue: string
-  ): {
-    $path: ReadonlyArray<string>;
-    $val: string;
-  } {
-    return {
-      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
-      $val: workflowSearchValue,
-    };
-  }
-
-  /**
-   * builds the tags to be displayd in the nz-select search bar
-   * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
-   */
-  private buildMasterFilterList(): void {
-    let newFilterList: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    newFilterList = newFilterList.concat(this.selectedOwners.map(owner => "owner: " + owner));
-    newFilterList = newFilterList.concat(this.selectedIDs.map(id => "id: " + id));
-    newFilterList = newFilterList.concat(
-      this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
-    );
-    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
-    if (this.selectedCtime.length != 0) {
-      newFilterList.push(
-        "ctime: " +
-          this.getFormattedDateString(this.selectedCtime[0]) +
-          " ~ " +
-          this.getFormattedDateString(this.selectedCtime[1])
-      );
-    }
-    if (this.selectedMtime.length != 0) {
-      newFilterList.push(
-        "mtime: " +
-          this.getFormattedDateString(this.selectedMtime[0]) +
-          " ~ " +
-          this.getFormattedDateString(this.selectedMtime[1])
-      );
-    }
-    this.masterFilterList = newFilterList;
-  }
-
-  /**
-   * returns a formatted string representing a Date object
-   */
-  private getFormattedDateString(date: Date): string {
-    let dateMonth: number = date.getMonth() + 1;
-    let dateDay: number = date.getDate();
-    return `${date.getFullYear()}-${(dateMonth < 10 ? "0" : "") + dateMonth}-${(dateDay < 10 ? "0" : "") + dateDay}`;
-  }
-
-  /**
    * Search workflows by owner name, workflow name, or workflow id
    * Use fuse.js https://fusejs.io/ as the tool for searching
    *
@@ -597,110 +436,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       return;
     }
     this.dashboardWorkflowEntries = await this.search();
-  }
-
-  private async asyncSearch(): Promise<number[] | "NoSearchKeywordProvided"> {
-    const idsFromOperatorSearch = await this.asyncSearchByOperator();
-    const idsFromKeywordSearch = await this.asyncSearchByKeywords();
-    if (idsFromOperatorSearch == "NoSearchKeywordProvided" && idsFromKeywordSearch == "NoSearchKeywordProvided") {
-      return "NoSearchKeywordProvided";
-    } else if (
-      idsFromOperatorSearch != "NoSearchKeywordProvided" &&
-      idsFromKeywordSearch != "NoSearchKeywordProvided"
-    ) {
-      var intersection = new Set<number>();
-      var idsFromKeywordSearchSet = new Set<number>(idsFromKeywordSearch);
-      for (var x of idsFromOperatorSearch) {
-        if (idsFromKeywordSearchSet.has(x)) {
-          intersection.add(x);
-        }
-      }
-      return [...intersection];
-    } else if (idsFromOperatorSearch != "NoSearchKeywordProvided") {
-      return idsFromOperatorSearch;
-    } else if (idsFromKeywordSearch != "NoSearchKeywordProvided") {
-      return idsFromKeywordSearch;
-    }
-    throw new Error("Unreachable code.");
-  }
-
-  private async asyncSearchByOperator(): Promise<number[] | "NoSearchKeywordProvided"> {
-    if (this.selectedOperators.length == 0) {
-      return "NoSearchKeywordProvided";
-    }
-    return (
-      await firstValueFrom(
-        this.workflowPersistService.retrieveWorkflowByOperator(
-          this.selectedOperators.map(operator => operator.operatorType).toString()
-        )
-      )
-    ).map(id => Number(id));
-  }
-
-  private async asyncSearchByKeywords(): Promise<number[] | "NoSearchKeywordProvided"> {
-    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    if (workflowNames.length == 0) {
-      return "NoSearchKeywordProvided";
-    }
-    const workflowsFromSearch = await firstValueFrom(
-      this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
-    );
-
-    // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
-    // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
-    return workflowsFromSearch.map(w => w.workflow.wid).filter((id): id is number => Boolean(id));
-  }
-
-  /**
-   * Searches workflows with given frontend data
-   * no backend calls so runs synchronously
-   */
-  private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
-    let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
-    let andPathQuery: Object[] = [];
-
-    const asyncSearchResult = await this.asyncSearch();
-    if (asyncSearchResult != "NoSearchKeywordProvided") {
-      andPathQuery.push({
-        $or: this.buildOrPathQuery(
-          "id",
-          asyncSearchResult.map(id => id.toString()),
-          true
-        ),
-      });
-    }
-
-    if (this.selectedOwners.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
-    }
-    if (this.selectedIDs.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
-    }
-
-    //executes search using AndPathQuery and then filters result if searching by ctime
-    if (andPathQuery.length !== 0) {
-      searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-    }
-
-    if (this.selectedCtime.length != 0) {
-      searchOutput = this.searchDate(this.selectedCtime, searchOutput, "C");
-    }
-
-    if (this.selectedMtime.length != 0) {
-      searchOutput = this.searchDate(this.selectedMtime, searchOutput, "M");
-    }
-
-    if (this.selectedProjects.length !== 0) {
-      searchOutput = searchOutput.filter(workflowEntry => {
-        for (const proj of this.selectedProjects) {
-          if (workflowEntry.projectIDs.includes(proj.pid)) {
-            return true;
-          }
-        }
-      });
-    }
-    //console.log(" we return search output " + JSON.stringify(searchOutput));
-    return searchOutput;
   }
 
   /**
@@ -733,14 +468,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         });
       })
     );
-  }
-
-  /**
-   * checks if a tag string is a workflow name or dropdown menu search parameter
-   */
-  private checkIfWorkflowName(tag: string) {
-    const stringChecked: string[] = tag.split(":");
-    return !(stringChecked.length === 2 && this.searchCriteria.includes(stringChecked[0]));
   }
 
   /**
@@ -882,55 +609,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       });
   }
 
-  private registerDashboardWorkflowEntriesRefresh(): void {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.isLogin()) {
-          this.refreshDashboardWorkflowEntries();
-          this.refreshUserProjects();
-        } else {
-          this.clearDashboardWorkflowEntries();
-        }
-        this.zip = new JSZip();
-        this.downloadListWorkflow = new Map<number, string>();
-      });
-  }
-
-  /**
-   * Retrieves from the backend endpoint for projects all user projects
-   * that are accessible from the current user.  This is used for
-   * the project color tags
-   */
-  private refreshUserProjects(): void {
-    this.userProjectService
-      .retrieveProjectList()
-      .pipe(untilDestroyed(this))
-      .subscribe((userProjectList: UserProject[]) => {
-        if (userProjectList != null && userProjectList.length > 0) {
-          // map project ID to project object
-          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
-
-          // calculate whether project colors are light or dark
-          const projectColorBrightnessMap: Map<number, boolean> = new Map();
-          userProjectList.forEach(userProject => {
-            if (userProject.color != null) {
-              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
-            }
-          });
-          this.colorBrightnessMap = projectColorBrightnessMap;
-
-          // store the projects containing these workflows
-          this.userProjectsList = userProjectList;
-          this.userProjectsDropdown = this.userProjectsList.map(proj => {
-            return { pid: proj.pid, name: proj.name, checked: false };
-          });
-          this.userProjectsLoaded = true;
-        }
-      });
-  }
-
   /**
    * This is a search function that filters displayed workflows by
    * the project(s) they belong to.  It is currently separated
@@ -977,52 +655,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         newEntries[index] = updatedDashboardWorkFlowEntry;
         this.dashboardWorkflowEntries = newEntries;
       });
-  }
-
-  private refreshDashboardWorkflowEntries(): void {
-    let observable: Observable<DashboardWorkflowEntry[]>;
-
-    if (this.pid === 0) {
-      // not nested within user project section
-      observable = this.workflowPersistService.retrieveWorkflowsBySessionUser();
-    } else {
-      // is nested within project section, get workflows belonging to project
-      observable = this.userProjectService.retrieveWorkflowsOfProject(this.pid);
-    }
-
-    observable.pipe(untilDestroyed(this)).subscribe(dashboardWorkflowEntries => {
-      this.dashboardWorkflowEntries = dashboardWorkflowEntries;
-      this.sortWorkflows();
-      this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
-      this.fuse.setCollection(this.allDashboardWorkflowEntries);
-      const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
-      this.filteredDashboardWorkflowNames = [...newEntries];
-    });
-  }
-
-  /**
-   * Used for adding / removing workflow(s) from a project.
-   *
-   * Updates local caches to reflect what was pushed into backend / returned
-   * from the modal
-   *
-   * @param dashboardWorkflowEntries - returned local cache of workflows
-   */
-  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
-    this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
-    this.fuse.setCollection(this.allDashboardWorkflowEntries);
-    // update searching / filtering
-    this.searchWorkflow();
-  }
-
-  private clearDashboardWorkflowEntries(): void {
-    for (let wid of this.downloadListWorkflow.keys()) {
-      const checkbox = document.getElementById(wid.toString()) as HTMLInputElement | null;
-      if (checkbox != null) {
-        checkbox.checked = false;
-      }
-    }
-    this.dashboardWorkflowEntries = [];
   }
 
   public confirmUpdateWorkflowCustomName(
@@ -1087,6 +719,417 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   };
 
   /**
+   * Download selected workflow as zip file
+   */
+  public async onClickOpenDownloadZip() {
+    let dateTime = new Date();
+    let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
+    const content = await this.zip.generateAsync({ type: "blob" });
+    this.fileSaverService.saveAs(content, filename);
+  }
+
+  /**
+   * Adding the workflow as pending download zip file
+   */
+  public onClickAddToDownload(dashboardWorkflowEntry: DashboardWorkflowEntry, event: Event) {
+    if ((<HTMLInputElement>event.target).checked) {
+      const fileName = this.nameWorkflow(dashboardWorkflowEntry.workflow.name) + ".json";
+      if (dashboardWorkflowEntry.workflow.wid) {
+        if (!this.downloadListWorkflow.has(dashboardWorkflowEntry.workflow.wid)) {
+          this.downloadListWorkflow.set(dashboardWorkflowEntry.workflow.wid, fileName);
+          this.notificationService.success(
+            "Successfully added workflow " + dashboardWorkflowEntry.workflow.wid + " to download list."
+          );
+        }
+        this.workflowPersistService
+          .retrieveWorkflow(dashboardWorkflowEntry.workflow.wid)
+          .pipe(untilDestroyed(this))
+          .subscribe(data => {
+            const workflowCopy: Workflow = {
+              ...data,
+              wid: undefined,
+              creationTime: undefined,
+              lastModifiedTime: undefined,
+            };
+            const workflowJson = JSON.stringify(workflowCopy.content);
+            this.zip.file(fileName, workflowJson);
+          });
+      }
+    } else {
+      if (dashboardWorkflowEntry.workflow.wid) {
+        const existFileName = this.downloadListWorkflow.get(dashboardWorkflowEntry.workflow.wid) as string;
+        this.zip.file(existFileName, "remove").remove(existFileName);
+        this.downloadListWorkflow.delete(dashboardWorkflowEntry.workflow.wid);
+        this.notificationService.info(
+          "Workflow " + dashboardWorkflowEntry.workflow.wid + " removed from download list."
+        );
+      }
+    }
+  }
+
+  /**
+   * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
+   */
+  private searchParameterBackendSetup() {
+    this.operatorMetadataService
+      .getOperatorMetadata()
+      .pipe(untilDestroyed(this))
+      .subscribe(opdata => {
+        opdata.groups.forEach(group => {
+          this.operators.set(
+            group.groupName,
+            opdata.operators
+              .filter(operator => operator.additionalMetadata.operatorGroupName === group.groupName)
+              .map(operator => {
+                return {
+                  userFriendlyName: operator.additionalMetadata.userFriendlyName,
+                  operatorType: operator.operatorType,
+                  operatorGroup: operator.additionalMetadata.operatorGroupName,
+                  checked: false,
+                };
+              })
+          );
+        });
+        this.operatorGroups = opdata.groups.map(group => group.groupName);
+      });
+    this.retrieveOwners()
+      .pipe(untilDestroyed(this))
+      .subscribe(list_of_owners => (this.owners = list_of_owners));
+    this.retrieveIDs()
+      .pipe(untilDestroyed(this))
+      .subscribe(list_of_ids => (this.wids = list_of_ids));
+  }
+
+  /**
+   * Search workflows based on date string
+   * String Formats:
+   *  - mtime:YYYY-MM-DD (workflows on this date)
+   *  - mtime:<YYYY-MM-DD (workflows on or before this date)
+   *  - mtime:>YYYY-MM-DD (workflows on or after this date)
+   */
+
+  private searchDate(
+    date: Date[],
+    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
+    type: String
+  ): ReadonlyArray<DashboardWorkflowEntry> {
+    date[0].setHours(0);
+    date[0].setMinutes(0);
+    date[0].setSeconds(0);
+    date[0].setMilliseconds(0);
+    date[1].setHours(0);
+    date[1].setMinutes(0);
+    date[1].setSeconds(0);
+    date[1].setMilliseconds(0);
+    //sets date time at beginning of day
+    //date obj from nz-calendar adds extraneous time
+    return filteredDashboardWorkflowEntries.filter(workflow_entry => {
+      //filters for workflows that were created on the specified date
+      let time = type === "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
+      if (time) {
+        return time >= date[0].getTime() && time < date[1].getTime() + 86400000;
+        //checks if creation time is within the range of the whole day
+      }
+      return false;
+    });
+  }
+
+  /**
+   * sets all dropdown menu options to unchecked
+   */
+  private setDropdownSelectionsToUnchecked(): void {
+    this.owners.forEach(owner => {
+      owner.checked = false;
+    });
+    this.wids.forEach(wid => {
+      wid.checked = false;
+    });
+    for (let operatorList of this.operators.values()) {
+      operatorList.forEach(operator => (operator.checked = false));
+    }
+    this.userProjectsDropdown.forEach(proj => {
+      proj.checked = false;
+    });
+  }
+
+  /**
+   * constructs OrPathQuery object for search values with in the same category (owner, id, operator, etc.)
+   *  -returned object is inserted into AndPathQuery
+   *
+   * @param searchType - specified fuse search parameter for path mapping
+   * @param searchList - list of search parameters of the same type (owner, id, etc.)
+   * @param exactMatch
+   */
+  private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
+    let orPathQuery: Object[] = [];
+    searchList
+      .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter))
+      .forEach(pathQuery => orPathQuery.push(pathQuery));
+    return orPathQuery;
+  }
+
+  // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
+  private buildAndPathQuery(
+    workflowSearchField: string,
+    workflowSearchValue: string
+  ): {
+    $path: ReadonlyArray<string>;
+    $val: string;
+  } {
+    return {
+      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
+      $val: workflowSearchValue,
+    };
+  }
+
+  /**
+   * builds the tags to be displayd in the nz-select search bar
+   * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
+   */
+  private buildMasterFilterList(): void {
+    let newFilterList: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+    newFilterList = newFilterList.concat(this.selectedOwners.map(owner => "owner: " + owner));
+    newFilterList = newFilterList.concat(this.selectedIDs.map(id => "id: " + id));
+    newFilterList = newFilterList.concat(
+      this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
+    );
+    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
+    if (this.selectedCtime.length != 0) {
+      newFilterList.push(
+        "ctime: " +
+          this.getFormattedDateString(this.selectedCtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedCtime[1])
+      );
+    }
+    if (this.selectedMtime.length != 0) {
+      newFilterList.push(
+        "mtime: " +
+          this.getFormattedDateString(this.selectedMtime[0]) +
+          " ~ " +
+          this.getFormattedDateString(this.selectedMtime[1])
+      );
+    }
+    this.masterFilterList = newFilterList;
+  }
+
+  /**
+   * returns a formatted string representing a Date object
+   */
+  private getFormattedDateString(date: Date): string {
+    let dateMonth: number = date.getMonth() + 1;
+    let dateDay: number = date.getDate();
+    return `${date.getFullYear()}-${(dateMonth < 10 ? "0" : "") + dateMonth}-${(dateDay < 10 ? "0" : "") + dateDay}`;
+  }
+
+  private async asyncSearch(): Promise<number[] | "NoSearchKeywordProvided"> {
+    const idsFromOperatorSearch = await this.asyncSearchByOperator();
+    const idsFromKeywordSearch = await this.asyncSearchByKeywords();
+    if (idsFromOperatorSearch == "NoSearchKeywordProvided" && idsFromKeywordSearch == "NoSearchKeywordProvided") {
+      return "NoSearchKeywordProvided";
+    } else if (
+      idsFromOperatorSearch != "NoSearchKeywordProvided" &&
+      idsFromKeywordSearch != "NoSearchKeywordProvided"
+    ) {
+      var intersection = new Set<number>();
+      var idsFromKeywordSearchSet = new Set<number>(idsFromKeywordSearch);
+      for (var x of idsFromOperatorSearch) {
+        if (idsFromKeywordSearchSet.has(x)) {
+          intersection.add(x);
+        }
+      }
+      return [...intersection];
+    } else if (idsFromOperatorSearch != "NoSearchKeywordProvided") {
+      return idsFromOperatorSearch;
+    } else if (idsFromKeywordSearch != "NoSearchKeywordProvided") {
+      return idsFromKeywordSearch;
+    }
+    throw new Error("Unreachable code.");
+  }
+
+  private async asyncSearchByOperator(): Promise<number[] | "NoSearchKeywordProvided"> {
+    if (this.selectedOperators.length == 0) {
+      return "NoSearchKeywordProvided";
+    }
+    return (
+      await firstValueFrom(
+        this.workflowPersistService.retrieveWorkflowByOperator(
+          this.selectedOperators.map(operator => operator.operatorType).toString()
+        )
+      )
+    ).map(id => Number(id));
+  }
+
+  private async asyncSearchByKeywords(): Promise<number[] | "NoSearchKeywordProvided"> {
+    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+    if (workflowNames.length == 0) {
+      return "NoSearchKeywordProvided";
+    }
+    const workflowsFromSearch = await firstValueFrom(
+      this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
+    );
+
+    // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
+    // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
+    return workflowsFromSearch.map(w => w.workflow.wid).filter((id): id is number => Boolean(id));
+  }
+
+  /**
+   * Searches workflows with given frontend data
+   * no backend calls so runs synchronously
+   */
+  private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
+    let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
+    let andPathQuery: Object[] = [];
+
+    const asyncSearchResult = await this.asyncSearch();
+    if (asyncSearchResult != "NoSearchKeywordProvided") {
+      andPathQuery.push({
+        $or: this.buildOrPathQuery(
+          "id",
+          asyncSearchResult.map(id => id.toString()),
+          true
+        ),
+      });
+    }
+
+    if (this.selectedOwners.length !== 0) {
+      andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
+    }
+    if (this.selectedIDs.length !== 0) {
+      andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
+    }
+
+    //executes search using AndPathQuery and then filters result if searching by ctime
+    if (andPathQuery.length !== 0) {
+      searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
+    }
+
+    if (this.selectedCtime.length != 0) {
+      searchOutput = this.searchDate(this.selectedCtime, searchOutput, "C");
+    }
+
+    if (this.selectedMtime.length != 0) {
+      searchOutput = this.searchDate(this.selectedMtime, searchOutput, "M");
+    }
+
+    if (this.selectedProjects.length !== 0) {
+      searchOutput = searchOutput.filter(workflowEntry => {
+        for (const proj of this.selectedProjects) {
+          if (workflowEntry.projectIDs.includes(proj.pid)) {
+            return true;
+          }
+        }
+      });
+    }
+    //console.log(" we return search output " + JSON.stringify(searchOutput));
+    return searchOutput;
+  }
+
+  /**
+   * checks if a tag string is a workflow name or dropdown menu search parameter
+   */
+  private checkIfWorkflowName(tag: string) {
+    const stringChecked: string[] = tag.split(":");
+    return !(stringChecked.length === 2 && this.searchCriteria.includes(stringChecked[0]));
+  }
+
+  private registerDashboardWorkflowEntriesRefresh(): void {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.userService.isLogin()) {
+          this.refreshDashboardWorkflowEntries();
+          this.refreshUserProjects();
+        } else {
+          this.clearDashboardWorkflowEntries();
+        }
+        this.zip = new JSZip();
+        this.downloadListWorkflow = new Map<number, string>();
+      });
+  }
+
+  /**
+   * Retrieves from the backend endpoint for projects all user projects
+   * that are accessible from the current user.  This is used for
+   * the project color tags
+   */
+  private refreshUserProjects(): void {
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe((userProjectList: UserProject[]) => {
+        if (userProjectList != null && userProjectList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
+
+          // calculate whether project colors are light or dark
+          const projectColorBrightnessMap: Map<number, boolean> = new Map();
+          userProjectList.forEach(userProject => {
+            if (userProject.color != null) {
+              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+            }
+          });
+          this.colorBrightnessMap = projectColorBrightnessMap;
+
+          // store the projects containing these workflows
+          this.userProjectsList = userProjectList;
+          this.userProjectsDropdown = this.userProjectsList.map(proj => {
+            return { pid: proj.pid, name: proj.name, checked: false };
+          });
+          this.userProjectsLoaded = true;
+        }
+      });
+  }
+
+  private refreshDashboardWorkflowEntries(): void {
+    let observable: Observable<DashboardWorkflowEntry[]>;
+
+    if (this.pid === 0) {
+      // not nested within user project section
+      observable = this.workflowPersistService.retrieveWorkflowsBySessionUser();
+    } else {
+      // is nested within project section, get workflows belonging to project
+      observable = this.userProjectService.retrieveWorkflowsOfProject(this.pid);
+    }
+
+    observable.pipe(untilDestroyed(this)).subscribe(dashboardWorkflowEntries => {
+      this.dashboardWorkflowEntries = dashboardWorkflowEntries;
+      this.sortWorkflows();
+      this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+      this.fuse.setCollection(this.allDashboardWorkflowEntries);
+      const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
+      this.filteredDashboardWorkflowNames = [...newEntries];
+    });
+  }
+
+  /**
+   * Used for adding / removing workflow(s) from a project.
+   *
+   * Updates local caches to reflect what was pushed into backend / returned
+   * from the modal
+   *
+   * @param dashboardWorkflowEntries - returned local cache of workflows
+   */
+  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
+    this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+    this.fuse.setCollection(this.allDashboardWorkflowEntries);
+    // update searching / filtering
+    this.searchWorkflow();
+  }
+
+  private clearDashboardWorkflowEntries(): void {
+    for (let wid of this.downloadListWorkflow.keys()) {
+      const checkbox = document.getElementById(wid.toString()) as HTMLInputElement | null;
+      if (checkbox != null) {
+        checkbox.checked = false;
+      }
+    }
+    this.dashboardWorkflowEntries = [];
+  }
+
+  /**
    * process .zip file uploads
    */
   private handleZipUploads(zipFile: Blob) {
@@ -1138,55 +1181,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         );
       }
     };
-  }
-
-  /**
-   * Download selected workflow as zip file
-   */
-  public async onClickOpenDownloadZip() {
-    let dateTime = new Date();
-    let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
-    const content = await this.zip.generateAsync({ type: "blob" });
-    this.fileSaverService.saveAs(content, filename);
-  }
-
-  /**
-   * Adding the workflow as pending download zip file
-   */
-  public onClickAddToDownload(dashboardWorkflowEntry: DashboardWorkflowEntry, event: Event) {
-    if ((<HTMLInputElement>event.target).checked) {
-      const fileName = this.nameWorkflow(dashboardWorkflowEntry.workflow.name) + ".json";
-      if (dashboardWorkflowEntry.workflow.wid) {
-        if (!this.downloadListWorkflow.has(dashboardWorkflowEntry.workflow.wid)) {
-          this.downloadListWorkflow.set(dashboardWorkflowEntry.workflow.wid, fileName);
-          this.notificationService.success(
-            "Successfully added workflow " + dashboardWorkflowEntry.workflow.wid + " to download list."
-          );
-        }
-        this.workflowPersistService
-          .retrieveWorkflow(dashboardWorkflowEntry.workflow.wid)
-          .pipe(untilDestroyed(this))
-          .subscribe(data => {
-            const workflowCopy: Workflow = {
-              ...data,
-              wid: undefined,
-              creationTime: undefined,
-              lastModifiedTime: undefined,
-            };
-            const workflowJson = JSON.stringify(workflowCopy.content);
-            this.zip.file(fileName, workflowJson);
-          });
-      }
-    } else {
-      if (dashboardWorkflowEntry.workflow.wid) {
-        const existFileName = this.downloadListWorkflow.get(dashboardWorkflowEntry.workflow.wid) as string;
-        this.zip.file(existFileName, "remove").remove(existFileName);
-        this.downloadListWorkflow.delete(dashboardWorkflowEntry.workflow.wid);
-        this.notificationService.info(
-          "Workflow " + dashboardWorkflowEntry.workflow.wid + " removed from download list."
-        );
-      }
-    }
   }
 
   /**

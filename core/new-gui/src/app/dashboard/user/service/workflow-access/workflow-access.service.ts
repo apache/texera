@@ -3,7 +3,9 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { WorkflowAccessEntry } from "../../type/access.interface";
+
 export const BASE = `${AppSettings.getApiEndpoint()}/workflow/access`;
+
 @Injectable({
   providedIn: "root",
 })

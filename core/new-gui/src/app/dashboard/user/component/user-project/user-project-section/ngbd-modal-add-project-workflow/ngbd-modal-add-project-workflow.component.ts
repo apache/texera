@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { Observable, forkJoin } from "rxjs";
+import { forkJoin, Observable } from "rxjs";
 import { concatMap } from "rxjs/operators";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { DashboardWorkflowEntry } from "src/app/dashboard/user/type/dashboard-workflow-entry";

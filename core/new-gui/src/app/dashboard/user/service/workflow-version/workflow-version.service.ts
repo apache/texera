@@ -27,11 +27,12 @@ const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
   providedIn: "root",
 })
 export class WorkflowVersionService {
+  public modificationEnabledBeforeTempWorkflow = true;
+  public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
-  public modificationEnabledBeforeTempWorkflow = true;
-  public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
