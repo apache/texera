@@ -1,19 +1,19 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
-import { WorkflowAccessService } from "../../../service/workflow-access/workflow-access.service";
-import { WorkflowAccessEntry } from "../../../type/access.interface";
+import { WorkflowAccessService } from "../../service/workflow-access/workflow-access.service";
+import { WorkflowAccessEntry } from "../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DashboardUserFileEntry, UserFile } from "../../../type/dashboard-user-file-entry";
-import { UserFileService } from "../../../service/user-file/user-file.service";
+import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
+import { UserFileService } from "../../service/user-file/user-file.service";
 
 @UntilDestroy()
 @Component({
   selector: "texera-ngbd-modal-share-access",
-  templateUrl: "./ngbd-modal-workflow-share-access.component.html",
-  styleUrls: ["./ngbd-modal-workflow-share-access.component.scss"],
+  templateUrl: "./share-access.component.html",
+  styleUrls: ["./share-access.component.scss"],
 })
-export class NgbdModalWorkflowShareAccessComponent implements OnInit {
+export class ShareAccessComponent implements OnInit {
   @Input() wid!: number;
   @Input() filenames!: string[];
   @Input() allOwners!: string[];

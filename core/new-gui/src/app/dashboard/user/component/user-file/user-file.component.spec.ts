@@ -10,7 +10,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
-import { NgbdModalWorkflowShareAccessComponent } from "../user-workflow/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { ShareAccessComponent } from "../share-access/share-access.component";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { By } from "@angular/platform-browser";
@@ -146,7 +146,7 @@ describe("UserFileSectionComponent", () => {
   });
 
   it("Modal Opened, then Closed", () => {
-    const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
+    const modalRef: NgbModalRef = modalService.open(ShareAccessComponent);
     spyOn(modalService, "open").and.returnValue(modalRef);
     component.onClickOpenShareAccess(testFile);
     expect(modalService.open).toHaveBeenCalled();

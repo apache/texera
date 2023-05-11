@@ -10,7 +10,7 @@ import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
 import { MatDialogModule } from "@angular/material/dialog";
 import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
-import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { ShareAccessComponent } from "../share-access/share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
 import { HttpClient } from "@angular/common/http";
@@ -187,7 +187,7 @@ describe("SavedWorkflowSectionComponent", () => {
   // must use waitForAsync for configureTestingModule in components with virtual scroll
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [UserWorkflowComponent, NgbdModalWorkflowShareAccessComponent],
+      declarations: [UserWorkflowComponent, ShareAccessComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         NgbActiveModal,

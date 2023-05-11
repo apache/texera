@@ -5,15 +5,11 @@ import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { DashboardUserFileEntry } from "../../../type/dashboard-user-file-entry";
-
-// ---- for file card
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbdModalUserFileShareAccessComponent } from "../../user-file/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UserProject } from "../../../type/user-project";
-
-export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -94,14 +90,6 @@ export class UserProjectSectionComponent implements OnInit {
   public jumpToProject({ pid }: UserProject): void {
     this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
-
-  /**
-   * opens and closes color picker
-   */
-  public toggleColorPicker() {
-    this.colorPickerIsSelected = !this.colorPickerIsSelected;
-  }
-
   public updateProjectColor(color: string) {
     color = color.substring(1);
     this.colorPickerIsSelected = false;

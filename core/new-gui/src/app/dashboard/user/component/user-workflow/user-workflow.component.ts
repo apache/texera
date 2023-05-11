@@ -7,7 +7,7 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { ShareAccessComponent } from "../share-access/share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { DashboardWorkflowEntry, SortMethod } from "../../type/dashboard-workflow-entry";
@@ -167,7 +167,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * open the Modal based on the workflow clicked on
    */
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
+    const modalRef = this.modalService.open(ShareAccessComponent);
     modalRef.componentInstance.wid = workflow.wid;
     modalRef.componentInstance.allOwners = this.owners.map(owner => owner.userName);
     this.workflowPersistService

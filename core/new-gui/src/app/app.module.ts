@@ -53,7 +53,7 @@ import { UserFileService } from "./dashboard/user/service/user-file/user-file.se
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/user/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/user/component/user-workflow/user-workflow.component";
-import { NgbdModalWorkflowShareAccessComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
+import { ShareAccessComponent } from "./dashboard/user/component/share-access/share-access.component";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { NgbdModalFileAddComponent } from "./dashboard/user/component/user-file/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
@@ -154,7 +154,7 @@ registerLocaleData(en);
     CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
     TypeCastingDisplayComponent,
-    NgbdModalWorkflowShareAccessComponent,
+    ShareAccessComponent,
     NgbdModalWorkflowExecutionsComponent,
     NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
