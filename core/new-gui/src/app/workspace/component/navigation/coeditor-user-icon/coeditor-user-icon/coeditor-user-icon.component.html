@@ -1,0 +1,31 @@
+<div class="coeditor-user-icon">
+  <div>
+    <texera-user-avatar
+      class="coeditor-avatar caret-off"
+      [googleId]="coeditor?.googleId || '' "
+      [userName]="coeditor?.name || ''"
+      [userColor]="coeditor?.color || ''"
+      nz-button
+      nz-dropdown
+      nzTrigger="click"
+      [nzDropdownMenu]="menu"
+      nzPlacement="bottomRight">
+    </texera-user-avatar>
+  </div>
+  <nz-dropdown-menu #menu="nzDropdownMenu">
+    <ul nz-menu>
+      <li
+        *ngIf="!(coeditorPresenceService.shadowingModeEnabled && coeditorPresenceService.shadowingCoeditor?.clientId === this.coeditor.clientId)"
+        nz-menu-item
+        (click)="shadowCoeditor()">
+        <b>Start "shadowing":&nbsp;&nbsp;</b> {{coeditor.name}} - {{coeditor.clientId}}
+      </li>
+      <li
+        *ngIf="(coeditorPresenceService.shadowingModeEnabled && coeditorPresenceService.shadowingCoeditor?.clientId === this.coeditor.clientId)"
+        nz-menu-item
+        (click)="stopShadowing()">
+        Stop Shadowing
+      </li>
+    </ul>
+  </nz-dropdown-menu>
+</div>
