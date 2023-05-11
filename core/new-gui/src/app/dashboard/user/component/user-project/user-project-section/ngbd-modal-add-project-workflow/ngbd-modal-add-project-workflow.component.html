@@ -1,0 +1,71 @@
+<div class="modal-header">
+  <h4
+    class="modal-title"
+    id="modal-basic-title">
+    Add Workflows To Project
+  </h4>
+  <button
+    (click)="activeModal.close()"
+    aria-label="Close"
+    class="close"
+    type="button">
+    <span aria-hidden="true"> × </span>
+  </button>
+</div>
+
+<div class="modal-body">
+  <table class="table">
+    <colgroup>
+      <col
+        id="checkbox-col"
+        span="1" />
+      <col
+        id="id-col"
+        span="1" />
+      <col
+        id="name-col"
+        span="1" />
+      <col
+        id="time-col"
+        span="2" />
+    </colgroup>
+
+    <thead>
+      <tr>
+        <th>
+          <input
+            (change)="changeAll()"
+            [checked]="isAllChecked()"
+            type="checkbox" />
+        </th>
+        <th scope="col">ID #</th>
+        <th scope="col">Name</th>
+        <th scope="col">Creation Time</th>
+        <th scope="col">Last Modified Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let workflowEntry of unaddedWorkflows; let i = index">
+        <td>
+          <input
+            [(ngModel)]="checkedWorkflows[i]"
+            type="checkbox" />
+        </td>
+        <td>{{workflowEntry.workflow.wid}}</td>
+        <td>{{workflowEntry.workflow.name}}</td>
+        <td>{{workflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm"}}</td>
+        <td>{{workflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm"}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-footer">
+  <button
+    (click)="submitForm()"
+    aria-label="Confirm"
+    class="btn btn-primary"
+    type="button">
+    Confirm
+  </button>
+</div>

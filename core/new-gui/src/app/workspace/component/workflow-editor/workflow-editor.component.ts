@@ -22,11 +22,11 @@ import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, buffer, debounceTime, takeUntil } from "rxjs/operators";
+import { OperatorLink, Point } from "../../types/workflow-common.interface";
+import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
-import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import MouseMoveEvent = JQuery.MouseMoveEvent;
@@ -84,9 +84,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private mouseDown: Point | undefined;
 
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
-
-  private coeditorCurrentlyEditingMap = new Map<string, string | undefined>();
-
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -997,7 +994,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
    */
   private getJointPaperOptions(): joint.dia.Paper.Options {
-    const jointPaperOptions: joint.dia.Paper.Options = {
+    return {
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
       snapLinks: { radius: 40 },
       // disable jointjs default action that can make a link not connect to an operator
@@ -1027,8 +1024,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       // see https://github.com/clientIO/joint/issues/1320
       sorting: joint.dia.Paper.sorting.APPROX,
     };
-
-    return jointPaperOptions;
   }
 
   /**
@@ -1114,12 +1109,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         allowMultiInput = portInfo?.allowMultiInputs ?? false;
       }
     }
-
-    if (connectedLinksToTargetPort.length > 0 && !allowMultiInput) {
-      return false;
-    }
-
-    return true;
+    return !(connectedLinksToTargetPort.length > 0 && !allowMultiInput);
   }
 
   /**

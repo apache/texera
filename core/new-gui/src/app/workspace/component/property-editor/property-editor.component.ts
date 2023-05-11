@@ -8,9 +8,9 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   DISPLAY_WORKFLOW_VERIONS_EVENT,
   WorkflowVersionService,
-} from "src/app/dashboard/service/workflow-version/workflow-version.service";
+} from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
-import { auditTime, filter } from "rxjs/operators";
+import { filter } from "rxjs/operators";
 
 export type PropertyEditFrameComponent =
   | OperatorPropertyEditFrameComponent
@@ -86,10 +86,7 @@ export class PropertyEditorComponent implements OnInit {
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        const highlightCommentBoxes = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedCommentBoxIDs();
-
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
         if (isDisplayWorkflowVersions) {
           this.switchFrameComponent({
             component: VersionsListDisplayComponent,

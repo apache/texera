@@ -4,7 +4,7 @@ import { isEqual } from "lodash-es";
 import { Observable } from "rxjs";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
-import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
+import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
@@ -69,13 +69,6 @@ export class SourceTablesService {
   public getTableSchemaMap(): ReadonlyMap<string, TableSchema> | undefined {
     return this.tableSchemaMap;
   }
-
-  private invokeSourceTableAPI(): Observable<Map<string, TableSchema>> {
-    return this.httpClient
-      .get<TableMetadata[]>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
-      .pipe(map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema]))));
-  }
-
   private changeInputToEnumInJsonSchema(
     schema: OperatorSchema,
     key: string,
@@ -125,22 +118,6 @@ export class SourceTablesService {
     }
     return schema;
   }
-
-  private handleSourceTableChange() {
-    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
-      const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
-      // if operator input attributes are in the result, set them in dynamic schema
-      const tableScanSchema = this.changeInputToEnumInJsonSchema(schema, tableNameInJsonSchema, this.tableNames);
-      if (!tableScanSchema) {
-        return;
-      }
-      if (!isEqual(schema, tableScanSchema)) {
-        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
-        this.dynamicSchemaService.setDynamicSchema(operatorID, tableScanSchema);
-      }
-    });
-  }
-
   /**
    * Handle property change of source operators. When a table of a source operator is selected,
    *  and the source operator also has property `attribute` or `attributes`, change them to be the column names of the table.
@@ -189,15 +166,6 @@ export class SourceTablesService {
         });
       });
   }
-
-  private registerSourceTableFetch(): void {
-    this.invokeSourceTableAPI().subscribe(response => {
-      this.tableSchemaMap = response;
-      this.tableNames = Array.from(this.tableSchemaMap.keys());
-      this.handleSourceTableChange();
-    });
-  }
-
   private registerOpPropertyDynamicUpdate(): void {
     this.workflowActionService
       .getTexeraGraph()

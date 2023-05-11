@@ -8,9 +8,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
 import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowDao}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
@@ -21,6 +20,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 
 import java.nio.file.Files
 import java.nio.charset.StandardCharsets

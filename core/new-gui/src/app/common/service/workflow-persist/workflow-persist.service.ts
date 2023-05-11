@@ -4,7 +4,7 @@ import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
-import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
+import { DashboardWorkflowEntry } from "../../../dashboard/user/type/dashboard-workflow-entry";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
 
