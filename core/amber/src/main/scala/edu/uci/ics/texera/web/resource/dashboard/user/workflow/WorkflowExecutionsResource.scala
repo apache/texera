@@ -24,18 +24,6 @@ object WorkflowExecutionsResource {
     executionsDao.fetchOneByEid(eId)
   }
 
-  case class WorkflowExecutionEntry(
-      eId: UInteger,
-      vId: UInteger,
-      userName: String,
-      startingTime: Timestamp,
-      completionTime: Timestamp,
-      status: Byte,
-      result: String,
-      bookmarked: Boolean,
-      name: String
-  )
-
   /**
     * This function retrieves the latest execution id of a workflow
     * @param wid
@@ -53,6 +41,18 @@ object WorkflowExecutionsResource {
       Some(executions.max)
     }
   }
+
+  case class WorkflowExecutionEntry(
+      eId: UInteger,
+      vId: UInteger,
+      userName: String,
+      startingTime: Timestamp,
+      completionTime: Timestamp,
+      status: Byte,
+      result: String,
+      bookmarked: Boolean,
+      name: String
+  )
 
 }
 

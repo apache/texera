@@ -21,21 +21,13 @@ object WorkflowAccessResource {
   final private val context: DSLContext = SqlServer.createDSLContext
 
   /**
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
+    * Identifies whether the given user has no access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
     */
-  def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
-    val access = context
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetchOneInto(classOf[WorkflowUserAccess])
-    if (access == null) {
-      WorkflowUserAccessPrivilege.NONE
-    } else {
-      access.getPrivilege
-    }
+  def hasAccess(wid: UInteger, uid: UInteger): Boolean = {
+    hasReadAccess(wid, uid) || hasWriteAccess(wid, uid)
   }
 
   /**
@@ -61,13 +53,21 @@ object WorkflowAccessResource {
   }
 
   /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
+    * @param wid workflow id
+    * @param uid user id, works with workflow id as primary keys in database
+    * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
     */
-  def hasAccess(wid: UInteger, uid: UInteger): Boolean = {
-    hasReadAccess(wid, uid) || hasWriteAccess(wid, uid)
+  def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
+    val access = context
+      .select()
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+      .fetchOneInto(classOf[WorkflowUserAccess])
+    if (access == null) {
+      WorkflowUserAccessPrivilege.NONE
+    } else {
+      access.getPrivilege
+    }
   }
 }
 

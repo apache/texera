@@ -33,46 +33,6 @@ object ProjectResource {
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private lazy val fileOfProjectDao = new FileOfProjectDao(context.configuration)
 
-  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
-    workflowOfProjectDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
-        .values(wid, pid)
-    )
-  }
-
-  /**
-    * This method verifies a project exists with the corresponding
-    * pid, throwing an exception in the case it does not.
-    *
-    * @param pid project ID
-    */
-  private def verifyProjectExists(pid: UInteger): Unit = {
-    if (!userProjectDao.existsById(pid)) {
-      throw new BadRequestException("The project does not exist.")
-    }
-  }
-
-  /**
-    * This method verifies the user with the specified uid has access to
-    * the project with the specified pid, assuming such a project exists.
-    *
-    * If user has no access, it will throw a ForbiddenException stating insufficient access
-    *
-    * @param uid user ID
-    * @param project user Project
-    * @return Project corresponding to pid
-    */
-  private def verifySessionUserHasProjectAccess(
-      uid: UInteger,
-      project: Project
-  ): Unit = {
-    if (project != null && project.getOwnerId != uid) {
-      // currently only owners should be able to access project
-      throw new ForbiddenException("No sufficient access privilege to project.")
-    }
-  }
-
   /**
     * This method is used to insert any CSV files created from ResultExportService
     * handleCSVRequest function into all project(s) that the workflow belongs to.
@@ -117,6 +77,46 @@ object ProjectResource {
       }
     } else { // workflow does not belong to a project
       ""
+    }
+  }
+
+  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+    workflowOfProjectDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
+        .values(wid, pid)
+    )
+  }
+
+  /**
+    * This method verifies a project exists with the corresponding
+    * pid, throwing an exception in the case it does not.
+    *
+    * @param pid project ID
+    */
+  private def verifyProjectExists(pid: UInteger): Unit = {
+    if (!userProjectDao.existsById(pid)) {
+      throw new BadRequestException("The project does not exist.")
+    }
+  }
+
+  /**
+    * This method verifies the user with the specified uid has access to
+    * the project with the specified pid, assuming such a project exists.
+    *
+    * If user has no access, it will throw a ForbiddenException stating insufficient access
+    *
+    * @param uid user ID
+    * @param project user Project
+    * @return Project corresponding to pid
+    */
+  private def verifySessionUserHasProjectAccess(
+      uid: UInteger,
+      project: Project
+  ): Unit = {
+    if (project != null && project.getOwnerId != uid) {
+      // currently only owners should be able to access project
+      throw new ForbiddenException("No sufficient access privilege to project.")
     }
   }
 }

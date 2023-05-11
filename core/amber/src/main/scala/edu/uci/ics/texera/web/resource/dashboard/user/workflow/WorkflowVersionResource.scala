@@ -35,27 +35,6 @@ object WorkflowVersionResource {
   private final val SNAPSHOT_UNIMPORTANCE_RULES = List("replace")
 
   /**
-    * This function retrieves the latest version of a workflow
-    * @param wid
-    * @return vid
-    */
-  def getLatestVersion(wid: UInteger): UInteger = {
-    val versions = context
-      .select(WORKFLOW_VERSION.VID)
-      .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(wid))
-      .fetchInto(classOf[UInteger])
-      .toList
-    // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
-    // version as an empty delta, so should do the check and create one once
-    // TODO should remove the check when all versions in the DB follow latest design
-    if (versions.isEmpty) {
-      return insertNewVersion(wid).getVid
-    }
-    versions.max
-  }
-
-  /**
     * This function does the check of the difference between the current workflow and its previous version if it exists and inserts a new version
     * @param workflow
     * @param insertNewFlag indicates if the workflow didn't exist before
@@ -83,19 +62,6 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function inserts a new version for a new workflow
-    * @param wid
-    */
-  def insertNewVersion(wid: UInteger): WorkflowVersion = {
-    // write the new version with empty diff
-    val workflowVersion = new WorkflowVersion()
-    workflowVersion.setContent("[]")
-    workflowVersion.setWid(wid)
-    workflowVersionDao.insert(workflowVersion)
-    workflowVersion
-  }
-
-  /**
     * This function updates the content of the latest version and inserts a new empty version for the current workflow
     * @param patch to update latest version
     * @param wid
@@ -111,6 +77,52 @@ object WorkflowVersionResource {
     }
     workflowVersion.setContent(patch)
     workflowVersionDao.update(workflowVersion)
+  }
+
+  /**
+    * This function retrieves the latest version of a workflow
+    * @param wid
+    * @return vid
+    */
+  def getLatestVersion(wid: UInteger): UInteger = {
+    val versions = context
+      .select(WORKFLOW_VERSION.VID)
+      .from(WORKFLOW_VERSION)
+      .where(WORKFLOW_VERSION.WID.eq(wid))
+      .fetchInto(classOf[UInteger])
+      .toList
+    // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
+    // version as an empty delta, so should do the check and create one once
+    // TODO should remove the check when all versions in the DB follow latest design
+    if (versions.isEmpty) {
+      return insertNewVersion(wid).getVid
+    }
+    versions.max
+  }
+
+  /**
+    * This function inserts a new version for a new workflow
+    * @param wid
+    */
+  def insertNewVersion(wid: UInteger): WorkflowVersion = {
+    // write the new version with empty diff
+    val workflowVersion = new WorkflowVersion()
+    workflowVersion.setContent("[]")
+    workflowVersion.setWid(wid)
+    workflowVersionDao.insert(workflowVersion)
+    workflowVersion
+  }
+
+  /**
+    * This function is for testing if the version is following the current design of keeping an empty delta for the
+    * last version for migrating versions that followed the old design to the new design.
+    * This function should be removed after some time (when all versions in the DB follow the new design)
+    * @param patch
+    * @return
+    */
+  @deprecated
+  private def isPatchEmpty(patch: String): Boolean = {
+    patch == "[]"
   }
 
   /*
@@ -139,15 +151,22 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function is for testing if the version is following the current design of keeping an empty delta for the
-    * last version for migrating versions that followed the old design to the new design.
-    * This function should be removed after some time (when all versions in the DB follow the new design)
-    * @param patch
+    * This function parses the content of the delta to determine if it is positional only
+    * @param versionContent
     * @return
     */
-  @deprecated
-  private def isPatchEmpty(patch: String): Boolean = {
-    patch == "[]"
+  private def isSnapshotImportant(versionContent: String): Boolean = {
+    val jsonTreeIterator = objectMapper.readTree(versionContent).iterator()
+    while (jsonTreeIterator.hasNext) {
+      // if the change(which is marked by the key `path` using the Json patch library
+      // doesn't contain any of the specified keywords then it shall be deemed important
+      if (
+        !SNAPSHOT_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("op").asText().contains)
+      ) {
+        return true
+      }
+    }
+    false
   }
 
   /**
@@ -225,25 +244,6 @@ object WorkflowVersionResource {
       // doesn't contain any of the specified keywords then it shall be deemed important
       if (
         !VERSION_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("path").asText().contains)
-      ) {
-        return true
-      }
-    }
-    false
-  }
-
-  /**
-    * This function parses the content of the delta to determine if it is positional only
-    * @param versionContent
-    * @return
-    */
-  private def isSnapshotImportant(versionContent: String): Boolean = {
-    val jsonTreeIterator = objectMapper.readTree(versionContent).iterator()
-    while (jsonTreeIterator.hasNext) {
-      // if the change(which is marked by the key `path` using the Json patch library
-      // doesn't contain any of the specified keywords then it shall be deemed important
-      if (
-        !SNAPSHOT_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("op").asText().contains)
       ) {
         return true
       }

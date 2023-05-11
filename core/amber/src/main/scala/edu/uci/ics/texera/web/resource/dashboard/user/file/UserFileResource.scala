@@ -20,8 +20,8 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import javax.ws.rs._
+import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -128,40 +128,6 @@ class UserFileResource {
     getUserFileRecord(user)
   }
 
-  @GET
-  @Path("/autocomplete/{query:.*}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def autocompleteUserFiles(
-      @Auth sessionUser: SessionUser,
-      @PathParam("query") q: String
-  ): util.List[String] = {
-    // get the user files
-    // select the filenames that applies the input
-    val query = URLDecoder.decode(q, "UTF-8")
-    val user = sessionUser.getUser
-    val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
-    val filenames = ArrayBuffer[String]()
-    val username = user.getName
-    // get all the filename list
-    for (i <- fileList) {
-      filenames += i.file.getName
-    }
-    // select the filenames that apply
-    val selectedByFile = ArrayBuffer[String]()
-    val selectedByUsername = ArrayBuffer[String]()
-    val selectedByFullPath = ArrayBuffer[String]()
-    for (e <- filenames) {
-      val fullPath = username + "/" + e
-      if (e.contains(query) || query.isEmpty)
-        selectedByFile += (username + "/" + e)
-      else if (username.contains(query))
-        selectedByUsername += (username + "/" + e)
-      else if (fullPath.contains(query))
-        selectedByFullPath += (username + "/" + e)
-    }
-    (selectedByFile ++ selectedByUsername ++ selectedByFullPath).toList.asJava
-  }
-
   private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
     // fetch the user files:
     // user_file_access JOIN file on FID (to get all files this user can access)
@@ -208,6 +174,40 @@ class UserFileResource {
       )
     })
     fileEntries.toList.asJava
+  }
+
+  @GET
+  @Path("/autocomplete/{query:.*}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def autocompleteUserFiles(
+      @Auth sessionUser: SessionUser,
+      @PathParam("query") q: String
+  ): util.List[String] = {
+    // get the user files
+    // select the filenames that applies the input
+    val query = URLDecoder.decode(q, "UTF-8")
+    val user = sessionUser.getUser
+    val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
+    val filenames = ArrayBuffer[String]()
+    val username = user.getName
+    // get all the filename list
+    for (i <- fileList) {
+      filenames += i.file.getName
+    }
+    // select the filenames that apply
+    val selectedByFile = ArrayBuffer[String]()
+    val selectedByUsername = ArrayBuffer[String]()
+    val selectedByFullPath = ArrayBuffer[String]()
+    for (e <- filenames) {
+      val fullPath = username + "/" + e
+      if (e.contains(query) || query.isEmpty)
+        selectedByFile += (username + "/" + e)
+      else if (username.contains(query))
+        selectedByUsername += (username + "/" + e)
+      else if (fullPath.contains(query))
+        selectedByFullPath += (username + "/" + e)
+    }
+    (selectedByFile ++ selectedByUsername ++ selectedByFullPath).toList.asJava
   }
 
   /**
@@ -264,20 +264,6 @@ class UserFileResource {
     }
 
   }
-
-  private def validateFileName(fileName: String, userID: UInteger): Pair[Boolean, String] = {
-    if (fileName == null) Pair.of(false, "file name cannot be null")
-    else if (fileName.trim.isEmpty) Pair.of(false, "file name cannot be empty")
-    else if (isFileNameExisted(fileName, userID)) Pair.of(false, "file name already exists")
-    else Pair.of(true, "filename validation success")
-  }
-
-  private def isFileNameExisted(fileName: String, userID: UInteger): Boolean =
-    context.fetchExists(
-      context
-        .selectFrom(FILE)
-        .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
-    )
 
   @GET
   @Path("/download/{fileId}")
@@ -365,6 +351,20 @@ class UserFileResource {
       fileDao.update(userFile)
     }
   }
+
+  private def validateFileName(fileName: String, userID: UInteger): Pair[Boolean, String] = {
+    if (fileName == null) Pair.of(false, "file name cannot be null")
+    else if (fileName.trim.isEmpty) Pair.of(false, "file name cannot be empty")
+    else if (isFileNameExisted(fileName, userID)) Pair.of(false, "file name already exists")
+    else Pair.of(true, "filename validation success")
+  }
+
+  private def isFileNameExisted(fileName: String, userID: UInteger): Boolean =
+    context.fetchExists(
+      context
+        .selectFrom(FILE)
+        .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
+    )
 
   /**
     * This method updates the description of a given userFile

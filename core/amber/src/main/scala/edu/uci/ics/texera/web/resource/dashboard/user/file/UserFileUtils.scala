@@ -11,10 +11,10 @@ import java.io._
 import java.nio.file.{Files, Path, Paths}
 
 object UserFileUtils {
+  private lazy val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
   private val FILE_CONTAINER_PATH: Path = {
     Utils.amberHomePath.resolve("user-resources").resolve("files")
   }
-  private lazy val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
 
   def storeFile(fileStream: InputStream, fileName: String, userID: UInteger): Unit = {
     createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
