@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.resource.dashboard.file
+package edu.uci.ics.texera.web.resource.dashboard.user.file
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
@@ -6,11 +6,7 @@ import edu.uci.ics.texera.web.model.http.request.auth.GrantAccessRequest
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{
-  context,
-  grantAccess,
-  userDao
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{context, grantAccess, userDao}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 

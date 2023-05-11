@@ -1,55 +1,24 @@
-package edu.uci.ics.texera.web.resource.dashboard.project
+package edu.uci.ics.texera.web.resource.dashboard.user.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  FILE,
-  FILE_OF_PROJECT,
-  USER,
-  USER_FILE_ACCESS,
-  PROJECT,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileOfProjectDao,
-  ProjectDao,
-  WorkflowOfProjectDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  File,
-  FileOfProject,
-  UserFileAccess,
-  Project,
-  Workflow,
-  WorkflowOfProject,
-  WorkflowUserAccess
-}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.hasAccessTo
-import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
-  context,
-  fileOfProjectDao,
-  userProjectDao,
-  verifyProjectExists,
-  verifySessionUserHasProjectAccess,
-  workflowOfProjectDao,
-  workflowOfProjectExists
-}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.hasAccess
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
-import org.jooq.types.UInteger
-
-import javax.ws.rs._
-import javax.ws.rs.core.MediaType
-import java.util
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import edu.uci.ics.texera.web.model.jooq.generated.Tables._
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, ProjectDao, WorkflowOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.hasAccessTo
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasAccess
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
+import org.jooq.types.UInteger
 
+import java.util
 import javax.annotation.security.RolesAllowed
+import javax.ws.rs._
+import javax.ws.rs.core.MediaType
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
   * This file handles various request related to projects.

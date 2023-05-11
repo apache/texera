@@ -1,21 +1,12 @@
-package edu.uci.ics.texera.web.resource.dashboard.file
+package edu.uci.ics.texera.web.resource.dashboard.user.file
 
 import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileDao,
-  FileOfProjectDao,
-  UserDao,
-  UserFileAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{
-  DashboardFileEntry,
-  context,
-  saveUserFileSafe
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{DashboardFileEntry, context, saveUserFileSafe}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -23,17 +14,17 @@ import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import java.io.{FileInputStream, IOException, InputStream, OutputStream}
+import java.net.URLDecoder
 import java.nio.file.Paths
 import java.sql.Timestamp
 import java.time.Instant
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
-import javax.ws.rs.{WebApplicationException, _}
+import javax.ws.rs._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import java.net.URLDecoder
 
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
