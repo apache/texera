@@ -3,9 +3,9 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   WorkflowVersionCollapsableEntry,
   WorkflowVersionEntry,
-} from "../../../../dashboard/type/workflow-version-entry";
+} from "../../../../dashboard/user/type/workflow-version-entry";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
