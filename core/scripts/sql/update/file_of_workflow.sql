@@ -1,3 +1,4 @@
+USE `texera_db`;
 CREATE TABLE IF NOT EXISTS file_of_workflow
 (
     `fid`            INT UNSIGNED                     NOT NULL,
