@@ -27,7 +27,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   WorkflowOfProject,
   WorkflowUserAccess
 }
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.hasAccessTo
 import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   context,
   fileOfProjectDao,
@@ -37,7 +36,6 @@ import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
   workflowOfProjectDao,
   workflowOfProjectExists
 }
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
   hasNoWorkflowAccess,
   toAccessLevel
