@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.resource.dashboard.user.workflow
+package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -8,7 +8,13 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource.{
+  VersionEntry,
+  applyPatch,
+  context,
+  encodeVersionImportance,
+  workflowDao
+}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
