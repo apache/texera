@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileUtils
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
