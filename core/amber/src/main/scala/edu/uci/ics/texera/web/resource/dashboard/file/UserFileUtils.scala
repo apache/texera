@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.resource.dashboard.user.file
+package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.texera.Utils

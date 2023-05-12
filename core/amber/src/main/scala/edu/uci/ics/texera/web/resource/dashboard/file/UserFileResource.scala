@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.resource.dashboard.user.file
+package edu.uci.ics.texera.web.resource.dashboard.file
 
 import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
@@ -17,7 +17,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserFileAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import UserFileResource.{
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{
   DashboardFileEntry,
   context,
   saveUserFileSafe
