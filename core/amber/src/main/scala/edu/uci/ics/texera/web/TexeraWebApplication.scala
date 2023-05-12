@@ -16,19 +16,16 @@ import edu.uci.ics.texera.web.auth.{
   UserRoleAuthorizer
 }
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
-import edu.uci.ics.texera.web.resource._
-import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
-import edu.uci.ics.texera.web.resource.dashboard.user.file.{
-  UserFileAccessResource,
-  UserFileResource
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
+import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
   WorkflowResource,
   WorkflowVersionResource
 }
+import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource
+import edu.uci.ics.texera.web.resource._
+import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
+import edu.uci.ics.texera.web.resource.dashboard.user.file.{UserFileAccessResource, UserFileResource}
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -48,10 +45,10 @@ import scala.annotation.tailrec
 object TexeraWebApplication {
 
   def createAmberRuntime(
-                          workflow: Workflow,
-                          conf: ControllerConfig,
-                          errorHandler: Throwable => Unit
-                        ): AmberClient = {
+      workflow: Workflow,
+      conf: ControllerConfig,
+      errorHandler: Throwable => Unit
+  ): AmberClient = {
     new AmberClient(actorSystem, workflow, conf, errorHandler)
   }
 
@@ -60,7 +57,7 @@ object TexeraWebApplication {
   }
 
   def scheduleRecurringCallThroughActorSystem(initialDelay: FiniteDuration, delay: FiniteDuration)(
-    call: => Unit
+      call: => Unit
   ): Cancellable = {
     actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
   }
