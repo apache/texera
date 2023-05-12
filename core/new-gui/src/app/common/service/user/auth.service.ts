@@ -103,10 +103,9 @@ export class AuthService {
 
     const role = this.jwtHelperService.decodeToken(token).role;
     const sub = this.jwtHelperService.decodeToken(token).sub;
-    const email = this.jwtHelperService.decodeToken(token).email;
 
     if (this.inviteOnly && role == Role.INACTIVE) {
-      this.notificationService.loading("The account request of <b>" + email + "</b> is received and pending.", {
+      this.notificationService.loading("The account request of <b>" + sub + "</b> is received and pending.", {
         nzDuration: 0,
       });
       return this.logout();
@@ -117,7 +116,7 @@ export class AuthService {
     return {
       uid: this.jwtHelperService.decodeToken(token).userId,
       name: sub,
-      email: email,
+      email: this.jwtHelperService.decodeToken(token).email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
       role: role,
     };

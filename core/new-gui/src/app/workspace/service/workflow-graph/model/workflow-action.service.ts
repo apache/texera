@@ -4,7 +4,7 @@ import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { mapToRecord, recordToMap } from "../../../../common/util/map";
-import { WorkflowMetadata } from "../../../../dashboard/user/type/workflow-metadata.interface";
+import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Breakpoint,
   Comment,
@@ -27,6 +27,7 @@ import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
+import { assert } from "src/app/common/util/assert";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 
@@ -326,7 +327,6 @@ export class WorkflowActionService {
    * Deletes given operators and links from the workflow graph.
    * @param operatorIDs
    * @param linkIDs
-   * @param groupIDs
    */
   public deleteOperatorsAndLinks(
     operatorIDs: readonly string[],
@@ -371,6 +371,7 @@ export class WorkflowActionService {
   /**
    * Handles the auto layout function
    *
+   * @param Workflow
    */
   // Originally: drag Operator
   public autoLayoutWorkflow(): void {
@@ -720,7 +721,7 @@ export class WorkflowActionService {
             op.operatorID
           ) as Point)
       );
-    return {
+    const workflowContent: WorkflowContent = {
       operators,
       operatorPositions,
       links,
@@ -728,6 +729,7 @@ export class WorkflowActionService {
       breakpoints,
       commentBoxes,
     };
+    return workflowContent;
   }
 
   public getWorkflow(): Workflow {
