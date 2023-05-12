@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jooq.types.UInteger
 

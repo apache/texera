@@ -1,19 +1,14 @@
-package edu.uci.ics.texera.web.resource.dashboard.workflow
+package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW_EXECUTIONS,
-  WORKFLOW_VERSION
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL._
 import org.jooq.types.UInteger
-import org.jooq._
 
 import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
