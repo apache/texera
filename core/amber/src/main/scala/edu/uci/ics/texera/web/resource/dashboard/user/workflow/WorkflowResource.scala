@@ -443,7 +443,6 @@ class WorkflowResource {
     * This method utilizes MySQL Boolean Full-Text Searches
     * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
     *
-    *
     * @param sessionUser The authenticated user.
     * @param keywords    The search keywords.
     * @return A list of workflows that match the search term.
