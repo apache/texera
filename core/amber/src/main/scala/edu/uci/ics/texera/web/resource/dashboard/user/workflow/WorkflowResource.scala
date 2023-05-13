@@ -506,19 +506,6 @@ class WorkflowResource {
       // Apply projectId filter
       .and(getProjectFilter(projectIds))
 
-      // Apply creation_time date filter
-      .and(getDateFilter("creation", creationStartDate, creationEndDate))
-      // Apply lastModified_time date filter
-      .and(getDateFilter("modification", modifiedStartDate, modifiedEndDate))
-      // Apply workflowID filter
-      .and(getWorkflowIdFilter(workflowIDs))
-      // Apply owner filter
-      .and(getOwnerFilter(owners))
-      // Apply operators filter
-      .and(getOperatorsFilter(operators))
-      // Apply projectId filter
-      .and(getProjectFilter(projectIds))
-
     try {
       val workflowEntries = context
         .select(
