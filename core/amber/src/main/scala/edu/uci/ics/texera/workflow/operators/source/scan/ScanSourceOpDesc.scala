@@ -12,10 +12,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
-import scala.collection.immutable.List
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
