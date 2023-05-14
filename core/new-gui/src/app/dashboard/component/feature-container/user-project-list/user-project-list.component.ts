@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
-import { UserProject } from "../../../type/user-project";
+import { UserProject } from "../../../user/type/user-project";
 import { Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -42,7 +42,6 @@ export class UserProjectListComponent implements OnInit {
   ) {
     this.uid = this.userService.getCurrentUser()!.uid;
   }
-
 
   ngOnInit(): void {
     this.getUserProjectArray();

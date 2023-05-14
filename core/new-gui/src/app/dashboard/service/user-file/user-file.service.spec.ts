@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile } from "../../user/type/dashboard-user-file-entry";
 import {
   USER_FILE_ACCESS_GRANT_URL,
   USER_FILE_ACCESS_LIST_URL,

@@ -1,4 +1,4 @@
-import { GooglePeopleApiResponse } from "../../type/google-api-response";
+import { GooglePeopleApiResponse } from "../../user/type/google-api-response";
 import { Component, OnInit, Input } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { HttpClient } from "@angular/common/http";

@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { Observable, forkJoin } from "rxjs";
 import { UserProjectService } from "../../../../../service/user-project/user-project.service";
-import { DashboardUserFileEntry } from "../../../../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry } from "../../../../../user/type/dashboard-user-file-entry";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserFileService } from "../../../../../service/user-file/user-file.service";
 
