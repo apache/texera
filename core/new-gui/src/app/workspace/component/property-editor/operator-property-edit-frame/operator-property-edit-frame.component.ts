@@ -10,7 +10,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { cloneDeep, isEqual } from "lodash-es";
 import { CustomJSONSchema7, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
-import { ExecutionState, OperatorStatistics, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
+import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
   SchemaAttribute,
@@ -32,9 +32,10 @@ import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
-import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
-import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { ShareAccessEntry } from "../../../../dashboard/type/access.interface";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
+import { ShareAccessEntry } from "../../../../dashboard/user/type/share-access.interface";
+import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
@@ -132,6 +133,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private userFileService: UserFileService,
+    private workflowGrantAccessService: ShareAccessService,
     private workflowStatusSerivce: WorkflowStatusService
   ) {}
 
