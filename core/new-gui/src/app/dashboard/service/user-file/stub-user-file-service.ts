@@ -1,11 +1,11 @@
 import { Injectable } from "@angular/core";
 import { Observable, of, Subject } from "rxjs";
-import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile } from "../../user/type/dashboard-user-file-entry";
 import { PublicInterfaceOf } from "../../../common/util/stub";
 import { UserFileService } from "./user-file.service";
 import { HttpClient } from "@angular/common/http";
 import { StubUserService } from "../../../common/service/user/stub-user.service";
-import { AccessEntry } from "../../type/access.interface";
+import { AccessEntry } from "../../user/type/access.interface";
 
 @Injectable({
   providedIn: "root",
