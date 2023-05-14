@@ -15,7 +15,7 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
 import { HttpClient } from "@angular/common/http";
 import { AccessService } from "../../../service/workflow-access/access.service";
-import { DashboardWorkflowEntry } from "../../../user/type/dashboard-workflow-entry";
+import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";

@@ -9,7 +9,7 @@ import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
-import { DashboardUserFileEntry, UserFile } from "../../../user/type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile } from "../../../type/dashboard-user-file-entry";
 import { NgbdModalWorkflowShareAccessComponent } from "../saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";

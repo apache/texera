@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
 import { AccessService } from "../../service/workflow-access/access.service";
-import { ShareAccessEntry } from "../../user/type/access.interface";
+import { ShareAccessEntry } from "../../type/access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()

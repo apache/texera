@@ -34,7 +34,7 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { ShareAccessEntry } from "../../../../dashboard/user/type/access.interface";
+import { ShareAccessEntry } from "../../../../dashboard/type/access.interface";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";

@@ -2,7 +2,7 @@ import { HttpClient, HttpEventType } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { FileUploadItem } from "../../user/type/dashboard-user-file-entry";
+import { FileUploadItem } from "../../type/dashboard-user-file-entry";
 import { UserService } from "../../../common/service/user/user.service";
 import { UserFileService } from "./user-file.service";
 import { filter, map } from "rxjs/operators";

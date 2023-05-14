@@ -4,7 +4,7 @@ import { HttpClient, HttpHandler } from "@angular/common/http";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-user-file-share-access.component";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
-import { DashboardUserFileEntry, UserFile } from "../../../../user/type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile } from "../../../../type/dashboard-user-file-entry";
 import { StubUserFileService } from "../../../../service/user-file/stub-user-file-service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 

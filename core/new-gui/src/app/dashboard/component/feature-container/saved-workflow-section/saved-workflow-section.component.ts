@@ -10,7 +10,7 @@ import {
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardWorkflowEntry, SortMethod } from "../../../user/type/dashboard-workflow-entry";
+import { DashboardWorkflowEntry, SortMethod } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -19,7 +19,7 @@ import Fuse from "fuse.js";
 import { catchError, concatMap } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
-import { UserProject } from "../../../user/type/user-project";
+import { UserProject } from "../../../type/user-project";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "src/app/common/app-setting";

@@ -2,13 +2,13 @@ import { Component, OnInit } from "@angular/core";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { DashboardUserFileEntry, SortMethod } from "../../../user/type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, SortMethod } from "../../../type/dashboard-user-file-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
-import { UserProject } from "../../../user/type/user-project";
+import { UserProject } from "../../../type/user-project";
 import Fuse from "fuse.js";
 
 @UntilDestroy()

@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { Observable, of } from "rxjs";
 import { AccessService } from "./access.service";
-import { ShareAccessEntry } from "../../user/type/access.interface";
+import { ShareAccessEntry } from "../../type/access.interface";
 
 type PublicInterfaceOf<Class> = {
   [Member in keyof Class]: Class[Member];

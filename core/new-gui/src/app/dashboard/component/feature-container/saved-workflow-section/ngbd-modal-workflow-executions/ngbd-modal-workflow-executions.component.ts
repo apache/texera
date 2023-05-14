@@ -3,7 +3,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbActiveModal, NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import * as c3 from "c3";
 import { Workflow } from "../../../../../common/type/workflow";
-import { WorkflowExecutionsEntry } from "../../../../user/type/workflow-executions-entry";
+import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
