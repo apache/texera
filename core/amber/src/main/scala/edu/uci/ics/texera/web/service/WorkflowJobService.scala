@@ -2,15 +2,12 @@ package edu.uci.ics.texera.web.service
 
 import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.model.websocket.request.{ModifyLogicRequest, WorkflowExecuteRequest}
-import edu.uci.ics.texera.web.model.websocket.response.ModifyLogicResponse
-import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
+import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READY, RUNNING}
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -19,11 +16,8 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompile
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
   DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2,
-  PythonUDFOpExecV2
+  PythonUDFOpDescV2
 }
-
-import scala.util.{Failure, Success}
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
@@ -126,7 +120,7 @@ class WorkflowJobService(
       logicalPlan = newWorkflowInfo
       logicalPlan.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
       logger.info(
-        s"Rewrite the original workflow: ${oldWorkflowInfo} to be: ${logicalPlan}"
+        s"Rewrite the original workflow: $oldWorkflowInfo to be: $logicalPlan"
       )
     }
     logicalPlan
