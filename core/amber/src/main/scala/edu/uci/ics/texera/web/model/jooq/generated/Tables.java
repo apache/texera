@@ -6,6 +6,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
@@ -33,6 +34,11 @@ public class Tables {
      * The table <code>texera_db.file_of_project</code>.
      */
     public static final FileOfProject FILE_OF_PROJECT = FileOfProject.FILE_OF_PROJECT;
+
+    /**
+     * The table <code>texera_db.file_of_workflow</code>.
+     */
+    public static final FileOfWorkflow FILE_OF_WORKFLOW = FileOfWorkflow.FILE_OF_WORKFLOW;
 
     /**
      * The table <code>texera_db.project</code>.

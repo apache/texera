@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.file
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.http.request.auth.GrantAccessRequest
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS, FILE_OF_WORKFLOW}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
@@ -39,10 +39,6 @@ object UserFileAccessResource {
     file.getValue(0, 0).asInstanceOf[UInteger]
   }
 
-  def getUidOfUser(username: String): UInteger = {
-    userDao.fetchByName(username).get(0).getUid
-  }
-
   def grantAccess(uid: UInteger, fid: UInteger, accessLevel: String): Unit = {
     if (UserFileAccessResource.hasAccessTo(uid, fid)) {
       if (accessLevel == "read") {
@@ -66,6 +62,15 @@ object UserFileAccessResource {
         context
           .selectFrom(USER_FILE_ACCESS)
           .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
+      )
+  }
+
+  def workflowHasFile(wid: UInteger, fid: UInteger): Boolean = {
+    context
+      .fetchExists(
+        context
+          .selectFrom(FILE_OF_WORKFLOW)
+          .where(FILE_OF_WORKFLOW.WID.eq(wid).and(FILE_OF_WORKFLOW.FID.eq(fid)))
       )
   }
 }
