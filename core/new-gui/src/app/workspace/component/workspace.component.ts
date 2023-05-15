@@ -143,8 +143,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))
             .subscribe((updatedWorkflow: Workflow) => {
+              if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
+                this.location.go(`/workflow/${updatedWorkflow.wid}`);
+              }
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-              this.location.go(`/workflow/${updatedWorkflow.wid}`);
             });
           // to sync up with the updated information, such as workflow.wid
         }
