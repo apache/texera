@@ -120,7 +120,7 @@ class WorkflowJobService(
       logicalPlan = newWorkflowInfo
       logicalPlan.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
       logger.info(
-        s"Rewrite the original workflow: ${oldWorkflowInfo} to be: ${logicalPlan}"
+        s"Rewrite the original workflow: $oldWorkflowInfo to be: $logicalPlan"
       )
     }
     logicalPlan
