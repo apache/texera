@@ -11,6 +11,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
+import edu.uci.ics.texera.workflow.operators.cartesianProduct.CartesianProductOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
@@ -133,7 +134,8 @@ trait StateTransferFunc
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
-    new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher")
+    new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
+    new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
