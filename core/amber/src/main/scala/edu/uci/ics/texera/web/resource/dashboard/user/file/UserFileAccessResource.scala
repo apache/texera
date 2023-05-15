@@ -1,23 +1,21 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.file
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.http.request.auth.GrantAccessRequest
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.web.model.common.{AccessEntry, AccessEntry2}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
-  context,
-  grantAccess,
-  userDao
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{context, userDao}
+import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.JavaConverters._
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
   * A Utility Class used to for operations related to database
@@ -37,10 +35,6 @@ object UserFileAccessResource {
       .where(FILE.OWNER_UID.eq(uid).and(FILE.NAME.eq(fileName)))
       .fetch()
     file.getValue(0, 0).asInstanceOf[UInteger]
-  }
-
-  def getUidOfUser(username: String): UInteger = {
-    userDao.fetchByName(username).get(0).getUid
   }
 
   def grantAccess(uid: UInteger, fid: UInteger, accessLevel: String): Unit = {
@@ -69,97 +63,93 @@ object UserFileAccessResource {
       )
   }
 }
-@Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
-@Path("/user/file/access")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
+@Path("/access/file")
 class UserFileAccessResource {
+  final private val userFileAccessDao = new UserFileAccessDao(context.configuration)
 
   /**
     * Retrieves the list of all shared accesses of the target file
     * @param fileName the file name of target file to be shared
     * @param ownerName the name of the file's owner
-    * @return A JSON array of File Accesses, Ex: [{username: TestUser, fileAccess: read}]
+    * @return a List of email/permission pair
     */
   @GET
   @Path("list/{fileName}/{ownerName}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def getAllSharedFileAccess(
+  def getAccessList(
       @PathParam("fileName") fileName: String,
-      @PathParam("ownerName") ownerName: String
-  ): List[AccessEntry] = {
-    val fid = UserFileAccessResource.getFileId(ownerName, fileName)
-    val fileAccess = context
-      .select(USER_FILE_ACCESS.UID, USER_FILE_ACCESS.READ_ACCESS, USER_FILE_ACCESS.WRITE_ACCESS)
+      @PathParam("ownerName") ownerName: String,
+      @Auth sessionUser: SessionUser
+  ): List[AccessEntry2] = {
+    context
+      .select(
+        USER.EMAIL,
+        USER.NAME,
+        USER_FILE_ACCESS.PRIVILEGE
+      )
       .from(USER_FILE_ACCESS)
-      .where(USER_FILE_ACCESS.FID.eq(fid))
+      .join(USER)
+      .on(USER.UID.eq(USER_FILE_ACCESS.UID))
+      .where(
+        USER_FILE_ACCESS.FID
+          .eq(UserFileAccessResource.getFileId(ownerName, fileName))
+          .and(USER_FILE_ACCESS.UID.notEqual(sessionUser.getUser.getUid))
+      )
       .fetch()
-    fileAccess
-      .getValues(0)
-      .asScala
-      .toList
-      .zipWithIndex
-      .map({
-        case (uid, index) =>
-          val userName = userDao.fetchOneByUid(uid.asInstanceOf[UInteger]).getName
-          if (userName == ownerName) {
-            AccessEntry(userName, "Owner")
-          } else if (fileAccess.getValue(index, 2) == true) {
-            AccessEntry(userName, "Write")
-          } else {
-            AccessEntry(userName, "Read")
-          }
+      .map(access => {
+        access.into(classOf[AccessEntry2])
       })
+      .toList
   }
 
   /**
-    * Grants a specific type of access of a file to a user
-    *
-    * @return A successful resp if granted, failed resp otherwise
-    */
-  @POST
-  @Path("grant")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def grantAccessTo(
-      request: GrantAccessRequest
+   * This method shares a file to a user with a specific access type
+   * @param fileName     the filename of target file to be shared to
+   * @param ownerName the name of the file's owner
+   * @param email       the email of target user to be shared
+   * @param privilege the type of access to be shared
+   * @return rejection if user not permitted to share the workflow or Success Message
+   */
+  @PUT
+  @Path("/grant/{ownerName}/{filename}/{email}/{privilege}")
+  def grantAccess(
+       @PathParam("ownerName") ownerName: String,
+       @PathParam("filename") fileName: String,
+       @PathParam("email") email: String,
+       @PathParam("privilege") privilege: String
   ): Unit = {
-    val fid = UserFileAccessResource.getFileId(request.ownerName, request.fileName)
-    val uid: UInteger =
-      try {
-        userDao.fetchByName(request.username).get(0).getUid
-      } catch {
-        case _: NullPointerException =>
-          throw new BadRequestException("Target User does not exist.")
-      }
-    grantAccess(uid, fid, request.accessLevel)
+    userFileAccessDao.merge(
+      new UserFileAccess(
+        userDao.fetchOneByEmail(email).getUid,
+        UserFileAccessResource.getFileId(ownerName, fileName),
+        UserFileAccessPrivilege.valueOf(privilege)
+      )
+    )
   }
 
   /**
     * Revoke a user's access to a file
-    *
-    * @param fileName    the file name of target file to be shared
     * @param ownerName the name of the file's owner
-    * @param username the username of target user whose access is about to be revoked
+    * @param fileName    the file name of target file to be shared
+    * @param email the email of target user whose access is about to be revoked
     * @return A successful resp if granted, failed resp otherwise
     */
   @DELETE
-  @Path("/revoke/{fileName}/{ownerName}/{username}")
+  @Path("/revoke/{ownerName}/{fileName}/{email}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def revokeFileAccess(
+  def revokeAccess(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String,
-      @PathParam("username") username: String
+      @PathParam("email") email: String
   ): Unit = {
-    val fid = UserFileAccessResource.getFileId(ownerName, fileName)
-    val uid: UInteger =
-      try {
-        userDao.fetchByName(username).get(0).getUid
-      } catch {
-        case _: NullPointerException =>
-          throw new BadRequestException("Target User does not exist.")
-      }
     context
-      .deleteFrom(USER_FILE_ACCESS)
-      .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
+      .delete(USER_FILE_ACCESS)
+      .where(
+        USER_FILE_ACCESS.UID
+          .eq(userDao.fetchOneByEmail(email).getUid)
+          .and(USER_FILE_ACCESS.FID.eq(UserFileAccessResource.getFileId(ownerName, fileName)))
+      )
       .execute()
   }
 }
