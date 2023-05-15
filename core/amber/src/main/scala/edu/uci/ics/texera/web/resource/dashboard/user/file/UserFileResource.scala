@@ -3,7 +3,13 @@ package edu.uci.ics.texera.web.resource.dashboard.user.file
 import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  FILE,
+  USER,
+  USER_FILE_ACCESS,
+  FILE_OF_WORKFLOW,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileDao,
   FileOfProjectDao,
@@ -133,8 +139,7 @@ class UserFileResource {
   @Path("/list")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listUserFiles(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
-    val user = sessionUser.getUser
-    getUserFileRecord(user)
+    getUserFileRecord(sessionUser.getUser)
   }
 
   private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
@@ -151,6 +156,19 @@ class UserFileResource {
       .where(USER_FILE_ACCESS.UID.eq(user.getUid))
       .fetch()
 
+    val workflowFileRecords = context
+      .select()
+      .from(FILE_OF_WORKFLOW)
+      .join(FILE)
+      .on(FILE_OF_WORKFLOW.FID.eq(FILE.FID))
+      .join(USER)
+      .on(FILE.OWNER_UID.eq(USER.UID))
+      .join(WORKFLOW_USER_ACCESS)
+      .on(FILE_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .and(FILE.OWNER_UID.ne(user.getUid))
+      .fetch()
+
     // fetch the entire table of fileOfProject in memory, assuming this table is small
     val fileOfProjectMap = fileOfProjectDao
       .findAll()
@@ -161,7 +179,7 @@ class UserFileResource {
     val fileEntries: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
     fileRecords.forEach(fileRecord => {
       val file = fileRecord.into(FILE)
-      val ownerUser = fileRecord.into(USER)
+      val owner = fileRecord.into(USER)
       val access = fileRecord.into(USER_FILE_ACCESS)
 
       var accessLevel = "None"
@@ -169,17 +187,26 @@ class UserFileResource {
         accessLevel = "Write"
       } else if (access.getReadAccess) {
         accessLevel = "Read"
-      } else {
-        accessLevel = "None"
       }
-      val ownerName = ownerUser.getName
-      val projectIDs = fileOfProjectMap.getOrElse(file.getFid, List())
       fileEntries += DashboardFileEntry(
-        ownerName,
+        owner.getName,
         accessLevel,
-        ownerName == user.getName,
+        owner.getName == user.getName,
         new File(file),
-        projectIDs
+        fileOfProjectMap.getOrElse(file.getFid, List())
+      )
+    })
+
+    workflowFileRecords.forEach(fileRecord => {
+      val file = fileRecord.into(FILE)
+      val owner = fileRecord.into(USER)
+
+      fileEntries += DashboardFileEntry(
+        owner.getName,
+        "Read",
+        isOwner = false,
+        new File(file),
+        List()
       )
     })
     fileEntries.toList.asJava
@@ -282,8 +309,13 @@ class UserFileResource {
       @Auth sessionUser: SessionUser
   ): Response = {
     val user = sessionUser.getUser
-    val filePath: Option[java.nio.file.Path] =
-      UserFileUtils.getFilePathByIds(user.getUid, fileId)
+    val filePath: Option[java.nio.file.Path] = {
+      if (UserFileAccessResource.hasAccessTo(user.getUid, fileId)) {
+        Some(Paths.get(fileDao.fetchOneByFid(fileId).getPath))
+      } else {
+        None
+      }
+    }
     if (filePath.isDefined) {
       val fileObject = filePath.get.toFile
 

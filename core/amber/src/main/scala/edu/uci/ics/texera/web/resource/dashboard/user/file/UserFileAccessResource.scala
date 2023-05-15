@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.file
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.{AccessEntry, AccessEntry2}
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS, FILE_OF_WORKFLOW}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
@@ -60,6 +60,15 @@ object UserFileAccessResource {
         context
           .selectFrom(USER_FILE_ACCESS)
           .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
+      )
+  }
+
+  def workflowHasFile(wid: UInteger, fid: UInteger): Boolean = {
+    context
+      .fetchExists(
+        context
+          .selectFrom(FILE_OF_WORKFLOW)
+          .where(FILE_OF_WORKFLOW.WID.eq(wid).and(FILE_OF_WORKFLOW.FID.eq(fid)))
       )
   }
 }
