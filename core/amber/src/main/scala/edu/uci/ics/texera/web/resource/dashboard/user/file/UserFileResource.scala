@@ -249,28 +249,15 @@ class UserFileResource {
   }
 
   @GET
-  @Path("/download/{fileId}")
+  @Path("/download/{fid}")
   def downloadFile(
-      @PathParam("fileId") fileId: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("fid") fid: UInteger,
   ): Response = {
-    val filePath: Option[java.nio.file.Path] = {
-      if (UserFileAccessResource.hasAccessTo(sessionUser.getUser.getUid, fileId)) {
-        Some(Paths.get(fileDao.fetchOneByFid(fileId).getPath))
-      } else {
-        None
-      }
-    }
-    val fileObject = filePath.get.toFile
-    // sending a FileOutputStream/ByteArrayOutputStream directly will cause MessageBodyWriter
-    // not found issue for jersey
-    // so we create our own stream.
+    val filePath = Paths.get(fileDao.fetchOneByFid(fid).getPath)
     val fileStream = new StreamingOutput() {
-      @throws[IOException]
-      @throws[WebApplicationException]
+      @Override
       def write(output: OutputStream): Unit = {
-        val data = com.google.common.io.Files.toByteArray(fileObject)
-        output.write(data)
+        Files.copy(filePath, output)
         output.flush()
       }
     }
@@ -278,7 +265,7 @@ class UserFileResource {
       .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
       .header(
         "content-disposition",
-        String.format("attachment; filename=%s", fileObject.getName)
+        String.format("attachment; filename=%s", fileDao.fetchOneByFid(fid).getName)
       )
       .build
   }
@@ -308,19 +295,13 @@ class UserFileResource {
   }
 
   private def validateFileName(fileName: String, userID: UInteger): Pair[Boolean, String] = {
-    if (fileName == null) Pair.of(false, "file name cannot be null")
-    else if (fileName.trim.isEmpty) Pair.of(false, "file name cannot be empty")
-    else if (isFileNameExisted(fileName, userID)) Pair.of(false, "file name already exists")
-    else Pair.of(true, "filename validation success")
-  }
-
-  private def isFileNameExisted(fileName: String, userID: UInteger): Boolean =
-    context.fetchExists(
+    if (context.fetchExists(
       context
         .selectFrom(FILE)
         .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
-    )
-
+    )) Pair.of(false, "file name already exists")
+    else Pair.of(true, "filename validation success")
+  }
   /**
     * This method updates the description of a given userFile
     * @param fid the id of the file
