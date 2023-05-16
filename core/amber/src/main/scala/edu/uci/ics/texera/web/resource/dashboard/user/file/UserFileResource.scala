@@ -93,7 +93,6 @@ class UserFileResource {
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Path("/upload")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def uploadFile(
       @FormDataParam("file") uploadedInputStream: InputStream,
       @FormDataParam("file") fileDetail: FormDataContentDisposition,
@@ -210,7 +209,6 @@ class UserFileResource {
 
   @GET
   @Path("/autocomplete/{query:.*}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def autocompleteUserFiles(
       @Auth sessionUser: SessionUser,
       @PathParam("query") q: String
@@ -244,22 +242,16 @@ class UserFileResource {
 
   /**
     * This method deletes a file from a user's repository
-    * @param fileName the name of file being deleted
-    * @param ownerName the name of the file's owner
+    * @param fid id of the file
     * @return
     */
   @DELETE
-  @Path("/delete/{fileName}/{ownerName}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/delete/{fid}")
   def deleteUserFile(
-      @PathParam("fileName") fileName: String,
-      @PathParam("ownerName") ownerName: String
-  ): Response = {
-    val fileID = UserFileAccessResource.getFileId(ownerName, fileName)
-    val filePath = fileDao.fetchOneByFid(fileID).getPath
-    UserFileUtils.deleteFile(Paths.get(filePath))
-    fileDao.deleteById(fileID)
-    Response.ok().build()
+      @PathParam("fid") fid: UInteger,
+  ): Unit = {
+    UserFileUtils.deleteFile(Paths.get(fileDao.fetchOneByFid(fid).getPath))
+    fileDao.deleteById(fid)
   }
 
   @POST
@@ -277,55 +269,41 @@ class UserFileResource {
     else {
       Response.status(Response.Status.BAD_REQUEST).entity(validationResult.getRight).build()
     }
-
   }
 
   @GET
   @Path("/download/{fileId}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def downloadFile(
       @PathParam("fileId") fileId: UInteger,
       @Auth sessionUser: SessionUser
   ): Response = {
-    val user = sessionUser.getUser
     val filePath: Option[java.nio.file.Path] = {
-      if (UserFileAccessResource.hasAccessTo(user.getUid, fileId)) {
+      if (UserFileAccessResource.hasAccessTo(sessionUser.getUser.getUid, fileId)) {
         Some(Paths.get(fileDao.fetchOneByFid(fileId).getPath))
       } else {
         None
       }
     }
-    if (filePath.isDefined) {
-      val fileObject = filePath.get.toFile
-
-      // sending a FileOutputStream/ByteArrayOutputStream directly will cause MessageBodyWriter
-      // not found issue for jersey
-      // so we create our own stream.
-      val fileStream = new StreamingOutput() {
-        @throws[IOException]
-        @throws[WebApplicationException]
-        def write(output: OutputStream): Unit = {
-          val data = Files.toByteArray(fileObject)
-          output.write(data)
-          output.flush()
-        }
+    val fileObject = filePath.get.toFile
+    // sending a FileOutputStream/ByteArrayOutputStream directly will cause MessageBodyWriter
+    // not found issue for jersey
+    // so we create our own stream.
+    val fileStream = new StreamingOutput() {
+      @throws[IOException]
+      @throws[WebApplicationException]
+      def write(output: OutputStream): Unit = {
+        val data = Files.toByteArray(fileObject)
+        output.write(data)
+        output.flush()
       }
-      Response
-        .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
-        .header(
-          "content-disposition",
-          String.format("attachment; filename=%s", fileObject.getName)
-        )
-        .build
-    } else {
-
-      Response
-        .status(Response.Status.BAD_REQUEST)
-        .`type`(MediaType.TEXT_PLAIN)
-        .entity(s"Could not find file $fileId of ${user.getName}")
-        .build()
     }
-
+    Response
+      .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
+      .header(
+        "content-disposition",
+        String.format("attachment; filename=%s", fileObject.getName)
+      )
+      .build
   }
 
   /**

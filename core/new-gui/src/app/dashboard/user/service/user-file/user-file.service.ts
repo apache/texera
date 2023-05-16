@@ -3,7 +3,6 @@ import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
-import { AccessEntry } from "../../type/share-access.interface";
 
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
@@ -35,12 +34,10 @@ export class UserFileService {
 
   /**
    * delete the targetFile in the backend.
-   * @param targetUserFileEntry
+   * @param fid
    */
-  public deleteDashboardUserFileEntry(targetUserFileEntry: DashboardUserFileEntry): Observable<Response> {
-    return this.http.delete<Response>(
-      `${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`
-    );
+  public deleteFile(fid: number): Observable<void> {
+    return this.http.delete<void>(`${USER_FILE_DELETE_URL}/${fid}`);
   }
 
   /**
@@ -62,52 +59,8 @@ export class UserFileService {
     return Math.max(fileSize, 0.1).toFixed(1) + byteUnits[i];
   }
 
-  /**
-   * Assign a new access to/Modify an existing access of another user
-   * @param userFileEntry the file entry that is selected
-   * @param username the username of target user
-   * @param accessLevel the type of access offered
-   * @return Response
-   */
-  public grantUserFileAccess(
-    userFileEntry: DashboardUserFileEntry,
-    username: string,
-    accessLevel: string
-  ): Observable<Response> {
-    return this.http.post<Response>(`${USER_FILE_ACCESS_GRANT_URL}`, {
-      username,
-      fileName: userFileEntry.file.name,
-      ownerName: userFileEntry.ownerName,
-      accessLevel,
-    });
-  }
-
-  /**
-   * Retrieve all shared accesses of the given dashboardUserFileEntry.
-   * @param userFileEntry the current dashboardUserFileEntry
-   * @return ReadonlyArray<AccessEntry> an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
-   */
-  public getUserFileAccessList(userFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<AccessEntry>> {
-    return this.http.get<ReadonlyArray<AccessEntry>>(
-      `${USER_FILE_ACCESS_LIST_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}`
-    );
-  }
-
-  /**
-   * Remove an existing access of another user
-   * @param userFileEntry the current dashboardUserFileEntry
-   * @param username the username of target user
-   * @return message of success
-   */
-  public revokeUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
-    return this.http.delete<Response>(
-      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`
-    );
-  }
-
   public downloadUserFile(targetFile: UserFile): Observable<Blob> {
-    const requestURL = `${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`;
-    return this.http.get(requestURL, { responseType: "blob" });
+    return this.http.get(`${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`, { responseType: "blob" });
   }
 
   public retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {

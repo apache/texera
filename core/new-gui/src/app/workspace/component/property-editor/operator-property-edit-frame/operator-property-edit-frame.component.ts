@@ -193,28 +193,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
-    // This assumes "fileName" to be the only key for file names in an operator property.
-    const filename: string = <string>event["fileName"];
-    if (filename) {
-      const [owner, fname] = filename.split("/", 2);
-      this.allUserWorkflowAccess.forEach(userWorkflowAccess => {
-        this.userFileService
-          .grantUserFileAccess(
-            {
-              ownerName: owner,
-              file: { fid: -1, path: "", size: -1, description: "", uploadTime: "", name: fname },
-              accessLevel: "read",
-              isOwner: true,
-              projectIDs: [],
-            },
-            userWorkflowAccess.email,
-            "read"
-          )
-          .pipe(untilDestroyed(this))
-          .subscribe();
-      });
-    }
-
     this.sourceFormChangeEventStream.next(event);
   }
 

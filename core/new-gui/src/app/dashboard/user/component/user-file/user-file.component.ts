@@ -101,12 +101,12 @@ export class UserFileComponent implements OnInit {
     return fileArray;
   }
 
-  public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    if (userFileEntry.file.fid == undefined) {
+  public deleteFile(fid: number): void {
+    if (fid === undefined) {
       return;
     }
     this.userFileService
-      .deleteDashboardUserFileEntry(userFileEntry)
+      .deleteFile(fid)
       .pipe(untilDestroyed(this))
       .subscribe(() => this.refreshDashboardFileEntries());
   }
