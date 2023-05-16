@@ -574,9 +574,9 @@ class WorkflowResource {
 
   /**
     * Helper function to retrieve the owner filter.
-    * Applies a filter based on the specified owner names.
+    * Applies a filter based on the specified owner emails.
     *
-    * @param owners The list of owner names to filter by.
+    * @param owners The list of owner emails to filter by.
     * @return The owner filter.
     */
   def getOwnerFilter(owners: java.util.List[String]): Condition = {
