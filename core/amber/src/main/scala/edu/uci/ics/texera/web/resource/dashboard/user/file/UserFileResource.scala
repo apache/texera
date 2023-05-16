@@ -3,11 +3,22 @@ package edu.uci.ics.texera.web.resource.dashboard.user.file
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_WORKFLOW, USER, USER_FILE_ACCESS, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  FILE,
+  FILE_OF_WORKFLOW,
+  USER,
+  USER_FILE_ACCESS,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{DashboardFileEntry, context, fileDao, saveFile}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
+  DashboardFileEntry,
+  context,
+  fileDao,
+  saveFile
+}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -251,7 +262,7 @@ class UserFileResource {
   @GET
   @Path("/download/{fid}")
   def downloadFile(
-      @PathParam("fid") fid: UInteger,
+      @PathParam("fid") fid: UInteger
   ): Response = {
     val filePath = Paths.get(fileDao.fetchOneByFid(fid).getPath)
     val fileStream = new StreamingOutput() {
@@ -295,13 +306,16 @@ class UserFileResource {
   }
 
   private def validateFileName(fileName: String, userID: UInteger): Pair[Boolean, String] = {
-    if (context.fetchExists(
-      context
-        .selectFrom(FILE)
-        .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
-    )) Pair.of(false, "file name already exists")
+    if (
+      context.fetchExists(
+        context
+          .selectFrom(FILE)
+          .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
+      )
+    ) Pair.of(false, "file name already exists")
     else Pair.of(true, "filename validation success")
   }
+
   /**
     * This method updates the description of a given userFile
     * @param fid the id of the file

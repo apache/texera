@@ -2,7 +2,12 @@ package edu.uci.ics.texera.web.resource.dashboard.user.file
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_WORKFLOW, USER, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  FILE,
+  FILE_OF_WORKFLOW,
+  USER,
+  USER_FILE_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
@@ -57,16 +62,16 @@ class UserFileAccessResource {
   final private val userFileAccessDao = new UserFileAccessDao(context.configuration)
 
   /**
-   * Retrieves the list of all shared accesses of the target file
-   * @param fid the id of the file
-   * @return a List of email/name/permission pair
-   */
+    * Retrieves the list of all shared accesses of the target file
+    * @param fid the id of the file
+    * @return a List of email/name/permission pair
+    */
   @GET
   @Path("list/{fid}")
   def getAccessList(
-                     @PathParam("fid") fid: UInteger,
-                     @Auth sessionUser: SessionUser
-                   ) = {
+      @PathParam("fid") fid: UInteger,
+      @Auth sessionUser: SessionUser
+  ) = {
     context
       .select(
         USER.EMAIL,
@@ -85,20 +90,20 @@ class UserFileAccessResource {
   }
 
   /**
-   * This method shares a file to a user with a specific access type
-   *
-   * @param fid       the id of target file to be shared to
-   * @param email     the email of target user to be shared
-   * @param privilege the type of access to be shared
-   * @return rejection if user not permitted to share the workflow or Success Message
-   */
+    * This method shares a file to a user with a specific access type
+    *
+    * @param fid       the id of target file to be shared to
+    * @param email     the email of target user to be shared
+    * @param privilege the type of access to be shared
+    * @return rejection if user not permitted to share the workflow or Success Message
+    */
   @PUT
   @Path("/grant/{fid}/{email}/{privilege}")
   def grantAccess(
-                   @PathParam("fid") fid: UInteger,
-                   @PathParam("email") email: String,
-                   @PathParam("privilege") privilege: String
-                 ): Unit = {
+      @PathParam("fid") fid: UInteger,
+      @PathParam("email") email: String,
+      @PathParam("privilege") privilege: String
+  ): Unit = {
     userFileAccessDao.merge(
       new UserFileAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -109,18 +114,18 @@ class UserFileAccessResource {
   }
 
   /**
-   * Revoke a user's access to a file
-   *
-   * @param fid   the id of the file
-   * @param email the email of target user whose access is about to be revoked
-   * @return A successful resp if granted, failed resp otherwise
-   */
+    * Revoke a user's access to a file
+    *
+    * @param fid   the id of the file
+    * @param email the email of target user whose access is about to be revoked
+    * @return A successful resp if granted, failed resp otherwise
+    */
   @DELETE
   @Path("/revoke/{fid}/{email}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def revokeAccess(
-                    @PathParam("fid") fid: UInteger,
-                    @PathParam("email") email: String
+      @PathParam("fid") fid: UInteger,
+      @PathParam("email") email: String
   ): Unit = {
     context
       .delete(USER_FILE_ACCESS)

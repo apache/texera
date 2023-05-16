@@ -18,7 +18,6 @@ object UserFileUtils {
     SqlServer.createDSLContext.configuration
   )
 
-
   def getFilePathByInfo(
       ownerName: String,
       fileName: String,
