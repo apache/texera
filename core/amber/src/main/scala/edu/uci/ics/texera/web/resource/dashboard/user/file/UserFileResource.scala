@@ -5,9 +5,18 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao, FileOfWorkflowDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileDao,
+  FileOfProjectDao,
+  FileOfWorkflowDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfWorkflow, User}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{DashboardFileEntry, context, fileDao, saveFile}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
+  DashboardFileEntry,
+  context,
+  fileDao,
+  saveFile
+}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.FormDataParam
@@ -25,14 +34,9 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/**
-  * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
-  */
-
 object UserFileResource {
   final private lazy val context: DSLContext = SqlServer.createDSLContext
   final private lazy val fileDao = new FileDao(context.configuration)
-  final private lazy val file_of_workflowDao = new FileOfWorkflowDao(context.configuration)
 
   def saveFile(uid: UInteger, fileName: String, stream: InputStream, des: String = ""): Unit = {
     val path = Utils.amberHomePath.resolve("user-resources").resolve("files").resolve(uid.toString)
@@ -52,31 +56,13 @@ object UserFileResource {
     )
   }
 
-  def getFilePath(
-                         ownerName: String,
-                         fileName: String,
-                         uid: UInteger,
-                         wid: UInteger
-                       ): Option[String] = {
-    val fid = UserFileAccessResource.getFileId(ownerName, fileName)
-    if (
-      UserFileAccessResource
-        .hasAccessTo(uid, fid) || UserFileAccessResource.workflowHasFile(wid, fid)
-    ) {
-      file_of_workflowDao.merge(new FileOfWorkflow(fid, wid))
-      Option(fileDao.fetchOneByFid(fid).getPath)
-    } else {
-      None
-    }
-  }
-
   case class DashboardFileEntry(
-                                 ownerName: String,
-                                 accessLevel: String,
-                                 isOwner: Boolean,
-                                 file: File,
-                                 projectIDs: List[UInteger]
-                               )
+      ownerName: String,
+      accessLevel: String,
+      isOwner: Boolean,
+      file: File,
+      projectIDs: List[UInteger]
+  )
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -116,14 +102,11 @@ class UserFileResource {
     */
   @GET
   @Path("/list")
-  def listUserFiles(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
-    getUserFileRecord(sessionUser.getUser)
+  def getFileList(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
+    getFileRecord(sessionUser.getUser)
   }
 
-  private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
-    // fetch the user files:
-    // user_file_access JOIN file on FID (to get all files this user can access)
-    // then JOIN USER on UID (to get the name of the file owner)
+  private def getFileRecord(user: User): util.List[DashboardFileEntry] = {
     val sharedFileRecords = context
       .select()
       .from(USER_FILE_ACCESS)
@@ -154,9 +137,9 @@ class UserFileResource {
         accessLevel = "Read"
       }
       fileEntries += DashboardFileEntry(
-        owner.getName,
+        owner.getEmail,
         accessLevel,
-        owner.getName == user.getName,
+        owner.getEmail == user.getEmail,
         new File(file),
         fileOfProjectMap.getOrElse(file.getFid, List())
       )
@@ -179,7 +162,7 @@ class UserFileResource {
       val owner = fileRecord.into(USER)
 
       fileEntries += DashboardFileEntry(
-        owner.getName,
+        owner.getEmail,
         "Read",
         isOwner = false,
         new File(file),
@@ -191,7 +174,7 @@ class UserFileResource {
       .fetchByOwnerUid(user.getUid)
       .forEach(fileRecord => {
         fileEntries += DashboardFileEntry(
-          user.getName,
+          user.getEmail,
           "Write",
           isOwner = false,
           new File(fileRecord),
@@ -212,9 +195,9 @@ class UserFileResource {
     // select the filenames that applies the input
     val query = URLDecoder.decode(q, "UTF-8")
     val user = sessionUser.getUser
-    val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
+    val fileList: List[DashboardFileEntry] = getFileRecord(user).asScala.toList
     val filenames = ArrayBuffer[String]()
-    val username = user.getName
+    val username = user.getEmail
     // get all the filename list
     for (i <- fileList) {
       filenames += i.file.getName

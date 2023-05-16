@@ -10,7 +10,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.hasAccessTo
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasAccess
@@ -366,9 +365,6 @@ class ProjectResource {
     verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(uid, userProject)
-    if (!hasAccessTo(uid, fid)) {
-      throw new ForbiddenException("No sufficient access privilege to file.")
-    }
 
     fileOfProjectDao.insert(new FileOfProject(fid, pid))
   }

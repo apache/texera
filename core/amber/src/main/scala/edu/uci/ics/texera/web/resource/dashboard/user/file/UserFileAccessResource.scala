@@ -9,11 +9,16 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER_FILE_ACCESS
 }
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileDao,
+  FileOfWorkflowDao,
+  UserDao,
+  UserFileAccessDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{FileOfWorkflow, UserFileAccess}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{context, userDao}
 import io.dropwizard.auth.Auth
-import org.jooq.DSLContext
+import org.jooq.{DSLContext, Record3, Result}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
@@ -26,34 +31,42 @@ import javax.ws.rs.core.MediaType
 object UserFileAccessResource {
   final private lazy val context: DSLContext = SqlServer.createDSLContext
   final private lazy val userDao = new UserDao(context.configuration)
+  final private lazy val fileDao = new FileDao(context.configuration)
+  final private lazy val file_of_workflowDao = new FileOfWorkflowDao(context.configuration)
 
-  def getFileId(ownerName: String, fileName: String): UInteger = {
-    val uid = userDao.fetchByName(ownerName).get(0).getUid
-    val file = context
+  def getFilePath(
+      email: String,
+      fileName: String,
+      uid: UInteger,
+      wid: UInteger
+  ): Option[String] = {
+    val fid = context
       .select(FILE.FID)
       .from(FILE)
-      .where(FILE.OWNER_UID.eq(uid).and(FILE.NAME.eq(fileName)))
+      .where(FILE.OWNER_UID.eq(userDao.fetchOneByEmail(email).getUid).and(FILE.NAME.eq(fileName)))
       .fetch()
-    file.getValue(0, 0).asInstanceOf[UInteger]
+      .getValue(0, 0)
+      .asInstanceOf[UInteger]
+    if (
+      context
+        .fetchExists(
+          context
+            .selectFrom(USER_FILE_ACCESS)
+            .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
+        ) || context
+        .fetchExists(
+          context
+            .selectFrom(FILE_OF_WORKFLOW)
+            .where(FILE_OF_WORKFLOW.WID.eq(wid).and(FILE_OF_WORKFLOW.FID.eq(fid)))
+        )
+    ) {
+      file_of_workflowDao.merge(new FileOfWorkflow(fid, wid))
+      Option(fileDao.fetchOneByFid(fid).getPath)
+    } else {
+      None
+    }
   }
 
-  def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
-    context
-      .fetchExists(
-        context
-          .selectFrom(USER_FILE_ACCESS)
-          .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
-      )
-  }
-
-  def workflowHasFile(wid: UInteger, fid: UInteger): Boolean = {
-    context
-      .fetchExists(
-        context
-          .selectFrom(FILE_OF_WORKFLOW)
-          .where(FILE_OF_WORKFLOW.WID.eq(wid).and(FILE_OF_WORKFLOW.FID.eq(fid)))
-      )
-  }
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -71,7 +84,7 @@ class UserFileAccessResource {
   def getAccessList(
       @PathParam("fid") fid: UInteger,
       @Auth sessionUser: SessionUser
-  ) = {
+  ): Result[Record3[String, String, UserFileAccessPrivilege]] = {
     context
       .select(
         USER.EMAIL,

@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import io.dropwizard.auth.Auth
-import org.jooq.DSLContext
+import org.jooq.{DSLContext, Record3, Result}
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
@@ -104,7 +104,7 @@ class WorkflowAccessResource() {
   def getAccessList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
-  ) = {
+  ): Result[Record3[String, String, WorkflowUserAccessPrivilege]] = {
     context
       .select(
         USER.EMAIL,
