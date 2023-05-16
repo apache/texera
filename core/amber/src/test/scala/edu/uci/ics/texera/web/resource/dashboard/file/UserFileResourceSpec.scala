@@ -37,13 +37,10 @@ class UserFileResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     val fileResource = new UserFileResource()
     val source = "This is the content of the file"
     val in = org.apache.commons.io.IOUtils.toInputStream(source, "UTF-8")
-    val fileDetail =
-      new FormDataContentDisposition("form-data; name=\"file\"; filename=\"example.txt\"")
+    val filename = "example.txt"
     val response = fileResource.uploadFile(
       in,
-      fileDetail,
-      UInteger.valueOf(source.length),
-      "sample file for testing",
+      filename,
       new SessionUser(testUser)
     )
     assert(response.getStatusInfo.getStatusCode == 200)
