@@ -91,9 +91,8 @@ export class UserFileUploadService {
 
     fileUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
-    formData.append("file", fileUploadItem.file, fileUploadItem.name);
-    formData.append("size", fileUploadItem.file.size.toString());
-    formData.append("description", fileUploadItem.description);
+    formData.append("file", fileUploadItem.file);
+    formData.append("name", fileUploadItem.name);
 
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`, formData, {

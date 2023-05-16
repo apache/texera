@@ -1,38 +1,24 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.file
 
-import com.google.common.io.Files
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  FILE,
-  FILE_OF_WORKFLOW,
-  USER,
-  USER_FILE_ACCESS,
-  WORKFLOW_USER_ACCESS
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_WORKFLOW, USER, USER_FILE_ACCESS, WORKFLOW_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileDao,
-  FileOfProjectDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
-  DashboardFileEntry,
-  context,
-  saveUserFileSafe
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{DashboardFileEntry, context, fileDao, saveFile}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import java.io.{FileInputStream, IOException, InputStream, OutputStream}
+import java.io.{ByteArrayInputStream, FileInputStream, IOException, InputStream, OutputStream}
 import java.net.URLDecoder
-import java.nio.file.Paths
-import java.sql.Timestamp
-import java.time.Instant
+import java.nio.file.{Files, Paths}
 import java.util
+import java.util.UUID
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
@@ -46,29 +32,24 @@ import scala.collection.mutable.ArrayBuffer
 
 object UserFileResource {
   private lazy val context: DSLContext = SqlServer.createDSLContext
-  private lazy val fileDao = new FileDao(context.configuration)
+  final private val fileDao = new FileDao(context.configuration)
 
-  def saveUserFileSafe(
-      uid: UInteger,
-      fileName: String,
-      uploadedInputStream: InputStream,
-      description: String
-  ): String = {
-
-    val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, fileName, uid)
-    // insert record after completely storing the file on the file system.
+  def saveFile(uid: UInteger, fileName: String, stream: InputStream, des: String = ""): Unit = {
+    val path = Utils.amberHomePath.resolve("user-resources").resolve("files").resolve(uid.toString)
+    Files.createDirectories(path)
+    val filepath = path.resolve(UUID.randomUUID.toString)
+    Files.copy(stream, filepath)
     fileDao.insert(
       new File(
         uid,
         null,
-        UInteger.valueOf(UserFileUtils.getFilePath(uid, fileNameStored).toFile.length()),
-        fileNameStored,
-        UserFileUtils.getFilePath(uid, fileNameStored).toString,
-        description,
-        Timestamp.from(Instant.now())
+        UInteger.valueOf(filepath.toFile.length()),
+        fileName,
+        filepath.toString,
+        des,
+        null
       )
     )
-    fileNameStored
   }
 
   case class DashboardFileEntry(
@@ -83,7 +64,6 @@ object UserFileResource {
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/user/file")
 class UserFileResource {
-  final private val fileDao = new FileDao(context.configuration)
   final private val fileOfProjectDao = new FileOfProjectDao(context.configuration)
 
   /**
@@ -94,15 +74,12 @@ class UserFileResource {
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Path("/upload")
   def uploadFile(
-      @FormDataParam("file") uploadedInputStream: InputStream,
-      @FormDataParam("file") fileDetail: FormDataContentDisposition,
-      @FormDataParam("size") size: UInteger,
-      @FormDataParam("description") description: String,
+      @FormDataParam("file") stream: InputStream,
+      @FormDataParam("name") fileName: String,
       @Auth sessionUser: SessionUser
   ): Response = {
     val user = sessionUser.getUser
     val uid = user.getUid
-    val fileName = fileDetail.getFileName
     val validationResult = validateFileName(fileName, uid)
     if (!validationResult.getLeft) {
       return Response
@@ -110,7 +87,7 @@ class UserFileResource {
         .entity(validationResult.getRight)
         .build()
     }
-    saveUserFileSafe(uid, fileName, uploadedInputStream, description)
+    saveFile(uid: UInteger, fileName, stream)
     Response.ok().build()
   }
 
@@ -192,17 +169,17 @@ class UserFileResource {
       )
     })
 
-
-    fileDao.fetchByOwnerUid(user.getUid)
+    fileDao
+      .fetchByOwnerUid(user.getUid)
       .forEach(fileRecord => {
-      fileEntries += DashboardFileEntry(
-        user.getName,
-        "Write",
-        isOwner = false,
-        new File(fileRecord),
-        List()
-      )
-    })
+        fileEntries += DashboardFileEntry(
+          user.getName,
+          "Write",
+          isOwner = false,
+          new File(fileRecord),
+          List()
+        )
+      })
 
     fileEntries.toList.asJava
   }
@@ -248,7 +225,7 @@ class UserFileResource {
   @DELETE
   @Path("/delete/{fid}")
   def deleteUserFile(
-      @PathParam("fid") fid: UInteger,
+      @PathParam("fid") fid: UInteger
   ): Unit = {
     UserFileUtils.deleteFile(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
@@ -292,7 +269,7 @@ class UserFileResource {
       @throws[IOException]
       @throws[WebApplicationException]
       def write(output: OutputStream): Unit = {
-        val data = Files.toByteArray(fileObject)
+        val data = com.google.common.io.Files.toByteArray(fileObject)
         output.write(data)
         output.flush()
       }
@@ -314,26 +291,18 @@ class UserFileResource {
     */
   @PUT
   @Path("/name/{fid}/{name}")
-  def changeFileName(@PathParam("fid") fid: UInteger,
-                     @PathParam("name") name: String,
-                     @Auth sessionUser: SessionUser): Unit = {
+  def changeFileName(
+      @PathParam("fid") fid: UInteger,
+      @PathParam("name") name: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
     val userId = sessionUser.getUser.getUid
     val validationRes = this.validateFileName(name, userId)
-
     if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
     } else {
       val userFile = fileDao.fetchOneByFid(fid)
-      val filePath = userFile.getPath
-
-      val uploadedInputStream = new FileInputStream(filePath)
-      // delete the original file
-      UserFileUtils.deleteFile(Paths.get(filePath))
-      // store the file with the new file name
-      val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, name, userId)
-
       userFile.setName(name)
-      userFile.setPath(UserFileUtils.getFilePath(userId, fileNameStored).toString)
       fileDao.update(userFile)
     }
   }
@@ -360,8 +329,10 @@ class UserFileResource {
     */
   @PUT
   @Path("/description/{fid}/{description}")
-  def changeFileDescription(@PathParam("fid") fid: UInteger,
-                            @PathParam("description") description: String): Unit = {
+  def changeFileDescription(
+      @PathParam("fid") fid: UInteger,
+      @PathParam("description") description: String
+  ): Unit = {
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)
     fileDao.update(userFile)
