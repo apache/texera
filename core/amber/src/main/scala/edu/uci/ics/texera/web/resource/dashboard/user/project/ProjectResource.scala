@@ -3,11 +3,8 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileOfProjectDao,
-  ProjectDao,
-  WorkflowOfProjectDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, ProjectDao, WorkflowOfProjectDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.hasAccessTo
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
@@ -247,8 +244,7 @@ class ProjectResource {
         FILE.NAME,
         FILE.PATH,
         FILE.DESCRIPTION,
-        USER_FILE_ACCESS.READ_ACCESS,
-        USER_FILE_ACCESS.WRITE_ACCESS,
+        USER_FILE_ACCESS.PRIVILEGE,
         USER.NAME // owner name
       )
       .from(FILE_OF_PROJECT)
@@ -284,9 +280,9 @@ class ProjectResource {
     * @return
     */
   def toFileAccessLevel(userFileAccess: UserFileAccess): String = {
-    if (userFileAccess.getWriteAccess) {
+    if (userFileAccess.getPrivilege==UserFileAccessPrivilege.WRITE) {
       "Write"
-    } else if (userFileAccess.getReadAccess) {
+    } else if (userFileAccess.getPrivilege==UserFileAccessPrivilege.READ) {
       "Read"
     } else {
       "None"

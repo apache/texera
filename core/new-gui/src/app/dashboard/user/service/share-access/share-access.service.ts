@@ -10,12 +10,12 @@ export const BASE = `${AppSettings.getApiEndpoint()}/access`;
 export class ShareAccessService {
   constructor(private http: HttpClient) {}
 
-  public grantAccess(type: string, id: number, email: string, privilege: string): Observable<Response> {
-    return this.http.put<Response>(`${BASE}/${type}/grant/${id}/${email}/${privilege}`, null);
+  public grantAccess(type: string, id: number, email: string, privilege: string): Observable<void> {
+    return this.http.put<void>(`${BASE}/${type}/grant/${id}/${email}/${privilege}`, null);
   }
 
-  public revokeAccess(type: string, id: number, username: string): Observable<Response> {
-    return this.http.delete<Response>(`${BASE}/${type}/revoke/${id}/${username}`);
+  public revokeAccess(type: string, id: number, username: string): Observable<void> {
+    return this.http.delete<void>(`${BASE}/${type}/revoke/${id}/${username}`);
   }
 
   public getOwner(type: string, id: number): Observable<string> {

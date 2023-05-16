@@ -4,16 +4,16 @@ import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { DashboardUserFileEntry, SortMethod } from "../../type/dashboard-user-file-entry";
 import { UserService } from "../../../../common/service/user/user.service";
-import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { UserProject } from "../../type/user-project";
+import { ShareAccessComponent } from "../share-access/share-access.component";
 import Fuse from "fuse.js";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-user-file-section",
+  selector: "texera-user-file",
   templateUrl: "./user-file.component.html",
   styleUrls: ["./user-file.component.scss"],
 })
@@ -76,8 +76,9 @@ export class UserFileComponent implements OnInit {
   }
 
   public onClickOpenShareAccess(dashboardUserFileEntry: DashboardUserFileEntry): void {
-    const modalRef = this.modalService.open(NgbdModalUserFileShareAccessComponent);
-    modalRef.componentInstance.dashboardUserFileEntry = dashboardUserFileEntry;
+    const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.type = "file";
+    modalRef.componentInstance.id = dashboardUserFileEntry.file.fid;
   }
 
   public getFileArray(): ReadonlyArray<DashboardUserFileEntry> {

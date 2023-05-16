@@ -14,8 +14,8 @@ export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
 export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
 export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
 export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
-export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/update/name`;
-export const USER_FILE_DESCRIPTION_UPDATE_URL = `${USER_FILE_BASE_URL}/update/description`;
+export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/name`;
+export const USER_FILE_DESCRIPTION_UPDATE_URL = `${USER_FILE_BASE_URL}/description`;
 
 @Injectable({
   providedIn: "root",
@@ -122,19 +122,13 @@ export class UserFileService {
    * updates the file name of a given userFileEntry
    */
   public updateFileName(fid: number, name: string): Observable<void> {
-    return this.http.post<void>(`${USER_FILE_NAME_UPDATE_URL}`, {
-      fid: fid,
-      name: name,
-    });
+    return this.http.put<void>(`${USER_FILE_NAME_UPDATE_URL}/${fid}/${name}`, null);
   }
 
   /**
    * updates the file description of a given userFileEntry
    */
   public updateFileDescription(fid: number, description: string): Observable<void> {
-    return this.http.post<void>(`${USER_FILE_DESCRIPTION_UPDATE_URL}`, {
-      fid: fid,
-      description: description,
-    });
+    return this.http.put<void>(`${USER_FILE_DESCRIPTION_UPDATE_URL}/${fid}/${description}`, null);
   }
 }
