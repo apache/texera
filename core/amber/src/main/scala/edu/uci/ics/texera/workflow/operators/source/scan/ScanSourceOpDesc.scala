@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileUtils
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
@@ -64,14 +64,13 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       //    ownerName/fileName
       // resolve fileName to be the actual file path.
       val splitNames = fileName.get.split("/")
-      filePath = UserFileUtils
-        .getFilePathByInfo(
+      filePath = UserFileResource
+        .getFilePath(
           ownerName = splitNames.apply(0),
           fileName = splitNames.apply(1),
           context.userId.get,
           context.wId
         )
-        .map(_.toString)
 
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.

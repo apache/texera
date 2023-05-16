@@ -3,29 +3,17 @@ package edu.uci.ics.texera.web.resource.dashboard.user.file
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  FILE,
-  FILE_OF_WORKFLOW,
-  USER,
-  USER_FILE_ACCESS,
-  WORKFLOW_USER_ACCESS
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
-  DashboardFileEntry,
-  context,
-  fileDao,
-  saveFile
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao, FileOfWorkflowDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfWorkflow, User}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{DashboardFileEntry, context, fileDao, saveFile}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
-import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
+import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
-
-import java.io.{ByteArrayInputStream, FileInputStream, IOException, InputStream, OutputStream}
+import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.file.{Files, Paths}
 import java.util
@@ -42,8 +30,9 @@ import scala.collection.mutable.ArrayBuffer
   */
 
 object UserFileResource {
-  private lazy val context: DSLContext = SqlServer.createDSLContext
-  final private val fileDao = new FileDao(context.configuration)
+  final private lazy val context: DSLContext = SqlServer.createDSLContext
+  final private lazy val fileDao = new FileDao(context.configuration)
+  final private lazy val file_of_workflowDao = new FileOfWorkflowDao(context.configuration)
 
   def saveFile(uid: UInteger, fileName: String, stream: InputStream, des: String = ""): Unit = {
     val path = Utils.amberHomePath.resolve("user-resources").resolve("files").resolve(uid.toString)
@@ -63,13 +52,31 @@ object UserFileResource {
     )
   }
 
+  def getFilePath(
+                         ownerName: String,
+                         fileName: String,
+                         uid: UInteger,
+                         wid: UInteger
+                       ): Option[String] = {
+    val fid = UserFileAccessResource.getFileId(ownerName, fileName)
+    if (
+      UserFileAccessResource
+        .hasAccessTo(uid, fid) || UserFileAccessResource.workflowHasFile(wid, fid)
+    ) {
+      file_of_workflowDao.merge(new FileOfWorkflow(fid, wid))
+      Option(fileDao.fetchOneByFid(fid).getPath)
+    } else {
+      None
+    }
+  }
+
   case class DashboardFileEntry(
-      ownerName: String,
-      accessLevel: String,
-      isOwner: Boolean,
-      file: File,
-      projectIDs: List[UInteger]
-  )
+                                 ownerName: String,
+                                 accessLevel: String,
+                                 isOwner: Boolean,
+                                 file: File,
+                                 projectIDs: List[UInteger]
+                               )
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -238,7 +245,7 @@ class UserFileResource {
   def deleteUserFile(
       @PathParam("fid") fid: UInteger
   ): Unit = {
-    UserFileUtils.deleteFile(Paths.get(fileDao.fetchOneByFid(fid).getPath))
+    Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
   }
 

@@ -24,8 +24,8 @@ import javax.ws.rs.core.MediaType
   * A Utility Class used to for operations related to database
   */
 object UserFileAccessResource {
-  private lazy val userDao = new UserDao(context.configuration)
-  private lazy val context: DSLContext = SqlServer.createDSLContext
+  final private lazy val context: DSLContext = SqlServer.createDSLContext
+  final private lazy val userDao = new UserDao(context.configuration)
 
   def getFileId(ownerName: String, fileName: String): UInteger = {
     val uid = userDao.fetchByName(ownerName).get(0).getUid
