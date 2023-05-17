@@ -69,7 +69,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   createLanguageClient(transports: MessageTransports): MonacoLanguageClient {
-     return new MonacoLanguageClient({
+    return new MonacoLanguageClient({
       name: "Python UDF Language Client",
       clientOptions: {
         documentSelector: ["python"],
@@ -161,8 +161,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * @private
    */
   private connectLanguageServer() {
-
-    const url = getWebsocketUrl('/python-language-server', "3000");
+    const url = getWebsocketUrl("/python-language-server", "3000");
 
     if (this.languageServerSocket === undefined) {
       this.languageServerSocket = new WebSocket(url);
@@ -171,12 +170,12 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
           const socket = toSocket(this.languageServerSocket);
           const reader = new WebSocketMessageReader(socket);
           const writer = new WebSocketMessageWriter(socket);
-           const languageClient = this.createLanguageClient({
+          const languageClient = this.createLanguageClient({
             reader,
             writer,
           });
-            languageClient.start();
-            reader.onClose(() => languageClient.stop());
+          languageClient.start();
+          reader.onClose(() => languageClient.stop());
         }
       };
     }

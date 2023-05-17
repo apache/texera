@@ -9,7 +9,7 @@ export function getWebsocketUrl(endpoint: string, port: string): string {
   const baseURI = document.baseURI;
   const hostname = new URL(baseURI).hostname;
   let webSocketUrl;
-  if(port !== "") {
+  if (port !== "") {
     webSocketUrl = new URL(endpoint, `http://${hostname}:${port}`);
   } else {
     webSocketUrl = new URL(endpoint, document.baseURI);
