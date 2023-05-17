@@ -102,9 +102,7 @@ export const defaultEnvironment = {
    * Whether to connect to local or production shared editing server. Set to true if you have
    * reverse proxy set up for y-websocket.
    */
-  productionSharedEditingServer: false,
-
-  LANGUAGE_SERVER_URL: "ws://localhost:3000/python-language-server",
+  productionSharedEditingServer: false
 };
 
 export type AppEnv = typeof defaultEnvironment;

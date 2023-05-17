@@ -11,7 +11,7 @@ import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
-import { environment } from "src/environments/environment";
+import { getWebsocketUrl } from "src/app/common/util/url";
 
 declare const monaco: any;
 
@@ -69,13 +69,13 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   createLanguageClient(transports: MessageTransports): MonacoLanguageClient {
-    return new MonacoLanguageClient({
+     return new MonacoLanguageClient({
       name: "Python UDF Language Client",
       clientOptions: {
         documentSelector: ["python"],
         errorHandler: {
           error: () => ({ action: ErrorAction.Continue }),
-          closed: () => ({ action: CloseAction.DoNotRestart }),
+          closed: () => ({ action: CloseAction.Restart }),
         },
       },
       connectionProvider: {
@@ -161,7 +161,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * @private
    */
   private connectLanguageServer() {
-    const url = environment.LANGUAGE_SERVER_URL;
+
+    const url = getWebsocketUrl('/python-language-server', "3000");
+
     if (this.languageServerSocket === undefined) {
       this.languageServerSocket = new WebSocket(url);
       this.languageServerSocket.onopen = () => {
@@ -169,12 +171,12 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
           const socket = toSocket(this.languageServerSocket);
           const reader = new WebSocketMessageReader(socket);
           const writer = new WebSocketMessageWriter(socket);
-          const languageClient = this.createLanguageClient({
+           const languageClient = this.createLanguageClient({
             reader,
             writer,
           });
-          languageClient.start();
-          reader.onClose(() => languageClient.stop());
+            languageClient.start();
+            reader.onClose(() => languageClient.stop());
         }
       };
     }
