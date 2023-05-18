@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 
 import { Observable } from "rxjs";
 import { Workflow } from "../../type/workflow";
-import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
+import { DashboardWorkflowEntry } from "../../../dashboard/user/type/dashboard-workflow-entry";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";

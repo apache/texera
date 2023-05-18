@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
 DROP TABLE IF EXISTS `project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
+DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
 
@@ -137,6 +138,15 @@ CREATE TABLE IF NOT EXISTS file_of_project
      PRIMARY KEY (`fid`, `pid`),
      FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)     ON DELETE CASCADE,
      FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS file_of_workflow
+(
+    `fid`            INT UNSIGNED                     NOT NULL,
+    `wid`            INT UNSIGNED                     NOT NULL,
+    PRIMARY KEY (`fid`, `wid`),
+    FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)      ON DELETE CASCADE,
+    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS workflow_executions

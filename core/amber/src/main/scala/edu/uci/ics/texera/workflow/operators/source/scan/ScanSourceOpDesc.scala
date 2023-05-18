@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileUtils
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
@@ -12,10 +12,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
-import scala.collection.immutable.List
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -70,7 +68,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
         .getFilePathByInfo(
           ownerName = splitNames.apply(0),
           fileName = splitNames.apply(1),
-          context.userId.get
+          context.userId.get,
+          context.wId
         )
         .map(_.toString)
 
