@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
+
+import scala.collection.mutable.Set
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
@@ -16,6 +18,16 @@ import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
+import javax.ws.rs.DefaultValue
+import java.sql.Timestamp
+import java.text.{ParseException, SimpleDateFormat}
+import java.util.Optional
+import java.util.concurrent.TimeUnit
+import javax.ws.rs.DefaultValue
+import java.sql.Timestamp
+import java.text.{ParseException, SimpleDateFormat}
+import java.util.Optional
+import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -430,6 +442,7 @@ class WorkflowResource {
     *
     * This method utilizes MySQL Boolean Full-Text Searches
     * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
+    *
     * @param sessionUser The authenticated user.
     * @param keywords    The search keywords.
     * @return A list of workflows that match the search term.
@@ -477,12 +490,22 @@ class WorkflowResource {
       }
     }
 
-    // Apply owner filter
-    val ownerFilter = getOwnerFilter(owners)
     // combine all filters with AND
     var optionalFilters: Condition = noCondition()
     optionalFilters = optionalFilters
-      .and(ownerFilter)
+      // Apply creation_time date filter
+      .and(getDateFilter("creation", creationStartDate, creationEndDate))
+      // Apply lastModified_time date filter
+      .and(getDateFilter("modification", modifiedStartDate, modifiedEndDate))
+      // Apply workflowID filter
+      .and(getWorkflowIdFilter(workflowIDs))
+      // Apply owner filter
+      .and(getOwnerFilter(owners))
+      // Apply operators filter
+      .and(getOperatorsFilter(operators))
+      // Apply projectId filter
+      .and(getProjectFilter(projectIds))
+
     try {
       val workflowEntries = context
         .select(
@@ -551,22 +574,140 @@ class WorkflowResource {
 
   /**
     * Helper function to retrieve the owner filter.
-    * Applies a filter based on the specified owner names.
+    * Applies a filter based on the specified owner emails.
     *
-    * @param owners The list of owner names to filter by.
+    * @param owners The list of owner emails to filter by.
     * @return The owner filter.
     */
   def getOwnerFilter(owners: java.util.List[String]): Condition = {
     var ownerFilter: Condition = noCondition()
-    val ownerSet: mutable.Set[String] = mutable.Set()
+    val ownerSet: Set[String] = Set()
     if (owners != null && !owners.isEmpty) {
       for (owner <- owners) {
         if (!ownerSet(owner)) {
           ownerSet += owner
-          ownerFilter = ownerFilter.or(USER.NAME.eq(owner))
+          ownerFilter = ownerFilter.or(USER.EMAIL.eq(owner))
         }
       }
     }
     ownerFilter
+  }
+
+  /**
+    * Helper function to retrieve the project filter.
+    * Applies a filter based on the specified project IDs.
+    *
+    * @param projectIds The list of owner names to filter by.
+    * @return The projectId filter.
+    */
+  def getProjectFilter(projectIds: java.util.List[UInteger]): Condition = {
+    var projectIdFilter: Condition = noCondition()
+    val projectIdSet: Set[UInteger] = Set()
+    if (projectIds != null && projectIds.nonEmpty) {
+      for (projectId <- projectIds) {
+        if (!projectIdSet(projectId)) {
+          projectIdSet += projectId
+          projectIdFilter = projectIdFilter.or(WORKFLOW_OF_PROJECT.PID.eq(projectId))
+
+        }
+      }
+    }
+    projectIdFilter
+  }
+
+  /**
+    * Helper function to retrieve the workflowID filter.
+    * Applies a filter based on the specified workflow IDs.
+    *
+    * @param workflowIDs The list of workflow IDs to filter by.
+    * @return The workflowID filter.
+    */
+  def getWorkflowIdFilter(workflowIDs: java.util.List[UInteger]): Condition = {
+    var workflowIdFilter: Condition = noCondition()
+    val workflowIdSet: Set[UInteger] = Set()
+    if (workflowIDs != null && !workflowIDs.isEmpty) {
+      for (workflowID <- workflowIDs) {
+        if (!workflowIdSet(workflowID)) {
+          workflowIdSet += workflowID
+          workflowIdFilter = workflowIdFilter.or(WORKFLOW.WID.eq(workflowID))
+
+        }
+      }
+    }
+    workflowIdFilter
+  }
+
+  /**
+    * Returns a date filter condition for the specified date range and date type.
+    *
+    * @param dateType  A string representing the type of date to filter by.
+    *                  Accepts "creation" for creation date or "modification" for modification date.
+    * @param startDate A string representing the start date of the filter range in "yyyy-MM-dd" format.
+    *                  If empty, the default value "1970-01-01" will be used.
+    * @param endDate   A string representing the end date of the filter range in "yyyy-MM-dd" format.
+    *                  If empty, the default value "9999-12-31" will be used.
+    * @return A Condition object that can be used to filter workflows based on the date range and type.
+    */
+  def getDateFilter(
+      dateType: String,
+      startDate: String,
+      endDate: String
+  ): Condition = {
+    var dateFilter: Condition = noCondition()
+
+    if (startDate.nonEmpty || endDate.nonEmpty) {
+      val start = if (startDate.nonEmpty) startDate else "1970-01-01"
+      val end = if (endDate.nonEmpty) endDate else "9999-12-31"
+      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+      try {
+        val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+        val endTimestamp =
+          if (end == "9999-12-31")
+            new Timestamp(
+              dateFormat.parse(end).getTime
+            )
+          else
+            new Timestamp(
+              dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
+            )
+        dateType match {
+          case "creation" =>
+            dateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
+          case "modification" =>
+            dateFilter = WORKFLOW.LAST_MODIFIED_TIME.between(startTimestamp, endTimestamp)
+          case _ => throw new IllegalArgumentException("Invalid dateType value")
+        }
+      } catch {
+        case ex: ParseException =>
+          println("Invalid date format. Please follow this date format: yyyy-MM-dd")
+          throw ex
+      }
+    }
+    dateFilter
+  }
+
+  /**
+    * Helper function to retrieve the operators filter.
+    * Applies a filter based on the specified operators.
+    *
+    * @param operators The list of operators to filter by.
+    * @return The operators filter.
+    */
+  def getOperatorsFilter(operators: java.util.List[String]): Condition = {
+    var operatorsFilter: Condition = noCondition()
+    if (operators != null && operators.nonEmpty) {
+      for (operator <- operators) {
+        val quotes = "\""
+        val searchKey =
+          "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operator" + quotes + "%"
+        operatorsFilter = operatorsFilter.or(
+          WORKFLOW.CONTENT
+            .likeIgnoreCase(
+              searchKey
+            )
+        )
+      }
+    }
+    operatorsFilter
   }
 }
