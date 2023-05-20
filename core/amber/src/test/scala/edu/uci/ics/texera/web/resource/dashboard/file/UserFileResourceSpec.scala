@@ -6,9 +6,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition
 import org.jooq.types.UInteger
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
 class UserFileResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {

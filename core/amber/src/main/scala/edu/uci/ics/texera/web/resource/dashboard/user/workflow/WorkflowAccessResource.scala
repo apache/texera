@@ -23,16 +23,6 @@ object WorkflowAccessResource {
   final private val context: DSLContext = SqlServer.createDSLContext
 
   /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasAccess(wid: UInteger, uid: UInteger): Boolean = {
-    hasReadAccess(wid, uid) || hasWriteAccess(wid, uid)
-  }
-
-  /**
     * Identifies whether the given user has read-only access over the given workflow
     *
     * @param wid workflow id
@@ -40,7 +30,7 @@ object WorkflowAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ)
+    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(wid, uid)
   }
 
   /**

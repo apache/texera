@@ -5,17 +5,17 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileDao,
-  FileOfProjectDao,
-  FileOfWorkflowDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfWorkflow, User}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
   DashboardFileEntry,
   context,
   fileDao,
   saveFile
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
+  hasReadAccess,
+  hasWriteAccess
 }
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
@@ -226,8 +226,12 @@ class UserFileResource {
   @DELETE
   @Path("/delete/{fid}")
   def deleteUserFile(
-      @PathParam("fid") fid: UInteger
+      @PathParam("fid") fid: UInteger,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(fid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
     Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
   }
@@ -238,9 +242,8 @@ class UserFileResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def validateUserFile(
       @FormDataParam("name") fileName: String,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Response = {
-    val user = sessionUser.getUser
     val validationResult = validateFileName(fileName, user.getUid)
     if (validationResult.getLeft)
       Response.ok().build()
@@ -252,8 +255,12 @@ class UserFileResource {
   @GET
   @Path("/download/{fid}")
   def downloadFile(
-      @PathParam("fid") fid: UInteger
+      @PathParam("fid") fid: UInteger,
+      @Auth user: SessionUser
   ): Response = {
+    if (!hasReadAccess(fid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
     val filePath = Paths.get(fileDao.fetchOneByFid(fid).getPath)
     val fileStream = new StreamingOutput() {
       @Override
@@ -282,10 +289,12 @@ class UserFileResource {
   def changeFileName(
       @PathParam("fid") fid: UInteger,
       @PathParam("name") name: String,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Unit = {
-    val userId = sessionUser.getUser.getUid
-    val validationRes = this.validateFileName(name, userId)
+    if (!hasWriteAccess(fid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
+    val validationRes = this.validateFileName(name, user.getUid)
     if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
     } else {
@@ -316,8 +325,12 @@ class UserFileResource {
   @Path("/description/{fid}/{description}")
   def changeFileDescription(
       @PathParam("fid") fid: UInteger,
-      @PathParam("description") description: String
+      @PathParam("description") description: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(fid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)
     fileDao.update(userFile)

@@ -253,7 +253,7 @@ class WorkflowResource {
       @Auth sessionUser: SessionUser
   ): Workflow = {
     val user = sessionUser.getUser
-    if (WorkflowAccessResource.hasAccess(wid, user.getUid)) {
+    if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       workflowDao.fetchOneByWid(wid)
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -281,7 +281,7 @@ class WorkflowResource {
       // current user reading
       workflowDao.update(workflow)
     } else {
-      if (!WorkflowAccessResource.hasAccess(workflow.getWid, user.getUid)) {
+      if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
@@ -314,7 +314,7 @@ class WorkflowResource {
   ): DashboardWorkflowEntry = {
     val wid = workflow.getWid
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasAccess(wid, user.getUid)) {
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
       val workflow: Workflow = workflowDao.fetchOneByWid(wid)
@@ -581,7 +581,7 @@ class WorkflowResource {
     */
   def getOwnerFilter(owners: java.util.List[String]): Condition = {
     var ownerFilter: Condition = noCondition()
-    val ownerSet: Set[String] = Set()
+    val ownerSet: mutable.Set[String] = mutable.Set()
     if (owners != null && !owners.isEmpty) {
       for (owner <- owners) {
         if (!ownerSet(owner)) {
@@ -602,7 +602,7 @@ class WorkflowResource {
     */
   def getProjectFilter(projectIds: java.util.List[UInteger]): Condition = {
     var projectIdFilter: Condition = noCondition()
-    val projectIdSet: Set[UInteger] = Set()
+    val projectIdSet: mutable.Set[UInteger] = mutable.Set()
     if (projectIds != null && projectIds.nonEmpty) {
       for (projectId <- projectIds) {
         if (!projectIdSet(projectId)) {

@@ -16,7 +16,12 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserFileAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{FileOfWorkflow, UserFileAccess}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{context, userDao}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
+  context,
+  fileDao,
+  userDao,
+  hasWriteAccess
+}
 import io.dropwizard.auth.Auth
 import org.jooq.{DSLContext, Record3, Result}
 import org.jooq.types.UInteger
@@ -67,12 +72,65 @@ object UserFileAccessResource {
     }
   }
 
+  /**
+    * Identifies whether the given user has read-only access over the given workflow
+    *
+    * @param fid file id
+    * @param uid user id, works with file id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasReadAccess(fid: UInteger, uid: UInteger): Boolean = {
+    getPrivilege(fid, uid).eq(UserFileAccessPrivilege.READ) || hasWriteAccess(fid, uid)
+  }
+
+  /**
+    * Identifies whether the given user has write access over the given workflow
+    *
+    * @param fid file id
+    * @param uid user id, works with file id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasWriteAccess(fid: UInteger, uid: UInteger): Boolean = {
+    getPrivilege(fid, uid).eq(UserFileAccessPrivilege.WRITE)
+  }
+
+  /**
+    * @param fid file id
+    * @param uid user id, works with file id as primary keys in database
+    * @return UserFileAccessPrivilege value indicating NONE/READ/WRITE
+    */
+  def getPrivilege(fid: UInteger, uid: UInteger): UserFileAccessPrivilege = {
+    val access = context
+      .select()
+      .from(USER_FILE_ACCESS)
+      .where(USER_FILE_ACCESS.FID.eq(fid).and(USER_FILE_ACCESS.UID.eq(uid)))
+      .fetchOneInto(classOf[UserFileAccess])
+    if (access == null) {
+      UserFileAccessPrivilege.NONE
+    } else {
+      access.getPrivilege
+    }
+  }
+
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/access/file")
 class UserFileAccessResource {
   final private val userFileAccessDao = new UserFileAccessDao(context.configuration)
+
+  /**
+    * This method returns the owner of a workflow
+    *
+    * @param fid ,  file id
+    * @return ownerEmail,  the owner's email
+    */
+  @GET
+  @Path("/owner/{fid}")
+  def getOwner(@PathParam("fid") fid: UInteger): String = {
+    val uid = fileDao.fetchOneByFid(fid).getOwnerUid
+    userDao.fetchOneByUid(uid).getEmail
+  }
 
   /**
     * Retrieves the list of all shared accesses of the target file
@@ -83,7 +141,7 @@ class UserFileAccessResource {
   @Path("list/{fid}")
   def getAccessList(
       @PathParam("fid") fid: UInteger,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Result[Record3[String, String, UserFileAccessPrivilege]] = {
     context
       .select(
@@ -97,7 +155,7 @@ class UserFileAccessResource {
       .where(
         USER_FILE_ACCESS.FID
           .eq(fid)
-          .and(USER_FILE_ACCESS.UID.notEqual(sessionUser.getUser.getUid))
+          .and(USER_FILE_ACCESS.UID.notEqual(user.getUid))
       )
       .fetch()
   }
@@ -115,8 +173,12 @@ class UserFileAccessResource {
   def grantAccess(
       @PathParam("fid") fid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(fid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
     userFileAccessDao.merge(
       new UserFileAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -138,8 +200,12 @@ class UserFileAccessResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def revokeAccess(
       @PathParam("fid") fid: UInteger,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(fid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
     context
       .delete(USER_FILE_ACCESS)
       .where(

@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasAccess
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
@@ -337,7 +337,7 @@ class ProjectResource {
     verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(uid, userProject)
-    if (!hasAccess(wid, uid)) {
+    if (!hasReadAccess(wid, uid)) {
       throw new ForbiddenException("No sufficient access privilege to workflow.")
     }
 
