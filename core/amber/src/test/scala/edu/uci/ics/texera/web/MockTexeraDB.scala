@@ -10,6 +10,7 @@ import edu.uci.ics.texera.Utils
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
+import java.sql.{DriverManager, PreparedStatement}
 
 trait MockTexeraDB {
 
@@ -66,6 +67,7 @@ trait MockTexeraDB {
 
     val db = DB.newEmbeddedDB(config)
     db.start()
+    Runtime.getRuntime.exec(db.getConfiguration.getBaseDir+"/bin/mysqld -u root < "+ddlPath.toString)
     db.run(content)
 
     val dataSource = new MysqlDataSource
