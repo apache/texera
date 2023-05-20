@@ -8,14 +8,38 @@ import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils
 
+import java.io.{File, FileInputStream, InputStream}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-import java.sql.{DriverManager, PreparedStatement}
+import java.sql.{Connection, DriverManager, PreparedStatement, Statement}
+import java.util.Scanner
 
 trait MockTexeraDB {
 
   private var dbInstance: Option[DB] = None
   private var dslContext: Option[DSLContext] = None
+
+  import java.sql.SQLException
+
+  @throws[SQLException]
+  private def importSQL(conn: Connection, in: InputStream): Unit = {
+    val s = new Scanner(in)
+    s.useDelimiter(";")
+    var st: Statement = null
+    try {
+      st = conn.createStatement()
+      while ({
+        s.hasNext
+      }) {
+        var line = s.next
+        if (line.startsWith("/*!") && line.endsWith("*/")) {
+          val i = line.indexOf(' ')
+          line = line.substring(i + 1, line.length - " */".length)
+        }
+        if (line.trim.nonEmpty) st.execute(line)
+      }
+    } finally if (st != null) st.close()
+  }
 
   def getDSLContext: DSLContext = {
     dslContext match {
@@ -56,7 +80,8 @@ trait MockTexeraDB {
     val ddlPath = {
       Utils.amberHomePath.resolve("../scripts/sql/texera_ddl.sql").toRealPath()
     }
-    val content = new String(Files.readAllBytes(ddlPath), StandardCharsets.UTF_8)
+    val sqlFile = new File(ddlPath.toString)
+    val in = new FileInputStream(sqlFile)
 
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
@@ -67,10 +92,8 @@ trait MockTexeraDB {
 
     val db = DB.newEmbeddedDB(config)
     db.start()
-    Runtime.getRuntime.exec(
-      db.getConfiguration.getBaseDir + "/bin/mysqld -u root < " + ddlPath.toString
-    )
-    db.run(content)
+    val conn = DriverManager.getConnection(config.getURL(""), username, password)
+    importSQL(conn, in)
 
     val dataSource = new MysqlDataSource
     dataSource.setUrl(config.getURL(database))
