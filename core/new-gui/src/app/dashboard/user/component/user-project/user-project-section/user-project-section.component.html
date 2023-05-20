@@ -174,20 +174,6 @@
         <ul nz-list-item-actions>
           <nz-list-item-action>
             <button
-              (click)="onClickOpenFileShareAccess(file)"
-              [disabled]="file.accessLevel !== 'Write'"
-              nz-button
-              nz-tooltip="Share the file {{file.file.name}} to others"
-              nzTooltipPlacement="bottom"
-              type="button">
-              <i
-                nz-icon
-                nzTheme="outline"
-                nzType="share-alt"></i>
-            </button>
-          </nz-list-item-action>
-          <nz-list-item-action>
-            <button
               (click)="downloadUserFile(file)"
               nz-button
               nz-tooltip="Download the file {{file.file.name}}"
