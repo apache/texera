@@ -13,13 +13,13 @@ from pyarrow.flight import (
 
 class ProxyClient(FlightClient):
     def __init__(
-            self,
-            scheme: str = "grpc+tcp",
-            host: str = "localhost",
-            port: int = 5005,
-            timeout=1000,
-            *args,
-            **kwargs,
+        self,
+        scheme: str = "grpc+tcp",
+        host: str = "localhost",
+        port: int = 5005,
+        timeout=1000,
+        *args,
+        **kwargs,
     ):
         location = f"{scheme}://{host}:{port}"
         super().__init__(location, *args, **kwargs)
@@ -28,10 +28,10 @@ class ProxyClient(FlightClient):
 
     @logger.catch(reraise=True)
     def call_action(
-            self,
-            action_name: str,
-            payload: bytes = bytes(),
-            options: Optional[FlightCallOptions] = None,
+        self,
+        action_name: str,
+        payload: bytes = bytes(),
+        options: Optional[FlightCallOptions] = None,
     ) -> bytes:
         """
         Call a specific remote action specified by the name, pass along a payload.
