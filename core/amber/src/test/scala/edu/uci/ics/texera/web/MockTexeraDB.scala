@@ -20,12 +20,12 @@ trait MockTexeraDB {
   private val username: String = "root"
   private val password: String = ""
 
-
-  def executeScriptInJDBC(path:Path): Unit ={
+  def executeScriptInJDBC(path: Path): Unit = {
     assert(dbInstance.nonEmpty)
     val sqlFile = new File(path.toString)
     val in = new FileInputStream(sqlFile)
-    val conn = DriverManager.getConnection(dbInstance.get.getConfiguration.getURL(""), username, password)
+    val conn =
+      DriverManager.getConnection(dbInstance.get.getConfiguration.getURL(""), username, password)
     importSQL(conn, in)
     conn.close()
   }
