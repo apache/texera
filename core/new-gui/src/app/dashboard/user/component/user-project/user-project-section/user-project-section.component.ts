@@ -169,8 +169,6 @@ export class UserProjectSectionComponent implements OnInit {
       .add(() => (this.isEditingFileName = this.isEditingFileName.filter(fileIsEditing => fileIsEditing != index)));
   }
 
-  public onClickOpenFileShareAccess(dashboardUserFileEntry: DashboardUserFileEntry): void {}
-
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
     this.userFileService
       .downloadUserFile(userFileEntry.file)
