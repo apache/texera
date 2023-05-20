@@ -67,7 +67,9 @@ trait MockTexeraDB {
 
     val db = DB.newEmbeddedDB(config)
     db.start()
-    Runtime.getRuntime.exec(db.getConfiguration.getBaseDir+"/bin/mysqld -u root < "+ddlPath.toString)
+    Runtime.getRuntime.exec(
+      db.getConfiguration.getBaseDir + "/bin/mysqld -u root < " + ddlPath.toString
+    )
     db.run(content)
 
     val dataSource = new MysqlDataSource
