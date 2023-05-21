@@ -20,7 +20,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResourc
   context,
   fileDao,
   userDao,
-  hasWriteAccess
+  checkWriteAccess
 }
 import io.dropwizard.auth.Auth
 import org.jooq.{DSLContext, Record3, Result}
@@ -80,7 +80,7 @@ object UserFileAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(fid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(fid, uid).eq(UserFileAccessPrivilege.READ) || hasWriteAccess(fid, uid)
+    getPrivilege(fid, uid).eq(UserFileAccessPrivilege.READ) || getPrivilege(fid, uid).eq(UserFileAccessPrivilege.WRITE)
   }
 
   /**
@@ -90,8 +90,10 @@ object UserFileAccessResource {
     * @param uid user id, works with file id as primary keys in database
     * @return boolean value indicating yes/no
     */
-  def hasWriteAccess(fid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(fid, uid).eq(UserFileAccessPrivilege.WRITE)
+  def checkWriteAccess(fid: UInteger, uid: UInteger): Unit = {
+    if (!getPrivilege(fid, uid).eq(UserFileAccessPrivilege.WRITE)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
   }
 
   /**
@@ -99,7 +101,7 @@ object UserFileAccessResource {
     * @param uid user id, works with file id as primary keys in database
     * @return UserFileAccessPrivilege value indicating NONE/READ/WRITE
     */
-  def getPrivilege(fid: UInteger, uid: UInteger): UserFileAccessPrivilege = {
+  private def getPrivilege(fid: UInteger, uid: UInteger): UserFileAccessPrivilege = {
     context
       .select()
       .from(USER_FILE_ACCESS)
@@ -107,7 +109,6 @@ object UserFileAccessResource {
       .fetchOneInto(classOf[UserFileAccess])
       .getPrivilege
   }
-
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -172,9 +173,7 @@ class UserFileAccessResource {
       @PathParam("privilege") privilege: String,
       @Auth user: SessionUser
   ): Unit = {
-    if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+    checkWriteAccess(fid, user.getUid)
     userFileAccessDao.merge(
       new UserFileAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -199,9 +198,7 @@ class UserFileAccessResource {
       @PathParam("email") email: String,
       @Auth user: SessionUser
   ): Unit = {
-    if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+    checkWriteAccess(fid, user.getUid)
     context
       .delete(USER_FILE_ACCESS)
       .where(

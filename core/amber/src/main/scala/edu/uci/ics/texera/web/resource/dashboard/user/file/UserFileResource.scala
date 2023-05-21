@@ -15,7 +15,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
   hasReadAccess,
-  hasWriteAccess
+  checkWriteAccess
 }
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
@@ -229,9 +229,7 @@ class UserFileResource {
       @PathParam("fid") fid: UInteger,
       @Auth user: SessionUser
   ): Unit = {
-    if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+    checkWriteAccess(fid, user.getUid)
     Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
   }
@@ -291,9 +289,7 @@ class UserFileResource {
       @PathParam("name") name: String,
       @Auth user: SessionUser
   ): Unit = {
-    if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+    checkWriteAccess(fid, user.getUid)
     val validationRes = this.validateFileName(name, user.getUid)
     if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
@@ -328,9 +324,7 @@ class UserFileResource {
       @PathParam("description") description: String,
       @Auth user: SessionUser
   ): Unit = {
-    if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+    checkWriteAccess(fid, user.getUid)
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)
     fileDao.update(userFile)
