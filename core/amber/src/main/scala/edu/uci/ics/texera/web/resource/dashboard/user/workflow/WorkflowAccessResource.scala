@@ -51,12 +51,16 @@ object WorkflowAccessResource {
     * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
     */
   def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
-    context
+    val access = context
       .select()
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[WorkflowUserAccess])
-      .getPrivilege
+    if (access == null) {
+      WorkflowUserAccessPrivilege.NONE
+    } else {
+      access.getPrivilege
+    }
   }
 }
 
