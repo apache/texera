@@ -10,7 +10,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{context, hasWriteAccess}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
+  context,
+  hasWriteAccess
+}
 import io.dropwizard.auth.Auth
 import org.jooq.{DSLContext, Record3, Result}
 import org.jooq.types.UInteger
