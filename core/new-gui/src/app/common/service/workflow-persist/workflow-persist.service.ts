@@ -106,13 +106,6 @@ export class WorkflowPersistService {
   }
 
   /**
-   * retrieves the workflow ids of workflows with the operator(s) specified
-   */
-  public retrieveWorkflowByOperator(operator: string): Observable<string[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OPERATOR_URL}?operator=${operator}`);
-  }
-
-  /**
    * Search workflows by a text query from backend database that belongs to the user in the session.
    */
   public searchWorkflows(

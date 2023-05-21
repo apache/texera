@@ -260,41 +260,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(list_of_ids => (this.wids = list_of_ids));
   }
-
-  /**
-   * Search workflows based on date string
-   * String Formats:
-   *  - mtime:YYYY-MM-DD (workflows on this date)
-   *  - mtime:<YYYY-MM-DD (workflows on or before this date)
-   *  - mtime:>YYYY-MM-DD (workflows on or after this date)
-   */
-
-  private searchDate(
-    date: Date[],
-    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
-    type: String
-  ): ReadonlyArray<DashboardWorkflowEntry> {
-    date[0].setHours(0);
-    date[0].setMinutes(0);
-    date[0].setSeconds(0);
-    date[0].setMilliseconds(0);
-    date[1].setHours(0);
-    date[1].setMinutes(0);
-    date[1].setSeconds(0);
-    date[1].setMilliseconds(0);
-    //sets date time at beginning of day
-    //date obj from nz-calendar adds extraneous time
-    return filteredDashboardWorkflowEntries.filter(workflow_entry => {
-      //filters for workflows that were created on the specified date
-      let time = type === "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
-      if (time) {
-        return time >= date[0].getTime() && time < date[1].getTime() + 86400000;
-        //checks if creation time is within the range of the whole day
-      }
-      return false;
-    });
-  }
-
+  
   /**
    * updates selectedOwners array to match owners checked in dropdown menu
    */

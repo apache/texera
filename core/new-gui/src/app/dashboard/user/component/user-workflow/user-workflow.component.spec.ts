@@ -42,71 +42,89 @@ describe("SavedWorkflowSectionComponent", () => {
 
   //All times in test Workflows are in PST because our local machine's timezone is PST
   //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
+  const oneDay = 86400000;
+  const januaryFirst1970 = 28800000; // 1970-01-01 in PST
+  const testWorkflowContent = (operatorTypes: string[]): WorkflowContent => ({
+    operators: operatorTypes.map(t => ({
+      operatorType: t,
+      operatorID: t,
+      operatorVersion: "1",
+      operatorProperties: {},
+      inputPorts: [],
+      outputPorts: [],
+      showAdvanced: false,
+    })),
+    breakpoints: {},
+    commentBoxes: [],
+    groups: [],
+    links: [],
+    operatorPositions: {},
+  });
 
   const testWorkflow1: Workflow = {
     wid: 1,
     name: "workflow 1",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000, //28800000 is 1970-01-01 in PST
-    lastModifiedTime: 28800000 + 2,
+    content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
+    creationTime: januaryFirst1970,
+    lastModifiedTime: januaryFirst1970 + 2,
   };
   const testWorkflow2: Workflow = {
     wid: 2,
     name: "workflow 2",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
-    lastModifiedTime: 28800000 + (86400000 + 3),
+    content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
+    creationTime: januaryFirst1970 + (oneDay + 3),
+    lastModifiedTime: januaryFirst1970 + (oneDay + 3),
   };
   const testWorkflow3: Workflow = {
     wid: 3,
     name: "workflow 3",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000 + 86400000,
-    lastModifiedTime: 28800000 + (86400000 + 4),
+    content: testWorkflowContent(["Aggregation", "NlpSentiment"]),
+    creationTime: januaryFirst1970 + oneDay,
+    lastModifiedTime: januaryFirst1970 + (oneDay + 4),
   };
   const testWorkflow4: Workflow = {
     wid: 4,
     name: "workflow 4",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000 + 86400003 * 2,
-    lastModifiedTime: 28800000 + 86400000 * 2 + 6,
+    content: testWorkflowContent([]),
+    creationTime: januaryFirst1970 + (oneDay + 3) * 2,
+    lastModifiedTime: januaryFirst1970 + oneDay * 2 + 6,
   };
   const testWorkflow5: Workflow = {
     wid: 5,
     name: "workflow 5",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000 + 86400000 * 2,
-    lastModifiedTime: 28800000 + 86400000 * 2 + 8,
+    content: testWorkflowContent([]),
+    creationTime: januaryFirst1970 + oneDay * 2,
+    lastModifiedTime: januaryFirst1970 + oneDay * 2 + 8,
   };
 
   const testDownloadWorkflow1: Workflow = {
     wid: 6,
     name: "workflow",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000, //28800000 is 1970-01-01 in PST
-    lastModifiedTime: 28800000 + 2,
+    content: testWorkflowContent([]),
+    creationTime: januaryFirst1970, //januaryFirst1970 is 1970-01-01 in PST
+    lastModifiedTime: januaryFirst1970 + 2,
   };
   const testDownloadWorkflow2: Workflow = {
     wid: 7,
     name: "workflow",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
-    lastModifiedTime: 28800000 + (86400000 + 3),
+    content: testWorkflowContent([]),
+    creationTime: januaryFirst1970 + (oneDay + 3), // oneDay is the number of milliseconds in a day
+    lastModifiedTime: januaryFirst1970 + (oneDay + 3),
   };
   const testDownloadWorkflow3: Workflow = {
     wid: 8,
     name: "workflow",
     description: "dummy description",
-    content: jsonCast<WorkflowContent>("{}"),
-    creationTime: 28800000 + 86400000,
-    lastModifiedTime: 28800000 + (86400000 + 4),
+    content: testWorkflowContent([]),
+    creationTime: januaryFirst1970 + oneDay,
+    lastModifiedTime: januaryFirst1970 + (oneDay + 4),
   };
   const testWorkflowFileNameConflictEntries: DashboardWorkflowEntry[] = [
     {
@@ -226,9 +244,10 @@ describe("SavedWorkflowSectionComponent", () => {
 
   beforeEach(() => {
     fixture = TestBed.createComponent(UserWorkflowComponent);
-    component.allDashboardWorkflowEntries = testWorkflowEntries;
-    component.masterFilterList = [];
     component = fixture.componentInstance;
+    component.allDashboardWorkflowEntries = [...testWorkflowEntries];
+    component.dashboardWorkflowEntries = [...testWorkflowEntries];
+    component.masterFilterList = [];
     component.selectedMtime = [];
     component.selectedMtime = [];
     component.owners = [
@@ -370,7 +389,7 @@ describe("SavedWorkflowSectionComponent", () => {
       await component.updateSelectedOperators();
     }
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 3"]);
+    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.masterFilterList).toEqual(["operator: Sentiment Analysis"]); // userFriendlyName
   });
 
@@ -379,7 +398,6 @@ describe("SavedWorkflowSectionComponent", () => {
     const operatorGroup = component.operators.get("Analysis");
     const operatorGroup2 = component.operators.get("View Results");
     if (operatorGroup && operatorGroup2) {
-      console.log(component.operators);
       operatorGroup[2].checked = true; // sentiment analysis
       operatorGroup2[0].checked = true;
       await component.updateSelectedOperators(); // calls searchWorkflow()
