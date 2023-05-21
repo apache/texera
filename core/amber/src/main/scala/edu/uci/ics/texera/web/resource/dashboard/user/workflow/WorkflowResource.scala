@@ -10,11 +10,13 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.checkReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
+
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
 import java.util.concurrent.TimeUnit
@@ -240,14 +242,10 @@ class WorkflowResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Workflow = {
-    val user = sessionUser.getUser
-    if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
-      workflowDao.fetchOneByWid(wid)
-    } else {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+    checkReadAccess(wid, user.getUid)
+    workflowDao.fetchOneByWid(wid)
   }
 
   /**
@@ -271,11 +269,7 @@ class WorkflowResource {
       // current user reading
       workflowDao.update(workflow)
     } else {
-      if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
-        // not owner and not access record --> new record
-        insertWorkflow(workflow, user)
-        WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
-      } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+      if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
         WorkflowVersionResource.insertVersion(workflow, insertNewFlag = false)
         // not owner but has write access
         workflowDao.update(workflow)
@@ -300,30 +294,23 @@ class WorkflowResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def duplicateWorkflow(
       workflow: Workflow,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): DashboardWorkflowEntry = {
-    val wid = workflow.getWid
-    val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
-      val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-      workflow.getContent
-      workflow.getName
-      createWorkflow(
-        new Workflow(
-          workflow.getName + "_copy",
-          workflow.getDescription,
-          null,
-          workflow.getContent,
-          null,
-          null
-        ),
-        sessionUser
-      )
-
-    }
-
+    checkReadAccess(workflow.getWid, user.getUid)
+    val newWorkflow: Workflow = workflowDao.fetchOneByWid(workflow.getWid)
+    newWorkflow.getContent
+    newWorkflow.getName
+    createWorkflow(
+      new Workflow(
+        newWorkflow.getName + "_copy",
+        newWorkflow.getDescription,
+        null,
+        newWorkflow.getContent,
+        null,
+        null
+      ),
+      user
+    )
   }
 
   /**

@@ -9,6 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.checkReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL._
@@ -86,34 +87,31 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
-      List()
-    } else {
-      context
-        .select(
-          WORKFLOW_EXECUTIONS.EID,
-          WORKFLOW_EXECUTIONS.VID,
-          field(
-            context
-              .select(USER.NAME)
-              .from(USER)
-              .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-          ),
-          WORKFLOW_EXECUTIONS.STARTING_TIME,
-          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
-          WORKFLOW_EXECUTIONS.STATUS,
-          WORKFLOW_EXECUTIONS.RESULT,
-          WORKFLOW_EXECUTIONS.BOOKMARKED,
-          WORKFLOW_EXECUTIONS.NAME
-        )
-        .from(WORKFLOW_EXECUTIONS)
-        .join(WORKFLOW_VERSION)
-        .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-        .where(WORKFLOW_VERSION.WID.eq(wid))
-        .fetchInto(classOf[WorkflowExecutionEntry])
-        .toList
-        .reverse
-    }
+    checkReadAccess(wid, user.getUid)
+    context
+      .select(
+        WORKFLOW_EXECUTIONS.EID,
+        WORKFLOW_EXECUTIONS.VID,
+        field(
+          context
+            .select(USER.NAME)
+            .from(USER)
+            .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
+        ),
+        WORKFLOW_EXECUTIONS.STARTING_TIME,
+        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
+        WORKFLOW_EXECUTIONS.STATUS,
+        WORKFLOW_EXECUTIONS.RESULT,
+        WORKFLOW_EXECUTIONS.BOOKMARKED,
+        WORKFLOW_EXECUTIONS.NAME
+      )
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+      .where(WORKFLOW_VERSION.WID.eq(wid))
+      .fetchInto(classOf[WorkflowExecutionEntry])
+      .toList
+      .reverse
   }
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */
@@ -123,9 +121,9 @@ class WorkflowExecutionsResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def setExecutionAreBookmarked(
       request: ExecutionGroupBookmarkRequest,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    checkReadAccess(request.wid, user.getUid)
     if (request.isBookmarked) {
       val eIdArray = request.eIds.mkString("(", ",", ")")
       val sqlString = "update texera_db.workflow_executions " +
@@ -145,12 +143,6 @@ class WorkflowExecutionsResource {
     }
   }
 
-  /** Determine if user is authorized to access the workflow, if not raise 401 */
-  def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
-    if (!WorkflowAccessResource.hasReadAccess(wid, uid))
-      throw new WebApplicationException(Response.Status.UNAUTHORIZED)
-  }
-
   /** Delete a group of executions */
   @PUT
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -158,9 +150,9 @@ class WorkflowExecutionsResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def groupDeleteExecutionsOfWorkflow(
       request: ExecutionGroupDeleteRequest,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    checkReadAccess(request.wid, user.getUid)
     /* delete the execution in sql */
     val eIdArray = request.eIds.mkString("(", ",", ")")
     val sqlString: String = "DELETE FROM texera_db.workflow_executions " +
@@ -177,9 +169,9 @@ class WorkflowExecutionsResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateWorkflowExecutionsName(
       request: ExecutionRenameRequest,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    checkReadAccess(request.wid, user.getUid)
     val execution = getExecutionById(request.eId)
     execution.setName(request.executionName)
     executionsDao.update(execution)

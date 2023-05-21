@@ -31,8 +31,14 @@ object WorkflowAccessResource {
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
     */
-  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(wid, uid)
+  def checkReadAccess(wid: UInteger, uid: UInteger): Unit = {
+    if (
+      !(getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || getPrivilege(wid, uid).eq(
+        WorkflowUserAccessPrivilege.WRITE
+      ))
+    ) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
   }
 
   /**
