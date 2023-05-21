@@ -19,12 +19,12 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{FileOfWorkflow,
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
   context,
   fileDao,
-  hasWriteAccess,
-  userDao
+  userDao,
+  hasWriteAccess
 }
 import io.dropwizard.auth.Auth
-import org.jooq.types.UInteger
 import org.jooq.{DSLContext, Record3, Result}
+import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -100,13 +100,18 @@ object UserFileAccessResource {
     * @return UserFileAccessPrivilege value indicating NONE/READ/WRITE
     */
   def getPrivilege(fid: UInteger, uid: UInteger): UserFileAccessPrivilege = {
-    context
+    val access = context
       .select()
       .from(USER_FILE_ACCESS)
       .where(USER_FILE_ACCESS.FID.eq(fid).and(USER_FILE_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[UserFileAccess])
-      .getPrivilege
+    if (access == null) {
+      UserFileAccessPrivilege.NONE
+    } else {
+      access.getPrivilege
+    }
   }
+
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -172,7 +177,7 @@ class UserFileAccessResource {
       @Auth user: SessionUser
   ): Unit = {
     if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
+      throw new ForbiddenException("No sufficient access privilege to file.")
     }
     userFileAccessDao.merge(
       new UserFileAccess(
@@ -199,7 +204,7 @@ class UserFileAccessResource {
       @Auth user: SessionUser
   ): Unit = {
     if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
+      throw new ForbiddenException("No sufficient access privilege to file.")
     }
     context
       .delete(USER_FILE_ACCESS)
