@@ -113,14 +113,11 @@ class WorkflowResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-    val db = getDBInstance
     // build fulltext indexes
     val fulltextIndexPath = {
       Utils.amberHomePath.resolve("../scripts/sql/update/fulltext_indexes.sql").toRealPath()
     }
-    val buildFulltextIndex =
-      new String(Files.readAllBytes(fulltextIndexPath), StandardCharsets.UTF_8)
-    db.run(buildFulltextIndex)
+    executeScriptInJDBC(fulltextIndexPath)
 
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
