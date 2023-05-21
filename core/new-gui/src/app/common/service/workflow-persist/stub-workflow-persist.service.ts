@@ -10,7 +10,7 @@ export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
 @Injectable()
 export class StubWorkflowPersistService {
   constructor(private testWorkflows: DashboardWorkflowEntry[]) {}
-  
+
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return new Observable(observer => observer.next(this.testWorkflows.find(w => w.workflow.wid == wid)?.workflow));
   }
@@ -46,10 +46,14 @@ export class StubWorkflowPersistService {
         results = results.filter(e => e.workflow.creationTime && e.workflow.creationTime <= endOfDay(createDateEnd));
       }
       if (modifiedDateStart) {
-        results = results.filter(e => e.workflow.lastModifiedTime && e.workflow.lastModifiedTime >= modifiedDateStart.getTime());
+        results = results.filter(
+          e => e.workflow.lastModifiedTime && e.workflow.lastModifiedTime >= modifiedDateStart.getTime()
+        );
       }
       if (modifiedDateEnd) {
-        results = results.filter(e => e.workflow.lastModifiedTime && e.workflow.lastModifiedTime <= endOfDay(modifiedDateEnd));
+        results = results.filter(
+          e => e.workflow.lastModifiedTime && e.workflow.lastModifiedTime <= endOfDay(modifiedDateEnd)
+        );
       }
       if (owners.length > 0) {
         results = results.filter(e => owners.some(o => e.ownerName === o));
@@ -58,10 +62,16 @@ export class StubWorkflowPersistService {
         results = results.filter(e => ids.some(i => e.workflow.wid && e.workflow.wid.toString() === i));
       }
       if (operators.length > 0) {
-        results = results.filter(e => e.workflow.content.operators.some(operator => operators.some(operatorTypeFilterBy => operatorTypeFilterBy === operator.operatorType)));
+        results = results.filter(e =>
+          e.workflow.content.operators.some(operator =>
+            operators.some(operatorTypeFilterBy => operatorTypeFilterBy === operator.operatorType)
+          )
+        );
       }
       if (projectIds.length > 0) {
-        results = results.filter(e => e.projectIDs.some(id => projectIds.some(projectIdToFilterBy => projectIdToFilterBy == id)));
+        results = results.filter(e =>
+          e.projectIDs.some(id => projectIds.some(projectIdToFilterBy => projectIdToFilterBy == id))
+        );
       }
       return observer.next(results);
     });

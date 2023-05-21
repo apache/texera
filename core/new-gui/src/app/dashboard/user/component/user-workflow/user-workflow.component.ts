@@ -260,7 +260,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(list_of_ids => (this.wids = list_of_ids));
   }
-  
+
   /**
    * updates selectedOwners array to match owners checked in dropdown menu
    */
@@ -505,21 +505,24 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Searches workflows with keywords and filters given in the masterFilterList. 
-   * @returns 
+   * Searches workflows with keywords and filters given in the masterFilterList.
+   * @returns
    */
   private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    return await firstValueFrom(this.workflowPersistService.searchWorkflows(
-      workflowNames, 
-      this.selectedCtime.length > 0 ? this.selectedCtime[0] : null,
-      this.selectedCtime.length > 0 ? this.selectedCtime[1] : null,
-      this.selectedMtime.length > 0 ? this.selectedMtime[0] : null,
-      this.selectedMtime.length > 0 ? this.selectedMtime[1] : null,
-      this.selectedOwners, 
-      this.selectedIDs,
-      this.selectedOperators.map(o => o.operatorType),
-      this.selectedProjects.map(p => p.pid)));
+    return await firstValueFrom(
+      this.workflowPersistService.searchWorkflows(
+        workflowNames,
+        this.selectedCtime.length > 0 ? this.selectedCtime[0] : null,
+        this.selectedCtime.length > 0 ? this.selectedCtime[1] : null,
+        this.selectedMtime.length > 0 ? this.selectedMtime[0] : null,
+        this.selectedMtime.length > 0 ? this.selectedMtime[1] : null,
+        this.selectedOwners,
+        this.selectedIDs,
+        this.selectedOperators.map(o => o.operatorType),
+        this.selectedProjects.map(p => p.pid)
+      )
+    );
   }
 
   /**
