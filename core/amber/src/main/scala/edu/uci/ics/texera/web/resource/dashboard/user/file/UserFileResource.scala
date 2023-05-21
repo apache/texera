@@ -230,7 +230,7 @@ class UserFileResource {
       @Auth user: SessionUser
   ): Unit = {
     if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege to file.")
+      throw new ForbiddenException("No sufficient access privilege.")
     }
     Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
@@ -259,7 +259,7 @@ class UserFileResource {
       @Auth user: SessionUser
   ): Response = {
     if (!hasReadAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege to file.")
+      throw new ForbiddenException("No sufficient access privilege.")
     }
     val filePath = Paths.get(fileDao.fetchOneByFid(fid).getPath)
     val fileStream = new StreamingOutput() {
@@ -292,7 +292,7 @@ class UserFileResource {
       @Auth user: SessionUser
   ): Unit = {
     if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege to file.")
+      throw new ForbiddenException("No sufficient access privilege.")
     }
     val validationRes = this.validateFileName(name, user.getUid)
     if (!validationRes.getLeft) {
@@ -329,7 +329,7 @@ class UserFileResource {
       @Auth user: SessionUser
   ): Unit = {
     if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege to file.")
+      throw new ForbiddenException("No sufficient access privilege.")
     }
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)

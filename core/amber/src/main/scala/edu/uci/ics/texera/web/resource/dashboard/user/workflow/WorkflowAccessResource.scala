@@ -10,7 +10,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
+  context,
+  hasWriteAccess
+}
 import io.dropwizard.auth.Auth
 import org.jooq.{DSLContext, Record3, Result}
 import org.jooq.types.UInteger
@@ -50,16 +53,12 @@ object WorkflowAccessResource {
     * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
     */
   def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
-    val access = context
+    context
       .select()
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[WorkflowUserAccess])
-    if (access == null) {
-      WorkflowUserAccessPrivilege.NONE
-    } else {
-      access.getPrivilege
-    }
+      .getPrivilege
   }
 }
 
@@ -125,8 +124,12 @@ class WorkflowAccessResource() {
   def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
     workflowUserAccessDao.merge(
       new WorkflowUserAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -147,8 +150,12 @@ class WorkflowAccessResource() {
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
       @PathParam("wid") wid: UInteger,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
     context
       .delete(WORKFLOW_USER_ACCESS)
       .where(
