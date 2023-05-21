@@ -177,7 +177,7 @@ class UserFileAccessResource {
       @Auth user: SessionUser
   ): Unit = {
     if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege to file.")
+      throw new ForbiddenException("No sufficient access privilege.")
     }
     userFileAccessDao.merge(
       new UserFileAccess(
@@ -204,7 +204,7 @@ class UserFileAccessResource {
       @Auth user: SessionUser
   ): Unit = {
     if (!hasWriteAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege to file.")
+      throw new ForbiddenException("No sufficient access privilege.")
     }
     context
       .delete(USER_FILE_ACCESS)
