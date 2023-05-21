@@ -74,21 +74,23 @@ object UserFileAccessResource {
 
   /**
     * Identifies whether the given user has read-only access over the given workflow
-    *
     * @param fid file id
     * @param uid user id, works with file id as primary keys in database
-    * @return boolean value indicating yes/no
     */
-  def hasReadAccess(fid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(fid, uid).eq(UserFileAccessPrivilege.READ) || getPrivilege(fid, uid).eq(UserFileAccessPrivilege.WRITE)
+  def checkReadAccess(fid: UInteger, uid: UInteger): Unit = {
+    if (
+      !(getPrivilege(fid, uid).eq(UserFileAccessPrivilege.READ) || getPrivilege(fid, uid).eq(
+        UserFileAccessPrivilege.WRITE
+      ))
+    ) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
   }
 
   /**
     * Identifies whether the given user has write access over the given workflow
-    *
     * @param fid file id
     * @param uid user id, works with file id as primary keys in database
-    * @return boolean value indicating yes/no
     */
   def checkWriteAccess(fid: UInteger, uid: UInteger): Unit = {
     if (!getPrivilege(fid, uid).eq(UserFileAccessPrivilege.WRITE)) {

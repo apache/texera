@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
-
-import scala.collection.mutable.Set
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
@@ -17,16 +15,8 @@ import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
-
-import javax.ws.rs.DefaultValue
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
-import java.util.Optional
-import java.util.concurrent.TimeUnit
-import javax.ws.rs.DefaultValue
-import java.sql.Timestamp
-import java.text.{ParseException, SimpleDateFormat}
-import java.util.Optional
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -624,7 +614,7 @@ class WorkflowResource {
     */
   def getWorkflowIdFilter(workflowIDs: java.util.List[UInteger]): Condition = {
     var workflowIdFilter: Condition = noCondition()
-    val workflowIdSet: Set[UInteger] = Set()
+    val workflowIdSet: mutable.Set[UInteger] = mutable.Set()
     if (workflowIDs != null && !workflowIDs.isEmpty) {
       for (workflowID <- workflowIDs) {
         if (!workflowIdSet(workflowID)) {

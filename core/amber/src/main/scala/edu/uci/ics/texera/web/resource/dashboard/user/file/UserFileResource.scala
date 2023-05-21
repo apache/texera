@@ -7,21 +7,22 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, FileOfProjectDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
+  checkReadAccess,
+  checkWriteAccess
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
   DashboardFileEntry,
   context,
   fileDao,
   saveFile
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
-  hasReadAccess,
-  checkWriteAccess
-}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
+
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.file.{Files, Paths}
@@ -256,9 +257,7 @@ class UserFileResource {
       @PathParam("fid") fid: UInteger,
       @Auth user: SessionUser
   ): Response = {
-    if (!hasReadAccess(fid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+    checkReadAccess(fid, user.getUid)
     val filePath = Paths.get(fileDao.fetchOneByFid(fid).getPath)
     val fileStream = new StreamingOutput() {
       @Override

@@ -15,8 +15,8 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessRes
   hasWriteAccess
 }
 import io.dropwizard.auth.Auth
-import org.jooq.{DSLContext, Record3, Result}
 import org.jooq.types.UInteger
+import org.jooq.{DSLContext, Record3, Result}
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
