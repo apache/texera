@@ -8,7 +8,6 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.checkReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
@@ -37,7 +36,7 @@ object WorkflowVersionResource {
 
   /**
     * This function does the check of the difference between the current workflow and its previous version if it exists and inserts a new version
-    * @param workflow workflow
+    * @param workflow
     * @param insertNewFlag indicates if the workflow didn't exist before
     */
   def insertVersion(workflow: Workflow, insertNewFlag: Boolean): Unit = {
@@ -65,7 +64,7 @@ object WorkflowVersionResource {
   /**
     * This function updates the content of the latest version and inserts a new empty version for the current workflow
     * @param patch to update latest version
-    * @param wid workflow id
+    * @param wid
     */
   def updateLatestVersion(patch: String, wid: UInteger): Unit = {
     // get the latest version to update its content
@@ -82,7 +81,7 @@ object WorkflowVersionResource {
 
   /**
     * This function retrieves the latest version of a workflow
-    * @param wid workflow id
+    * @param wid
     * @return vid
     */
   def getLatestVersion(wid: UInteger): UInteger = {
@@ -103,7 +102,7 @@ object WorkflowVersionResource {
 
   /**
     * This function inserts a new version for a new workflow
-    * @param wid workflow id
+    * @param wid
     */
   def insertNewVersion(wid: UInteger): WorkflowVersion = {
     // write the new version with empty diff
@@ -118,7 +117,7 @@ object WorkflowVersionResource {
     * This function is for testing if the version is following the current design of keeping an empty delta for the
     * last version for migrating versions that followed the old design to the new design.
     * This function should be removed after some time (when all versions in the DB follow the new design)
-    * @param patch patch
+    * @param patch
     * @return
     */
   @deprecated
@@ -153,7 +152,7 @@ object WorkflowVersionResource {
 
   /**
     * This function parses the content of the delta to determine if it is positional only
-    * @param versionContent versionContent
+    * @param versionContent
     * @return
     */
   private def isSnapshotImportant(versionContent: String): Boolean = {
@@ -178,7 +177,7 @@ object WorkflowVersionResource {
     * insertion to DB because of computing the version's importance especially because the request is
     * async, the versions can quickly become inconsistent if there is delay.
     * * 3. The rules can be changed in the future so we want this logic to be changed flexibly.
-    * @param currentVersions versions
+    * @param versions
     * @return
     */
   private def encodeVersionImportance(
@@ -197,7 +196,7 @@ object WorkflowVersionResource {
       lastVersion.getVid,
       lastVersion.getCreationTime,
       lastVersion.getContent,
-      importance = true
+      true
     ) // the first (latest)
     // version is important even if it is positional
     var versionImportance: Boolean = true
@@ -222,8 +221,8 @@ object WorkflowVersionResource {
 
   /**
     * This function determines whether this version is still within the time range of previous versions
-    * @param latestTime latestTime
-    * @param currentVersionTimestamp currentVersionTimestamp
+    * @param latestTime
+    * @param currentVersionTimestamp
     * @return
     */
   private def isWithinTimeLimit(
@@ -235,7 +234,7 @@ object WorkflowVersionResource {
 
   /**
     * This function parses the content of the delta to determine if it is positional only
-    * @param versionContent versionContent
+    * @param versionContent
     * @return
     */
   private def isVersionImportant(versionContent: String): Boolean = {
@@ -278,9 +277,9 @@ object WorkflowVersionResource {
 
   /**
     * This class is to add version importance encoding to the existing `VersionEntry` from DB
-    * @param vId vId
-    * @param creationTime creationTime
-    * @param content content
+    * @param vId
+    * @param creationTime
+    * @param content
     * @param importance false is not an important version and true is an important version
     */
   case class VersionEntry(
@@ -307,17 +306,21 @@ class WorkflowVersionResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveVersionsOfWorkflow(
       @PathParam("wid") wid: UInteger,
-      @Auth user: SessionUser
+      @Auth sessionUser: SessionUser
   ): List[VersionEntry] = {
-    checkReadAccess(wid, user.getUid)
-    encodeVersionImportance(
-      context
-        .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
-        .from(WORKFLOW_VERSION)
-        .where(WORKFLOW_VERSION.WID.eq(wid))
-        .fetchInto(classOf[WorkflowVersion])
-        .toList
-    )
+    val user = sessionUser.getUser
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+      List()
+    } else {
+      encodeVersionImportance(
+        context
+          .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
+          .from(WORKFLOW_VERSION)
+          .where(WORKFLOW_VERSION.WID.eq(wid))
+          .fetchInto(classOf[WorkflowVersion])
+          .toList
+      )
+    }
   }
 
   /**
@@ -336,17 +339,24 @@ class WorkflowVersionResource {
   def retrieveWorkflowVersion(
       @PathParam("wid") wid: UInteger,
       @PathParam("vid") vid: UInteger,
-      @Auth user: SessionUser
+      @Auth sessionUser: SessionUser
   ): Workflow = {
-    checkReadAccess(wid, user.getUid)
-    // fetch all versions preceding this
-    val versionEntries = context
-      .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
-      .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-      .fetchInto(classOf[WorkflowVersion])
-      .toList
-    // return particular version of the workflow
-    applyPatch(versionEntries.reverse, workflowDao.fetchOneByWid(wid))
+    val user = sessionUser.getUser
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    } else {
+      // fetch all versions preceding this
+      val versionEntries = context
+        .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
+        .from(WORKFLOW_VERSION)
+        .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
+        .fetchInto(classOf[WorkflowVersion])
+        .toList
+      // apply patch
+      val currentWorkflow = workflowDao.fetchOneByWid(wid)
+      // return particular version of the workflow
+      val res: Workflow = applyPatch(versionEntries.reverse, currentWorkflow)
+      res
+    }
   }
 }
