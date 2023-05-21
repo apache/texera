@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{context, hasWriteAccess}
 import io.dropwizard.auth.Auth
 import org.jooq.{DSLContext, Record3, Result}
 import org.jooq.types.UInteger
@@ -24,7 +24,6 @@ object WorkflowAccessResource {
 
   /**
     * Identifies whether the given user has read-only access over the given workflow
-    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
@@ -35,7 +34,6 @@ object WorkflowAccessResource {
 
   /**
     * Identifies whether the given user has write access over the given workflow
-    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
@@ -85,7 +83,6 @@ class WorkflowAccessResource() {
 
   /**
     * Returns information about all current shared access of the given workflow
-    *
     * @param wid workflow id
     * @return a List of email/name/permission
     */
@@ -125,8 +122,12 @@ class WorkflowAccessResource() {
   def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
     workflowUserAccessDao.merge(
       new WorkflowUserAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -147,8 +148,12 @@ class WorkflowAccessResource() {
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
       @PathParam("wid") wid: UInteger,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
     context
       .delete(WORKFLOW_USER_ACCESS)
       .where(
