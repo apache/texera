@@ -458,8 +458,7 @@ class WorkflowResource {
       @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
       @QueryParam("owner") owners: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
-      @QueryParam("operator") operators: java.util.List[String] =
-        new java.util.ArrayList[String](),
+      @QueryParam("operator") operators: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("projectId") projectIds: java.util.List[UInteger] =
         new java.util.ArrayList[UInteger]()
   ): List[DashboardWorkflowEntry] = {
