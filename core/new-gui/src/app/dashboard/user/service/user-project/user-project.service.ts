@@ -3,7 +3,7 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
-import { DashboardUserFileEntry } from "../../type/dashboard-user-file-entry";
+import { DashboardFile } from "../../type/dashboard-file.interface";
 import { UserProject } from "../../type/user-project";
 
 export const USER_PROJECT_BASE_URL = `${AppSettings.getApiEndpoint()}/project`;
@@ -18,7 +18,7 @@ export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
   providedIn: "root",
 })
 export class UserProjectService {
-  private files: ReadonlyArray<DashboardUserFileEntry> = [];
+  private files: ReadonlyArray<DashboardFile> = [];
 
   constructor(private http: HttpClient) {}
 
@@ -30,11 +30,11 @@ export class UserProjectService {
     return this.http.get<DashboardWorkflowEntry[]>(`${USER_PROJECT_BASE_URL}/${pid}/workflows`);
   }
 
-  public retrieveFilesOfProject(pid: number): Observable<DashboardUserFileEntry[]> {
-    return this.http.get<DashboardUserFileEntry[]>(`${USER_PROJECT_BASE_URL}/${pid}/files`);
+  public retrieveFilesOfProject(pid: number): Observable<DashboardFile[]> {
+    return this.http.get<DashboardFile[]>(`${USER_PROJECT_BASE_URL}/${pid}/files`);
   }
 
-  public getProjectFiles(): ReadonlyArray<DashboardUserFileEntry> {
+  public getProjectFiles(): ReadonlyArray<DashboardFile> {
     return this.files;
   }
 
@@ -92,9 +92,9 @@ export class UserProjectService {
    * same as UserFileService"s deleteDashboardUserFileEntry method, except
    * it is modified to refresh the project"s list of files
    */
-  public deleteDashboardUserFileEntry(pid: number, targetUserFileEntry: DashboardUserFileEntry): void {
+  public deleteDashboardUserFileEntry(pid: number, targetUserFileEntry: DashboardFile): void {
     this.http
-      .delete<Response>(`${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`)
+      .delete<Response>(`${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerEmail}`)
       .subscribe(
         () => {
           this.refreshFilesOfProject(pid); // refresh files within project
