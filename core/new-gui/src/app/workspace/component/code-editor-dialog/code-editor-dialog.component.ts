@@ -69,7 +69,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       this.languageServerSocket = undefined;
     }
 
-    if(this.editor !== undefined) {
+    if (this.editor !== undefined) {
       this.editor.dispose();
     }
   }
