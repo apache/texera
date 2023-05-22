@@ -43,6 +43,13 @@ trait TextSourceOpDesc {
   )
   var offsetHideable: Option[Int] = None
 
+  // optional field allowing users to specify name of resulting output tuple attribute
+  @JsonProperty()
+  @JsonSchemaTitle("Output Attribute Name")
+  @JsonPropertyDescription("optionally specify name of output attribute")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  var attributeName: Option[String] = None
+
   @JsonProperty(defaultValue = "false")
   @JsonPropertyDescription(
     "scan entire text into single output tuple, ignoring any offsets and limits"

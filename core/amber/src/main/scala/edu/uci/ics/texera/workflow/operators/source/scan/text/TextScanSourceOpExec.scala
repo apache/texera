@@ -12,7 +12,8 @@ import scala.jdk.CollectionConverters.asScalaIteratorConverter
 class TextScanSourceOpExec private[text] (
     val desc: TextScanSourceOpDesc,
     val startOffset: Int,
-    val endOffset: Int
+    val endOffset: Int,
+    val outputAttributeName: String
 ) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedReader = _
@@ -26,7 +27,7 @@ class TextScanSourceOpExec private[text] (
         Tuple
           .newBuilder(schema)
           .add(
-            schema.getAttribute("file"),
+            schema.getAttribute(outputAttributeName),
             new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
             // currently using UTF_8 encoding, which will support all files
             // that can be represented using Unicode characters
@@ -37,7 +38,7 @@ class TextScanSourceOpExec private[text] (
       )
     } else { // normal text file scan mode
       rows.map(line => {
-        Tuple.newBuilder(schema).add(schema.getAttribute("line"), line).build()
+        Tuple.newBuilder(schema).add(schema.getAttribute(outputAttributeName), line).build()
       })
     }
   }

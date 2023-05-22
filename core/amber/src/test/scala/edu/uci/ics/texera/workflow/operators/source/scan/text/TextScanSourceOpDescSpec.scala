@@ -36,10 +36,22 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(inferredSchema.getAttribute("file").getType == AttributeType.STRING)
   }
 
+  it should "infer schema with user-specified output schema attribute" in {
+    val outputAsSingleTuple: Boolean = false
+    textScanSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
+    val customOutputAttributeName: String = "testing"
+    textScanSourceOpDesc.attributeName = Option(customOutputAttributeName)
+    val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
+
+    assert(inferredSchema.getAttributes.length == 1)
+    assert(inferredSchema.getAttribute("testing").getType == AttributeType.STRING)
+  }
+
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
     val outputAsSingleTuple: Boolean = false
+    textScanSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
     val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset)
+      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
@@ -55,8 +67,9 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
     textScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     val outputAsSingleTuple: Boolean = false
+    textScanSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
     val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset)
+      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
@@ -73,7 +86,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputAsSingleTuple: Boolean = true
     textScanSourceOpDesc.outputAsSingleTuple = outputAsSingleTuple
     val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset)
+      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "file")
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
