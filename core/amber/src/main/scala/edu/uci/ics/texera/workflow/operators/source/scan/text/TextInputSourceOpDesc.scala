@@ -36,21 +36,36 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val offsetValue: Int = offsetHideable.getOrElse(0)
     val count: Int = countNumLines(textInput.linesIterator, offsetValue)
+    val defaultAttributeName: String = if (outputAsSingleTuple) "text" else "line"
 
     OpExecConfig.localLayer(
       operatorIdentifier,
       _ => {
         val startOffset: Int = offsetValue
         val endOffset: Int = offsetValue + count
-        new TextInputSourceOpExec(this, startOffset, endOffset)
+        new TextInputSourceOpExec(
+          this,
+          startOffset,
+          endOffset,
+          if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
+          else attributeName.get
+        )
       }
     )
   }
 
   override def sourceSchema(): Schema = {
+    val defaultAttributeName: String = if (outputAsSingleTuple) "text" else "line"
+
     Schema
       .newBuilder()
-      .add(new Attribute(if (outputAsSingleTuple) "text" else "line", AttributeType.STRING))
+      .add(
+        new Attribute(
+          if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
+          else attributeName.get,
+          AttributeType.STRING
+        )
+      )
       .build()
   }
 
