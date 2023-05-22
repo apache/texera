@@ -2,22 +2,39 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.web.MockTexeraDB
 import edu.uci.ics.texera.web.auth.SessionUser
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
 import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowDao}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
+import org.jooq.Condition
+import org.jooq.impl.DSL.noCondition
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  PROJECT,
+  USER,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
 
+import java.util.concurrent.TimeUnit
+import java.sql.Timestamp
+import java.text.{ParseException, SimpleDateFormat}
 import java.nio.file.Files
 import java.nio.charset.StandardCharsets
-
 import java.util
+import java.util.Collections
 
-class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
+class WorkflowResourceSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with MockTexeraDB {
 
   private val testUser: User = {
     val user = new User
@@ -90,25 +107,41 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     new SessionUser(testUser2)
   }
 
-  private val workflowResource: WorkflowResource = {
+  private var workflowResource: WorkflowResource = {
     new WorkflowResource()
   }
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-    val db = getDBInstance
     // build fulltext indexes
     val fulltextIndexPath = {
       Utils.amberHomePath.resolve("../scripts/sql/update/fulltext_indexes.sql").toRealPath()
     }
-    val buildFulltextIndex =
-      new String(Files.readAllBytes(fulltextIndexPath), StandardCharsets.UTF_8)
-    db.run(buildFulltextIndex)
+    executeScriptInJDBC(fulltextIndexPath)
 
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(testUser)
     userDao.insert(testUser2)
+  }
+
+  override protected def beforeEach(): Unit = {
+    // Clean up environment before each test case
+    // Delete all workflows, or reset the state of the `workflowResource` object
+
+  }
+
+  override protected def afterEach(): Unit = {
+    // Clean up environment after each test case if necessary
+    // delete all workflows in the database
+    var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+    for (workflow <- workflows) {
+      workflowResource.deleteWorkflow(workflow.workflow.getWid(), sessionUser1)
+    }
+    workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
+    for (workflow <- workflows) {
+      workflowResource.deleteWorkflow(workflow.workflow.getWid(), sessionUser2)
+    }
   }
 
   override protected def afterAll(): Unit = {
@@ -157,14 +190,14 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     assert(DashboardWorkflowEntryList1.length == 0)
   }
 
-  it should "return an empty list when given an empty list of keywords" in {
-    // search "" should return nothing
+  it should "return an all workflows when given an empty list of keywords" in {
+    // search "" should return all workflows
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     // search with empty keywords
     val keywords = new util.ArrayList[String]()
     val DashboardWorkflowEntryList = workflowResource.searchWorkflows(sessionUser1, keywords)
-    assert(DashboardWorkflowEntryList.isEmpty)
+    assert(DashboardWorkflowEntryList.length == 2)
   }
 
   it should "be able to search with arbitrary number of keywords in different combinations" in {
@@ -236,14 +269,14 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
 
   }
 
-  it should "return empty list when keywords only contains reserved keywords +-@()<>~*\"" in {
-    // search "+-@()<>~*"" should return empty list
+  it should "return all workflows when keywords only contains reserved keywords +-@()<>~*\"" in {
+    // search "+-@()<>~*"" should return all workflows
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
 
     val DashboardWorkflowEntryList =
       workflowResource.searchWorkflows(sessionUser1, getKeywordsArray("+-@()<>~*\""))
-    assert(DashboardWorkflowEntryList.size == 0)
+    assert(DashboardWorkflowEntryList.size == 2)
 
   }
 
@@ -303,4 +336,190 @@ class WorkflowResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     assert(DashboardWorkflowEntryList.size == 1)
     assertSameWorkflow(testWorkflowWithSpecialCharacters, DashboardWorkflowEntryList.head)
   }
+
+  "getOwnerFilter" should "return a noCondition when the input owner list is null" in {
+    val ownerFilter: Condition = workflowResource.getOwnerFilter(null)
+    assert(ownerFilter.toString == noCondition().toString)
+  }
+
+  it should "return a noCondition when the input owner list is empty" in {
+    val ownerFilter: Condition = workflowResource.getOwnerFilter(Collections.emptyList[String]())
+    assert(ownerFilter.toString == noCondition().toString)
+  }
+
+  it should "return a proper condition for a single owner" in {
+    val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1"))
+    val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
+    assert(ownerFilter.toString == USER.EMAIL.eq("owner1").toString)
+  }
+
+  it should "return a proper condition for multiple owners" in {
+    val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2"))
+    val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
+    assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
+  }
+
+  it should "return a proper condition for multiple owners with duplicates" in {
+    val ownerList =
+      new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2", "owner2"))
+    val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
+    assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
+  }
+
+  "getProjectFilter" should "return a noCondition when the input projectIds list is null" in {
+    val projectFilter: Condition = workflowResource.getProjectFilter(null)
+    assert(projectFilter.toString == noCondition().toString)
+  }
+
+  it should "return a noCondition when the input projectIds list is empty" in {
+    val projectFilter: Condition =
+      workflowResource.getProjectFilter(Collections.emptyList[UInteger]())
+    assert(projectFilter.toString == noCondition().toString)
+  }
+
+  it should "return a proper condition for a single projectId" in {
+    val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val projectFilter: Condition = workflowResource.getProjectFilter(projectIdList)
+    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
+  }
+
+  it should "return a proper condition for multiple projectIds" in {
+    val projectIdList = new java.util.ArrayList[UInteger](
+      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    )
+    val projectFilter: Condition = workflowResource.getProjectFilter(projectIdList)
+    assert(
+      projectFilter.toString == WORKFLOW_OF_PROJECT.PID
+        .eq(UInteger.valueOf(1))
+        .or(WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(2)))
+        .toString
+    )
+  }
+
+  it should "return a proper condition for multiple projectIds with duplicates" in {
+    val projectIdList = new java.util.ArrayList[UInteger](
+      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2), UInteger.valueOf(2))
+    )
+    val projectFilter: Condition = workflowResource.getProjectFilter(projectIdList)
+    assert(
+      projectFilter.toString == WORKFLOW_OF_PROJECT.PID
+        .eq(UInteger.valueOf(1))
+        .or(WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(2)))
+        .toString
+    )
+  }
+
+  "getWorkflowIdFilter" should "return a noCondition when the input workflowIDs list is null" in {
+    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(null)
+    assert(workflowIdFilter.toString == noCondition().toString)
+  }
+
+  it should "return a noCondition when the input workflowIDs list is empty" in {
+    val workflowIdFilter: Condition =
+      workflowResource.getWorkflowIdFilter(Collections.emptyList[UInteger]())
+    assert(workflowIdFilter.toString == noCondition().toString)
+  }
+
+  it should "return a proper condition for a single workflowID" in {
+    val workflowIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(workflowIdList)
+    assert(workflowIdFilter.toString == WORKFLOW.WID.eq(UInteger.valueOf(1)).toString)
+  }
+
+  it should "return a proper condition for multiple workflowIDs" in {
+    val workflowIdList = new java.util.ArrayList[UInteger](
+      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    )
+    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(workflowIdList)
+    assert(
+      workflowIdFilter.toString == WORKFLOW.WID
+        .eq(UInteger.valueOf(1))
+        .or(WORKFLOW.WID.eq(UInteger.valueOf(2)))
+        .toString
+    )
+  }
+
+  it should "return a proper condition for multiple workflowIDs with duplicates" in {
+    val workflowIdList = new java.util.ArrayList[UInteger](
+      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2), UInteger.valueOf(2))
+    )
+    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(workflowIdList)
+    assert(
+      workflowIdFilter.toString == WORKFLOW.WID
+        .eq(UInteger.valueOf(1))
+        .or(WORKFLOW.WID.eq(UInteger.valueOf(2)))
+        .toString
+    )
+  }
+
+  "getDateFilter" should "return a noCondition when the input startDate and endDate are empty" in {
+    val dateFilter: Condition = workflowResource.getDateFilter("creation", "", "")
+    assert(dateFilter.toString == noCondition().toString)
+  }
+
+  it should "return a proper condition for creation date type with specific start and end date" in {
+    val dateFilter: Condition =
+      workflowResource.getDateFilter("creation", "2023-01-01", "2023-12-31")
+    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+    val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
+    val endTimestamp =
+      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1)
+    assert(
+      dateFilter.toString == WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp).toString
+    )
+  }
+
+  it should "return a proper condition for modification date type with specific start and end date" in {
+    val dateFilter: Condition =
+      workflowResource.getDateFilter("modification", "2023-01-01", "2023-12-31")
+    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+    val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
+    val endTimestamp =
+      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1)
+    assert(
+      dateFilter.toString == WORKFLOW.LAST_MODIFIED_TIME
+        .between(startTimestamp, endTimestamp)
+        .toString
+    )
+  }
+
+  it should "throw an IllegalArgumentException for invalid dateType" in {
+    assertThrows[IllegalArgumentException] {
+      workflowResource.getDateFilter("invalidType", "2023-01-01", "2023-12-31")
+    }
+  }
+
+  it should "throw a ParseException when endDate is invalid" in {
+    assertThrows[ParseException] {
+      workflowResource.getDateFilter("creation", "2023-01-01", "invalidDate")
+    }
+  }
+
+  "getOperatorsFilter" should "return a noCondition when the input operators list is empty" in {
+    val operatorsFilter: Condition =
+      workflowResource.getOperatorsFilter(Collections.emptyList[String]())
+    assert(operatorsFilter.toString == noCondition().toString)
+  }
+
+  it should "return a proper condition for a single operator" in {
+    val operatorsList = new java.util.ArrayList[String](util.Arrays.asList("operator1"))
+    val operatorsFilter: Condition = workflowResource.getOperatorsFilter(operatorsList)
+    val searchKey = "%\"operatorType\":\"operator1\"%"
+    assert(operatorsFilter.toString == WORKFLOW.CONTENT.likeIgnoreCase(searchKey).toString)
+  }
+
+  it should "return a proper condition for multiple operators" in {
+    val operatorsList =
+      new java.util.ArrayList[String](util.Arrays.asList("operator1", "operator2"))
+    val operatorsFilter: Condition = workflowResource.getOperatorsFilter(operatorsList)
+    val searchKey1 = "%\"operatorType\":\"operator1\"%"
+    val searchKey2 = "%\"operatorType\":\"operator2\"%"
+    assert(
+      operatorsFilter.toString == WORKFLOW.CONTENT
+        .likeIgnoreCase(searchKey1)
+        .or(WORKFLOW.CONTENT.likeIgnoreCase(searchKey2))
+        .toString
+    )
+  }
+
 }
