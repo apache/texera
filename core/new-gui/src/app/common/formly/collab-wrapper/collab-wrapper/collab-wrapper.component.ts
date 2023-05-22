@@ -96,7 +96,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
             structure = parentStructure.get(key);
             if (structure === undefined || structure === null) {
               if (parents.length > 0) {
-                if (parentStructure.constructor.name === "YArray") {
+                if (parentStructure instanceof Y.Array) {
                   const yArray = parentStructure as Y.Array<any>;
                   if (yArray.length > parseInt(key)) {
                     yArray.delete(parseInt(key), 1);
@@ -108,7 +108,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
                   parentStructure.set(key as string, new Y.Map<any>());
                 }
               } else {
-                if (parentStructure.constructor.name === "YArray") {
+                if (parentStructure instanceof Y.Array) {
                   const yArray = parentStructure as Y.Array<any>;
                   if (yArray.length > parseInt(key)) {
                     yArray.delete(parseInt(key), 1);
