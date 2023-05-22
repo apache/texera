@@ -35,7 +35,6 @@ declare const monaco: any;
 })
 export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
   editorOptions = {
-    model: this.getOrCreateModel(),
     theme: "vs-dark",
     language: "python",
     fontSize: "11",
@@ -62,7 +61,10 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
 
-    if (this.languageServerSocket !== undefined) {
+    if (
+      this.languageServerSocket !== undefined &&
+      this.languageServerSocket.readyState === this.languageServerSocket.OPEN
+    ) {
       this.languageServerSocket.close();
       this.languageServerSocket = undefined;
     }
@@ -86,23 +88,8 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     });
   }
 
-  getOrCreateModel() {
-    const uri = this.getModelURI();
-    return (
-      monaco.editor.getModel(monaco.Uri.parse(uri)) ||
-      monaco.editor.createModel(this.code, "python", monaco.Uri.parse(uri))
-    );
-  }
-
   getLanguageServerSocket() {
     return this.languageServerSocket;
-  }
-
-  getModelURI() {
-    const currentOperatorId: string = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs()[0];
-    return `inmemory://${currentOperatorId}.py`;
   }
 
   ngAfterViewInit() {
