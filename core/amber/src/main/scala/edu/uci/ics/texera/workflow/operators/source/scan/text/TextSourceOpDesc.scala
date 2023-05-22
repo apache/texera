@@ -52,7 +52,7 @@ trait TextSourceOpDesc {
 
   @JsonProperty(defaultValue = "false")
   @JsonPropertyDescription(
-    "scan entire text into single output tuple, ignoring any offsets and limits"
+    "scan entire text into single output tuple"
   )
   var outputAsSingleTuple: Boolean = false
 

@@ -1,43 +1,38 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
-
+import { DashboardFile } from "../../type/dashboard-file.interface";
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
-export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
-export const USER_AUTOCOMPLETE_FILE_LIST_URL = `${USER_FILE_BASE_URL}/autocomplete`;
-export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
-export const USER_FILE_DOWNLOAD_URL = `${USER_FILE_BASE_URL}/download`;
-export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
-export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
-export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
-export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
-export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/name`;
-export const USER_FILE_DESCRIPTION_UPDATE_URL = `${USER_FILE_BASE_URL}/description`;
 
 @Injectable({
   providedIn: "root",
 })
 export class UserFileService {
-  private dashboardUserFileEntryChanged = new BehaviorSubject<void>(undefined);
-
   constructor(private http: HttpClient) {}
 
-  public getUserFilesChangedEvent(): Observable<void> {
-    return this.dashboardUserFileEntryChanged.asObservable();
-  }
-
-  public updateUserFilesChangedEvent(): void {
-    this.dashboardUserFileEntryChanged.next();
-  }
-
-  /**
-   * delete the targetFile in the backend.
-   * @param fid
-   */
   public deleteFile(fid: number): Observable<void> {
-    return this.http.delete<void>(`${USER_FILE_DELETE_URL}/${fid}`);
+    return this.http.delete<void>(`${USER_FILE_BASE_URL}/delete/${fid}`);
+  }
+
+  public downloadFile(fid: number): Observable<Blob> {
+    return this.http.get(`${USER_FILE_BASE_URL}/download/${fid}`, { responseType: "blob" });
+  }
+
+  public changeFileName(fid: number, name: string): Observable<void> {
+    return this.http.put<void>(`${USER_FILE_BASE_URL}/name/${fid}/${name}`, null);
+  }
+
+  public changeFileDescription(fid: number, description: string): Observable<void> {
+    return this.http.put<void>(`${USER_FILE_BASE_URL}/description/${fid}/${description}`, null);
+  }
+
+  public getFileList(): Observable<ReadonlyArray<DashboardFile>> {
+    return this.http.get<ReadonlyArray<DashboardFile>>(`${USER_FILE_BASE_URL}/list`);
+  }
+
+  public getAutoCompleteFileList(query: String): Observable<ReadonlyArray<string>> {
+    return this.http.get<ReadonlyArray<string>>(`${USER_FILE_BASE_URL}/autocomplete/${query}`);
   }
 
   /**
@@ -57,31 +52,5 @@ export class UserFileService {
       i++;
     }
     return Math.max(fileSize, 0.1).toFixed(1) + byteUnits[i];
-  }
-
-  public downloadUserFile(targetFile: UserFile): Observable<Blob> {
-    return this.http.get(`${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`, { responseType: "blob" });
-  }
-
-  public retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
-    return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(`${USER_FILE_LIST_URL}`);
-  }
-
-  public getAutoCompleteUserFileAccessList(query: String): Observable<ReadonlyArray<string>> {
-    return this.http.get<ReadonlyArray<string>>(`${USER_AUTOCOMPLETE_FILE_LIST_URL}/${query}`);
-  }
-
-  /**
-   * updates the file name of a given userFileEntry
-   */
-  public updateFileName(fid: number, name: string): Observable<void> {
-    return this.http.put<void>(`${USER_FILE_NAME_UPDATE_URL}/${fid}/${name}`, null);
-  }
-
-  /**
-   * updates the file description of a given userFileEntry
-   */
-  public updateFileDescription(fid: number, description: string): Observable<void> {
-    return this.http.put<void>(`${USER_FILE_DESCRIPTION_UPDATE_URL}/${fid}/${description}`, null);
   }
 }

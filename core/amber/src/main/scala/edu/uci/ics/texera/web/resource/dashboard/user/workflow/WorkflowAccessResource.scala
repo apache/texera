@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
@@ -15,9 +16,10 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessRes
   hasWriteAccess
 }
 import io.dropwizard.auth.Auth
+import org.jooq.DSLContext
 import org.jooq.types.UInteger
-import org.jooq.{DSLContext, Record3, Result}
 
+import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -86,6 +88,7 @@ class WorkflowAccessResource() {
 
   /**
     * Returns information about all current shared access of the given workflow
+    *
     * @param wid workflow id
     * @return a List of email/name/permission
     */
@@ -94,7 +97,7 @@ class WorkflowAccessResource() {
   def getAccessList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
-  ): Result[Record3[String, String, WorkflowUserAccessPrivilege]] = {
+  ): util.List[AccessEntry] = {
     context
       .select(
         USER.EMAIL,
@@ -109,7 +112,7 @@ class WorkflowAccessResource() {
           .eq(wid)
           .and(WORKFLOW_USER_ACCESS.UID.notEqual(sessionUser.getUser.getUid))
       )
-      .fetch()
+      .fetchInto(classOf[AccessEntry])
   }
 
   /**

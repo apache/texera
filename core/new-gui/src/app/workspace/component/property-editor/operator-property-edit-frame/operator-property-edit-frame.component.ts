@@ -34,7 +34,7 @@ import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/pre
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
-import { ShareAccessEntry } from "../../../../dashboard/user/type/share-access.interface";
+import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
 import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
@@ -116,7 +116,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-  public allUserWorkflowAccess: ReadonlyArray<ShareAccessEntry> = [];
+  public allUserWorkflowAccess: ReadonlyArray<ShareAccess> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;

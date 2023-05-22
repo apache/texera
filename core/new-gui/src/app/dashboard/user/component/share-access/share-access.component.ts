@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
-import { ShareAccessEntry } from "../../type/share-access.interface";
+import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
@@ -21,7 +21,7 @@ export class ShareAccessComponent implements OnInit {
     accessLevel: ["READ"],
   });
 
-  public accessList: ReadonlyArray<ShareAccessEntry> = [];
+  public accessList: ReadonlyArray<ShareAccess> = [];
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;

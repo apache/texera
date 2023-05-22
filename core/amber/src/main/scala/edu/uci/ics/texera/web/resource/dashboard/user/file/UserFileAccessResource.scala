@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.file
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   FILE,
   FILE_OF_WORKFLOW,
@@ -17,15 +18,16 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{FileOfWorkflow, UserFileAccess}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
+  checkWriteAccess,
   context,
   fileDao,
-  userDao,
-  checkWriteAccess
+  userDao
 }
 import io.dropwizard.auth.Auth
-import org.jooq.{DSLContext, Record3, Result}
+import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
+import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -133,6 +135,7 @@ class UserFileAccessResource {
 
   /**
     * Retrieves the list of all shared accesses of the target file
+    *
     * @param fid the id of the file
     * @return a List of email/name/permission pair
     */
@@ -141,7 +144,7 @@ class UserFileAccessResource {
   def getAccessList(
       @PathParam("fid") fid: UInteger,
       @Auth user: SessionUser
-  ): Result[Record3[String, String, UserFileAccessPrivilege]] = {
+  ): util.List[AccessEntry] = {
     context
       .select(
         USER.EMAIL,
@@ -156,7 +159,7 @@ class UserFileAccessResource {
           .eq(fid)
           .and(USER_FILE_ACCESS.UID.notEqual(user.getUid))
       )
-      .fetch()
+      .fetchInto(classOf[AccessEntry])
   }
 
   /**

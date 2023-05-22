@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { ShareAccessEntry } from "../../type/share-access.interface";
+import { ShareAccess } from "../../type/share-access.interface";
 export const BASE = `${AppSettings.getApiEndpoint()}/access`;
 @Injectable({
   providedIn: "root",
@@ -22,7 +22,7 @@ export class ShareAccessService {
     return this.http.get(`${BASE}/${type}/owner/${id}`, { responseType: "text" });
   }
 
-  public getAccessList(type: string, id: number | undefined): Observable<ReadonlyArray<ShareAccessEntry>> {
-    return this.http.get<ReadonlyArray<ShareAccessEntry>>(`${BASE}/${type}/list/${id}`);
+  public getAccessList(type: string, id: number | undefined): Observable<ReadonlyArray<ShareAccess>> {
+    return this.http.get<ReadonlyArray<ShareAccess>>(`${BASE}/${type}/list/${id}`);
   }
 }

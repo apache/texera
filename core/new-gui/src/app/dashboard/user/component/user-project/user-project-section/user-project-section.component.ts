@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
-import { DashboardUserFileEntry } from "../../../type/dashboard-user-file-entry";
+import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -75,7 +75,7 @@ export class UserProjectSectionComponent implements OnInit {
     modalRef.componentInstance.projectId = this.pid;
   }
 
-  public getUserProjectFilesArray(): ReadonlyArray<DashboardUserFileEntry> {
+  public getUserProjectFilesArray(): ReadonlyArray<DashboardFile> {
     const fileArray = this.userProjectService.getProjectFiles();
     if (!fileArray) {
       return [];
@@ -149,12 +149,12 @@ export class UserProjectSectionComponent implements OnInit {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
 
-  public confirmEditFileName(dashboardUserFileEntry: DashboardUserFileEntry, name: string, index: number): void {
+  public confirmEditFileName(dashboardUserFileEntry: DashboardFile, name: string, index: number): void {
     const {
       file: { fid },
     } = dashboardUserFileEntry;
     this.userFileService
-      .updateFileName(fid, name)
+      .changeFileName(fid, name)
       .pipe(untilDestroyed(this))
       .subscribe(
         () => {
@@ -169,9 +169,9 @@ export class UserProjectSectionComponent implements OnInit {
       .add(() => (this.isEditingFileName = this.isEditingFileName.filter(fileIsEditing => fileIsEditing != index)));
   }
 
-  public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
+  public downloadUserFile(userFileEntry: DashboardFile): void {
     this.userFileService
-      .downloadUserFile(userFileEntry.file)
+      .downloadFile(userFileEntry.file.fid)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (response: Blob) => {
@@ -201,7 +201,7 @@ export class UserProjectSectionComponent implements OnInit {
    *
    * @param userFileEntry
    */
-  public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
+  public deleteUserFileEntry(userFileEntry: DashboardFile): void {
     this.userProjectService.deleteDashboardUserFileEntry(this.pid, userFileEntry);
   }
 

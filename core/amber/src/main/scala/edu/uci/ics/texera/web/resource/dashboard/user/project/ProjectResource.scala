@@ -227,7 +227,7 @@ class ProjectResource {
     * all the file objects that are part of the specified project.
     *
     * @param pid project ID
-    * @param sessionUser the session user
+    * @param user the session user
     * @return a list of DashboardFileEntry objects
     */
   @GET
@@ -235,21 +235,11 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): List[DashboardFileEntry] = {
     verifyProjectExists(pid)
-
-    val user = sessionUser.getUser
-    val fileEntries = context
-      .select(
-        FILE.FID,
-        FILE.SIZE,
-        FILE.NAME,
-        FILE.PATH,
-        FILE.DESCRIPTION,
-        USER_FILE_ACCESS.PRIVILEGE,
-        USER.NAME // owner name
-      )
+    context
+      .select()
       .from(FILE_OF_PROJECT)
       .leftJoin(FILE)
       .on(FILE.FID.eq(FILE_OF_PROJECT.FID))
@@ -259,37 +249,14 @@ class ProjectResource {
       .on(USER.UID.eq(FILE.OWNER_UID))
       .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
       .fetch()
-    fileEntries
       .map(fileRecord =>
         DashboardFileEntry(
           fileRecord.into(USER).getName,
-          toFileAccessLevel(fileRecord.into(USER_FILE_ACCESS).into(classOf[UserFileAccess])),
-          fileRecord.into(USER).getName == user.getName,
-          fileRecord.into(FILE).into(classOf[File]),
-          fileOfProjectDao
-            .fetchByFid(fileRecord.into(FILE).getFid)
-            .map(fileOfProject => fileOfProject.getPid)
-            .toList
+          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          fileRecord.into(FILE).into(classOf[File])
         )
       )
       .toList
-  }
-
-  /**
-    * This is a helper function used in creating DashboardFileEntry objects.
-    * It extracts the access level given a UserFileAccess generated POJO
-    *
-    * @param userFileAccess the UserFileAccess object
-    * @return
-    */
-  def toFileAccessLevel(userFileAccess: UserFileAccess): String = {
-    if (userFileAccess.getPrivilege == UserFileAccessPrivilege.WRITE) {
-      "Write"
-    } else if (userFileAccess.getPrivilege == UserFileAccessPrivilege.READ) {
-      "Read"
-    } else {
-      "None"
-    }
   }
 
   /**
