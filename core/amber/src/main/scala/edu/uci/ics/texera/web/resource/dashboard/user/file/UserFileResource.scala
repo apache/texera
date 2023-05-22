@@ -1,39 +1,33 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.file
 
-import com.google.common.io.Files
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  FILE,
-  USER,
-  USER_FILE_ACCESS,
-  FILE_OF_WORKFLOW,
-  WORKFLOW_USER_ACCESS
+import edu.uci.ics.texera.web.model.jooq.generated.Tables._
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User, UserFileAccess}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
+  checkReadAccess,
+  checkWriteAccess
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileDao,
-  FileOfProjectDao,
-  UserDao,
-  UserFileAccessDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
   DashboardFileEntry,
   context,
-  saveUserFileSafe
+  fileDao,
+  saveFile
 }
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
-import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
+import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import java.io.{FileInputStream, IOException, InputStream, OutputStream}
+import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
-import java.nio.file.Paths
-import java.sql.Timestamp
-import java.time.Instant
+import java.nio.file.{Files, Paths}
 import java.util
+import java.util.UUID
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
@@ -41,84 +35,54 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/**
-  * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
-  */
-
 object UserFileResource {
-  private lazy val context: DSLContext = SqlServer.createDSLContext
-  private lazy val fileDao = new FileDao(context.configuration)
+  final private lazy val context: DSLContext = SqlServer.createDSLContext
+  final private lazy val fileDao = new FileDao(context.configuration)
+  final private lazy val userFileAccessDao = new UserFileAccessDao(context.configuration)
 
-  def saveUserFileSafe(
-      uid: UInteger,
-      fileName: String,
-      uploadedInputStream: InputStream,
-      description: String
-  ): String = {
-
-    val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, fileName, uid)
-
-    // insert record after completely storing the file on the file system.
-    fileDao.insert(
-      new File(
+  def saveFile(uid: UInteger, fileName: String, stream: InputStream, des: String = ""): Unit = {
+    val path = Utils.amberHomePath.resolve("user-resources").resolve("files").resolve(uid.toString)
+    Files.createDirectories(path)
+    val filepath = path.resolve(UUID.randomUUID.toString)
+    Files.copy(stream, filepath)
+    val file = new File(
+      uid,
+      null,
+      UInteger.valueOf(filepath.toFile.length()),
+      fileName,
+      filepath.toString,
+      des,
+      null
+    )
+    fileDao.insert(file)
+    userFileAccessDao.merge(
+      new UserFileAccess(
         uid,
-        null,
-        UInteger.valueOf(UserFileUtils.getFilePath(uid, fileNameStored).toFile.length()),
-        fileNameStored,
-        UserFileUtils.getFilePath(uid, fileNameStored).toString,
-        description,
-        Timestamp.from(Instant.now())
+        file.getFid,
+        UserFileAccessPrivilege.WRITE
       )
     )
-
-    // insert UserFileAccess record to grant write access
-    val fid = context
-      .select(FILE.FID)
-      .from(FILE)
-      .where(FILE.OWNER_UID.eq(uid).and(FILE.NAME.eq(fileNameStored)))
-      .fetchOneInto(FILE)
-      .getFid
-    UserFileAccessResource.grantAccess(uid, fid, "write")
-    fileNameStored
   }
 
   case class DashboardFileEntry(
-      ownerName: String,
-      accessLevel: String,
-      isOwner: Boolean,
-      file: File,
-      projectIDs: List[UInteger]
+      ownerEmail: String,
+      writeAccess: Boolean,
+      file: File
   )
 }
-@Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/user/file")
 class UserFileResource {
-  final private val fileDao = new FileDao(context.configuration)
-  final private val userFileAccessDao = new UserFileAccessDao(
-    context.configuration
-  )
-  final private val userDao = new UserDao(context.configuration)
-  final private val fileOfProjectDao = new FileOfProjectDao(context.configuration)
-
-  /**
-    * This method will handle the request to upload a single file.
-    * @return
-    */
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Path("/upload")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def uploadFile(
-      @FormDataParam("file") uploadedInputStream: InputStream,
-      @FormDataParam("file") fileDetail: FormDataContentDisposition,
-      @FormDataParam("size") size: UInteger,
-      @FormDataParam("description") description: String,
-      @Auth sessionUser: SessionUser
+      @FormDataParam("file") stream: InputStream,
+      @FormDataParam("name") fileName: String,
+      @Auth user: SessionUser
   ): Response = {
-    val user = sessionUser.getUser
     val uid = user.getUid
-    val fileName = fileDetail.getFileName
     val validationResult = validateFileName(fileName, uid)
     if (!validationResult.getLeft) {
       return Response
@@ -126,27 +90,20 @@ class UserFileResource {
         .entity(validationResult.getRight)
         .build()
     }
-    saveUserFileSafe(uid, fileName, uploadedInputStream, description)
+    saveFile(uid: UInteger, fileName, stream)
     Response.ok().build()
   }
 
-  /**
-    * This method returns a list of all files accessible by the current user
-    *
-    * @return
-    */
   @GET
   @Path("/list")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def listUserFiles(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
-    getUserFileRecord(sessionUser.getUser)
+  def getFileList(@Auth sessionUser: SessionUser): util.List[DashboardFileEntry] = {
+    getFileRecord(sessionUser.getUser)
   }
 
-  private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
-    // fetch the user files:
-    // user_file_access JOIN file on FID (to get all files this user can access)
-    // then JOIN USER on UID (to get the name of the file owner)
-    val fileRecords = context
+  private def getFileRecord(user: User): util.List[DashboardFileEntry] = {
+    val fids: mutable.ArrayBuffer[UInteger] = mutable.ArrayBuffer()
+    val fileEntries: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
+    context
       .select()
       .from(USER_FILE_ACCESS)
       .join(FILE)
@@ -155,8 +112,16 @@ class UserFileResource {
       .on(FILE.OWNER_UID.eq(USER.UID))
       .where(USER_FILE_ACCESS.UID.eq(user.getUid))
       .fetch()
+      .forEach(fileRecord => {
+        fids += fileRecord.into(FILE).getFid
+        fileEntries += DashboardFileEntry(
+          fileRecord.into(USER).getEmail,
+          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          fileRecord.into(FILE).into(classOf[File])
+        )
+      })
 
-    val workflowFileRecords = context
+    context
       .select()
       .from(FILE_OF_WORKFLOW)
       .join(FILE)
@@ -166,55 +131,21 @@ class UserFileResource {
       .join(WORKFLOW_USER_ACCESS)
       .on(FILE_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .and(FILE.OWNER_UID.ne(user.getUid))
       .fetch()
-
-    // fetch the entire table of fileOfProject in memory, assuming this table is small
-    val fileOfProjectMap = fileOfProjectDao
-      .findAll()
-      .asScala
-      .groupBy(record => record.getFid)
-      .mapValues(values => values.map(v => v.getPid).toList)
-
-    val fileEntries: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
-    fileRecords.forEach(fileRecord => {
-      val file = fileRecord.into(FILE)
-      val owner = fileRecord.into(USER)
-      val access = fileRecord.into(USER_FILE_ACCESS)
-
-      var accessLevel = "None"
-      if (access.getWriteAccess) {
-        accessLevel = "Write"
-      } else if (access.getReadAccess) {
-        accessLevel = "Read"
-      }
-      fileEntries += DashboardFileEntry(
-        owner.getName,
-        accessLevel,
-        owner.getName == user.getName,
-        new File(file),
-        fileOfProjectMap.getOrElse(file.getFid, List())
-      )
-    })
-
-    workflowFileRecords.forEach(fileRecord => {
-      val file = fileRecord.into(FILE)
-      val owner = fileRecord.into(USER)
-
-      fileEntries += DashboardFileEntry(
-        owner.getName,
-        "Read",
-        isOwner = false,
-        new File(file),
-        List()
-      )
-    })
+      .forEach(fileRecord => {
+        if (!fileEntries.exists(file => { file.file.getFid == fileRecord.into(FILE).getFid })) {
+          fileEntries += DashboardFileEntry(
+            fileRecord.into(USER).getEmail,
+            writeAccess = false,
+            fileRecord.into(FILE).into(classOf[File])
+          )
+        }
+      })
     fileEntries.toList.asJava
   }
 
   @GET
   @Path("/autocomplete/{query:.*}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def autocompleteUserFiles(
       @Auth sessionUser: SessionUser,
       @PathParam("query") q: String
@@ -223,9 +154,9 @@ class UserFileResource {
     // select the filenames that applies the input
     val query = URLDecoder.decode(q, "UTF-8")
     val user = sessionUser.getUser
-    val fileList: List[DashboardFileEntry] = getUserFileRecord(user).asScala.toList
+    val fileList: List[DashboardFileEntry] = getFileRecord(user).asScala.toList
     val filenames = ArrayBuffer[String]()
-    val username = user.getName
+    val username = user.getEmail
     // get all the filename list
     for (i <- fileList) {
       filenames += i.file.getName
@@ -246,194 +177,82 @@ class UserFileResource {
     (selectedByFile ++ selectedByUsername ++ selectedByFullPath).toList.asJava
   }
 
-  /**
-    * This method deletes a file from a user's repository
-    * @param fileName the name of file being deleted
-    * @param ownerName the name of the file's owner
-    * @return
-    */
   @DELETE
-  @Path("/delete/{fileName}/{ownerName}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def deleteUserFile(
-      @PathParam("fileName") fileName: String,
-      @PathParam("ownerName") ownerName: String,
-      @Auth sessionUser: SessionUser
-  ): Response = {
-
-    val user = sessionUser.getUser
-    val fileID = UserFileAccessResource.getFileId(ownerName, fileName)
-    val userID = user.getUid
-    val hasWriteAccess = context
-      .select(USER_FILE_ACCESS.WRITE_ACCESS)
-      .from(USER_FILE_ACCESS)
-      .where(USER_FILE_ACCESS.UID.eq(userID).and(USER_FILE_ACCESS.FID.eq(fileID)))
-      .fetch()
-      .getValue(0, 0)
-    if (hasWriteAccess == false) {
-      Response
-        .status(Response.Status.UNAUTHORIZED)
-        .entity("You do not have the access to deleting the file")
-        .build()
-    } else {
-      val filePath = fileDao.fetchOneByFid(fileID).getPath
-      UserFileUtils.deleteFile(Paths.get(filePath))
-      fileDao.deleteById(fileID)
-      Response.ok().build()
-    }
-  }
-
-  @POST
-  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
-  @Path("/validate")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def validateUserFile(
-      @FormDataParam("name") fileName: String,
-      @Auth sessionUser: SessionUser
-  ): Response = {
-    val user = sessionUser.getUser
-    val validationResult = validateFileName(fileName, user.getUid)
-    if (validationResult.getLeft)
-      Response.ok().build()
-    else {
-      Response.status(Response.Status.BAD_REQUEST).entity(validationResult.getRight).build()
-    }
-
+  @Path("/delete/{fid}")
+  def deleteFile(
+      @PathParam("fid") fid: UInteger,
+      @Auth user: SessionUser
+  ): Unit = {
+    checkWriteAccess(fid, user.getUid)
+    Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
+    fileDao.deleteById(fid)
   }
 
   @GET
-  @Path("/download/{fileId}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/download/{fid}")
   def downloadFile(
-      @PathParam("fileId") fileId: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("fid") fid: UInteger,
+      @Auth user: SessionUser
   ): Response = {
-    val user = sessionUser.getUser
-    val filePath: Option[java.nio.file.Path] = {
-      if (UserFileAccessResource.hasAccessTo(user.getUid, fileId)) {
-        Some(Paths.get(fileDao.fetchOneByFid(fileId).getPath))
-      } else {
-        None
-      }
-    }
-    if (filePath.isDefined) {
-      val fileObject = filePath.get.toFile
-
-      // sending a FileOutputStream/ByteArrayOutputStream directly will cause MessageBodyWriter
-      // not found issue for jersey
-      // so we create our own stream.
-      val fileStream = new StreamingOutput() {
-        @throws[IOException]
-        @throws[WebApplicationException]
-        def write(output: OutputStream): Unit = {
-          val data = Files.toByteArray(fileObject)
-          output.write(data)
-          output.flush()
-        }
-      }
-      Response
-        .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
-        .header(
-          "content-disposition",
-          String.format("attachment; filename=%s", fileObject.getName)
-        )
-        .build
-    } else {
-
-      Response
-        .status(Response.Status.BAD_REQUEST)
-        .`type`(MediaType.TEXT_PLAIN)
-        .entity(s"Could not find file $fileId of ${user.getName}")
-        .build()
-    }
-
+    checkReadAccess(fid, user.getUid)
+    Response
+      .ok(
+        new StreamingOutput() {
+          @Override
+          def write(output: OutputStream): Unit = {
+            Files.copy(Paths.get(fileDao.fetchOneByFid(fid).getPath), output)
+            output.flush()
+          }
+        },
+        MediaType.APPLICATION_OCTET_STREAM
+      )
+      .header(
+        "content-disposition",
+        String.format("attachment; filename=%s", fileDao.fetchOneByFid(fid).getName)
+      )
+      .build
   }
 
-  /**
-    * This method updates the name of a given userFile
-    *
-    * @param file the to be updated file
-    * @return the updated userFile
-    */
-  @POST
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/update/name")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def changeUserFileName(file: File, @Auth sessionUser: SessionUser): Unit = {
-    val userId = sessionUser.getUser.getUid
-    val fid = file.getFid
-    val newFileName = file.getName
-
-    val validationRes = this.validateFileName(newFileName, userId)
-    val hasWriteAccess = context
-      .select(USER_FILE_ACCESS.WRITE_ACCESS)
-      .from(USER_FILE_ACCESS)
-      .where(USER_FILE_ACCESS.UID.eq(userId).and(USER_FILE_ACCESS.FID.eq(fid)))
-      .fetch()
-      .getValue(0, 0)
-    if (hasWriteAccess == false) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
+  @PUT
+  @Path("/name/{fid}/{name}")
+  def changeFileName(
+      @PathParam("fid") fid: UInteger,
+      @PathParam("name") name: String,
+      @Auth user: SessionUser
+  ): Unit = {
+    checkWriteAccess(fid, user.getUid)
+    val validationRes = this.validateFileName(name, user.getUid)
     if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
     } else {
       val userFile = fileDao.fetchOneByFid(fid)
-      val filePath = userFile.getPath
-
-      val uploadedInputStream = new FileInputStream(filePath)
-      // delete the original file
-      UserFileUtils.deleteFile(Paths.get(filePath))
-      // store the file with the new file name
-      val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, newFileName, userId)
-
-      userFile.setName(newFileName)
-      userFile.setPath(UserFileUtils.getFilePath(userId, fileNameStored).toString)
+      userFile.setName(name)
       fileDao.update(userFile)
     }
   }
 
+  @PUT
+  @Path("/description/{fid}/{description}")
+  def changeFileDescription(
+      @PathParam("fid") fid: UInteger,
+      @PathParam("description") description: String,
+      @Auth user: SessionUser
+  ): Unit = {
+    checkWriteAccess(fid, user.getUid)
+    val userFile = fileDao.fetchOneByFid(fid)
+    userFile.setDescription(description)
+    fileDao.update(userFile)
+  }
+
   private def validateFileName(fileName: String, userID: UInteger): Pair[Boolean, String] = {
-    if (fileName == null) Pair.of(false, "file name cannot be null")
-    else if (fileName.trim.isEmpty) Pair.of(false, "file name cannot be empty")
-    else if (isFileNameExisted(fileName, userID)) Pair.of(false, "file name already exists")
+    if (
+      context.fetchExists(
+        context
+          .selectFrom(FILE)
+          .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
+      )
+    ) Pair.of(false, "file name already exists")
     else Pair.of(true, "filename validation success")
   }
 
-  private def isFileNameExisted(fileName: String, userID: UInteger): Boolean =
-    context.fetchExists(
-      context
-        .selectFrom(FILE)
-        .where(FILE.OWNER_UID.equal(userID).and(FILE.NAME.equal(fileName)))
-    )
-
-  /**
-    * This method updates the description of a given userFile
-    *
-    * @param file the to be updated file
-    * @return the updated userFile
-    */
-  @POST
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/update/description")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def changeUserFileDescription(file: File, @Auth sessionUser: SessionUser): Unit = {
-    val userId = sessionUser.getUser.getUid
-    val fid = file.getFid
-    val newFileDescription = file.getDescription
-
-    val hasWriteAccess = context
-      .select(USER_FILE_ACCESS.WRITE_ACCESS)
-      .from(USER_FILE_ACCESS)
-      .where(USER_FILE_ACCESS.UID.eq(userId).and(USER_FILE_ACCESS.FID.eq(fid)))
-      .fetch()
-      .getValue(0, 0)
-    if (hasWriteAccess == false) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
-    val userFile = fileDao.fetchOneByFid(fid)
-    userFile.setDescription(newFileDescription)
-    fileDao.update(userFile)
-  }
 }

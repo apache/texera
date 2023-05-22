@@ -73,7 +73,6 @@ import { VisualizationFrameContentComponent } from "./workspace/component/visual
 import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
 import { WorkflowEditorComponent } from "./workspace/component/workflow-editor/workflow-editor.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { NgbdModalUserFileShareAccessComponent } from "./dashboard/user/component/user-file/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
 import { NzTagModule } from "ng-zorro-antd/tag";
@@ -156,7 +155,6 @@ registerLocaleData(en);
     TypeCastingDisplayComponent,
     ShareAccessComponent,
     NgbdModalWorkflowExecutionsComponent,
-    NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,

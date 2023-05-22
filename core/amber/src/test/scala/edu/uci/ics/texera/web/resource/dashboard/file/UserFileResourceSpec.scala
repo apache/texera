@@ -1,14 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
-import edu.uci.ics.texera.web.{MockTexeraDB, SqlServer}
+import edu.uci.ics.texera.web.MockTexeraDB
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition
 import org.jooq.types.UInteger
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
 class UserFileResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
@@ -37,13 +36,10 @@ class UserFileResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockT
     val fileResource = new UserFileResource()
     val source = "This is the content of the file"
     val in = org.apache.commons.io.IOUtils.toInputStream(source, "UTF-8")
-    val fileDetail =
-      new FormDataContentDisposition("form-data; name=\"file\"; filename=\"example.txt\"")
+    val filename = "example.txt"
     val response = fileResource.uploadFile(
       in,
-      fileDetail,
-      UInteger.valueOf(source.length),
-      "sample file for testing",
+      filename,
       new SessionUser(testUser)
     )
     assert(response.getStatusInfo.getStatusCode == 200)

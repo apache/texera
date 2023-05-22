@@ -86,7 +86,7 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasAccess(wid, user.getUid)) {
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       List()
     } else {
       context
@@ -147,7 +147,7 @@ class WorkflowExecutionsResource {
 
   /** Determine if user is authorized to access the workflow, if not raise 401 */
   def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
-    if (!WorkflowAccessResource.hasAccess(wid, uid))
+    if (!WorkflowAccessResource.hasReadAccess(wid, uid))
       throw new WebApplicationException(Response.Status.UNAUTHORIZED)
   }
 

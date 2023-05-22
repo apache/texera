@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
-
-import scala.collection.mutable.Set
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
@@ -17,16 +15,8 @@ import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
-
-import javax.ws.rs.DefaultValue
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
-import java.util.Optional
-import java.util.concurrent.TimeUnit
-import javax.ws.rs.DefaultValue
-import java.sql.Timestamp
-import java.text.{ParseException, SimpleDateFormat}
-import java.util.Optional
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -253,7 +243,7 @@ class WorkflowResource {
       @Auth sessionUser: SessionUser
   ): Workflow = {
     val user = sessionUser.getUser
-    if (WorkflowAccessResource.hasAccess(wid, user.getUid)) {
+    if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       workflowDao.fetchOneByWid(wid)
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -281,7 +271,7 @@ class WorkflowResource {
       // current user reading
       workflowDao.update(workflow)
     } else {
-      if (!WorkflowAccessResource.hasAccess(workflow.getWid, user.getUid)) {
+      if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
@@ -314,7 +304,7 @@ class WorkflowResource {
   ): DashboardWorkflowEntry = {
     val wid = workflow.getWid
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasAccess(wid, user.getUid)) {
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
       val workflow: Workflow = workflowDao.fetchOneByWid(wid)
@@ -581,7 +571,7 @@ class WorkflowResource {
     */
   def getOwnerFilter(owners: java.util.List[String]): Condition = {
     var ownerFilter: Condition = noCondition()
-    val ownerSet: Set[String] = Set()
+    val ownerSet: mutable.Set[String] = mutable.Set()
     if (owners != null && !owners.isEmpty) {
       for (owner <- owners) {
         if (!ownerSet(owner)) {
@@ -602,7 +592,7 @@ class WorkflowResource {
     */
   def getProjectFilter(projectIds: java.util.List[UInteger]): Condition = {
     var projectIdFilter: Condition = noCondition()
-    val projectIdSet: Set[UInteger] = Set()
+    val projectIdSet: mutable.Set[UInteger] = mutable.Set()
     if (projectIds != null && projectIds.nonEmpty) {
       for (projectId <- projectIds) {
         if (!projectIdSet(projectId)) {
@@ -624,7 +614,7 @@ class WorkflowResource {
     */
   def getWorkflowIdFilter(workflowIDs: java.util.List[UInteger]): Condition = {
     var workflowIdFilter: Condition = noCondition()
-    val workflowIdSet: Set[UInteger] = Set()
+    val workflowIdSet: mutable.Set[UInteger] = mutable.Set()
     if (workflowIDs != null && !workflowIDs.isEmpty) {
       for (workflowID <- workflowIDs) {
         if (!workflowIdSet(workflowID)) {
