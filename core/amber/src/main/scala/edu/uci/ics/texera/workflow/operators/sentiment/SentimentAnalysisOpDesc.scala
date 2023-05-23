@@ -1,16 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.sentiment
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JacksonAnnotationsInside, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, SentimentAnalysisAttributeTypeSchema}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
@@ -18,6 +14,7 @@ import java.util.Collections
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.{asScalaBuffer, mapAsScalaMap}
 
+@SentimentAnalysisAttributeTypeSchema
 class SentimentAnalysisOpDesc extends MapOpDesc {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform sentiment analysis on")

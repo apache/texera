@@ -483,6 +483,79 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
+      if (isDefined(mapSource.attributeType)) {
+        // TODO: Add instead of replace
+        mappedField.validators.checkAttributeType = {
+            expression: (c: AbstractControl, field: FormlyFieldConfig) => {
+              if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeType))
+                return false;
+              const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId)
+              if (!inputSchema)
+                return false;
+
+              const findAttributeType = (propertyName: string) => {
+                if (!this.currentOperatorId || !mapSource || !mapSource.properties || !mapSource.properties[propertyName])
+                  return undefined;
+                const port = (mapSource.properties[propertyName] as CustomJSONSchema7).autofillAttributeOnPort;
+                if (typeof port !== 'number')
+                  return undefined;
+                const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId)
+                if (!inputSchema)
+                  return undefined;
+                const attributeName = c.value[propertyName];
+                const inputAttributeType = inputSchema[port]?.find(e => e.attributeName === attributeName)?.attributeType;
+                return inputAttributeType;
+              }
+
+              // iterate through all properties in attributeType
+              for (const [prop, typ] of Object.entries(mapSource.attributeType)) {
+                // Check if attribute type is satisfied
+                const inputAttributeType = findAttributeType(prop);
+                if (!inputAttributeType)
+                  return false;
+
+                // Check if "enum" condition is satisfied
+                if (typ.enum && !typ.enum.includes(inputAttributeType)) {
+                  console.log('enum failed')
+                  return false;
+                }
+
+                // Check if "const" condition is satisfied
+                if (typ.const) {
+                  if (typ.const.$data) {
+                    // Get attribute type of $data
+                    const dataAttributeType = findAttributeType(typ.const.$data);
+                    if (inputAttributeType !== dataAttributeType) {
+                      return false;
+                    }
+                  }
+                }
+
+                if (typ.allOf) {
+                  for (const allOf of typ.allOf) {
+                    for (const [ifProp, ifTyp] of Object.entries(allOf.if)) {
+                      // Find attribute value (not type)
+                      const ifAttributeValue = c.value[ifProp];
+                      // Only return false when if condition is satisfied but then condition is not satisfied
+                      if (ifTyp.enum?.includes(ifAttributeValue)) {
+                        if (!allOf.then.enum?.includes(inputAttributeType)) {
+                          return false;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              return true;
+            },
+            message: (error: any, field: FormlyFieldConfig) => "Attribute type selection is not valid"
+        };
+        mappedField.validation = {
+          show: true,
+        };
+      }
+
       return mappedField;
     };
 
@@ -523,7 +596,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
     }
 
-    this.formlyFields = fields;
+    // not return field.fieldGroup directly because
+    // doing so the validator in the field will not be triggered
+    this.formlyFields = [field];
   }
 
   allowModifyOperatorLogic(): void {
