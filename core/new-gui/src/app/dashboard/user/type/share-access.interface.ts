@@ -1,16 +1,10 @@
-export interface AccessEntry
-  extends Readonly<{
-    userName: string;
-    accessLevel: string;
-  }> {}
-
 export enum Privilege {
   NONE = "NONE",
   READ = "READ",
   WRITE = "WRITE",
 }
 
-export interface ShareAccessEntry
+export interface ShareAccess
   extends Readonly<{
     email: string;
     name: string;
