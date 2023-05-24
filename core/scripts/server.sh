@@ -1,3 +1,4 @@
+pylsp --ws --port 3000 &
 cd amber
 if [ ! -z $1 ] 
 then 
@@ -5,5 +6,3 @@ then
 else
     sbt "runMain edu.uci.ics.texera.web.TexeraWebApplication" 
 fi
-pylsp --ws --port 3000
-
