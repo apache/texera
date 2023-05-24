@@ -43,7 +43,8 @@
               "node_modules/monaco-editor/min/vs/editor/editor.main.css"
             ],
             "scripts": [
-              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"
+              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js",
+              "./node_modules/marked/marked.min.js"
             ],
             "customWebpackConfig": {
               "path": "./custom-webpack-config.mjs"
@@ -120,10 +121,7 @@
             "karmaConfig": "./karma.conf.js",
             "main": "src/test.ts",
             "polyfills": "src/polyfills.ts",
-            "scripts": [
-              "node_modules/monaco-editor/min/vs/loader.js",
-              "node_modules/monaco-editor/min/vs/editor/editor.main.js"
-            ],
+            "scripts": [],
             "styles": [
               "node_modules/jointjs/css/layout.css",
               "node_modules/jointjs/css/themes/material.css",
