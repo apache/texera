@@ -1,17 +1,17 @@
-import {AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild, OnInit} from "@angular/core";
-import {MAT_DIALOG_DATA, MatDialogRef} from "@angular/material/dialog";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
-import {YText} from "yjs/dist/src/types/YText";
-import {MonacoBinding} from "y-monaco";
-import {MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports} from "monaco-languageclient";
-import {toSocket, WebSocketMessageReader, WebSocketMessageWriter} from "vscode-ws-jsonrpc";
-import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
-import {DomSanitizer, SafeStyle} from "@angular/platform-browser";
-import {Coeditor} from "../../../common/type/user";
-import {YType} from "../../types/shared-editing.interface";
-import {FormControl} from "@angular/forms";
-import {getWebsocketUrl} from "src/app/common/util/url";
+import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild, OnInit } from "@angular/core";
+import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { YText } from "yjs/dist/src/types/YText";
+import { MonacoBinding } from "y-monaco";
+import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
+import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
+import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
+import { Coeditor } from "../../../common/type/user";
+import { YType } from "../../types/shared-editing.interface";
+import { FormControl } from "@angular/forms";
+import { getWebsocketUrl } from "src/app/common/util/url";
 
 declare const monaco: any;
 
@@ -40,7 +40,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     fontSize: "11",
     automaticLayout: true,
   };
-  @ViewChild("editor", {static: true}) divEditor?: ElementRef;
+  @ViewChild("editor", { static: true }) divEditor?: ElementRef;
   loaded: boolean = false;
 
   private formControl: FormControl;
@@ -80,8 +80,8 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       clientOptions: {
         documentSelector: ["python"],
         errorHandler: {
-          error: () => ({action: ErrorAction.Continue}),
-          closed: () => ({action: CloseAction.Restart}),
+          error: () => ({ action: ErrorAction.Continue }),
+          closed: () => ({ action: CloseAction.Restart }),
         },
       },
       connectionProvider: {
