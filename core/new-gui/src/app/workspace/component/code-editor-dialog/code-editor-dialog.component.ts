@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild, OnInit } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -113,9 +113,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         .getSharedOperatorType(currentOperatorId)
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
-    this.handleDisabledStatusChange();
 
     this.initMonaco();
+    this.handleDisabledStatusChange();
   }
 
   /**
