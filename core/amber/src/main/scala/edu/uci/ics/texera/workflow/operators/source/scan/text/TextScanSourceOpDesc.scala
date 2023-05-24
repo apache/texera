@@ -86,7 +86,8 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         new Attribute(
           if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
           else attributeName.get,
-          AttributeType.STRING
+          if (outputAsBinary) AttributeType.BINARY
+          else AttributeType.STRING
         )
       )
       .build()
