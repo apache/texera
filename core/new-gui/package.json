@@ -21,7 +21,6 @@
   },
   "private": true,
   "dependencies": {
-    "@angular-builders/custom-webpack": "^13.0.0",
     "@angular/animations": "^13.0.1",
     "@angular/cdk": "^13.0.1",
     "@angular/common": "^13.0.1",
@@ -72,7 +71,6 @@
     "mapbox-gl": "~2.7.0",
     "marked": "4.2.12",
     "monaco-editor": "^0.34.0",
-    "monaco-editor-webpack-plugin": "^7.0.1",
     "monaco-languageclient": "^3.0.0",
     "ng-dynamic-component": "~10.1.0",
     "ng-zorro-antd": "13.2.2",
