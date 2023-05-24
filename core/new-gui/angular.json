@@ -8,7 +8,7 @@
       "projectType": "application",
       "architect": {
         "build": {
-          "builder": "@angular-builders/custom-webpack:browser",
+          "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "outputPath": "dist",
             "index": "src/index.html",
@@ -46,9 +46,6 @@
               "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js",
               "./node_modules/marked/marked.min.js"
             ],
-            "customWebpackConfig": {
-              "path": "./custom-webpack-config.mjs"
-            },
             "allowedCommonJsDependencies": [
               "deep-map",
               "c3",

@@ -40,13 +40,13 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     fontSize: "11",
     automaticLayout: true,
   };
-  @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
+  @ViewChild("editor", { static: true }) divEditor?: ElementRef;
   loaded: boolean = false;
 
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
-  private languageServerSocket?: WebSocket | undefined;
+  private languageServerSocket?: WebSocket;
 
   constructor(
     private sanitizer: DomSanitizer,
