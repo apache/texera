@@ -16,9 +16,8 @@ class Operator(ABC):
     Abstract base class for all operators.
     """
 
-    def __init__(self):
-        self.__internal_is_source: bool = False
-        self.__internal_output_schema: Optional[Schema] = None
+    __internal_is_source: bool = False
+    __internal_output_schema: Optional[Schema] = None
 
     @property
     @overrides.final
@@ -97,6 +96,8 @@ class TupleOperatorV2(Operator):
 
 
 class SourceOperator(TupleOperatorV2):
+    __internal_is_source = True
+
     @abstractmethod
     def produce(self) -> Iterator[Optional[Union[TupleLike, TableLike]]]:
         """
