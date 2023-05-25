@@ -38,8 +38,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     automaticLayout: true,
   };
   @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
-  loaded: boolean = false;
-
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
@@ -55,10 +53,32 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   ngOnDestroy(): void {
+    const dialog = document.getElementById("mat-dialog-udf");
+    if (dialog !== null) {
+      localStorage.setItem("udfDialogStyle", dialog.style.cssText);
+    }
+
+    const panel = document.querySelector<HTMLElement>(".cdk-overlay-pane");
+    if (panel !== null) {
+      localStorage.setItem("udfPanelStyle", panel.style.cssText);
+    }
+
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
   }
 
   ngAfterViewInit() {
+    const dialog = document.getElementById("mat-dialog-udf");
+    const dialogStyle = localStorage.getItem("udfDialogStyle");
+    if (dialog !== null && dialogStyle !== null) {
+      dialog.style.cssText = dialogStyle;
+    }
+
+    const panel = document.querySelector<HTMLElement>(".cdk-overlay-pane");
+    const panelStyle = localStorage.getItem("udfPanelStyle");
+    if (panel !== null && panelStyle !== null) {
+      panel.style.cssText = panelStyle;
+    }
+
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
