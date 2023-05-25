@@ -28,12 +28,6 @@ public class PythonUDFSourceOpExecV2 extends PythonUDFOpExecV2 implements Source
     }
 
     @Override
-    public Iterator<ITuple> produceTuple() {
-        // Will not be used. The real implementation is in the Python UDF.
-        return SourceOperatorExecutor.super.produceTuple();
-    }
-
-    @Override
     public Iterator<Tuple> produceTexeraTuple() {
         // Will not be used. The real implementation is in the Python UDF.
         return null;
