@@ -38,8 +38,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     automaticLayout: true,
   };
   @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
-  loaded: boolean = false;
-
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
@@ -59,6 +57,11 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   ngAfterViewInit() {
+    const dialog = document.getElementById("mat-dialog-udf");
+    if (dialog !== null) {
+      dialog.style.width = "800px";
+      dialog.style.height = "600px";
+    }
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];

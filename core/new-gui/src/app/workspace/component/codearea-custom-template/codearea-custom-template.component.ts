@@ -53,6 +53,7 @@ export class CodeareaCustomTemplateComponent extends FieldType<any> implements A
    */
   onClickEditor(): void {
     this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
+      id: "mat-dialog-udf",
       maxWidth: "95vw",
       maxHeight: "95vh",
       data: this.field.formControl,
