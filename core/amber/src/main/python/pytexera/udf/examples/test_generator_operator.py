@@ -11,5 +11,7 @@ class TestEchoOperator:
 
     def test_generator_operator(self, generator_operator):
         generator_operator.open()
-        assert generator_operator.produce() == Tuple({"test": [1, 2, 3]})
+        outputs = generator_operator.produce()
+        output_tuple = next(outputs)
+        assert output_tuple == Tuple({"test": [1, 2, 3]})
         generator_operator.close()
