@@ -1,7 +1,6 @@
 import pytest
 
 from pytexera import Tuple
-from .echo_operator import EchoOperator
 from .generator_operator import GeneratorOperator
 
 
