@@ -1,3 +1,4 @@
+pylsp --ws --port 3000 &
 cd amber
 if [ ! -z $1 ] 
 then 

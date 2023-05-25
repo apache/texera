@@ -4,11 +4,14 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
+import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
+import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
+import { getWebsocketUrl } from "src/app/common/util/url";
 
 declare const monaco: any;
 
@@ -37,12 +40,13 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     fontSize: "11",
     automaticLayout: true,
   };
-  @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
+  @ViewChild("editor", { static: true }) divEditor?: ElementRef;
   loaded: boolean = false;
 
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
+  private languageServerSocket?: WebSocket;
 
   constructor(
     private sanitizer: DomSanitizer,
@@ -56,6 +60,40 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
+
+    if (
+      this.languageServerSocket !== undefined &&
+      this.languageServerSocket.readyState === this.languageServerSocket.OPEN
+    ) {
+      this.languageServerSocket.close();
+      this.languageServerSocket = undefined;
+    }
+
+    if (this.editor !== undefined) {
+      this.editor.dispose();
+    }
+  }
+
+  createLanguageClient(transports: MessageTransports): MonacoLanguageClient {
+    return new MonacoLanguageClient({
+      name: "Python UDF Language Client",
+      clientOptions: {
+        documentSelector: ["python"],
+        errorHandler: {
+          error: () => ({ action: ErrorAction.Continue }),
+          closed: () => ({ action: CloseAction.Restart }),
+        },
+      },
+      connectionProvider: {
+        get: () => {
+          return Promise.resolve(transports);
+        },
+      },
+    });
+  }
+
+  getLanguageServerSocket() {
+    return this.languageServerSocket;
   }
 
   ngAfterViewInit() {
@@ -109,6 +147,32 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       );
     }
     this.editor = editor;
+    this.connectLanguageServer();
+  }
+
+  /**
+   * Create a Monaco editor and connect it to MonacoBinding.
+   * @private
+   */
+  private connectLanguageServer() {
+    const url = getWebsocketUrl("/python-language-server", "3000");
+
+    if (this.languageServerSocket === undefined) {
+      this.languageServerSocket = new WebSocket(url);
+      this.languageServerSocket.onopen = () => {
+        if (this.languageServerSocket !== undefined) {
+          const socket = toSocket(this.languageServerSocket);
+          const reader = new WebSocketMessageReader(socket);
+          const writer = new WebSocketMessageWriter(socket);
+          const languageClient = this.createLanguageClient({
+            reader,
+            writer,
+          });
+          languageClient.start();
+          reader.onClose(() => languageClient.stop());
+        }
+      };
+    }
   }
 
   /**
