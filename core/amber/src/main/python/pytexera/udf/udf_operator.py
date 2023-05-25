@@ -89,7 +89,7 @@ class UDFSourceOperator(SourceOperator):
         pass
 
     @abstractmethod
-    def produce_tuple(self) -> Iterator[Optional[TupleLike]]:
+    def produce(self) -> Iterator[Optional[TupleLike]]:
         """
         Produce Tuples. Used by the source operator only.
 
