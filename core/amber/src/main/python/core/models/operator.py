@@ -99,7 +99,7 @@ class SourceOperator(TupleOperatorV2):
     __internal_is_source = True
 
     @abstractmethod
-    def produce(self) -> Iterator[Optional[Union[TupleLike, TableLike]]]:
+    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         """
         Produce Tuples or Tables. Used by the source operator only.
 
