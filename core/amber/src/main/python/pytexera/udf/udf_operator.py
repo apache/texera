@@ -15,7 +15,7 @@ class UDFOperator(TupleOperator):
 
     @abstractmethod
     def process_tuple(
-            self, tuple_: Union[Tuple, InputExhausted], input_: int
+        self, tuple_: Union[Tuple, InputExhausted], input_: int
     ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
