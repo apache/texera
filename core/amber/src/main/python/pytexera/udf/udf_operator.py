@@ -89,12 +89,12 @@ class UDFSourceOperator(SourceOperator):
         pass
 
     @abstractmethod
-    def produce(self) -> Iterator[Optional[TupleLike]]:
+    def produce(self) -> Iterator[Optional[Union[TupleLike, TableLike]]]:
         """
-        Produce Tuples. Used by the source operator only.
+        Produce Tuples or Tables. Used by the source operator only.
 
-        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
-            time, or None.
+        :return: Iterator[Union[TupleLike, TableLike, None]], producing
+            one TupleLike object, one TableLike object, or None, at a time.
         """
         yield
 

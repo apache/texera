@@ -103,7 +103,7 @@ class SourceOperator(TupleOperatorV2):
         """
         Produce Tuples or Tables. Used by the source operator only.
 
-        :return: Iterator[Optional[Union[TupleLike, TableLike]]], producing
+        :return: Iterator[Union[TupleLike, TableLike, None]], producing
             one TupleLike object, one TableLike object, or None, at a time.
         """
         yield
