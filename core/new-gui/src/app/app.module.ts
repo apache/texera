@@ -117,6 +117,7 @@ import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.service";
+import { DragDropModule } from "@angular/cdk/drag-drop";
 import { AuthInterceptor } from "./common/service/user/auth.interceptor";
 
 registerLocaleData(en);
@@ -244,6 +245,7 @@ registerLocaleData(en);
     NzSwitchModule,
     NzLayoutModule,
     MarkdownModule.forRoot(),
+    DragDropModule,
   ],
   providers: [
     AuthGuardService,
