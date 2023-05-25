@@ -35,7 +35,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     "# \n" +
                     "#     @overrides\n" +
                     "#     def produce(self) -> Iterator[Optional[Union[TupleLike, TableLike]]]:\n" +
-                    "#         yield new_\n")
+                    "#         yield\n")
     @JsonSchemaTitle("Python script")
     @JsonPropertyDescription("Input your code here")
     public String code;
