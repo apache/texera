@@ -96,6 +96,31 @@ class TupleOperatorV2(Operator):
         yield
 
 
+class SourceOperator(TupleOperatorV2):
+
+    @abstractmethod
+    def produce_tuple(self) -> Iterator[Optional[Union[TupleLike, TableLike]]]:
+        """
+        Produce Tuples. Used by the source operator only.
+
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
+            time, or None.
+        """
+        yield
+    @overrides.final
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+        for output in  self.produce_tuple():
+            if output is not None:
+                if isinstance(output, pandas.DataFrame):
+                    for _, output_tuple in output.iterrows():
+                        yield output_tuple
+                else:
+                    yield output
+    @overrides.final
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield
+
+
 class BatchOperator(TupleOperatorV2):
     """
     Base class for batch-oriented operators. A concrete implementation must

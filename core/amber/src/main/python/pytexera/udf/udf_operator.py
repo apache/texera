@@ -15,7 +15,7 @@ class UDFOperator(TupleOperator):
 
     @abstractmethod
     def process_tuple(
-        self, tuple_: Union[Tuple, InputExhausted], input_: int
+            self, tuple_: Union[Tuple, InputExhausted], input_: int
     ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
@@ -68,6 +68,31 @@ class UDFOperatorV2(TupleOperatorV2):
         Callback when one input port is exhausted.
 
         :param port: int, input port index of the current exhausted port.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
+            time, or None.
+        """
+        yield
+
+    def close(self) -> None:
+        """
+        Close the context of the operator.
+        """
+        pass
+
+
+class UDFSourceOperator(SourceOperator):
+    def open(self) -> None:
+        """
+        Open a context of the operator. Usually can be used for loading/initiating some
+        resources, such as a file, a model, or an API client.
+        """
+        pass
+
+    @abstractmethod
+    def produce_tuple(self) -> Iterator[Optional[TupleLike]]:
+        """
+        Produce Tuples. Used by the source operator only.
+
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
             time, or None.
         """
