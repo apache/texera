@@ -41,7 +41,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     automaticLayout: true,
   };
   @ViewChild("editor", { static: true }) divEditor?: ElementRef;
-  loaded: boolean = false;
   private formControl: FormControl;
   private code?: YText;
   private editor?: any;
