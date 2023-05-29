@@ -2,12 +2,8 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.common.AccessEntry2
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
+import edu.uci.ics.texera.web.model.common.AccessEntry
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao,
@@ -15,43 +11,34 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
+  context,
+  hasWriteAccess
+}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
+import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowAccessResource {
   final private val context: DSLContext = SqlServer.createDSLContext
 
   /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasAccess(wid: UInteger, uid: UInteger): Boolean = {
-    hasReadAccess(wid, uid) || hasWriteAccess(wid, uid)
-  }
-
-  /**
     * Identifies whether the given user has read-only access over the given workflow
-    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ)
+    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(wid, uid)
   }
 
   /**
     * Identifies whether the given user has write access over the given workflow
-    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
@@ -101,45 +88,65 @@ class WorkflowAccessResource() {
 
   /**
     * Returns information about all current shared access of the given workflow
+    *
     * @param wid workflow id
-    * @return a List of email/permission pair
+    * @return a List of email/name/permission
     */
   @GET
   @Path("/list/{wid}")
   def getAccessList(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
-  ): List[AccessEntry2] = {
-    val user = sessionUser.getUser
-    if (
-      workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
+  ): util.List[AccessEntry] = {
+    context
+      .select(
+        USER.EMAIL,
+        USER.NAME,
+        WORKFLOW_USER_ACCESS.PRIVILEGE
       )
-    ) {
-      context
-        .select(
-          USER.EMAIL,
-          USER.NAME,
-          WORKFLOW_USER_ACCESS.PRIVILEGE
-        )
-        .from(WORKFLOW_USER_ACCESS)
-        .join(USER)
-        .on(USER.UID.eq(WORKFLOW_USER_ACCESS.UID))
-        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.notEqual(user.getUid)))
-        .fetch()
-        .map(access => { access.into(classOf[AccessEntry2]) })
-        .toList
-    } else {
-      throw new ForbiddenException("You are not the owner of the workflow.")
+      .from(WORKFLOW_USER_ACCESS)
+      .join(USER)
+      .on(USER.UID.eq(WORKFLOW_USER_ACCESS.UID))
+      .where(
+        WORKFLOW_USER_ACCESS.WID
+          .eq(wid)
+          .and(WORKFLOW_USER_ACCESS.UID.notEqual(sessionUser.getUser.getUid))
+      )
+      .fetchInto(classOf[AccessEntry])
+  }
+
+  /**
+    * This method shares a workflow to a user with a specific access type
+    *
+    * @param wid       the given workflow
+    * @param email     the email which the access is given to
+    * @param privilege the type of Access given to the target user
+    * @return rejection if user not permitted to share the workflow or Success Message
+    */
+  @PUT
+  @Path("/grant/{wid}/{email}/{privilege}")
+  def grantAccess(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("email") email: String,
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
+  ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
     }
+    workflowUserAccessDao.merge(
+      new WorkflowUserAccess(
+        userDao.fetchOneByEmail(email).getUid,
+        wid,
+        WorkflowUserAccessPrivilege.valueOf(privilege)
+      )
+    )
   }
 
   /**
     * This method identifies the user access level of the given workflow
     *
-    * @param wid      the given workflow
+    * @param wid   the given workflow
     * @param email the email of the use whose access is about to be removed
     * @return message indicating a success message
     */
@@ -148,63 +155,18 @@ class WorkflowAccessResource() {
   def revokeAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Unit = {
-    if (
-      !workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(sessionUser.getUser.getUid, wid)
-      )
-    ) {
+    if (!hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
-    } else {
-      context
-        .delete(WORKFLOW_USER_ACCESS)
-        .where(
-          WORKFLOW_USER_ACCESS.UID
-            .eq(userDao.fetchOneByEmail(email).getUid)
-            .and(WORKFLOW_USER_ACCESS.WID.eq(wid))
-        )
-        .execute()
     }
-  }
-
-  /**
-    * This method shares a workflow to a user with a specific access type
-    * @param wid         the given workflow
-    * @param email    the email which the access is given to
-    * @param privilege the type of Access given to the target user
-    * @return rejection if user not permitted to share the workflow or Success Message
-    */
-  @PUT
-  @Path("/grant/{wid}/{email}/{privilege}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def grantAccess(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
-    val uid: UInteger =
-      try {
-        userDao.fetchOneByEmail(email).getUid
-      } catch {
-        case _: IndexOutOfBoundsException =>
-          throw new BadRequestException("Target user does not exist.")
-      }
-    if (
-      !workflowOfUserDao.existsById(
-        context
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(sessionUser.getUser.getUid, wid)
+    context
+      .delete(WORKFLOW_USER_ACCESS)
+      .where(
+        WORKFLOW_USER_ACCESS.UID
+          .eq(userDao.fetchOneByEmail(email).getUid)
+          .and(WORKFLOW_USER_ACCESS.WID.eq(wid))
       )
-    ) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
-      workflowUserAccessDao.merge(
-        new WorkflowUserAccess(uid, wid, WorkflowUserAccessPrivilege.valueOf(privilege))
-      )
-    }
+      .execute()
   }
 }

@@ -41,7 +41,6 @@ CREATE TABLE IF NOT EXISTS user_config
     FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
 ) ENGINE = InnoDB;
 
-
 CREATE TABLE IF NOT EXISTS file
 (
     `owner_uid`   INT UNSIGNED                NOT NULL,
@@ -58,10 +57,9 @@ CREATE TABLE IF NOT EXISTS file
 
 CREATE TABLE IF NOT EXISTS user_file_access
 (
-    `uid`          INT UNSIGNED NOT NULL,
-    `fid`          INT UNSIGNED NOT NULL,
-    `read_access`  BIT(1),
-    `write_access` BIT(1),
+    `uid`       INT UNSIGNED                   NOT NULL,
+    `fid`       INT UNSIGNED                   NOT NULL,
+    `privilege` ENUM ('NONE', 'READ', 'WRITE') NOT NULL DEFAULT 'NONE',
     PRIMARY KEY (`uid`, `fid`),
     FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE,
     FOREIGN KEY (`fid`) REFERENCES file (`fid`) ON DELETE CASCADE

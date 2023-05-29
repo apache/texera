@@ -309,7 +309,7 @@ class WorkflowVersionResource {
       @Auth sessionUser: SessionUser
   ): List[VersionEntry] = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasAccess(wid, user.getUid)) {
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       List()
     } else {
       encodeVersionImportance(
@@ -342,7 +342,7 @@ class WorkflowVersionResource {
       @Auth sessionUser: SessionUser
   ): Workflow = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasAccess(wid, user.getUid)) {
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
       // fetch all versions preceding this
