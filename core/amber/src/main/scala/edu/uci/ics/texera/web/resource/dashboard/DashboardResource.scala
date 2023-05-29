@@ -51,7 +51,7 @@ class DashboardResource {
     * @return A list of DashboardClickableFileEntry that match the search term.
     */
   @GET
-  @Path("/searchAll")
+  @Path("/search")
   def searchAllResources(
       @Auth sessionUser: SessionUser,
       @QueryParam("query") keywords: java.util.List[String],
@@ -114,125 +114,118 @@ class DashboardResource {
       }
     }
 
-    try {
-
-      // Retrieve workflow resource
-      val workflowQuery =
-        context
-          .select(
-            DSL.inline("workflow").as("resourceType"),
-            WORKFLOW.WID,
-            WORKFLOW.NAME,
-            WORKFLOW.DESCRIPTION,
-            WORKFLOW.CREATION_TIME,
-            DSL.inline("null").as("file_path"),
-            DSL.inline(UInteger.valueOf(0)).as("file_size")
-          )
-          .from(WORKFLOW)
-          .leftJoin(WORKFLOW_USER_ACCESS)
-          .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-          .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-          .and(
-            workflowMatchQuery
-          )
-
-      // Retrieve project resource
-      val projectQuery = context
+    // Retrieve workflow resource
+    val workflowQuery =
+      context
         .select(
-          DSL.inline("project").as("resourceType"),
-          PROJECT.PID,
-          PROJECT.NAME,
-          PROJECT.DESCRIPTION,
-          PROJECT.CREATION_TIME,
+          DSL.inline("workflow").as("resourceType"),
+          WORKFLOW.WID,
+          WORKFLOW.NAME,
+          WORKFLOW.DESCRIPTION,
+          WORKFLOW.CREATION_TIME,
           DSL.inline("null").as("file_path"),
           DSL.inline(UInteger.valueOf(0)).as("file_size")
         )
-        .from(PROJECT)
-        .where(PROJECT.OWNER_ID.eq(user.getUid()))
+        .from(WORKFLOW)
+        .leftJoin(WORKFLOW_USER_ACCESS)
+        .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+        .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
         .and(
-          projectMatchQuery
+          workflowMatchQuery
         )
 
-      // Retrieve file resource
-      val fileQuery = context
-        .select(
-          DSL.inline("file").as("resourceType"),
-          FILE.FID,
-          FILE.NAME,
-          FILE.DESCRIPTION,
-          FILE.UPLOAD_TIME.as("creation_time"),
-          FILE.PATH.as("file_path"),
-          FILE.SIZE.as("file_size")
-        )
-        .from(USER_FILE_ACCESS)
-        .join(FILE)
-        .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
-        .join(USER)
-        .on(FILE.OWNER_UID.eq(USER.UID))
-        .where(USER_FILE_ACCESS.UID.eq(user.getUid()))
-        .and(
-          fileMatchQuery
-        )
-      // Retrieve files to which all shared workflows have access
-      val sharedWorkflowFileQuery = context
-        .select(
-          DSL.inline("file").as("resourceType"),
-          FILE.FID,
-          FILE.NAME,
-          FILE.DESCRIPTION,
-          FILE.UPLOAD_TIME.as("creation_time"),
-          FILE.PATH.as("file_path"),
-          FILE.SIZE.as("file_size")
-        )
-        .from(FILE_OF_WORKFLOW)
-        .join(FILE)
-        .on(FILE_OF_WORKFLOW.FID.eq(FILE.FID))
-        .join(USER)
-        .on(FILE.OWNER_UID.eq(USER.UID))
-        .join(WORKFLOW_USER_ACCESS)
-        .on(FILE_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
-        .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid()))
-        .and(
-          fileMatchQuery
-        )
+    // Retrieve project resource
+    val projectQuery = context
+      .select(
+        DSL.inline("project").as("resourceType"),
+        PROJECT.PID,
+        PROJECT.NAME,
+        PROJECT.DESCRIPTION,
+        PROJECT.CREATION_TIME,
+        DSL.inline("null").as("file_path"),
+        DSL.inline(UInteger.valueOf(0)).as("file_size")
+      )
+      .from(PROJECT)
+      .where(PROJECT.OWNER_ID.eq(user.getUid()))
+      .and(
+        projectMatchQuery
+      )
 
-      // Combine all queries using union and fetch results
-      val clickableFileEntry =
-        resourceType match {
-          case "workflow" => workflowQuery.fetch()
-          case "project"  => projectQuery.fetch()
-          case "file"     => fileQuery.union(sharedWorkflowFileQuery).fetch()
-          case "" =>
-            workflowQuery
-              .union(projectQuery)
-              .union(fileQuery)
-              .union(sharedWorkflowFileQuery)
-              .fetch()
-          case _ =>
-            throw new BadRequestException(
-              "Unknown resourceType. Only 'workflow', 'project', and 'file' are allowed"
-            )
-        }
+    // Retrieve file resource
+    val fileQuery = context
+      .select(
+        DSL.inline("file").as("resourceType"),
+        FILE.FID,
+        FILE.NAME,
+        FILE.DESCRIPTION,
+        FILE.UPLOAD_TIME.as("creation_time"),
+        FILE.PATH.as("file_path"),
+        FILE.SIZE.as("file_size")
+      )
+      .from(USER_FILE_ACCESS)
+      .join(FILE)
+      .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
+      .join(USER)
+      .on(FILE.OWNER_UID.eq(USER.UID))
+      .where(USER_FILE_ACCESS.UID.eq(user.getUid()))
+      .and(
+        fileMatchQuery
+      )
+    // Retrieve files to which all shared workflows have access
+    val sharedWorkflowFileQuery = context
+      .select(
+        DSL.inline("file").as("resourceType"),
+        FILE.FID,
+        FILE.NAME,
+        FILE.DESCRIPTION,
+        FILE.UPLOAD_TIME.as("creation_time"),
+        FILE.PATH.as("file_path"),
+        FILE.SIZE.as("file_size")
+      )
+      .from(FILE_OF_WORKFLOW)
+      .join(FILE)
+      .on(FILE_OF_WORKFLOW.FID.eq(FILE.FID))
+      .join(USER)
+      .on(FILE.OWNER_UID.eq(USER.UID))
+      .join(WORKFLOW_USER_ACCESS)
+      .on(FILE_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid()))
+      .and(
+        fileMatchQuery
+      )
 
-      clickableFileEntry
-        .map(record =>
-          DashboardClickableFileEntry(
-            record.value1(),
-            record.value2(),
-            record.value3(),
-            record.value4(),
-            record.value5(),
-            record.value6(),
-            record.value7()
+    // Combine all queries using union and fetch results
+    val clickableFileEntry =
+      resourceType match {
+        case "workflow" => workflowQuery.fetch()
+        case "project"  => projectQuery.fetch()
+        case "file"     => fileQuery.union(sharedWorkflowFileQuery).fetch()
+        case "" =>
+          workflowQuery
+            .union(projectQuery)
+            .union(fileQuery)
+            .union(sharedWorkflowFileQuery)
+            .fetch()
+        case _ =>
+          throw new BadRequestException(
+            "Unknown resourceType. Only 'workflow', 'project', and 'file' are allowed"
           )
-        )
-        .toList
+      }
 
-    } catch {
-      case e: Exception =>
-        println(e)
-        throw e
-    }
+    clickableFileEntry
+      .map(record =>
+        DashboardClickableFileEntry(
+          record.value1(),
+          record.value2(),
+          record.value3(),
+          record.value4(),
+          record.value5(),
+          record.value6(),
+          record.value7()
+        )
+      )
+      .toList
+
   }
 
 }

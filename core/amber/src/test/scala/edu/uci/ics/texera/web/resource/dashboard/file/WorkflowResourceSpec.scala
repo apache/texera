@@ -4,7 +4,7 @@ import edu.uci.ics.texera.web.MockTexeraDB
 import edu.uci.ics.texera.web.auth.SessionUser
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow, Project}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Project, User, Workflow}
 import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowDao}
@@ -21,6 +21,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 
@@ -31,6 +32,7 @@ import java.nio.file.Files
 import java.nio.charset.StandardCharsets
 import java.util
 import java.util.Collections
+import javax.ws.rs.BadRequestException
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -126,6 +128,10 @@ class WorkflowResourceSpec
 
   private val fileResource: UserFileResource = {
     new UserFileResource()
+  }
+
+  private val dashboardResource: DashboardResource = {
+    new DashboardResource()
   }
 
   override protected def beforeAll(): Unit = {
@@ -571,14 +577,14 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
     // search
     val DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("test"))
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"))
     assert(DashboardClickableFileEntryList.length == 3)
 
   }
 
   it should "return an empty list when there are no matching resources" in {
     val DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("not-existing-keyword"))
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("not-existing-keyword"))
     assert(DashboardClickableFileEntryList.isEmpty)
   }
 
@@ -587,7 +593,7 @@ class WorkflowResourceSpec
     projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     val DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray(""))
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray(""))
     assert(DashboardClickableFileEntryList.length == 2)
   }
 
@@ -604,7 +610,7 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
 
     val DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("unique"))
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("unique"))
     assert(DashboardClickableFileEntryList.length == 1)
   }
 
@@ -621,7 +627,7 @@ class WorkflowResourceSpec
     )
     assert(response.getStatusInfo.getStatusCode == 200)
     val DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("common"))
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("common"))
     assert(DashboardClickableFileEntryList.length == 2)
   }
 
@@ -638,7 +644,7 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
 
     val DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("test", "project1"))
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test", "project1"))
     assert(
       DashboardClickableFileEntryList.length == 1
     ) // should only return the project
@@ -668,29 +674,33 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
     // search resources with all resourceType
     var DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("test"))
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"))
     assert(DashboardClickableFileEntryList.length == 6)
 
     // filter resources by workflow
     DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "workflow")
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "workflow")
     assert(DashboardClickableFileEntryList.length == 1)
 
     // filter resources by project
     DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "project")
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "project")
     assert(DashboardClickableFileEntryList.length == 3)
 
     // filter resources by file
     DashboardClickableFileEntryList =
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "file")
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "file")
     assert(DashboardClickableFileEntryList.length == 2)
 
   }
 
-  it should "throw an IllegalArgumentException for invalid resourceType" in {
-    assertThrows[IllegalArgumentException] {
-      workflowResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "invalid-resource-type")
+  it should "throw an BadRequestException for invalid resourceType" in {
+    assertThrows[BadRequestException] {
+      dashboardResource.searchAllResources(
+        sessionUser1,
+        getKeywordsArray("test"),
+        "invalid-resource-type"
+      )
     }
   }
 
