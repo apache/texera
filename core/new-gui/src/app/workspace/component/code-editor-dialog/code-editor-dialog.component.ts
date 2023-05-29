@@ -105,12 +105,12 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   ngAfterViewInit() {
+    const dialog = document.getElementById("mat-dialog-udf");
     if (dialog !== null) {
       // They are the actual width and height of the modal
       dialog.style.width = "800px";
       dialog.style.height = "600px";
     }
-    const dialog = document.getElementById("mat-dialog-udf");
     const dialogStyle = localStorage.getItem("udfDialogStyle");
     if (dialog !== null && dialogStyle !== null) {
       dialog.style.cssText = dialogStyle;
@@ -121,7 +121,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     if (panel !== null && panelStyle !== null) {
       panel.style.cssText = panelStyle;
     }
-
 
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
