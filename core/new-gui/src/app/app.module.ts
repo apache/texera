@@ -119,6 +119,7 @@ import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
 import { AuthInterceptor } from "./common/service/user/auth.interceptor";
+import { UserWorkflowListItemComponent } from "./dashboard/user/component/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 
 registerLocaleData(en);
 
@@ -179,6 +180,7 @@ registerLocaleData(en);
     InputAutoCompleteComponent,
     CollabWrapperComponent,
     HomeComponent,
+    UserWorkflowListItemComponent,
   ],
   imports: [
     BrowserModule,

@@ -11,8 +11,6 @@ import { MatCardModule } from "@angular/material/card";
 import { MatDialogModule } from "@angular/material/dialog";
 import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { ShareAccessComponent } from "../share-access/share-access.component";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
-import { jsonCast } from "../../../../common/util/storage";
 import { HttpClient } from "@angular/common/http";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
@@ -30,163 +28,15 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 import { NzUploadModule } from "ng-zorro-antd/upload";
-import { By } from "@angular/platform-browser";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { FileSaverService } from "../../service/user-file/file-saver.service";
+import { testWorkflowEntries, testWorkflowFileNameConflictEntries } from "./user-workflow-test-fixtures";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
   let fixture: ComponentFixture<UserWorkflowComponent>;
-
-  //All times in test Workflows are in PST because our local machine's timezone is PST
-  //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
-  const oneDay = 86400000;
-  const januaryFirst1970 = 28800000; // 1970-01-01 in PST
-  const testWorkflowContent = (operatorTypes: string[]): WorkflowContent => ({
-    operators: operatorTypes.map(t => ({
-      operatorType: t,
-      operatorID: t,
-      operatorVersion: "1",
-      operatorProperties: {},
-      inputPorts: [],
-      outputPorts: [],
-      showAdvanced: false,
-    })),
-    breakpoints: {},
-    commentBoxes: [],
-    groups: [],
-    links: [],
-    operatorPositions: {},
-  });
-
-  const testWorkflow1: Workflow = {
-    wid: 1,
-    name: "workflow 1",
-    description: "dummy description",
-    content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
-    creationTime: januaryFirst1970,
-    lastModifiedTime: januaryFirst1970 + 2,
-  };
-  const testWorkflow2: Workflow = {
-    wid: 2,
-    name: "workflow 2",
-    description: "dummy description",
-    content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
-    creationTime: januaryFirst1970 + (oneDay + 3),
-    lastModifiedTime: januaryFirst1970 + (oneDay + 3),
-  };
-  const testWorkflow3: Workflow = {
-    wid: 3,
-    name: "workflow 3",
-    description: "dummy description",
-    content: testWorkflowContent(["Aggregation", "NlpSentiment"]),
-    creationTime: januaryFirst1970 + oneDay,
-    lastModifiedTime: januaryFirst1970 + (oneDay + 4),
-  };
-  const testWorkflow4: Workflow = {
-    wid: 4,
-    name: "workflow 4",
-    description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + (oneDay + 3) * 2,
-    lastModifiedTime: januaryFirst1970 + oneDay * 2 + 6,
-  };
-  const testWorkflow5: Workflow = {
-    wid: 5,
-    name: "workflow 5",
-    description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + oneDay * 2,
-    lastModifiedTime: januaryFirst1970 + oneDay * 2 + 8,
-  };
-
-  const testDownloadWorkflow1: Workflow = {
-    wid: 6,
-    name: "workflow",
-    description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970, //januaryFirst1970 is 1970-01-01 in PST
-    lastModifiedTime: januaryFirst1970 + 2,
-  };
-  const testDownloadWorkflow2: Workflow = {
-    wid: 7,
-    name: "workflow",
-    description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + (oneDay + 3), // oneDay is the number of milliseconds in a day
-    lastModifiedTime: januaryFirst1970 + (oneDay + 3),
-  };
-  const testDownloadWorkflow3: Workflow = {
-    wid: 8,
-    name: "workflow",
-    description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + oneDay,
-    lastModifiedTime: januaryFirst1970 + (oneDay + 4),
-  };
-  const testWorkflowFileNameConflictEntries: DashboardWorkflowEntry[] = [
-    {
-      workflow: testDownloadWorkflow1,
-      isOwner: true,
-      ownerName: "Texera",
-      accessLevel: "Write",
-      projectIDs: [1],
-    },
-    {
-      workflow: testDownloadWorkflow2,
-      isOwner: true,
-      ownerName: "Texera",
-      accessLevel: "Write",
-      projectIDs: [1, 2],
-    },
-    {
-      workflow: testDownloadWorkflow3,
-      isOwner: true,
-      ownerName: "Angular",
-      accessLevel: "Write",
-      projectIDs: [1],
-    },
-  ];
-
-  const testWorkflowEntries: DashboardWorkflowEntry[] = [
-    {
-      workflow: testWorkflow1,
-      isOwner: true,
-      ownerName: "Texera",
-      accessLevel: "Write",
-      projectIDs: [1],
-    },
-    {
-      workflow: testWorkflow2,
-      isOwner: true,
-      ownerName: "Texera",
-      accessLevel: "Write",
-      projectIDs: [1, 2],
-    },
-    {
-      workflow: testWorkflow3,
-      isOwner: true,
-      ownerName: "Angular",
-      accessLevel: "Write",
-      projectIDs: [1],
-    },
-    {
-      workflow: testWorkflow4,
-      isOwner: true,
-      ownerName: "Angular",
-      accessLevel: "Write",
-      projectIDs: [3],
-    },
-    {
-      workflow: testWorkflow5,
-      isOwner: true,
-      ownerName: "UCI",
-      accessLevel: "Write",
-      projectIDs: [3],
-    },
-  ];
 
   const checked = <Event>(<any>{
     target: {
@@ -209,7 +59,6 @@ describe("SavedWorkflowSectionComponent", () => {
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         NgbActiveModal,
         HttpClient,
-        NgbActiveModal,
         ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
@@ -445,113 +294,12 @@ describe("SavedWorkflowSectionComponent", () => {
     ]);
   });
 
-  it("sends http request to backend to retrieve export json", () => {
-    // Test the workflow download button.
-    component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
-    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledOnceWith(
-      new Blob([JSON.stringify(testWorkflowEntries[0].workflow.content)], { type: "text/plain;charset=utf-8" }),
-      "workflow 1.json"
-    );
-  });
-
-  it("adds selected workflow to the downloadListWorkflow", () => {
-    // Test workflow download with multiple workflows selected.
-    component.onClickAddToDownload(testWorkflowEntries[0], checked);
-    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[0].workflow.wid)).toEqual(true);
-    component.onClickAddToDownload(testWorkflowEntries[3], checked);
-    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[3].workflow.wid)).toEqual(true);
-  });
-
-  it("remove unchecked workflow from the downloadListWorkflow", () => {
-    // Allow removal of items in the pending download list.
-    component.onClickAddToDownload(testWorkflowEntries[0], checked);
-    component.onClickAddToDownload(testWorkflowEntries[3], checked);
-    component.onClickAddToDownload(testWorkflowEntries[0], unchecked);
-    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[0].workflow.wid)).toEqual(false);
-    component.onClickAddToDownload(testWorkflowEntries[3], unchecked);
-    expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[3].workflow.wid)).toEqual(false);
-  });
-
-  it("detects conflict filename and resolves it", () => {
+  it("downloads checked files", async () => {
     // If multiple workflows in a single batch download have name conflicts, rename them as workflow-1, workflow-2, etc.
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowFileNameConflictEntries);
-    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], checked);
-    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[2], checked);
-    let index = testWorkflowFileNameConflictEntries[0].workflow.wid as number;
-    let index1 = testWorkflowFileNameConflictEntries[1].workflow.wid as number;
-    let index2 = testWorkflowFileNameConflictEntries[2].workflow.wid as number;
-    expect(component.downloadListWorkflow.get(index)).toEqual("workflow.json");
-    expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
-    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], unchecked);
-    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[1], checked);
-    expect(component.downloadListWorkflow.get(index1)).toEqual("workflow.json");
-    expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
-    component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], checked);
-    expect(component.downloadListWorkflow.get(index1)).toEqual("workflow.json");
-    expect(component.downloadListWorkflow.get(index2)).toEqual("workflow-1.json");
-    expect(component.downloadListWorkflow.get(index)).toEqual("workflow-2.json");
+    testWorkflowFileNameConflictEntries[0].checked = true;
+    testWorkflowFileNameConflictEntries[2].checked = true;
+    await component.onClickOpenDownloadZip();
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
   });
-
-  it("adding a workflow description adds a description to the workflow", waitForAsync(() => {
-    fixture.whenStable().then(() => {
-      let addWorkflowDescriptionBtn1 = fixture.debugElement.query(By.css(".add-description-btn"));
-      expect(addWorkflowDescriptionBtn1).toBeFalsy();
-      // add some test workflows
-      component.dashboardWorkflowEntries = testWorkflowEntries;
-      fixture.detectChanges();
-      let addWorkflowDescriptionBtn2 = fixture.debugElement.query(By.css(".add-description-btn"));
-      // the button for adding workflow descriptions should appear now
-      expect(addWorkflowDescriptionBtn2).toBeTruthy();
-      addWorkflowDescriptionBtn2.triggerEventHandler("click", null);
-      fixture.detectChanges();
-      let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
-        ".workflow-editable-description"
-      );
-      expect(editableDescriptionInput1).toBeTruthy();
-
-      spyOn(component, "confirmUpdateWorkflowCustomDescription");
-      sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
-        fixture.detectChanges();
-        editableDescriptionInput1.dispatchEvent(new Event("focusout"));
-        fixture.detectChanges();
-        expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
-      });
-    });
-  }));
-
-  it("Editing a workflow description edits a description to the workflow", waitForAsync(() => {
-    fixture.whenStable().then(() => {
-      let workflowDescriptionLabel1 = fixture.debugElement.query(By.css(".workflow-description"));
-      expect(workflowDescriptionLabel1).toBeFalsy();
-      // add some test workflows
-      component.dashboardWorkflowEntries = testWorkflowEntries;
-      fixture.detectChanges();
-      let workflowDescriptionLabel2 = fixture.debugElement.query(By.css(".workflow-description"));
-      // the workflow description label should appear now
-      expect(workflowDescriptionLabel2).toBeTruthy();
-      workflowDescriptionLabel2.triggerEventHandler("click", null);
-      fixture.detectChanges();
-      let editableDescriptionInput1 = fixture.debugElement.nativeElement.querySelector(
-        ".workflow-editable-description"
-      );
-      expect(editableDescriptionInput1).toBeTruthy();
-
-      spyOn(component, "confirmUpdateWorkflowCustomDescription");
-
-      sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
-        fixture.detectChanges();
-        editableDescriptionInput1.dispatchEvent(new Event("focusout"));
-        fixture.detectChanges();
-        expect(component.confirmUpdateWorkflowCustomDescription).toHaveBeenCalledTimes(1);
-      });
-    });
-  }));
-
-  function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
-    // Helper function to change the workflow description textbox.
-    editableDescriptionInput.value = text;
-    editableDescriptionInput.dispatchEvent(new Event("input"));
-    fixture.detectChanges();
-    return fixture.whenStable();
-  }
 });
