@@ -23,12 +23,12 @@ from core.architecture.handlers.replay_current_tuple_handler import (
     ReplayCurrentTupleHandler,
 )
 from core.architecture.handlers.resume_worker_handler import ResumeWorkerHandler
-from core.architecture.handlers.scheduler_time_slot_event_handler import (
-    SchedulerTimeSlotEventHandler,
-)
 from core.architecture.handlers.start_worker_handler import StartWorkerHandler
 from core.architecture.handlers.update_input_linking_handler import (
     UpdateInputLinkingHandler,
+)
+from core.architecture.handlers.scheduler_time_slot_event_handler import (
+    SchedulerTimeSlotEventHandler,
 )
 from core.architecture.managers.context import Context
 from core.models.internal_queue import InternalQueue, ControlElement
