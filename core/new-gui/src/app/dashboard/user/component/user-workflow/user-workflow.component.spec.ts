@@ -40,91 +40,74 @@ describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
   let fixture: ComponentFixture<UserWorkflowComponent>;
 
+  let httpTestingController: HttpTestingController;
   //All times in test Workflows are in PST because our local machine's timezone is PST
   //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
-  const oneDay = 86400000;
-  const januaryFirst1970 = 28800000; // 1970-01-01 in PST
-  const testWorkflowContent = (operatorTypes: string[]): WorkflowContent => ({
-    operators: operatorTypes.map(t => ({
-      operatorType: t,
-      operatorID: t,
-      operatorVersion: "1",
-      operatorProperties: {},
-      inputPorts: [],
-      outputPorts: [],
-      showAdvanced: false,
-    })),
-    breakpoints: {},
-    commentBoxes: [],
-    groups: [],
-    links: [],
-    operatorPositions: {},
-  });
 
   const testWorkflow1: Workflow = {
     wid: 1,
     name: "workflow 1",
     description: "dummy description",
-    content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
-    creationTime: januaryFirst1970,
-    lastModifiedTime: januaryFirst1970 + 2,
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000, //28800000 is 1970-01-01 in PST
+    lastModifiedTime: 28800000 + 2,
   };
   const testWorkflow2: Workflow = {
     wid: 2,
     name: "workflow 2",
     description: "dummy description",
-    content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
-    creationTime: januaryFirst1970 + (oneDay + 3),
-    lastModifiedTime: januaryFirst1970 + (oneDay + 3),
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
+    lastModifiedTime: 28800000 + (86400000 + 3),
   };
   const testWorkflow3: Workflow = {
     wid: 3,
     name: "workflow 3",
     description: "dummy description",
-    content: testWorkflowContent(["Aggregation", "NlpSentiment"]),
-    creationTime: januaryFirst1970 + oneDay,
-    lastModifiedTime: januaryFirst1970 + (oneDay + 4),
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + 86400000,
+    lastModifiedTime: 28800000 + (86400000 + 4),
   };
   const testWorkflow4: Workflow = {
     wid: 4,
     name: "workflow 4",
     description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + (oneDay + 3) * 2,
-    lastModifiedTime: januaryFirst1970 + oneDay * 2 + 6,
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + 86400003 * 2,
+    lastModifiedTime: 28800000 + 86400000 * 2 + 6,
   };
   const testWorkflow5: Workflow = {
     wid: 5,
     name: "workflow 5",
     description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + oneDay * 2,
-    lastModifiedTime: januaryFirst1970 + oneDay * 2 + 8,
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + 86400000 * 2,
+    lastModifiedTime: 28800000 + 86400000 * 2 + 8,
   };
 
   const testDownloadWorkflow1: Workflow = {
     wid: 6,
     name: "workflow",
     description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970, //januaryFirst1970 is 1970-01-01 in PST
-    lastModifiedTime: januaryFirst1970 + 2,
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000, //28800000 is 1970-01-01 in PST
+    lastModifiedTime: 28800000 + 2,
   };
   const testDownloadWorkflow2: Workflow = {
     wid: 7,
     name: "workflow",
     description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + (oneDay + 3), // oneDay is the number of milliseconds in a day
-    lastModifiedTime: januaryFirst1970 + (oneDay + 3),
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + (86400000 + 3), // 86400000 is the number of milliseconds in a day
+    lastModifiedTime: 28800000 + (86400000 + 3),
   };
   const testDownloadWorkflow3: Workflow = {
     wid: 8,
     name: "workflow",
     description: "dummy description",
-    content: testWorkflowContent([]),
-    creationTime: januaryFirst1970 + oneDay,
-    lastModifiedTime: januaryFirst1970 + (oneDay + 4),
+    content: jsonCast<WorkflowContent>("{}"),
+    creationTime: 28800000 + 86400000,
+    lastModifiedTime: 28800000 + (86400000 + 4),
   };
   const testWorkflowFileNameConflictEntries: DashboardWorkflowEntry[] = [
     {
@@ -243,11 +226,10 @@ describe("SavedWorkflowSectionComponent", () => {
   }));
 
   beforeEach(() => {
+    httpTestingController = TestBed.get(HttpTestingController);
     fixture = TestBed.createComponent(UserWorkflowComponent);
+
     component = fixture.componentInstance;
-    component.allDashboardWorkflowEntries = [...testWorkflowEntries];
-    component.dashboardWorkflowEntries = [...testWorkflowEntries];
-    component.masterFilterList = [];
     component.selectedMtime = [];
     component.selectedMtime = [];
     component.owners = [
@@ -272,12 +254,16 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("alphaSortTest increaseOrder", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.ascSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
   });
 
   it("alphaSortTest decreaseOrder", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dscSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase).toEqual(["workflow 5", "workflow 4", "workflow 3", "workflow 2", "workflow 1"]);
@@ -294,12 +280,16 @@ describe("SavedWorkflowSectionComponent", () => {
   // });
 
   it("createDateSortTest", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dateSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5", "workflow 2", "workflow 3", "workflow 1"]);
   });
 
   it("lastEditSortTest", () => {
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.lastSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase).toEqual(["workflow 5", "workflow 4", "workflow 3", "workflow 2", "workflow 1"]);
@@ -307,6 +297,11 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchNoInput", async () => {
     // When no search input is provided, it should show all workflows.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
@@ -316,7 +311,11 @@ describe("SavedWorkflowSectionComponent", () => {
   it("searchByWorkflowName", async () => {
     // If the name "workflow 5" is entered as a single phrase, only workflow 5 should be returned, rather
     // than all containing the keyword "workflow".
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
     component.masterFilterList = ["workflow 5"];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 5"]);
@@ -325,6 +324,11 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchByOwners", async () => {
     // If the owner filter is applied, only those workflow ownered by that user should be returned.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.owners[0].checked = true;
     await component.updateSelectedOwners(); // calls searchWorkflow()
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
@@ -334,6 +338,11 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchByIDs", async () => {
     // If the ID filter is applied, only those workflows should be returned.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.wids[0].checked = true;
     component.wids[1].checked = true;
     component.wids[2].checked = true;
@@ -345,6 +354,11 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchByProjects", async () => {
     // If the project filter is applied, only those workflows belonging to those projects should be returned.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.userProjectsDropdown[0].checked = true;
     await component.updateSelectedProjects(); // calls searchWorkflow()
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
@@ -354,6 +368,11 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchByCreationTime", async () => {
     // If the creation time filter is applied, only those workflows matching the date range should be returned.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
@@ -363,6 +382,11 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchByModifyTime", async () => {
     // If the modified time filter is applied, only those workflows matching the date range should be returned.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     component.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
@@ -383,21 +407,32 @@ describe("SavedWorkflowSectionComponent", () => {
    */
   it("searchByOperators", async () => {
     // If a single operator filter is provided, only the workflows containing that operator should be returned.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
       operatorGroup[2].checked = true; // sentiment analysis
       await component.updateSelectedOperators();
     }
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
+    expect(SortedCase).toEqual(["workflow 3"]);
     expect(component.masterFilterList).toEqual(["operator: Sentiment Analysis"]); // userFriendlyName
   });
 
   it("searchByManyOperators", async () => {
     // If a multiple operator filters are provided, workflows containing any of the provided operators should be returned.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
     const operatorGroup = component.operators.get("Analysis");
     const operatorGroup2 = component.operators.get("View Results");
     if (operatorGroup && operatorGroup2) {
+      console.log(component.operators);
       operatorGroup[2].checked = true; // sentiment analysis
       operatorGroup2[0].checked = true;
       await component.updateSelectedOperators(); // calls searchWorkflow()
@@ -409,6 +444,12 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchByManyParameters", async () => {
     // Apply the project, ID, owner, and operator filter all at once.
+    component.dashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = [];
+    component.allDashboardWorkflowEntries = component.allDashboardWorkflowEntries.concat(testWorkflowEntries);
+    component.masterFilterList = [];
+    component.fuse.setCollection(component.allDashboardWorkflowEntries);
+
     const operatorGroup = component.operators.get("Analysis");
     if (operatorGroup) {
       operatorGroup[3].checked = true; // Aggregation operator
@@ -456,6 +497,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("adds selected workflow to the downloadListWorkflow", () => {
     // Test workflow download with multiple workflows selected.
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.onClickAddToDownload(testWorkflowEntries[0], checked);
     expect(component.downloadListWorkflow.has(<number>testWorkflowEntries[0].workflow.wid)).toEqual(true);
     component.onClickAddToDownload(testWorkflowEntries[3], checked);
@@ -464,6 +507,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("remove unchecked workflow from the downloadListWorkflow", () => {
     // Allow removal of items in the pending download list.
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.onClickAddToDownload(testWorkflowEntries[0], checked);
     component.onClickAddToDownload(testWorkflowEntries[3], checked);
     component.onClickAddToDownload(testWorkflowEntries[0], unchecked);
@@ -474,6 +519,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("detects conflict filename and resolves it", () => {
     // If multiple workflows in a single batch download have name conflicts, rename them as workflow-1, workflow-2, etc.
+    component.dashboardWorkflowEntries = [];
     component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowFileNameConflictEntries);
     component.onClickAddToDownload(testWorkflowFileNameConflictEntries[0], checked);
     component.onClickAddToDownload(testWorkflowFileNameConflictEntries[2], checked);

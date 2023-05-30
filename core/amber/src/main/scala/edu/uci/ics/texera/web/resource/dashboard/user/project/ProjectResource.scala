@@ -3,16 +3,16 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileOfProjectDao,
   ProjectDao,
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.hasAccessTo
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
@@ -227,7 +227,7 @@ class ProjectResource {
     * all the file objects that are part of the specified project.
     *
     * @param pid project ID
-    * @param user the session user
+    * @param sessionUser the session user
     * @return a list of DashboardFileEntry objects
     */
   @GET
@@ -235,11 +235,22 @@ class ProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
-      @Auth user: SessionUser
+      @Auth sessionUser: SessionUser
   ): List[DashboardFileEntry] = {
     verifyProjectExists(pid)
-    context
-      .select()
+
+    val user = sessionUser.getUser
+    val fileEntries = context
+      .select(
+        FILE.FID,
+        FILE.SIZE,
+        FILE.NAME,
+        FILE.PATH,
+        FILE.DESCRIPTION,
+        USER_FILE_ACCESS.READ_ACCESS,
+        USER_FILE_ACCESS.WRITE_ACCESS,
+        USER.NAME // owner name
+      )
       .from(FILE_OF_PROJECT)
       .leftJoin(FILE)
       .on(FILE.FID.eq(FILE_OF_PROJECT.FID))
@@ -249,14 +260,37 @@ class ProjectResource {
       .on(USER.UID.eq(FILE.OWNER_UID))
       .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
       .fetch()
+    fileEntries
       .map(fileRecord =>
         DashboardFileEntry(
           fileRecord.into(USER).getName,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
-          fileRecord.into(FILE).into(classOf[File])
+          toFileAccessLevel(fileRecord.into(USER_FILE_ACCESS).into(classOf[UserFileAccess])),
+          fileRecord.into(USER).getName == user.getName,
+          fileRecord.into(FILE).into(classOf[File]),
+          fileOfProjectDao
+            .fetchByFid(fileRecord.into(FILE).getFid)
+            .map(fileOfProject => fileOfProject.getPid)
+            .toList
         )
       )
       .toList
+  }
+
+  /**
+    * This is a helper function used in creating DashboardFileEntry objects.
+    * It extracts the access level given a UserFileAccess generated POJO
+    *
+    * @param userFileAccess the UserFileAccess object
+    * @return
+    */
+  def toFileAccessLevel(userFileAccess: UserFileAccess): String = {
+    if (userFileAccess.getWriteAccess) {
+      "Write"
+    } else if (userFileAccess.getReadAccess) {
+      "Read"
+    } else {
+      "None"
+    }
   }
 
   /**
@@ -304,7 +338,7 @@ class ProjectResource {
     verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(uid, userProject)
-    if (!hasReadAccess(wid, uid)) {
+    if (!hasAccess(wid, uid)) {
       throw new ForbiddenException("No sufficient access privilege to workflow.")
     }
 
@@ -332,6 +366,9 @@ class ProjectResource {
     verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     verifySessionUserHasProjectAccess(uid, userProject)
+    if (!hasAccessTo(uid, fid)) {
+      throw new ForbiddenException("No sufficient access privilege to file.")
+    }
 
     fileOfProjectDao.insert(new FileOfProject(fid, pid))
   }

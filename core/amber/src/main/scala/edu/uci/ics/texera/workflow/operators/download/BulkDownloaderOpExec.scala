@@ -93,17 +93,14 @@ class BulkDownloaderOpExec(
           input match {
             case Some(contentStream) =>
               if (contentStream.available() > 0) {
-                val filename =
-                  s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
-                    .replace(".", "")}.download"
                 UserFileResource
-                  .saveFile(
+                  .saveUserFileSafe(
                     workflowContext.userId.get,
-                    filename,
+                    s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
+                      .replace(".", "")}.download",
                     contentStream,
                     s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
                   )
-                filename
               } else {
                 throw new RuntimeException(s"content is not available for $url")
               }

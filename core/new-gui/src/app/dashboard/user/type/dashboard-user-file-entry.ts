@@ -1,8 +1,10 @@
-export interface DashboardFile
+export interface DashboardUserFileEntry
   extends Readonly<{
-    ownerEmail: string;
-    writeAccess: boolean;
+    ownerName: string;
     file: UserFile;
+    accessLevel: string;
+    isOwner: boolean;
+    projectIDs: number[];
   }> {}
 
 /**
@@ -13,11 +15,10 @@ export interface DashboardFile
  */
 export interface UserFile
   extends Readonly<{
-    ownerUid: number;
     fid: number;
-    size: number;
     name: string;
     path: string;
+    size: number;
     description: string;
     uploadTime: string;
   }> {}

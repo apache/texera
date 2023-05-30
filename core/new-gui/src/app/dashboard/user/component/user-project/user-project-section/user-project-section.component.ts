@@ -4,10 +4,11 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
-import { DashboardFile } from "../../../type/dashboard-file.interface";
+import { DashboardUserFileEntry } from "../../../type/dashboard-user-file-entry";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NgbdModalUserFileShareAccessComponent } from "../../user-file/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UserProject } from "../../../type/user-project";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
@@ -75,7 +76,7 @@ export class UserProjectSectionComponent implements OnInit {
     modalRef.componentInstance.projectId = this.pid;
   }
 
-  public getUserProjectFilesArray(): ReadonlyArray<DashboardFile> {
+  public getUserProjectFilesArray(): ReadonlyArray<DashboardUserFileEntry> {
     const fileArray = this.userProjectService.getProjectFiles();
     if (!fileArray) {
       return [];
@@ -149,12 +150,12 @@ export class UserProjectSectionComponent implements OnInit {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
 
-  public confirmEditFileName(dashboardUserFileEntry: DashboardFile, name: string, index: number): void {
+  public confirmEditFileName(dashboardUserFileEntry: DashboardUserFileEntry, name: string, index: number): void {
     const {
       file: { fid },
     } = dashboardUserFileEntry;
     this.userFileService
-      .changeFileName(fid, name)
+      .updateFileName(fid, name)
       .pipe(untilDestroyed(this))
       .subscribe(
         () => {
@@ -169,9 +170,14 @@ export class UserProjectSectionComponent implements OnInit {
       .add(() => (this.isEditingFileName = this.isEditingFileName.filter(fileIsEditing => fileIsEditing != index)));
   }
 
-  public downloadUserFile(userFileEntry: DashboardFile): void {
+  public onClickOpenFileShareAccess(dashboardUserFileEntry: DashboardUserFileEntry): void {
+    const modalRef = this.modalService.open(NgbdModalUserFileShareAccessComponent);
+    modalRef.componentInstance.dashboardUserFileEntry = dashboardUserFileEntry;
+  }
+
+  public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
     this.userFileService
-      .downloadFile(userFileEntry.file.fid)
+      .downloadUserFile(userFileEntry.file)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (response: Blob) => {
@@ -201,7 +207,7 @@ export class UserProjectSectionComponent implements OnInit {
    *
    * @param userFileEntry
    */
-  public deleteUserFileEntry(userFileEntry: DashboardFile): void {
+  public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
     this.userProjectService.deleteDashboardUserFileEntry(this.pid, userFileEntry);
   }
 

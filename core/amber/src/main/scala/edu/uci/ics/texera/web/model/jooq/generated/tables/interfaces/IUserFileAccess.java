@@ -4,8 +4,6 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege;
-
 import java.io.Serializable;
 
 import org.jooq.types.UInteger;
@@ -38,14 +36,24 @@ public interface IUserFileAccess extends Serializable {
     public UInteger getFid();
 
     /**
-     * Setter for <code>texera_db.user_file_access.privilege</code>.
+     * Setter for <code>texera_db.user_file_access.read_access</code>.
      */
-    public void setPrivilege(UserFileAccessPrivilege value);
+    public void setReadAccess(Boolean value);
 
     /**
-     * Getter for <code>texera_db.user_file_access.privilege</code>.
+     * Getter for <code>texera_db.user_file_access.read_access</code>.
      */
-    public UserFileAccessPrivilege getPrivilege();
+    public Boolean getReadAccess();
+
+    /**
+     * Setter for <code>texera_db.user_file_access.write_access</code>.
+     */
+    public void setWriteAccess(Boolean value);
+
+    /**
+     * Getter for <code>texera_db.user_file_access.write_access</code>.
+     */
+    public Boolean getWriteAccess();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

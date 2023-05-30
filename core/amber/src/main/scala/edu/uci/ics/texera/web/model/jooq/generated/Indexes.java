@@ -6,7 +6,6 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
@@ -38,8 +37,6 @@ public class Indexes {
     public static final Index FILE_PRIMARY = Indexes0.FILE_PRIMARY;
     public static final Index FILE_OF_PROJECT_PID = Indexes0.FILE_OF_PROJECT_PID;
     public static final Index FILE_OF_PROJECT_PRIMARY = Indexes0.FILE_OF_PROJECT_PRIMARY;
-    public static final Index FILE_OF_WORKFLOW_PRIMARY = Indexes0.FILE_OF_WORKFLOW_PRIMARY;
-    public static final Index FILE_OF_WORKFLOW_WID = Indexes0.FILE_OF_WORKFLOW_WID;
     public static final Index PROJECT_OWNER_ID = Indexes0.PROJECT_OWNER_ID;
     public static final Index PROJECT_PRIMARY = Indexes0.PROJECT_PRIMARY;
     public static final Index PROJECT_USER_ACCESS_PID = Indexes0.PROJECT_USER_ACCESS_PID;
@@ -72,8 +69,6 @@ public class Indexes {
         public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[] { File.FILE.FID }, true);
         public static Index FILE_OF_PROJECT_PID = Internal.createIndex("pid", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.PID }, false);
         public static Index FILE_OF_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID }, true);
-        public static Index FILE_OF_WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", FileOfWorkflow.FILE_OF_WORKFLOW, new OrderField[] { FileOfWorkflow.FILE_OF_WORKFLOW.FID, FileOfWorkflow.FILE_OF_WORKFLOW.WID }, true);
-        public static Index FILE_OF_WORKFLOW_WID = Internal.createIndex("wid", FileOfWorkflow.FILE_OF_WORKFLOW, new OrderField[] { FileOfWorkflow.FILE_OF_WORKFLOW.WID }, false);
         public static Index PROJECT_OWNER_ID = Internal.createIndex("owner_id", Project.PROJECT, new OrderField[] { Project.PROJECT.OWNER_ID, Project.PROJECT.NAME }, true);
         public static Index PROJECT_PRIMARY = Internal.createIndex("PRIMARY", Project.PROJECT, new OrderField[] { Project.PROJECT.PID }, true);
         public static Index PROJECT_USER_ACCESS_PID = Internal.createIndex("pid", ProjectUserAccess.PROJECT_USER_ACCESS, new OrderField[] { ProjectUserAccess.PROJECT_USER_ACCESS.PID }, false);

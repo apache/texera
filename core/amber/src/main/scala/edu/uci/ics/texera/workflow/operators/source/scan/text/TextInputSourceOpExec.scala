@@ -7,23 +7,17 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 class TextInputSourceOpExec private[text] (
     val desc: TextInputSourceOpDesc,
     val startOffset: Int,
-    val endOffset: Int,
-    val outputAttributeName: String
+    val endOffset: Int
 ) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var rows: Iterator[String] = _
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
     if (desc.outputAsSingleTuple) {
-      Iterator(
-        Tuple
-          .newBuilder(schema)
-          .add(schema.getAttribute(outputAttributeName), desc.textInput)
-          .build()
-      )
+      Iterator(Tuple.newBuilder(schema).add(schema.getAttribute("text"), desc.textInput).build())
     } else {
       rows.map(line => {
-        Tuple.newBuilder(schema).add(schema.getAttribute(outputAttributeName), line).build()
+        Tuple.newBuilder(schema).add(schema.getAttribute("line"), line).build()
       })
     }
   }

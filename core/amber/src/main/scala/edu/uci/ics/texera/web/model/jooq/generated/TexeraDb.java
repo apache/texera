@@ -6,7 +6,6 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
@@ -33,7 +32,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = 337404308;
+    private static final long serialVersionUID = -1208459713;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -49,11 +48,6 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.file_of_project</code>.
      */
     public final FileOfProject FILE_OF_PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject.FILE_OF_PROJECT;
-
-    /**
-     * The table <code>texera_db.file_of_workflow</code>.
-     */
-    public final FileOfWorkflow FILE_OF_WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow.FILE_OF_WORKFLOW;
 
     /**
      * The table <code>texera_db.project</code>.
@@ -129,7 +123,6 @@ public class TexeraDb extends SchemaImpl {
         return Arrays.<Table<?>>asList(
             File.FILE,
             FileOfProject.FILE_OF_PROJECT,
-            FileOfWorkflow.FILE_OF_WORKFLOW,
             Project.PROJECT,
             User.USER,
             UserConfig.USER_CONFIG,

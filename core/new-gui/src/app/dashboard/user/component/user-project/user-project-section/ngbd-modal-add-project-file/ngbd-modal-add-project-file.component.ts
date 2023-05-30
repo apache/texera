@@ -3,7 +3,7 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { forkJoin, Observable } from "rxjs";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
 import { UserProjectService } from "../../../../service/user-project/user-project.service";
-import { DashboardFile } from "../../../../type/dashboard-file.interface";
+import { DashboardUserFileEntry } from "../../../../type/dashboard-user-file-entry";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
@@ -13,10 +13,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./ngbd-modal-add-project-file.component.scss"],
 })
 export class NgbdModalAddProjectFileComponent implements OnInit {
-  @Input() addedFiles!: ReadonlyArray<DashboardFile>;
+  @Input() addedFiles!: ReadonlyArray<DashboardUserFileEntry>;
   @Input() projectId!: number;
 
-  public unaddedFiles: ReadonlyArray<DashboardFile> = [];
+  public unaddedFiles: ReadonlyArray<DashboardUserFileEntry> = [];
   public checkedFiles: boolean[] = [];
   private addedFileKeys: Set<number> = new Set<number>();
 
@@ -68,7 +68,7 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
 
   private refreshProjectFileEntries(): void {
     this.userFileService
-      .getFileList()
+      .retrieveDashboardUserFileEntryList()
       .pipe(untilDestroyed(this))
       .subscribe(dashboardFileEntries => {
         this.unaddedFiles = dashboardFileEntries.filter(
