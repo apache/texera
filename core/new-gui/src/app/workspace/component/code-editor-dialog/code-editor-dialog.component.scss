@@ -6,10 +6,13 @@
 
 ::ng-deep.mat-dialog-container {
   background: #333333;
-  padding: 0;
-  overflow: hidden;
-  width: 1000px;
-  height: 650px;
+  padding: 0 0 65px 0;
+  resize: both;
+  overflow: auto;
+  width: 95vw;
+  height: 95vh;
+  min-width: 320px;
+  min-height: 240px;
 }
 
 .code-editor {

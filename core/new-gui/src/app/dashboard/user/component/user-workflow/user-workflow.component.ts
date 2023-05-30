@@ -15,8 +15,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import Fuse from "fuse.js";
-import { catchError, concatMap } from "rxjs/operators";
+import { concatMap, catchError } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../type/user-project";
@@ -100,20 +99,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
-  public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
-    useExtendedSearch: true,
-    shouldSort: true,
-    threshold: 0.2,
-    location: 0,
-    distance: 100,
-    minMatchCharLength: 1,
-    keys: ["workflow.wid", "workflow.name", "ownerName"],
-  });
-  public searchCriteriaPathMapping: Map<string, string[]> = new Map([
-    ["workflowName", ["workflow", "name"]],
-    ["id", ["workflow", "wid"]],
-    ["owner", ["ownerName"]],
-  ]);
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
 
@@ -274,40 +259,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     this.retrieveIDs()
       .pipe(untilDestroyed(this))
       .subscribe(list_of_ids => (this.wids = list_of_ids));
-  }
-
-  /**
-   * Search workflows based on date string
-   * String Formats:
-   *  - mtime:YYYY-MM-DD (workflows on this date)
-   *  - mtime:<YYYY-MM-DD (workflows on or before this date)
-   *  - mtime:>YYYY-MM-DD (workflows on or after this date)
-   */
-
-  private searchDate(
-    date: Date[],
-    filteredDashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry>,
-    type: String
-  ): ReadonlyArray<DashboardWorkflowEntry> {
-    date[0].setHours(0);
-    date[0].setMinutes(0);
-    date[0].setSeconds(0);
-    date[0].setMilliseconds(0);
-    date[1].setHours(0);
-    date[1].setMinutes(0);
-    date[1].setSeconds(0);
-    date[1].setMilliseconds(0);
-    //sets date time at beginning of day
-    //date obj from nz-calendar adds extraneous time
-    return filteredDashboardWorkflowEntries.filter(workflow_entry => {
-      //filters for workflows that were created on the specified date
-      let time = type === "C" ? workflow_entry.workflow.creationTime : workflow_entry.workflow.lastModifiedTime;
-      if (time) {
-        return time >= date[0].getTime() && time < date[1].getTime() + 86400000;
-        //checks if creation time is within the range of the whole day
-      }
-      return false;
-    });
   }
 
   /**
@@ -497,36 +448,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   }
 
   /**
-   * constructs OrPathQuery object for search values with in the same category (owner, id, operator, etc.)
-   *  -returned object is inserted into AndPathQuery
-   *
-   * @param searchType - specified fuse search parameter for path mapping
-   * @param searchList - list of search parameters of the same type (owner, id, etc.)
-   * @param exactMatch
-   */
-  private buildOrPathQuery(searchType: string, searchList: string[], exactMatch: boolean = false) {
-    let orPathQuery: Object[] = [];
-    searchList
-      .map(searchParameter => this.buildAndPathQuery(searchType, (exactMatch ? "=" : "") + searchParameter))
-      .forEach(pathQuery => orPathQuery.push(pathQuery));
-    return orPathQuery;
-  }
-
-  // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
-  private buildAndPathQuery(
-    workflowSearchField: string,
-    workflowSearchValue: string
-  ): {
-    $path: ReadonlyArray<string>;
-    $val: string;
-  } {
-    return {
-      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
-      $val: workflowSearchValue,
-    };
-  }
-
-  /**
    * builds the tags to be displayd in the nz-select search bar
    * - Workflow names with ":" are not allowed due to conflict with other search parameters' format
    */
@@ -583,108 +504,25 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     this.dashboardWorkflowEntries = await this.search();
   }
 
-  private async asyncSearch(): Promise<number[] | "NoSearchKeywordProvided"> {
-    const idsFromOperatorSearch = await this.asyncSearchByOperator();
-    const idsFromKeywordSearch = await this.asyncSearchByKeywords();
-    if (idsFromOperatorSearch == "NoSearchKeywordProvided" && idsFromKeywordSearch == "NoSearchKeywordProvided") {
-      return "NoSearchKeywordProvided";
-    } else if (
-      idsFromOperatorSearch != "NoSearchKeywordProvided" &&
-      idsFromKeywordSearch != "NoSearchKeywordProvided"
-    ) {
-      var intersection = new Set<number>();
-      var idsFromKeywordSearchSet = new Set<number>(idsFromKeywordSearch);
-      for (var x of idsFromOperatorSearch) {
-        if (idsFromKeywordSearchSet.has(x)) {
-          intersection.add(x);
-        }
-      }
-      return [...intersection];
-    } else if (idsFromOperatorSearch != "NoSearchKeywordProvided") {
-      return idsFromOperatorSearch;
-    } else if (idsFromKeywordSearch != "NoSearchKeywordProvided") {
-      return idsFromKeywordSearch;
-    }
-    throw new Error("Unreachable code.");
-  }
-
-  private async asyncSearchByOperator(): Promise<number[] | "NoSearchKeywordProvided"> {
-    if (this.selectedOperators.length == 0) {
-      return "NoSearchKeywordProvided";
-    }
-    return (
-      await firstValueFrom(
-        this.workflowPersistService.retrieveWorkflowByOperator(
-          this.selectedOperators.map(operator => operator.operatorType).toString()
-        )
-      )
-    ).map(id => Number(id));
-  }
-
-  private async asyncSearchByKeywords(): Promise<number[] | "NoSearchKeywordProvided"> {
-    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
-    if (workflowNames.length == 0) {
-      return "NoSearchKeywordProvided";
-    }
-    const workflowsFromSearch = await firstValueFrom(
-      this.workflowPersistService.searchWorkflowsBySessionUser(workflowNames)
-    );
-
-    // The new search feature returns the full content of the search. Currently, we only extract the ID to filter.
-    // In the future, we will no longer download all workflow in this component and will rely on the return of the search endpoint.
-    return workflowsFromSearch.map(w => w.workflow.wid).filter((id): id is number => Boolean(id));
-  }
-
   /**
-   * Searches workflows with given frontend data
-   * no backend calls so runs synchronously
+   * Searches workflows with keywords and filters given in the masterFilterList.
+   * @returns
    */
   private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
-    let searchOutput: ReadonlyArray<DashboardWorkflowEntry> = this.allDashboardWorkflowEntries.slice();
-    let andPathQuery: Object[] = [];
-
-    const asyncSearchResult = await this.asyncSearch();
-    if (asyncSearchResult != "NoSearchKeywordProvided") {
-      andPathQuery.push({
-        $or: this.buildOrPathQuery(
-          "id",
-          asyncSearchResult.map(id => id.toString()),
-          true
-        ),
-      });
-    }
-
-    if (this.selectedOwners.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("owner", this.selectedOwners) });
-    }
-    if (this.selectedIDs.length !== 0) {
-      andPathQuery.push({ $or: this.buildOrPathQuery("id", this.selectedIDs) });
-    }
-
-    //executes search using AndPathQuery and then filters result if searching by ctime
-    if (andPathQuery.length !== 0) {
-      searchOutput = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
-    }
-
-    if (this.selectedCtime.length != 0) {
-      searchOutput = this.searchDate(this.selectedCtime, searchOutput, "C");
-    }
-
-    if (this.selectedMtime.length != 0) {
-      searchOutput = this.searchDate(this.selectedMtime, searchOutput, "M");
-    }
-
-    if (this.selectedProjects.length !== 0) {
-      searchOutput = searchOutput.filter(workflowEntry => {
-        for (const proj of this.selectedProjects) {
-          if (workflowEntry.projectIDs.includes(proj.pid)) {
-            return true;
-          }
-        }
-      });
-    }
-    //console.log(" we return search output " + JSON.stringify(searchOutput));
-    return searchOutput;
+    const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
+    return await firstValueFrom(
+      this.workflowPersistService.searchWorkflows(
+        workflowNames,
+        this.selectedCtime.length > 0 ? this.selectedCtime[0] : null,
+        this.selectedCtime.length > 0 ? this.selectedCtime[1] : null,
+        this.selectedMtime.length > 0 ? this.selectedMtime[0] : null,
+        this.selectedMtime.length > 0 ? this.selectedMtime[1] : null,
+        this.selectedOwners,
+        this.selectedIDs,
+        this.selectedOperators.map(o => o.operatorType),
+        this.selectedProjects.map(p => p.pid)
+      )
+    );
   }
 
   /**
@@ -955,7 +793,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           }
         }
         this.allDashboardWorkflowEntries = newAllDashboardEntries;
-        this.fuse.setCollection(this.allDashboardWorkflowEntries);
 
         // update dashboardWorkflowEntries
         const newEntries = this.dashboardWorkflowEntries.slice();
@@ -979,7 +816,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       this.dashboardWorkflowEntries = dashboardWorkflowEntries;
       this.sortWorkflows();
       this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
-      this.fuse.setCollection(this.allDashboardWorkflowEntries);
       const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
       this.filteredDashboardWorkflowNames = [...newEntries];
     });
@@ -995,7 +831,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    */
   private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
-    this.fuse.setCollection(this.allDashboardWorkflowEntries);
     // update searching / filtering
     this.searchWorkflow();
   }

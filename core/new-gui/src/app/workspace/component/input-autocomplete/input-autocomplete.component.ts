@@ -43,7 +43,7 @@ export class InputAutoCompleteComponent extends FieldType<any> {
     if (value.length > 0) {
       // perform auto-complete based on the current input
       this.userFileService
-        .getAutoCompleteUserFileAccessList(value)
+        .getAutoCompleteFileList(value)
         .pipe(debounceTime(300))
         .pipe(untilDestroyed(this))
         .subscribe(suggestedFiles => {
@@ -55,8 +55,8 @@ export class InputAutoCompleteComponent extends FieldType<any> {
     } else {
       // no valid input, perform full scan
       this.userFileService
-        .retrieveDashboardUserFileEntryList()
-        .pipe(map(list => list.map(x => x.ownerName + "/" + x.file.name)))
+        .getFileList()
+        .pipe(map(list => list.map(x => x.ownerEmail + "/" + x.file.name)))
         .pipe(untilDestroyed(this))
         .subscribe(allAccessibleFiles => (this.suggestions = allAccessibleFiles));
     }

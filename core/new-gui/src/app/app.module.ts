@@ -73,7 +73,6 @@ import { VisualizationFrameContentComponent } from "./workspace/component/visual
 import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
 import { WorkflowEditorComponent } from "./workspace/component/workflow-editor/workflow-editor.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { NgbdModalUserFileShareAccessComponent } from "./dashboard/user/component/user-file/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
 import { NzTagModule } from "ng-zorro-antd/tag";
@@ -118,6 +117,8 @@ import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.service";
+import { DragDropModule } from "@angular/cdk/drag-drop";
+import { AuthInterceptor } from "./common/service/user/auth.interceptor";
 
 registerLocaleData(en);
 
@@ -156,7 +157,6 @@ registerLocaleData(en);
     TypeCastingDisplayComponent,
     ShareAccessComponent,
     NgbdModalWorkflowExecutionsComponent,
-    NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
@@ -245,6 +245,7 @@ registerLocaleData(en);
     NzSwitchModule,
     NzLayoutModule,
     MarkdownModule.forRoot(),
+    DragDropModule,
   ],
   providers: [
     AuthGuardService,
@@ -258,6 +259,11 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
       multi: true,
     },
   ],

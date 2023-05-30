@@ -2,14 +2,10 @@ import { HttpClient, HttpEventType } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { FileUploadItem } from "../../type/dashboard-user-file-entry";
+import { FileUploadItem } from "../../type/dashboard-file.interface";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserFileService } from "./user-file.service";
 import { filter, map } from "rxjs/operators";
-
-export const USER_FILE_UPLOAD_URL = "user/file/upload";
-
-// export const USER_FILE_VALIDATE_URL = 'user/file/validate';
 
 @Injectable({
   providedIn: "root",
@@ -19,9 +15,7 @@ export class UserFileUploadService {
   // these files won't be uploaded until the user hits the "upload" button
   private filesToBeUploaded: FileUploadItem[] = [];
 
-  constructor(private userService: UserService, private userFileService: UserFileService, private http: HttpClient) {
-    this.detectUserChanges();
-  }
+  constructor(private userService: UserService, private userFileService: UserFileService, private http: HttpClient) {}
 
   private static createFileUploadItem(file: File): FileUploadItem {
     return {
@@ -91,12 +85,11 @@ export class UserFileUploadService {
 
     fileUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
-    formData.append("file", fileUploadItem.file, fileUploadItem.name);
-    formData.append("size", fileUploadItem.file.size.toString());
-    formData.append("description", fileUploadItem.description);
+    formData.append("file", fileUploadItem.file);
+    formData.append("name", fileUploadItem.name);
 
     return this.http
-      .post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`, formData, {
+      .post<Response>(`${AppSettings.getApiEndpoint()}/user/file/upload`, formData, {
         reportProgress: true,
         observe: "events",
       })
@@ -125,20 +118,5 @@ export class UserFileUploadService {
           }
         })
       );
-  }
-
-  /**
-   * clear the files in the service when user log out.
-   */
-  private detectUserChanges(): void {
-    this.userService.userChanged().subscribe(() => {
-      if (!this.userService.isLogin()) {
-        this.clearUserFile();
-      }
-    });
-  }
-
-  private clearUserFile(): void {
-    this.filesToBeUploaded = [];
   }
 }
