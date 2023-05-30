@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS `project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
+DROP TABLE IF EXISTS `project_user_access`;
 
 SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
@@ -95,6 +96,16 @@ CREATE TABLE IF NOT EXISTS workflow_user_access
     PRIMARY KEY (`uid`, `wid`),
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS project_user_access
+(
+    `uid`             INT UNSIGNED NOT NULL,
+    `pid`             INT UNSIGNED NOT NULL,
+    `privilege`          ENUM('NONE', 'READ', 'WRITE') NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (`uid`, `pid`),
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS workflow_version
