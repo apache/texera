@@ -13,8 +13,17 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class UserProjectListItemComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
-
-  @Input() entry?: UserProject;
+  private _entry?: UserProject;
+  @Input()
+  get entry(): UserProject {
+    if (!this._entry) {
+      throw new Error("entry property must be provided to UserProjectListItemComponent.");
+    }
+    return this._entry;
+  }
+  set entry(value: UserProject) {
+    this._entry = value;
+  }
   /**
    * Whether edit is enabled globally. It is possible to only edit this entry by setting
    * this.editingName = true or this.editingDescription = true.
@@ -35,18 +44,12 @@ export class UserProjectListItemComponent implements OnInit {
   constructor(private userProjectService: UserProjectService, private notificationService: NotificationService) {}
 
   ngOnInit(): void {
-    if (!this.entry) {
-      throw new Error("entry property must be provided to UserProjectListItemComponent.");
-    }
     if (this.entry.color) {
       this.color = this.entry.color;
     }
   }
 
   updateProjectColor(): void {
-    if (!this.entry) {
-      throw new Error("entry property must be provided to UserProjectListItemComponent.");
-    }
     const color = this.color.substring(1);
     this.editingColor = false;
     // validate that color is in proper HEX format
@@ -67,9 +70,6 @@ export class UserProjectListItemComponent implements OnInit {
       .subscribe({
         next: () => {
           this.color = color;
-          if (!this.entry) {
-            throw new Error("entry property must be provided to UserProjectListItemComponent.");
-          }
           this.entry = { ...this.entry, color: color };
         },
         error: (err: unknown) => {
@@ -80,10 +80,6 @@ export class UserProjectListItemComponent implements OnInit {
   }
 
   removeProjectColor(): void {
-    if (!this.entry) {
-      throw new Error("entry property must be provided to UserProjectListItemComponent.");
-    }
-
     this.editingColor = false;
 
     this.userProjectService
@@ -92,9 +88,6 @@ export class UserProjectListItemComponent implements OnInit {
       .subscribe({
         next: _ => {
           this.color = "#ffffff"; // reset color wheel
-          if (!this.entry) {
-            throw new Error("entry property must be provided to UserProjectListItemComponent.");
-          }
           this.entry = { ...this.entry, color: null };
         },
         error: (err: unknown) => {
@@ -105,9 +98,6 @@ export class UserProjectListItemComponent implements OnInit {
   }
 
   saveProjectName(name: string): void {
-    if (!this.entry) {
-      throw new Error("entry property must be provided to UserProjectListItemComponent.");
-    }
     // nothing happens if name is the same
     if (this.entry.name === name) {
       this.editingName = false;
@@ -132,9 +122,6 @@ export class UserProjectListItemComponent implements OnInit {
   }
 
   saveProjectDescription(description: string): void {
-    if (!this.entry) {
-      throw new Error("entry property must be provided to UserProjectListItemComponent.");
-    }
     // nothing happens if description is the same
     if (this.entry.description === description) {
       this.editingDescription = false;
@@ -147,9 +134,6 @@ export class UserProjectListItemComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          if (!this.entry) {
-            throw new Error("entry property must be provided to UserProjectListItemComponent.");
-          }
           this.entry.description = description;
           this.notificationService.success(`Saved description for project: "${this.entry.name}".`);
         },
