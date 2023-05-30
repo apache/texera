@@ -561,7 +561,7 @@ class WorkflowResourceSpec
     )
   }
 
-  "/searchAll API" should "be able to search for resources in different tables" in {
+  "/search API" should "be able to search for resources in different tables" in {
 
     // create different types of resources, project, workflow, and file
     projectResource.createProject(sessionUser1, "test project1")
@@ -702,6 +702,80 @@ class WorkflowResourceSpec
         "invalid-resource-type"
       )
     }
+  }
+  it should "return resources that match any of all provided keywords" in {
+    // This test is designed to verify that the searchAllResources function correctly
+    // returns resources that match all of the provided keywords
+
+    // Create different types of resources, a project, a workflow, and a file
+    projectResource.createProject(sessionUser1, "test project")
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    val filename = "unique.csv"
+    val response = fileResource.uploadFile(
+      in,
+      filename,
+      sessionUser1
+    )
+    assert(response.getStatusInfo.getStatusCode == 200)
+
+    // Perform search with multiple keywords
+    val DashboardClickableFileEntryList =
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test", "project"))
+
+    // Assert that the search results include resources that match any of the provided keywords
+    assert(DashboardClickableFileEntryList.length == 1)
+  }
+
+  it should "not return resources that belong to a different user" in {
+    // This test is designed to verify that the searchAllResources function does not return resources that belong to a different user
+
+    // Create a project for a different user (sessionUser2)
+    projectResource.createProject(sessionUser2, "test project2")
+
+    // Perform search for resources using sessionUser1
+    val DashboardClickableFileEntryList =
+      dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"))
+
+    // Assert that the search results do not include the project that belongs to the different user
+    // Assuming that DashboardClickableFileEntryList is a list of resources where each resource has a `user` property
+    assert(DashboardClickableFileEntryList.length == 0)
+  }
+
+
+  it should "handle reserved characters in the keywords in searchAllResources" in {
+    // testWorkflow1: {name: test_name, description: test_description, content: "key pair"}
+    // search "key+-pair" or "key@pair" or "key+" or "+key" should return testWorkflow1
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+
+    // search with reserved characters in keywords
+    var DashboardClickableFileEntryList = dashboardResource.searchAllResources(
+      sessionUser1,
+      getKeywordsArray(keywordInWorkflow1Content + "+-@()<>~*\"" + keywordInWorkflow1Content)
+    )
+    assert(DashboardClickableFileEntryList.length == 1)
+
+
+    DashboardClickableFileEntryList = dashboardResource.searchAllResources(
+      sessionUser1,
+      getKeywordsArray(keywordInWorkflow1Content + "@" + keywordInWorkflow1Content)
+    )
+    assert(DashboardClickableFileEntryList.size == 1)
+
+
+    DashboardClickableFileEntryList = dashboardResource.searchAllResources(
+      sessionUser1,
+      getKeywordsArray(keywordInWorkflow1Content + "+-@()<>~*\"")
+    )
+    assert(DashboardClickableFileEntryList.size == 1)
+
+
+    DashboardClickableFileEntryList = dashboardResource.searchAllResources(
+      sessionUser1,
+      getKeywordsArray("+-@()<>~*\"" + keywordInWorkflow1Content)
+    )
+    assert(DashboardClickableFileEntryList.size == 1)
+
   }
 
 }

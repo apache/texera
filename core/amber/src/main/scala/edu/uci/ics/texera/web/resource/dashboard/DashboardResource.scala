@@ -29,29 +29,7 @@ object DashboardResource {
   final private lazy val context = SqlServer.createDSLContext()
 
   case class DashboardClickableFileEntry(
-      // common attributes: 4 columns
       resourceType: String,
-//      name: String,
-//      description: String,
-//      creationTime: Timestamp,
-//      // workflow attributes: 5 columns
-//      wid: UInteger,
-//      lastModifiedTime: Timestamp,
-//      privilege: WorkflowUserAccessPrivilege, //
-//      uid: UInteger,
-//      userName: String, //
-//      // project attributes: 3 columns
-//      pid: UInteger,
-//      owner_id: UInteger,
-//      color: String,
-//      // file attributes 7 columns
-//      owner_uid: UInteger,
-//      fid: UInteger,
-//      uploadTime: Timestamp,
-//      path: String,
-//      size: UInteger,
-//      email: String,
-//      userFileAccessPrivilege: UserFileAccessPrivilege,
       workflow: DashboardWorkflowEntry,
       project: Project,
       file: DashboardFileEntry
@@ -310,24 +288,6 @@ class DashboardResource {
         val resourceType = record.get("resourceType", classOf[String])
         DashboardClickableFileEntry(
           resourceType,
-//          record.get("name", classOf[String]),
-//          record.get("description", classOf[String]),
-//          record.get("creation_time", classOf[Timestamp]),
-//          record.get("wid", classOf[UInteger]),
-//          record.get("last_modified_time", classOf[Timestamp]),
-//          record.get("privilege", classOf[WorkflowUserAccessPrivilege]),
-//          record.get("uid", classOf[UInteger]),
-//          record.get("userName", classOf[String]), // Specify the alias of the user name column
-//          record.get("pid", classOf[UInteger]),
-//          record.get("owner_id", classOf[UInteger]),
-//          record.get("color", classOf[String]),
-//          record.get("owner_uid", classOf[UInteger]),
-//          record.get("fid", classOf[UInteger]),
-//          record.get("upload_time", classOf[Timestamp]),
-//          record.get("path", classOf[String]),
-//          record.get("size", classOf[UInteger]),
-//          record.get("email", classOf[String]),
-//          record.get("user_file_access", classOf[UserFileAccessPrivilege]),
           if (resourceType == "workflow") {
             DashboardWorkflowEntry(
               record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
