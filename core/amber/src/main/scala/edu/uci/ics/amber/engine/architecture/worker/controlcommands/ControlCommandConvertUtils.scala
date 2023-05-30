@@ -108,7 +108,6 @@ object ControlCommandConvertUtils {
           selfWorkloadReturn.value.metrics,
           List[mutable.HashMap[ActorVirtualIdentity, List[Long]]]()
         )
-      case exp:ControlReturnV2.Value.ControlException => ControlException(exp.value.msg)
       case _ => controlReturnV2.value.value
     }
   }
