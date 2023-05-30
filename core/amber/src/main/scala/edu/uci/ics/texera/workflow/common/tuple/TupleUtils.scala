@@ -2,7 +2,10 @@ package edu.uci.ics.texera.workflow.common.tuple
 
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{inferSchemaFromRows, parseField}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
+  inferSchemaFromRows,
+  parseField
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import org.bson.Document
@@ -72,10 +75,10 @@ object TupleUtils {
   def document2Tuple(doc: Document, schema: Schema): Tuple = {
     val builder = Tuple.newBuilder(schema)
     schema.getAttributes.forEach(attr =>
-      if(attr.getType == BINARY){
+      if (attr.getType == BINARY) {
         // special care for converting MongoDB's binary type to byte[] in our schema
         builder.add(attr, doc.get(attr.getName).asInstanceOf[Binary].getData)
-      }else{
+      } else {
         builder.add(attr, parseField(doc.get(attr.getName), attr.getType))
       }
     )
