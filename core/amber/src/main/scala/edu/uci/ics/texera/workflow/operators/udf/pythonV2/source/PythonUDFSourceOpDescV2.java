@@ -31,24 +31,11 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     "# \n" +
                     "# from pytexera import *\n" +
                     "# \n" +
-                    "# class ProcessTupleOperator(UDFOperator):\n" +
+                    "# class GenerateOperator(UDFSourceOperator):\n" +
                     "# \n" +
                     "#     @overrides\n" +
-                    "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
-                    "#         yield tuple_\n" +
-                    "# \n" +
-                    "# class ProcessBatchOperator(UDFBatchOperator):\n" +
-                    "#     BATCH_SIZE = 10 # must be a positive integer\n" +
-                    "# \n" +
-                    "#     @overrides\n" +
-                    "#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:\n" +
-                    "#         yield batch\n" +
-                    "# \n" +
-                    "# class ProcessTableOperator(UDFTableOperator):\n" +
-                    "# \n" +
-                    "#     @overrides\n" +
-                    "#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n" +
-                    "#         yield table\n")
+                    "#     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:\n" +
+                    "#         yield\n")
     @JsonSchemaTitle("Python script")
     @JsonPropertyDescription("Input your code here")
     public String code;

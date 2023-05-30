@@ -12,6 +12,7 @@ from .operator import (
     TableOperator,
     TupleOperatorV2,
     BatchOperator,
+    SourceOperator,
 )
 from .payload import InputDataFrame, OutputDataFrame, DataPayload, EndOfUpstream
 
@@ -40,6 +41,7 @@ __all__ = [
     "TupleOperatorV2",
     "TableOperator",
     "BatchOperator",
+    "SourceOperator",
     "InputDataFrame",
     "OutputDataFrame",
     "DataPayload",
