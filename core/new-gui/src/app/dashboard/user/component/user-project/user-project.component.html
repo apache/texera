@@ -226,6 +226,7 @@
           <nz-list-item-action>
             <button
               (nzOnConfirm)="deleteProject(dashboardUserProjectEntry.pid)"
+              [disabled]="!dashboardUserProjectEntry.writeAccess"
               nz-button
               nz-popconfirm
               nz-tooltip="Delete the project {{dashboardUserProjectEntry.name}}"

@@ -3,15 +3,35 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, ProjectDao, WorkflowOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{
+  ProjectUserAccessPrivilege,
+  UserFileAccessPrivilege
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileOfProjectDao,
+  ProjectDao,
+  ProjectUserAccessDao,
+  UserFileAccessDao,
+  WorkflowOfProjectDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{DashboardFile, context}
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource.{
+  DashboardProject,
+  context,
+  fileOfProjectDao,
+  projectUserAccessDao,
+  userProjectDao,
+  verifyProjectExists,
+  verifySessionUserHasProjectAccess,
+  workflowOfProjectDao,
+  workflowOfProjectExists
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
+import org.jooq.impl.DSL.case_
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -33,6 +53,7 @@ object ProjectResource {
   final private lazy val userProjectDao = new ProjectDao(context.configuration)
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private lazy val fileOfProjectDao = new FileOfProjectDao(context.configuration)
+  final private lazy val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
 
   /**
     * This method is used to insert any CSV files created from ResultExportService
@@ -121,15 +142,15 @@ object ProjectResource {
     }
   }
 
-  case class DashboardProjectEntry(
-                                 pid: UInteger,
-                                 name: String,
-                                 description: String,
-                                 ownerID: UInteger,
-                                 creationTime: Timestamp,
-                                 color: String,
-                                 writeAccess: Boolean,
-                               )
+  case class DashboardProject(
+      pid: UInteger,
+      name: String,
+      description: String,
+      ownerID: UInteger,
+      creationTime: Timestamp,
+      color: String,
+      writeAccess: Boolean
+  )
 }
 
 @Path("/project")
@@ -165,12 +186,27 @@ class ProjectResource {
     */
   @GET
   @Path("/list")
-  def getProjectList(@Auth user: SessionUser): util.List[Project] = {
-    val pid = user.getUid
-    userProjectDao.fetchByOwnerId(pid)
+  def getProjectList(@Auth user: SessionUser): util.List[DashboardProject] = {
+    context
+      .select(
+        PROJECT.PID,
+        PROJECT.NAME,
+        PROJECT.DESCRIPTION,
+        PROJECT.OWNER_ID,
+        PROJECT.CREATION_TIME,
+        PROJECT.COLOR,
+        case_()
+          .when(PROJECT_USER_ACCESS.PRIVILEGE.eq(ProjectUserAccessPrivilege.WRITE), "true")
+      )
+      .from(PROJECT_USER_ACCESS)
+      .join(PROJECT)
+      .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
+      .where(PROJECT_USER_ACCESS.UID.eq(user.getUid))
+      .fetchInto(classOf[DashboardProject])
   }
 
   /**
+    * fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
     * This method returns a list of DashboardWorkflowEntry objects, which represents
     * all the workflows that are part of the specified project.
     *
@@ -243,7 +279,7 @@ class ProjectResource {
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
-  ): List[DashboardFileEntry] = {
+  ): List[DashboardFile] = {
     verifyProjectExists(pid)
     context
       .select()
@@ -257,7 +293,7 @@ class ProjectResource {
       .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
       .fetch()
       .map(fileRecord =>
-        DashboardFileEntry(
+        DashboardFile(
           fileRecord.into(USER).getName,
           fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
           fileRecord.into(FILE).into(classOf[File])
@@ -270,26 +306,27 @@ class ProjectResource {
     * This method inserts a new project into the database belonging to the session user
     * and with the specified name.
     *
-    * @param sessionUser the session user
+    * @param user the session user
     * @param name project name
     */
   @POST
   @Path("/create/{name}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def createProject(
-      @Auth sessionUser: SessionUser,
+      @Auth user: SessionUser,
       @PathParam("name") name: String
   ): Project = {
-    val oid = sessionUser.getUser.getUid
-
-    val userProject = new Project(null, name, null, oid, null, null)
+    val project = new Project(null, name, null, user.getUid, null, null)
     try {
-      userProjectDao.insert(userProject)
+      userProjectDao.insert(project)
+      projectUserAccessDao.merge(
+        new ProjectUserAccess(user.getUid, project.getPid, ProjectUserAccessPrivilege.WRITE)
+      )
     } catch {
       case _: Throwable =>
         throw new BadRequestException("Cannot create a new project with provided name.");
     }
-    userProjectDao.fetchOneByPid(userProject.getPid)
+    userProjectDao.fetchOneByPid(project.getPid)
   }
 
   /**
