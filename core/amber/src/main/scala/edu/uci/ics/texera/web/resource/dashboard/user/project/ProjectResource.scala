@@ -4,11 +4,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileOfProjectDao,
-  ProjectDao,
-  WorkflowOfProjectDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, ProjectDao, WorkflowOfProjectDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
@@ -18,6 +14,7 @@ import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.jooq.types.UInteger
 
+import java.sql.Timestamp
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -123,10 +120,21 @@ object ProjectResource {
       throw new ForbiddenException("No sufficient access privilege to project.")
     }
   }
+
+  case class DashboardProjectEntry(
+                                 pid: UInteger,
+                                 name: String,
+                                 description: String,
+                                 ownerID: UInteger,
+                                 creationTime: Timestamp,
+                                 color: String,
+                                 writeAccess: Boolean,
+                               )
 }
 
 @Path("/project")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 class ProjectResource {
 
   /**
@@ -152,15 +160,14 @@ class ProjectResource {
   /**
     * This method returns the list of projects owned by the session user.
     *
-    * @param sessionUser the session user
+    * @param user the session user
     * @return a list of projects belonging to owner
     */
   @GET
   @Path("/list")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def listProjectsOwnedByUser(@Auth sessionUser: SessionUser): util.List[Project] = {
-    val oid = sessionUser.getUser.getUid
-    userProjectDao.fetchByOwnerId(oid)
+  def getProjectList(@Auth user: SessionUser): util.List[Project] = {
+    val pid = user.getUid
+    userProjectDao.fetchByOwnerId(pid)
   }
 
   /**
@@ -374,7 +381,6 @@ class ProjectResource {
   @POST
   @Path("/{pid}/update/description")
   @Consumes(Array(MediaType.TEXT_PLAIN))
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectDescription(
       @PathParam("pid") pid: UInteger,
       description: String,

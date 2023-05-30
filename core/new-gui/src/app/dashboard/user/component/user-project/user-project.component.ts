@@ -4,6 +4,8 @@ import { UserProject } from "../../type/user-project";
 import { Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { ShareAccessComponent } from "../share-access/share-access.component";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 
 @UntilDestroy()
 @Component({
@@ -32,7 +34,8 @@ export class UserProjectComponent implements OnInit {
   constructor(
     private userProjectService: UserProjectService,
     private router: Router,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private modalService: NgbModal
   ) {}
 
   ngOnInit(): void {
@@ -275,5 +278,14 @@ export class UserProjectComponent implements OnInit {
           0
       );
     }
+  }
+
+  /**
+   * open the Modal based on the workflow clicked on
+   */
+  public onClickOpenShareAccess(id: number): void {
+    const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.type = "project";
+    modalRef.componentInstance.id = id;
   }
 }
