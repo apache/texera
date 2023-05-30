@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../service/user-project/user-project.service";
-import { UserProject } from "../../type/user-project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -15,7 +15,7 @@ import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 })
 export class UserProjectComponent implements OnInit {
   // store list of projects / variables to create and edit projects
-  public userProjectEntries: UserProject[] = [];
+  public userProjectEntries: DashboardProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
   public userProjectEntriesIsEditingDescription: number[] = [];
   public collapsedProjectDescriptions: number[] = [];
@@ -56,7 +56,7 @@ export class UserProjectComponent implements OnInit {
     this.collapsedProjectDescriptions = this.collapsedProjectDescriptions.filter(index => index != pid);
   }
 
-  public saveProjectDescription(project: UserProject, newDescr: string, index: number): void {
+  public saveProjectDescription(project: DashboardProject, newDescr: string, index: number): void {
     // nothing happens if description is the same
     if (project.description === newDescr) {
       this.removeEditDescriptionStatus(project.pid);
@@ -86,7 +86,7 @@ export class UserProjectComponent implements OnInit {
       });
   }
 
-  public saveProjectName(project: UserProject, newName: string): void {
+  public saveProjectName(project: DashboardProject, newName: string): void {
     // nothing happens if name is the same
     if (project.name === newName) {
       this.removeEditNameStatus(project.pid);
@@ -158,7 +158,7 @@ export class UserProjectComponent implements OnInit {
     }
   }
 
-  public updateProjectColor(dashboardProjectEntry: UserProject, index: number) {
+  public updateProjectColor(dashboardProjectEntry: DashboardProject, index: number) {
     let color: string =
       this.userProjectInputColors[this.userProjectToColorInputIndexMap.get(dashboardProjectEntry.pid)!].substring(1);
     this.colorInputToggleArray[index] = false;
@@ -197,7 +197,7 @@ export class UserProjectComponent implements OnInit {
       });
   }
 
-  public removeProjectColor(dashboardProjectEntry: UserProject, index: number) {
+  public removeProjectColor(dashboardProjectEntry: DashboardProject, index: number) {
     this.colorInputToggleArray[index] = false;
 
     if (dashboardProjectEntry.color == null) {
@@ -268,7 +268,7 @@ export class UserProjectComponent implements OnInit {
       });
   }
 
-  private isValidNewProjectName(newName: string, oldProject?: UserProject): boolean {
+  private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {
     if (typeof oldProject === "undefined") {
       return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
     } else {

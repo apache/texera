@@ -10,7 +10,7 @@ import {
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardWorkflowEntry, SortMethod } from "../../type/dashboard-workflow-entry";
+import { DashboardWorkflow, SortMethod } from "../../type/dashboard-workflow.interface";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -18,7 +18,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { concatMap, catchError } from "rxjs/operators";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { environment } from "../../../../../environments/environment";
-import { UserProject } from "../../type/user-project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "src/app/common/app-setting";
@@ -94,10 +94,10 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   /* variables for workflow editing / search / sort */
   // virtual scroll requires replacing the entire array reference in order to update view
   // see https://github.com/angular/components/issues/14635
-  public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
+  public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflow> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
-  public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+  public allDashboardWorkflowEntries: DashboardWorkflow[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
@@ -109,12 +109,12 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
   /* variables for project color tags */
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding UserProject
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
 
   /* variables for filtering workflows by projects */
-  public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
+  public userProjectsList: ReadonlyArray<DashboardProject> = []; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
   public downloadListWorkflow = new Map<number, string>();
@@ -157,7 +157,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   /**
    * open the Modal based on the workflow clicked on
    */
-  public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
+  public onClickOpenShareAccess({ workflow }: DashboardWorkflow): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
     modalRef.componentInstance.type = "workflow";
     modalRef.componentInstance.id = workflow.wid;
@@ -167,7 +167,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   /**
    * open the workflow executions page
    */
-  public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflowEntry): void {
+  public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflow): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
       size: "xl",
       modalDialogClass: "modal-dialog-centered",
@@ -179,7 +179,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   /**
    * Download the workflow as a json file
    */
-  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
+  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflow): void {
     if (wid) {
       this.workflowPersistService
         .retrieveWorkflow(wid)
@@ -508,7 +508,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
-  private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
+  private async search(): Promise<ReadonlyArray<DashboardWorkflow>> {
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
     return await firstValueFrom(
       this.workflowPersistService.searchWorkflows(
@@ -647,7 +647,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * for workflow components inside a project-section, it will also add
    * the workflow to the project
    */
-  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
+  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflow): void {
     if (wid) {
       if (this.pid === 0) {
         // not nested within user project section
@@ -665,7 +665,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         this.workflowPersistService
           .duplicateWorkflow(wid)
           .pipe(
-            concatMap((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
+            concatMap((duplicatedWorkflowInfo: DashboardWorkflow) => {
               this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, duplicatedWorkflowInfo];
               return this.userProjectService.addWorkflowToProject(this.pid, duplicatedWorkflowInfo.workflow.wid!);
             }),
@@ -690,7 +690,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * calls the deleteWorkflow method in service which implements backend API.
    */
 
-  public deleteWorkflow({ workflow }: DashboardWorkflowEntry): void {
+  public deleteWorkflow({ workflow }: DashboardWorkflow): void {
     const wid = workflow.wid;
     if (wid == undefined) {
       return;
@@ -730,7 +730,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     this.userProjectService
       .retrieveProjectList()
       .pipe(untilDestroyed(this))
-      .subscribe((userProjectList: UserProject[]) => {
+      .subscribe((userProjectList: DashboardProject[]) => {
         if (userProjectList != null && userProjectList.length > 0) {
           // map project ID to project object
           this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
@@ -774,7 +774,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * @param dashboardWorkflowEntry
    * @param index
    */
-  public removeWorkflowFromProject(pid: number, dashboardWorkflowEntry: DashboardWorkflowEntry, index: number): void {
+  public removeWorkflowFromProject(pid: number, dashboardWorkflowEntry: DashboardWorkflow, index: number): void {
     this.userProjectService
       .removeWorkflowFromProject(pid, dashboardWorkflowEntry.workflow.wid!)
       .pipe(untilDestroyed(this))
@@ -802,7 +802,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   }
 
   private refreshDashboardWorkflowEntries(): void {
-    let observable: Observable<DashboardWorkflowEntry[]>;
+    let observable: Observable<DashboardWorkflow[]>;
 
     if (this.pid === 0) {
       // not nested within user project section
@@ -829,7 +829,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    *
    * @param dashboardWorkflowEntries - returned local cache of workflows
    */
-  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
+  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflow[]): void {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
     // update searching / filtering
     this.searchWorkflow();
@@ -845,11 +845,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     this.dashboardWorkflowEntries = [];
   }
 
-  public confirmUpdateWorkflowCustomName(
-    dashboardWorkflowEntry: DashboardWorkflowEntry,
-    name: string,
-    index: number
-  ): void {
+  public confirmUpdateWorkflowCustomName(dashboardWorkflowEntry: DashboardWorkflow, name: string, index: number): void {
     const { workflow } = dashboardWorkflowEntry;
     this.workflowPersistService
       .updateWorkflowName(workflow.wid, name || this.defaultWorkflowName)
@@ -870,7 +866,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   }
 
   public confirmUpdateWorkflowCustomDescription(
-    dashboardWorkflowEntry: DashboardWorkflowEntry,
+    dashboardWorkflowEntry: DashboardWorkflow,
     description: string,
     index: number
   ): void {
@@ -973,7 +969,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   /**
    * Adding the workflow as pending download zip file
    */
-  public onClickAddToDownload(dashboardWorkflowEntry: DashboardWorkflowEntry, event: Event) {
+  public onClickAddToDownload(dashboardWorkflowEntry: DashboardWorkflow, event: Event) {
     if ((<HTMLInputElement>event.target).checked) {
       const fileName = this.nameWorkflow(dashboardWorkflowEntry.workflow.name) + ".json";
       if (dashboardWorkflowEntry.workflow.wid) {

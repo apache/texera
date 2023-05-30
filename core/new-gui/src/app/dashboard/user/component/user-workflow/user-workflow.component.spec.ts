@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { UserWorkflowComponent } from "./user-workflow.component";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -12,10 +12,9 @@ import { MatDialogModule } from "@angular/material/dialog";
 import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
-import { jsonCast } from "../../../../common/util/storage";
 import { HttpClient } from "@angular/common/http";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
-import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
@@ -126,7 +125,7 @@ describe("SavedWorkflowSectionComponent", () => {
     creationTime: januaryFirst1970 + oneDay,
     lastModifiedTime: januaryFirst1970 + (oneDay + 4),
   };
-  const testWorkflowFileNameConflictEntries: DashboardWorkflowEntry[] = [
+  const testWorkflowFileNameConflictEntries: DashboardWorkflow[] = [
     {
       workflow: testDownloadWorkflow1,
       isOwner: true,
@@ -150,7 +149,7 @@ describe("SavedWorkflowSectionComponent", () => {
     },
   ];
 
-  const testWorkflowEntries: DashboardWorkflowEntry[] = [
+  const testWorkflowEntries: DashboardWorkflow[] = [
     {
       workflow: testWorkflow1,
       isOwner: true,
