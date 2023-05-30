@@ -119,7 +119,7 @@ import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
 import { AuthInterceptor } from "./common/service/user/auth.interceptor";
-import { UserProjectListItemComponent } from './dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component';
+import { UserProjectListItemComponent } from "./dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component";
 
 registerLocaleData(en);
 

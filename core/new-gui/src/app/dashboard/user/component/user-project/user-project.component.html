@@ -4,7 +4,9 @@
     <a
       [nzDropdownMenu]="menu"
       nz-dropdown>
-      <button nz-button title="sort">
+      <button
+        nz-button
+        title="sort">
         <i
           nz-icon
           nzTheme="outline"
@@ -55,8 +57,8 @@
 
   <nz-card>
     <nz-list>
-      <texera-user-project-list-item 
-        *ngFor="let dashboardUserProjectEntry of userProjectEntries" 
+      <texera-user-project-list-item
+        *ngFor="let dashboardUserProjectEntry of userProjectEntries"
         [entry]="dashboardUserProjectEntry"
         (deleted)="deleteProject(dashboardUserProjectEntry.pid)">
       </texera-user-project-list-item>

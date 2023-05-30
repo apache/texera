@@ -25,10 +25,7 @@ export class UserProjectComponent implements OnInit {
   public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
 
-  constructor(
-    private userProjectService: UserProjectService,
-    private notificationService: NotificationService
-  ) {}
+  constructor(private userProjectService: UserProjectService, private notificationService: NotificationService) {}
 
   ngOnInit(): void {
     this.getUserProjectArray();

@@ -1,15 +1,14 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { UserProjectListItemComponent } from './user-project-list-item.component';
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { UserProjectListItemComponent } from "./user-project-list-item.component";
 
-describe('UserProjectListItemComponent', () => {
+describe("UserProjectListItemComponent", () => {
   let component: UserProjectListItemComponent;
   let fixture: ComponentFixture<UserProjectListItemComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ UserProjectListItemComponent ]
-    })
-    .compileComponents();
+      declarations: [UserProjectListItemComponent],
+    }).compileComponents();
   });
 
   beforeEach(() => {
@@ -18,7 +17,7 @@ describe('UserProjectListItemComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });
