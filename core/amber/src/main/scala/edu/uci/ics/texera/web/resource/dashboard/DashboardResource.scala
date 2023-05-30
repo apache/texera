@@ -2,9 +2,14 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, _}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{
+  UserFileAccessPrivilege,
+  WorkflowUserAccessPrivilege
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
@@ -22,16 +27,34 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
   */
 object DashboardResource {
   final private lazy val context = SqlServer.createDSLContext()
-  // Add any additional DAOs or objects you need
 
   case class DashboardClickableFileEntry(
-      resourceType: String, // workflow, project, or file
-      id: UInteger, // wid for workflow, pid for project, fid for file
-      name: String, // name for the ClickableFile
-      description: String, // description for the ClickableFile
-      creation_time: Timestamp, //creation_time for workflow and project, upload_time for file
-      file_path: String, // path of file, set to NULL for workflow and project
-      file_size: UInteger // size of file, set to 0 for workflow and project
+      // common attributes: 4 columns
+      resourceType: String,
+//      name: String,
+//      description: String,
+//      creationTime: Timestamp,
+//      // workflow attributes: 5 columns
+//      wid: UInteger,
+//      lastModifiedTime: Timestamp,
+//      privilege: WorkflowUserAccessPrivilege, //
+//      uid: UInteger,
+//      userName: String, //
+//      // project attributes: 3 columns
+//      pid: UInteger,
+//      owner_id: UInteger,
+//      color: String,
+//      // file attributes 7 columns
+//      owner_uid: UInteger,
+//      fid: UInteger,
+//      uploadTime: Timestamp,
+//      path: String,
+//      size: UInteger,
+//      email: String,
+//      userFileAccessPrivilege: UserFileAccessPrivilege,
+      workflow: DashboardWorkflowEntry,
+      project: Project,
+      file: DashboardFileEntry
   )
 }
 
@@ -118,18 +141,40 @@ class DashboardResource {
     val workflowQuery =
       context
         .select(
+          //common attributes: 4 columns
           DSL.inline("workflow").as("resourceType"),
-          WORKFLOW.WID,
           WORKFLOW.NAME,
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
-          DSL.inline("null").as("file_path"),
-          DSL.inline(UInteger.valueOf(0)).as("file_size")
+          // workflow attributes: 5 columns
+          WORKFLOW.WID,
+          WORKFLOW.LAST_MODIFIED_TIME,
+          WORKFLOW_USER_ACCESS.PRIVILEGE,
+          WORKFLOW_OF_USER.UID,
+          USER.NAME.as("userName"),
+          // project attributes: 3 columns
+          DSL.inline(null, classOf[UInteger]).as("pid"),
+          DSL.inline(null, classOf[UInteger]).as("owner_id"),
+          DSL.inline(null, classOf[String]).as("color"),
+          // file attributes 6 columns
+          DSL.inline(null, classOf[UInteger]).as("owner_uid"),
+          DSL.inline(null, classOf[UInteger]).as("fid"),
+          DSL.inline(null, classOf[Timestamp]).as("upload_time"),
+          DSL.inline(null, classOf[String]).as("path"),
+          DSL.inline(null, classOf[UInteger]).as("size"),
+          DSL.inline(null, classOf[String]).as("email"),
+          DSL.inline(null, classOf[UserFileAccessPrivilege]).as("user_file_access")
         )
         .from(WORKFLOW)
         .leftJoin(WORKFLOW_USER_ACCESS)
         .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-        .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+        .leftJoin(WORKFLOW_OF_USER)
+        .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+        .leftJoin(USER)
+        .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+        .leftJoin(WORKFLOW_OF_PROJECT)
+        .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
+        .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid()))
         .and(
           workflowMatchQuery
         )
@@ -137,13 +182,29 @@ class DashboardResource {
     // Retrieve project resource
     val projectQuery = context
       .select(
+        //common attributes: 4 columns
         DSL.inline("project").as("resourceType"),
-        PROJECT.PID,
         PROJECT.NAME,
         PROJECT.DESCRIPTION,
         PROJECT.CREATION_TIME,
-        DSL.inline("null").as("file_path"),
-        DSL.inline(UInteger.valueOf(0)).as("file_size")
+        // workflow attributes: 5 columns
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[Timestamp]),
+        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[String]),
+        // project attributes: 3 columns
+        PROJECT.PID,
+        PROJECT.OWNER_ID,
+        PROJECT.COLOR,
+        // file attributes 6 columns
+        DSL.inline(null, classOf[UInteger]).as("owner_uid"),
+        DSL.inline(null, classOf[UInteger]).as("fid"),
+        DSL.inline(null, classOf[Timestamp]).as("upload_time"),
+        DSL.inline(null, classOf[String]).as("path"),
+        DSL.inline(null, classOf[UInteger]).as("size"),
+        DSL.inline(null, classOf[String]).as("email"),
+        DSL.inline(null, classOf[UserFileAccessPrivilege])
       )
       .from(PROJECT)
       .where(PROJECT.OWNER_ID.eq(user.getUid()))
@@ -154,13 +215,29 @@ class DashboardResource {
     // Retrieve file resource
     val fileQuery = context
       .select(
+        // common attributes: 4 columns
         DSL.inline("file").as("resourceType"),
-        FILE.FID,
         FILE.NAME,
         FILE.DESCRIPTION,
-        FILE.UPLOAD_TIME.as("creation_time"),
-        FILE.PATH.as("file_path"),
-        FILE.SIZE.as("file_size")
+        DSL.inline(null, classOf[Timestamp]),
+        // workflow attributes: 5 columns
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[Timestamp]),
+        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[String]),
+        // project attributes: 3 columns
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[String]),
+        // file attributes 5 columns
+        FILE.OWNER_UID,
+        FILE.FID,
+        FILE.UPLOAD_TIME,
+        FILE.PATH,
+        FILE.SIZE,
+        USER.EMAIL,
+        USER_FILE_ACCESS.PRIVILEGE.as("user_file_access")
       )
       .from(USER_FILE_ACCESS)
       .join(FILE)
@@ -174,13 +251,29 @@ class DashboardResource {
     // Retrieve files to which all shared workflows have access
     val sharedWorkflowFileQuery = context
       .select(
+        // common attributes: 4 columns
         DSL.inline("file").as("resourceType"),
-        FILE.FID,
         FILE.NAME,
         FILE.DESCRIPTION,
-        FILE.UPLOAD_TIME.as("creation_time"),
-        FILE.PATH.as("file_path"),
-        FILE.SIZE.as("file_size")
+        DSL.inline(null, classOf[Timestamp]),
+        // workflow attributes: 5 columns
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[Timestamp]),
+        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[String]),
+        // project attributes: 3 columns
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[UInteger]),
+        DSL.inline(null, classOf[String]),
+        // file attributes 7 columns
+        FILE.OWNER_UID,
+        FILE.FID,
+        FILE.UPLOAD_TIME,
+        FILE.PATH,
+        FILE.SIZE,
+        USER.EMAIL,
+        DSL.inline(null, classOf[UserFileAccessPrivilege])
       )
       .from(FILE_OF_WORKFLOW)
       .join(FILE)
@@ -213,17 +306,62 @@ class DashboardResource {
       }
 
     clickableFileEntry
-      .map(record =>
+      .map(record => {
+        val resourceType = record.get("resourceType", classOf[String])
         DashboardClickableFileEntry(
-          record.value1(),
-          record.value2(),
-          record.value3(),
-          record.value4(),
-          record.value5(),
-          record.value6(),
-          record.value7()
+          resourceType,
+//          record.get("name", classOf[String]),
+//          record.get("description", classOf[String]),
+//          record.get("creation_time", classOf[Timestamp]),
+//          record.get("wid", classOf[UInteger]),
+//          record.get("last_modified_time", classOf[Timestamp]),
+//          record.get("privilege", classOf[WorkflowUserAccessPrivilege]),
+//          record.get("uid", classOf[UInteger]),
+//          record.get("userName", classOf[String]), // Specify the alias of the user name column
+//          record.get("pid", classOf[UInteger]),
+//          record.get("owner_id", classOf[UInteger]),
+//          record.get("color", classOf[String]),
+//          record.get("owner_uid", classOf[UInteger]),
+//          record.get("fid", classOf[UInteger]),
+//          record.get("upload_time", classOf[Timestamp]),
+//          record.get("path", classOf[String]),
+//          record.get("size", classOf[UInteger]),
+//          record.get("email", classOf[String]),
+//          record.get("user_file_access", classOf[UserFileAccessPrivilege]),
+          if (resourceType == "workflow") {
+            DashboardWorkflowEntry(
+              record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+              record
+                .into(WORKFLOW_USER_ACCESS)
+                .into(classOf[WorkflowUserAccess])
+                .getPrivilege
+                .toString,
+              record.into(USER).getName,
+              record.into(WORKFLOW).into(classOf[Workflow]),
+              List[UInteger]()
+            )
+          } else {
+            null
+          },
+          if (resourceType == "project") {
+            record.into(PROJECT).into(classOf[Project])
+          } else {
+            null
+          },
+          if (resourceType == "file") {
+            DashboardFileEntry(
+              record.into(USER).getEmail,
+              record.get(
+                "user_file_access",
+                classOf[UserFileAccessPrivilege]
+              ) == UserFileAccessPrivilege.WRITE,
+              record.into(FILE).into(classOf[File])
+            )
+          } else {
+            null
+          }
         )
-      )
+      })
       .toList
 
   }
