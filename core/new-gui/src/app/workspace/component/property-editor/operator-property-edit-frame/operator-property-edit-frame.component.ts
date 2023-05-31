@@ -483,18 +483,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
+      // Add custom validators for attribute type
       if (isDefined(mapSource.attributeType)) {
-        // TODO: Add instead of replace
         mappedField.validators.checkAttributeType = {
             expression: (c: AbstractControl, field: FormlyFieldConfig) => {
-              if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeType))
-                return false;
-              const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId)
-              if (!inputSchema)
-                return false;
-
               const findAttributeType = (propertyName: string) => {
-                if (!this.currentOperatorId || !mapSource || !mapSource.properties || !mapSource.properties[propertyName])
+                if (!this.currentOperatorId || !mapSource.properties || !mapSource.properties[propertyName])
                   return undefined;
                 const port = (mapSource.properties[propertyName] as CustomJSONSchema7).autofillAttributeOnPort;
                 if (typeof port !== 'number')
@@ -502,51 +496,80 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId)
                 if (!inputSchema)
                   return undefined;
+
                 const attributeName = c.value[propertyName];
                 const inputAttributeType = inputSchema[port]?.find(e => e.attributeName === attributeName)?.attributeType;
                 return inputAttributeType;
               }
 
-              // iterate through all properties in attributeType
-              for (const [prop, typ] of Object.entries(mapSource.attributeType)) {
-                // Check if attribute type is satisfied
-                const inputAttributeType = findAttributeType(prop);
+              // Get the type of constrains for each property in AttributeTypeSchema
+              type attributeTypeSchemaConstraint = typeof mapSource.attributeType[keyof typeof mapSource.attributeType]
+              const checkConstraint = (propertyName: string, constraint: attributeTypeSchemaConstraint) => {
+                const inputAttributeType = findAttributeType(propertyName);
+                // Cannot find attribute type, return false
                 if (!inputAttributeType)
                   return false;
 
-                // Check if "enum" condition is satisfied
-                if (typ.enum && !typ.enum.includes(inputAttributeType)) {
-                  console.log('enum failed')
+                // Check if "enum" condition is satisfied, if not, return false
+                if (constraint.enum && !constraint.enum.includes(inputAttributeType)) {
                   return false;
                 }
 
-                // Check if "const" condition is satisfied
-                if (typ.const) {
-                  if (typ.const.$data) {
+                // Check if "const" condition is satisfied, if not, return false
+                if (constraint.const) {
+                  if (constraint.const.$data) {
                     // Get attribute type of $data
-                    const dataAttributeType = findAttributeType(typ.const.$data);
+                    const dataAttributeType = findAttributeType(constraint.const.$data);
                     if (inputAttributeType !== dataAttributeType) {
                       return false;
                     }
                   }
                 }
 
-                if (typ.allOf) {
-                  for (const allOf of typ.allOf) {
-                    for (const [ifProp, ifTyp] of Object.entries(allOf.if)) {
+                // Check if "if-then" conditions are satisfied, if not, return false
+                if (constraint.allOf) {
+                  // traverse through all "if-then" sets
+                  // Only return false when "if" condition is satisfied but "then" condition is not satisfied
+                  for (const allOf of constraint.allOf) {
+                    // Check if "if" condition is satisfied
+                    // traverse through all, as there can be multiple "if" conditions
+                    var ifConditionSatisfied = true;
+                    for (const [ifProp, ifConstraint] of Object.entries(allOf.if)) {
+                      // Currently, only support "enum" condition
                       // Find attribute value (not type)
                       const ifAttributeValue = c.value[ifProp];
-                      // Only return false when if condition is satisfied but then condition is not satisfied
-                      if (ifTyp.enum?.includes(ifAttributeValue)) {
-                        if (!allOf.then.enum?.includes(inputAttributeType)) {
-                          return false;
-                        }
+                      if (!ifConstraint.enum?.includes(ifAttributeValue)) {
+                        ifConditionSatisfied = false;
+                        break;
+                      }
+                    }
+                    // if "if" condition is satisfied, check if "then" condition is satisfied
+                    if (ifConditionSatisfied) {
+                      // Currently, only support one "enum" condition
+                      if (!allOf.then.enum?.includes(inputAttributeType)) {
+                        return false;
                       }
                     }
                   }
                 }
+
+                // All conditions satisfied
+                return true;
               }
 
+              if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeType))
+                return false;
+              const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId)
+              if (!inputSchema)
+                return false;
+
+              // iterate through all properties in attributeType
+              for (const [prop, constraint] of Object.entries(mapSource.attributeType)) {
+                if (!checkConstraint(prop, constraint))
+                  return false;
+              }
+
+              // All conditions satisfied
               return true;
             },
             message: (error: any, field: FormlyFieldConfig) => "Attribute type selection is not valid"
