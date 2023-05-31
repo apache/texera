@@ -7,19 +7,19 @@ interface AttributeTypeSchema {
   [key: string]: {
     enum?: string[];
     const?: {
-      "$data": string
-    },
+      $data: string;
+    };
     allOf?: {
       if: {
         [key: string]: {
           enum?: string[];
-        }
+        };
       };
       then: {
         enum?: string[];
-      }
-    }[]
-  }
+      };
+    }[];
+  };
 }
 
 export interface CustomJSONSchema7 extends JSONSchema7 {
