@@ -373,7 +373,7 @@
       itemSize="80"
       class="virtual-scroll-container">
       <nz-list>
-        <user-workflow-list-item
+        <texera-user-workflow-list-item
           [entry]="dashboardWorkflowEntry"
           [owners]="owners"
           (deleted)="deleteWorkflow(dashboardWorkflowEntry)"
@@ -382,7 +382,7 @@
           [userProjectsLoaded]="userProjectsLoaded"
           [userProjectsMap]="userProjectsMap"
           *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index">
-        </user-workflow-list-item>
+        </texera-user-workflow-list-item>
       </nz-list>
     </cdk-virtual-scroll-viewport>
   </nz-card>

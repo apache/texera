@@ -17,11 +17,11 @@ import DashboardWorkflowEntryViewModel from "./dashboard-workflow-entry-view-mod
 
 @UntilDestroy()
 @Component({
-  selector: "user-workflow-list-item",
+  selector: "texera-user-workflow-list-item",
   templateUrl: "./user-workflow-list-item.component.html",
   styleUrls: ["./user-workflow-list-item.component.scss"],
 })
-export class UserWorkflowListItemComponent implements OnInit {
+export class UserWorkflowListItemComponent {
   ROUTER_WORKFLOW_BASE_URL = "/workflow";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   private _entry?: DashboardWorkflowEntryViewModel;
@@ -69,8 +69,6 @@ export class UserWorkflowListItemComponent implements OnInit {
     private fileSaverService: FileSaverService,
     private userProjectService: UserProjectService
   ) {}
-
-  ngOnInit(): void {}
 
   /**
    * open the workflow executions page
