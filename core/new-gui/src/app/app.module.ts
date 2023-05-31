@@ -120,6 +120,7 @@ import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.
 import { DragDropModule } from "@angular/cdk/drag-drop";
 import { AuthInterceptor } from "./common/service/user/auth.interceptor";
 import { UserWorkflowListItemComponent } from "./dashboard/user/component/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
+import { UserProjectListItemComponent } from "./dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component";
 
 registerLocaleData(en);
 
@@ -181,6 +182,7 @@ registerLocaleData(en);
     CollabWrapperComponent,
     HomeComponent,
     UserWorkflowListItemComponent,
+    UserProjectListItemComponent,
   ],
   imports: [
     BrowserModule,
