@@ -1,21 +1,19 @@
-import {Injectable} from "@angular/core";
-import {BehaviorSubject, Observable, Subject} from "rxjs";
-import {WorkflowActionService} from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
-import {Workflow, WorkflowContent} from "../../../../common/type/workflow";
-import {WorkflowPersistService} from "../../../../common/service/workflow-persist/workflow-persist.service";
-import {UndoRedoService} from "../../../../workspace/service/undo-redo/undo-redo.service";
-import {isEqual} from "lodash";
-import {Breakpoint, OperatorLink, OperatorPredicate, Point} from "src/app/workspace/types/workflow-common.interface";
-import {WorkflowVersionEntry} from "../../type/workflow-version-entry";
-import {AppSettings} from "../../../../common/app-setting";
-import {filter, map} from "rxjs/operators";
-import {WorkflowUtilService} from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
-import {
-  WORKFLOW_VERSIONS_API_BASE_URL
-} from "../../../../workspace/component/property-editor/versions-display/versions-display.component";
-import {HttpClient} from "@angular/common/http";
+import { Injectable } from "@angular/core";
+import { BehaviorSubject, Observable, Subject } from "rxjs";
+import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
+import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
+import { isEqual } from "lodash";
+import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
+import { WorkflowVersionEntry } from "../../type/workflow-version-entry";
+import { AppSettings } from "../../../../common/app-setting";
+import { filter, map } from "rxjs/operators";
+import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { WORKFLOW_VERSIONS_API_BASE_URL } from "../../../../workspace/component/property-editor/versions-display/versions-display-frame.component";
+import { HttpClient } from "@angular/common/http";
 
-export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
+export const DISPLAY_WORKFLOW_VERSIONS_EVENT = "display_workflow_versions_event";
 
 type WorkflowContentKeys = keyof WorkflowContent;
 type Element = Breakpoint | OperatorLink | OperatorPredicate | Point;
@@ -25,7 +23,7 @@ type DifferentOpIDsList = {
 
 // only element types specified in this list are consider when calculating the difference between workflows
 const ELEMENT_TYPES_IN_WORKFLOW_DIFF_CALC: Partial<WorkflowContentKeys>[] = ["operators"];
-// it maps name of the element type to its ID field name used in WorkflowContent
+// it maps a name of the element type to its ID field name used in WorkflowContent
 const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
   operators: "operatorID",
   commentBoxes: "commentBoxID",
@@ -39,15 +37,14 @@ export class WorkflowVersionService {
   public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
-  private differentOpIDsList: DifferentOpIDsList = {modified: [], added: [], deleted: []};
+  private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private undoRedoService: UndoRedoService,
-    private http: HttpClient,
-  ) {
-  }
+    private http: HttpClient
+  ) {}
 
   public clickDisplayWorkflowVersions(): void {
     // unhighlight all the current highlighted operators/groups/links
@@ -55,7 +52,7 @@ export class WorkflowVersionService {
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
 
     // emit event for display workflow versions event
-    this.workflowVersionsObservable.next([DISPLAY_WORKFLOW_VERIONS_EVENT]);
+    this.workflowVersionsObservable.next([DISPLAY_WORKFLOW_VERSIONS_EVENT]);
   }
 
   public workflowVersionsDisplayObservable(): Observable<readonly string[]> {
@@ -94,8 +91,8 @@ export class WorkflowVersionService {
   }
 
   public highlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
-    differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "255,118,20,0.5"))
-    differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "0,255,0,0.5"))
+    differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "255,118,20,0.5"));
+    differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "0,255,0,0.5"));
 
     if (differentOpIDsList.deleted != []) {
       const tempWorkflow = this.workflowActionService.getTempWorkflow();
@@ -133,7 +130,7 @@ export class WorkflowVersionService {
   public getWorkflowsDifference(workflowContent1: WorkflowContent, workflowContent2: WorkflowContent) {
     let eleType;
     this.operatorPropertyDiff = {};
-    const difference: DifferentOpIDsList = {added: [], modified: [], deleted: []};
+    const difference: DifferentOpIDsList = { added: [], modified: [], deleted: [] };
     // get a list of element types that are changed between versions
     const eleTypeWithDiffList: WorkflowContentKeys[] = [];
     for (eleType of ELEMENT_TYPES_IN_WORKFLOW_DIFF_CALC) {
@@ -204,7 +201,7 @@ export class WorkflowVersionService {
   public revertToVersion() {
     // set all elements to transparent boundary
     this.unhighlightOpVersionDiff(this.differentOpIDsList);
-    // we need to clear the undo and redo stack because it is a new version from previous workflow on paper
+    // we need to clear the undo and redo stack because it is a new version from a previous workflow on paper
     this.undoRedoService.clearRedoStack();
     this.undoRedoService.clearUndoStack();
     // we need to enable workflow modifications which also automatically enables undoredo service

@@ -4,30 +4,23 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { VersionsListDisplayComponent } from "./versions-display.component";
+import { VersionsDisplayFrameComponent } from "./versions-display-frame.component";
 
 describe("VersionsListDisplayComponent", () => {
-  let component: VersionsListDisplayComponent;
-  let fixture: ComponentFixture<VersionsListDisplayComponent>;
+  let component: VersionsDisplayFrameComponent;
+  let fixture: ComponentFixture<VersionsDisplayFrameComponent>;
   let workflowActionService: WorkflowActionService;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [VersionsListDisplayComponent],
+      declarations: [VersionsDisplayFrameComponent],
       providers: [WorkflowActionService],
-      imports: [
-        BrowserAnimationsModule,
-        FormsModule,
-        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-        ReactiveFormsModule,
-        HttpClientTestingModule,
-      ],
+      imports: [BrowserAnimationsModule, FormsModule, FormlyModule.forRoot(TEXERA_FORMLY_CONFIG), ReactiveFormsModule],
     }).compileComponents();
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(VersionsListDisplayComponent);
+    fixture = TestBed.createComponent(VersionsDisplayFrameComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();

@@ -1,18 +1,18 @@
-import {Component, OnInit} from "@angular/core";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {WorkflowVersionCollapsableEntry} from "../../../../dashboard/user/type/workflow-version-entry";
-import {WorkflowActionService} from "../../../service/workflow-graph/model/workflow-action.service";
-import {WorkflowVersionService} from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { Component, OnInit } from "@angular/core";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-formly-form-frame",
-  templateUrl: "./versions-display.component.html",
-  styleUrls: ["./versions-display.component.scss"],
+  selector: "texera-versions-display-frame",
+  templateUrl: "./versions-display-frame.component.html",
+  styleUrls: ["./versions-display-frame.component.scss"],
 })
-export class VersionsListDisplayComponent implements OnInit {
+export class VersionsDisplayFrameComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
   public versionTableHeaders: string[] = ["", "Version#", "Timestamp"];
@@ -20,8 +20,7 @@ export class VersionsListDisplayComponent implements OnInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService
-  ) {
-  }
+  ) {}
 
   collapse(index: number, $event: boolean): void {
     if (this.versionsList == undefined) {
@@ -44,7 +43,8 @@ export class VersionsListDisplayComponent implements OnInit {
   }
 
   getVersion(vid: number) {
-    this.workflowVersionService.retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
+    this.workflowVersionService
+      .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
         this.workflowVersionService.displayParticularVersion(workflow);
@@ -59,7 +59,8 @@ export class VersionsListDisplayComponent implements OnInit {
     if (wid === undefined) {
       return;
     }
-    this.workflowVersionService.retrieveVersionsOfWorkflow(wid)
+    this.workflowVersionService
+      .retrieveVersionsOfWorkflow(wid)
       .pipe(untilDestroyed(this))
       .subscribe(versionsList => {
         this.versionsList = versionsList.map(version => ({
@@ -71,6 +72,4 @@ export class VersionsListDisplayComponent implements OnInit {
         }));
       });
   }
-
-
 }
