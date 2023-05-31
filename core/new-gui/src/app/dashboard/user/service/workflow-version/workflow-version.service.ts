@@ -91,7 +91,7 @@ export class WorkflowVersionService {
   }
 
   public highlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
-    differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "255,118,20,0.5"));
+    differentOpIDsList.modified.map(id => this.highlightOpBoundary(id, "255,118,20,0.5"));
     differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "0,255,0,0.5"));
 
     if (differentOpIDsList.deleted != []) {
