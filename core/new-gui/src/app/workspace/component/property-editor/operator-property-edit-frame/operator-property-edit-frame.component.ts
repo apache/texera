@@ -470,13 +470,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
+      if (mappedField.validators === undefined) {
+        mappedField.validators = {};
+      }
+
       if (isDefined(mapSource.enum)) {
-        mappedField.validators = {
-          inEnum: {
-            expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
-            message: (error: any, field: FormlyFieldConfig) =>
-              `"${field.formControl?.value}" is no longer a valid option`,
-          },
+        mappedField.validators.inEnum = {
+          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
+          message: (error: any, field: FormlyFieldConfig) =>
+            `"${field.formControl?.value}" is no longer a valid option`,
         };
         mappedField.validation = {
           show: true,
