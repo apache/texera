@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { VersionsDisplayFrameComponent } from "./versions-display-frame.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 
