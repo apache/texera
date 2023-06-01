@@ -10,9 +10,10 @@ import { WorkflowVersionEntry } from "../../type/workflow-version-entry";
 import { AppSettings } from "../../../../common/app-setting";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
-import { WORKFLOW_VERSIONS_API_BASE_URL } from "../../../../workspace/component/property-editor/versions-display/versions-display-frame.component";
+
 import { HttpClient } from "@angular/common/http";
 
+export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 export const DISPLAY_WORKFLOW_VERSIONS_EVENT = "display_workflow_versions_event";
 
 type WorkflowContentKeys = keyof WorkflowContent;

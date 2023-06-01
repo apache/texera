@@ -4,8 +4,6 @@ import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
 
-export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
-
 @UntilDestroy()
 @Component({
   selector: "texera-versions-display-frame",
