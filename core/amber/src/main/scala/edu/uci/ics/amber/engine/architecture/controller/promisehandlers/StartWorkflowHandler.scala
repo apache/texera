@@ -26,7 +26,9 @@ trait StartWorkflowHandler {
           enableMonitoring()
           enableSkewHandling()
         })
-      Future.Unit // immediately return to the caller.
+      // immediately return to the caller and ignore exception in the return value.
+      // exception will be actively sent to the client.
+      Future.Unit
     }
   }
 }
