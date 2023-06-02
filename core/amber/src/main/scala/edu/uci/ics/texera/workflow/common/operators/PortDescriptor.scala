@@ -3,8 +3,6 @@ package edu.uci.ics.texera.workflow.common.operators
 import com.fasterxml.jackson.annotation.JsonProperty
 import edu.uci.ics.texera.workflow.common.workflow.PartitionInfo
 
-
-
 case class PortDescription(
     portID: String,
     displayName: String,

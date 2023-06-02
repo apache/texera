@@ -90,7 +90,7 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
       .getTexeraGraph()
       .getSharedPortDescriptionType(this.currentPortID);
     if (currentPortDescriptorSharedType === undefined) return;
-    if (!currentPortDescriptorSharedType.has("displayName")){
+    if (!currentPortDescriptorSharedType.has("displayName")) {
       currentPortDescriptorSharedType.set("displayName", new Y.Text());
     }
     const ytext = currentPortDescriptorSharedType.get("displayName");

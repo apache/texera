@@ -1,8 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 /**
   * The base interface of partition information in the compiler layer.
