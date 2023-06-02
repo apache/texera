@@ -90,8 +90,9 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
       .getTexeraGraph()
       .getSharedPortDescriptionType(this.currentPortID);
     if (currentPortDescriptorSharedType === undefined) return;
-    if (!currentPortDescriptorSharedType.has("displayName"))
+    if (!currentPortDescriptorSharedType.has("displayName")){
       currentPortDescriptorSharedType.set("displayName", new Y.Text());
+    }
     const ytext = currentPortDescriptorSharedType.get("displayName");
     this.quillBinding = new QuillBinding(
       ytext as Y.Text,
@@ -129,7 +130,7 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
       partitionInfo: portDescriptor?.partitionRequirement,
       dependencies: portDescriptor?.dependencies,
     };
-    this.formData = portInfo !== undefined ? cloneDeep(portInfo) : {};
+    this.formData = cloneDeep(portInfo);
     const portSchema = mockPortSchema.jsonSchema;
     this.setFormlyFormBinding(portSchema);
   }
@@ -156,10 +157,10 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   /**
-   * This method captures the change in operator's property via program instead of user updating the
+   * This method captures the change in the operator's property via a program instead of user updating the
    *  json schema form in the user interface.
    *
-   * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
+   * For instance, when the input doesn't match the new json schema and the UI needs to remove the
    *  invalid fields, this form will capture those events.
    */
   private registerPortPropertyChangeHandler(): void {
@@ -177,28 +178,10 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   private setFormlyFormBinding(schema: CustomJSONSchema7) {
-    // intercept JsonSchema -> FormlySchema process, adding custom options
-    // this requires a one-to-one mapping.
-    // for relational custom options, have to do it after FormlySchema is generated.
-    const jsonSchemaMapIntercept = (
-      mappedField: FormlyFieldConfig,
-      mapSource: CustomJSONSchema7
-    ): FormlyFieldConfig => {
-      // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
-      if (mapSource?.description?.toLowerCase() === "input your code here") {
-        if (mappedField.type) {
-          mappedField.type = "codearea";
-        }
-      }
-      return mappedField;
-    };
-
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
     // convert the json schema to formly config, pass a copy because formly mutates the schema object
-    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
-      map: jsonSchemaMapIntercept,
-    });
+    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema));
     field.hooks = {
       onInit: fieldConfig => {
         if (!this.interactive) {
