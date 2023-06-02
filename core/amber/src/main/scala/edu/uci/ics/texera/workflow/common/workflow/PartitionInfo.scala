@@ -13,7 +13,8 @@ import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
     new Type(value = classOf[HashPartition], name = "hash"),
     new Type(value = classOf[RangePartition], name = "range"),
     new Type(value = classOf[SinglePartition], name = "single"),
-    new Type(value = classOf[UnknownPartition], name = "none")
+    new Type(value = classOf[BroadcastPartition], name = "broadcast"),
+    new Type(value = classOf[UnknownPartition], name = "none"),
   )
 )
 sealed abstract class PartitionInfo {
@@ -63,11 +64,11 @@ object RangePartition {
 
 /**
   * Represents an input stream is partitioned on multiple nodes
-  *  and each node contains data fit in a specific range.
+  * and each node contains data fit in a specific range.
   * The data within each node is also sorted.
   */
 final case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax: Long)
-    extends PartitionInfo {
+  extends PartitionInfo {
 
   // if two streams of input with the same range partition are merged (without another sort),
   // we cannot ensure that the output stream follow the same sorting order.
