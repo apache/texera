@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{
-  CustomPortOperatorDescriptor,
+  PortDescriptor,
   OperatorDescriptor,
   StateTransferFunc
 }
@@ -21,7 +21,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartit
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescriptor {
+class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -69,7 +69,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
   )
   var outputColumns: List[Attribute] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
