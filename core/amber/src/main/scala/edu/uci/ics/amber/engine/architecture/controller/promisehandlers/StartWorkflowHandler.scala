@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -25,6 +26,7 @@ trait StartWorkflowHandler {
           enableMonitoring()
           enableSkewHandling()
         })
+      Future.Unit // immediately return to the caller.
     }
   }
 }
