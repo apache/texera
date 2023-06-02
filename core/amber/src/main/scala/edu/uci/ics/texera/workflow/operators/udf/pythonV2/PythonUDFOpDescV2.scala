@@ -51,14 +51,17 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
   @JsonSchemaTitle("Python script")
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
+
   @JsonProperty(required = true)
   @JsonSchemaTitle("Worker count")
   @JsonPropertyDescription("Specify how many parallel workers to lunch")
   var workers: Int = Int.box(1)
+
   @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Retain input columns")
   @JsonPropertyDescription("Keep the original input columns?")
   var retainInputColumns: Boolean = Boolean.box(false)
+
   @JsonProperty
   @JsonSchemaTitle("Extra output column(s)")
   @JsonPropertyDescription(
@@ -74,6 +77,12 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
     } else {
       opInfo.inputPorts.map(_ => None)
     }
+    val dependency: Map[Int, Int] = if (inputPorts != null) {
+      inputPorts.flatMap(p => p.dependencies.map(dependee => p.portID.split("-")(1).toInt -> dependee)).toMap
+    } else {
+      Map()
+    }
+
     if (workers > 1)
       OpExecConfig
         .oneToOneLayer(
@@ -85,7 +94,8 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
           derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
           inputPorts = opInfo.inputPorts,
           outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement
+          partitionRequirement = partitionRequirement,
+          dependency = dependency
         )
     else
       OpExecConfig
@@ -94,10 +104,12 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
         .copy(
-          derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
+          derivePartition = _ => UnknownPartition(),
+          isOneToManyOp = true,
           inputPorts = opInfo.inputPorts,
           outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement
+          partitionRequirement = partitionRequirement,
+          dependency = dependency
         )
   }
 
@@ -127,7 +139,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-//    Preconditions.checkArgument(schemas.length == 1)
+    //    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
     val outputSchemaBuilder = Schema.newBuilder
     // keep the same schema from input
@@ -147,9 +159,9 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
   }
 
   override def runtimeReconfiguration(
-      newOpDesc: OperatorDescriptor,
-      operatorSchemaInfo: OperatorSchemaInfo
-  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
+                                       newOpDesc: OperatorDescriptor,
+                                       operatorSchemaInfo: OperatorSchemaInfo
+                                     ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
     Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
   }
 }
