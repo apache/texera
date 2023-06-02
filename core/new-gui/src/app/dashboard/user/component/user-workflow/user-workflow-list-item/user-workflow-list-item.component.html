@@ -107,7 +107,7 @@
   </nz-list-item-meta>
 
   <div
-    *ngIf="userProjectsLoaded"
+    *ngIf="userProjectsMap.size > 0"
     class="project-label-container">
     <div
       *ngFor="let projectID of entry.projectIDs"
