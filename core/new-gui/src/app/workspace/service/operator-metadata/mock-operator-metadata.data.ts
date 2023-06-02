@@ -364,6 +364,12 @@ export const mockPortSchema: PortSchema = {
               type: { const: "single" },
             },
           },
+          {
+            title: "broadcast",
+            properties: {
+              type: { const: "broadcast" },
+            },
+          },
         ],
         title: "partition info",
       },
