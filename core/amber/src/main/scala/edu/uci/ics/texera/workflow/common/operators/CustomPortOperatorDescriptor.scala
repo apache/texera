@@ -20,7 +20,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, SinglePartiti
 //  }
 //}
 
-
 case class PortDescription(
     portID: String,
     displayName: String,

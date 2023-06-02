@@ -78,7 +78,9 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
       opInfo.inputPorts.map(_ => None)
     }
     val dependency: Map[Int, Int] = if (inputPorts != null) {
-      inputPorts.flatMap(p => p.dependencies.map(dependee => p.portID.split("-")(1).toInt -> dependee)).toMap
+      inputPorts
+        .flatMap(p => p.dependencies.map(dependee => p.portID.split("-")(1).toInt -> dependee))
+        .toMap
     } else {
       Map()
     }
@@ -91,7 +93,8 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
         )
         .copy(
           numWorkers = workers,
-          derivePartition = _ => UnknownPartition(), isOneToManyOp = true,
+          derivePartition = _ => UnknownPartition(),
+          isOneToManyOp = true,
           inputPorts = opInfo.inputPorts,
           outputPorts = opInfo.outputPorts,
           partitionRequirement = partitionRequirement,
@@ -159,9 +162,9 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with CustomPortOperatorDescri
   }
 
   override def runtimeReconfiguration(
-                                       newOpDesc: OperatorDescriptor,
-                                       operatorSchemaInfo: OperatorSchemaInfo
-                                     ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
+      newOpDesc: OperatorDescriptor,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
     Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
   }
 }
