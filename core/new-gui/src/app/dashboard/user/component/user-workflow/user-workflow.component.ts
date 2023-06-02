@@ -16,8 +16,6 @@ import { UserProjectService } from "../../service/user-project/user-project.serv
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { concatMap, catchError } from "rxjs/operators";
-import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
-import { environment } from "../../../../../environments/environment";
 import { UserProject } from "../../type/user-project";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { HttpClient } from "@angular/common/http";
@@ -26,6 +24,7 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
 import { FileSaverService } from "../../service/user-file/file-saver.service";
+import DashboardWorkflowEntryViewModel from "./user-workflow-list-item/dashboard-workflow-entry-view-model";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -94,31 +93,24 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   /* variables for workflow editing / search / sort */
   // virtual scroll requires replacing the entire array reference in order to update view
   // see https://github.com/angular/components/issues/14635
-  public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
+  public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntryViewModel> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
-  public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+  public allDashboardWorkflowEntries: DashboardWorkflowEntryViewModel[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
   public workflowSearchValue: string = "";
-  private defaultWorkflowName: string = DEFAULT_WORKFLOW_NAME;
 
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
   public sortMethod = SortMethod.EditTimeDesc;
 
-  // whether tracking metadata information about executions is enabled
-  public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
-
   /* variables for project color tags */
   public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
-  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
 
   /* variables for filtering workflows by projects */
   public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
-  public downloadListWorkflow = new Map<number, string>();
-  public zip = new JSZip();
 
   public ROUTER_WORKFLOW_BASE_URL = ROUTER_WORKFLOW_BASE_URL;
   public ROUTER_USER_PROJECT_BASE_URL = ROUTER_USER_PROJECT_BASE_URL;
@@ -134,6 +126,10 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     private router: Router,
     private fileSaverService: FileSaverService
   ) {}
+
+  get zipDownloadButtonEnabled(): boolean {
+    return this.dashboardWorkflowEntries.filter(i => i.checked).length > 0;
+  }
 
   ngOnInit() {
     this.registerDashboardWorkflowEntriesRefresh();
@@ -151,50 +147,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         this.updateProjectStatus = changes[propName].currentValue;
         this.refreshUserProjects();
       }
-    }
-  }
-
-  /**
-   * open the Modal based on the workflow clicked on
-   */
-  public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(ShareAccessComponent);
-    modalRef.componentInstance.type = "workflow";
-    modalRef.componentInstance.id = workflow.wid;
-    modalRef.componentInstance.allOwners = this.owners.map(owner => owner.userName);
-  }
-
-  /**
-   * open the workflow executions page
-   */
-  public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
-      size: "xl",
-      modalDialogClass: "modal-dialog-centered",
-    });
-    modalRef.componentInstance.workflow = workflow;
-    modalRef.componentInstance.workflowName = workflow.name;
-  }
-
-  /**
-   * Download the workflow as a json file
-   */
-  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    if (wid) {
-      this.workflowPersistService
-        .retrieveWorkflow(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(data => {
-          const workflowCopy: Workflow = {
-            ...data,
-            wid: undefined,
-            creationTime: undefined,
-            lastModifiedTime: undefined,
-          };
-          const workflowJson = JSON.stringify(workflowCopy.content);
-          const fileName = workflowCopy.name + ".json";
-          this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
-        });
     }
   }
 
@@ -501,7 +453,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       this.dashboardWorkflowEntries = this.allDashboardWorkflowEntries;
       return;
     }
-    this.dashboardWorkflowEntries = await this.search();
+    this.dashboardWorkflowEntries = this.toViewModels(await this.search());
   }
 
   /**
@@ -656,7 +608,10 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: duplicatedWorkflowInfo => {
-              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, duplicatedWorkflowInfo];
+              this.dashboardWorkflowEntries = [
+                ...this.dashboardWorkflowEntries,
+                { ...duplicatedWorkflowInfo, checked: false },
+              ];
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -666,7 +621,10 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           .duplicateWorkflow(wid)
           .pipe(
             concatMap((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
-              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, duplicatedWorkflowInfo];
+              this.dashboardWorkflowEntries = [
+                ...this.dashboardWorkflowEntries,
+                { ...duplicatedWorkflowInfo, checked: false },
+              ];
               return this.userProjectService.addWorkflowToProject(this.pid, duplicatedWorkflowInfo.workflow.wid!);
             }),
             catchError((err: unknown) => {
@@ -674,11 +632,11 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
             }),
             untilDestroyed(this)
           )
-          .subscribe(
-            () => {},
+          .subscribe({
+            next: () => {},
             // @ts-ignore // TODO: fix this with notification component
-            (err: unknown) => alert(err.error)
-          );
+            error: (err: unknown) => alert(err.error),
+          });
       }
     }
   }
@@ -716,8 +674,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         } else {
           this.clearDashboardWorkflowEntries();
         }
-        this.zip = new JSZip();
-        this.downloadListWorkflow = new Map<number, string>();
       });
   }
 
@@ -734,16 +690,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         if (userProjectList != null && userProjectList.length > 0) {
           // map project ID to project object
           this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
-
-          // calculate whether project colors are light or dark
-          const projectColorBrightnessMap: Map<number, boolean> = new Map();
-          userProjectList.forEach(userProject => {
-            if (userProject.color != null) {
-              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
-            }
-          });
-          this.colorBrightnessMap = projectColorBrightnessMap;
-
           // store the projects containing these workflows
           this.userProjectsList = userProjectList;
           this.userProjectsDropdown = this.userProjectsList.map(proj => {
@@ -767,40 +713,6 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     this.dashboardWorkflowEntries = newWorkflowEntries;
   }
 
-  /**
-   * For color tags, enable clicking 'x' to remove a workflow from a project
-   *
-   * @param pid
-   * @param dashboardWorkflowEntry
-   * @param index
-   */
-  public removeWorkflowFromProject(pid: number, dashboardWorkflowEntry: DashboardWorkflowEntry, index: number): void {
-    this.userProjectService
-      .removeWorkflowFromProject(pid, dashboardWorkflowEntry.workflow.wid!)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
-        updatedDashboardWorkFlowEntry.projectIDs = dashboardWorkflowEntry.projectIDs.filter(
-          projectID => projectID != pid
-        );
-
-        // update allDashboardWorkflowEntries
-        const newAllDashboardEntries = this.allDashboardWorkflowEntries.slice();
-        for (let i = 0; i < newAllDashboardEntries.length; ++i) {
-          if (newAllDashboardEntries[i].workflow.wid === dashboardWorkflowEntry.workflow.wid) {
-            newAllDashboardEntries[i] = updatedDashboardWorkFlowEntry;
-            break;
-          }
-        }
-        this.allDashboardWorkflowEntries = newAllDashboardEntries;
-
-        // update dashboardWorkflowEntries
-        const newEntries = this.dashboardWorkflowEntries.slice();
-        newEntries[index] = updatedDashboardWorkFlowEntry;
-        this.dashboardWorkflowEntries = newEntries;
-      });
-  }
-
   private refreshDashboardWorkflowEntries(): void {
     let observable: Observable<DashboardWorkflowEntry[]>;
 
@@ -813,9 +725,9 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     }
 
     observable.pipe(untilDestroyed(this)).subscribe(dashboardWorkflowEntries => {
-      this.dashboardWorkflowEntries = dashboardWorkflowEntries;
+      this.allDashboardWorkflowEntries = this.toViewModels(dashboardWorkflowEntries);
+      this.dashboardWorkflowEntries = [...this.allDashboardWorkflowEntries];
       this.sortWorkflows();
-      this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
       const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
       this.filteredDashboardWorkflowNames = [...newEntries];
     });
@@ -830,67 +742,13 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * @param dashboardWorkflowEntries - returned local cache of workflows
    */
   private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
-    this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+    this.allDashboardWorkflowEntries = this.toViewModels(dashboardWorkflowEntries);
     // update searching / filtering
     this.searchWorkflow();
   }
 
   private clearDashboardWorkflowEntries(): void {
-    for (let wid of this.downloadListWorkflow.keys()) {
-      const checkbox = document.getElementById(wid.toString()) as HTMLInputElement | null;
-      if (checkbox != null) {
-        checkbox.checked = false;
-      }
-    }
     this.dashboardWorkflowEntries = [];
-  }
-
-  public confirmUpdateWorkflowCustomName(
-    dashboardWorkflowEntry: DashboardWorkflowEntry,
-    name: string,
-    index: number
-  ): void {
-    const { workflow } = dashboardWorkflowEntry;
-    this.workflowPersistService
-      .updateWorkflowName(workflow.wid, name || this.defaultWorkflowName)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
-        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
-        updatedDashboardWorkFlowEntry.workflow.name = name || this.defaultWorkflowName;
-        const newEntries = this.dashboardWorkflowEntries.slice();
-        newEntries[index] = updatedDashboardWorkFlowEntry;
-        this.dashboardWorkflowEntries = newEntries;
-      })
-      .add(() => {
-        this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(
-          entryIsEditingIndex => entryIsEditingIndex != index
-        );
-      });
-  }
-
-  public confirmUpdateWorkflowCustomDescription(
-    dashboardWorkflowEntry: DashboardWorkflowEntry,
-    description: string,
-    index: number
-  ): void {
-    const { workflow } = dashboardWorkflowEntry;
-    this.workflowPersistService
-      .updateWorkflowDescription(workflow.wid, description)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
-        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
-        updatedDashboardWorkFlowEntry.workflow.description = description;
-        const newEntries = this.dashboardWorkflowEntries.slice();
-        newEntries[index] = updatedDashboardWorkFlowEntry;
-        this.dashboardWorkflowEntries = newEntries;
-      })
-      .add(() => {
-        this.dashboardWorkflowEntriesIsEditingDescription = this.dashboardWorkflowEntriesIsEditingDescription.filter(
-          entryIsEditingIndex => entryIsEditingIndex != index
-        );
-      });
   }
 
   /**
@@ -948,7 +806,10 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: uploadedWorkflow => {
-              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, uploadedWorkflow];
+              this.dashboardWorkflowEntries = [
+                ...this.toViewModels(this.dashboardWorkflowEntries),
+                this.toViewModel(uploadedWorkflow),
+              ];
             },
             error: (err: unknown) => alert(err),
           });
@@ -964,47 +825,34 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * Download selected workflow as zip file
    */
   public async onClickOpenDownloadZip() {
-    let dateTime = new Date();
-    let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
-    const content = await this.zip.generateAsync({ type: "blob" });
-    this.fileSaverService.saveAs(content, filename);
-  }
-
-  /**
-   * Adding the workflow as pending download zip file
-   */
-  public onClickAddToDownload(dashboardWorkflowEntry: DashboardWorkflowEntry, event: Event) {
-    if ((<HTMLInputElement>event.target).checked) {
-      const fileName = this.nameWorkflow(dashboardWorkflowEntry.workflow.name) + ".json";
-      if (dashboardWorkflowEntry.workflow.wid) {
-        if (!this.downloadListWorkflow.has(dashboardWorkflowEntry.workflow.wid)) {
-          this.downloadListWorkflow.set(dashboardWorkflowEntry.workflow.wid, fileName);
-          this.notificationService.success(
-            "Successfully added workflow " + dashboardWorkflowEntry.workflow.wid + " to download list."
-          );
-        }
-        this.workflowPersistService
-          .retrieveWorkflow(dashboardWorkflowEntry.workflow.wid)
-          .pipe(untilDestroyed(this))
-          .subscribe(data => {
+    const checkedEntries = this.dashboardWorkflowEntries.filter(i => i.checked);
+    if (checkedEntries.length > 0) {
+      const zip = new JSZip();
+      try {
+        for (const entry of checkedEntries) {
+          const fileName = this.nameWorkflow(entry.workflow.name, zip) + ".json";
+          if (entry.workflow.wid) {
             const workflowCopy: Workflow = {
-              ...data,
+              ...(await firstValueFrom(
+                this.workflowPersistService.retrieveWorkflow(entry.workflow.wid).pipe(untilDestroyed(this))
+              )),
               wid: undefined,
               creationTime: undefined,
               lastModifiedTime: undefined,
             };
             const workflowJson = JSON.stringify(workflowCopy.content);
-            this.zip.file(fileName, workflowJson);
-          });
+            zip.file(fileName, workflowJson);
+          }
+        }
+      } catch (e) {
+        this.notificationService.error(`Workflow download failed. ${e instanceof Error ? e.message : ""}`);
       }
-    } else {
-      if (dashboardWorkflowEntry.workflow.wid) {
-        const existFileName = this.downloadListWorkflow.get(dashboardWorkflowEntry.workflow.wid) as string;
-        this.zip.file(existFileName, "remove").remove(existFileName);
-        this.downloadListWorkflow.delete(dashboardWorkflowEntry.workflow.wid);
-        this.notificationService.info(
-          "Workflow " + dashboardWorkflowEntry.workflow.wid + " removed from download list."
-        );
+      let dateTime = new Date();
+      let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
+      const content = await zip.generateAsync({ type: "blob" });
+      this.fileSaverService.saveAs(content, filename);
+      for (const entry of checkedEntries) {
+        entry.checked = false;
       }
     }
   }
@@ -1012,16 +860,23 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   /**
    * Resolve name conflict
    */
-  private nameWorkflow(name: string) {
+  private nameWorkflow(name: string, zip: JSZip) {
     let count = 0;
-    const values = [...this.downloadListWorkflow.values()];
     let copyName = name;
     while (true) {
-      if (!values.includes(copyName + ".json")) {
+      if (!zip.files[copyName + ".json"]) {
         return copyName;
       } else {
         copyName = name + "-" + ++count;
       }
     }
+  }
+
+  private toViewModel(entry: DashboardWorkflowEntry): DashboardWorkflowEntryViewModel {
+    return { ...entry, checked: false };
+  }
+
+  private toViewModels(entries: readonly DashboardWorkflowEntry[]): DashboardWorkflowEntryViewModel[] {
+    return entries.map(i => ({ ...i, checked: false }));
   }
 }
