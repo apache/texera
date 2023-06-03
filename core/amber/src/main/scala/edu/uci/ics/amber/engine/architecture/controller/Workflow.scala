@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

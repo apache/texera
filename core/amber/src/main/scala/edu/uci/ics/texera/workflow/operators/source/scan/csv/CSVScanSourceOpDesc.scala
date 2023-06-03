@@ -15,7 +15,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpDescV2
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
