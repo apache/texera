@@ -8,6 +8,7 @@
         [nzDropdownMenu]="sortOptions"
         nz-dropdown>
         <button
+          title="Sort"
           id="sortDropdown"
           ngbDropdownToggle
           nz-button>
@@ -56,6 +57,7 @@
       <button
         (click)="onClickCreateNewWorkflowFromDashboard()"
         nz-button
+        title="Create a new workflow"
         nz-tooltip="Create a new workflow"
         nzTooltipPlacement="bottom"
         type="button">
@@ -65,9 +67,10 @@
           nzType="file-add"></i>
       </button>
       <button
-        [disabled]="downloadListWorkflow.size === 0"
+        [disabled]="!zipDownloadButtonEnabled"
         (click)="onClickOpenDownloadZip()"
         nz-button
+        title="Download added workflow as a ZIP file"
         nz-tooltip="Download added workflow as a ZIP file"
         nzTooltipPlacement="bottom"
         type="button">
@@ -79,6 +82,7 @@
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
         <button
           nz-button
+          title="Upload ZIP/JSON file as workflow"
           nz-tooltip="Upload ZIP/JSON file as workflow"
           nzTooltipPlacement="bottom"
           type="button">
@@ -93,6 +97,7 @@
         *ngIf="pid !== 0"
         (click)="onClickOpenAddWorkflow()"
         nz-button
+        title="Add workflow(s) to project"
         nz-tooltip="Add workflow(s) to project"
         nzTooltipPlacement="bottom"
         type="button">
@@ -105,6 +110,7 @@
         *ngIf="pid !== 0"
         (click)="onClickOpenRemoveWorkflow()"
         nz-button
+        title="Remove workflow(s) from project"
         nz-tooltip="Remove workflow(s) from project"
         nzTooltipPlacement="bottom"
         type="button">
@@ -127,7 +133,8 @@
         <button
           id="mtimeSort"
           ngbDropdownToggle
-          nz-button>
+          nz-button
+          title="Modification Time">
           <i
             nz-icon
             nzType="form"
@@ -153,7 +160,8 @@
         <button
           id="ctimeSort"
           ngbDropdownToggle
-          nz-button>
+          nz-button
+          title="Creation Time">
           <i
             nz-icon
             nzType="calendar"
@@ -178,7 +186,8 @@
         <button
           id="sortOwner"
           ngbDropdownToggle
-          nz-button>
+          nz-button
+          title="Owner">
           <i
             nz-icon
             nzTheme="outline"
@@ -211,7 +220,8 @@
         <button
           id="sortID"
           ngbDropdownToggle
-          nz-button>
+          nz-button
+          title="Workflow ID">
           <i
             nz-icon
             nzTheme="outline"
@@ -244,7 +254,8 @@
         <button
           id="sortOperator"
           ngbDropdownToggle
-          nz-button>
+          nz-button
+          title="Operators">
           <i
             nz-icon
             nzType="appstore"
@@ -283,7 +294,8 @@
         <button
           id="sortProject"
           ngbDropdownToggle
-          nz-button>
+          nz-button
+          title="Projects">
           <i
             nz-icon
             nzType="file"
@@ -361,226 +373,16 @@
       itemSize="80"
       class="virtual-scroll-container">
       <nz-list>
-        <nz-list-item
-          *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
-          class="workflow-list-item">
-          <nz-list-item-meta>
-            <nz-list-item-meta-avatar>
-              <label
-                nz-checkbox
-                class="workflow-item-checkbox"
-                id="{{dashboardWorkflowEntry.workflow.wid}}"
-                (change)="onClickAddToDownload(dashboardWorkflowEntry, $event)"></label>
-              <nz-avatar
-                [ngStyle]="{ 'background-color': 'grey' }"
-                [nzGap]="4"
-                [nzText]="'' + dashboardWorkflowEntry.workflow.wid"
-                nzSize="default"
-                style="vertical-align: middle"></nz-avatar>
-            </nz-list-item-meta-avatar>
-
-            <!-- editable name of saved workflow -->
-            <nz-list-item-meta-title class="meta-title-container">
-              <div class="workflow-item-meta-title">
-                <a
-                  *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customWorkflowTitle "
-                  [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + dashboardWorkflowEntry.workflow.wid"
-                  class="workflow-name"
-                  >{{ dashboardWorkflowEntry.workflow.name }}</a
-                >
-                <ng-template #customWorkflowTitle>
-                  <input
-                    #customName
-                    (focusout)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
-                    (keyup.enter)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
-                    placeholder="{{ dashboardWorkflowEntry.workflow.name }}"
-                    value="{{ dashboardWorkflowEntry.workflow.name }}" />
-                </ng-template>
-                <button
-                  (click)="dashboardWorkflowEntriesIsEditingName.push(indexOfElement)"
-                  nz-button
-                  nz-tooltip="Customize Workflow Name"
-                  nzSize="small"
-                  nzTooltipPlacement="bottom"
-                  nzType="text">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="edit"></i>
-                </button>
-                <button
-                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
-                  nz-button
-                  nz-tooltip="Add Description"
-                  nzSize="small"
-                  nzTooltipPlacement="bottom"
-                  nzType="text"
-                  class="add-description-btn">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="plus-square"></i>
-                </button>
-                <i
-                  class="workflow-is-owner-icon"
-                  *ngIf="dashboardWorkflowEntry.isOwner"
-                  ngbTooltip="You are the owner"
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="user"></i>
-                <i
-                  *ngIf="!dashboardWorkflowEntry.isOwner"
-                  ngbTooltip="{{
-									dashboardWorkflowEntry.accessLevel
-								}} access shared by {{ dashboardWorkflowEntry.ownerName }}"
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="team"></i>
-              </div>
-            </nz-list-item-meta-title>
-
-            <!-- editable description of saved workflow -->
-            <nz-list-item-meta-description>
-              <div class="workflow-item-meta-description">
-                <label
-                  *ngIf="(dashboardWorkflowEntriesIsEditingDescription.indexOf(indexOfElement) === -1); else customWorkflowDescription "
-                  (click)="dashboardWorkflowEntriesIsEditingDescription.push(indexOfElement)"
-                  class="workflow-description">
-                  {{ dashboardWorkflowEntry.workflow.description }}
-                </label>
-                <ng-template #customWorkflowDescription>
-                  <input
-                    #customDescription
-                    (focusout)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
-                    (keyup.enter)="confirmUpdateWorkflowCustomDescription(dashboardWorkflowEntry, customDescription.value, indexOfElement)"
-                    class="workflow-editable-description"
-                    value="{{ dashboardWorkflowEntry.workflow.description }}"
-                    maxlength="500" />
-                </ng-template>
-              </div>
-            </nz-list-item-meta-description>
-
-            <!-- last access and created date of saved workflow -->
-            <nz-list-item-meta-description class="metadata-container">
-              <span
-                >Last Modified: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span
-              >
-              <span>Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</span>
-            </nz-list-item-meta-description>
-          </nz-list-item-meta>
-
-          <div
-            *ngIf="userProjectsLoaded"
-            class="project-label-container">
-            <div
-              *ngFor="let projectID of dashboardWorkflowEntry.projectIDs"
-              class="project-label">
-              <a
-                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
-                nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
-                nzTooltipPlacement="bottom"
-                class="project-label-name"
-                [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
-                [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid">
-                {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
-              </a>
-              <div
-                *ngIf="userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
-                nz-tooltip="Remove from project"
-                nzTooltipPlacement="bottom"
-                class="project-label-remove"
-                [ngClass]="{'color-tag' : true, 'light-color' : colorBrightnessMap.get(projectID), 'dark-color' : !colorBrightnessMap.get(projectID)}"
-                [ngStyle]="{'color' : colorBrightnessMap.get(projectID) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-                (click)="removeWorkflowFromProject(projectID, dashboardWorkflowEntry, indexOfElement)">
-                x
-              </div>
-            </div>
-          </div>
-
-          <ul nz-list-item-actions>
-            <nz-list-item-action>
-              <button
-                (click)="onClickOpenShareAccess(dashboardWorkflowEntry)"
-                [disabled]="!dashboardWorkflowEntry.isOwner"
-                nz-button
-                nz-tooltip="Share the workflow {{
-								dashboardWorkflowEntry.workflow.name
-							}} to others"
-                nzTooltipPlacement="bottom"
-                type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="share-alt"></i>
-              </button>
-            </nz-list-item-action>
-            <nz-list-item-action>
-              <button
-                (click)="onClickDuplicateWorkflow(dashboardWorkflowEntry)"
-                class="duplicate-workflow-btn"
-                nz-button
-                nz-tooltip="Duplicate the workflow {{
-								dashboardWorkflowEntry.workflow.name
-							}}"
-                nzTooltipPlacement="bottom"
-                type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="copy"></i>
-              </button>
-            </nz-list-item-action>
-            <nz-list-item-action>
-              <button
-                (click)="onClickDownloadWorkfllow(dashboardWorkflowEntry)"
-                nz-button
-                nz-tooltip="Download the workflow {{
-								dashboardWorkflowEntry.workflow.name
-							}}"
-                nzTooltipPlacement="bottom"
-                type="button">
-                <i
-                  nz-icon
-                  nzType="cloud-download"
-                  nzTheme="outline"></i>
-              </button>
-            </nz-list-item-action>
-            <nz-list-item-action>
-              <button
-                (nzOnConfirm)="deleteWorkflow(dashboardWorkflowEntry)"
-                nz-popconfirm
-                nzPopconfirmTitle="Confirm to delete this workflow."
-                [disabled]="!dashboardWorkflowEntry.isOwner"
-                class="delete-workflow-btn"
-                nz-button
-                nz-tooltip="Delete the workflow {{
-								dashboardWorkflowEntry.workflow.name
-							}}"
-                nzTooltipPlacement="bottom">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="delete"></i>
-              </button>
-            </nz-list-item-action>
-            <nz-list-item-action *ngIf="workflowExecutionsTrackingEnabled">
-              <button
-                (click)="onClickGetWorkflowExecutions(dashboardWorkflowEntry)"
-                nz-button
-                nz-tooltip="Executions of the workflow {{
-								dashboardWorkflowEntry.workflow.name
-							}}"
-                nzTooltipPlacement="bottom"
-                type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="history"></i>
-              </button>
-            </nz-list-item-action>
-          </ul>
-        </nz-list-item>
+        <texera-user-workflow-list-item
+          [entry]="dashboardWorkflowEntry"
+          [owners]="owners"
+          (deleted)="deleteWorkflow(dashboardWorkflowEntry)"
+          (duplicated)="onClickDuplicateWorkflow(dashboardWorkflowEntry)"
+          [pid]="pid"
+          [userProjectsLoaded]="userProjectsLoaded"
+          [userProjectsMap]="userProjectsMap"
+          *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index">
+        </texera-user-workflow-list-item>
       </nz-list>
     </cdk-virtual-scroll-viewport>
   </nz-card>
