@@ -8,6 +8,8 @@ import { StubWorkflowPersistService } from "src/app/common/service/workflow-pers
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { HttpClient, HttpHandler } from "@angular/common/http";
+import { UserProjectService } from "../../../service/user-project/user-project.service";
+import { StubUserProjectService } from "../../../service/user-project/stub-user-project.service";
 
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
@@ -18,6 +20,7 @@ describe("UserWorkflowListItemComponent", () => {
       declarations: [UserWorkflowListItemComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
+        { provide: UserProjectService, useValue: new StubUserProjectService() },
         NgbActiveModal,
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         HttpClient,

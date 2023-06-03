@@ -38,7 +38,7 @@ export class UserProjectListItemComponent implements OnInit {
   color = "#ffffff";
   /** To make sure info remains visible against white background */
   get lightColor() {
-    return this.userProjectService.isLightColor(this.color);
+    return UserProjectService.isLightColor(this.color);
   }
 
   constructor(private userProjectService: UserProjectService, private notificationService: NotificationService) {}
@@ -53,7 +53,7 @@ export class UserProjectListItemComponent implements OnInit {
     const color = this.color.substring(1);
     this.editingColor = false;
     // validate that color is in proper HEX format
-    if (this.userProjectService.isInvalidColorFormat(color)) {
+    if (UserProjectService.isInvalidColorFormat(color)) {
       this.notificationService.error(
         `Cannot update color for project: "${this.entry.name}".  It must be a valid HEX color format`
       );

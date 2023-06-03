@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
-import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { environment } from "src/environments/environment";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowExecutionsComponent } from "../ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
@@ -13,7 +12,7 @@ import { Workflow } from "src/app/common/type/workflow";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
 import { UserProject } from "../../../type/user-project";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
-import DashboardWorkflowEntryViewModel from "./dashboard-workflow-entry-view-model";
+import { DashboardEntry } from "../../../type/dashboard-entry";
 
 @UntilDestroy()
 @Component({
@@ -24,17 +23,17 @@ import DashboardWorkflowEntryViewModel from "./dashboard-workflow-entry-view-mod
 export class UserWorkflowListItemComponent {
   ROUTER_WORKFLOW_BASE_URL = "/workflow";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
-  private _entry?: DashboardWorkflowEntryViewModel;
+  private _entry?: DashboardEntry;
 
   @Input()
-  get entry(): DashboardWorkflowEntryViewModel {
+  get entry(): DashboardEntry {
     if (!this._entry) {
       throw new Error("entry property must be provided to UserWorkflowListItemComponent.");
     }
     return this._entry;
   }
 
-  set entry(value: DashboardWorkflowEntryViewModel) {
+  set entry(value: DashboardEntry) {
     this._entry = value;
   }
 
@@ -52,8 +51,7 @@ export class UserWorkflowListItemComponent {
     this._owners = value;
   }
   @Input() public pid: number = 0;
-  @Input() userProjectsLoaded = false;
-  @Input() userProjectsMap?: ReadonlyMap<number, UserProject> = new Map();
+  userProjectsMap: ReadonlyMap<number, UserProject> = new Map();
   @Output() checkedChange: EventEmitter<boolean> = new EventEmitter<boolean>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
@@ -68,12 +66,19 @@ export class UserWorkflowListItemComponent {
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService,
     private userProjectService: UserProjectService
-  ) {}
+  ) {
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(userProjectsList => {
+        this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
+      });
+  }
 
   /**
    * open the workflow executions page
    */
-  public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflowEntry): void {
+  public onClickGetWorkflowExecutions({ workflow }: DashboardEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
       size: "xl",
       modalDialogClass: "modal-dialog-centered",
@@ -119,7 +124,7 @@ export class UserWorkflowListItemComponent {
   /**
    * Download the workflow as a json file
    */
-  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
+  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardEntry): void {
     if (wid) {
       this.workflowPersistService
         .retrieveWorkflow(wid)
@@ -139,7 +144,7 @@ export class UserWorkflowListItemComponent {
   }
 
   public isLightColor(color: string): boolean {
-    return this.userProjectService.isLightColor(color);
+    return UserProjectService.isLightColor(color);
   }
 
   /**

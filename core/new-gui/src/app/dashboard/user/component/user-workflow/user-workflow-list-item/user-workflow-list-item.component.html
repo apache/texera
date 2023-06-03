@@ -107,7 +107,7 @@
   </nz-list-item-meta>
 
   <div
-    *ngIf="userProjectsLoaded"
+    *ngIf="userProjectsMap.size > 0"
     class="project-label-container">
     <div
       *ngFor="let projectID of entry.projectIDs"
@@ -120,7 +120,7 @@
         [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color!), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color!)}"
         [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color!) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
         [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid">
-        {{userProjectsMap.get(projectID)!.name | shorten: 15 }}
+        {{userProjectsMap.get(projectID)!.name }}
       </a>
       <div
         *ngIf="userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"

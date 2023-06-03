@@ -13,7 +13,6 @@ import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import { HttpClient } from "@angular/common/http";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
-import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
@@ -33,30 +32,25 @@ import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { FileSaverService } from "../../service/user-file/file-saver.service";
 import { testWorkflowEntries, testWorkflowFileNameConflictEntries } from "./user-workflow-test-fixtures";
+import { FiltersComponent } from "../filters/filters.component";
+import { delay } from "rxjs";
+import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
+import { UserProjectService } from "../../service/user-project/user-project.service";
+import { StubUserProjectService } from "../../service/user-project/stub-user-project.service";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
   let fixture: ComponentFixture<UserWorkflowComponent>;
-
-  const checked = <Event>(<any>{
-    target: {
-      checked: true,
-    },
-  });
-  const unchecked = <Event>(<any>{
-    target: {
-      checked: false,
-    },
-  });
 
   const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
 
   // must use waitForAsync for configureTestingModule in components with virtual scroll
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [UserWorkflowComponent, ShareAccessComponent],
+      declarations: [UserWorkflowComponent, ShareAccessComponent, FiltersComponent, UserWorkflowListItemComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
+        { provide: UserProjectService, useValue: new StubUserProjectService() },
         NgbActiveModal,
         HttpClient,
         ShareAccessService,
@@ -94,42 +88,13 @@ describe("SavedWorkflowSectionComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(UserWorkflowComponent);
     component = fixture.componentInstance;
+    component.filters = TestBed.createComponent(FiltersComponent).componentInstance;
     component.allDashboardWorkflowEntries = [...testWorkflowEntries];
     component.dashboardWorkflowEntries = [...testWorkflowEntries];
-    component.masterFilterList = [];
-    component.selectedMtime = [];
-    component.selectedMtime = [];
-    component.owners = [
-      { userName: "Texera", checked: false },
-      { userName: "Angular", checked: false },
-      { userName: "UCI", checked: false },
-    ];
-    component.wids = [
-      { id: "1", checked: false },
-      { id: "2", checked: false },
-      { id: "3", checked: false },
-      { id: "4", checked: false },
-      { id: "5", checked: false },
-    ];
-    component.userProjectsDropdown = [
-      { pid: 1, name: "Project1", checked: false },
-      { pid: 2, name: "Project2", checked: false },
-      { pid: 3, name: "Project3", checked: false },
-    ];
-
+    component.filters.masterFilterList = [];
+    component.filters.selectedMtime = [];
+    component.filters.selectedMtime = [];
     fixture.detectChanges();
-  });
-
-  it("alphaSortTest increaseOrder", () => {
-    component.ascSort();
-    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
-  });
-
-  it("alphaSortTest decreaseOrder", () => {
-    component.dscSort();
-    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
-    expect(SortedCase).toEqual(["workflow 5", "workflow 4", "workflow 3", "workflow 2", "workflow 1"]);
   });
 
   // TODO: add this test case back and figure out why it failed
@@ -142,81 +107,74 @@ describe("SavedWorkflowSectionComponent", () => {
   //   modalRef.dismiss();
   // });
 
-  it("createDateSortTest", () => {
-    component.dateSort();
-    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
-    expect(SortedCase).toEqual(["workflow 4", "workflow 5", "workflow 2", "workflow 3", "workflow 1"]);
-  });
-
-  it("lastEditSortTest", () => {
-    component.lastSort();
-    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
-    expect(SortedCase).toEqual(["workflow 5", "workflow 4", "workflow 3", "workflow 2", "workflow 1"]);
-  });
-
   it("searchNoInput", async () => {
     // When no search input is provided, it should show all workflows.
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
-    expect(component.masterFilterList).toEqual([]);
+    expect(component.filters.masterFilterList).toEqual([]);
   });
 
   it("searchByWorkflowName", async () => {
     // If the name "workflow 5" is entered as a single phrase, only workflow 5 should be returned, rather
     // than all containing the keyword "workflow".
-    component.masterFilterList = ["workflow 5"];
+    component.filters.masterFilterList = ["workflow 5"];
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 5"]);
-    expect(component.masterFilterList).toEqual(["workflow 5"]);
+    expect(component.filters.masterFilterList).toEqual(["workflow 5"]);
   });
 
   it("searchByOwners", async () => {
     // If the owner filter is applied, only those workflow ownered by that user should be returned.
-    component.owners[0].checked = true;
-    await component.updateSelectedOwners(); // calls searchWorkflow()
+    component.filters.owners[0].checked = true;
+    component.filters.updateSelectedOwners();
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2"]);
-    expect(component.masterFilterList).toEqual(["owner: Texera"]);
+    expect(component.filters.masterFilterList).toEqual(["owner: Texera"]);
   });
 
   it("searchByIDs", async () => {
     // If the ID filter is applied, only those workflows should be returned.
-    component.wids[0].checked = true;
-    component.wids[1].checked = true;
-    component.wids[2].checked = true;
-    await component.updateSelectedIDs(); // calls searchWorkflow()
+    component.filters.wids[0].checked = true;
+    component.filters.wids[1].checked = true;
+    component.filters.wids[2].checked = true;
+    component.filters.updateSelectedIDs();
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
-    expect(component.masterFilterList).toEqual(["id: 1", "id: 2", "id: 3"]);
+    expect(component.filters.masterFilterList).toEqual(["id: 1", "id: 2", "id: 3"]);
   });
 
   it("searchByProjects", async () => {
     // If the project filter is applied, only those workflows belonging to those projects should be returned.
-    component.userProjectsDropdown[0].checked = true;
-    await component.updateSelectedProjects(); // calls searchWorkflow()
+    component.filters.userProjectsDropdown[0].checked = true;
+    component.filters.updateSelectedProjects();
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
-    expect(component.masterFilterList).toEqual(["project: Project1"]);
+    expect(component.filters.masterFilterList).toEqual(["project: Project1"]);
   });
 
   it("searchByCreationTime", async () => {
     // If the creation time filter is applied, only those workflows matching the date range should be returned.
-    component.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
+    component.filters.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
+    component.filters.buildMasterFilterList();
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
-    expect(component.masterFilterList).toEqual(["ctime: 1970-01-03 ~ 1981-03-13"]);
+    expect(component.filters.masterFilterList).toEqual(["ctime: 1970-01-03 ~ 1981-03-13"]);
   });
 
   it("searchByModifyTime", async () => {
     // If the modified time filter is applied, only those workflows matching the date range should be returned.
-    component.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
+    component.filters.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
+    component.filters.buildMasterFilterList();
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
-    expect(component.masterFilterList).toEqual(["mtime: 1970-01-03 ~ 1981-03-13"]);
+    expect(component.filters.masterFilterList).toEqual(["mtime: 1970-01-03 ~ 1981-03-13"]);
   });
 
   /*
@@ -232,55 +190,58 @@ describe("SavedWorkflowSectionComponent", () => {
    */
   it("searchByOperators", async () => {
     // If a single operator filter is provided, only the workflows containing that operator should be returned.
-    const operatorGroup = component.operators.get("Analysis");
+    const operatorGroup = component.filters.operators.get("Analysis");
     if (operatorGroup) {
       operatorGroup[2].checked = true; // sentiment analysis
-      await component.updateSelectedOperators();
+      component.filters.updateSelectedOperators();
     }
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
-    expect(component.masterFilterList).toEqual(["operator: Sentiment Analysis"]); // userFriendlyName
+    expect(component.filters.masterFilterList).toEqual(["operator: Sentiment Analysis"]); // userFriendlyName
   });
 
   it("searchByManyOperators", async () => {
     // If a multiple operator filters are provided, workflows containing any of the provided operators should be returned.
-    const operatorGroup = component.operators.get("Analysis");
-    const operatorGroup2 = component.operators.get("View Results");
+    const operatorGroup = component.filters.operators.get("Analysis");
+    const operatorGroup2 = component.filters.operators.get("View Results");
     if (operatorGroup && operatorGroup2) {
       operatorGroup[2].checked = true; // sentiment analysis
       operatorGroup2[0].checked = true;
-      await component.updateSelectedOperators(); // calls searchWorkflow()
+      component.filters.updateSelectedOperators();
     }
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
-    expect(component.masterFilterList).toEqual(["operator: Sentiment Analysis", "operator: View Results"]); // userFriendlyName
+    expect(component.filters.masterFilterList).toEqual(["operator: Sentiment Analysis", "operator: View Results"]); // userFriendlyName
   });
 
   it("searchByManyParameters", async () => {
     // Apply the project, ID, owner, and operator filter all at once.
-    const operatorGroup = component.operators.get("Analysis");
+    const operatorGroup = component.filters.operators.get("Analysis");
     if (operatorGroup) {
       operatorGroup[3].checked = true; // Aggregation operator
-      await component.updateSelectedOperators();
+      component.filters.updateSelectedOperators();
 
-      component.owners[0].checked = true; //Texera
-      component.owners[1].checked = true; //Angular
-      component.wids[0].checked = true;
-      component.wids[1].checked = true;
-      component.wids[2].checked = true; //id 1,2,3
-      component.userProjectsDropdown[0].checked = true; //Project 1
-      component.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
-      component.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
-      component.masterFilterList.push("1");
+      component.filters.owners[0].checked = true; //Texera
+      component.filters.owners[1].checked = true; //Angular
+      component.filters.wids[0].checked = true;
+      component.filters.wids[1].checked = true;
+      component.filters.wids[2].checked = true; //id 1,2,3
+      component.filters.userProjectsDropdown[0].checked = true; //Project 1
+      component.filters.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
+      component.filters.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
+      component.filters.masterFilterList.push("1");
       //add/select new search parameter here
 
-      await component.updateSelectedProjects();
-      await component.updateSelectedIDs();
-      await component.updateSelectedOwners();
+      component.filters.updateSelectedProjects();
+      component.filters.updateSelectedIDs();
+      component.filters.updateSelectedOwners();
     }
+    await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]);
-    expect(component.masterFilterList).toEqual([
+    expect(component.filters.masterFilterList).toEqual([
       "1",
       "owner: Texera",
       "owner: Angular",

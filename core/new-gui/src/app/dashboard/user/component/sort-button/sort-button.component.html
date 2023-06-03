@@ -1,0 +1,47 @@
+<a
+  [nzDropdownMenu]="sortOptions"
+  nz-dropdown>
+  <button
+    title="Sort"
+    id="sortDropdown"
+    ngbDropdownToggle
+    nz-button>
+    <i
+      nz-icon
+      nzTheme="outline"
+      nzType="sort-ascending"></i>
+  </button>
+</a>
+
+<nz-dropdown-menu #sortOptions="nzDropdownMenu">
+  <ul nz-menu>
+    <li nz-menu-item>
+      <button
+        (click)="lastSort()"
+        nz-button>
+        By Edit Time
+      </button>
+    </li>
+    <li nz-menu-item>
+      <button
+        (click)="dateSort()"
+        nz-button>
+        By Create Time
+      </button>
+    </li>
+    <li nz-menu-item>
+      <button
+        (click)="ascSort()"
+        nz-button>
+        A -> Z
+      </button>
+    </li>
+    <li nz-menu-item>
+      <button
+        (click)="dscSort()"
+        nz-button>
+        Z -> A
+      </button>
+    </li>
+  </ul>
+</nz-dropdown-menu>

@@ -55,10 +55,6 @@ $section-search-bar-height: 60px;
   .utility-button-group {
     float: left;
   }
-
-  .filter-button-group {
-    float: right;
-  }
 }
 
 /**
@@ -70,11 +66,6 @@ $section-search-bar-height: 60px;
 
   display: flex;
   padding: 4px 24px;
-
-  .search-info-box {
-    margin-right: 10px;
-    align-self: center;
-  }
 
   .search-input-box {
     width: 100%;

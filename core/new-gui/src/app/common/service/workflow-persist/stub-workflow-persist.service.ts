@@ -76,4 +76,22 @@ export class StubWorkflowPersistService {
       return observer.next(results);
     });
   }
+  /**
+   * retrieves all workflow owners
+   */
+  public retrieveOwners(): Observable<string[]> {
+    const names = this.testWorkflows.filter(i => i).map(i => i.ownerName) as string[];
+    return new Observable(observer => {
+      observer.next([...new Set(names)]);
+    });
+  }
+
+  /**
+   * retrieves all workflow IDs
+   */
+  public retrieveWorkflowIDs(): Observable<number[]> {
+    return new Observable(observer => {
+      observer.next(this.testWorkflows.map(i => i.workflow.wid as number).filter(i => i));
+    });
+  }
 }
