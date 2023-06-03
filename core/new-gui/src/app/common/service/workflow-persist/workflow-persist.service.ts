@@ -216,7 +216,7 @@ export class WorkflowPersistService {
   /**
    * retrieves all workflow IDs
    */
-  public retrieveIDs(): Observable<number[]> {
+  public retrieveWorkflowIDs(): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
   }
 }

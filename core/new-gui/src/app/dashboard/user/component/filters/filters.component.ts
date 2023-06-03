@@ -112,7 +112,7 @@ export class FiltersComponent implements OnInit {
         this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
       });
     this.workflowPersistService
-      .retrieveIDs()
+      .retrieveWorkflowIDs()
       .pipe(untilDestroyed(this))
       .subscribe(wids => {
         this.wids = wids.map(wid => {
