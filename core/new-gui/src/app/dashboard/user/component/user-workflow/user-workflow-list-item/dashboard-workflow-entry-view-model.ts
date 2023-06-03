@@ -1,5 +1,5 @@
-import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 
-export default interface DashboardWorkflowEntryViewModel extends DashboardWorkflowEntry {
+export default interface DashboardWorkflowEntryViewModel extends DashboardWorkflow {
   checked: boolean;
 }
