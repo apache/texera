@@ -3,10 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, _}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  UserFileAccessPrivilege,
-  WorkflowUserAccessPrivilege
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{UserFileAccessPrivilege, WorkflowUserAccessPrivilege}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
@@ -14,20 +11,20 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.{DSL, SQLDataType}
-import org.jooq.impl.DSL.{groupConcat, noCondition}
+import org.jooq.impl.DSL.{falseCondition, field, groupConcat, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable
 
 /**
   * This file handles various requests that need to interact with multiple tables.
   */
 object DashboardResource {
   final private lazy val context = SqlServer.createDSLContext()
-
   case class DashboardClickableFileEntry(
       resourceType: String,
       workflow: DashboardWorkflowEntry,
@@ -56,10 +53,18 @@ class DashboardResource {
   def searchAllResources(
       @Auth sessionUser: SessionUser,
       @QueryParam("query") keywords: java.util.List[String],
-      @QueryParam("resourceType") @DefaultValue("") resourceType: String = ""
+      @QueryParam("resourceType") @DefaultValue("") resourceType: String = "",
+      @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
+      @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
+      @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
+      @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
+      @QueryParam("owner") owners: java.util.List[String] = new java.util.ArrayList[String](),
+      @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
+      @QueryParam("operator") operators: java.util.List[String] = new java.util.ArrayList[String](),
+      @QueryParam("projectId") projectIds: java.util.List[UInteger] =
+        new java.util.ArrayList[UInteger]()
   ): List[DashboardClickableFileEntry] = {
     val user = sessionUser.getUser
-
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
     var workflowMatchQuery: Condition = noCondition()
@@ -115,6 +120,77 @@ class DashboardResource {
       }
     }
 
+    // combine all filters with AND
+    var workflowOptionalFilters: Condition = noCondition()
+    workflowOptionalFilters = workflowOptionalFilters
+      // Apply creation_time date filter
+      .and(getDateFilter("creation", creationStartDate, creationEndDate, "workflow"))
+      // Apply lastModified_time date filter
+      .and(getDateFilter("modification", modifiedStartDate, modifiedEndDate, "workflow"))
+      // Apply workflowID filter
+      .and(getWorkflowIdFilter(workflowIDs))
+      // Apply owner filter
+      .and(getOwnerFilter(owners))
+      // Apply operators filter
+      .and(getOperatorsFilter(operators))
+      // Apply projectId filter
+      .and(getProjectFilter(projectIds, "workflow"))
+
+    var projectOptionalFilters: Condition = noCondition()
+    projectOptionalFilters = projectOptionalFilters
+      .and(getDateFilter("creation", creationStartDate, creationEndDate, "project"))
+      .and(getProjectFilter(projectIds, "project"))
+      // apply owner filter
+      .and(getOwnerFilter(owners))
+      .and(
+        // these filters are not available in project. If any of them exists, the query should return 0 project
+        if (
+          modifiedStartDate.nonEmpty || modifiedEndDate.nonEmpty || workflowIDs.nonEmpty || operators.nonEmpty
+        ) falseCondition()
+        else noCondition()
+      )
+
+    var fileOptionalFilters: Condition = noCondition()
+    fileOptionalFilters = fileOptionalFilters
+      .and(getDateFilter("creation", creationStartDate, creationEndDate, "file"))
+      .and(getOwnerFilter(owners))
+      .and(
+        // these filters are not available in file. If any of them exists, the query should return 0 file
+        if (
+          modifiedStartDate.nonEmpty || modifiedEndDate.nonEmpty || workflowIDs.nonEmpty || operators.nonEmpty || projectIds.nonEmpty
+        ) falseCondition()
+        else noCondition()
+      )
+
+    /**
+      *  Common attributes: 4 columns
+      * - 1. resourceType: String
+      * - 2. name: String
+      * - 3. description: String
+      * - 4. creation_time: Timestamp
+      *
+      *  Workflow attributs: 5 columns
+      * - 5. WID: UInteger
+      * - 6. lastModifiedTime: Timestamp
+      * - 7. privilege: Privilege
+      * - 8. UID: UInteger
+      * - 9. userName: String
+      *
+      *  Project attributes: 3 columns
+      * - 10. pid: UInteger
+      * - 11. ownerId: UInteger
+      * - 12. color: String
+      *
+      * File attributes: 7 columns
+      * - 13. ownerUID: UInteger
+      * - 14. fid: UInteger
+      * - 15. uploadTime: Timestamp
+      * - 16. path: String
+      * - 17. size: UInteger
+      * - 18. email: String
+      * - 19. userFileAccess: UserFileAccessPrivilege
+      */
+
     // Retrieve workflow resource
     val workflowQuery =
       context
@@ -134,7 +210,7 @@ class DashboardResource {
           DSL.inline(null, classOf[UInteger]).as("pid"),
           DSL.inline(null, classOf[UInteger]).as("owner_id"),
           DSL.inline(null, classOf[String]).as("color"),
-          // file attributes 6 columns
+          // file attributes 7 columns
           DSL.inline(null, classOf[UInteger]).as("owner_uid"),
           DSL.inline(null, classOf[UInteger]).as("fid"),
           DSL.inline(null, classOf[Timestamp]).as("upload_time"),
@@ -156,39 +232,43 @@ class DashboardResource {
         .and(
           workflowMatchQuery
         )
+        .and(workflowOptionalFilters)
 
     // Retrieve project resource
     val projectQuery = context
       .select(
         //common attributes: 4 columns
         DSL.inline("project").as("resourceType"),
-        PROJECT.NAME,
-        PROJECT.DESCRIPTION,
-        PROJECT.CREATION_TIME,
+        PROJECT.NAME.as("name"),
+        PROJECT.DESCRIPTION.as("description"),
+        PROJECT.CREATION_TIME.as("creation_time"),
         // workflow attributes: 5 columns
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[Timestamp]),
-        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[String]),
+        DSL.inline(null, classOf[UInteger]).as("wid"),
+        DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
+        DSL.inline(null, classOf[UInteger]).as("uid"),
+        DSL.inline(null, classOf[String]).as("userName"),
         // project attributes: 3 columns
         PROJECT.PID,
         PROJECT.OWNER_ID,
         PROJECT.COLOR,
-        // file attributes 6 columns
+        // file attributes 7 columns
         DSL.inline(null, classOf[UInteger]).as("owner_uid"),
         DSL.inline(null, classOf[UInteger]).as("fid"),
         DSL.inline(null, classOf[Timestamp]).as("upload_time"),
         DSL.inline(null, classOf[String]).as("path"),
         DSL.inline(null, classOf[UInteger]).as("size"),
         DSL.inline(null, classOf[String]).as("email"),
-        DSL.inline(null, classOf[UserFileAccessPrivilege])
+        DSL.inline(null, classOf[UserFileAccessPrivilege]).as("user_file_access")
       )
       .from(PROJECT)
+      .join(USER)
+      .on(PROJECT.OWNER_ID.eq(USER.UID))
       .where(PROJECT.OWNER_ID.eq(user.getUid()))
       .and(
         projectMatchQuery
       )
+      .and(projectOptionalFilters)
 
     // Retrieve file resource
     val fileQuery = context
@@ -197,18 +277,18 @@ class DashboardResource {
         DSL.inline("file").as("resourceType"),
         FILE.NAME,
         FILE.DESCRIPTION,
-        DSL.inline(null, classOf[Timestamp]),
+        DSL.inline(null, classOf[Timestamp]).as("creation_time"),
         // workflow attributes: 5 columns
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[Timestamp]),
-        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[String]),
+        DSL.inline(null, classOf[UInteger]).as("wid"),
+        DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
+        DSL.inline(null, classOf[UInteger]).as("uid"),
+        DSL.inline(null, classOf[String]).as("userName"),
         // project attributes: 3 columns
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[String]),
-        // file attributes 5 columns
+        DSL.inline(null, classOf[UInteger]).as("pid"),
+        DSL.inline(null, classOf[UInteger]).as("owner_id"),
+        DSL.inline(null, classOf[String]).as("color"),
+        // file attributes 7 columns
         FILE.OWNER_UID,
         FILE.FID,
         FILE.UPLOAD_TIME,
@@ -226,6 +306,8 @@ class DashboardResource {
       .and(
         fileMatchQuery
       )
+      .and(fileOptionalFilters)
+
     // Retrieve files to which all shared workflows have access
     val sharedWorkflowFileQuery = context
       .select(
@@ -233,17 +315,17 @@ class DashboardResource {
         DSL.inline("file").as("resourceType"),
         FILE.NAME,
         FILE.DESCRIPTION,
-        DSL.inline(null, classOf[Timestamp]),
+        DSL.inline(null, classOf[Timestamp]).as("creation_time"),
         // workflow attributes: 5 columns
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[Timestamp]),
-        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[String]),
+        DSL.inline(null, classOf[UInteger]).as("wid"),
+        DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
+        DSL.inline(null, classOf[UInteger]).as("uid"),
+        DSL.inline(null, classOf[String]).as("userName"),
         // project attributes: 3 columns
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[UInteger]),
-        DSL.inline(null, classOf[String]),
+        DSL.inline(null, classOf[UInteger]).as("pid"),
+        DSL.inline(null, classOf[UInteger]).as("owner_id"),
+        DSL.inline(null, classOf[String]).as("color"),
         // file attributes 7 columns
         FILE.OWNER_UID,
         FILE.FID,
@@ -264,6 +346,7 @@ class DashboardResource {
       .and(
         fileMatchQuery
       )
+      .and(fileOptionalFilters)
 
     // Combine all queries using union and fetch results
     val clickableFileEntry =
@@ -298,7 +381,7 @@ class DashboardResource {
                 .toString,
               record.into(USER).getName,
               record.into(WORKFLOW).into(classOf[Workflow]),
-              List[UInteger]()
+              List[UInteger]() // To do
             )
           } else {
             null

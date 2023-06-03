@@ -377,48 +377,48 @@ class WorkflowResourceSpec
   }
 
   "getOwnerFilter" should "return a noCondition when the input owner list is null" in {
-    val ownerFilter: Condition = workflowResource.getOwnerFilter(null)
+    val ownerFilter: Condition = WorkflowResource.getOwnerFilter(null)
     assert(ownerFilter.toString == noCondition().toString)
   }
 
   it should "return a noCondition when the input owner list is empty" in {
-    val ownerFilter: Condition = workflowResource.getOwnerFilter(Collections.emptyList[String]())
+    val ownerFilter: Condition = WorkflowResource.getOwnerFilter(Collections.emptyList[String]())
     assert(ownerFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for a single owner" in {
     val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1"))
-    val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
+    val ownerFilter: Condition = WorkflowResource.getOwnerFilter(ownerList)
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").toString)
   }
 
   it should "return a proper condition for multiple owners" in {
     val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2"))
-    val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
+    val ownerFilter: Condition = WorkflowResource.getOwnerFilter(ownerList)
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
   }
 
   it should "return a proper condition for multiple owners with duplicates" in {
     val ownerList =
       new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2", "owner2"))
-    val ownerFilter: Condition = workflowResource.getOwnerFilter(ownerList)
+    val ownerFilter: Condition = WorkflowResource.getOwnerFilter(ownerList)
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
   }
 
   "getProjectFilter" should "return a noCondition when the input projectIds list is null" in {
-    val projectFilter: Condition = workflowResource.getProjectFilter(null)
+    val projectFilter: Condition = WorkflowResource.getProjectFilter(null)
     assert(projectFilter.toString == noCondition().toString)
   }
 
   it should "return a noCondition when the input projectIds list is empty" in {
     val projectFilter: Condition =
-      workflowResource.getProjectFilter(Collections.emptyList[UInteger]())
+      WorkflowResource.getProjectFilter(Collections.emptyList[UInteger]())
     assert(projectFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for a single projectId" in {
     val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
-    val projectFilter: Condition = workflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
     assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
   }
 
@@ -426,7 +426,7 @@ class WorkflowResourceSpec
     val projectIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
     )
-    val projectFilter: Condition = workflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
         .eq(UInteger.valueOf(1))
@@ -439,7 +439,7 @@ class WorkflowResourceSpec
     val projectIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2), UInteger.valueOf(2))
     )
-    val projectFilter: Condition = workflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
         .eq(UInteger.valueOf(1))
@@ -449,19 +449,19 @@ class WorkflowResourceSpec
   }
 
   "getWorkflowIdFilter" should "return a noCondition when the input workflowIDs list is null" in {
-    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(null)
+    val workflowIdFilter: Condition = WorkflowResource.getWorkflowIdFilter(null)
     assert(workflowIdFilter.toString == noCondition().toString)
   }
 
   it should "return a noCondition when the input workflowIDs list is empty" in {
     val workflowIdFilter: Condition =
-      workflowResource.getWorkflowIdFilter(Collections.emptyList[UInteger]())
+      WorkflowResource.getWorkflowIdFilter(Collections.emptyList[UInteger]())
     assert(workflowIdFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for a single workflowID" in {
     val workflowIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
-    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(workflowIdList)
+    val workflowIdFilter: Condition = WorkflowResource.getWorkflowIdFilter(workflowIdList)
     assert(workflowIdFilter.toString == WORKFLOW.WID.eq(UInteger.valueOf(1)).toString)
   }
 
@@ -469,7 +469,7 @@ class WorkflowResourceSpec
     val workflowIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
     )
-    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(workflowIdList)
+    val workflowIdFilter: Condition = WorkflowResource.getWorkflowIdFilter(workflowIdList)
     assert(
       workflowIdFilter.toString == WORKFLOW.WID
         .eq(UInteger.valueOf(1))
@@ -482,7 +482,7 @@ class WorkflowResourceSpec
     val workflowIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2), UInteger.valueOf(2))
     )
-    val workflowIdFilter: Condition = workflowResource.getWorkflowIdFilter(workflowIdList)
+    val workflowIdFilter: Condition = WorkflowResource.getWorkflowIdFilter(workflowIdList)
     assert(
       workflowIdFilter.toString == WORKFLOW.WID
         .eq(UInteger.valueOf(1))
@@ -492,13 +492,13 @@ class WorkflowResourceSpec
   }
 
   "getDateFilter" should "return a noCondition when the input startDate and endDate are empty" in {
-    val dateFilter: Condition = workflowResource.getDateFilter("creation", "", "")
+    val dateFilter: Condition = WorkflowResource.getDateFilter("creation", "", "", "workflow")
     assert(dateFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for creation date type with specific start and end date" in {
     val dateFilter: Condition =
-      workflowResource.getDateFilter("creation", "2023-01-01", "2023-12-31")
+      WorkflowResource.getDateFilter("creation", "2023-01-01", "2023-12-31", "workflow")
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
@@ -510,7 +510,7 @@ class WorkflowResourceSpec
 
   it should "return a proper condition for modification date type with specific start and end date" in {
     val dateFilter: Condition =
-      workflowResource.getDateFilter("modification", "2023-01-01", "2023-12-31")
+      WorkflowResource.getDateFilter("modification", "2023-01-01", "2023-12-31", "workflow")
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
@@ -524,25 +524,25 @@ class WorkflowResourceSpec
 
   it should "throw an IllegalArgumentException for invalid dateType" in {
     assertThrows[IllegalArgumentException] {
-      workflowResource.getDateFilter("invalidType", "2023-01-01", "2023-12-31")
+      WorkflowResource.getDateFilter("invalidType", "2023-01-01", "2023-12-31", "workflow")
     }
   }
 
   it should "throw a ParseException when endDate is invalid" in {
     assertThrows[ParseException] {
-      workflowResource.getDateFilter("creation", "2023-01-01", "invalidDate")
+      WorkflowResource.getDateFilter("creation", "2023-01-01", "invalidDate", "workflow")
     }
   }
 
   "getOperatorsFilter" should "return a noCondition when the input operators list is empty" in {
     val operatorsFilter: Condition =
-      workflowResource.getOperatorsFilter(Collections.emptyList[String]())
+      WorkflowResource.getOperatorsFilter(Collections.emptyList[String]())
     assert(operatorsFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for a single operator" in {
     val operatorsList = new java.util.ArrayList[String](util.Arrays.asList("operator1"))
-    val operatorsFilter: Condition = workflowResource.getOperatorsFilter(operatorsList)
+    val operatorsFilter: Condition = WorkflowResource.getOperatorsFilter(operatorsList)
     val searchKey = "%\"operatorType\":\"operator1\"%"
     assert(operatorsFilter.toString == WORKFLOW.CONTENT.likeIgnoreCase(searchKey).toString)
   }
@@ -550,7 +550,7 @@ class WorkflowResourceSpec
   it should "return a proper condition for multiple operators" in {
     val operatorsList =
       new java.util.ArrayList[String](util.Arrays.asList("operator1", "operator2"))
-    val operatorsFilter: Condition = workflowResource.getOperatorsFilter(operatorsList)
+    val operatorsFilter: Condition = WorkflowResource.getOperatorsFilter(operatorsList)
     val searchKey1 = "%\"operatorType\":\"operator1\"%"
     val searchKey2 = "%\"operatorType\":\"operator2\"%"
     assert(
