@@ -32,9 +32,8 @@ export class SortButtonComponent implements OnChanges {
       }
     }
   }
-  @Output() entriesChange = new EventEmitter<typeof this.entries>();
 
-  constructor() {}
+  @Output() entriesChange = new EventEmitter<typeof this.entries>();
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes.entries) {
@@ -97,7 +96,7 @@ export class SortButtonComponent implements OnChanges {
     this.entries = this.entries.slice().sort((t1, t2) => {
       if (t1.workflow && t2.workflow)
         return t1.workflow.creationTime !== undefined && t2.workflow.creationTime !== undefined
-          ? t1.workflow.creationTime - t2.workflow.creationTime
+          ? t2.workflow.creationTime - t1.workflow.creationTime
           : 0;
       else throw new Error("No sortable entry provided.");
     });

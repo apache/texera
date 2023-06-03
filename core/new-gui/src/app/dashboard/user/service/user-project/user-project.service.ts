@@ -125,7 +125,7 @@ export class UserProjectService {
    * @param color (HEX formatted color string)
    * @returns boolean indicating whether color is "light" or "dark"
    */
-  public isLightColor(color: string): boolean {
+  public static isLightColor(color: string): boolean {
     if (this.isInvalidColorFormat(color)) {
       return false; // default color is dark
     }
@@ -156,7 +156,7 @@ export class UserProjectService {
    * @param color
    * @returns boolean indicating whether color is in valid HEX format
    */
-  public isInvalidColorFormat(color: string) {
+  public static isInvalidColorFormat(color: string) {
     return color == null || (color.length != 6 && color.length != 3) || !/^([0-9A-Fa-f]{3}){1,2}$/.test(color);
   }
 }

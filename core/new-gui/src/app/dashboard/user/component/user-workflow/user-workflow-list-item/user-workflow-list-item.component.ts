@@ -141,7 +141,7 @@ export class UserWorkflowListItemComponent {
   }
 
   public isLightColor(color: string): boolean {
-    return this.userProjectService.isLightColor(color);
+    return UserProjectService.isLightColor(color);
   }
 
   /**

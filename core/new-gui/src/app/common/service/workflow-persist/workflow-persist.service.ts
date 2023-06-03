@@ -209,33 +209,15 @@ export class WorkflowPersistService {
   /**
    * retrieves all workflow owners
    */
-  public retrieveOwners(): Observable<{ userName: string; checked: boolean }[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`).pipe(
-      map((owners: string[]) => {
-        return owners.map((user: string) => {
-          return {
-            userName: user,
-            checked: false,
-          };
-        });
-      })
-    );
+  public retrieveOwners(): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`);
   }
 
   /**
    * retrieves all workflow IDs
    */
-  public retrieveIDs(): Observable<{ id: string; checked: boolean }[]> {
-    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`).pipe(
-      map((wids: string[]) => {
-        return wids.map(wid => {
-          return {
-            id: wid,
-            checked: false,
-          };
-        });
-      })
-    );
+  public retrieveIDs(): Observable<number[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
   }
 
 }

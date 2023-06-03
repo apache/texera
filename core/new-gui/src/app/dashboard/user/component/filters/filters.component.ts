@@ -57,7 +57,6 @@ export class FiltersComponent implements OnInit {
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
 
   constructor(
-    private http: HttpClient,
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
@@ -109,11 +108,20 @@ export class FiltersComponent implements OnInit {
     this.workflowPersistService
       .retrieveOwners()
       .pipe(untilDestroyed(this))
-      .subscribe(list_of_owners => (this.owners = list_of_owners));
+      .subscribe(list_of_owners => {
+        this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
+      });
     this.workflowPersistService
       .retrieveIDs()
       .pipe(untilDestroyed(this))
-      .subscribe(list_of_ids => (this.wids = list_of_ids));
+      .subscribe(wids => {
+        this.wids = wids.map(wid => {
+          return {
+            id: wid.toString(),
+            checked: false,
+          };
+        });
+      });
   }
 
   /**

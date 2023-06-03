@@ -83,7 +83,16 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   public allDashboardWorkflowEntries: DashboardEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
   public workflowSearchValue: string = "";
-  public owners = this.workflowPersistService.retrieveOwners();
+  public owners = this.workflowPersistService.retrieveOwners().pipe(
+    map((owners: string[]) => {
+      return owners.map((user: string) => {
+        return {
+          userName: user,
+          checked: false,
+        };
+      });
+    })
+  );
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
 
   public ROUTER_WORKFLOW_BASE_URL = "/workflow";
