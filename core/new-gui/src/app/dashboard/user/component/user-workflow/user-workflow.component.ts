@@ -69,7 +69,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     throw new Error("Property cannot be accessed before it is initialized.");
   }
   set filters(value: FiltersComponent) {
-    value.masterFilterListChange.subscribe({ next: () => this.searchWorkflow() });
+    value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.searchWorkflow() });
     this._filters = value;
   }
   // receive input from parent components (UserProjectSection), if any

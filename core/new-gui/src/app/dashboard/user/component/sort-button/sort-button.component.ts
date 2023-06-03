@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry } from "../../type/dashboard-entry";
 
@@ -7,7 +7,7 @@ import { DashboardEntry } from "../../type/dashboard-entry";
   templateUrl: "./sort-button.component.html",
   styleUrls: ["./sort-button.component.scss"],
 })
-export class SortButtonComponent implements OnChanges {
+export class SortButtonComponent {
   public sortMethod = SortMethod.EditTimeDesc;
   _entries?: ReadonlyArray<DashboardEntry>;
   @Input() get entries(): ReadonlyArray<DashboardEntry> {
@@ -34,15 +34,6 @@ export class SortButtonComponent implements OnChanges {
   }
 
   @Output() entriesChange = new EventEmitter<typeof this.entries>();
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes.entries) {
-      // The entries property was updated by the parent component.
-      this.sort();
-    }
-  }
-
-  ngOnInit(): void {}
 
   /**
    * Sort the workflows according to the sortMethod variable

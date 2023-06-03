@@ -67,9 +67,12 @@ export class UserWorkflowListItemComponent {
     private fileSaverService: FileSaverService,
     private userProjectService: UserProjectService
   ) {
-    this.userProjectService.retrieveProjectList().subscribe(userProjectsList => {
-      this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
-    });
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(userProjectsList => {
+        this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
+      });
   }
 
   /**

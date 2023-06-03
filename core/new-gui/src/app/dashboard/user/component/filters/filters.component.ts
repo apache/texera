@@ -62,8 +62,8 @@ export class FiltersComponent implements OnInit {
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService
   ) {
-    this.userProjectsList = this.userProjectService.retrieveProjectList();
-    this.userProjectsList.subscribe((userProjectsList: UserProject[]) => {
+    this.userProjectsList = this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this));
+    this.userProjectsList.pipe(untilDestroyed(this)).subscribe((userProjectsList: UserProject[]) => {
       if (userProjectsList != null && userProjectsList.length > 0) {
         // map project ID to project object
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
