@@ -97,17 +97,19 @@ object WorkflowResource {
     * @param projectIds The list of owner names to filter by.
     * @return The projectId filter.
     */
-  def getProjectFilter(projectIds: java.util.List[UInteger], table: String = "workflow"): Condition = {
+  def getProjectFilter(
+      projectIds: java.util.List[UInteger],
+      table: String = "workflow"
+  ): Condition = {
     var projectIdFilter: Condition = noCondition()
     val projectIdSet: mutable.Set[UInteger] = mutable.Set()
     if (projectIds != null && projectIds.nonEmpty) {
       for (projectId <- projectIds) {
         if (!projectIdSet(projectId)) {
           projectIdSet += projectId
-          if (table == "workflow"){
+          if (table == "workflow") {
             projectIdFilter = projectIdFilter.or(WORKFLOW_OF_PROJECT.PID.eq(projectId))
-          }
-          else if (table == "project"){
+          } else if (table == "project") {
             projectIdFilter = projectIdFilter.or(PROJECT.PID.eq(projectId))
           }
 
@@ -177,18 +179,21 @@ object WorkflowResource {
         dateType match {
           case "creation" =>
             resourceType match {
-              case "workflow" => dateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
-              case "project" => dateFilter = PROJECT.CREATION_TIME.between(startTimestamp, endTimestamp)
+              case "workflow" =>
+                dateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
+              case "project" =>
+                dateFilter = PROJECT.CREATION_TIME.between(startTimestamp, endTimestamp)
               case "file" => dateFilter = FILE.UPLOAD_TIME.between(startTimestamp, endTimestamp)
             }
           case "modification" =>
-            if (resourceType == "workflow"){
+            if (resourceType == "workflow") {
               dateFilter = WORKFLOW.LAST_MODIFIED_TIME.between(startTimestamp, endTimestamp)
+            } else {
+              throw new IllegalArgumentException(
+                "DateType: modification can only be used when ResourceType is 'workflow'"
+              )
             }
-            else{
-              throw new IllegalArgumentException("DateType: modification can only be used when ResourceType is 'workflow'")
-            }
-          case _        => throw new IllegalArgumentException("Invalid dateType value")
+          case _ => throw new IllegalArgumentException("Invalid dateType value")
         }
       } catch {
         case ex: ParseException =>

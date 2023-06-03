@@ -742,7 +742,6 @@ class WorkflowResourceSpec
     assert(DashboardClickableFileEntryList.length == 0)
   }
 
-
   it should "handle reserved characters in the keywords in searchAllResources" in {
     // testWorkflow1: {name: test_name, description: test_description, content: "key pair"}
     // search "key+-pair" or "key@pair" or "key+" or "+key" should return testWorkflow1
@@ -755,20 +754,17 @@ class WorkflowResourceSpec
     )
     assert(DashboardClickableFileEntryList.length == 1)
 
-
     DashboardClickableFileEntryList = dashboardResource.searchAllResources(
       sessionUser1,
       getKeywordsArray(keywordInWorkflow1Content + "@" + keywordInWorkflow1Content)
     )
     assert(DashboardClickableFileEntryList.size == 1)
 
-
     DashboardClickableFileEntryList = dashboardResource.searchAllResources(
       sessionUser1,
       getKeywordsArray(keywordInWorkflow1Content + "+-@()<>~*\"")
     )
     assert(DashboardClickableFileEntryList.size == 1)
-
 
     DashboardClickableFileEntryList = dashboardResource.searchAllResources(
       sessionUser1,
