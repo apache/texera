@@ -4,6 +4,9 @@ version := "0.1-SNAPSHOT"
 
 scalaVersion := "2.12.15"
 
+semanticdbEnabled := true
+semanticdbVersion := scalafixSemanticdb.revision
+
 // to turn on, use: INFO
 // to turn off, use: WARNING
 scalacOptions ++= Seq("-Xelide-below", "WARNING")
@@ -12,6 +15,8 @@ scalacOptions ++= Seq("-Xelide-below", "WARNING")
 scalacOptions += "-feature"
 // to check deprecation warnings
 scalacOptions += "-deprecation"
+// to check unused variables
+scalacOptions += "-Ywarn-unused"
 
 conflictManager := ConflictManager.latestRevision
 
@@ -258,3 +263,5 @@ libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
 // Jgit library for tracking operator version
 // https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+
+

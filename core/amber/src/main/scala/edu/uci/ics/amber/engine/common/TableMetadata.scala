@@ -3,13 +3,13 @@ package edu.uci.ics.amber.engine.common
 import edu.uci.ics.amber.engine.common.amberfield.FieldType
 
 class TupleMetadata(val fields: Array[(String, FieldType.Value)]) {
-  def this(fieldsCount: Int) {
+  def this(fieldsCount: Int) = {
     this(Array.tabulate(fieldsCount)(i => ("_c" + i, FieldType.String)))
   }
-  def this(fieldTypes: Array[FieldType.Value]) {
+  def this(fieldTypes: Array[FieldType.Value]) = {
     this(Array.tabulate(fieldTypes.length)(i => ("_c" + i, fieldTypes(i))))
   }
-  def this(fieldNames: Array[String]) {
+  def this(fieldNames: Array[String]) = {
     this(Array.tabulate(fieldNames.length)(i => (fieldNames(i), FieldType.String)))
   }
   override def toString = s"TupleMataData: ${fields.mkString(", ")}"
