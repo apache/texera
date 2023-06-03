@@ -1,7 +1,7 @@
 //All times in test Workflows are in PST because our local machine's timezone is PST
 
 import { Workflow, WorkflowContent } from "src/app/common/type/workflow";
-import DashboardWorkflowEntryViewModel from "./user-workflow-list-item/dashboard-workflow-entry-view-model";
+import { DashboardEntry } from "../../type/dashboard-entry";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;
@@ -95,7 +95,7 @@ export const testDownloadWorkflow3: Workflow = {
   lastModifiedTime: januaryFirst1970 + (oneDay + 4),
 };
 
-export const testWorkflowFileNameConflictEntries: DashboardWorkflowEntryViewModel[] = [
+export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
   {
     workflow: testDownloadWorkflow1,
     isOwner: true,
@@ -122,7 +122,7 @@ export const testWorkflowFileNameConflictEntries: DashboardWorkflowEntryViewMode
   },
 ];
 
-export const testWorkflowEntries: DashboardWorkflowEntryViewModel[] = [
+export const testWorkflowEntries: DashboardEntry[] = [
   {
     workflow: testWorkflow1,
     isOwner: true,

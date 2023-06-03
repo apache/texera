@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
 import { DashboardFile } from "../../type/dashboard-file.interface";
@@ -19,11 +19,13 @@ export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 })
 export class UserProjectService {
   private files: ReadonlyArray<DashboardFile> = [];
+  private projects = new BehaviorSubject<UserProject[]>([]);
 
   constructor(private http: HttpClient) {}
 
   public retrieveProjectList(): Observable<UserProject[]> {
-    return this.http.get<UserProject[]>(`${USER_PROJECT_LIST_URL}`);
+    this.http.get<UserProject[]>(`${USER_PROJECT_LIST_URL}`).subscribe(this.projects);
+    return this.projects;
   }
 
   public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflowEntry[]> {
@@ -77,7 +79,19 @@ export class UserProjectService {
   }
 
   public updateProjectColor(pid: number, colorHex: string): Observable<Response> {
-    return this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/color/${colorHex}/add`, {});
+    const observable = this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/color/${colorHex}/add`, {});
+    observable.subscribe({
+      next: () => {
+        const existingProject = this.projects.value.find(i => i.pid === pid);
+        if (existingProject) {
+          existingProject.color = colorHex;
+          this.projects.next(this.projects.value); // Inform subscribers (such as UserWorkflowListItemComponent) of color change.
+        } else {
+          this.retrieveProjectList();
+        }
+      },
+    });
+    return observable;
   }
 
   public deleteProjectColor(pid: number): Observable<Response> {
@@ -95,13 +109,13 @@ export class UserProjectService {
   public deleteDashboardUserFileEntry(pid: number, targetUserFileEntry: DashboardFile): void {
     this.http
       .delete<Response>(`${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerEmail}`)
-      .subscribe(
-        () => {
+      .subscribe({
+        next: () => {
           this.refreshFilesOfProject(pid); // refresh files within project
         },
         // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => alert("Cannot delete the file entry: " + err.error)
-      );
+        error: (err: unknown) => alert("Cannot delete the file entry: " + err.error),
+      });
   }
 
   /**
@@ -111,7 +125,7 @@ export class UserProjectService {
    * @param color (HEX formatted color string)
    * @returns boolean indicating whether color is "light" or "dark"
    */
-  public isLightColor(color: string): boolean {
+  public static isLightColor(color: string): boolean {
     if (this.isInvalidColorFormat(color)) {
       return false; // default color is dark
     }
@@ -142,7 +156,7 @@ export class UserProjectService {
    * @param color
    * @returns boolean indicating whether color is in valid HEX format
    */
-  public isInvalidColorFormat(color: string) {
+  public static isInvalidColorFormat(color: string) {
     return color == null || (color.length != 6 && color.length != 3) || !/^([0-9A-Fa-f]{3}){1,2}$/.test(color);
   }
 }
