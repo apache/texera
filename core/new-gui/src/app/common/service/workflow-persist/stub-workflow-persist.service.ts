@@ -89,7 +89,7 @@ export class StubWorkflowPersistService {
   /**
    * retrieves all workflow IDs
    */
-  public retrieveIDs(): Observable<number[]> {
+  public retrieveWorkflowIDs(): Observable<number[]> {
     return new Observable(observer => {
       observer.next(this.testWorkflows.map(i => i.workflow.wid as number).filter(i => i));
     });
