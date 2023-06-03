@@ -330,7 +330,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def cast_tuple_to_match_schema(output_tuple, schema):
         # TODO: move this into Tuple, after making Tuple aware of Schema
 
-        # right now only support casting ANY to binary.
+        # right now only support casting python objects to binary.
         import pickle
 
         for field_name in output_tuple.get_field_names():

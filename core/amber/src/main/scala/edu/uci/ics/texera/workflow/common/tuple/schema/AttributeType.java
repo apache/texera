@@ -83,7 +83,7 @@ public enum AttributeType implements Serializable {
             return BOOLEAN;
         } else if (fieldClass.equals(Timestamp.class)) {
             return TIMESTAMP;
-        }else if (fieldClass.equals(byte[].class)){
+        } else if (fieldClass.equals(byte[].class)) {
             return BINARY;
         } else {
             return ANY;

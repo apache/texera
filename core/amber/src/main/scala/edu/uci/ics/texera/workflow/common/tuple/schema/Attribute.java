@@ -16,11 +16,8 @@ public class Attribute implements Serializable {
     private final AttributeType attributeType;
 
     @JsonCreator
-    public Attribute(
-            @JsonProperty(value = "attributeName", required = true)
-                    String attributeName,
-            @JsonProperty(value = "attributeType", required = true)
-                    AttributeType attributeType) {
+    public Attribute(@JsonProperty(value = "attributeName", required = true) String attributeName,
+                     @JsonProperty(value = "attributeType", required = true) AttributeType attributeType) {
         checkNotNull(attributeName);
         checkNotNull(attributeType);
         this.attributeName = attributeName;
