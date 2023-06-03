@@ -1,31 +1,28 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
-import { SortButtonComponent } from './sort-button.component';
-import { testWorkflowEntries } from '../user-workflow/user-workflow-test-fixtures';
-import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { SortButtonComponent } from "./sort-button.component";
+import { testWorkflowEntries } from "../user-workflow/user-workflow-test-fixtures";
+import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 
-describe('SortButtonComponent', () => {
+describe("SortButtonComponent", () => {
   let component: SortButtonComponent;
   let fixture: ComponentFixture<SortButtonComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ SortButtonComponent ],
-      imports: [
-        NzDropDownModule,
-      ]
-    })
-    .compileComponents();
+      declarations: [SortButtonComponent],
+      imports: [NzDropDownModule],
+    }).compileComponents();
   });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(SortButtonComponent);
     component = fixture.componentInstance;
-    component.entries =  [...testWorkflowEntries];
+    component.entries = [...testWorkflowEntries];
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 
@@ -52,5 +49,4 @@ describe('SortButtonComponent', () => {
     const SortedCase = component.entries.map(item => item.workflow.name);
     expect(SortedCase).toEqual(["workflow 5", "workflow 4", "workflow 3", "workflow 2", "workflow 1"]);
   });
-
 });

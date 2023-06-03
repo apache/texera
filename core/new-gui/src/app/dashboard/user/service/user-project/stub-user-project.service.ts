@@ -9,8 +9,8 @@ export class StubUserProjectService {
     return new Observable(observer =>
       observer.next([
         { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
-        { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0},
-        { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0},
+        { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
+        { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
       ])
     );
   }
