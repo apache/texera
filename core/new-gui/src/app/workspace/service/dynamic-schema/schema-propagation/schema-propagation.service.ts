@@ -74,6 +74,11 @@ export class SchemaPropagationService {
     return this.operatorInputSchemaMap[operatorID];
   }
 
+  public getPortInputSchema(operatorID:string, portIndex:number): PortInputSchema |undefined{
+    return this.getOperatorInputSchema(operatorID)?.[portIndex];
+  }
+
+
   /**
    * Apply the schema propagation result to an operator.
    * The schema propagation result contains the input attributes of operators.
@@ -289,8 +294,8 @@ export interface SchemaAttribute
   }> {}
 
 // input schema of an operator: an array of schemas at each input port
-export type OperatorInputSchema = ReadonlyArray<ReadonlyArray<SchemaAttribute> | null>;
-
+export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
+export type PortInputSchema = ReadonlyArray<SchemaAttribute>
 /**
  * The backend interface of the return object of a successful execution
  * of autocomplete API
