@@ -1,5 +1,5 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
-import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { environment } from "src/environments/environment";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowExecutionsComponent } from "../ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
@@ -11,7 +11,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "src/app/common/type/workflow";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
-import { UserProject } from "../../../type/user-project";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import DashboardWorkflowEntryViewModel from "./dashboard-workflow-entry-view-model";
 
@@ -53,7 +53,7 @@ export class UserWorkflowListItemComponent {
   }
   @Input() public pid: number = 0;
   @Input() userProjectsLoaded = false;
-  @Input() userProjectsMap?: ReadonlyMap<number, UserProject> = new Map();
+  @Input() userProjectsMap?: ReadonlyMap<number, DashboardProject> = new Map();
   @Output() checkedChange: EventEmitter<boolean> = new EventEmitter<boolean>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
@@ -73,7 +73,7 @@ export class UserWorkflowListItemComponent {
   /**
    * open the workflow executions page
    */
-  public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflowEntry): void {
+  public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflow): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
       size: "xl",
       modalDialogClass: "modal-dialog-centered",
@@ -119,7 +119,7 @@ export class UserWorkflowListItemComponent {
   /**
    * Download the workflow as a json file
    */
-  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
+  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflow): void {
     if (wid) {
       this.workflowPersistService
         .retrieveWorkflow(wid)

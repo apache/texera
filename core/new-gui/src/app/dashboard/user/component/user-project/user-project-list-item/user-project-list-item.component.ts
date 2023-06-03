@@ -1,8 +1,10 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
-import { UserProject } from "../../../type/user-project";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { ShareAccessComponent } from "../../share-access/share-access.component";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 
 @UntilDestroy()
 @Component({
@@ -13,15 +15,15 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class UserProjectListItemComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
-  private _entry?: UserProject;
+  private _entry?: DashboardProject;
   @Input()
-  get entry(): UserProject {
+  get entry(): DashboardProject {
     if (!this._entry) {
       throw new Error("entry property must be provided to UserProjectListItemComponent.");
     }
     return this._entry;
   }
-  set entry(value: UserProject) {
+  set entry(value: DashboardProject) {
     this._entry = value;
   }
   /**
@@ -41,7 +43,11 @@ export class UserProjectListItemComponent implements OnInit {
     return this.userProjectService.isLightColor(this.color);
   }
 
-  constructor(private userProjectService: UserProjectService, private notificationService: NotificationService) {}
+  constructor(
+    private userProjectService: UserProjectService,
+    private notificationService: NotificationService,
+    private modalService: NgbModal
+  ) {}
 
   ngOnInit(): void {
     if (this.entry.color) {
@@ -145,5 +151,14 @@ export class UserProjectListItemComponent implements OnInit {
       .add(() => {
         this.editingDescription = false;
       });
+  }
+
+  /**
+   * open the Modal based on the workflow clicked on
+   */
+  public onClickOpenShareAccess(id: number): void {
+    const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.type = "project";
+    modalRef.componentInstance.id = id;
   }
 }

@@ -7,16 +7,15 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { ShareAccessComponent } from "../share-access/share-access.component";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardWorkflowEntry, SortMethod } from "../../type/dashboard-workflow-entry";
+import { DashboardWorkflow, SortMethod } from "../../type/dashboard-workflow.interface";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { concatMap, catchError } from "rxjs/operators";
-import { UserProject } from "../../type/user-project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "src/app/common/app-setting";
@@ -104,11 +103,11 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   public sortMethod = SortMethod.EditTimeDesc;
 
   /* variables for project color tags */
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding UserProject
   public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
 
   /* variables for filtering workflows by projects */
-  public userProjectsList: ReadonlyArray<UserProject> = []; // list of projects accessible by user
+  public userProjectsList: ReadonlyArray<DashboardProject> = []; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
 
@@ -460,7 +459,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
-  private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
+  private async search(): Promise<ReadonlyArray<DashboardWorkflow>> {
     const workflowNames: string[] = this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
     return await firstValueFrom(
       this.workflowPersistService.searchWorkflows(
@@ -599,7 +598,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * for workflow components inside a project-section, it will also add
    * the workflow to the project
    */
-  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
+  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflow): void {
     if (wid) {
       if (this.pid === 0) {
         // not nested within user project section
@@ -620,7 +619,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
         this.workflowPersistService
           .duplicateWorkflow(wid)
           .pipe(
-            concatMap((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
+            concatMap((duplicatedWorkflowInfo: DashboardWorkflow) => {
               this.dashboardWorkflowEntries = [
                 ...this.dashboardWorkflowEntries,
                 { ...duplicatedWorkflowInfo, checked: false },
@@ -648,7 +647,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * calls the deleteWorkflow method in service which implements backend API.
    */
 
-  public deleteWorkflow({ workflow }: DashboardWorkflowEntry): void {
+  public deleteWorkflow({ workflow }: DashboardWorkflow): void {
     const wid = workflow.wid;
     if (wid == undefined) {
       return;
@@ -686,7 +685,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     this.userProjectService
       .retrieveProjectList()
       .pipe(untilDestroyed(this))
-      .subscribe((userProjectList: UserProject[]) => {
+      .subscribe((userProjectList: DashboardProject[]) => {
         if (userProjectList != null && userProjectList.length > 0) {
           // map project ID to project object
           this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
@@ -714,7 +713,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   }
 
   private refreshDashboardWorkflowEntries(): void {
-    let observable: Observable<DashboardWorkflowEntry[]>;
+    let observable: Observable<DashboardWorkflow[]>;
 
     if (this.pid === 0) {
       // not nested within user project section
@@ -741,7 +740,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    *
    * @param dashboardWorkflowEntries - returned local cache of workflows
    */
-  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
+  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflow[]): void {
     this.allDashboardWorkflowEntries = this.toViewModels(dashboardWorkflowEntries);
     // update searching / filtering
     this.searchWorkflow();
@@ -872,11 +871,11 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     }
   }
 
-  private toViewModel(entry: DashboardWorkflowEntry): DashboardWorkflowEntryViewModel {
+  private toViewModel(entry: DashboardWorkflow): DashboardWorkflowEntryViewModel {
     return { ...entry, checked: false };
   }
 
-  private toViewModels(entries: readonly DashboardWorkflowEntry[]): DashboardWorkflowEntryViewModel[] {
+  private toViewModels(entries: readonly DashboardWorkflow[]): DashboardWorkflowEntryViewModel[] {
     return entries.map(i => ({ ...i, checked: false }));
   }
 }
