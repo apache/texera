@@ -143,16 +143,6 @@ class PieChartOpDesc extends VisualizationOperator {
       .build()
   }
 
-  private def getNumericalValue(tuple: Tuple, attribute: String): Double = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return 0
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      parseTimestamp(value.toString).getTime.toDouble
-    else value.toString.toDouble
-  }
-
   private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
     val groupByKeys = List(this.nameColumn)
     Schema
