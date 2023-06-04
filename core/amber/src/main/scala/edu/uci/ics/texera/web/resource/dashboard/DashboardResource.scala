@@ -166,32 +166,34 @@ class DashboardResource {
       )
 
     /**
-      *  Common attributes: 4 columns
-      * - 1. resourceType: String
-      * - 2. name: String
-      * - 3. description: String
-      * - 4. creation_time: Timestamp
+      * Refer to texera/core/scripts/sql/texera_ddl.sql to understand what each attribute is
       *
-      *  Workflow attributs: 5 columns
-      * - 5. WID: UInteger
-      * - 6. lastModifiedTime: Timestamp
-      * - 7. privilege: Privilege
-      * - 8. UID: UInteger
-      * - 9. userName: String
+      * Common Attributes (4 columns): All types of resources have these 4 attributes
+      * 1. `resourceType`: Represents the type of resource (`String`). Allowed value: project, workflow, file
+      * 2. `name`: Specifies the name of the resource (`String`).
+      * 3. `description`: Provides a description of the resource (`String`).
+      * 4. `creation_time`: Indicates the timestamp of when the resource was created (`Timestamp`). It represents upload_time if the resourceType is `file`
       *
-      *  Project attributes: 3 columns
-      * - 10. pid: UInteger
-      * - 11. ownerId: UInteger
-      * - 12. color: String
+      * Workflow Attributes (5 columns): Only workflow will have these 5 attributes.
+      * 5. `WID`: Represents the Workflow ID (`UInteger`).
+      * 6. `lastModifiedTime`: Indicates the timestamp of the last modification made to the workflow (`Timestamp`).
+      * 7. `privilege`: Specifies the privilege associated with the workflow (`Privilege`).
+      * 8. `UID`: Represents the User ID associated with the workflow (`UInteger`).
+      * 9. `userName`: Provides the name of the user associated with the workflow (`String`).
       *
-      * File attributes: 7 columns
-      * - 13. ownerUID: UInteger
-      * - 14. fid: UInteger
-      * - 15. uploadTime: Timestamp
-      * - 16. path: String
-      * - 17. size: UInteger
-      * - 18. email: String
-      * - 19. userFileAccess: UserFileAccessPrivilege
+      * Project Attributes (3 columns): Only project will have these 3 attributes.
+      * 10. `pid`: Represents the Project ID (`UInteger`).
+      * 11. `ownerId`: Indicates the ID of the project owner (`UInteger`).
+      * 12. `color`: Specifies the color associated with the project (`String`).
+      *
+      * File Attributes (7 columns): Only files will have these 7 attributes.
+      * 13. `ownerUID`: Represents the User ID of the file owner (`UInteger`).
+      * 14. `fid`: Indicates the File ID (`UInteger`).
+      * 15. `uploadTime`: Indicates the timestamp when the file was uploaded (`Timestamp`).
+      * 16. `path`: Specifies the path of the file (`String`).
+      * 17. `size`: Represents the size of the file (`UInteger`).
+      * 18. `email`: Represents the email associated with the file owner (`String`).
+      * 19. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
       */
 
     // Retrieve workflow resource
@@ -351,6 +353,137 @@ class DashboardResource {
       )
       .and(fileOptionalFilters)
 
+    /**
+      * If there is a need to make changes to `select` statement in any of the 4 subqueries above, make sure to make corresponding changes to the other 3 subqueries as well.
+      * Synchronizing the changes across all subqueries is important because the columns in every SELECT statement must also be in the same order when using `union`.
+      *
+      * To synchronize the changes across all subqueries, follow these steps:
+      *
+      * 1. Identify the attribute or column that needs to be added or deleted in one of the subqueries.
+      * 2. Locate the corresponding select statements in the other three subqueries that retrieve the same resource type.
+      * 3. Update the select statements in the other subqueries to include the new attribute or exclude the deleted attribute, ensuring that the number and order of columns match the modified subquery.
+      * 4. Verify that the modified select statements align with the desired response schema.
+      *
+      * You can use the sql query I wrote for testing in MySQL workbench.
+      * SELECT
+      * 'workflow' AS "resourceType",
+      * WORKFLOW.NAME,
+      * WORKFLOW.DESCRIPTION,
+      * WORKFLOW.CREATION_TIME,
+      * WORKFLOW.WID,
+      * WORKFLOW.LAST_MODIFIED_TIME,
+      * WORKFLOW_USER_ACCESS.PRIVILEGE,
+      * WORKFLOW_OF_USER.UID,
+      * USER.NAME as "userName",
+      * null as pid,
+      * null as owner_id,
+      * null as color,
+      * null as owner_uid,
+      * null as fid,
+      * null as upload_time,
+      * null as path,
+      * null as size,
+      * null as email,
+      * null as user_file_access
+      * FROM
+      * WORKFLOW
+      * LEFT JOIN WORKFLOW_USER_ACCESS ON WORKFLOW_USER_ACCESS.WID = WORKFLOW.WID
+      * LEFT JOIN WORKFLOW_OF_USER ON WORKFLOW_OF_USER.WID = WORKFLOW.WID
+      * LEFT JOIN USER ON USER.UID = WORKFLOW_OF_USER.UID
+      * LEFT JOIN WORKFLOW_OF_PROJECT ON WORKFLOW_OF_PROJECT.WID = WORKFLOW.WID
+      * WHERE
+      * WORKFLOW_USER_ACCESS.UID = 1 --make changes accordingly
+      *
+      * union
+      * SELECT
+      * 'project' AS "resourceType",
+      * PROJECT.NAME,
+      * PROJECT.DESCRIPTION,
+      * PROJECT.CREATION_TIME,
+      * null,
+      * null,
+      * null,
+      * null,
+      * null,
+      * PROJECT.PID,
+      * PROJECT.OWNER_ID,
+      * PROJECT.COLOR,
+      * null as owner_uid,
+      * null as fid,
+      * null as upload_time,
+      * null as path,
+      * null as size,
+      * null as email,
+      * null as user_file_access
+      * FROM
+      * PROJECT
+      * WHERE
+      * PROJECT.OWNER_ID = 1 --make changes accordingly
+      *
+      * union
+      * SELECT
+      * -- common attributes: 4 rows
+      * 'file' AS "resourceType",
+      * file.name,
+      * file.description,
+      * null,
+      * -- workflow attributes: 5 rows
+      * null,
+      * null,
+      * null,
+      * null,
+      * null,
+      * -- project attributes: 3 rows
+      * null,
+      * null,
+      * null,
+      * -- file attributes 5 rows
+      * file.owner_uid,
+      * file.fid,
+      * file.upload_time,
+      * file.path,
+      * file.size,
+      * user.email,
+      * USER_FILE_ACCESS.PRIVILEGE as user_file_access
+      * FROM
+      * USER_FILE_ACCESS
+      * JOIN FILE ON USER_FILE_ACCESS.FID = FILE.FID
+      * JOIN USER ON FILE.OWNER_UID = USER.UID
+      * WHERE
+      * USER_FILE_ACCESS.UID = 1 --make changes accordingly
+      * union
+      * SELECT
+      * 'file' AS "resourceType",
+      * file.name,
+      * file.description,
+      * null,
+      * -- workflow attributes: 5 rows
+      * null,
+      * null,
+      * null,
+      * null,
+      * null,
+      * -- project attributes: 3 rows
+      * null,
+      * null,
+      * null,
+      * -- file attributes 5 rows:
+      * file.owner_uid,
+      * file.fid,
+      * file.upload_time,
+      * file.path,
+      * file.size,
+      * user.email,
+      * null
+      * FROM
+      * FILE_OF_WORKFLOW
+      * JOIN FILE ON FILE_OF_WORKFLOW.FID = FILE.FID
+      * JOIN USER ON FILE.OWNER_UID = USER.UID
+      * JOIN WORKFLOW_USER_ACCESS ON FILE_OF_WORKFLOW.WID = WORKFLOW_USER_ACCESS.WID
+      * WHERE
+      * WORKFLOW_USER_ACCESS.UID = 1; --make changes accordingly
+      *
+      */
     // Combine all queries using union and fetch results
     val clickableFileEntry =
       resourceType match {
