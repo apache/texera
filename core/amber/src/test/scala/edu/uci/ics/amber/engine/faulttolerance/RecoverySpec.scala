@@ -24,7 +24,6 @@ import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ReturnInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
