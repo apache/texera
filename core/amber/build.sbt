@@ -15,8 +15,8 @@ scalacOptions ++= Seq("-Xelide-below", "WARNING")
 scalacOptions += "-feature"
 // to check deprecation warnings
 scalacOptions += "-deprecation"
-// to check unused variables
-scalacOptions += "-Ywarn-unused"
+// to check unused imports
+scalacOptions += "-Ywarn-unused-import"
 
 conflictManager := ConflictManager.latestRevision
 
