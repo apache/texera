@@ -24,7 +24,7 @@ export class UserProjectService {
   constructor(private http: HttpClient) {}
 
   public retrieveProjectList(): Observable<UserProject[]> {
-    this.http.get<UserProject[]>(`${USER_PROJECT_LIST_URL}`).subscribe(this.projects);
+    this.http.get<UserProject[]>(`${USER_PROJECT_LIST_URL}`).subscribe(projects => this.projects.next(projects));
     return this.projects;
   }
 

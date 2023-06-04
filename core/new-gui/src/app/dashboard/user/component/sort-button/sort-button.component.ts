@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import {Component, EventEmitter, Input, OnInit, Output} from "@angular/core";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry } from "../../type/dashboard-entry";
 
@@ -10,6 +10,7 @@ import { DashboardEntry } from "../../type/dashboard-entry";
 export class SortButtonComponent {
   public sortMethod = SortMethod.EditTimeDesc;
   _entries?: ReadonlyArray<DashboardEntry>;
+
   @Input() get entries(): ReadonlyArray<DashboardEntry> {
     if (!this._entries) {
       throw new Error("entries property must be set for SortButtonComponent.");
@@ -20,10 +21,12 @@ export class SortButtonComponent {
     const update = () => {
       this._entries = value;
       this.entriesChange.emit(value);
+      this.sort();
     };
     // Update entries property only if the input differ from existing value. This breaks the infinite recursion.
     if (this._entries === undefined || value.length != this._entries.length) {
       update();
+      return;
     }
     for (let i = 0; i < value.length; i++) {
       if (value[i] != this.entries[i]) {
