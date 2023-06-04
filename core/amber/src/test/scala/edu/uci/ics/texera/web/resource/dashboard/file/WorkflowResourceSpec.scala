@@ -14,12 +14,9 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT,
   USER,
   WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
+  WORKFLOW_OF_PROJECT
 }
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource

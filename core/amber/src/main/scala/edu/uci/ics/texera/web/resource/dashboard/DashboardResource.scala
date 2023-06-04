@@ -13,15 +13,14 @@ import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.Dash
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
-import org.jooq.impl.{DSL, SQLDataType}
-import org.jooq.impl.DSL.{falseCondition, field, groupConcat, noCondition}
+import org.jooq.impl.DSL
+import org.jooq.impl.DSL.{falseCondition, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.collection.mutable
 
 /**
   * This file handles various requests that need to interact with multiple tables.
