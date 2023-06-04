@@ -16,8 +16,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   private val mockHandler =
     mock[(ActorVirtualIdentity, ActorVirtualIdentity, Long, DataPayload) => Unit]
   private val identifier = ActorVirtualIdentity("batch producer mock")
-  private val mockDataOutputPort: NetworkOutputPort[DataPayload] =
-    new NetworkOutputPort[DataPayload](identifier, mockHandler)
+  new NetworkOutputPort[DataPayload](identifier, mockHandler)
   var counter: Int = 0
 
   def layerID(): LayerIdentity = {
