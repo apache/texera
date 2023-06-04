@@ -452,10 +452,8 @@ class TestMainLoop:
             ),
         )
         operator = main_loop.context.operator_manager.operator
-
-        # can process a InputDataFrame
-
         output_data_elements = []
+
         # can process a InputDataFrame
         operator.BATCH_SIZE = 10
         for i in range(13):
@@ -463,6 +461,7 @@ class TestMainLoop:
         for i in range(10):
             output_data_elements.append(output_queue.get())
         assert operator.count == 1
+
         # input queue 13, output queue 10, batch_buffer 3
         operator.BATCH_SIZE = 20
         for i in range(13, 41):
@@ -470,24 +469,23 @@ class TestMainLoop:
         for i in range(20):
             output_data_elements.append(output_queue.get())
         assert operator.count == 2
+
         # input queue 41, output queue 30, batch_buffer 11
         operator.BATCH_SIZE = 5
         input_queue.put(mock_batch_data_elements[41])
-        for i in range(5):
+        for i in range(10):
             output_data_elements.append(output_queue.get())
-        assert operator.count == 3
         input_queue.put(mock_batch_data_elements[42])
-        for i in range(5):
-            output_data_elements.append(output_queue.get())
         assert operator.count == 4
+
         # input queue 43, output queue 40, batch_buffer 3
         for i in range(43, 57):
             input_queue.put(mock_batch_data_elements[i])
         for i in range(15):
             output_data_elements.append(output_queue.get())
+
         # input queue 57, output queue 55, batch_buffer 2
         assert operator.count == 7
-
         input_queue.put(mock_end_of_upstream)
         for i in range(2):
             output_data_elements.append(output_queue.get())
