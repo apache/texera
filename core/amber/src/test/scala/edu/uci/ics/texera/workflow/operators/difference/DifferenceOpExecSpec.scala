@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter

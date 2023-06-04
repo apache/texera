@@ -1,8 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-
 import scala.collection.mutable
 
 /* The abstracted FIFO/exactly-once logic */

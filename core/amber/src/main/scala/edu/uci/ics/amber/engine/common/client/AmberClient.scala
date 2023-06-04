@@ -14,15 +14,14 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ObservableRequest
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
-import io.reactivex.rxjava3.subjects.{PublishSubject, Subject}
+import io.reactivex.rxjava3.subjects.PublishSubject
 
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.concurrent.duration.{Duration, DurationInt}
+import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
 
 class AmberClient(

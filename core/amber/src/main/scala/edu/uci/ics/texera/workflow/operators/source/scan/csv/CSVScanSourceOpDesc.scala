@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -15,7 +13,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpDescV2
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
 import scala.jdk.CollectionConverters.asJavaIterableConverter

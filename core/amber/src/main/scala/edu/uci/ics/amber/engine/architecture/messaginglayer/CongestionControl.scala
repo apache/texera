@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class CongestionControl {
 

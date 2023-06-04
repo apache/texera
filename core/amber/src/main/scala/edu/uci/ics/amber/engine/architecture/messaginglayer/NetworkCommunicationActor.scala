@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.pattern.ask
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import akka.pattern.StatusReply.Ack
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._

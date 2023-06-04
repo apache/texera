@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, TexeraWebSocketEvent}
+import edu.uci.ics.texera.web.model.websocket.event.CacheStatusUpdateEvent
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.web.model.websocket.request.CacheStatusUpdateRequest
 import edu.uci.ics.texera.web.storage.WorkflowStateStore

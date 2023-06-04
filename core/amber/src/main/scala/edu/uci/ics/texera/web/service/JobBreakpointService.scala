@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.service
 
-import com.twitter.util.{Duration, Future}
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
   ConditionalGlobalBreakpoint,
   CountGlobalBreakpoint
@@ -10,14 +10,9 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBr
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  BreakpointFault,
-  OperatorBreakpoints,
-  OperatorRuntimeStats,
-  PythonOperatorInfo
-}
+import edu.uci.ics.texera.web.workflowruntimestate.{BreakpointFault, OperatorBreakpoints}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{

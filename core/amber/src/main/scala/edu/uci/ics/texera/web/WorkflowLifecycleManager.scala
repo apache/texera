@@ -3,11 +3,11 @@ package edu.uci.ics.texera.web
 import java.time.{LocalDateTime, Duration => JDuration}
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.{JobMetadataStore, WorkflowAggregatedState}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 
 class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback: () => Unit)
     extends LazyLogging {

@@ -4,13 +4,8 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RegionsTimeSlotExpiredHandler.RegionsTimeSlotExpired
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
-import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object RegionsTimeSlotExpiredHandler {
   final case class RegionsTimeSlotExpired(regions: Set[PipelinedRegion])

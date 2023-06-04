@@ -11,8 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -141,16 +139,6 @@ class PieChartOpDesc extends VisualizationOperator {
       .add(getGroupByKeysSchema(schemas).getAttributes)
       .add(getFinalAggValueSchema.getAttributes)
       .build()
-  }
-
-  private def getNumericalValue(tuple: Tuple, attribute: String): Double = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return 0
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      parseTimestamp(value.toString).getTime.toDouble
-    else value.toString.toDouble
   }
 
   private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {

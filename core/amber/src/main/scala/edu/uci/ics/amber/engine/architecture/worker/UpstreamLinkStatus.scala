@@ -1,8 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.InputEpochMarker
-import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.collection.mutable

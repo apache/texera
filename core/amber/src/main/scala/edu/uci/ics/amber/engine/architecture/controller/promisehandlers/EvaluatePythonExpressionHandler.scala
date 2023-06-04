@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Evalua
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 
 object EvaluatePythonExpressionHandler {
   final case class EvaluatePythonExpression(expression: String, operatorId: String)

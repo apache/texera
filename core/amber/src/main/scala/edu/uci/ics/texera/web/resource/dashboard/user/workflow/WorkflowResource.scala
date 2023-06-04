@@ -23,7 +23,6 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-import scala.collection.mutable.Set
 
 /**
   * This file handles various request related to saved-workflows.

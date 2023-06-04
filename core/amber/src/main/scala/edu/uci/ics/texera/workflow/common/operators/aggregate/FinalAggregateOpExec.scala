@@ -3,14 +3,12 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.internalAggObjKey
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.mutable
 
 class FinalAggregateOpExec(
     val aggFuncs: List[DistributedAggregation[Object]],
