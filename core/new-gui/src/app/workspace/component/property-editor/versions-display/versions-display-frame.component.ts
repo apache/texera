@@ -1,33 +1,21 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {
-  WorkflowVersionCollapsableEntry,
-  WorkflowVersionEntry,
-} from "../../../../dashboard/user/type/workflow-version-entry";
+import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { Observable } from "rxjs";
-import { AppSettings } from "../../../../common/app-setting";
-import { HttpClient } from "@angular/common/http";
-import { Workflow } from "src/app/common/type/workflow";
-import { filter, map } from "rxjs/operators";
-import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
-
-export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-formly-form-frame",
-  templateUrl: "./versions-display.component.html",
-  styleUrls: ["./versions-display.component.scss"],
+  selector: "texera-versions-display-frame",
+  templateUrl: "./versions-display-frame.component.html",
+  styleUrls: ["./versions-display-frame.component.scss"],
 })
-export class VersionsListDisplayComponent implements OnInit {
+export class VersionsDisplayFrameComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
   public versionTableHeaders: string[] = ["", "Version#", "Timestamp"];
 
   constructor(
-    private http: HttpClient,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService
   ) {}
@@ -46,13 +34,15 @@ export class VersionsListDisplayComponent implements OnInit {
       }
     }
   }
+
   ngOnInit(): void {
     // gets the versions result and updates the workflow versions table displayed on the form
     this.displayWorkflowVersions();
   }
 
   getVersion(vid: number) {
-    this.retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
+    this.workflowVersionService
+      .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
         this.workflowVersionService.displayParticularVersion(workflow);
@@ -67,7 +57,8 @@ export class VersionsListDisplayComponent implements OnInit {
     if (wid === undefined) {
       return;
     }
-    this.retrieveVersionsOfWorkflow(wid)
+    this.workflowVersionService
+      .retrieveVersionsOfWorkflow(wid)
       .pipe(untilDestroyed(this))
       .subscribe(versionsList => {
         this.versionsList = versionsList.map(version => ({
@@ -78,26 +69,5 @@ export class VersionsListDisplayComponent implements OnInit {
           expand: false,
         }));
       });
-  }
-
-  /**
-   * retrieves a list of versions for a particular workflow from backend database
-   */
-  retrieveVersionsOfWorkflow(wid: number): Observable<WorkflowVersionEntry[]> {
-    return this.http.get<WorkflowVersionEntry[]>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}`
-    );
-  }
-
-  /**
-   * retrieves a version of the workflow from backend database
-   */
-  retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
-    return this.http
-      .get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}/${vid}`)
-      .pipe(
-        filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
-        map(WorkflowUtilService.parseWorkflowInfo)
-      );
   }
 }

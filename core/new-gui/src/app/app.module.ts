@@ -89,7 +89,7 @@ import { NotificationComponent } from "./common/component/notification/notificat
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { VersionsListDisplayComponent } from "./workspace/component/property-editor/versions-display/versions-display.component";
+import { VersionsDisplayFrameComponent } from "./workspace/component/property-editor/versions-display/versions-display-frame.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
@@ -117,6 +117,13 @@ import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.service";
+import { DragDropModule } from "@angular/cdk/drag-drop";
+import { AuthInterceptor } from "./common/service/user/auth.interceptor";
+import { UserWorkflowListItemComponent } from "./dashboard/user/component/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
+import { UserProjectListItemComponent } from "./dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component";
+import { SortButtonComponent } from "./dashboard/user/component/sort-button/sort-button.component";
+import { FiltersComponent } from "./dashboard/user/component/filters/filters.component";
+import { FiltersInstructionsComponent } from "./dashboard/user/component/filters-instructions/filters-instructions.component";
 
 registerLocaleData(en);
 
@@ -127,7 +134,7 @@ registerLocaleData(en);
     NavigationComponent,
     OperatorPanelComponent,
     PropertyEditorComponent,
-    VersionsListDisplayComponent,
+    VersionsDisplayFrameComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
@@ -177,6 +184,11 @@ registerLocaleData(en);
     InputAutoCompleteComponent,
     CollabWrapperComponent,
     HomeComponent,
+    UserWorkflowListItemComponent,
+    UserProjectListItemComponent,
+    SortButtonComponent,
+    FiltersComponent,
+    FiltersInstructionsComponent,
   ],
   imports: [
     BrowserModule,
@@ -243,6 +255,7 @@ registerLocaleData(en);
     NzSwitchModule,
     NzLayoutModule,
     MarkdownModule.forRoot(),
+    DragDropModule,
   ],
   providers: [
     AuthGuardService,
@@ -256,6 +269,11 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
       multi: true,
     },
   ],
