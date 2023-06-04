@@ -16,7 +16,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   InternalQueueElement
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import lbmq.LinkedBlockingMultiQueue
 
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable

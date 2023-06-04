@@ -1,19 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint
 
-import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.Controller
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import akka.actor.{ActorSystem, PoisonPill, Props}
+import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
-import scala.util.Random
 
 class ExceptionBreakpointSpec
     extends TestKit(ActorSystem("PrincipalSpec"))
