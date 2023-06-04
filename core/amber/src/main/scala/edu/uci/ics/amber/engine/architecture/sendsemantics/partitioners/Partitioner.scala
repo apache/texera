@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.InputEpochMarker
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.{
   DataFrame,
