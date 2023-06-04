@@ -28,7 +28,11 @@ export class UserProjectService {
       .get<UserProject[]>(`${USER_PROJECT_LIST_URL}`)
       .pipe()
       // Pass through the result but without completing the long-lived BehaviorSubject.
-      .subscribe({ next: p => this.projects.next(p), error: (p: unknown) => this.projects.error(p), complete: () => {} });
+      .subscribe({
+        next: p => this.projects.next(p),
+        error: (p: unknown) => this.projects.error(p),
+        complete: () => {},
+      });
     return this.retrieveProjectList();
   }
 

@@ -8,7 +8,7 @@ export class StubUserProjectService {
   public refreshProjectList(): Observable<UserProject[]> {
     return this.retrieveProjectList();
   }
-  
+
   public retrieveProjectList(): Observable<UserProject[]> {
     return new Observable(observer =>
       observer.next([
