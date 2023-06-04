@@ -482,7 +482,6 @@ class DashboardResource {
       * JOIN WORKFLOW_USER_ACCESS ON FILE_OF_WORKFLOW.WID = WORKFLOW_USER_ACCESS.WID
       * WHERE
       * WORKFLOW_USER_ACCESS.UID = 1; --make changes accordingly
-      *
       */
     // Combine all queries using union and fetch results
     val clickableFileEntry =
