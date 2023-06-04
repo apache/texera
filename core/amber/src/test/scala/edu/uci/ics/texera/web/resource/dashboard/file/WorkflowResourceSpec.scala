@@ -13,11 +13,7 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
 
 import java.util.concurrent.TimeUnit
 import java.sql.Timestamp
