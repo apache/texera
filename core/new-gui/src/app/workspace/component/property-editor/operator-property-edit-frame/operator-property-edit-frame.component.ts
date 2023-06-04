@@ -527,8 +527,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               if (isDefined(constConstraint.$data)) {
                 const dataAttributeType = findAttributeType(constConstraint.$data);
                 if (!isDefined(dataAttributeType) || inputAttributeType !== dataAttributeType) {
+                  // get data attribute name for error message
                   const dataPropertyName = parsePortPropertyName(constConstraint.$data).propertyName;
-                  errorMessage = `must be the same type (${dataAttributeType}) as property '${dataPropertyName}'`;
+                  const dataAttributeName = c.value[dataPropertyName];
+                  errorMessage = `must be the same type (${dataAttributeType}) as '${dataAttributeName}'`;
                   return false;
                 }
               }
@@ -558,7 +560,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                   // parse if condition to readable string
                   const ifCondStr = Object.entries(allOf.if).map(([ifProp, ifConstraint]) => {
                     const ifAttributeValue = c.value[ifProp];
-                    return `property '${ifProp}' is ${ifAttributeValue}`;
+                    return `'${ifProp}' is ${ifAttributeValue}`;
                   }).join(" and ");
                   errorMessage = `must be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`;
                   return false;
