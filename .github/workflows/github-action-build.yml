@@ -81,7 +81,7 @@ jobs:
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/amber/*.sbt", "core/amber/project/**.{scala,sbt}", "core/amber/project/build.properties" ]'
-      - name: Lint
+      - name: Lint with scalafix & scalafmt
         run: cd core/amber && sbt "scalafixAll --check" && sbt scalafmtCheckAll
       - name: Compile with sbt
         run: cd core/amber && sbt clean package
