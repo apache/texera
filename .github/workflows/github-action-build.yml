@@ -82,7 +82,7 @@ jobs:
         with:
           extraSbtFiles: '["core/amber/*.sbt", "core/amber/project/**.{scala,sbt}", "core/amber/project/build.properties" ]'
       - name: Lint
-        run: cd core/amber sbt scalafixCheckAll && sbt scalafmtCheckAll
+        run: cd core/amber && sbt scalafixCheckAll && sbt scalafmtCheckAll
       - name: Compile with sbt
         run: cd core/amber && sbt clean package
       - name: Run backend tests
