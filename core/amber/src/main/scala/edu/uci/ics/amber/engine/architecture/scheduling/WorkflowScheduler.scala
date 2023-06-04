@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
