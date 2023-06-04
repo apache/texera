@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, Output} from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry } from "../../type/dashboard-entry";
 
