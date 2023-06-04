@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, EventEmitter, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
@@ -93,7 +93,7 @@ export class UserProjectSectionComponent implements OnInit {
     color = color.substring(1);
     this.colorPickerIsSelected = false;
 
-    if (this.userProjectService.isInvalidColorFormat(color)) {
+    if (UserProjectService.isInvalidColorFormat(color)) {
       this.notificationService.error("Cannot update project color. Color must be in valid HEX format");
       return;
     }
@@ -108,7 +108,7 @@ export class UserProjectSectionComponent implements OnInit {
       .subscribe({
         next: () => {
           this.color = color;
-          this.colorIsBright = this.userProjectService.isLightColor(this.color);
+          this.colorIsBright = UserProjectService.isLightColor(this.color);
           this.updateProjectStatus = "updated project color"; // cause workflow / file components to update project filtering list
         },
         error: (err: unknown) => {
@@ -234,7 +234,7 @@ export class UserProjectSectionComponent implements OnInit {
           const projectColorBrightnessMap: Map<number, boolean> = new Map();
           userProjectList.forEach(userProject => {
             if (userProject.color != null) {
-              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+              projectColorBrightnessMap.set(userProject.pid, UserProjectService.isLightColor(userProject.color));
             }
 
             // get single project information
@@ -246,7 +246,7 @@ export class UserProjectSectionComponent implements OnInit {
               if (userProject.color != null) {
                 this.color = userProject.color;
                 this.inputColor = "#" + userProject.color;
-                this.colorIsBright = this.userProjectService.isLightColor(userProject.color);
+                this.colorIsBright = UserProjectService.isLightColor(userProject.color);
               }
             }
           });
