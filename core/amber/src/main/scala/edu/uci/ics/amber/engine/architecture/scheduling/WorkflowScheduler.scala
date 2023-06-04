@@ -183,11 +183,6 @@ class WorkflowScheduler(
       .onSuccess(_ =>
         uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
       )
-      .onFailure((err: Throwable) => {
-        logger.error("Failure when sending Python UDF code", err)
-        // report error to frontend
-        asyncRPCClient.sendToClient(FatalError(err))
-      })
   }
 
   private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {
