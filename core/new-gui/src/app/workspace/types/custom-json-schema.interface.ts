@@ -7,12 +7,12 @@ interface AttributeTypeSchema {
   [key: string]: {
     enum?: string[];
     const?: {
-      $data: string;
+      $data?: string;
     };
     allOf?: {
       if: {
         [key: string]: {
-          enum?: string[];
+          valEnum?: string[];
         };
       };
       then: {

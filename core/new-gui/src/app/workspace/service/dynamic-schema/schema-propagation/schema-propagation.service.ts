@@ -74,8 +74,12 @@ export class SchemaPropagationService {
     return this.operatorInputSchemaMap[operatorID];
   }
 
-  public getPortInputSchema(operatorID:string, portIndex:number): PortInputSchema |undefined{
+  public getPortInputSchema(operatorID: string, portIndex: number): PortInputSchema | undefined{
     return this.getOperatorInputSchema(operatorID)?.[portIndex];
+  }
+
+  public getOperatorInputAttributeType(operatorID: string, portIndex: number, attributeName: string): SchemaAttributeType | undefined {
+    return this.getPortInputSchema(operatorID, portIndex)?.find(e => e.attributeName === attributeName)?.attributeType;
   }
 
 
@@ -286,11 +290,15 @@ export class SchemaPropagationService {
   }
 }
 
+
+// possible types of an attribute
+export type SchemaAttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "ANY";
+
 // schema: an array of attribute names and types
 export interface SchemaAttribute
   extends Readonly<{
     attributeName: string;
-    attributeType: "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "ANY";
+    attributeType: SchemaAttributeType;
   }> {}
 
 // input schema of an operator: an array of schemas at each input port

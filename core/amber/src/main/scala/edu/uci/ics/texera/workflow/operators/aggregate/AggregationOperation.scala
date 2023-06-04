@@ -14,22 +14,22 @@ import java.sql.Timestamp
   """
 {
   "attributeType": {
-    "attribute": {
+    "0:attribute": {
       "allOf": [
         {
           "if": {
             "aggFunction": {
-              "enum": ["sum", "average", "min", "max"]
+              "valEnum": ["sum", "average", "min", "max"]
             }
           },
           "then": {
-            "enum": ["integer", "long", "float", "double"]
+            "enum": ["integer", "long", "double"]
           }
         },
         {
           "if": {
             "aggFunction": {
-              "enum": ["concat"]
+              "valEnum": ["concat"]
             }
           },
           "then": {

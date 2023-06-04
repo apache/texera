@@ -18,7 +18,7 @@ import scala.collection.JavaConverters.{asScalaBuffer, mapAsScalaMap}
 """
 {
   "attributeType": {
-    "attribute": {
+    "0:attribute": {
       "enum": ["string"]
     }
   }

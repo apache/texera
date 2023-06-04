@@ -16,9 +16,9 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 """
 {
   "attributeType": {
-    "buildAttributeName": {
+    "0:buildAttributeName": {
       "const": {
-        "$data": "probeAttributeName"
+        "$data": "1:probeAttributeName"
       }
     }
   }
