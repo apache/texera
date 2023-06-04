@@ -2,7 +2,7 @@ import {ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, Simpl
 import {ExecuteWorkflowService} from "../../../service/execute-workflow/execute-workflow.service";
 import {WorkflowStatusService} from "../../../service/workflow-status/workflow-status.service";
 import {Subject} from "rxjs";
-import {AbstractControl, FormGroup} from "@angular/forms";
+import {AbstractControl, FormGroup, ValidationErrors} from "@angular/forms";
 import {FormlyFieldConfig, FormlyFormOptions} from "@ngx-formly/core";
 import Ajv from "ajv";
 import {FormlyJsonschema} from "@ngx-formly/core/json-schema";
@@ -43,7 +43,8 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import {CollabWrapperComponent} from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
-import {OperatorSchema} from "src/app/workspace/types/operator-schema.interface";
+import {OperatorSchema} from "src/app/workspace/types/operator-schema.interface"; 
+import { error } from "jquery";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -492,6 +493,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       if (isDefined(mapSource.attributeType)) {
         mappedField.validators.checkAttributeType = {
           expression: (c: AbstractControl, field: FormlyFieldConfig) => {
+            let errorMessage = "";
             const parsePortPropertyName = (portPropertyName: string) => {
               // format of port-property name: port:property
               const [portStr, propertyName] = portPropertyName.split(":");
@@ -511,7 +513,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             type AttributeTypeSchemaConstraint = typeof mapSource.attributeType[keyof typeof mapSource.attributeType];
 
             const checkEnumConstraint = (inputAttributeType: SchemaAttributeType, enumConstraint: AttributeTypeSchemaConstraint['enum']) => {
-              return !isDefined(enumConstraint) || enumConstraint.includes(inputAttributeType);
+              if (isDefined(enumConstraint) && !enumConstraint.includes(inputAttributeType)) {
+                errorMessage = `must be ${enumConstraint.join(' or ')}`;
+                return false;
+              }
+              return true;
             }
 
             const checkConstConstraint = (inputAttributeType: SchemaAttributeType, constConstraint: AttributeTypeSchemaConstraint['const']) => {
@@ -521,6 +527,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               if (isDefined(constConstraint.$data)) {
                 const dataAttributeType = findAttributeType(constConstraint.$data);
                 if (!isDefined(dataAttributeType) || inputAttributeType !== dataAttributeType) {
+                  const dataPropertyName = parsePortPropertyName(constConstraint.$data).propertyName;
+                  errorMessage = `must be the same type (${dataAttributeType}) as property '${dataPropertyName}'`;
                   return false;
                 }
               }
@@ -547,6 +555,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 // Currently, only support "enum" constraint,
                 // add more to the condition if needed
                 if (ifCondSatisfied && !checkEnumConstraint(inputAttributeType, allOf.then.enum)) {
+                  // parse if condition to readable string
+                  const ifCondStr = Object.entries(allOf.if).map(([ifProp, ifConstraint]) => {
+                    const ifAttributeValue = c.value[ifProp];
+                    return `property '${ifProp}' is ${ifAttributeValue}`;
+                  }).join(" and ");
+                  errorMessage = `must be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`;
                   return false;
                 }
               }
@@ -558,9 +572,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             
             const checkConstraint = (portPropertyName: string, constraint: AttributeTypeSchemaConstraint) => {
               const inputAttributeType = findAttributeType(portPropertyName);
-              // Cannot find attribute type, return false
+              // when inputAttributeType is undefined, it means the property is not set
               if (!inputAttributeType) {
-                return false;
+                return true;
               }
 
               return (
@@ -581,13 +595,23 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             // iterate through all properties in attributeType
             for (const [prop, constraint] of Object.entries(mapSource.attributeType)) {
               if (!checkConstraint(prop, constraint)) {
+                // have to get the type, attribute name and property name again
+                // should consider reusing findAttributeType()
+                const {port, propertyName} = parsePortPropertyName(prop);
+                const attributeName = c.value[propertyName];
+                const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(this.currentOperatorId, port, attributeName);
+                errorMessage = `The type (${inputAttributeType}) of '${attributeName}' is not valid for property '${propertyName}': ` + errorMessage;
+                field.validators.checkAttributeType.message = errorMessage;
                 return false;
               }
             }
 
             return true;
           },
-          message: (error: any, field: FormlyFieldConfig) => "Attribute type selection is not valid",
+          message: (error: any, field: FormlyFieldConfig) => {
+            // default error message
+            return 'The type of the selected attribute is not valid';
+          },
         };
         mappedField.validation = {
           show: true,
