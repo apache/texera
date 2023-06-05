@@ -15,6 +15,7 @@ import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
 import { insert } from "@nrwl/workspace";
+import { isDefined } from "../../../../common/util/predicate";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -326,12 +327,11 @@ export class SharedModelChangeHandler {
    */
   private handlePortEvent(event: Y.YEvent<Y.Map<any>>, operatorID: string, isInput: boolean) {
     if (event.path.length === 2) {
-      // Port added or deleted
-      const addedPort = event.delta[1]?.insert ? event.delta[1]?.insert : event.delta[0]?.insert;
-      if (addedPort) {
+      // Port added or deleted inferred by event.delta
+      const addedPort = event.delta[1]?.insert;
+      if (isDefined(addedPort)) {
         this.onPortAdded(operatorID, isInput, (addedPort as Y.Map<any>[])[0].toJSON() as PortDescription);
-      }
-      if (event.delta[0]?.delete || event.delta[1]?.delete) {
+      } else if (isDefined(event.delta[0]?.delete) || isDefined(event.delta[1]?.delete)) {
         this.onPortRemoved(operatorID, isInput);
       }
     } else {
@@ -351,16 +351,17 @@ export class SharedModelChangeHandler {
         const newPortDescription = isInput
           ? changedOperator.inputPorts[event.path[2] as number]
           : changedOperator.outputPorts[event.path[2] as number];
-        this.texeraGraph.portPropertyChangedSubject.next({
-          operatorPortID: {
-            operatorID: operatorID,
-            portID: newPortDescription.portID,
-          },
-          newProperty: {
-            partitionInfo: newPortDescription.partitionRequirement as PartitionInfo,
-            dependencies: newPortDescription.dependencies as number[],
-          },
-        });
+        if (isDefined(newPortDescription.partitionRequirement) && isDefined(newPortDescription.dependencies))
+          this.texeraGraph.portPropertyChangedSubject.next({
+            operatorPortID: {
+              operatorID: operatorID,
+              portID: newPortDescription.portID,
+            },
+            newProperty: {
+              partitionInfo: newPortDescription.partitionRequirement,
+              dependencies: newPortDescription.dependencies,
+            },
+          });
       } else {
         throw new Error(`undefined port operation on shared type: .${event}`);
       }
