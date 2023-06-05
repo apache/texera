@@ -177,11 +177,10 @@ class WorkflowScheduler(
             asyncRPCClient.send(
               InitializeOperatorLogic(
                 pythonUDFOpExec.getCode,
-                pythonUDFOpExecConfig.id,
+                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
                 inputMappingList,
                 outputMappingList,
-                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
-                pythonUDFOpExec.getOutputSchema
+                pythonUDFOpExec.getOutputSchema,
               ),
               workerID
             )
