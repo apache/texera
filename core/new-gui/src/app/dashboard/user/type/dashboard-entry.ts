@@ -1,19 +1,55 @@
-import { Workflow } from "../../../common/type/workflow";
 import { DashboardWorkflowEntry } from "./dashboard-workflow-entry";
+import { UserProject } from "./user-project";
 
 export class DashboardEntry {
-  isOwner: boolean;
-  accessLevel: string;
-  ownerName: string | undefined;
-  workflow: Workflow;
-  projectIDs: number[];
   checked = false;
-
-  constructor(value: DashboardWorkflowEntry) {
-    this.isOwner = value.isOwner;
-    this.accessLevel = value.accessLevel;
-    this.ownerName = value.ownerName;
-    this.workflow = value.workflow;
-    this.projectIDs = value.projectIDs;
+  get type(): "workflow" | "project" {
+    if ("workflow" in this.value) {
+      return "workflow";
+    } else if ("name" in this.value) {
+      return "project";
+    }
+    throw new Error("Unexpected type in DashboardEntry.");
   }
+  get name(): string {
+    if ("workflow" in this.value) {
+      return this.value.workflow.name;
+    } else if ("name" in this.value) {
+      return this.project.name;
+    }
+    throw new Error("Unexpected type in DashboardEntry.");
+  }
+
+  get creationTime(): number | undefined {
+    if ("workflow" in this.value) {
+      return this.value.workflow.creationTime;
+    } else if ("name" in this.value) {
+      return this.value.creationTime;
+    }
+    throw new Error("Unexpected type in DashboardEntry.");
+  }
+
+  get lastModifiedTime(): number | undefined {
+    if ("workflow" in this.value) {
+      return this.value.workflow.lastModifiedTime;
+    } else if ("name" in this.value) {
+      return this.value.creationTime;
+    }
+    throw new Error("Unexpected type in DashboardEntry.");
+  }
+
+  get project(): UserProject {
+    if (!("name" in this.value)) {
+      throw new Error("Value is not of type Workflow.");
+    }
+    return this.value;
+  }
+
+  get workflow(): DashboardWorkflowEntry {
+    if (!("workflow" in this.value)) {
+      throw new Error("Value is not of type Workflow.");
+    }
+    return this.value;
+  }
+  constructor(public value: DashboardWorkflowEntry | UserProject) {}
 }

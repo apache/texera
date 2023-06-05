@@ -24,13 +24,8 @@ export class UserProjectListItemComponent implements OnInit {
   set entry(value: UserProject) {
     this._entry = value;
   }
-  /**
-   * Whether edit is enabled globally. It is possible to only edit this entry by setting
-   * this.editingName = true or this.editingDescription = true.
-   */
-  @Input() editing = false;
   @Output() deleted = new EventEmitter<void>();
-
+  @Input() editable = false;
   editingColor = false;
   editingName = false;
   editingDescription = false;
@@ -50,6 +45,9 @@ export class UserProjectListItemComponent implements OnInit {
   }
 
   updateProjectColor(): void {
+    if (!this.editable) {
+      return;
+    }
     const color = this.color.substring(1);
     this.editingColor = false;
     // validate that color is in proper HEX format

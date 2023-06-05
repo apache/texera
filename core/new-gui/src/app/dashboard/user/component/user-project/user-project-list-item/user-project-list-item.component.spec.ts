@@ -29,6 +29,7 @@ describe("UserProjectListItemComponent", () => {
     fixture = TestBed.createComponent(UserProjectListItemComponent);
     component = fixture.componentInstance;
     component.entry = testProject;
+    component.editable = true;
     fixture.detectChanges();
   });
 

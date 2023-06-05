@@ -58,6 +58,18 @@
       </li>
 
       <li
+        nz-menu-item
+        nz-tooltip="Search across the entire site"
+        nzMatchRouter="true"
+        nzTooltipPlacement="right"
+        routerLink="/dashboard/search">
+        <span
+          nz-icon
+          nzType="search"></span>
+        <span>Search</span>
+      </li>
+
+      <li
         *ngIf="isAdmin"
         nz-submenu>
         <span

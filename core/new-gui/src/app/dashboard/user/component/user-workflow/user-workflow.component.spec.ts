@@ -31,9 +31,8 @@ import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { FileSaverService } from "../../service/user-file/file-saver.service";
-import { testWorkflowEntries, testWorkflowFileNameConflictEntries } from "./user-workflow-test-fixtures";
+import { testWorkflowEntries, testWorkflowFileNameConflictEntries } from "../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
-import { delay } from "rxjs";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { StubUserProjectService } from "../../service/user-project/stub-user-project.service";
@@ -110,7 +109,7 @@ describe("SavedWorkflowSectionComponent", () => {
   it("searchNoInput", async () => {
     // When no search input is provided, it should show all workflows.
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
     expect(component.filters.masterFilterList).toEqual([]);
   });
@@ -120,7 +119,7 @@ describe("SavedWorkflowSectionComponent", () => {
     // than all containing the keyword "workflow".
     component.filters.masterFilterList = ["workflow 5"];
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 5"]);
     expect(component.filters.masterFilterList).toEqual(["workflow 5"]);
   });
@@ -130,7 +129,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.owners[0].checked = true;
     component.filters.updateSelectedOwners();
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2"]);
     expect(component.filters.masterFilterList).toEqual(["owner: Texera"]);
   });
@@ -142,7 +141,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.wids[2].checked = true;
     component.filters.updateSelectedIDs();
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.filters.masterFilterList).toEqual(["id: 1", "id: 2", "id: 3"]);
   });
@@ -152,7 +151,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.userProjectsDropdown[0].checked = true;
     component.filters.updateSelectedProjects();
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.filters.masterFilterList).toEqual(["project: Project1"]);
   });
@@ -162,7 +161,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     component.filters.buildMasterFilterList();
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
     expect(component.filters.masterFilterList).toEqual(["ctime: 1970-01-03 ~ 1981-03-13"]);
   });
@@ -172,7 +171,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     component.filters.buildMasterFilterList();
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
     expect(component.filters.masterFilterList).toEqual(["mtime: 1970-01-03 ~ 1981-03-13"]);
   });
@@ -196,7 +195,7 @@ describe("SavedWorkflowSectionComponent", () => {
       component.filters.updateSelectedOperators();
     }
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.filters.masterFilterList).toEqual(["operator: Sentiment Analysis"]); // userFriendlyName
   });
@@ -211,7 +210,7 @@ describe("SavedWorkflowSectionComponent", () => {
       component.filters.updateSelectedOperators();
     }
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.filters.masterFilterList).toEqual(["operator: Sentiment Analysis", "operator: View Results"]); // userFriendlyName
   });
@@ -239,7 +238,7 @@ describe("SavedWorkflowSectionComponent", () => {
       component.filters.updateSelectedOwners();
     }
     await component.searchWorkflow();
-    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]);
     expect(component.filters.masterFilterList).toEqual([
       "1",

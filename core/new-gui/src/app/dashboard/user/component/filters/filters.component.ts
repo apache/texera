@@ -2,12 +2,12 @@ import { Component, EventEmitter, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, map } from "rxjs";
-import { HttpClient } from "@angular/common/http";
 import { UserProject } from "../../type/user-project";
 import { remove } from "lodash-es";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { SearchFilterParameters } from "../../type/search-filter-parameters";
 
 @UntilDestroy()
 @Component({
@@ -23,6 +23,9 @@ export class FiltersComponent implements OnInit {
     return this._masterFilterList;
   }
   public set masterFilterList(value: string[]) {
+    this.setMasterFilterList(value, true);
+  }
+  private setMasterFilterList(value: string[], updateDropdown: boolean) {
     if (
       !this._masterFilterList ||
       !value ||
@@ -31,7 +34,9 @@ export class FiltersComponent implements OnInit {
     ) {
       // Only update when there is a change to prevent unnecessary calls to search.
       this._masterFilterList = value;
-      this.updateDropdownMenus(value);
+      if (updateDropdown) {
+        this.updateDropdownMenus(value);
+      }
       this.masterFilterListChange.emit(value);
     }
   }
@@ -313,7 +318,7 @@ export class FiltersComponent implements OnInit {
   /**
    * checks if a tag string is a workflow name or dropdown menu search parameter
    */
-  public checkIfWorkflowName(tag: string) {
+  private checkIfWorkflowName(tag: string) {
     const stringChecked: string[] = tag.split(":");
     return !(stringChecked.length === 2 && this.searchCriteria.includes(stringChecked[0]));
   }
@@ -346,8 +351,7 @@ export class FiltersComponent implements OnInit {
           this.getFormattedDateString(this.selectedMtime[1])
       );
     }
-    this._masterFilterList = newFilterList; // Avoid the call to updateDropdownMenus.
-    this.masterFilterListChange.emit(newFilterList);
+    this.setMasterFilterList(newFilterList, false);
   }
 
   /**
@@ -357,5 +361,22 @@ export class FiltersComponent implements OnInit {
     let dateMonth: number = date.getMonth() + 1;
     let dateDay: number = date.getDate();
     return `${date.getFullYear()}-${(dateMonth < 10 ? "0" : "") + dateMonth}-${(dateDay < 10 ? "0" : "") + dateDay}`;
+  }
+
+  public getSearchFilterParameters(): SearchFilterParameters {
+    return {
+      createDateStart: this.selectedCtime.length > 0 ? this.selectedCtime[0] : null,
+      createDateEnd: this.selectedCtime.length > 0 ? this.selectedCtime[1] : null,
+      modifiedDateStart: this.selectedMtime.length > 0 ? this.selectedMtime[0] : null,
+      modifiedDateEnd: this.selectedMtime.length > 0 ? this.selectedMtime[1] : null,
+      owners: this.selectedOwners,
+      ids: this.selectedIDs,
+      operators: this.selectedOperators.map(o => o.operatorType),
+      projectIds: this.selectedProjects.map(p => p.pid),
+    };
+  }
+
+  public getSearchKeywords(): string[] {
+    return this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
   }
 }

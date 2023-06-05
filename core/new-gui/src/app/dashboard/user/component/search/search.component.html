@@ -1,0 +1,47 @@
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Search</h2>
+    <nz-button-group
+      class="utility-button-group"
+      ngbDropdown>
+      <texera-sort-button [(entries)]="entries"></texera-sort-button>
+    </nz-button-group>
+    <texera-filters #filters></texera-filters>
+  </nz-card>
+
+  <div class="section-search-bar workflow-search-bar">
+    <texera-filters-instructions></texera-filters-instructions>
+    <nz-select
+      class="search-input-box"
+      name="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search all"
+      [nzBorderless]="true"
+      [nzOpen]="false"
+      ngDefaultControl
+      [(ngModel)]="filters.masterFilterList"
+      [nzAllowClear]="true">
+    </nz-select>
+  </div>
+
+  <nz-card class="section-list-container">
+    <!-- itemSize: the height (px) of each list item,
+        this MUST be approximately the same as list item size set in CSS,
+        .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
+      -->
+    <cdk-virtual-scroll-viewport
+      itemSize="80"
+      class="virtual-scroll-container">
+      <nz-list>
+        <ng-container *cdkVirtualFor="let entry of entries">
+          <texera-user-project-list-item
+            *ngIf="entry.type === 'project'"
+            [entry]="entry.project"></texera-user-project-list-item>
+          <texera-user-workflow-list-item
+            *ngIf="entry.type === 'workflow'"
+            [entry]="entry"></texera-user-workflow-list-item>
+        </ng-container>
+      </nz-list>
+    </cdk-virtual-scroll-viewport>
+  </nz-card>
+</div>

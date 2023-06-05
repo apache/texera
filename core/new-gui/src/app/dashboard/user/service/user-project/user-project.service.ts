@@ -23,9 +23,21 @@ export class UserProjectService {
 
   constructor(private http: HttpClient) {}
 
+  public refreshProjectList(): Observable<UserProject[]> {
+    this.http
+      .get<UserProject[]>(`${USER_PROJECT_LIST_URL}`)
+      .pipe()
+      // Pass through the result but without completing the long-lived BehaviorSubject.
+      .subscribe({
+        next: p => this.projects.next(p),
+        error: (p: unknown) => this.projects.error(p),
+        complete: () => {},
+      });
+    return this.retrieveProjectList();
+  }
+
   public retrieveProjectList(): Observable<UserProject[]> {
-    this.http.get<UserProject[]>(`${USER_PROJECT_LIST_URL}`).subscribe(this.projects);
-    return this.projects;
+    return this.projects.asObservable();
   }
 
   public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflowEntry[]> {

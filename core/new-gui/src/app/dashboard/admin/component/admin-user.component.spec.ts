@@ -27,8 +27,4 @@ describe("AdminUserComponent", () => {
   it("should create", inject([HttpTestingController], () => {
     expect(component).toBeTruthy();
   }));
-
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
 });

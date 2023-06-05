@@ -177,18 +177,10 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * @returns
    */
   private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
-    const workflowNames: string[] = this.filters.masterFilterList.filter(tag => this.filters.checkIfWorkflowName(tag));
     return await firstValueFrom(
       this.workflowPersistService.searchWorkflows(
-        workflowNames,
-        this.filters.selectedCtime.length > 0 ? this.filters.selectedCtime[0] : null,
-        this.filters.selectedCtime.length > 0 ? this.filters.selectedCtime[1] : null,
-        this.filters.selectedMtime.length > 0 ? this.filters.selectedMtime[0] : null,
-        this.filters.selectedMtime.length > 0 ? this.filters.selectedMtime[1] : null,
-        this.filters.selectedOwners,
-        this.filters.selectedIDs,
-        this.filters.selectedOperators.map(o => o.operatorType),
-        this.filters.selectedProjects.map(p => p.pid)
+        this.filters.getSearchKeywords(),
+        this.filters.getSearchFilterParameters()
       )
     );
   }
@@ -207,18 +199,18 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * for workflow components inside a project-section, it will also add
    * the workflow to the project
    */
-  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardEntry): void {
-    if (wid) {
+  public onClickDuplicateWorkflow(entry: DashboardEntry): void {
+    if (entry.workflow.workflow.wid) {
       if (this.pid === 0) {
         // not nested within user project section
         this.workflowPersistService
-          .duplicateWorkflow(wid)
+          .duplicateWorkflow(entry.workflow.workflow.wid)
           .pipe(untilDestroyed(this))
           .subscribe({
             next: duplicatedWorkflowInfo => {
               this.dashboardWorkflowEntries = [
                 ...this.dashboardWorkflowEntries,
-                { ...duplicatedWorkflowInfo, checked: false },
+                new DashboardEntry(duplicatedWorkflowInfo),
               ];
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
@@ -226,12 +218,12 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       } else {
         // is nested within project section, also add duplicate workflow to project
         this.workflowPersistService
-          .duplicateWorkflow(wid)
+          .duplicateWorkflow(entry.workflow.workflow.wid)
           .pipe(
             concatMap(duplicatedWorkflowInfo => {
               this.dashboardWorkflowEntries = [
                 ...this.dashboardWorkflowEntries,
-                { ...duplicatedWorkflowInfo, checked: false },
+                new DashboardEntry(duplicatedWorkflowInfo),
               ];
               return this.userProjectService.addWorkflowToProject(this.pid, duplicatedWorkflowInfo.workflow.wid!);
             }),
@@ -256,17 +248,16 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * calls the deleteWorkflow method in service which implements backend API.
    */
 
-  public deleteWorkflow({ workflow }: DashboardEntry): void {
-    const wid = workflow.wid;
-    if (wid == undefined) {
+  public deleteWorkflow(entry: DashboardEntry): void {
+    if (entry.workflow.workflow.wid == undefined) {
       return;
     }
     this.workflowPersistService
-      .deleteWorkflow(wid)
+      .deleteWorkflow(entry.workflow.workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
-          workflowEntry => workflowEntry.workflow.wid !== wid
+          workflowEntry => workflowEntry.workflow.workflow.wid !== entry.workflow.workflow.wid
         );
       });
   }
@@ -278,7 +269,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       .subscribe(() => {
         if (this.userService.isLogin()) {
           this.refreshDashboardWorkflowEntries();
-          this.userProjectService.retrieveProjectList();
+          this.userProjectService.refreshProjectList();
         } else {
           this.clearDashboardWorkflowEntries();
         }
@@ -293,7 +284,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
   public filterWorkflowsByProject() {
     let newWorkflowEntries = this.allDashboardWorkflowEntries.slice();
     this.projectFilterList.forEach(
-      pid => (newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.projectIDs.includes(pid)))
+      pid => (newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.workflow.projectIDs.includes(pid)))
     );
     this.dashboardWorkflowEntries = newWorkflowEntries;
   }
@@ -320,7 +311,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    *
    * @param dashboardWorkflowEntries - returned local cache of workflows
    */
-  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardEntry[]): void {
+  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries.map(i => new DashboardEntry(i));
     // update searching / filtering
     this.searchWorkflow();
@@ -385,10 +376,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: uploadedWorkflow => {
-              this.dashboardWorkflowEntries = [
-                ...this.dashboardWorkflowEntries.map(i => new DashboardEntry(i)),
-                new DashboardEntry(uploadedWorkflow),
-              ];
+              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, new DashboardEntry(uploadedWorkflow)];
             },
             error: (err: unknown) => alert(err),
           });
@@ -409,11 +397,16 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       const zip = new JSZip();
       try {
         for (const entry of checkedEntries) {
-          const fileName = this.nameWorkflow(entry.workflow.name, zip) + ".json";
-          if (entry.workflow.wid) {
+          if (!entry.workflow) {
+            throw new Error(
+              "Incorrect type of DashboardEntry provided to onClickOpenDownloadZip. Entry must be workflow."
+            );
+          }
+          const fileName = this.nameWorkflow(entry.workflow.workflow.name, zip) + ".json";
+          if (entry.workflow.workflow.wid) {
             const workflowCopy: Workflow = {
               ...(await firstValueFrom(
-                this.workflowPersistService.retrieveWorkflow(entry.workflow.wid).pipe(untilDestroyed(this))
+                this.workflowPersistService.retrieveWorkflow(entry.workflow.workflow.wid).pipe(untilDestroyed(this))
               )),
               wid: undefined,
               creationTime: undefined,

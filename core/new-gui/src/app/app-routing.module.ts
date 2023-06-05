@@ -11,6 +11,7 @@ import { HomeComponent } from "./home/component/home.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
+import { SearchComponent } from "./dashboard/user/component/search/search.component";
 /*
  *  This file defines the url path
  *  The workflow workspace is set as default path
@@ -58,6 +59,10 @@ if (environment.userSystemEnabled) {
       {
         path: "user-file",
         component: UserFileComponent,
+      },
+      {
+        path: "search",
+        component: SearchComponent,
       },
       {
         path: "admin-user",

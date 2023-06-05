@@ -1,7 +1,8 @@
 //All times in test Workflows are in PST because our local machine's timezone is PST
 
 import { Workflow, WorkflowContent } from "src/app/common/type/workflow";
-import { DashboardEntry } from "../../type/dashboard-entry";
+import { DashboardEntry } from "../type/dashboard-entry";
+import { UserProject } from "../type/user-project";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;
@@ -96,71 +97,69 @@ export const testDownloadWorkflow3: Workflow = {
 };
 
 export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
-  {
+  new DashboardEntry({
     workflow: testDownloadWorkflow1,
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
-    checked: false,
-  },
-  {
+  }),
+  new DashboardEntry({
     workflow: testDownloadWorkflow2,
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
-    checked: false,
-  },
-  {
+  }),
+  new DashboardEntry({
     workflow: testDownloadWorkflow3,
     isOwner: true,
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
-    checked: false,
-  },
+  }),
 ];
 
 export const testWorkflowEntries: DashboardEntry[] = [
-  {
+  new DashboardEntry({
     workflow: testWorkflow1,
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
-    checked: false,
-  },
-  {
+  }),
+  new DashboardEntry({
     workflow: testWorkflow2,
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
-    checked: false,
-  },
-  {
+  }),
+  new DashboardEntry({
     workflow: testWorkflow3,
     isOwner: true,
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
-    checked: false,
-  },
-  {
+  }),
+  new DashboardEntry({
     workflow: testWorkflow4,
     isOwner: true,
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [3],
-    checked: false,
-  },
-  {
+  }),
+  new DashboardEntry({
     workflow: testWorkflow5,
     isOwner: true,
     ownerName: "UCI",
     accessLevel: "Write",
     projectIDs: [3],
-    checked: false,
-  },
+  }),
+];
+
+export const testUserProjects: UserProject[] = [
+  { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
+  { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
+  { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
 ];
