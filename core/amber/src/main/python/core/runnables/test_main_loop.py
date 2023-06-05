@@ -30,6 +30,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerStatistics,
     LinkCompletedV2,
     InitializeOperatorLogicV2,
+    LinkOrdinal,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -152,8 +153,9 @@ class TestMainLoop:
             InitializeOperatorLogicV2(
                 code="from pytexera import *\n" + inspect.getsource(EchoOperator),
                 is_source=False,
+                input_ordinal_mapping=[LinkOrdinal(mock_link, 0)],
+                output_ordinal_mapping=[],
                 output_schema=mock_raw_schema,
-                upstream_link_ids=[mock_link],
             ),
         )
         payload = set_one_of(
@@ -176,8 +178,9 @@ class TestMainLoop:
             InitializeOperatorLogicV2(
                 code="from pytexera import *\n" + inspect.getsource(CountBatchOperator),
                 is_source=False,
+                input_ordinal_mapping=[LinkOrdinal(mock_link, 0)],
+                output_ordinal_mapping=[],
                 output_schema=mock_raw_schema,
-                upstream_link_ids=[mock_link],
             ),
         )
         payload = set_one_of(
