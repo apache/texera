@@ -514,7 +514,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
             const checkEnumConstraint = (inputAttributeType: SchemaAttributeType, enumConstraint: AttributeTypeSchemaConstraint['enum']) => {
               if (isDefined(enumConstraint) && !enumConstraint.includes(inputAttributeType)) {
-                errorMessage = `must be ${enumConstraint.join(' or ')}`;
+                errorMessage = `it's expected to be ${enumConstraint.join(' or ')}.`;
                 return false;
               }
               return true;
@@ -530,7 +530,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                   // get data attribute name for error message
                   const dataPropertyName = parsePortPropertyName(constConstraint.$data).propertyName;
                   const dataAttributeName = c.value[dataPropertyName];
-                  errorMessage = `must be the same type (${dataAttributeType}) as '${dataAttributeName}'`;
+                  errorMessage = `it's expected to be the same type as '${dataAttributeName}' (${dataAttributeType}).`;
                   return false;
                 }
               }
@@ -562,7 +562,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                     const ifAttributeValue = c.value[ifProp];
                     return `'${ifProp}' is ${ifAttributeValue}`;
                   }).join(" and ");
-                  errorMessage = `must be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`;
+                  errorMessage = `it's expected to be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`;
                   return false;
                 }
               }
@@ -602,7 +602,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 const {port, propertyName} = parsePortPropertyName(prop);
                 const attributeName = c.value[propertyName];
                 const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(this.currentOperatorId, port, attributeName);
-                errorMessage = `The type (${inputAttributeType}) of '${attributeName}' is not valid for property '${propertyName}': ` + errorMessage;
+                errorMessage = `The type of '${attributeName}' is ${inputAttributeType}, but ` + errorMessage;
                 field.validators.checkAttributeType.message = errorMessage;
                 return false;
               }
