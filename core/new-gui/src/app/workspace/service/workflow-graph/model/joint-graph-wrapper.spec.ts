@@ -38,7 +38,7 @@ describe("JointGraphWrapperService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule]
+      imports: [RouterTestingModule],
     });
     jointGraph = new joint.dia.Graph();
     jointGraphWrapper = new JointGraphWrapper(jointGraph);

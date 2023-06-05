@@ -24,7 +24,7 @@ describe("UndoRedoService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule]
+      imports: [RouterTestingModule],
     });
     service = TestBed.get(UndoRedoService);
     workflowActionService = TestBed.get(WorkflowActionService);

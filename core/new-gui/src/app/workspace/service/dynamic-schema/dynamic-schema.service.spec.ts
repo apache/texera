@@ -34,7 +34,7 @@ describe("DynamicSchemaService", () => {
         UndoRedoService,
         DynamicSchemaService,
       ],
-      imports: [RouterTestingModule]
+      imports: [RouterTestingModule],
     });
   });
 

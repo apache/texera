@@ -32,7 +32,7 @@ describe("ValidationWorkflowService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule]
+      imports: [RouterTestingModule],
     });
 
     validationWorkflowService = TestBed.get(ValidationWorkflowService);

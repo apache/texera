@@ -13,7 +13,7 @@ describe("ContextMenuComponent", () => {
     await TestBed.configureTestingModule({
       declarations: [ContextMenuComponent],
       providers: [{ provide: OperatorMetadataService, useClass: StubOperatorMetadataService }],
-      imports: [RouterTestingModule]
+      imports: [RouterTestingModule],
     }).compileComponents();
   });
 

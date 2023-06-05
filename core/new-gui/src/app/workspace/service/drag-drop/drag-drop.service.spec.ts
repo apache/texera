@@ -37,7 +37,7 @@ describe("DragDropService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule]
+      imports: [RouterTestingModule],
     });
 
     dragDropService = TestBed.get(DragDropService);

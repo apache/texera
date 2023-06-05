@@ -46,7 +46,7 @@ describe("ExecuteWorkflowService", () => {
         },
         { provide: HttpClient, useClass: StubHttpClient },
       ],
-      imports: [RouterTestingModule]
+      imports: [RouterTestingModule],
     });
 
     service = TestBed.inject(ExecuteWorkflowService);
