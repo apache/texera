@@ -29,6 +29,7 @@ import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
+import { ActivatedRoute } from "@angular/router";
 
 /**
  *
@@ -80,7 +81,8 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private route: ActivatedRoute,
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -639,6 +641,12 @@ export class WorkflowActionService {
 
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+
+      // highlight the operator, comment box, or link in the URL fragment
+      const fragment = this.route.snapshot.fragment;
+      if (fragment) {
+        this.highlightElements(false, fragment);
+      }
     });
 
     // After reloading a workflow, need to clear undo/redo stacks because some of the actions involved in reloading
