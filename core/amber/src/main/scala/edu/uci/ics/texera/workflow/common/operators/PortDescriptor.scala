@@ -14,8 +14,8 @@ case class PortDescription(
 
 trait PortDescriptor {
   @JsonProperty(required = false)
-  var inputPorts: List[PortDescription] = List()
+  var inputPorts: List[PortDescription] = null
 
   @JsonProperty(required = false)
-  var outputPorts: List[PortDescription] = List()
+  var outputPorts: List[PortDescription] = null
 }
