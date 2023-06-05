@@ -10,8 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 
 import java.sql.Timestamp
 
-@JsonSchemaInject(json =
-  """
+@JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
     "0:attribute": {

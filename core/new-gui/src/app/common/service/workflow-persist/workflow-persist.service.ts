@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, throwError } from "rxjs";
+import { BehaviorSubject, Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
@@ -17,6 +17,8 @@ export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
 export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
+export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
+export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
@@ -202,5 +204,19 @@ export class WorkflowPersistService {
 
   public isWorkflowPersistEnabled(): boolean {
     return this.workflowPersistFlag;
+  }
+
+  /**
+   * retrieves all workflow owners
+   */
+  public retrieveOwners(): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`);
+  }
+
+  /**
+   * retrieves all workflow IDs
+   */
+  public retrieveWorkflowIDs(): Observable<number[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
   }
 }
