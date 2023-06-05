@@ -13,7 +13,7 @@ import java.sql.Timestamp
 @JsonSchemaInject(json =
   """
 {
-  "attributeType": {
+  "attributeTypeRules": {
     "0:attribute": {
       "allOf": [
         {

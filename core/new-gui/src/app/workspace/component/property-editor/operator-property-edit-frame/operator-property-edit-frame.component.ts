@@ -490,7 +490,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
 
       // Add custom validators for attribute type
-      if (isDefined(mapSource.attributeType)) {
+      if (isDefined(mapSource.attributeTypeRules)) {
         mappedField.validators.checkAttributeType = {
           expression: (c: AbstractControl, field: FormlyFieldConfig) => {
             let errorMessage = "";
@@ -510,9 +510,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               return this.schemaPropagationService.getOperatorInputAttributeType(this.currentOperatorId, port, attributeName);
             };
 
-            type AttributeTypeSchemaConstraint = typeof mapSource.attributeType[keyof typeof mapSource.attributeType];
+            type AttributeTypeRuleSchemaConstraint = typeof mapSource.attributeTypeRules[keyof typeof mapSource.attributeTypeRules];
 
-            const checkEnumConstraint = (inputAttributeType: SchemaAttributeType, enumConstraint: AttributeTypeSchemaConstraint['enum']) => {
+            const checkEnumConstraint = (inputAttributeType: SchemaAttributeType, enumConstraint: AttributeTypeRuleSchemaConstraint['enum']) => {
               if (isDefined(enumConstraint) && !enumConstraint.includes(inputAttributeType)) {
                 errorMessage = `it's expected to be ${enumConstraint.join(' or ')}.`;
                 return false;
@@ -520,7 +520,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               return true;
             }
 
-            const checkConstConstraint = (inputAttributeType: SchemaAttributeType, constConstraint: AttributeTypeSchemaConstraint['const']) => {
+            const checkConstConstraint = (inputAttributeType: SchemaAttributeType, constConstraint: AttributeTypeRuleSchemaConstraint['const']) => {
               if (!isDefined(constConstraint)) {
                 return true;
               }
@@ -537,7 +537,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               return true;
             }
 
-            const checkAllOfConstraint = (inputAttributeType: SchemaAttributeType, allOfConstraint: AttributeTypeSchemaConstraint['allOf']) => {
+            const checkAllOfConstraint = (inputAttributeType: SchemaAttributeType, allOfConstraint: AttributeTypeRuleSchemaConstraint['allOf']) => {
               if (!isDefined(allOfConstraint)) {
                 return true;
               }
@@ -570,9 +570,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             };
 
 
-            // Get the type of constrains for each property in AttributeTypeSchema
+            // Get the type of constrains for each property in AttributeTypeRuleSchema
             
-            const checkConstraint = (portPropertyName: string, constraint: AttributeTypeSchemaConstraint) => {
+            const checkConstraint = (portPropertyName: string, constraint: AttributeTypeRuleSchemaConstraint) => {
               const inputAttributeType = findAttributeType(portPropertyName);
               // when inputAttributeType is undefined, it means the property is not set
               if (!inputAttributeType) {
@@ -586,7 +586,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               );
             };
 
-            if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeType)) {
+            if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeTypeRules)) {
               return false;
             }
             const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
@@ -595,7 +595,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             }
 
             // iterate through all properties in attributeType
-            for (const [prop, constraint] of Object.entries(mapSource.attributeType)) {
+            for (const [prop, constraint] of Object.entries(mapSource.attributeTypeRules)) {
               if (!checkConstraint(prop, constraint)) {
                 // have to get the type, attribute name and property name again
                 // should consider reusing findAttributeType()

@@ -17,7 +17,7 @@ import scala.collection.JavaConverters.{asScalaBuffer, mapAsScalaMap}
 @JsonSchemaInject(json =
 """
 {
-  "attributeType": {
+  "attributeTypeRules": {
     "0:attribute": {
       "enum": ["string"]
     }
