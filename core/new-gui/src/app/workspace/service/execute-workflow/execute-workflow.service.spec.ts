@@ -16,6 +16,7 @@ import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
+import { RouterTestingModule } from "@angular/router/testing";
 
 class StubHttpClient {
   constructor() {}
@@ -45,6 +46,7 @@ describe("ExecuteWorkflowService", () => {
         },
         { provide: HttpClient, useClass: StubHttpClient },
       ],
+      imports: [RouterTestingModule]
     });
 
     service = TestBed.inject(ExecuteWorkflowService);

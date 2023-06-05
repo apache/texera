@@ -29,6 +29,7 @@ import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
 import { COLLAB_DEBOUNCE_TIME_MS } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { RouterTestingModule } from "@angular/router/testing";
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {
@@ -56,6 +57,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
         // use formly material module instead
         FormlyMaterialModule,
         ReactiveFormsModule,
+        RouterTestingModule,
         HttpClientTestingModule,
       ],
     }).compileComponents();

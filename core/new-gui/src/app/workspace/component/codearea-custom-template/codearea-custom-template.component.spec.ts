@@ -7,6 +7,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
@@ -15,7 +16,7 @@ describe("CodeareaCustomTemplateComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [CodeareaCustomTemplateComponent],
-      imports: [MatDialogModule, HttpClientTestingModule],
+      imports: [RouterTestingModule, MatDialogModule, HttpClientTestingModule],
       providers: [
         WorkflowActionService,
         {

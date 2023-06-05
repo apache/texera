@@ -6,6 +6,7 @@ import { NzDropdownMenuComponent, NzDropDownModule } from "ng-zorro-antd/dropdow
 import { CoeditorUserIconComponent } from "../../../component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
 import { WorkflowActionService } from "./workflow-action.service";
 import { HttpClient } from "@angular/common/http";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("CoeditorPresenceService", () => {
   let service: CoeditorPresenceService;
@@ -13,7 +14,7 @@ describe("CoeditorPresenceService", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzDropDownModule],
+      imports: [RouterTestingModule, HttpClientTestingModule, NzDropDownModule],
       declarations: [CoeditorUserIconComponent],
       providers: [WorkflowActionService, CoeditorPresenceService, HttpClient, NzDropdownMenuComponent],
     });

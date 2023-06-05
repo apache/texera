@@ -11,6 +11,7 @@ import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("MiniMapComponent", () => {
   let component: MiniMapComponent;
@@ -30,7 +31,7 @@ describe("MiniMapComponent", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [HttpClientTestingModule],
+      imports: [RouterTestingModule, HttpClientTestingModule],
     }).compileComponents();
   }));
 

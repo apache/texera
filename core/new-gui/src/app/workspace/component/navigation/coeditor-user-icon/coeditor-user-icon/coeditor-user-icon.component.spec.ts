@@ -6,6 +6,7 @@ import { WorkflowActionService } from "../../../../service/workflow-graph/model/
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropdownMenuComponent, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("CoeditorUserIconComponent", () => {
   let component: CoeditorUserIconComponent;
@@ -14,7 +15,7 @@ describe("CoeditorUserIconComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzDropDownModule],
+      imports: [RouterTestingModule, HttpClientTestingModule, NzDropDownModule],
       declarations: [CoeditorUserIconComponent],
       providers: [WorkflowActionService, CoeditorPresenceService, HttpClient, NzDropdownMenuComponent],
     }).compileComponents();
