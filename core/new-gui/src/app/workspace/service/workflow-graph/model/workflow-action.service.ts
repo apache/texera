@@ -508,6 +508,13 @@ export class WorkflowActionService {
     this.getJointGraphWrapper().highlightCommentBoxes(...commentBoxIDs);
   }
 
+  public highlightElements(multiSelect: boolean, ...elementIDs: string[]): void {
+    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
+    this.highlightOperators(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasOperator(id)));
+    this.highlightLinks(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasLinkWithID(id)));
+    this.highlightCommentBoxes(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasCommentBox(id)));
+  }
+
   public disableOperators(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {

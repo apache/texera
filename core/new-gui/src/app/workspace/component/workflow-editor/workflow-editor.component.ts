@@ -630,6 +630,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedCommentBoxIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
+        const highlightedGroupIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedGroupIDs();
+        const highlightedLinkIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedLinkIDs();
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
@@ -677,6 +683,24 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
           }
         }
+        // add element ID to URL hash when highlighted one element (operator or comment box)
+        // clear the URL hash when highlighted multiple elements
+        if (
+          highlightedCommentBoxIDs.length + highlightedOperatorIDs.length === 1 &&
+          highlightedGroupIDs.length === 0 &&
+          highlightedLinkIDs.length === 0
+        ) {
+          this.router.navigate([], {
+            relativeTo: this.route,
+            preserveFragment: false,
+            fragment: elementID,
+          });
+        } else if (this.route.snapshot.fragment) {
+          this.router.navigate([], {
+            relativeTo: this.route,
+            preserveFragment: false,
+          });
+        }
       });
 
     // on user mouse clicks on blank area, unhighlight all operators and groups
@@ -696,6 +720,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.workflowActionService.unhighlightOperators(...highlightedOperatorIDs);
         this.workflowActionService.unhighlightLinks(...highlightedLinkIDs);
         this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(...highlightedCommentBoxIDs);
+        // clear element ID in URL hash
+        if (this.route.snapshot.fragment) {
+          this.router.navigate([], {
+            relativeTo: this.route,
+            preserveFragment: false,
+          });
+        }
       });
   }
 
@@ -767,15 +798,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       ],
     });
     modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => {
+      this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(commentBoxID);
       this.router.navigate([], {
         relativeTo: this.route,
         preserveFragment: false,
       });
-    });
-    this.router.navigate([], {
-      relativeTo: this.route,
-      preserveFragment: false,
-      fragment: commentBoxID,
     });
   }
 
