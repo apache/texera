@@ -2,7 +2,7 @@ import { FormlyFieldConfig } from "@ngx-formly/core";
 import { isDefined } from "../util/predicate";
 import {
   PortInputSchema,
-  SchemaAttribute
+  SchemaAttribute,
 } from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";

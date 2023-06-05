@@ -1,17 +1,17 @@
-import {ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges} from "@angular/core";
-import {ExecuteWorkflowService} from "../../../service/execute-workflow/execute-workflow.service";
-import {WorkflowStatusService} from "../../../service/workflow-status/workflow-status.service";
-import {Subject} from "rxjs";
-import {AbstractControl, FormGroup, ValidationErrors} from "@angular/forms";
-import {FormlyFieldConfig, FormlyFormOptions} from "@ngx-formly/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
+import { Subject } from "rxjs";
+import { AbstractControl, FormGroup, ValidationErrors } from "@angular/forms";
+import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import Ajv from "ajv";
-import {FormlyJsonschema} from "@ngx-formly/core/json-schema";
-import {WorkflowActionService} from "../../../service/workflow-graph/model/workflow-action.service";
-import {cloneDeep, isEqual} from "lodash-es";
-import {CustomJSONSchema7, hideTypes} from "../../../types/custom-json-schema.interface";
-import {isDefined} from "../../../../common/util/predicate";
-import {ExecutionState, OperatorState, OperatorStatistics} from "src/app/workspace/types/execute-workflow.interface";
-import {DynamicSchemaService} from "../../../service/dynamic-schema/dynamic-schema.service";
+import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { cloneDeep, isEqual } from "lodash-es";
+import { CustomJSONSchema7, hideTypes } from "../../../types/custom-json-schema.interface";
+import { isDefined } from "../../../../common/util/predicate";
+import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
   PortInputSchema,
   SchemaAttribute,
@@ -28,22 +28,22 @@ import {
   TYPE_CASTING_OPERATOR_TYPE,
   TypeCastingDisplayComponent,
 } from "../typecasting-display/type-casting-display.component";
-import {DynamicComponentConfig} from "../../../../common/type/dynamic-component-config";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {filter} from "rxjs/operators";
-import {NotificationService} from "../../../../common/service/notification/notification.service";
-import {PresetWrapperComponent} from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
-import {environment} from "src/environments/environment";
-import {WorkflowVersionService} from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
-import {UserFileService} from "../../../../dashboard/user/service/user-file/user-file.service";
-import {ShareAccess} from "../../../../dashboard/user/type/share-access.interface";
-import {ShareAccessService} from "../../../../dashboard/user/service/share-access/share-access.service";
-import {QuillBinding} from "y-quill";
+import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { filter } from "rxjs/operators";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import { environment } from "src/environments/environment";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
+import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
+import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
+import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
-import {CollabWrapperComponent} from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
-import {OperatorSchema} from "src/app/workspace/types/operator-schema.interface"; 
+import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
 import { error } from "jquery";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
@@ -115,7 +115,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
-  ajv = new Ajv({useDefaults: true, strict: false});
+  ajv = new Ajv({ useDefaults: true, strict: false });
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
@@ -138,8 +138,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private userFileService: UserFileService,
     private workflowGrantAccessService: ShareAccessService,
     private workflowStatusSerivce: WorkflowStatusService
-  ) {
-  }
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
@@ -244,7 +243,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     ) {
       this.switchDisplayComponent({
         component: TypeCastingDisplayComponent,
-        componentInputs: {currentOperatorId: this.currentOperatorId},
+        componentInputs: { currentOperatorId: this.currentOperatorId },
       });
     } else {
       this.switchDisplayComponent(undefined);
@@ -295,7 +294,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   registerOperatorSchemaChangeHandler(): void {
     this.dynamicSchemaService
       .getOperatorDynamicSchemaChangedStream()
-      .pipe(filter(({operatorID}) => operatorID === this.currentOperatorId))
+      .pipe(filter(({ operatorID }) => operatorID === this.currentOperatorId))
       .pipe(untilDestroyed(this))
       .subscribe(_ => this.rerenderEditorForm());
   }
@@ -413,7 +412,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             typeof mappedField.key === "string" &&
             this.fieldStyleOverride.has(mappedField.key)
           ) {
-            return {style: this.fieldStyleOverride.get(mappedField.key)};
+            return { style: this.fieldStyleOverride.get(mappedField.key) };
           } else {
             return {};
           }
@@ -497,30 +496,41 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             const parsePortPropertyName = (portPropertyName: string) => {
               // format of port-property name: port:property
               const [portStr, propertyName] = portPropertyName.split(":");
-              return {port: Number(portStr), propertyName};
+              return { port: Number(portStr), propertyName };
             };
 
             const findAttributeType = (portPropertyName: string) => {
               // format of port-property name: port:property
-              const {port, propertyName} = parsePortPropertyName(portPropertyName);
+              const { port, propertyName } = parsePortPropertyName(portPropertyName);
               if (!isDefined(this.currentOperatorId) || !isDefined(port)) {
                 return undefined;
               }
               const attributeName = c.value[propertyName];
-              return this.schemaPropagationService.getOperatorInputAttributeType(this.currentOperatorId, port, attributeName);
+              return this.schemaPropagationService.getOperatorInputAttributeType(
+                this.currentOperatorId,
+                port,
+                attributeName
+              );
             };
 
-            type AttributeTypeRuleSchemaConstraint = typeof mapSource.attributeTypeRules[keyof typeof mapSource.attributeTypeRules];
+            type AttributeTypeRuleSchemaConstraint =
+              typeof mapSource.attributeTypeRules[keyof typeof mapSource.attributeTypeRules];
 
-            const checkEnumConstraint = (inputAttributeType: SchemaAttributeType, enumConstraint: AttributeTypeRuleSchemaConstraint['enum']) => {
+            const checkEnumConstraint = (
+              inputAttributeType: SchemaAttributeType,
+              enumConstraint: AttributeTypeRuleSchemaConstraint["enum"]
+            ) => {
               if (isDefined(enumConstraint) && !enumConstraint.includes(inputAttributeType)) {
-                errorMessage = `it's expected to be ${enumConstraint.join(' or ')}.`;
+                errorMessage = `it's expected to be ${enumConstraint.join(" or ")}.`;
                 return false;
               }
               return true;
-            }
+            };
 
-            const checkConstConstraint = (inputAttributeType: SchemaAttributeType, constConstraint: AttributeTypeRuleSchemaConstraint['const']) => {
+            const checkConstConstraint = (
+              inputAttributeType: SchemaAttributeType,
+              constConstraint: AttributeTypeRuleSchemaConstraint["const"]
+            ) => {
               if (!isDefined(constConstraint)) {
                 return true;
               }
@@ -535,9 +545,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 }
               }
               return true;
-            }
+            };
 
-            const checkAllOfConstraint = (inputAttributeType: SchemaAttributeType, allOfConstraint: AttributeTypeRuleSchemaConstraint['allOf']) => {
+            const checkAllOfConstraint = (
+              inputAttributeType: SchemaAttributeType,
+              allOfConstraint: AttributeTypeRuleSchemaConstraint["allOf"]
+            ) => {
               if (!isDefined(allOfConstraint)) {
                 return true;
               }
@@ -558,10 +571,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 // add more to the condition if needed
                 if (ifCondSatisfied && !checkEnumConstraint(inputAttributeType, allOf.then.enum)) {
                   // parse if condition to readable string
-                  const ifCondStr = Object.entries(allOf.if).map(([ifProp, ifConstraint]) => {
-                    const ifAttributeValue = c.value[ifProp];
-                    return `'${ifProp}' is ${ifAttributeValue}`;
-                  }).join(" and ");
+                  const ifCondStr = Object.entries(allOf.if)
+                    .map(([ifProp, ifConstraint]) => {
+                      const ifAttributeValue = c.value[ifProp];
+                      return `'${ifProp}' is ${ifAttributeValue}`;
+                    })
+                    .join(" and ");
                   errorMessage = `it's expected to be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`;
                   return false;
                 }
@@ -569,9 +584,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               return true;
             };
 
-
             // Get the type of constrains for each property in AttributeTypeRuleSchema
-            
+
             const checkConstraint = (portPropertyName: string, constraint: AttributeTypeRuleSchemaConstraint) => {
               const inputAttributeType = findAttributeType(portPropertyName);
               // when inputAttributeType is undefined, it means the property is not set
@@ -599,9 +613,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               if (!checkConstraint(prop, constraint)) {
                 // have to get the type, attribute name and property name again
                 // should consider reusing findAttributeType()
-                const {port, propertyName} = parsePortPropertyName(prop);
+                const { port, propertyName } = parsePortPropertyName(prop);
                 const attributeName = c.value[propertyName];
-                const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(this.currentOperatorId, port, attributeName);
+                const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(
+                  this.currentOperatorId,
+                  port,
+                  attributeName
+                );
                 errorMessage = `The type of '${attributeName}' is ${inputAttributeType}, but ` + errorMessage;
                 field.validators.checkAttributeType.message = errorMessage;
                 return false;
@@ -612,7 +630,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           },
           message: (error: any, field: FormlyFieldConfig) => {
             // default error message
-            return 'The type of the selected attribute is not valid';
+            return "The type of the selected attribute is not valid";
           },
         };
         mappedField.validation = {
@@ -715,7 +733,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .getTexeraGraph()
       .getOperatorDisplayNameChangedStream()
       .pipe(untilDestroyed(this))
-      .subscribe(({operatorID, newDisplayName}) => {
+      .subscribe(({ operatorID, newDisplayName }) => {
         if (operatorID === this.currentOperatorId) this.formTitle = newDisplayName;
       });
   }

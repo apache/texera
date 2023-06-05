@@ -74,14 +74,17 @@ export class SchemaPropagationService {
     return this.operatorInputSchemaMap[operatorID];
   }
 
-  public getPortInputSchema(operatorID: string, portIndex: number): PortInputSchema | undefined{
+  public getPortInputSchema(operatorID: string, portIndex: number): PortInputSchema | undefined {
     return this.getOperatorInputSchema(operatorID)?.[portIndex];
   }
 
-  public getOperatorInputAttributeType(operatorID: string, portIndex: number, attributeName: string): SchemaAttributeType | undefined {
+  public getOperatorInputAttributeType(
+    operatorID: string,
+    portIndex: number,
+    attributeName: string
+  ): SchemaAttributeType | undefined {
     return this.getPortInputSchema(operatorID, portIndex)?.find(e => e.attributeName === attributeName)?.attributeType;
   }
-
 
   /**
    * Apply the schema propagation result to an operator.
@@ -290,7 +293,6 @@ export class SchemaPropagationService {
   }
 }
 
-
 // possible types of an attribute
 export type SchemaAttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "ANY";
 
@@ -303,7 +305,7 @@ export interface SchemaAttribute
 
 // input schema of an operator: an array of schemas at each input port
 export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
-export type PortInputSchema = ReadonlyArray<SchemaAttribute>
+export type PortInputSchema = ReadonlyArray<SchemaAttribute>;
 /**
  * The backend interface of the return object of a successful execution
  * of autocomplete API
