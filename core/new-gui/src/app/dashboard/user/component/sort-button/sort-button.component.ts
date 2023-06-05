@@ -20,8 +20,8 @@ export class SortButtonComponent {
   set entries(value: ReadonlyArray<DashboardEntry>) {
     const update = () => {
       this._entries = value;
-      this.entriesChange.emit(value);
       this.sort();
+      this.entriesChange.emit(this._entries);
     };
     // Update entries property only if the input differ from existing value. This breaks the infinite recursion.
     if (this._entries === undefined || value.length != this._entries.length) {
