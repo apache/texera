@@ -80,6 +80,31 @@ class UDFOperatorV2(TupleOperatorV2):
         pass
 
 
+class UDFSourceOperator(SourceOperator):
+    def open(self) -> None:
+        """
+        Open a context of the operator. Usually can be used for loading/initiating some
+        resources, such as a file, a model, or an API client.
+        """
+        pass
+
+    @abstractmethod
+    def produce(self) -> Iterator[Optional[Union[TupleLike, TableLike]]]:
+        """
+        Produce Tuples or Tables. Used by the source operator only.
+
+        :return: Iterator[Union[TupleLike, TableLike, None]], producing
+            one TupleLike object, one TableLike object, or None, at a time.
+        """
+        yield
+
+    def close(self) -> None:
+        """
+        Close the context of the operator.
+        """
+        pass
+
+
 class UDFTableOperator(TableOperator):
     """
     Base class for table-oriented user-defined operators. A concrete implementation must

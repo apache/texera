@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import com.twitter.util.Promise
 import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.{Nested, Pass}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 

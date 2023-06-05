@@ -1,13 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorRef, Stash}
+import akka.actor.{Actor, Stash}
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.logging.storage.{
   DeterminantLogStorage,
-  EmptyLogStorage,
-  LocalFSLogStorage
+  EmptyLogStorage
 }
-import edu.uci.ics.amber.engine.architecture.logging.{AsyncLogWriter, LogManager}
+import edu.uci.ics.amber.engine.architecture.logging.LogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkSenderActorRef,
@@ -19,8 +18,8 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkCommunicationActor,
   NetworkOutputPort
 }
-import edu.uci.ics.amber.engine.architecture.recovery.{LocalRecoveryManager, RecoveryQueue}
-import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils}
+import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,

@@ -4,6 +4,9 @@ version := "0.1-SNAPSHOT"
 
 scalaVersion := "2.12.15"
 
+semanticdbEnabled := true
+semanticdbVersion := scalafixSemanticdb.revision
+
 // to turn on, use: INFO
 // to turn off, use: WARNING
 scalacOptions ++= Seq("-Xelide-below", "WARNING")
@@ -12,6 +15,8 @@ scalacOptions ++= Seq("-Xelide-below", "WARNING")
 scalacOptions += "-feature"
 // to check deprecation warnings
 scalacOptions += "-deprecation"
+// to check unused imports
+scalacOptions += "-Ywarn-unused-import"
 
 conflictManager := ConflictManager.latestRevision
 
@@ -127,7 +132,7 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "10.0.0"
+val arrowVersion = "11.0.0"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,

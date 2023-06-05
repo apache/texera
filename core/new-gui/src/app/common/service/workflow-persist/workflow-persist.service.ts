@@ -1,20 +1,24 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, throwError } from "rxjs";
+import { BehaviorSubject, Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
-import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
+import { DashboardWorkflowEntry } from "../../../dashboard/user/type/dashboard-workflow-entry";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
 export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
+export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
+export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
+export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
+export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
@@ -83,11 +87,8 @@ export class WorkflowPersistService {
     );
   }
 
-  /**
-   * retrieves a list of workflows from backend database that belongs to the user in the session.
-   */
-  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`).pipe(
+  private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflowEntry[]> {
+    return this.http.get<DashboardWorkflowEntry[]>(url).pipe(
       map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
         dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
           return {
@@ -96,6 +97,61 @@ export class WorkflowPersistService {
           };
         })
       )
+    );
+  }
+
+  /**
+   * retrieves a list of workflows from backend database that belongs to the user in the session.
+   */
+  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
+    return this.makeRequestAndFormatWorkflowResponse(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
+  }
+
+  /**
+   * Search workflows by a text query from backend database that belongs to the user in the session.
+   */
+  public searchWorkflows(
+    keywords: string[],
+    createDateStart: Date | null,
+    createDateEnd: Date | null,
+    modifiedDateStart: Date | null,
+    modifiedDateEnd: Date | null,
+    owners: string[],
+    ids: string[],
+    operators: string[],
+    projectIds: number[]
+  ): Observable<DashboardWorkflowEntry[]> {
+    function* getQueryParameters(): Iterable<[name: string, value: string]> {
+      if (keywords) {
+        for (const keyword of keywords) {
+          yield ["query", keyword];
+        }
+      }
+      if (createDateStart) yield ["createDateStart", createDateStart.toISOString().split("T")[0]];
+      if (createDateEnd) yield ["createDateEnd", createDateEnd.toISOString().split("T")[0]];
+      if (modifiedDateStart) yield ["modifiedDateStart", modifiedDateStart.toISOString().split("T")[0]];
+      if (modifiedDateEnd) yield ["modifiedDateEnd", modifiedDateEnd.toISOString().split("T")[0]];
+      for (const owner of owners) {
+        yield ["owner", owner];
+      }
+      for (const id of ids) {
+        yield ["id", id];
+      }
+      for (const operator of operators) {
+        yield ["operator", operator];
+      }
+      for (const id of projectIds) {
+        yield ["projectId", id.toString()];
+      }
+    }
+    const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
+      [...queryStrings]
+        .filter(q => q[1])
+        .map(([name, value]) => name + "=" + encodeURIComponent(value))
+        .join("&");
+    const queryString = concatenateQueryStrings(getQueryParameters());
+    return this.makeRequestAndFormatWorkflowResponse(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${queryString}`
     );
   }
 
@@ -148,5 +204,19 @@ export class WorkflowPersistService {
 
   public isWorkflowPersistEnabled(): boolean {
     return this.workflowPersistFlag;
+  }
+
+  /**
+   * retrieves all workflow owners
+   */
+  public retrieveOwners(): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`);
+  }
+
+  /**
+   * retrieves all workflow IDs
+   */
+  public retrieveWorkflowIDs(): Observable<number[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
   }
 }

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.{
   JsonProperty,
   JsonPropertyDescription
 }
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaString,
@@ -22,47 +21,26 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{BufferedReader, FileReader}
-import scala.collection.convert.ImplicitConversions.`iterator asScala`
+import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
-/* ignoring inherited limit and offset properties because they are not hideable */
+/* ignoring inherited limit and offset properties because they are not hideable
+ *   new, identical limit and offset fields with additional annotations to make hideable
+ *   are created and used from the TextSourceOpDesc trait
+ *   TODO: to be considered in potential future refactor*/
 @JsonIgnoreProperties(value = Array("limit", "offset"))
-class TextScanSourceOpDesc extends ScanSourceOpDesc {
-
-  /* create new, identical limit and offset fields
-      with additional annotations to make hideable
-      TODO: to be considered in potential future refactor */
-
-  @JsonProperty()
-  @JsonSchemaTitle("Limit")
-  @JsonPropertyDescription("max output count")
-  @JsonDeserialize(contentAs = classOf[Int])
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "outputAsSingleTuple"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
-    )
-  )
-  var limitHideable: Option[Int] = None
-
-  @JsonProperty()
-  @JsonSchemaTitle("Offset")
-  @JsonPropertyDescription("starting point of output")
-  @JsonDeserialize(contentAs = classOf[Int])
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "outputAsSingleTuple"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
-    )
-  )
-  var offsetHideable: Option[Int] = None
+class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
 
   @JsonProperty(defaultValue = "false")
-  @JsonPropertyDescription(
-    "scan entire text file into single output tuple, ignoring any offsets and limits"
+  @JsonSchemaTitle("Binary")
+  @JsonPropertyDescription("output as Binary instead of UTF-8")
+  @JsonSchemaInject(
+    strings = Array(
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "outputAsSingleTuple"),
+      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
+    )
   )
-  var outputAsSingleTuple: Boolean = false
+  var outputAsBinary: Boolean = false
 
   fileTypeName = Option("Text")
 
@@ -73,12 +51,11 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc {
         // get offset and max line values
         val reader = new BufferedReader(new FileReader(path))
         val offsetValue = offsetHideable.getOrElse(0)
-        var lines = reader.lines().iterator().drop(offsetValue)
-        if (limitHideable.isDefined) {
-          lines = lines.take(limitHideable.get)
-        }
-        val count: Int = lines.map(_ => 1).sum
+        val count: Int = countNumLines(reader.lines().iterator().asScala, offsetValue)
         reader.close()
+
+        // default attribute name
+        val defaultAttributeName: String = if (outputAsSingleTuple) "file" else "line"
 
         // using only 1 worker for text scan to maintain proper ordering
         OpExecConfig.localLayer(
@@ -86,7 +63,13 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc {
           _ => {
             val startOffset: Int = offsetValue
             val endOffset: Int = offsetValue + count
-            new TextScanSourceOpExec(this, startOffset, endOffset, outputAsSingleTuple)
+            new TextScanSourceOpExec(
+              this,
+              startOffset,
+              endOffset,
+              if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
+              else attributeName.get
+            )
           }
         )
       case None =>
@@ -96,9 +79,17 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc {
 
   @Override
   override def inferSchema(): Schema = {
+    val defaultAttributeName: String = if (outputAsSingleTuple) "file" else "line"
     Schema
       .newBuilder()
-      .add(new Attribute(if (outputAsSingleTuple) "file" else "line", AttributeType.STRING))
+      .add(
+        new Attribute(
+          if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
+          else attributeName.get,
+          if (outputAsBinary) AttributeType.BINARY
+          else AttributeType.STRING
+        )
+      )
       .build()
   }
 }

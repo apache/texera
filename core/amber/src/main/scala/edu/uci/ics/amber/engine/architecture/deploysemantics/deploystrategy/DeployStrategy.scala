@@ -4,7 +4,7 @@ import akka.actor.Address
 
 trait DeployStrategy extends Serializable {
 
-  def initialize(available: Array[Address])
+  def initialize(available: Array[Address]): Unit
 
   def next(): Address
 

@@ -18,7 +18,7 @@ jobs:
           - macos-latest
           - windows-latest
         node-version:
-          - 14
+          - 18
         architecture:
           - x64
     steps:
@@ -81,8 +81,8 @@ jobs:
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/amber/*.sbt", "core/amber/project/**.{scala,sbt}", "core/amber/project/build.properties" ]'
-      - name: Lint with scalafmt
-        run: cd core/amber && sbt scalafmtCheckAll
+      - name: Lint with scalafix & scalafmt
+        run: cd core/amber && sbt "scalafixAll --check" && sbt scalafmtCheckAll
       - name: Compile with sbt
         run: cd core/amber && sbt clean package
       - name: Run backend tests

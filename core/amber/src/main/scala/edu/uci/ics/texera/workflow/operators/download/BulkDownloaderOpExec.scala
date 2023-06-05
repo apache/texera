@@ -3,21 +3,16 @@ package edu.uci.ics.texera.workflow.operators.download
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
-import org.jooq.types.UInteger
+import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
-import java.io.{BufferedWriter, File, FileWriter}
 import java.net.URL
-import java.util
-import java.util.UUID
-import java.util.concurrent.LinkedBlockingQueue
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.io.Source
 import scala.concurrent.duration._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -94,17 +89,26 @@ class BulkDownloaderOpExec(
       Await.result(
         Future {
           val urlObj = new URL(url)
-          val input = urlObj.openStream()
-          if (input.available() > 0) {
-            UserFileResource
-              .saveUserFileSafe(
-                workflowContext.userId.get,
-                s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost.replace(".", "")}.download",
-                input,
-                s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
-              )
-          } else {
-            throw new RuntimeException(s"content is not available for $url")
+          val input = getInputStreamFromURL(urlObj)
+          input match {
+            case Some(contentStream) =>
+              if (contentStream.available() > 0) {
+                val filename =
+                  s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
+                    .replace(".", "")}.download"
+                UserFileResource
+                  .saveFile(
+                    workflowContext.userId.get,
+                    filename,
+                    contentStream,
+                    s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
+                  )
+                filename
+              } else {
+                throw new RuntimeException(s"content is not available for $url")
+              }
+            case None =>
+              throw new RuntimeException(s"fetch content failed for $url")
           }
         },
         5.seconds

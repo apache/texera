@@ -1,0 +1,56 @@
+<div class="modal-header">
+  <h4
+    class="modal-title"
+    id="modal-basic-title">
+    Add Files To Project
+  </h4>
+  <button
+    (click)="activeModal.close()"
+    aria-label="Close"
+    class="close"
+    type="button">
+    <span aria-hidden="true"> × </span>
+  </button>
+</div>
+
+<div class="modal-body">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>
+          <input
+            (change)="changeAll()"
+            [checked]="isAllChecked()"
+            type="checkbox" />
+        </th>
+        <th scope="col">ID #</th>
+        <th scope="col">Owner</th>
+        <th scope="col">Name</th>
+        <th scope="col">Size</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let fileEntry of unaddedFiles; let i = index">
+        <td>
+          <input
+            [(ngModel)]="checkedFiles[i]"
+            type="checkbox" />
+        </td>
+        <td>{{fileEntry.file.fid}}</td>
+        <td>{{fileEntry.ownerEmail}}</td>
+        <td>{{fileEntry.file.name}}</td>
+        <td>{{addFileSizeUnit(fileEntry.file.size)}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-footer">
+  <button
+    (click)="submitForm()"
+    aria-label="Confirm"
+    class="btn btn-primary"
+    type="button">
+    Confirm
+  </button>
+</div>

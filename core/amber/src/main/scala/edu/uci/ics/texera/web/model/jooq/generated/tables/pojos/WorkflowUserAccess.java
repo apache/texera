@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowUserAccess;
 
 import org.jooq.types.UInteger;
@@ -15,32 +16,28 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccess implements IWorkflowUserAccess {
 
-    private static final long serialVersionUID = 1728538290;
+    private static final long serialVersionUID = -354047803;
 
-    private UInteger uid;
-    private UInteger wid;
-    private Boolean  readPrivilege;
-    private Boolean  writePrivilege;
+    private UInteger                    uid;
+    private UInteger                    wid;
+    private WorkflowUserAccessPrivilege privilege;
 
     public WorkflowUserAccess() {}
 
     public WorkflowUserAccess(IWorkflowUserAccess value) {
         this.uid = value.getUid();
         this.wid = value.getWid();
-        this.readPrivilege = value.getReadPrivilege();
-        this.writePrivilege = value.getWritePrivilege();
+        this.privilege = value.getPrivilege();
     }
 
     public WorkflowUserAccess(
-        UInteger uid,
-        UInteger wid,
-        Boolean  readPrivilege,
-        Boolean  writePrivilege
+        UInteger                    uid,
+        UInteger                    wid,
+        WorkflowUserAccessPrivilege privilege
     ) {
         this.uid = uid;
         this.wid = wid;
-        this.readPrivilege = readPrivilege;
-        this.writePrivilege = writePrivilege;
+        this.privilege = privilege;
     }
 
     @Override
@@ -64,23 +61,13 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
     }
 
     @Override
-    public Boolean getReadPrivilege() {
-        return this.readPrivilege;
+    public WorkflowUserAccessPrivilege getPrivilege() {
+        return this.privilege;
     }
 
     @Override
-    public void setReadPrivilege(Boolean readPrivilege) {
-        this.readPrivilege = readPrivilege;
-    }
-
-    @Override
-    public Boolean getWritePrivilege() {
-        return this.writePrivilege;
-    }
-
-    @Override
-    public void setWritePrivilege(Boolean writePrivilege) {
-        this.writePrivilege = writePrivilege;
+    public void setPrivilege(WorkflowUserAccessPrivilege privilege) {
+        this.privilege = privilege;
     }
 
     @Override
@@ -89,8 +76,7 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
 
         sb.append(uid);
         sb.append(", ").append(wid);
-        sb.append(", ").append(readPrivilege);
-        sb.append(", ").append(writePrivilege);
+        sb.append(", ").append(privilege);
 
         sb.append(")");
         return sb.toString();
@@ -104,8 +90,7 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
     public void from(IWorkflowUserAccess from) {
         setUid(from.getUid());
         setWid(from.getWid());
-        setReadPrivilege(from.getReadPrivilege());
-        setWritePrivilege(from.getWritePrivilege());
+        setPrivilege(from.getPrivilege());
     }
 
     @Override

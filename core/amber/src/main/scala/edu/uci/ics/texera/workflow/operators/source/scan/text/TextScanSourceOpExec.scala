@@ -13,7 +13,7 @@ class TextScanSourceOpExec private[text] (
     val desc: TextScanSourceOpDesc,
     val startOffset: Int,
     val endOffset: Int,
-    val outputAsSingleTuple: Boolean
+    val outputAttributeName: String
 ) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedReader = _
@@ -22,13 +22,14 @@ class TextScanSourceOpExec private[text] (
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (outputAsSingleTuple) {
+    if (desc.outputAsSingleTuple) {
       Iterator(
         Tuple
           .newBuilder(schema)
           .add(
-            schema.getAttribute("file"),
-            new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
+            schema.getAttribute(outputAttributeName),
+            if (desc.outputAsBinary) Files.readAllBytes(path)
+            else new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
             // currently using UTF_8 encoding, which will support all files
             // that can be represented using Unicode characters
             // NOTE : currently this mode may not support all binary files,
@@ -38,14 +39,14 @@ class TextScanSourceOpExec private[text] (
       )
     } else { // normal text file scan mode
       rows.map(line => {
-        Tuple.newBuilder(schema).add(schema.getAttribute("line"), line).build()
+        Tuple.newBuilder(schema).add(schema.getAttribute(outputAttributeName), line).build()
       })
     }
   }
 
   override def open(): Unit = {
     schema = desc.inferSchema()
-    if (outputAsSingleTuple) {
+    if (desc.outputAsSingleTuple) {
       path = Paths.get(desc.filePath.get)
     } else {
       reader = new BufferedReader(new FileReader(desc.filePath.get))
@@ -54,5 +55,5 @@ class TextScanSourceOpExec private[text] (
   }
 
   // in outputAsSingleTuple mode, Files.readAllBytes handles the closing of file
-  override def close(): Unit = if (!outputAsSingleTuple) reader.close()
+  override def close(): Unit = if (!desc.outputAsSingleTuple) reader.close()
 }
