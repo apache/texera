@@ -630,12 +630,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedCommentBoxIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
-        const highlightedGroupIDs = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedGroupIDs();
-        const highlightedLinkIDs = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedLinkIDs();
+        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+        const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
