@@ -52,7 +52,7 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource, inputMapping, outputMapping,  schema) =>
+      case InitializeOperatorLogic(code, isSource, inputMapping, outputMapping, schema) =>
         InitializeOperatorLogicV2(
           code,
           isSource,

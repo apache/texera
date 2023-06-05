@@ -180,7 +180,7 @@ class WorkflowScheduler(
                 pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
                 inputMappingList,
                 outputMappingList,
-                pythonUDFOpExec.getOutputSchema,
+                pythonUDFOpExec.getOutputSchema
               ),
               workerID
             )
