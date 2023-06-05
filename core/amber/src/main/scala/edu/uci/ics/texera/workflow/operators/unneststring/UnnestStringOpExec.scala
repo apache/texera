@@ -2,11 +2,7 @@ package edu.uci.ics.texera.workflow.operators.unneststring
 
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
 
 class UnnestStringOpExec(opDesc: UnnestStringOpDesc, operatorSchemaInfo: OperatorSchemaInfo)
     extends FlatMapOpExec {

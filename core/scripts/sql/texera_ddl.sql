@@ -163,3 +163,13 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
+
+-- create fulltext search indexes
+
+CREATE FULLTEXT INDEX `idx_workflow_name_description_content` ON `texera_db`.`workflow` (name, description, content);
+
+CREATE FULLTEXT INDEX `idx_user_name` ON `texera_db`.`user` (name);
+
+CREATE FULLTEXT INDEX `idx_user_project_name_description` ON `texera_db`.`project` (name, description);
+
+CREATE FULLTEXT INDEX `idx_file_name_description` ON `texera_db`.`file` (name, description);
