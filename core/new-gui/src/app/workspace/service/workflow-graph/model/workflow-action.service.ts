@@ -82,7 +82,7 @@ export class WorkflowActionService {
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
     private workflowUtilService: WorkflowUtilService,
-    private route: ActivatedRoute,
+    private route: ActivatedRoute
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
