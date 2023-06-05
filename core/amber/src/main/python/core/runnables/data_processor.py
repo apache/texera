@@ -35,8 +35,10 @@ class DataProcessor(Runnable, Stoppable):
 
                 # bind link with input index
                 if link not in self._context.tuple_processing_manager.input_link_map:
-                    raise Exception(f"Unexpected input link {link}, "
-                                    f"not in input mapping {self._context.tuple_processing_manager.input_link_map}")
+                    raise Exception(
+                        f"Unexpected input link {link}, not in input mapping "
+                        f"{self._context.tuple_processing_manager.input_link_map}"
+                    )
                 port = self._context.tuple_processing_manager.input_link_map[link]
 
                 output_iterator = (
