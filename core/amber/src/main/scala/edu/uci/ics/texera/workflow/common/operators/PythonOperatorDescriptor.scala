@@ -3,8 +3,8 @@ package edu.uci.ics.texera.workflow.common.operators
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpExecV2
 
 import scala.collection.mutable
 
