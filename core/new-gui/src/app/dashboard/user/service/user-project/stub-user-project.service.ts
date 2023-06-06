@@ -1,11 +1,11 @@
 import { Observable } from "rxjs";
-import { UserProject } from "../../type/user-project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { UserProjectService } from "./user-project.service";
 
 export class StubUserProjectService {
-  public retrieveProjectList(): Observable<UserProject[]> {
+  public retrieveProjectList(): Observable<DashboardProject[]> {
     return new Observable(observer =>
       observer.next([
         { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
@@ -31,7 +31,7 @@ export class StubUserProjectService {
     throw new Error("Not implemented.");
   }
 
-  public retrieveProject(pid: number): Observable<UserProject> {
+  public retrieveProject(pid: number): Observable<DashboardProject> {
     throw new Error("Not implemented.");
   }
 
@@ -47,7 +47,7 @@ export class StubUserProjectService {
     throw new Error("Not implemented.");
   }
 
-  public createProject(name: string): Observable<UserProject> {
+  public createProject(name: string): Observable<DashboardProject> {
     throw new Error("Not implemented.");
   }
 

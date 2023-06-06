@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { environment } from "src/environments/environment";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowExecutionsComponent } from "../ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
@@ -10,7 +10,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "src/app/common/type/workflow";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
-import { UserProject } from "../../../type/user-project";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 
@@ -51,7 +51,7 @@ export class UserWorkflowListItemComponent {
     this._owners = value;
   }
   @Input() public pid: number = 0;
-  userProjectsMap: ReadonlyMap<number, UserProject> = new Map();
+  userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map();
   @Output() checkedChange: EventEmitter<boolean> = new EventEmitter<boolean>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();

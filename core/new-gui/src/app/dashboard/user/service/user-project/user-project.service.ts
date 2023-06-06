@@ -4,7 +4,7 @@ import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
 import { DashboardFile } from "../../type/dashboard-file.interface";
-import { UserProject } from "../../type/user-project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 
 export const USER_PROJECT_BASE_URL = `${AppSettings.getApiEndpoint()}/project`;
 export const USER_PROJECT_LIST_URL = `${USER_PROJECT_BASE_URL}/list`;
@@ -19,12 +19,12 @@ export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 })
 export class UserProjectService {
   private files: ReadonlyArray<DashboardFile> = [];
-  private projects = new BehaviorSubject<UserProject[]>([]);
+  private projects = new BehaviorSubject<DashboardProject[]>([]);
 
   constructor(private http: HttpClient) {}
 
-  public retrieveProjectList(): Observable<UserProject[]> {
-    this.http.get<UserProject[]>(`${USER_PROJECT_LIST_URL}`).subscribe(this.projects);
+  public retrieveProjectList(): Observable<DashboardProject[]> {
+    this.http.get<DashboardProject[]>(`${USER_PROJECT_LIST_URL}`).subscribe(this.projects);
     return this.projects;
   }
 
@@ -46,8 +46,8 @@ export class UserProjectService {
     });
   }
 
-  public retrieveProject(pid: number): Observable<UserProject> {
-    return this.http.get<UserProject>(`${USER_PROJECT_BASE_URL}/${pid}`);
+  public retrieveProject(pid: number): Observable<DashboardProject> {
+    return this.http.get<DashboardProject>(`${USER_PROJECT_BASE_URL}/${pid}`);
   }
 
   public updateProjectName(pid: number, name: string): Observable<Response> {
@@ -62,8 +62,8 @@ export class UserProjectService {
     return this.http.delete<Response>(`${DELETE_PROJECT_URL}/` + pid);
   }
 
-  public createProject(name: string): Observable<UserProject> {
-    return this.http.post<UserProject>(`${CREATE_PROJECT_URL}/` + name, {});
+  public createProject(name: string): Observable<DashboardProject> {
+    return this.http.post<DashboardProject>(`${CREATE_PROJECT_URL}/` + name, {});
   }
 
   public addWorkflowToProject(pid: number, wid: number): Observable<Response> {
