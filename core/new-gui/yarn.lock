@@ -5268,11 +5268,6 @@ clone@^2.1.1:
   resolved "https://registry.yarnpkg.com/clone/-/clone-2.1.2.tgz#1b7f4b9f591f1e8f83670401600345a02887435f"
   integrity sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==
 
-clonedeep@2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/clonedeep/-/clonedeep-2.0.0.tgz#8ceca0777f477bbf31fe8c871aaf63a390bbc272"
-  integrity sha512-dbSwE7z2tJhF3511dzWqyKOKRA+5uQaILERDdQPxe/Eihm3atnkJRaz/t32fQqfmPBdJiICZD9iLSbaT47UbLw==
-
 co@^4.6.0:
   version "4.6.0"
   resolved "https://registry.yarnpkg.com/co/-/co-4.6.0.tgz#6ea6bdf3d853ae54ccb8e47bfa0bf3f9031fb184"
