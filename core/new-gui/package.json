@@ -38,7 +38,6 @@
     "@danmarshall/deckgl-typings": "4.9.15",
     "@ng-bootstrap/ng-bootstrap": "9.1.3",
     "@ngneat/until-destroy": "8.1.4",
-    "@ngx-formly/bootstrap": "5.11.1",
     "@ngx-formly/core": "5.11.1",
     "@ngx-formly/material": "5.11.1",
     "@ngx-formly/ng-zorro-antd": "0.0.1",
@@ -68,7 +67,6 @@
     "js-abbreviation-number": "1.4.0",
     "json-ref-lite": "1.1.0",
     "jszip": "3.10.1",
-    "jwt-decode": "3.1.2",
     "lodash-es": "4.17.21",
     "mapbox-gl": "2.7.0",
     "marked": "4.2.12",
@@ -103,7 +101,6 @@
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "13.2.5",
-    "@angular-eslint/builder": "13.1.0",
     "@angular-eslint/eslint-plugin": "13.1.0",
     "@angular-eslint/eslint-plugin-template": "13.1.0",
     "@angular-eslint/schematics": "13.1.0",
