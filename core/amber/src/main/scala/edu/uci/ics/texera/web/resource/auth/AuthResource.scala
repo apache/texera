@@ -18,7 +18,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 object AuthResource {
 
-  final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+  final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
 
   /**
     * Retrieve exactly one User from databases with the given username and password.
@@ -32,7 +32,7 @@ object AuthResource {
       SqlServer.createDSLContext
         .select()
         .from(USER)
-        .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
+        .where(USER.NAME.eq(name))
         .fetchOneInto(classOf[User])
     ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
   }

@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonCo
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyOperatorLogicHandler.ModifyOperatorLogic
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
@@ -61,7 +61,7 @@ object ControlCommandConvertUtils {
         )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
-      case ModifyOperatorLogic(code, isSource) =>
+      case ModifyPythonOperatorLogic(code, isSource) =>
         ModifyOperatorLogicV2(code, isSource)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
@@ -99,7 +99,7 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty                                                        => Unit
+      case Empty                                                        => ()
       case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
       case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
         // TODO: convert real samples back from PythonUDF.

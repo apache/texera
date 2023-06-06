@@ -1,15 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.sink.managed
 
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.engine.common.{ISinkOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode._
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.{IncrementalOutputMode, ProgressiveUtils}
-import edu.uci.ics.texera.workflow.operators.sink.storage.{SinkStorageWriter, SinkStorageReader}
-
-import scala.collection.mutable
+import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageWriter
 
 class ProgressiveSinkOpExec(
     val operatorSchemaInfo: OperatorSchemaInfo,
@@ -23,7 +20,7 @@ class ProgressiveSinkOpExec(
 
   override def consume(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity
+      input: Int
   ): Unit = {
     tuple match {
       case Left(t) =>

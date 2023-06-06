@@ -4,44 +4,38 @@ import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import scala.collection.mutable
 import scala.util.Random
 
 class SplitOpExec(
     val actor: Int,
-    val opDesc: SplitOpDesc,
-    val outputMapping: mutable.HashMap[LinkIdentity, (Int, String)]
+    val opDesc: SplitOpDesc
 ) extends OperatorExecutor {
 
-  val outputLinkMapping: Map[String, LinkIdentity] =
-    this.outputMapping.toMap.mapValues(v => v._2).map(_.swap);
-
-  val random = new Random(opDesc.seeds(actor))
+  lazy val random = new Random(opDesc.seeds(actor))
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[LinkIdentity])] = {
+  ): Iterator[(ITuple, Option[Int])] = {
 
     if (tuple.isLeft) {
       val isTraining = random.nextInt(100) < opDesc.k
-      val port = if (isTraining) "training" else "testing"
-      val outLink = outputLinkMapping.get(port)
-      Iterator.single((tuple.left.get, outLink))
+      // training output port: 0, testing output port: 1
+      val port = if (isTraining) 0 else 1
+      Iterator.single((tuple.left.get, Some(port)))
     } else {
       Iterator.empty
     }
   }
 
-  def processTexeraTuple(
+  override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = ???

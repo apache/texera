@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.service.{WorkflowCacheService, WorkflowService}
+import edu.uci.ics.texera.web.service.WorkflowService
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 
 import javax.websocket._
@@ -72,6 +72,13 @@ class WorkflowWebsocketResource extends LazyLogging {
           workflowStateOpt.foreach(state =>
             send(session, state.exportService.exportResult(uidOpt.get, resultExportRequest))
           )
+        case modifyLogicRequest: ModifyLogicRequest =>
+          if (workflowStateOpt.isDefined) {
+            val jobService = workflowStateOpt.get.jobService.getValue
+            val modifyLogicResponse =
+              jobService.jobReconfigurationService.modifyOperatorLogic(modifyLogicRequest)
+            send(session, modifyLogicResponse)
+          }
         case other =>
           workflowStateOpt match {
             case Some(workflow) => workflow.wsInput.onNext(other, uidOpt)

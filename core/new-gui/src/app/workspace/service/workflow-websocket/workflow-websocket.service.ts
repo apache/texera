@@ -65,7 +65,7 @@ export class WorkflowWebsocketService {
 
   public openWebsocket(wId: number) {
     const websocketUrl =
-      getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT) +
+      getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, "") +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
         ? "?access-token=" + AuthService.getAccessToken()
         : "");

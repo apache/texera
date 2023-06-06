@@ -1,13 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}
+import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
@@ -16,10 +16,10 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    new SQLSourceOpExecConfig(
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+    OpExecConfig.localLayer(
       this.operatorIdentifier,
-      (worker: Any) =>
+      _ =>
         new MySQLSourceOpExec(
           this.querySchema,
           host,

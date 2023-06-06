@@ -4,17 +4,16 @@ import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 trait OperatorExecutor extends IOperatorExecutor {
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[LinkIdentity])] = {
+  ): Iterator[(ITuple, Option[Int])] = {
     processTexeraTuple(
       tuple.asInstanceOf[Either[Tuple, InputExhausted]],
       input,
@@ -25,7 +24,7 @@ trait OperatorExecutor extends IOperatorExecutor {
 
   def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple]

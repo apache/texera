@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IUserFileAccess;
 
 import org.jooq.types.UInteger;
@@ -15,32 +16,28 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserFileAccess implements IUserFileAccess {
 
-    private static final long serialVersionUID = 1757479799;
+    private static final long serialVersionUID = 1954666889;
 
-    private UInteger uid;
-    private UInteger fid;
-    private Boolean  readAccess;
-    private Boolean  writeAccess;
+    private UInteger                uid;
+    private UInteger                fid;
+    private UserFileAccessPrivilege privilege;
 
     public UserFileAccess() {}
 
     public UserFileAccess(IUserFileAccess value) {
         this.uid = value.getUid();
         this.fid = value.getFid();
-        this.readAccess = value.getReadAccess();
-        this.writeAccess = value.getWriteAccess();
+        this.privilege = value.getPrivilege();
     }
 
     public UserFileAccess(
-        UInteger uid,
-        UInteger fid,
-        Boolean  readAccess,
-        Boolean  writeAccess
+        UInteger                uid,
+        UInteger                fid,
+        UserFileAccessPrivilege privilege
     ) {
         this.uid = uid;
         this.fid = fid;
-        this.readAccess = readAccess;
-        this.writeAccess = writeAccess;
+        this.privilege = privilege;
     }
 
     @Override
@@ -64,23 +61,13 @@ public class UserFileAccess implements IUserFileAccess {
     }
 
     @Override
-    public Boolean getReadAccess() {
-        return this.readAccess;
+    public UserFileAccessPrivilege getPrivilege() {
+        return this.privilege;
     }
 
     @Override
-    public void setReadAccess(Boolean readAccess) {
-        this.readAccess = readAccess;
-    }
-
-    @Override
-    public Boolean getWriteAccess() {
-        return this.writeAccess;
-    }
-
-    @Override
-    public void setWriteAccess(Boolean writeAccess) {
-        this.writeAccess = writeAccess;
+    public void setPrivilege(UserFileAccessPrivilege privilege) {
+        this.privilege = privilege;
     }
 
     @Override
@@ -89,8 +76,7 @@ public class UserFileAccess implements IUserFileAccess {
 
         sb.append(uid);
         sb.append(", ").append(fid);
-        sb.append(", ").append(readAccess);
-        sb.append(", ").append(writeAccess);
+        sb.append(", ").append(privilege);
 
         sb.append(")");
         return sb.toString();
@@ -104,8 +90,7 @@ public class UserFileAccess implements IUserFileAccess {
     public void from(IUserFileAccess from) {
         setUid(from.getUid());
         setFid(from.getFid());
-        setReadAccess(from.getReadAccess());
-        setWriteAccess(from.getWriteAccess());
+        setPrivilege(from.getPrivilege());
     }
 
     @Override

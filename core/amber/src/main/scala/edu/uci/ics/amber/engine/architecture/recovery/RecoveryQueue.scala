@@ -16,7 +16,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   InternalQueueElement
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import lbmq.LinkedBlockingMultiQueue
 
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
@@ -45,7 +44,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
   }
 
   def isReplayCompleted: Boolean = {
-    val res = !records.hasNext
+    val res = !records.hasNext && nextRecordToEmit == null
     if (res && !endCallbackTriggered) {
       endCallbackTriggered = true
       callbacksOnEnd.foreach(callback => callback())
@@ -53,13 +52,14 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
     res
   }
 
-  def drainAllStashedElements(
-      dataQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue,
-      controlQueue: LinkedBlockingMultiQueue[Int, InternalQueueElement]#SubQueue
-  ): Unit = {
+  def drainAllStashedElements(internalQueue: WorkerInternalQueue): Unit = {
     if (!cleaned) {
-      getAllStashedInputs.foreach(dataQueue.add)
-      getAllStashedControls.foreach(controlQueue.add)
+      getAllStashedInputs.foreach(inputElem => {
+        internalQueue.dataQueues(inputElem.from.name).add(inputElem)
+      })
+      getAllStashedControls.foreach(controlElem => {
+        internalQueue.controlQueue.add(controlElem)
+      })
       cleaned = true
     }
   }
@@ -108,6 +108,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
 
   private def processInternalEventsTillNextControl(): Unit = {
     var stop = false
+    step = 0
     while (records.hasNext && !stop) {
       records.next() match {
         case StepDelta(steps) =>
@@ -124,6 +125,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
   }
 
   def get(): InternalQueueElement = {
+    step -= 1
     if (step > 0) {
       //wait until input[targetVId] available
       inputMapping
@@ -131,6 +133,7 @@ class RecoveryQueue(logReader: DeterminantLogReader) {
         .take()
     } else {
       val res = nextRecordToEmit
+      nextRecordToEmit = null
       processInternalEventsTillNextControl()
       res
     }

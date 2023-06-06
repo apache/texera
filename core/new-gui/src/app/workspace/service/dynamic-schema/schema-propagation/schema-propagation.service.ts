@@ -126,7 +126,9 @@ export class SchemaPropagationService {
     // make a http post request to the API endpoint with the logical plan object
     return this.httpClient
       .post<SchemaPropagationResponse>(
-        `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
+        `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${
+          this.workflowActionService.getWorkflow().wid
+        }`,
         JSON.stringify(body),
         { headers: { "Content-Type": "application/json" } }
       )
@@ -200,7 +202,11 @@ export class SchemaPropagationService {
       if (!inputAttrAtPort) {
         return undefined;
       }
-      return inputAttrAtPort.map(attr => attr.attributeName);
+      const attrNames: string[] = inputAttrAtPort.map(attr => attr.attributeName);
+      if (v.additionalEnumValue) {
+        attrNames.push(v.additionalEnumValue);
+      }
+      return attrNames;
     };
 
     newJsonSchema = DynamicSchemaService.mutateProperty(

@@ -1,5 +1,6 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { Subject } from "rxjs";
 import { AbstractControl, FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
@@ -9,7 +10,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { cloneDeep, isEqual } from "lodash-es";
 import { CustomJSONSchema7, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
-import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
+import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
   SchemaAttribute,
@@ -31,16 +32,16 @@ import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
-import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
-import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { AccessEntry } from "../../../../dashboard/type/access.interface";
-import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
-import { Workflow } from "../../../../common/type/workflow";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
+import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
+import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -73,6 +74,11 @@ Quill.register("modules/cursors", QuillCursors);
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
 
+  currentOperatorSchema?: OperatorSchema;
+
+  readonly OperatorState = OperatorState;
+  currentOperatorStatus?: OperatorStatistics;
+
   // re-declare enum for angular template to access it
   readonly ExecutionState = ExecutionState;
 
@@ -86,6 +92,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   operatorPropertyChangeStream = createOutputFormChangeEventStream(this.sourceFormChangeEventStream, data =>
     this.checkOperatorProperty(data)
   );
+
+  listeningToChange: boolean = true;
 
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
@@ -108,8 +116,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-  public lockGranted: boolean = true;
-  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
+  public allUserWorkflowAccess: ReadonlyArray<ShareAccess> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -126,7 +133,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private userFileService: UserFileService,
-    private workflowGrantAccessService: WorkflowAccessService
+    private workflowGrantAccessService: ShareAccessService,
+    private workflowStatusSerivce: WorkflowStatusService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -163,19 +171,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.registerOperatorDisplayNameChangeHandler();
 
-    let workflow = this.workflowActionService.getWorkflow();
-    if (workflow) this.refreshGrantedList(workflow);
-  }
-
-  public refreshGrantedList(workflow: Workflow): void {
-    this.workflowGrantAccessService
-      .retrieveGrantedWorkflowAccessList(workflow)
+    this.workflowStatusSerivce
+      .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(
-        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
-        // @ts-ignore // TODO: fix this with notification component
-        (err: unknown) => console.log(err.error)
-      );
+      .subscribe(update => {
+        if (this.currentOperatorId) {
+          this.currentOperatorStatus = update[this.currentOperatorId];
+        }
+      });
   }
 
   async ngOnDestroy() {
@@ -190,28 +193,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
-    // This assumes "fileName" to be the only key for file names in an operator property.
-    const filename: string = <string>event["fileName"];
-    if (filename) {
-      const [owner, fname] = filename.split("/", 2);
-      this.allUserWorkflowAccess.forEach(userWorkflowAccess => {
-        this.userFileService
-          .grantUserFileAccess(
-            {
-              ownerName: owner,
-              file: { fid: -1, path: "", size: -1, description: "", uploadTime: "", name: fname },
-              accessLevel: "read",
-              isOwner: true,
-              projectIDs: [],
-            },
-            userWorkflowAccess.userName,
-            "read"
-          )
-          .pipe(untilDestroyed(this))
-          .subscribe();
-      });
-    }
-
     this.sourceFormChangeEventStream.next(event);
   }
 
@@ -223,16 +204,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId) {
       return;
     }
-    console.log("re-rendered");
-    // console.trace()
+    this.currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
+    this.currentOperatorStatus = this.workflowStatusSerivce.getCurrentStatus()[this.currentOperatorId];
+
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
-    const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-    this.workflowActionService.setOperatorVersion(operator.operatorID, currentOperatorSchema.operatorVersion);
+    this.workflowActionService.setOperatorVersion(operator.operatorID, this.currentOperatorSchema.operatorVersion);
     this.operatorVersion = operator.operatorVersion.slice(0, 9);
-    this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
-    this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
+    this.setFormlyFormBinding(this.currentOperatorSchema.jsonSchema);
+    this.formTitle = operator.customDisplayName ?? this.currentOperatorSchema.additionalMetadata.userFriendlyName;
 
     /**
      * Important: make a deep copy of the initial property data object.
@@ -246,7 +227,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // 1. the operator might be added not directly from the UI, which violates the precondition
     // 2. the schema might change, which specifies a new default value
     // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
-    this.ajv.validate(currentOperatorSchema, this.formData);
+    this.ajv.validate(this.currentOperatorSchema, this.formData);
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
@@ -327,9 +308,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .getTexeraGraph()
       .getOperatorPropertyChangeStream()
       .pipe(
+        filter(_ => this.listeningToChange),
         filter(_ => this.currentOperatorId !== undefined),
-        filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId),
-        filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
+        filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
       )
       .pipe(untilDestroyed(this))
       .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
@@ -363,8 +344,30 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.operatorPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorId) {
+        this.listeningToChange = false;
+        this.typeInferenceOnLambdaFunction(formData);
         this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
+        this.listeningToChange = true;
       }
+    });
+  }
+
+  typeInferenceOnLambdaFunction(formData: any): void {
+    if (!this.currentOperatorId?.includes("PythonLambdaFunction")) {
+      return;
+    }
+    const opInputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
+    if (!opInputSchema) {
+      return;
+    }
+    const firstPortInputSchema = opInputSchema[0];
+    if (!firstPortInputSchema) {
+      return;
+    }
+    const schemaMap = new Map(firstPortInputSchema?.map(obj => [obj.attributeName, obj.attributeType]));
+    formData.lambdaAttributeUnits.forEach((unit: any, index: number, a: any) => {
+      if (unit.attributeName === "Add New Column" && !unit.newAttributeName) a[index].attributeType = "";
+      if (schemaMap.has(unit.attributeName)) a[index].attributeType = schemaMap.get(unit.attributeName);
     });
   }
 
@@ -423,7 +426,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.hideExpression = createShouldHideFieldFunc(
           mapSource.hideTarget,
           mapSource.hideType,
-          mapSource.hideExpectedValue
+          mapSource.hideExpectedValue,
+          mapSource.hideOnNull
         );
       }
 

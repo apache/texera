@@ -2,16 +2,17 @@ package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
-    extends ParallelBatchingPartitioner(partitioning.batchSize, partitioning.receivers) {
+    extends Partitioner {
 
   val keysPerReceiver =
     ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length).toLong + 1
 
-  override def selectBatchingIndex(tuple: ITuple): Int = {
+  override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
     // Do range partitioning only on the first attribute in `rangeColumnIndices`.
     val fieldType = tuple
       .asInstanceOf[Tuple]
@@ -32,12 +33,14 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
     }
 
     if (fieldVal < partitioning.rangeMin) {
-      return 0
+      return Iterator(0)
     }
     if (fieldVal > partitioning.rangeMax) {
-      return partitioning.receivers.length - 1
+      return Iterator(partitioning.receivers.length - 1)
     }
-    ((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt
+    Iterator(((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt)
   }
+
+  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers
 
 }

@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.visualization.wordCloud;
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient;
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -77,7 +76,7 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input, PauseManager pauseManager, AsyncRPCClient asyncRPCClient) {
         if (tuple.isLeft()) {
             String term = tuple.left().get().getString(0);
             int frequency = tuple.left().get().getInt(1);

@@ -4,6 +4,8 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege;
+
 import java.io.Serializable;
 
 import org.jooq.types.UInteger;
@@ -36,24 +38,14 @@ public interface IWorkflowUserAccess extends Serializable {
     public UInteger getWid();
 
     /**
-     * Setter for <code>texera_db.workflow_user_access.read_privilege</code>.
+     * Setter for <code>texera_db.workflow_user_access.privilege</code>.
      */
-    public void setReadPrivilege(Boolean value);
+    public void setPrivilege(WorkflowUserAccessPrivilege value);
 
     /**
-     * Getter for <code>texera_db.workflow_user_access.read_privilege</code>.
+     * Getter for <code>texera_db.workflow_user_access.privilege</code>.
      */
-    public Boolean getReadPrivilege();
-
-    /**
-     * Setter for <code>texera_db.workflow_user_access.write_privilege</code>.
-     */
-    public void setWritePrivilege(Boolean value);
-
-    /**
-     * Getter for <code>texera_db.workflow_user_access.write_privilege</code>.
-     */
-    public Boolean getWritePrivilege();
+    public WorkflowUserAccessPrivilege getPrivilege();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

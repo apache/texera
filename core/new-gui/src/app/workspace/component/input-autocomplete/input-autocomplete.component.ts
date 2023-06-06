@@ -1,7 +1,7 @@
 import { Component } from "@angular/core";
 import { FieldType } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { UserFileService } from "src/app/dashboard/service/user-file/user-file.service";
+import { UserFileService } from "src/app/dashboard/user/service/user-file/user-file.service";
 import { FormControl } from "@angular/forms";
 import { debounceTime } from "rxjs/operators";
 import { map } from "rxjs";
@@ -43,7 +43,7 @@ export class InputAutoCompleteComponent extends FieldType<any> {
     if (value.length > 0) {
       // perform auto-complete based on the current input
       this.userFileService
-        .getAutoCompleteUserFileAccessList(value)
+        .getAutoCompleteFileList(value)
         .pipe(debounceTime(300))
         .pipe(untilDestroyed(this))
         .subscribe(suggestedFiles => {
@@ -55,8 +55,8 @@ export class InputAutoCompleteComponent extends FieldType<any> {
     } else {
       // no valid input, perform full scan
       this.userFileService
-        .retrieveDashboardUserFileEntryList()
-        .pipe(map(list => list.map(x => x.ownerName + "/" + x.file.name)))
+        .getFileList()
+        .pipe(map(list => list.map(x => x.ownerEmail + "/" + x.file.name)))
         .pipe(untilDestroyed(this))
         .subscribe(allAccessibleFiles => (this.suggestions = allAccessibleFiles));
     }
