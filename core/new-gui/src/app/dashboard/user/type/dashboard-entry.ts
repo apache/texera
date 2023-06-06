@@ -1,5 +1,5 @@
 import { Workflow } from "../../../common/type/workflow";
-import { DashboardWorkflowEntry } from "./dashboard-workflow-entry";
+import { DashboardWorkflow } from "./dashboard-workflow.interface";
 
 export class DashboardEntry {
   isOwner: boolean;
@@ -9,7 +9,7 @@ export class DashboardEntry {
   projectIDs: number[];
   checked = false;
 
-  constructor(value: DashboardWorkflowEntry) {
+  constructor(value: DashboardWorkflow) {
     this.isOwner = value.isOwner;
     this.accessLevel = value.accessLevel;
     this.ownerName = value.ownerName;

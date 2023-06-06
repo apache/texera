@@ -1,6 +1,6 @@
 import { Workflow } from "../../../common/type/workflow";
 
-export interface DashboardWorkflowEntry {
+export interface DashboardWorkflow {
   isOwner: boolean;
   accessLevel: string;
   ownerName: string | undefined;

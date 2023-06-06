@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 
 import { Observable } from "rxjs";
-import { DashboardWorkflowEntry } from "../../../dashboard/user/type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workflow.interface";
 import { Workflow } from "../../type/workflow";
 
 export const WORKFLOW_BASE_URL = "workflow";
@@ -9,7 +9,7 @@ export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
 
 @Injectable()
 export class StubWorkflowPersistService {
-  constructor(private testWorkflows: DashboardWorkflowEntry[]) {}
+  constructor(private testWorkflows: DashboardWorkflow[]) {}
 
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return new Observable(observer => observer.next(this.testWorkflows.find(w => w.workflow.wid == wid)?.workflow));
@@ -25,7 +25,7 @@ export class StubWorkflowPersistService {
     ids: string[],
     operators: string[],
     projectIds: number[]
-  ): Observable<DashboardWorkflowEntry[]> {
+  ): Observable<DashboardWorkflow[]> {
     // A simple mock search implementation that only work for the test dataset.
     const endOfDay = (date: Date) => {
       date.setHours(23);

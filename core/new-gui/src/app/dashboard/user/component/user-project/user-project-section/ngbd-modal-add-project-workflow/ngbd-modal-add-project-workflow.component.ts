@@ -3,7 +3,7 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { forkJoin, Observable } from "rxjs";
 import { concatMap } from "rxjs/operators";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { DashboardWorkflowEntry } from "src/app/dashboard/user/type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "src/app/dashboard/user/type/dashboard-workflow.interface";
 import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -16,10 +16,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   @Input() projectId!: number;
 
-  public unaddedWorkflows: DashboardWorkflowEntry[] = []; // tracks which workflows to display, the ones that have not yet been added to the project
+  public unaddedWorkflows: DashboardWorkflow[] = []; // tracks which workflows to display, the ones that have not yet been added to the project
   public checkedWorkflows: boolean[] = []; // used to implement check boxes
   private addedWorkflowKeys: Set<number> = new Set<number>(); // tracks which workflows to NOT display,  the workflow IDs of the workflows (if any) already inside the project
-  private addedWorkflows: DashboardWorkflowEntry[] = []; // for passing back to update the frontend cache, stores the new workflow list including newly added workflows
+  private addedWorkflows: DashboardWorkflow[] = []; // for passing back to update the frontend cache, stores the new workflow list including newly added workflows
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -70,7 +70,7 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
     this.userProjectService
       .retrieveWorkflowsOfProject(this.projectId)
       .pipe(
-        concatMap((dashboardWorkflowEntries: DashboardWorkflowEntry[]) => {
+        concatMap((dashboardWorkflowEntries: DashboardWorkflow[]) => {
           this.addedWorkflows = dashboardWorkflowEntries;
           dashboardWorkflowEntries.forEach(workflowEntry => this.addedWorkflowKeys.add(workflowEntry.workflow.wid!));
           return this.workflowPersistService.retrieveWorkflowsBySessionUser();
