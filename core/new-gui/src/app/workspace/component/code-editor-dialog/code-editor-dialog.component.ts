@@ -107,7 +107,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   ngAfterViewInit() {
     const dialog = document.getElementById("mat-dialog-udf");
     if (dialog !== null) {
-      // They are the actual width and height of the modal
+      // They are the actual width and height of the modal, the width and height in css will be the max size of resizing.
       dialog.style.width = "800px";
       dialog.style.height = "600px";
     }
