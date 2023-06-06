@@ -192,10 +192,7 @@ case class LogicalPlan(
   ): PhysicalPlan = {
 
     if (errorList.nonEmpty) {
-      throw new RuntimeException(
-        s"${errorList.size} error(s) occurred in schema propagation, " +
-          s"errors: ${errorList.map(e => e.getMessage)}."
-      )
+      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
     }
 
     // assign storage to texera-managed sinks before generating exec config
