@@ -28,10 +28,10 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 object DashboardResource {
   final private lazy val context = SqlServer.createDSLContext()
   case class DashboardClickableFileEntry(
-                                          resourceType: String,
-                                          workflow: DashboardWorkflow,
-                                          project: Project,
-                                          file: DashboardFileEntry
+      resourceType: String,
+      workflow: DashboardWorkflow,
+      project: Project,
+      file: DashboardFileEntry
   )
 }
 
