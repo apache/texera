@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler
 }
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
   PythonUDFOpDescV2
 }
