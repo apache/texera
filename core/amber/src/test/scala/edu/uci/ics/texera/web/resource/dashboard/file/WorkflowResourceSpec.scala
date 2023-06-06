@@ -9,7 +9,7 @@ import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
@@ -178,7 +178,7 @@ class WorkflowResourceSpec
     }
     keywordsList
   }
-  private def assertSameWorkflow(a: Workflow, b: DashboardWorkflowEntry): Unit = {
+  private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
   }
 

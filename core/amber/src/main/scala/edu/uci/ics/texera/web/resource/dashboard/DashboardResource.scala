@@ -28,10 +28,10 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 object DashboardResource {
   final private lazy val context = SqlServer.createDSLContext()
   case class DashboardClickableFileEntry(
-      resourceType: String,
-      workflow: DashboardWorkflowEntry,
-      project: Project,
-      file: DashboardFileEntry
+                                          resourceType: String,
+                                          workflow: DashboardWorkflow,
+                                          project: Project,
+                                          file: DashboardFileEntry
   )
 }
 
@@ -506,7 +506,7 @@ class DashboardResource {
         DashboardClickableFileEntry(
           resourceType,
           if (resourceType == "workflow") {
-            DashboardWorkflowEntry(
+            DashboardWorkflow(
               record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
               record
                 .into(WORKFLOW_USER_ACCESS)
