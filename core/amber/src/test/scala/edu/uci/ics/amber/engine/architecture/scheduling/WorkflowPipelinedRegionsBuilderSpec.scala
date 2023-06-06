@@ -1,8 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -15,14 +14,13 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler
 }
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
   PythonUDFOpDescV2
 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaSetConverter
 
 class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {

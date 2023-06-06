@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.logging
 
 import com.google.common.collect.Queues
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
@@ -10,7 +9,6 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import java.util
 import java.util.concurrent.CompletableFuture
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 
 class AsyncLogWriter(
     networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef,
