@@ -23,7 +23,7 @@ export class UserProjectService {
 
   constructor(private http: HttpClient) {}
 
-  public refreshProjectList(): Observable<UserProject[]> {
+  public refreshProjectList(): void {
     this.http
       .get<UserProject[]>(`${USER_PROJECT_LIST_URL}`)
       .pipe()
@@ -33,7 +33,6 @@ export class UserProjectService {
         error: (p: unknown) => this.projects.error(p),
         complete: () => {},
       });
-    return this.retrieveProjectList();
   }
 
   public retrieveProjectList(): Observable<UserProject[]> {
