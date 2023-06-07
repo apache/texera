@@ -38,7 +38,6 @@ export class UserFileComponent implements OnInit {
     private modalService: NgbModal,
     private userFileService: UserFileService,
     private userService: UserService,
-    private notificationService: NotificationService
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }
@@ -91,7 +90,7 @@ export class UserFileComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => this.refreshDashboardFileEntries());
   }
-  
+
   /**
    * Sort the files according to sortMethod variable
    */
