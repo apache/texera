@@ -5,6 +5,10 @@ import { DashboardFile } from "../../type/dashboard-file.interface";
 import { UserProjectService } from "./user-project.service";
 
 export class StubUserProjectService {
+  public refreshProjectList(): Observable<UserProject[]> {
+    return this.retrieveProjectList();
+  }
+
   public retrieveProjectList(): Observable<UserProject[]> {
     return new Observable(observer =>
       observer.next([

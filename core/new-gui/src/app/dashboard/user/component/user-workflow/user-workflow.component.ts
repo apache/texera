@@ -278,7 +278,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       .subscribe(() => {
         if (this.userService.isLogin()) {
           this.refreshDashboardWorkflowEntries();
-          this.userProjectService.retrieveProjectList();
+          this.userProjectService.refreshProjectList();
         } else {
           this.clearDashboardWorkflowEntries();
         }
