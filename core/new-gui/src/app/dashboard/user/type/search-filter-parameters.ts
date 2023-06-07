@@ -16,7 +16,7 @@ export const toQueryStrings = (keywords: string[], params: SearchFilterParameter
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
     if (keywords) {
       for (const keyword of keywords) {
-        yield ["query", keyword];
+        yield ["query", keyword.trim()];
       }
     }
     const createDateStart = params.createDateStart;
