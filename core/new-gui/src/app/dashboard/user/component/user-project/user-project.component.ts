@@ -94,8 +94,9 @@ export class UserProjectComponent implements OnInit {
   }
 
   private getUserProjectArray() {
+    this.userProjectService.refreshProjectList();
     this.userProjectService
-      .refreshProjectList()
+      .retrieveProjectList()
       .pipe(untilDestroyed(this))
       .subscribe(projectEntries => {
         this.userProjectEntries = projectEntries;
