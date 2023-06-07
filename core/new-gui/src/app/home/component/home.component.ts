@@ -31,6 +31,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       .subscribe(
         Zone.current.wrap(() => {
           const url = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
+          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
           this.router.navigateByUrl(url);
         }, "")
       );
