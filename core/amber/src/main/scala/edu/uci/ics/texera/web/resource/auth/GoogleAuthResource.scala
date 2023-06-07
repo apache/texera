@@ -4,7 +4,12 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims, jwtToken}
+import edu.uci.ics.texera.web.auth.JwtAuth.{
+  TOKEN_EXPIRE_TIME_IN_DAYS,
+  dayToMin,
+  jwtClaims,
+  jwtToken
+}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
