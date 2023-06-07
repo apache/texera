@@ -35,6 +35,12 @@
     }
   }
 
+  .metadata-container {
+    span {
+      margin: 0 1rem 0 0; // add space to the right
+    }
+  }
+
   .file-item-meta-description {
     display: flex;
     align-items: center;

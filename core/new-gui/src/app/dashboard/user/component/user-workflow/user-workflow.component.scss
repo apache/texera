@@ -14,10 +14,10 @@
 
 /**
   * Create a 3*1 grid area
-  * The first row contains add and sort button. 
+  * The first row contains add and sort button.
   * The second row contains the search bar.
   * The third row contains the saved workflow/files list.
-  * 
+  *
   * This layout is shared between workflows and files section.
   *
   *              ******************
@@ -105,11 +105,5 @@ $section-search-bar-height: 60px;
     height: calc(100vh - $dashboard-navigation-height - $section-header-height - $section-search-bar-height - 50px);
     border: 1px solid #e8e8e8;
     border-radius: 4px;
-  }
-
-  .metadata-container {
-    span {
-      margin: 0 1rem 0 0; // add space to the right
-    }
   }
 }

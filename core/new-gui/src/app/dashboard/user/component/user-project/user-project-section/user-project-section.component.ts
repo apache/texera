@@ -206,21 +206,20 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   private getUserProjectMetadata() {
-    // TODO : temporarily removed, revert back to retrieving data for just a single project after future PR to reuse UserFileSection component
-    // this.userProjectService
-    //   .retrieveProject(this.pid)
-    //   .pipe(untilDestroyed(this))
-    //   .subscribe(project => {
-    //     this.name = project.name;
-    //     this.ownerID = project.ownerID;
-    //     this.creationTime = project.creationTime;
-    //     if (project.color != null) {
-    //       this.color = project.color;
-    //       this.inputColor = "#" + project.color;
-    //       this.colorIsBright = this.userProjectService.isLightColor(project.color);
-    //     }
-    //     this.projectDataIsLoaded = true;
-    //   });
+    this.userProjectService
+      .retrieveProject(this.pid)
+      .pipe(untilDestroyed(this))
+      .subscribe(project => {
+        this.name = project.name;
+        this.ownerID = project.ownerID;
+        this.creationTime = project.creationTime;
+        if (project.color != null) {
+          this.color = project.color;
+          this.inputColor = "#" + project.color;
+          this.colorIsBright = UserProjectService.isLightColor(project.color);
+        }
+        this.projectDataIsLoaded = true;
+      });
 
     this.userProjectService
       .retrieveProjectList()
