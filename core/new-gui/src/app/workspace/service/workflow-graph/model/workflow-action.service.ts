@@ -645,9 +645,11 @@ export class WorkflowActionService {
       jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
       jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
       // set the URL fragment to previous value
-      if (fragment) {
-        this.router.navigate([], { relativeTo: this.route, fragment: fragment, preserveFragment: false });
-      }
+      this.router.navigate([], {
+        relativeTo: this.route,
+        fragment: fragment !== null ? fragment : undefined,
+        preserveFragment: false,
+      });
 
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
