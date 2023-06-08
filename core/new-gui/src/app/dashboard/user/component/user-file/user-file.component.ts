@@ -37,7 +37,7 @@ export class UserFileComponent implements OnInit {
   constructor(
     private modalService: NgbModal,
     private userFileService: UserFileService,
-    private userService: UserService,
+    private userService: UserService
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }

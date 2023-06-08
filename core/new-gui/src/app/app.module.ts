@@ -124,7 +124,7 @@ import { UserProjectListItemComponent } from "./dashboard/user/component/user-pr
 import { SortButtonComponent } from "./dashboard/user/component/sort-button/sort-button.component";
 import { FiltersComponent } from "./dashboard/user/component/filters/filters.component";
 import { FiltersInstructionsComponent } from "./dashboard/user/component/filters-instructions/filters-instructions.component";
-import { UserFileListItemComponent } from './dashboard/user/component/user-file/user-file-list-item/user-file-list-item.component';
+import { UserFileListItemComponent } from "./dashboard/user/component/user-file/user-file-list-item/user-file-list-item.component";
 
 registerLocaleData(en);
 

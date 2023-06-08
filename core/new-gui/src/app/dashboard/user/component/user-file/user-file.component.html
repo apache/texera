@@ -5,7 +5,9 @@
       <a
         [nzDropdownMenu]="menu"
         nz-dropdown>
-        <button nz-button title="Sort">
+        <button
+          nz-button
+          title="Sort">
           <i
             nz-icon
             nzTheme="outline"
@@ -93,7 +95,9 @@
       itemSize="80">
       <nz-list>
         <texera-user-file-list-item
-        *cdkVirtualFor="let entry of getFileArray()" [entry]="entry" (deleted)="deleteFile(entry.file.fid)"></texera-user-file-list-item>
+          *cdkVirtualFor="let entry of getFileArray()"
+          [entry]="entry"
+          (deleted)="deleteFile(entry.file.fid)"></texera-user-file-list-item>
       </nz-list>
     </cdk-virtual-scroll-viewport>
   </nz-card>
