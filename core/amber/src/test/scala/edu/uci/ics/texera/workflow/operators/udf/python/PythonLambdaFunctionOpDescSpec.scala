@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.pythonV2
+package edu.uci.ics.texera.workflow.operators.udf.python
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter

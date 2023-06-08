@@ -49,9 +49,8 @@ import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSou
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
   PythonLambdaFunctionOpDesc,
   PythonUDFOpDescV2
@@ -110,7 +109,6 @@ trait StateTransferFunc
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),
-    new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDF"),
     new Type(value = classOf[PythonUDFOpDescV2], name = "PythonUDFV2"),
     new Type(value = classOf[PythonUDFSourceOpDescV2], name = "PythonUDFSourceV2"),
     new Type(value = classOf[DualInputPortsPythonUDFOpDescV2], name = "DualInputPortsPythonUDFV2"),

@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
+package edu.uci.ics.texera.workflow.operators.udf.python.source;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -6,7 +6,6 @@ import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
-import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -15,7 +14,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.reflect.ClassTag;
 
 import java.io.Serializable;
 import java.util.List;
