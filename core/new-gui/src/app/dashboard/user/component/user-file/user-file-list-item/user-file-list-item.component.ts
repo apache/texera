@@ -13,7 +13,7 @@ import { ShareAccessComponent } from "../../share-access/share-access.component"
   templateUrl: "./user-file-list-item.component.html",
   styleUrls: ["./user-file-list-item.component.scss"],
 })
-export class UserFileListItemComponent implements OnInit {
+export class UserFileListItemComponent {
   public uid: number | undefined;
   private _entry?: DashboardFile;
   @Input() get entry(): DashboardFile {
@@ -38,8 +38,6 @@ export class UserFileListItemComponent implements OnInit {
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }
-
-  ngOnInit(): void {}
 
   public confirmUpdateFileCustomName(name: string): void {
     if (this.entry.file.name === name) {
