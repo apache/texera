@@ -1,6 +1,6 @@
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { UserProject } from "./user-project";
+import { DashboardProject } from "./dashboard.project";
 
 export class DashboardEntry {
   checked = false;
@@ -47,7 +47,7 @@ export class DashboardEntry {
     throw new Error("Unexpected type in DashboardEntry.");
   }
 
-  get project(): UserProject {
+  get project(): DashboardProject {
     if (!("name" in this.value)) {
       throw new Error("Value is not of type Workflow.");
     }
@@ -68,5 +68,5 @@ export class DashboardEntry {
     return this.value;
   }
 
-  constructor(public value: DashboardWorkflow | UserProject | DashboardFile) {}
+  constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile) {}
 }

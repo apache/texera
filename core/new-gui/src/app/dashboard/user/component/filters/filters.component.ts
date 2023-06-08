@@ -1,8 +1,8 @@
 import { Component, EventEmitter, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Observable, map } from "rxjs";
-import { UserProject } from "../../type/user-project";
+import { Observable } from "rxjs";
+import { DashboardProject } from "../../type/dashboard.project";
 import { remove } from "lodash-es";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
@@ -54,11 +54,11 @@ export class FiltersComponent implements OnInit {
   public selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
   public selectedProjects: { name: string; pid: number }[] = [];
   /* variables for filtering workflows by projects */
-  public userProjectsList: Observable<UserProject[]>; // list of projects accessible by user
+  public userProjectsList: Observable<DashboardProject[]>; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   /* variables for project color tags */
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
-  public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
+  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
+  public userProjectsLoaded: boolean = false; // tracks whether all DashboardProjectInterface information has been loaded (ready to render project colors)
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
 
   constructor(
@@ -68,7 +68,7 @@ export class FiltersComponent implements OnInit {
     private workflowPersistService: WorkflowPersistService
   ) {
     this.userProjectsList = this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this));
-    this.userProjectsList.pipe(untilDestroyed(this)).subscribe((userProjectsList: UserProject[]) => {
+    this.userProjectsList.pipe(untilDestroyed(this)).subscribe((userProjectsList: DashboardProject[]) => {
       if (userProjectsList != null && userProjectsList.length > 0) {
         // map project ID to project object
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
