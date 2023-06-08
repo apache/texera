@@ -125,6 +125,7 @@ import { SortButtonComponent } from "./dashboard/user/component/sort-button/sort
 import { FiltersComponent } from "./dashboard/user/component/filters/filters.component";
 import { FiltersInstructionsComponent } from "./dashboard/user/component/filters-instructions/filters-instructions.component";
 import { UserFileListItemComponent } from "./dashboard/user/component/user-file/user-file-list-item/user-file-list-item.component";
+import { SearchComponent } from "./dashboard/user/component/search/search.component";
 
 registerLocaleData(en);
 
@@ -191,6 +192,7 @@ registerLocaleData(en);
     FiltersComponent,
     FiltersInstructionsComponent,
     UserFileListItemComponent,
+    SearchComponent,
   ],
   imports: [
     BrowserModule,
