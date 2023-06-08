@@ -1,7 +1,7 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { firstValueFrom, map, Observable } from "rxjs";
+import { firstValueFrom, map } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -18,7 +18,7 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
 import { FileSaverService } from "../../service/user-file/file-saver.service";
-import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { FiltersComponent } from "../filters/filters.component";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -176,7 +176,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
-  private async search(): Promise<ReadonlyArray<DashboardWorkflowEntry>> {
+  private async search(): Promise<ReadonlyArray<DashboardWorkflow>> {
     return await firstValueFrom(
       this.workflowPersistService.searchWorkflows(
         this.filters.getSearchKeywords(),
@@ -311,7 +311,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    *
    * @param dashboardWorkflowEntries - returned local cache of workflows
    */
-  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflowEntry[]): void {
+  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflow[]): void {
     this.allDashboardWorkflowEntries = dashboardWorkflowEntries.map(i => new DashboardEntry(i));
     // update searching / filtering
     this.searchWorkflow();
