@@ -13,7 +13,7 @@ import { firstValueFrom } from "rxjs";
 })
 export class SearchComponent {
   entries: ReadonlyArray<DashboardEntry> = [];
-  private masterFilterList: string[] = [];
+  private masterFilterList: ReadonlyArray<string> = [];
   private _filters?: FiltersComponent;
   @ViewChild(FiltersComponent)
   get filters(): FiltersComponent {

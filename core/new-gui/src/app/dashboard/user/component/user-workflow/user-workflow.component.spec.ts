@@ -217,6 +217,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
   it("searchByManyParameters", async () => {
     // Apply the project, ID, owner, and operator filter all at once.
+    component.filters.masterFilterList = ["1"];
     const operatorGroup = component.filters.operators.get("Analysis");
     if (operatorGroup) {
       operatorGroup[3].checked = true; // Aggregation operator
@@ -230,7 +231,6 @@ describe("SavedWorkflowSectionComponent", () => {
       component.filters.userProjectsDropdown[0].checked = true; //Project 1
       component.filters.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
       component.filters.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
-      component.filters.masterFilterList.push("1");
       //add/select new search parameter here
 
       component.filters.updateSelectedProjects();
@@ -240,18 +240,20 @@ describe("SavedWorkflowSectionComponent", () => {
     await component.searchWorkflow();
     const SortedCase = component.dashboardWorkflowEntries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]);
-    expect(component.filters.masterFilterList).toEqual([
-      "1",
-      "owner: Texera",
-      "owner: Angular",
-      "id: 1",
-      "id: 2",
-      "id: 3",
-      "operator: Aggregation",
-      "project: Project1",
-      "ctime: 1970-01-01 ~ 1973-03-11",
-      "mtime: 1970-01-01 ~ 1982-04-14",
-    ]);
+    expect(component.filters.masterFilterList).toEqual(
+      jasmine.arrayWithExactContents([
+        "1",
+        "owner: Texera",
+        "owner: Angular",
+        "id: 1",
+        "id: 2",
+        "id: 3",
+        "operator: Aggregation",
+        "project: Project1",
+        "ctime: 1970-01-01 ~ 1973-03-11",
+        "mtime: 1970-01-01 ~ 1982-04-14",
+      ])
+    );
   });
 
   it("downloads checked files", async () => {

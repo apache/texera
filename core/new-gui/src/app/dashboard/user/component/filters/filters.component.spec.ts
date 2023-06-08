@@ -35,4 +35,28 @@ describe("FiltersComponent", () => {
   it("should create", () => {
     expect(component).toBeTruthy();
   });
+
+  it("parses manually entered mtime", () => {
+    component.masterFilterList = ["mtime: 2022-01-22 ~ 2022-04-21"];
+    expect(component.selectedMtime).toEqual([new Date(2022, 0, 22), new Date(2022, 3, 21)]);
+  });
+
+  it("parses manually entered ctime", () => {
+    component.masterFilterList = ["ctime: 2022-01-22 ~ 2022-04-21"];
+    expect(component.selectedCtime).toEqual([new Date(2022, 0, 22), new Date(2022, 3, 21)]);
+  });
+
+  it("preserves ordering when parsing drop down", () => {
+    component.masterFilterList = ["keyword", "ctime: 2022-01-22 ~ 2022-04-21", "keyword 2"];
+    component.selectedCtime = [new Date(2022, 2, 22), new Date(2022, 4, 21)];
+    component.buildMasterFilterList();
+    expect(component.masterFilterList).toEqual(["keyword", "ctime: 2022-03-22 ~ 2022-05-21", "keyword 2"]);
+    component.masterFilterList = [...component.masterFilterList, "another keyword"];
+    expect(component.masterFilterList).toEqual([
+      "keyword",
+      "ctime: 2022-03-22 ~ 2022-05-21",
+      "keyword 2",
+      "another keyword",
+    ]);
+  });
 });
