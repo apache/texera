@@ -60,7 +60,7 @@ export class DashboardEntry {
     }
     return this.value;
   }
-  
+
   get file(): DashboardFile {
     if (!("ownerEmail" in this.value)) {
       throw new Error("Value is not of type file.");
