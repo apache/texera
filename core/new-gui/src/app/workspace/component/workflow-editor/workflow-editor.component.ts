@@ -1543,6 +1543,39 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         }
       });
 
+    // delete element event
+    merge(
+      this.workflowActionService.getTexeraGraph().getCommentBoxDeleteStream()
+        .pipe(map(e => e.deletedCommentBox.commentBoxID)),
+      this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
+        .pipe(map(e => e.deletedOperatorID)),
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream()
+        .pipe(map(e => e.deletedLink.linkID))
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe((elementId) => {
+        // clear URL fragment when the highlighted element is deleted
+        if (elementId === this.route.snapshot.fragment) {
+          this.setURLFragment(null);
+        }
+      });
+
+    // new element event
+    merge(
+      this.workflowActionService.getTexeraGraph().getCommentBoxAddStream()
+        .pipe(map(e => e.commentBoxID)),
+      this.workflowActionService.getTexeraGraph().getOperatorAddStream()
+        .pipe(map(e => e.operatorID)),
+      this.workflowActionService.getTexeraGraph().getLinkAddStream()
+        .pipe(map(e => e.linkID))
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe((elementId) => {
+        // add element ID to URL fragment as it'll be highlighted
+        this.setURLFragment(elementId);
+      });
+
+
     // special case: open comment box when URL fragment is set
     this.workflowActionService
       .getTexeraGraph()
