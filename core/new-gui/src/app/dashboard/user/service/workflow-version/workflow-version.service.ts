@@ -47,7 +47,7 @@ export class WorkflowVersionService {
     private undoRedoService: UndoRedoService,
     private http: HttpClient,
     private router: Router,
-    private route: ActivatedRoute,
+    private route: ActivatedRoute
   ) {}
 
   public clickDisplayWorkflowVersions(): void {

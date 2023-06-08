@@ -1522,27 +1522,27 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     )
-    .pipe(untilDestroyed(this))
-    .subscribe(() => {
-      // add element ID to URL fragment when only one element is highlighted
-      // clear URL fragment when no element or multiple elements are highlighted
-      //          from state      -> to state
-      // case 1a: no highlighted  -> highlight one element
-      // case 1b: more than one elements highlighted -> unhighlight some elements so that only one element is highlighted
-      // for case 1: set URL fragment to the highlighted element
-      // case 2a: one element highlighted -> unhighlight the element
-      // case 2b: one element highlighted -> highlight another element
-      // for case 2: clear URL fragment
-      // other cases, do nothing
-      const highlightedIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedIDs();
-      if (highlightedIds.length === 1) {
-        this.setURLFragment(highlightedIds[0]);
-      } else {
-        this.setURLFragment(null);
-      }
-    });
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        // add element ID to URL fragment when only one element is highlighted
+        // clear URL fragment when no element or multiple elements are highlighted
+        //          from state      -> to state
+        // case 1a: no highlighted  -> highlight one element
+        // case 1b: more than one elements highlighted -> unhighlight some elements so that only one element is highlighted
+        // for case 1: set URL fragment to the highlighted element
+        // case 2a: one element highlighted -> unhighlight the element
+        // case 2b: one element highlighted -> highlight another element
+        // for case 2: clear URL fragment
+        // other cases, do nothing
+        const highlightedIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedIDs();
+        if (highlightedIds.length === 1) {
+          this.setURLFragment(highlightedIds[0]);
+        } else {
+          this.setURLFragment(null);
+        }
+      });
 
     // special case: open comment box when URL fragment is set
     this.workflowActionService
