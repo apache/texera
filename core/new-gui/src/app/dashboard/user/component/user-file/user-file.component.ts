@@ -159,7 +159,7 @@ export class UserFileComponent implements OnInit {
       .slice()
       .sort((left, right) =>
         left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
-          ? parseInt(right.file.uploadTime) - parseInt(left.file.uploadTime)
+          ? right.file.uploadTime - left.file.uploadTime
           : 0
       );
   }
@@ -173,7 +173,7 @@ export class UserFileComponent implements OnInit {
       .slice()
       .sort((left, right) =>
         left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
-          ? parseInt(left.file.uploadTime) - parseInt(right.file.uploadTime)
+          ? left.file.uploadTime - right.file.uploadTime
           : 0
       );
   }

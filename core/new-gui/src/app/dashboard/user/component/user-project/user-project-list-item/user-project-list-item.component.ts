@@ -8,7 +8,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-user-project-list-item",
   templateUrl: "./user-project-list-item.component.html",
-  styleUrls: ["./user-project-list-item.component.css"],
+  styleUrls: ["./user-project-list-item.component.scss"],
 })
 export class UserProjectListItemComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";

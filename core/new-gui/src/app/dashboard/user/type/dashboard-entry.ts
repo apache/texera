@@ -1,13 +1,16 @@
+import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflowEntry } from "./dashboard-workflow-entry";
 import { UserProject } from "./user-project";
 
 export class DashboardEntry {
   checked = false;
-  get type(): "workflow" | "project" {
+  get type(): "workflow" | "project" | "file" {
     if ("workflow" in this.value) {
       return "workflow";
     } else if ("name" in this.value) {
       return "project";
+    } else if ("ownerEmail" in this.value) {
+      return "file";
     }
     throw new Error("Unexpected type in DashboardEntry.");
   }
@@ -16,6 +19,8 @@ export class DashboardEntry {
       return this.value.workflow.name;
     } else if ("name" in this.value) {
       return this.project.name;
+    } else if ("ownerEmail" in this.value) {
+      return this.value.file.name;
     }
     throw new Error("Unexpected type in DashboardEntry.");
   }
@@ -25,6 +30,8 @@ export class DashboardEntry {
       return this.value.workflow.creationTime;
     } else if ("name" in this.value) {
       return this.value.creationTime;
+    } else if ("ownerEmail" in this.value) {
+      return this.value.file.uploadTime;
     }
     throw new Error("Unexpected type in DashboardEntry.");
   }
@@ -34,6 +41,8 @@ export class DashboardEntry {
       return this.value.workflow.lastModifiedTime;
     } else if ("name" in this.value) {
       return this.value.creationTime;
+    } else if ("ownerEmail" in this.value) {
+      return this.value.file.uploadTime;
     }
     throw new Error("Unexpected type in DashboardEntry.");
   }
@@ -51,5 +60,13 @@ export class DashboardEntry {
     }
     return this.value;
   }
-  constructor(public value: DashboardWorkflowEntry | UserProject) {}
+
+  get file(): DashboardFile {
+    if (!("ownerEmail" in this.value)) {
+      throw new Error("Value is not of type file.");
+    }
+    return this.value;
+  }
+
+  constructor(public value: DashboardWorkflowEntry | UserProject | DashboardFile) {}
 }

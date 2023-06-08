@@ -18,7 +18,7 @@ export interface UserFile {
   name: string;
   path: string;
   description: string;
-  uploadTime: string;
+  uploadTime: number;
 }
 
 /**
