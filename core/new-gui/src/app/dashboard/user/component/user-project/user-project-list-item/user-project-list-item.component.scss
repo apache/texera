@@ -1,0 +1,35 @@
+@import "../../dashboard.component.scss";
+
+.project-name {
+  font-size: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  text-align: center;
+}
+
+.project-name:hover {
+  cursor: pointer;
+}
+
+.project-avatar-container {
+  text-align: center;
+}
+
+button {
+  border-radius: 5px;
+  border: none;
+}
+
+.edit-name-icon:hover,
+.edit-description-icon:hover {
+  color: skyblue;
+}
+
+.description-container {
+  border: 1px solid gainsboro;
+  border-radius: 10px;
+  padding: 2.5%;
+}
+
+.character-count {
+  text-align: right;
+}
