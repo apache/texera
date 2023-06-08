@@ -40,6 +40,10 @@
           <texera-user-workflow-list-item
             *ngIf="entry.type === 'workflow'"
             [entry]="entry"></texera-user-workflow-list-item>
+          <texera-user-file-list-item
+            *ngIf="entry.type === 'file'"
+            [entry]="entry.file">
+          </texera-user-file-list-item>
         </ng-container>
       </nz-list>
     </cdk-virtual-scroll-viewport>

@@ -1,5 +1,5 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
-import { DashboardFile } from "../../../type/dashboard-file.interface";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { DashboardFile, UserFile } from "../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { UserFileService } from "../../../service/user-file/user-file.service";
@@ -14,20 +14,33 @@ import { ShareAccessComponent } from "../../share-access/share-access.component"
   styleUrls: ["./user-file-list-item.component.scss"],
 })
 export class UserFileListItemComponent {
-  public uid: number | undefined;
-  private _entry?: DashboardFile;
+  uid: number | undefined;
+  private _entry?: DashboardFile = {
+    ownerEmail: "jingchf@uci.edu",
+    writeAccess: true,
+    file: {
+      ownerUid: 1,
+      fid: 2,
+      size: 2854,
+      name: "texera test.txt",
+      path: "/home/vagrant/texera/core/amber/user-resources/files/1/essay1 (1).txt",
+      description: "",
+      uploadTime: 1682533263000,
+    },
+  };
+
   @Input() get entry(): DashboardFile {
     if (!this._entry) {
       throw new Error("entry property must be set in UserFileListItemComponent.");
     }
     return this._entry;
   }
-  @Input() editable = false;
-  editingName = false;
-  editingDescription = false;
   set entry(value: DashboardFile) {
     this._entry = value;
   }
+  @Input() editable = false;
+  editingName = false;
+  editingDescription = false;
   @Output() deleted = new EventEmitter<void>();
 
   constructor(
@@ -59,11 +72,8 @@ export class UserFileListItemComponent {
   }
 
   public confirmUpdateFileCustomDescription(description: string): void {
-    const {
-      file: { fid },
-    } = this.entry;
     this.userFileService
-      .changeFileDescription(fid, description)
+      .changeFileDescription(this.entry.file.fid, description)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => (this.entry.file.description = description),
@@ -79,10 +89,10 @@ export class UserFileListItemComponent {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
 
-  public onClickOpenShareAccess(dashboardUserFileEntry: DashboardFile): void {
+  public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
     modalRef.componentInstance.type = "file";
-    modalRef.componentInstance.id = dashboardUserFileEntry.file.fid;
+    modalRef.componentInstance.id = this.entry.file.fid;
   }
 
   public downloadFile(): void {

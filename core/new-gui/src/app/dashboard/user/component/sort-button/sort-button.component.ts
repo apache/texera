@@ -63,10 +63,7 @@ export class SortButtonComponent {
    */
   public ascSort(): void {
     this.sortMethod = SortMethod.NameAsc;
-    this.entries = this.entries.slice().sort((t1, t2) => {
-      if (t1.workflow && t2.workflow) return t1.name.toLowerCase().localeCompare(t2.name.toLowerCase());
-      else throw new Error("No sortable entry provided.");
-    });
+    this.entries = this.entries.slice().sort((t1, t2) => t1.name.toLowerCase().localeCompare(t2.name.toLowerCase()));
   }
 
   /**
@@ -74,10 +71,7 @@ export class SortButtonComponent {
    */
   public dscSort(): void {
     this.sortMethod = SortMethod.NameDesc;
-    this.entries = this.entries.slice().sort((t1, t2) => {
-      if (t1.workflow && t2.workflow) return t2.name.toLowerCase().localeCompare(t1.name.toLowerCase());
-      else throw new Error("No sortable entry provided.");
-    });
+    this.entries = this.entries.slice().sort((t1, t2) => t2.name.toLowerCase().localeCompare(t1.name.toLowerCase()));
   }
 
   /**
@@ -85,11 +79,11 @@ export class SortButtonComponent {
    */
   public dateSort(): void {
     this.sortMethod = SortMethod.CreateTimeDesc;
-    this.entries = this.entries.slice().sort((t1, t2) => {
-      if (t1.workflow && t2.workflow)
-        return t1.creationTime !== undefined && t2.creationTime !== undefined ? t2.creationTime - t1.creationTime : 0;
-      else throw new Error("No sortable entry provided.");
-    });
+    this.entries = this.entries
+      .slice()
+      .sort((t1, t2) =>
+        t1.creationTime !== undefined && t2.creationTime !== undefined ? t2.creationTime - t1.creationTime : 0
+      );
   }
 
   /**
@@ -97,12 +91,12 @@ export class SortButtonComponent {
    */
   public lastSort(): void {
     this.sortMethod = SortMethod.EditTimeDesc;
-    this.entries = this.entries.slice().sort((t1, t2) => {
-      if (t1.workflow && t2.workflow)
-        return t1.lastModifiedTime !== undefined && t2.lastModifiedTime !== undefined
+    this.entries = this.entries
+      .slice()
+      .sort((t1, t2) =>
+        t1.lastModifiedTime !== undefined && t2.lastModifiedTime !== undefined
           ? t2.lastModifiedTime - t1.lastModifiedTime
-          : 0;
-      else throw new Error("No sortable entry provided.");
-    });
+          : 0
+      );
   }
 }

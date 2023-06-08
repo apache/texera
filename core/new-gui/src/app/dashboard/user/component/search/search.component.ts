@@ -44,16 +44,16 @@ export class SearchComponent {
     const results = await firstValueFrom(
       this.searchService.search(this.filters.getSearchKeywords(), this.filters.getSearchFilterParameters())
     );
-    this.entries = results
-      .filter(i => i.resourceType !== "file")
-      .map(i => {
-        if (i.workflow) {
-          return new DashboardEntry(i.workflow);
-        } else if (i.project) {
-          return new DashboardEntry(i.project);
-        } else {
-          throw new Error("Unexpected type in SearchResult.");
-        }
-      });
+    this.entries = results.map(i => {
+      if (i.workflow) {
+        return new DashboardEntry(i.workflow);
+      } else if (i.project) {
+        return new DashboardEntry(i.project);
+      } else if (i.file) {
+        return new DashboardEntry(i.file);
+      } else {
+        throw new Error("Unexpected type in SearchResult.");
+      }
+    });
   }
 }
