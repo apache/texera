@@ -3,7 +3,7 @@ import { HttpClientModule } from "@angular/common/http";
 import { UserAvatarComponent } from "./user-avatar.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 
-describe("UserIconComponent", () => {
+describe("UserAvatarComponent", () => {
   let component: UserAvatarComponent;
   let fixture: ComponentFixture<UserAvatarComponent>;
 

@@ -1,12 +1,13 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, throwError } from "rxjs";
+import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflowEntry } from "../../../dashboard/user/type/dashboard-workflow-entry";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
+import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -110,48 +111,9 @@ export class WorkflowPersistService {
   /**
    * Search workflows by a text query from backend database that belongs to the user in the session.
    */
-  public searchWorkflows(
-    keywords: string[],
-    createDateStart: Date | null,
-    createDateEnd: Date | null,
-    modifiedDateStart: Date | null,
-    modifiedDateEnd: Date | null,
-    owners: string[],
-    ids: string[],
-    operators: string[],
-    projectIds: number[]
-  ): Observable<DashboardWorkflowEntry[]> {
-    function* getQueryParameters(): Iterable<[name: string, value: string]> {
-      if (keywords) {
-        for (const keyword of keywords) {
-          yield ["query", keyword];
-        }
-      }
-      if (createDateStart) yield ["createDateStart", createDateStart.toISOString().split("T")[0]];
-      if (createDateEnd) yield ["createDateEnd", createDateEnd.toISOString().split("T")[0]];
-      if (modifiedDateStart) yield ["modifiedDateStart", modifiedDateStart.toISOString().split("T")[0]];
-      if (modifiedDateEnd) yield ["modifiedDateEnd", modifiedDateEnd.toISOString().split("T")[0]];
-      for (const owner of owners) {
-        yield ["owner", owner];
-      }
-      for (const id of ids) {
-        yield ["id", id];
-      }
-      for (const operator of operators) {
-        yield ["operator", operator];
-      }
-      for (const id of projectIds) {
-        yield ["projectId", id.toString()];
-      }
-    }
-    const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
-      [...queryStrings]
-        .filter(q => q[1])
-        .map(([name, value]) => name + "=" + encodeURIComponent(value))
-        .join("&");
-    const queryString = concatenateQueryStrings(getQueryParameters());
+  public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflowEntry[]> {
     return this.makeRequestAndFormatWorkflowResponse(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${queryString}`
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${toQueryStrings(keywords, params)}`
     );
   }
 

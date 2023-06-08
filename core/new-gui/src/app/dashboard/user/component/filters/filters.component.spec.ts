@@ -5,7 +5,7 @@ import { StubOperatorMetadataService } from "src/app/workspace/service/operator-
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
-import { testWorkflowEntries } from "../user-workflow/user-workflow-test-fixtures";
+import { testWorkflowEntries } from "../user-dashboard-test-fixtures";
 import { HttpClient, HttpHandler } from "@angular/common/http";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 
