@@ -1,10 +1,10 @@
 import { UserFile } from "./dashboard-file.interface";
-import { DashboardWorkflowEntry } from "./dashboard-workflow-entry";
+import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { UserProject } from "./user-project";
 
 export interface SearchResult {
   resourceType: "workflow" | "project" | "file";
-  workflow?: DashboardWorkflowEntry;
+  workflow?: DashboardWorkflow;
   project?: UserProject;
   file?: UserFile;
 }

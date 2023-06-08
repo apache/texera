@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { forkJoin, Observable } from "rxjs";
 import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
-import { DashboardWorkflowEntry } from "../../../../type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../../../type/dashboard-workflow.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
@@ -15,7 +15,7 @@ export class NgbdModalRemoveProjectWorkflowComponent implements OnInit {
   @Input() projectId!: number;
 
   public checkedWorkflows: boolean[] = []; // used to implement check boxes
-  public addedWorkflows: DashboardWorkflowEntry[] = []; // for passing back to update the frontend cache, stores the new workflow list with selected ones removed
+  public addedWorkflows: DashboardWorkflow[] = []; // for passing back to update the frontend cache, stores the new workflow list with selected ones removed
 
   constructor(public activeModal: NgbActiveModal, private userProjectService: UserProjectService) {}
 

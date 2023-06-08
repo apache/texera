@@ -61,7 +61,7 @@ object WorkflowResource {
     )
   }
 
-  case class DashboardWorkflowEntry(
+  case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
@@ -343,7 +343,7 @@ class WorkflowResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
-  ): List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
     val workflowEntries = context
       .select(
@@ -371,7 +371,7 @@ class WorkflowResource {
       .fetch()
     workflowEntries
       .map(workflowRecord =>
-        DashboardWorkflowEntry(
+        DashboardWorkflow(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)
@@ -462,7 +462,7 @@ class WorkflowResource {
   def duplicateWorkflow(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
-  ): DashboardWorkflowEntry = {
+  ): DashboardWorkflow = {
     val wid = workflow.getWid
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
@@ -498,14 +498,14 @@ class WorkflowResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflowEntry = {
+  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflow = {
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
       WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
-      DashboardWorkflowEntry(
+      DashboardWorkflow(
         isOwner = true,
         WorkflowUserAccessPrivilege.WRITE.toString,
         user.getName,
@@ -586,7 +586,7 @@ class WorkflowResource {
       @QueryParam("operator") operators: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("projectId") projectIds: java.util.List[UInteger] =
         new java.util.ArrayList[UInteger]()
-  ): List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
 
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
@@ -671,7 +671,7 @@ class WorkflowResource {
 
       workflowEntries
         .map(workflowRecord =>
-          DashboardWorkflowEntry(
+          DashboardWorkflow(
             workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
             workflowRecord
               .into(WORKFLOW_USER_ACCESS)
@@ -693,7 +693,7 @@ class WorkflowResource {
           "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?"
         )
         // return a empty list
-        List[DashboardWorkflowEntry]()
+        List[DashboardWorkflow]()
     }
   }
 

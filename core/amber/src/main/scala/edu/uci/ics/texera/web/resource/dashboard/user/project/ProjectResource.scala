@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflowEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.jooq.types.UInteger
@@ -177,7 +177,7 @@ class ProjectResource {
   def listProjectWorkflows(
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
-  ): List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflow] = {
     verifyProjectExists(pid)
 
     val uid = sessionUser.getUser.getUid
@@ -204,7 +204,7 @@ class ProjectResource {
       .fetch()
     workflowEntries
       .map(workflowRecord =>
-        DashboardWorkflowEntry(
+        DashboardWorkflow(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid),
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)

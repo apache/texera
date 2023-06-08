@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { UserProject } from "../../type/user-project";
 
@@ -39,8 +39,8 @@ export class UserProjectService {
     return this.projects.asObservable();
   }
 
-  public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(`${USER_PROJECT_BASE_URL}/${pid}/workflows`);
+  public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(`${USER_PROJECT_BASE_URL}/${pid}/workflows`);
   }
 
   public retrieveFilesOfProject(pid: number): Observable<DashboardFile[]> {
