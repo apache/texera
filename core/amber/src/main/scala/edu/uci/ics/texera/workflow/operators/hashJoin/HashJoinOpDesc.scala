@@ -23,9 +23,9 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "0:buildAttributeName": {
+    "buildAttributeName": {
       "const": {
-        "$data": "1:probeAttributeName"
+        "$data": "probeAttributeName"
       }
     }
   }

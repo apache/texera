@@ -17,7 +17,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorS
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "0:attribute": {
+    "attribute": {
       "enum": ["string"]
     }
   }

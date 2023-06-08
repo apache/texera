@@ -493,25 +493,19 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.validators.checkAttributeType = {
           expression: (c: AbstractControl, field: FormlyFieldConfig) => {
             let errorMessage = "";
-            const parsePortPropertyName = (portPropertyName: string) => {
-              // format of port-property name: port:property
-              const [portStr, propertyName] = portPropertyName.split(":");
-              return { port: Number(portStr), propertyName };
-            };
 
-            const findAttributeType = (portPropertyName: string) => {
-              // format of port-property name: port:property
-              const { port, propertyName } = parsePortPropertyName(portPropertyName);
-              if (!isDefined(this.currentOperatorId) || !isDefined(port)) {
+            const findAttributeType = (propertyName: string) => {
+              if (!this.currentOperatorId || !mapSource.properties || !mapSource.properties[propertyName]) {
+                return undefined;
+              }
+              const portIndex = (mapSource.properties[propertyName] as CustomJSONSchema7).autofillAttributeOnPort;
+              if (!isDefined(portIndex)) {
                 return undefined;
               }
               const attributeName = c.value[propertyName];
-              return this.schemaPropagationService.getOperatorInputAttributeType(
-                this.currentOperatorId,
-                port,
-                attributeName
-              );
+              return this.schemaPropagationService.getOperatorInputAttributeType(this.currentOperatorId, portIndex, attributeName);
             };
+
 
             type AttributeTypeRuleSchemaConstraint =
               typeof mapSource.attributeTypeRules[keyof typeof mapSource.attributeTypeRules];
@@ -538,8 +532,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 const dataAttributeType = findAttributeType(constConstraint.$data);
                 if (!isDefined(dataAttributeType) || inputAttributeType !== dataAttributeType) {
                   // get data attribute name for error message
-                  const dataPropertyName = parsePortPropertyName(constConstraint.$data).propertyName;
-                  const dataAttributeName = c.value[dataPropertyName];
+                  const dataAttributeName = c.value[constConstraint.$data];
                   errorMessage = `it's expected to be the same type as '${dataAttributeName}' (${dataAttributeType}).`;
                   return false;
                 }
@@ -586,8 +579,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
             // Get the type of constrains for each property in AttributeTypeRuleSchema
 
-            const checkConstraint = (portPropertyName: string, constraint: AttributeTypeRuleSchemaConstraint) => {
-              const inputAttributeType = findAttributeType(portPropertyName);
+            const checkConstraint = (propertyName: string, constraint: AttributeTypeRuleSchemaConstraint) => {
+              const inputAttributeType = findAttributeType(propertyName);
               // when inputAttributeType is undefined, it means the property is not set
               if (!inputAttributeType) {
                 return true;
@@ -600,27 +593,27 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               );
             };
 
-            if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeTypeRules)) {
-              return false;
+            if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeTypeRules) || !isDefined(mapSource.properties)) {
+              return true;
             }
             const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
             if (!inputSchema) {
-              return false;
+              return true;
             }
 
             // iterate through all properties in attributeType
             for (const [prop, constraint] of Object.entries(mapSource.attributeTypeRules)) {
               if (!checkConstraint(prop, constraint)) {
                 // have to get the type, attribute name and property name again
-                // should consider reusing findAttributeType()
-                const { port, propertyName } = parsePortPropertyName(prop);
-                const attributeName = c.value[propertyName];
+                // should consider reusing the part in findAttributeType()
+                const attributeName = c.value[prop];
+                const port = (mapSource.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
                 const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(
                   this.currentOperatorId,
                   port,
                   attributeName
                 );
-                errorMessage = `The type of '${attributeName}' is ${inputAttributeType}, but ` + errorMessage;
+                errorMessage = `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + errorMessage;
                 field.validators.checkAttributeType.message = errorMessage;
                 return false;
               }
