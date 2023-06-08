@@ -99,8 +99,8 @@
       class="virtual-scroll-container">
       <nz-list>
         <texera-user-workflow-list-item
+          [editable]="true"
           [entry]="dashboardWorkflowEntry"
-          [owners]="(owners | async) ?? []"
           (deleted)="deleteWorkflow(dashboardWorkflowEntry)"
           (duplicated)="onClickDuplicateWorkflow(dashboardWorkflowEntry)"
           [pid]="pid"

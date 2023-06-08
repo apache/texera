@@ -11,16 +11,15 @@ export interface DashboardFile
  * Corresponds to `src/main/scala/edu/uci/ics/texera/web/resource/dashboard/file/UserFileResource.scala` (backend);
  * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
  */
-export interface UserFile
-  extends Readonly<{
-    ownerUid: number;
-    fid: number;
-    size: number;
-    name: string;
-    path: string;
-    description: string;
-    uploadTime: string;
-  }> {}
+export interface UserFile {
+  ownerUid: number;
+  fid: number;
+  size: number;
+  name: string;
+  path: string;
+  description: string;
+  uploadTime: string;
+}
 
 /**
  * This interface stores the information about the users' files when uploading.
