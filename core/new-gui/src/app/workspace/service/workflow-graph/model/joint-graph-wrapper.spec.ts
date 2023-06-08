@@ -19,7 +19,6 @@ import { StubOperatorMetadataService } from "../../operator-metadata/stub-operat
 import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { map, share, tap } from "rxjs/operators";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("JointGraphWrapperService", () => {
   let jointGraph: joint.dia.Graph;
@@ -38,7 +37,6 @@ describe("JointGraphWrapperService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule],
     });
     jointGraph = new joint.dia.Graph();
     jointGraphWrapper = new JointGraphWrapper(jointGraph);

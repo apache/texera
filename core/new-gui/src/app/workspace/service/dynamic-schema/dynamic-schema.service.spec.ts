@@ -18,7 +18,6 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { mockScanSourceSchema } from "../operator-metadata/mock-operator-metadata.data";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("DynamicSchemaService", () => {
   beforeEach(() => {
@@ -34,7 +33,6 @@ describe("DynamicSchemaService", () => {
         UndoRedoService,
         DynamicSchemaService,
       ],
-      imports: [RouterTestingModule],
     });
   });
 

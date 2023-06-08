@@ -3,7 +3,6 @@ import { OperatorMetadataService } from "src/app/workspace/service/operator-meta
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 
 import { ContextMenuComponent } from "./context-menu.component";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
@@ -13,7 +12,6 @@ describe("ContextMenuComponent", () => {
     await TestBed.configureTestingModule({
       declarations: [ContextMenuComponent],
       providers: [{ provide: OperatorMetadataService, useClass: StubOperatorMetadataService }],
-      imports: [RouterTestingModule],
     }).compileComponents();
   });
 

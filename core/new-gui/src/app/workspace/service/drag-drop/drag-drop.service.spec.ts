@@ -19,7 +19,6 @@ import {
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { map } from "rxjs/operators";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("DragDropService", () => {
   let dragDropService: DragDropService;
@@ -37,7 +36,6 @@ describe("DragDropService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule],
     });
 
     dragDropService = TestBed.get(DragDropService);

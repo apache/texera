@@ -7,7 +7,6 @@ import { TestBed, inject } from "@angular/core/testing";
 
 import { UndoRedoService } from "./undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("UndoRedoService", () => {
   let service: UndoRedoService;
@@ -24,7 +23,6 @@ describe("UndoRedoService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule],
     });
     service = TestBed.get(UndoRedoService);
     workflowActionService = TestBed.get(WorkflowActionService);

@@ -24,7 +24,6 @@ import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { FormlyMaterialModule } from "@ngx-formly/material";
 import { SimpleChange } from "@angular/core";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("BreakpointPropertyEditFrameComponent", () => {
   let component: BreakpointPropertyEditFrameComponent;
@@ -54,7 +53,6 @@ describe("BreakpointPropertyEditFrameComponent", () => {
         // use formly material module instead
         FormlyMaterialModule,
         ReactiveFormsModule,
-        RouterTestingModule,
         HttpClientTestingModule,
       ],
     }).compileComponents();

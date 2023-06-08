@@ -33,7 +33,6 @@ import {
   SCHEMA_PROPAGATION_ENDPOINT,
   SchemaPropagationService,
 } from "./schema-propagation.service";
-import { RouterTestingModule } from "@angular/router/testing";
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 describe("SchemaPropagationService", () => {
@@ -42,7 +41,7 @@ describe("SchemaPropagationService", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,

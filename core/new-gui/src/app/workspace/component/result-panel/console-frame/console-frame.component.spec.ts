@@ -5,7 +5,6 @@ import { OperatorMetadataService } from "../../../service/operator-metadata/oper
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("ConsoleFrameComponent", () => {
   let component: ConsoleFrameComponent;
@@ -13,7 +12,7 @@ describe("ConsoleFrameComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule, HttpClientTestingModule, NzDropDownModule],
+      imports: [HttpClientTestingModule, NzDropDownModule],
       declarations: [ConsoleFrameComponent],
       providers: [
         {

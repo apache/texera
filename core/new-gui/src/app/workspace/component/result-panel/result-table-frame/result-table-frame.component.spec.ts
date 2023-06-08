@@ -5,7 +5,6 @@ import { OperatorMetadataService } from "../../../service/operator-metadata/oper
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
@@ -13,7 +12,7 @@ describe("ResultTableFrameComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule],
+      imports: [HttpClientTestingModule, NzModalModule],
       declarations: [ResultTableFrameComponent],
       providers: [
         {

@@ -9,7 +9,6 @@ import { StubOperatorMetadataService } from "../../../service/operator-metadata/
 import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("TypecastingDisplayComponent", () => {
   let component: TypeCastingDisplayComponent;
@@ -17,7 +16,7 @@ describe("TypecastingDisplayComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,

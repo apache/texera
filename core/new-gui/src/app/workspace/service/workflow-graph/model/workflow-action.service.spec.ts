@@ -23,8 +23,6 @@ import { g } from "jointjs";
 import { environment } from "./../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { join } from "lodash";
-import { RouterTestingModule } from "@angular/router/testing";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -44,7 +42,7 @@ describe("WorkflowActionService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [RouterTestingModule, HttpClientTestingModule],
+      imports: [],
     });
     service = TestBed.inject(WorkflowActionService);
     undoRedo = TestBed.inject(UndoRedoService);

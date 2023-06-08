@@ -26,16 +26,15 @@ import {
   SCHEMA_PROPAGATION_ENDPOINT,
   SchemaPropagationService,
 } from "../schema-propagation/schema-propagation.service";
-import { RouterTestingModule } from "@angular/router/testing";
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-describe("AutoAttributeCorrectionService", () => {
+describe("AttributeChangePropagationService", () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,

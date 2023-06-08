@@ -3,7 +3,6 @@ import { CodeEditorDialogComponent } from "./code-editor-dialog.component";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { EMPTY } from "rxjs";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("CodeEditorDialogComponent", () => {
   let component: CodeEditorDialogComponent;
@@ -22,7 +21,7 @@ describe("CodeEditorDialogComponent", () => {
         },
         { provide: MAT_DIALOG_DATA, useValue: {} },
       ],
-      imports: [RouterTestingModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
     }).compileComponents();
   }));
 
