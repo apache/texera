@@ -14,6 +14,7 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { DynamicModule } from "ng-dynamic-component";
 import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -26,7 +27,7 @@ describe("ResultPanelComponent", () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [ResultPanelComponent],
-      imports: [DynamicModule, HttpClientTestingModule, NzModalModule],
+      imports: [RouterTestingModule, DynamicModule, HttpClientTestingModule, NzModalModule],
       providers: [
         WorkflowActionService,
         ExecuteWorkflowService,
