@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.pythonV2
+package edu.uci.ics.texera.workflow.operators.udf.python
 
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle

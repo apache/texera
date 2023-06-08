@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
+package edu.uci.ics.texera.workflow.operators.udf.python.source;
 
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager;
 import edu.uci.ics.amber.engine.common.InputExhausted;
@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2;
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2;
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.Iterator;

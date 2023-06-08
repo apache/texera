@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.pythonV2
+package edu.uci.ics.texera.workflow.operators.udf.python
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
@@ -46,14 +46,17 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonSchemaTitle("Python script")
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
+
   @JsonProperty(required = true)
   @JsonSchemaTitle("Worker count")
   @JsonPropertyDescription("Specify how many parallel workers to lunch")
   var workers: Int = Int.box(1)
+
   @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Retain input columns")
   @JsonPropertyDescription("Keep the original input columns?")
   var retainInputColumns: Boolean = Boolean.box(false)
+
   @JsonProperty
   @JsonSchemaTitle("Extra output column(s)")
   @JsonPropertyDescription(
