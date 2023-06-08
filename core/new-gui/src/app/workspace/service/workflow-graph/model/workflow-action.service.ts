@@ -29,7 +29,6 @@ import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
-import { ActivatedRoute, Router } from "@angular/router";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 /**
@@ -83,8 +82,6 @@ export class WorkflowActionService {
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
     private workflowUtilService: WorkflowUtilService,
-    private route: ActivatedRoute,
-    private router: Router,
     private notificationService: NotificationService
   ) {
     this.texeraGraph = new WorkflowGraph();
@@ -635,35 +632,15 @@ export class WorkflowActionService {
 
       const commentBoxes = workflowContent.commentBoxes;
 
-      // remember URL fragment
-      const fragment = this.route.snapshot.fragment;
-
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
       // operators and links shouldn't be highlighted during page reload
       const jointGraphWrapper = this.getJointGraphWrapper();
       jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
       jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
-      // set the URL fragment to previous value
-      this.router.navigate([], {
-        relativeTo: this.route,
-        fragment: fragment !== null ? fragment : undefined,
-        preserveFragment: false,
-      });
 
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
-
-      // highlight the operator, comment box, or link in the URL fragment
-      if (fragment) {
-        if (this.texeraGraph.hasElementWithID(fragment)) {
-          this.highlightElements(false, fragment);
-        } else {
-          this.notificationService.error(`Element ${fragment} doesn't exist`);
-          // remove the fragment from the URL
-          this.router.navigate([], { relativeTo: this.route });
-        }
-      }
     });
 
     // After reloading a workflow, need to clear undo/redo stacks because some of the actions involved in reloading

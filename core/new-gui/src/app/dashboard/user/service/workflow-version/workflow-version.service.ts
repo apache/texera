@@ -12,6 +12,7 @@ import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
 
 import { HttpClient } from "@angular/common/http";
+import { ActivatedRoute, Router } from "@angular/router";
 
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 export const DISPLAY_WORKFLOW_VERSIONS_EVENT = "display_workflow_versions_event";
@@ -44,7 +45,9 @@ export class WorkflowVersionService {
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private undoRedoService: UndoRedoService,
-    private http: HttpClient
+    private http: HttpClient,
+    private router: Router,
+    private route: ActivatedRoute,
   ) {}
 
   public clickDisplayWorkflowVersions(): void {
@@ -83,6 +86,8 @@ export class WorkflowVersionService {
     this.undoRedoService.disableWorkFlowModification();
     // reload the read only workflow version on the paper
     this.workflowActionService.reloadWorkflow(workflow);
+    // clear element ID in URL fragment to avoid highlighting non-existing element
+    this.router.navigate([], { relativeTo: this.route });
     this.setDisplayParticularVersion(true);
     // disable modifications because it is read only
     this.workflowActionService.disableWorkflowModification();
@@ -224,6 +229,8 @@ export class WorkflowVersionService {
     this.undoRedoService.disableWorkFlowModification();
     // reload the old workflow don't persist anything
     this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow());
+    // clear element ID in URL fragment to avoid highlighting non-existing element
+    this.router.navigate([], { relativeTo: this.route });
     // clear the temp workflow
     this.workflowActionService.resetTempWorkflow();
     // after reloading the workflow, we can enable the undoredo service

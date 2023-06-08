@@ -26,6 +26,7 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
+import { ActivatedRoute, Router } from "@angular/router";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -91,7 +92,9 @@ export class NavigationComponent implements OnInit {
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
     public changeDetectionRef: ChangeDetectorRef,
-    public coeditorPresenceService: CoeditorPresenceService
+    public coeditorPresenceService: CoeditorPresenceService,
+    private router: Router,
+    private route: ActivatedRoute
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -356,6 +359,8 @@ export class NavigationComponent implements OnInit {
         this.workflowActionService.enableWorkflowModification();
         // load the fetched workflow
         this.workflowActionService.reloadWorkflow(workflow, true);
+        // clear element ID in URL fragment caused by reloading workflow
+        this.router.navigate([], { relativeTo: this.route });
         // clear stack
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
