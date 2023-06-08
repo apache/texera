@@ -16,6 +16,7 @@
             value="{{ entry.file.name }}" />
         </ng-template>
         <button
+          *ngIf="editable"
           (click)="editingName = true"
           nz-button
           nz-tooltip="Customize File Name"
@@ -29,6 +30,7 @@
             nzType="edit"></i>
         </button>
         <button
+          *ngIf="editable"
           (click)="editingDescription = true"
           class="add-description-btn"
           nz-button
@@ -106,7 +108,7 @@
           nzType="share-alt"></i>
       </button>
     </nz-list-item-action>
-    <nz-list-item-action>
+    <nz-list-item-action *ngIf="editable">
       <button
         (nzOnConfirm)="deleted.emit()"
         [disabled]="!entry.writeAccess"

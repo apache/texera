@@ -97,7 +97,8 @@
         <texera-user-file-list-item
           *cdkVirtualFor="let entry of getFileArray()"
           [entry]="entry"
-          (deleted)="deleteFile(entry.file.fid)"></texera-user-file-list-item>
+          (deleted)="deleteFile(entry.file.fid)"
+          [editable]="true"></texera-user-file-list-item>
       </nz-list>
     </cdk-virtual-scroll-viewport>
   </nz-card>
