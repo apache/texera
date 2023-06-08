@@ -1,5 +1,5 @@
 import { DashboardFile } from "./dashboard-file.interface";
-import { DashboardWorkflowEntry } from "./dashboard-workflow-entry";
+import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { UserProject } from "./user-project";
 
 export class DashboardEntry {
@@ -54,13 +54,13 @@ export class DashboardEntry {
     return this.value;
   }
 
-  get workflow(): DashboardWorkflowEntry {
+  get workflow(): DashboardWorkflow {
     if (!("workflow" in this.value)) {
       throw new Error("Value is not of type Workflow.");
     }
     return this.value;
   }
-
+  
   get file(): DashboardFile {
     if (!("ownerEmail" in this.value)) {
       throw new Error("Value is not of type file.");
@@ -68,5 +68,5 @@ export class DashboardEntry {
     return this.value;
   }
 
-  constructor(public value: DashboardWorkflowEntry | UserProject | DashboardFile) {}
+  constructor(public value: DashboardWorkflow | UserProject | DashboardFile) {}
 }
