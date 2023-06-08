@@ -1,21 +1,20 @@
 import { Observable } from "rxjs";
 import { UserProject } from "../../type/user-project";
-import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { UserProjectService } from "./user-project.service";
+import { testUserProjects } from "../../component/user-dashboard-test-fixtures";
 
 export class StubUserProjectService {
-  public retrieveProjectList(): Observable<UserProject[]> {
-    return new Observable(observer =>
-      observer.next([
-        { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
-        { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
-        { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
-      ])
-    );
+  public refreshProjectList(): Observable<UserProject[]> {
+    return this.retrieveProjectList();
   }
 
-  public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflowEntry[]> {
+  public retrieveProjectList(): Observable<UserProject[]> {
+    return new Observable(observer => observer.next(testUserProjects.slice()));
+  }
+
+  public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflow[]> {
     throw new Error("Not implemented.");
   }
 

@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { DashboardWorkflowEntry } from "../../type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { UserProject } from "../../type/user-project";
 
@@ -23,13 +23,24 @@ export class UserProjectService {
 
   constructor(private http: HttpClient) {}
 
-  public retrieveProjectList(): Observable<UserProject[]> {
-    this.http.get<UserProject[]>(`${USER_PROJECT_LIST_URL}`).subscribe(this.projects);
-    return this.projects;
+  public refreshProjectList(): void {
+    this.http
+      .get<UserProject[]>(`${USER_PROJECT_LIST_URL}`)
+      .pipe()
+      // Pass through the result but without completing the long-lived BehaviorSubject.
+      .subscribe({
+        next: p => this.projects.next(p),
+        error: (p: unknown) => this.projects.error(p),
+        complete: () => {},
+      });
   }
 
-  public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(`${USER_PROJECT_BASE_URL}/${pid}/workflows`);
+  public retrieveProjectList(): Observable<UserProject[]> {
+    return this.projects.asObservable();
+  }
+
+  public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(`${USER_PROJECT_BASE_URL}/${pid}/workflows`);
   }
 
   public retrieveFilesOfProject(pid: number): Observable<DashboardFile[]> {
