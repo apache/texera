@@ -63,6 +63,11 @@ public enum AttributeType implements Serializable {
 
     @JsonValue
     public String getName() {
+        if (this.name.equals(ANY.name)) {
+            // exclude this enum type in JSON schema
+            // JSON schema generator will ignore empty enum type
+            return "";
+        }
         return this.name;
     }
 
