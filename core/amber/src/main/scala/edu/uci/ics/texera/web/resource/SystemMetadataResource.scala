@@ -17,4 +17,5 @@ class SystemMetadataResource {
   def getOperatorMetadata: AllOperatorMetadata = {
     OperatorMetadataGenerator.allOperatorMetadata
   }
+
 }
