@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
@@ -28,6 +28,10 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("File")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
+
+  @JsonProperty(defaultValue = "UTF_8")
+  @JsonSchemaTitle("File Encoding")
+  var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonIgnore
   var filePath: Option[String] = None
