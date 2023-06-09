@@ -8,7 +8,7 @@ import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DashboardProject } from "../../../type/dashboard.project";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()

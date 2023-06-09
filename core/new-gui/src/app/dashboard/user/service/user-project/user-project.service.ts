@@ -4,7 +4,7 @@ import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
-import { DashboardProject } from "../../type/dashboard.project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 
 export const USER_PROJECT_BASE_URL = `${AppSettings.getApiEndpoint()}/project`;
 export const USER_PROJECT_LIST_URL = `${USER_PROJECT_BASE_URL}/list`;

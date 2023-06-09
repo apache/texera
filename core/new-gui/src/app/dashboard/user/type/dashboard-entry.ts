@@ -1,6 +1,6 @@
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard.project";
+import { DashboardProject } from "./dashboard-project.interface";
 
 export class DashboardEntry {
   checked = false;

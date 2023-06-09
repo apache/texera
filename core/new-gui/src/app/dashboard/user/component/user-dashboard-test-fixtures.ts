@@ -2,7 +2,7 @@
 
 import { Workflow, WorkflowContent } from "src/app/common/type/workflow";
 import { DashboardEntry } from "../type/dashboard-entry";
-import { DashboardProject } from "../type/dashboard.project";
+import { DashboardProject } from "../type/dashboard-project.interface";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;

@@ -1,5 +1,5 @@
 import { Observable } from "rxjs";
-import { DashboardProject } from "../../type/dashboard.project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { UserProjectService } from "./user-project.service";
