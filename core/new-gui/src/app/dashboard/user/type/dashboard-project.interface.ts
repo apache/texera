@@ -1,4 +1,4 @@
-export interface UserProject {
+export interface DashboardProject {
   pid: number;
   name: string;
   description: string;
