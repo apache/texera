@@ -28,7 +28,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(path) =>
         // count lines and partition the task to each worker
-        val reader = new BufferedReader(new FileReader(path))
+        val reader = new BufferedReader(new FileReader(path, fileEncoding.getCharset))
         val offsetValue = offset.getOrElse(0)
         var lines = reader.lines().iterator().drop(offsetValue)
         if (limit.isDefined) lines = lines.take(limit.get)
@@ -63,7 +63,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val reader = new BufferedReader(new FileReader(filePath.get))
+    val reader = new BufferedReader(new FileReader(filePath.get, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
