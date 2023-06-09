@@ -1,12 +1,13 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, throwError } from "rxjs";
+import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
-import { DashboardWorkflowEntry } from "../../../dashboard/user/type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workflow.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
+import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -57,23 +58,23 @@ export class WorkflowPersistService {
   public createWorkflow(
     newWorkflowContent: WorkflowContent,
     newWorkflowName: string = DEFAULT_WORKFLOW_NAME
-  ): Observable<DashboardWorkflowEntry> {
+  ): Observable<DashboardWorkflow> {
     return this.http
-      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
+      .post<DashboardWorkflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
         name: newWorkflowName,
         content: JSON.stringify(newWorkflowContent),
       })
-      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
+      .pipe(filter((createdWorkflow: DashboardWorkflow) => createdWorkflow != null));
   }
 
   /**
    * creates a workflow and insert it to backend database and return its information
    * @param targetWid
    */
-  public duplicateWorkflow(targetWid: number): Observable<DashboardWorkflowEntry> {
+  public duplicateWorkflow(targetWid: number): Observable<DashboardWorkflow> {
     return this.http
-      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, { wid: targetWid })
-      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
+      .post<DashboardWorkflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, { wid: targetWid })
+      .pipe(filter((createdWorkflow: DashboardWorkflow) => createdWorkflow != null));
   }
 
   /**
@@ -87,10 +88,10 @@ export class WorkflowPersistService {
     );
   }
 
-  private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(url).pipe(
-      map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
-        dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
+  private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(url).pipe(
+      map((dashboardWorkflowEntries: DashboardWorkflow[]) =>
+        dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflow) => {
           return {
             ...workflowEntry,
             dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow),
@@ -103,55 +104,16 @@ export class WorkflowPersistService {
   /**
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */
-  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
+  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflow[]> {
     return this.makeRequestAndFormatWorkflowResponse(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
   }
 
   /**
    * Search workflows by a text query from backend database that belongs to the user in the session.
    */
-  public searchWorkflows(
-    keywords: string[],
-    createDateStart: Date | null,
-    createDateEnd: Date | null,
-    modifiedDateStart: Date | null,
-    modifiedDateEnd: Date | null,
-    owners: string[],
-    ids: string[],
-    operators: string[],
-    projectIds: number[]
-  ): Observable<DashboardWorkflowEntry[]> {
-    function* getQueryParameters(): Iterable<[name: string, value: string]> {
-      if (keywords) {
-        for (const keyword of keywords) {
-          yield ["query", keyword];
-        }
-      }
-      if (createDateStart) yield ["createDateStart", createDateStart.toISOString().split("T")[0]];
-      if (createDateEnd) yield ["createDateEnd", createDateEnd.toISOString().split("T")[0]];
-      if (modifiedDateStart) yield ["modifiedDateStart", modifiedDateStart.toISOString().split("T")[0]];
-      if (modifiedDateEnd) yield ["modifiedDateEnd", modifiedDateEnd.toISOString().split("T")[0]];
-      for (const owner of owners) {
-        yield ["owner", owner];
-      }
-      for (const id of ids) {
-        yield ["id", id];
-      }
-      for (const operator of operators) {
-        yield ["operator", operator];
-      }
-      for (const id of projectIds) {
-        yield ["projectId", id.toString()];
-      }
-    }
-    const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
-      [...queryStrings]
-        .filter(q => q[1])
-        .map(([name, value]) => name + "=" + encodeURIComponent(value))
-        .join("&");
-    const queryString = concatenateQueryStrings(getQueryParameters());
+  public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflow[]> {
     return this.makeRequestAndFormatWorkflowResponse(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${queryString}`
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${toQueryStrings(keywords, params)}`
     );
   }
 
