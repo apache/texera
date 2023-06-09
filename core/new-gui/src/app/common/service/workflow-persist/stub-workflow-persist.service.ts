@@ -17,6 +17,7 @@ export class StubWorkflowPersistService {
       observer.next(this.testWorkflows.find(w => w.workflow.workflow.wid == wid)?.workflow.workflow)
     );
   }
+
   public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflow[]> {
     return new Observable(observer => {
       return observer.next(searchTestEntries(keywords, params, this.testWorkflows).map(i => i.workflow));
