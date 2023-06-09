@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../service/user-project/user-project.service";
-import { UserProject } from "../../type/user-project";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 
@@ -12,7 +12,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 })
 export class UserProjectComponent implements OnInit {
   // store list of projects / variables to create and edit projects
-  public userProjectEntries: UserProject[] = [];
+  public userProjectEntries: DashboardProject[] = [];
   public userProjectEntriesIsEditingName: number[] = [];
   public userProjectEntriesIsEditingDescription: number[] = [];
   public collapsedProjectDescriptions: number[] = [];
@@ -103,7 +103,7 @@ export class UserProjectComponent implements OnInit {
       });
   }
 
-  private isValidNewProjectName(newName: string, oldProject?: UserProject): boolean {
+  private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {
     if (typeof oldProject === "undefined") {
       return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
     } else {
