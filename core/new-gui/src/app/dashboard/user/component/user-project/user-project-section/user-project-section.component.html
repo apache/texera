@@ -32,6 +32,7 @@
       [(cpToggle)]="colorPickerIsSelected"
       [cpExtraTemplate]="colorMenuTemplate"
       [cpOKButtonClass]="'btn btn-primary btn-xs'"
+      title="Save"
       [cpOKButtonText]="'Save'"
       [cpOKButton]="false"
       [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
@@ -61,9 +62,7 @@
     </ng-template>
   </nz-card>
 
-  <texera-saved-workflow-section
-    [pid]="pid"
-    [updateProjectStatus]="updateProjectStatus"></texera-saved-workflow-section>
+  <texera-saved-workflow-section [pid]="pid"></texera-saved-workflow-section>
 </div>
 
 <div>
@@ -72,6 +71,7 @@
     <button
       (click)="onClickOpenAddFile()"
       nz-button
+      title="Add file(s) to project"
       nz-tooltip="Add file(s) to project"
       nzTooltipPlacement="bottom"
       type="button">
@@ -83,6 +83,7 @@
     <button
       (click)="onClickOpenRemoveFile()"
       nz-button
+      title="Remove workflow(s) from project"
       nz-tooltip="Remove workflow(s) from project"
       nzTooltipPlacement="bottom"
       type="button">
@@ -115,6 +116,7 @@
               <button
                 (click)="isEditingFileName.push(i)"
                 nz-button
+                title="Edit File Name"
                 nz-tooltip="Edit File Name"
                 nzSize="small"
                 nzTooltipPlacement="bottom"
@@ -134,6 +136,7 @@
             <button
               (click)="downloadUserFile(file)"
               nz-button
+              title="Download the file {{file.file.name}}"
               nz-tooltip="Download the file {{file.file.name}}"
               nzTooltipPlacement="bottom">
               <i
@@ -147,6 +150,7 @@
               (click)="deleteUserFileEntry(file)"
               [disabled]="!file.writeAccess"
               nz-button
+              title="Delete the file {{file.file.name}}"
               nz-tooltip="Delete the file {{file.file.name}}"
               nzTooltipPlacement="bottom"
               type="button">

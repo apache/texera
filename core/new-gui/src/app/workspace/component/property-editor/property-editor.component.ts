@@ -6,16 +6,16 @@ import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
-  DISPLAY_WORKFLOW_VERIONS_EVENT,
+  DISPLAY_WORKFLOW_VERSIONS_EVENT,
   WorkflowVersionService,
 } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
-import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
+import { VersionsDisplayFrameComponent } from "./versions-display/versions-display-frame.component";
 import { filter } from "rxjs/operators";
 
 export type PropertyEditFrameComponent =
   | OperatorPropertyEditFrameComponent
   | BreakpointPropertyEditFrameComponent
-  | VersionsListDisplayComponent;
+  | VersionsDisplayFrameComponent;
 
 export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
@@ -79,7 +79,7 @@ export class PropertyEditorComponent implements OnInit {
         untilDestroyed(this)
       )
       .subscribe(event => {
-        const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERIONS_EVENT;
+        const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERSIONS_EVENT;
 
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
@@ -89,7 +89,7 @@ export class PropertyEditorComponent implements OnInit {
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
         if (isDisplayWorkflowVersions) {
           this.switchFrameComponent({
-            component: VersionsListDisplayComponent,
+            component: VersionsDisplayFrameComponent,
           });
         } else if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.switchFrameComponent({

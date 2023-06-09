@@ -11,8 +11,6 @@ import javax.ws.rs.container.ContainerRequestContext
 import javax.ws.rs.container.PreMatching
 import javax.ws.rs.core.SecurityContext
 import java.io.IOException
-import java.security.Principal
-import java.util
 import java.util.Optional
 
 @PreMatching
