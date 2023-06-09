@@ -111,7 +111,6 @@ export class WorkflowPersistService {
   /**
    * Search workflows by a text query from backend database that belongs to the user in the session.
    */
-
   public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflow[]> {
     return this.makeRequestAndFormatWorkflowResponse(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${toQueryStrings(keywords, params)}`
