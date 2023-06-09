@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
@@ -34,7 +34,7 @@ export class UserProjectSectionComponent implements OnInit {
   public updateProjectStatus = ""; // track any updates to user project for child components to rerender
 
   // temporarily here for file section color tags, TODO : remove once file service PR approved
-  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding UserProject
+  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
 
   // ----- for file card
