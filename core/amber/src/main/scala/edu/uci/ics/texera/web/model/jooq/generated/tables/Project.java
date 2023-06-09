@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Project extends TableImpl<ProjectRecord> {
 
-    private static final long serialVersionUID = 2133588683;
+    private static final long serialVersionUID = 1829720653;
 
     /**
      * The reference instance of <code>texera_db.project</code>
@@ -120,7 +120,7 @@ public class Project extends TableImpl<ProjectRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.PROJECT_OWNER_ID, Indexes.PROJECT_PRIMARY);
+        return Arrays.<Index>asList(Indexes.PROJECT_IDX_USER_PROJECT_NAME_DESCRIPTION, Indexes.PROJECT_OWNER_ID, Indexes.PROJECT_PRIMARY);
     }
 
     @Override
