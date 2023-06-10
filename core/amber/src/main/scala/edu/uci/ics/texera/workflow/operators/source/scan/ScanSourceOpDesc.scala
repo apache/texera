@@ -29,8 +29,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
 
-  @JsonProperty(defaultValue = "UTF_8")
+  @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("File Encoding")
+  @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonIgnore
