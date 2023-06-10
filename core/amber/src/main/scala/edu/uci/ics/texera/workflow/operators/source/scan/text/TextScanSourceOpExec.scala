@@ -4,7 +4,7 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 
-import java.io.{BufferedReader, FileReader, IOException}
+import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
@@ -53,7 +53,9 @@ class TextScanSourceOpExec private[text] (
     if (desc.attributeType.isOutputSingleTuple) {
       path = Paths.get(desc.filePath.get)
     } else {
-      reader = new BufferedReader(new FileReader(desc.filePath.get, desc.fileEncoding.getCharset))
+      reader = new BufferedReader(
+        new InputStreamReader(new FileInputStream(desc.filePath.get), desc.fileEncoding.getCharset)
+      )
       rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
     }
   }

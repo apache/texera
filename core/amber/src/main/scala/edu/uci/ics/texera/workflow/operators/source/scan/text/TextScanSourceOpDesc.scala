@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
-import java.io.{BufferedReader, FileReader}
+import java.io.{BufferedReader, FileInputStream, InputStreamReader}
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
 /* ignoring inherited limit and offset properties because they are not hideable
@@ -27,7 +27,9 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
 
         if (!attributeType.isOutputSingleTuple) {
           // count number of rows in input text file
-          val reader = new BufferedReader(new FileReader(path, fileEncoding.getCharset))
+          val reader = new BufferedReader(
+            new InputStreamReader(new FileInputStream(path), fileEncoding.getCharset)
+          )
           count = countNumLines(reader.lines().iterator().asScala, offsetValue)
           reader.close()
         }
