@@ -31,7 +31,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with single column representing entire file in outputAsSingleTuple mode" in {
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.STRING_AS_SINGLE_TUPLE
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE
     val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
@@ -39,7 +39,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with user-specified output schema attribute" in {
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.STRING
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
     val customOutputAttributeName: String = "testing"
     textScanSourceOpDesc.attributeName = Option(customOutputAttributeName)
     val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
@@ -49,7 +49,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with integer attribute type" in {
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.INTEGER
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.INTEGER
     val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
@@ -57,7 +57,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.STRING
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
     val textScanSourceOpExec =
       new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()
@@ -74,7 +74,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
     textScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.STRING
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
     val textScanSourceOpExec =
       new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()
@@ -90,7 +90,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file into a single output tuple" in {
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.STRING_AS_SINGLE_TUPLE
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE
     val textScanSourceOpExec =
       new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "file")
     textScanSourceOpExec.open()
@@ -108,7 +108,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     textScanSourceOpDesc.filePath = Some(TestNumbersFilePath)
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.INTEGER
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.INTEGER
     val textScanSourceOpExec =
       new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()
@@ -126,7 +126,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
     textScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     textScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
-    textScanSourceOpDesc.attributeType = TextSourceAttributeType.STRING
+    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
     val textScanSourceOpExec =
       new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()

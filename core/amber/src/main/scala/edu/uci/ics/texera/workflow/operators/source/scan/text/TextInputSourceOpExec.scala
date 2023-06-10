@@ -20,12 +20,7 @@ class TextInputSourceOpExec private[text] (
           .newBuilder(schema)
           .add(
             schema.getAttribute(outputAttributeName),
-            desc.attributeType match {
-              // AttributeTypeUtils doesn't parse String into Bytes[], do it ourselves
-              case TextSourceAttributeType.BINARY =>
-                desc.textInput.getBytes(desc.fileEncoding.getCharset)
-              case TextSourceAttributeType.STRING_AS_SINGLE_TUPLE => desc.textInput
-            }
+            desc.textInput // only attribute type supporting outputAsSingleTuple mode is STRING_AS_SINGLE_TUPLE
           )
           .build()
       )

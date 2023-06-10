@@ -14,12 +14,6 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
   * used for variations of text input processing
   */
 trait TextSourceOpDesc {
-  // indicates the AttributeType of output tuple(s) - supports all AttributeType except ANY
-  @JsonProperty(defaultValue = "string", required = true)
-  @JsonSchemaTitle("Attribute Type")
-  @JsonPropertyDescription("Attribute type of output tuple(s)")
-  var attributeType: TextSourceAttributeType = TextSourceAttributeType.STRING
-
   /* create new, identical limit and offset fields
       with additional annotations to make hideable
 

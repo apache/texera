@@ -30,7 +30,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with single column representing entire input in outputAsSingleTuple mode" in {
-    textInputSourceOpDesc.attributeType = TextSourceAttributeType.STRING_AS_SINGLE_TUPLE
+    textInputSourceOpDesc.attributeType = TextInputSourceAttributeType.STRING_AS_SINGLE_TUPLE
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
@@ -38,7 +38,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with user-specified output schema attribute" in {
-    textInputSourceOpDesc.attributeType = TextSourceAttributeType.STRING
+    textInputSourceOpDesc.attributeType = TextInputSourceAttributeType.STRING
     val customOutputAttributeName: String = "testing"
     textInputSourceOpDesc.attributeName = Option(customOutputAttributeName)
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
@@ -48,7 +48,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with integer attribute type" in {
-    textInputSourceOpDesc.attributeType = TextSourceAttributeType.INTEGER
+    textInputSourceOpDesc.attributeType = TextInputSourceAttributeType.INTEGER
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
@@ -58,7 +58,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestTextFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = TextSourceAttributeType.STRING
+    textInputSourceOpDesc.attributeType = TextInputSourceAttributeType.STRING
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()
@@ -76,7 +76,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text with CRLF separators into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestCRLFTextFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = TextSourceAttributeType.STRING
+    textInputSourceOpDesc.attributeType = TextInputSourceAttributeType.STRING
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()
@@ -94,7 +94,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into a single output tuple" in {
     val inputString: String = readFileIntoString(TestTextFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = TextSourceAttributeType.STRING_AS_SINGLE_TUPLE
+    textInputSourceOpDesc.attributeType = TextInputSourceAttributeType.STRING_AS_SINGLE_TUPLE
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc, StartOffset, EndOffset, "text")
     textScanSourceOpExec.open()
@@ -113,7 +113,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     val inputString: String = readFileIntoString(TestNumbersFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = TextSourceAttributeType.INTEGER
+    textInputSourceOpDesc.attributeType = TextInputSourceAttributeType.INTEGER
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc, StartOffset, EndOffset, "line")
     textScanSourceOpExec.open()

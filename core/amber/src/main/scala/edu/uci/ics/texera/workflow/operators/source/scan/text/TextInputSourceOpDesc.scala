@@ -4,11 +4,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaDescription,
   JsonSchemaInject,
-  JsonSchemaString,
   JsonSchemaTitle
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{HideAnnotation, UIWidget}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -16,7 +15,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.util.Collections.singletonList
 import javax.validation.constraints.Size
@@ -30,18 +28,11 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   @Size(max = 1024)
   var textInput: String = _
 
-  // only used for the binary attribute type, to encode entire input String to bytes
-  @JsonProperty(defaultValue = "UTF_8", required = true)
-  @JsonSchemaTitle("String Encoding")
-  @JsonPropertyDescription("encoding charset from input to bytes")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "^(?!binary).*$")
-    )
-  )
-  var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
+  // indicates the AttributeType of output tuple(s) - supports all AttributeType except ANY and BINARY
+  @JsonProperty(defaultValue = "string", required = true)
+  @JsonSchemaTitle("Attribute Type")
+  @JsonPropertyDescription("Attribute type of output tuple(s)")
+  var attributeType: TextInputSourceAttributeType = TextInputSourceAttributeType.STRING
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val offsetValue: Int = offsetHideable.getOrElse(0)

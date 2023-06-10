@@ -3,12 +3,10 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text;
 import com.fasterxml.jackson.annotation.JsonValue;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 
-import java.sql.Timestamp;
-
-public enum TextSourceAttributeType {
+public enum TextScanSourceAttributeType {
     /**
-     * TextSourceAttributeType has all the possible types of the output column for Text Source operators
-     * It is modeled from AttributeType but modified for the specific use case of Text Source operators.
+     * TextScanSourceAttributeType has all the possible types of the output column for the TextScanSource operator.
+     * It is modeled from AttributeType but modified for the specific use case of this operator.
      *
      * All text source operators only output tuples with one field
      * All attribute types except ANY are supported
@@ -28,7 +26,7 @@ public enum TextSourceAttributeType {
     private final String name;
     private final AttributeType type;
 
-    TextSourceAttributeType(String name, AttributeType type) {
+    TextScanSourceAttributeType(String name, AttributeType type) {
         this.name = name;
         this.type = type;
     }
@@ -43,5 +41,5 @@ public enum TextSourceAttributeType {
         return this.getName();
     }
 
-    public boolean isOutputSingleTuple() { return this == TextSourceAttributeType.STRING_AS_SINGLE_TUPLE || this == TextSourceAttributeType.BINARY; }
+    public boolean isOutputSingleTuple() { return this == TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE || this == TextScanSourceAttributeType.BINARY; }
 }

@@ -28,9 +28,9 @@ class TextScanSourceOpExec private[text] (
           .add(
             schema.getAttribute(outputAttributeName),
             desc.attributeType match {
-              case TextSourceAttributeType.STRING_AS_SINGLE_TUPLE =>
-                new String(Files.readAllBytes(path), desc.fileEncoding.getCharset)
-              case TextSourceAttributeType.BINARY => Files.readAllBytes(path)
+              case TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE =>
+                new String(Files.readAllBytes(path), desc.fileEncodingHideable.getCharset)
+              case TextScanSourceAttributeType.BINARY => Files.readAllBytes(path)
             }
           )
           .build()
@@ -54,7 +54,10 @@ class TextScanSourceOpExec private[text] (
       path = Paths.get(desc.filePath.get)
     } else {
       reader = new BufferedReader(
-        new InputStreamReader(new FileInputStream(desc.filePath.get), desc.fileEncoding.getCharset)
+        new InputStreamReader(
+          new FileInputStream(desc.filePath.get),
+          desc.fileEncodingHideable.getCharset
+        )
       )
       rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
     }
