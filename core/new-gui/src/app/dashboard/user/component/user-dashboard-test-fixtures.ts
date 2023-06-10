@@ -2,7 +2,7 @@
 
 import { Workflow, WorkflowContent } from "src/app/common/type/workflow";
 import { DashboardEntry } from "../type/dashboard-entry";
-import { UserProject } from "../type/user-project";
+import { DashboardProject } from "../type/dashboard-project.interface";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;
@@ -158,7 +158,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
   }),
 ];
 
-export const testUserProjects: UserProject[] = [
+export const testUserProjects: DashboardProject[] = [
   { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
   { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
   { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0 },
