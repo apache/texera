@@ -1,5 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
-import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { environment } from "src/environments/environment";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowExecutionsComponent } from "../ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
@@ -11,9 +10,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "src/app/common/type/workflow";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
-import { UserProject } from "../../../type/user-project";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
-import DashboardWorkflowEntryViewModel from "./dashboard-workflow-entry-view-model";
+import { DashboardEntry } from "../../../type/dashboard-entry";
+import { firstValueFrom } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -24,36 +24,32 @@ import DashboardWorkflowEntryViewModel from "./dashboard-workflow-entry-view-mod
 export class UserWorkflowListItemComponent {
   ROUTER_WORKFLOW_BASE_URL = "/workflow";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
-  private _entry?: DashboardWorkflowEntryViewModel;
+  private _entry?: DashboardEntry;
 
   @Input()
-  get entry(): DashboardWorkflowEntryViewModel {
+  get entry(): DashboardEntry {
     if (!this._entry) {
       throw new Error("entry property must be provided to UserWorkflowListItemComponent.");
     }
     return this._entry;
   }
 
-  set entry(value: DashboardWorkflowEntryViewModel) {
+  set entry(value: DashboardEntry) {
     this._entry = value;
   }
 
-  private _owners?: { userName: string; checked: boolean }[] = [];
-
-  @Input()
-  get owners(): { userName: string; checked: boolean }[] {
-    if (!this._owners) {
-      throw new Error("entry property must be provided to UserWorkflowListItemComponent.");
+  get workflow(): Workflow {
+    if (!this.entry.workflow) {
+      throw new Error(
+        "Incorrect type of DashboardEntry provided to UserWorkflowListItemComponent. Entry must be workflow."
+      );
     }
-    return this._owners;
+    return this.entry.workflow.workflow;
   }
 
-  set owners(value: { userName: string; checked: boolean }[]) {
-    this._owners = value;
-  }
+  @Input() editable = false;
   @Input() public pid: number = 0;
-  @Input() userProjectsLoaded = false;
-  @Input() userProjectsMap?: ReadonlyMap<number, UserProject> = new Map();
+  userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map();
   @Output() checkedChange: EventEmitter<boolean> = new EventEmitter<boolean>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
@@ -68,26 +64,33 @@ export class UserWorkflowListItemComponent {
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService,
     private userProjectService: UserProjectService
-  ) {}
+  ) {
+    this.userProjectService
+      .retrieveProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(userProjectsList => {
+        this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
+      });
+  }
 
   /**
    * open the workflow executions page
    */
-  public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflowEntry): void {
+  public onClickGetWorkflowExecutions(): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
       size: "xl",
       modalDialogClass: "modal-dialog-centered",
     });
-    modalRef.componentInstance.workflow = workflow;
-    modalRef.componentInstance.workflowName = workflow.name;
+    modalRef.componentInstance.workflow = this.workflow;
+    modalRef.componentInstance.workflowName = this.workflow.name;
   }
 
   public confirmUpdateWorkflowCustomName(name: string): void {
     this.workflowPersistService
-      .updateWorkflowName(this.entry.workflow.wid, name || DEFAULT_WORKFLOW_NAME)
+      .updateWorkflowName(this.workflow.wid, name || DEFAULT_WORKFLOW_NAME)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.entry.workflow.name = name || DEFAULT_WORKFLOW_NAME;
+        this.workflow.name = name || DEFAULT_WORKFLOW_NAME;
       })
       .add(() => {
         this.editingName = false;
@@ -96,10 +99,10 @@ export class UserWorkflowListItemComponent {
 
   public confirmUpdateWorkflowCustomDescription(description: string): void {
     this.workflowPersistService
-      .updateWorkflowDescription(this.entry.workflow.wid, description)
+      .updateWorkflowDescription(this.workflow.wid, description)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.entry.workflow.description = description;
+        this.workflow.description = description;
       })
       .add(() => {
         this.editingDescription = false;
@@ -109,20 +112,21 @@ export class UserWorkflowListItemComponent {
   /**
    * open the Modal based on the workflow clicked on
    */
-  public onClickOpenShareAccess(): void {
+  public async onClickOpenShareAccess(): Promise<void> {
+    const owners = await firstValueFrom(this.workflowPersistService.retrieveOwners());
     const modalRef = this.modalService.open(ShareAccessComponent);
     modalRef.componentInstance.type = "workflow";
-    modalRef.componentInstance.id = this.entry.workflow.wid;
-    modalRef.componentInstance.allOwners = this.owners.map(owner => owner.userName);
+    modalRef.componentInstance.id = this.workflow.wid;
+    modalRef.componentInstance.allOwners = owners;
   }
 
   /**
    * Download the workflow as a json file
    */
-  public onClickDownloadWorkfllow({ workflow: { wid } }: DashboardWorkflowEntry): void {
-    if (wid) {
+  public onClickDownloadWorkfllow(): void {
+    if (this.workflow.wid) {
       this.workflowPersistService
-        .retrieveWorkflow(wid)
+        .retrieveWorkflow(this.workflow.wid)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
           const workflowCopy: Workflow = {
@@ -139,7 +143,7 @@ export class UserWorkflowListItemComponent {
   }
 
   public isLightColor(color: string): boolean {
-    return this.userProjectService.isLightColor(color);
+    return UserProjectService.isLightColor(color);
   }
 
   /**
@@ -147,10 +151,10 @@ export class UserWorkflowListItemComponent {
    */
   public removeWorkflowFromProject(pid: number): void {
     this.userProjectService
-      .removeWorkflowFromProject(pid, this.entry.workflow.wid!)
+      .removeWorkflowFromProject(pid, this.workflow.wid!)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.entry.projectIDs = this.entry.projectIDs.filter(projectID => projectID != pid);
+        this.entry.workflow.projectIDs = this.entry.workflow.projectIDs.filter(projectID => projectID != pid);
       });
   }
 }

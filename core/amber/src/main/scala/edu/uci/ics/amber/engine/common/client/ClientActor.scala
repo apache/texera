@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.client
 
-import akka.actor.{Actor, ActorRef, PoisonPill}
+import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}

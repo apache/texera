@@ -2,7 +2,7 @@ import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
@@ -14,7 +14,12 @@ export class LocalLoginComponent {
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
-  constructor(private formBuilder: FormBuilder, private userService: UserService, private router: Router) {
+  constructor(
+    private formBuilder: FormBuilder,
+    private userService: UserService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
@@ -58,8 +63,9 @@ export class LocalLoginComponent {
       .pipe(untilDestroyed(this))
       .subscribe(
         Zone.current.wrap(() => {
+          const url = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
           // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-          this.router.navigate(["/dashboard/workflow"]);
+          this.router.navigateByUrl(url);
         }, "")
       );
   }
@@ -93,8 +99,9 @@ export class LocalLoginComponent {
       .pipe(untilDestroyed(this))
       .subscribe(
         Zone.current.wrap(() => {
+          const url = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
           // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-          this.router.navigate(["/dashboard/workflow"]);
+          this.router.navigateByUrl(url);
         }, "")
       );
   }

@@ -121,6 +121,11 @@ import { DragDropModule } from "@angular/cdk/drag-drop";
 import { AuthInterceptor } from "./common/service/user/auth.interceptor";
 import { UserWorkflowListItemComponent } from "./dashboard/user/component/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectListItemComponent } from "./dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component";
+import { SortButtonComponent } from "./dashboard/user/component/sort-button/sort-button.component";
+import { FiltersComponent } from "./dashboard/user/component/filters/filters.component";
+import { FiltersInstructionsComponent } from "./dashboard/user/component/filters-instructions/filters-instructions.component";
+import { UserFileListItemComponent } from "./dashboard/user/component/user-file/user-file-list-item/user-file-list-item.component";
+import { SearchComponent } from "./dashboard/user/component/search/search.component";
 
 registerLocaleData(en);
 
@@ -183,6 +188,11 @@ registerLocaleData(en);
     HomeComponent,
     UserWorkflowListItemComponent,
     UserProjectListItemComponent,
+    SortButtonComponent,
+    FiltersComponent,
+    FiltersInstructionsComponent,
+    UserFileListItemComponent,
+    SearchComponent,
   ],
   imports: [
     BrowserModule,

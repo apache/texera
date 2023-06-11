@@ -6,12 +6,8 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriter.copyOperator
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-import java.util.UUID
 
-import edu.uci.ics.texera.workflow.operators.sink.managed.{
-  ProgressiveSinkOpDesc,
-  ProgressiveSinkOpExec
-}
+import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 
 import scala.collection.mutable
 

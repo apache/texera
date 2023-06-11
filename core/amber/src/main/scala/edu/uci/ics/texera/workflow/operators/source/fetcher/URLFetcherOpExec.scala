@@ -6,7 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 import org.apache.commons.io.IOUtils
 
-import java.io.InputStream
 import java.net.URL
 
 class URLFetcherOpExec(

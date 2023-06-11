@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 @Deprecated
 class AmberTuple(val data: Array[Any]) extends ITuple {
-  def this(fields: Array[String], fieldTypes: Array[FieldType.Value]) {
+  def this(fields: Array[String], fieldTypes: Array[FieldType.Value]) = {
     this({
       var i = 0
       val limit = Math.min(fields.length, fieldTypes.length)

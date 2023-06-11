@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sink.storage
 
 import com.mongodb.client.model.Sorts
-import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoCursor, MongoDatabase}
+import com.mongodb.client.MongoCursor
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.storage.{MongoCollectionManager, MongoDatabaseManager}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.bson.Document
 
 import scala.collection.mutable
-import collection.JavaConverters._
 
 class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
 
