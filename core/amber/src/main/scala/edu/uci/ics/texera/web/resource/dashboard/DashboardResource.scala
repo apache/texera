@@ -33,6 +33,11 @@ object DashboardResource {
       project: Project,
       file: DashboardFileEntry
   )
+
+  case class DashboardSearchResult(
+      results: List[DashboardClickableFileEntry],
+      more: Boolean
+  )
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -40,21 +45,36 @@ object DashboardResource {
 class DashboardResource {
 
   /**
-    * This method performs a full-text search in all resources(workflow, project, file)
+    * This method performs a full-text search across all resources - workflows, projects, and files -
     * that match the specified keywords.
+    * It supports advanced filters such as resource type, creation and modification dates, owner,
+    * workflow IDs, operators, project IDs and allows to specify the number of results and their ordering.
     *
     * This method utilizes MySQL Boolean Full-Text Searches
     * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
     *
-    * @param sessionUser The authenticated user.
-    * @param keywords    The search keywords.
-    * @return A list of DashboardClickableFileEntry that match the search term.
+    * @param sessionUser       The authenticated user performing the search.
+    * @param keywords          A list of search keywords. The API will return resources that match any of these keywords.
+    * @param resourceType      The type of the resources to include in the search results. Acceptable values are "workflow", "project", "file" and "" (for all types).
+    * @param creationStartDate The start of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
+    * @param creationEndDate   The end of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
+    * @param modifiedStartDate The start of the date range for the modification time filter. It should be provided in 'yyyy-MM-dd' format.
+    * @param modifiedEndDate   The end of the date range for the modification time filter. It should be provided in 'yyyy-MM-dd' format.
+    * @param owners            A list of owner names to include in the search results.
+    * @param workflowIDs       A list of workflow IDs to include in the search results.
+    * @param operators         A list of operators to include in the search results.
+    * @param projectIds        A list of project IDs to include in the search results.
+    * @param offset            The number of initial results to skip. This is useful for implementing pagination.
+    * @param count             The maximum number of results to return.
+    * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc'.
+    * @return A DashboardSearchResult object containing a list of DashboardClickableFileEntry objects that match the search criteria, and a boolean indicating whether more results are available.
     */
+
   @GET
   @Path("/search")
   def searchAllResources(
       @Auth sessionUser: SessionUser,
-      @QueryParam("query") keywords: java.util.List[String],
+      @QueryParam("query") keywords: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("resourceType") @DefaultValue("") resourceType: String = "",
       @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
       @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
@@ -64,8 +84,11 @@ class DashboardResource {
       @QueryParam("id") workflowIDs: java.util.List[UInteger] = new java.util.ArrayList[UInteger](),
       @QueryParam("operator") operators: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("projectId") projectIds: java.util.List[UInteger] =
-        new java.util.ArrayList[UInteger]()
-  ): List[DashboardClickableFileEntry] = {
+        new java.util.ArrayList[UInteger](),
+      @QueryParam("start") @DefaultValue("0") offset: Int = 0,
+      @QueryParam("count") @DefaultValue("20") count: Int = 20,
+      @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
+  ): DashboardSearchResult = {
     val user = sessionUser.getUser
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
@@ -248,7 +271,7 @@ class DashboardResource {
         PROJECT.CREATION_TIME.as("creation_time"),
         // workflow attributes: 5 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
-        DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(PROJECT.CREATION_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
@@ -281,10 +304,10 @@ class DashboardResource {
         DSL.inline("file").as("resourceType"),
         FILE.NAME,
         FILE.DESCRIPTION,
-        DSL.inline(null, classOf[Timestamp]).as("creation_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
         // workflow attributes: 5 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
-        DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
@@ -319,10 +342,10 @@ class DashboardResource {
         DSL.inline("file").as("resourceType"),
         FILE.NAME,
         FILE.DESCRIPTION,
-        DSL.inline(null, classOf[Timestamp]).as("creation_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
         // workflow attributes: 5 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
-        DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
@@ -485,61 +508,164 @@ class DashboardResource {
     // Combine all queries using union and fetch results
     val clickableFileEntry =
       resourceType match {
-        case "workflow" => workflowQuery.fetch()
-        case "project"  => projectQuery.fetch()
-        case "file"     => fileQuery.union(sharedWorkflowFileQuery).fetch()
-        case "" =>
-          workflowQuery
-            .union(projectQuery)
-            .union(fileQuery)
-            .union(sharedWorkflowFileQuery)
+        case "workflow" => {
+          val orderedQuery = orderBy match {
+            case "NameAsc" =>
+              workflowQuery.orderBy(WORKFLOW.NAME.asc())
+            case "NameDesc" =>
+              workflowQuery.orderBy(WORKFLOW.NAME.desc())
+            case "CreateTimeDesc" =>
+              workflowQuery
+                .orderBy(WORKFLOW.CREATION_TIME.desc())
+            case "EditTimeDesc" =>
+              workflowQuery
+                .orderBy(WORKFLOW.LAST_MODIFIED_TIME.desc())
+            case _ =>
+              throw new BadRequestException(
+                "Unknown orderBy. Only 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc' are allowed"
+              )
+          }
+          orderedQuery
+            .limit(count + 1)
+            .offset(offset)
             .fetch()
+
+        }
+        case "project" => {
+          val orderedQuery = orderBy match {
+            case "NameAsc"        => projectQuery.orderBy(PROJECT.NAME.asc())
+            case "NameDesc"       => projectQuery.orderBy(PROJECT.NAME.desc())
+            case "CreateTimeDesc" => projectQuery.orderBy(PROJECT.CREATION_TIME.desc())
+            case "EditTimeDesc" =>
+              projectQuery.orderBy(
+                PROJECT.CREATION_TIME.desc()
+              ) // use creation_time instead because project doesn't have last_modified_time
+            case _ =>
+              throw new BadRequestException(
+                "Unknown orderBy. Only 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc' are allowed"
+              )
+          }
+          orderedQuery.limit(count + 1).offset(offset).fetch()
+
+        }
+        case "file" => {
+          val orderedQuery =
+            orderBy match {
+              case "NameAsc" =>
+                context
+                  .select()
+                  .from(fileQuery.union(sharedWorkflowFileQuery))
+                  .orderBy(DSL.field("name").asc())
+              case "NameDesc" =>
+                context
+                  .select()
+                  .from(fileQuery.union(sharedWorkflowFileQuery))
+                  .orderBy(DSL.field("name").desc())
+              case "CreateTimeDesc" =>
+                context
+                  .select()
+                  .from(fileQuery.union(sharedWorkflowFileQuery))
+                  .orderBy(DSL.field("upload_time").desc())
+              // use upload_time instead because file doesn't have creation_time
+              case "EditTimeDesc" =>
+                context
+                  .select()
+                  .from(fileQuery.union(sharedWorkflowFileQuery))
+                  .orderBy(DSL.field("upload_time").desc())
+              // use upload_time instead because file doesn't have last_modified_time
+              case _ =>
+                throw new BadRequestException(
+                  "Unknown orderBy. Only 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc' are allowed"
+                )
+            }
+          orderedQuery.limit(count + 1).offset(offset).fetch()
+        }
+        case "" => {
+          val unionedTable =
+            context
+              .select()
+              .from(
+                projectQuery
+                  .union(workflowQuery)
+                  .union(fileQuery)
+                  .union(sharedWorkflowFileQuery)
+              )
+          val orderedQuery = orderBy match {
+            case "NameAsc" => {
+              unionedTable
+                .orderBy(DSL.field("name").asc())
+            }
+            case "NameDesc" => {
+              unionedTable
+                .orderBy(DSL.field("name").desc())
+            }
+            case "CreateTimeDesc" => {
+              unionedTable
+                .orderBy(DSL.field("creation_time").desc())
+            }
+            case "EditTimeDesc" => {
+              unionedTable
+                .orderBy(DSL.field("last_modified_time").desc())
+            }
+            case _ =>
+              throw new BadRequestException(
+                "Unknown orderBy. Only 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc' are allowed"
+              )
+          }
+          orderedQuery.limit(count + 1).offset(offset).fetch()
+        }
+
         case _ =>
           throw new BadRequestException(
             "Unknown resourceType. Only 'workflow', 'project', and 'file' are allowed"
           )
       }
+    val moreRecords = clickableFileEntry.size() > count
 
-    clickableFileEntry
-      .map(record => {
-        val resourceType = record.get("resourceType", classOf[String])
-        DashboardClickableFileEntry(
-          resourceType,
-          if (resourceType == "workflow") {
-            DashboardWorkflow(
-              record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-              record
-                .into(WORKFLOW_USER_ACCESS)
-                .into(classOf[WorkflowUserAccess])
-                .getPrivilege
-                .toString,
-              record.into(USER).getName,
-              record.into(WORKFLOW).into(classOf[Workflow]),
-              List[UInteger]() // To do
-            )
-          } else {
-            null
-          },
-          if (resourceType == "project") {
-            record.into(PROJECT).into(classOf[Project])
-          } else {
-            null
-          },
-          if (resourceType == "file") {
-            DashboardFileEntry(
-              record.into(USER).getEmail,
-              record.get(
-                "user_file_access",
-                classOf[UserFileAccessPrivilege]
-              ) == UserFileAccessPrivilege.WRITE,
-              record.into(FILE).into(classOf[File])
-            )
-          } else {
-            null
-          }
-        )
-      })
-      .toList
+    DashboardSearchResult(
+      results = clickableFileEntry
+        .take(count)
+        .map(record => {
+          val resourceType = record.get("resourceType", classOf[String])
+          DashboardClickableFileEntry(
+            resourceType,
+            if (resourceType == "workflow") {
+              DashboardWorkflow(
+                record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+                record
+                  .into(WORKFLOW_USER_ACCESS)
+                  .into(classOf[WorkflowUserAccess])
+                  .getPrivilege
+                  .toString,
+                record.into(USER).getName,
+                record.into(WORKFLOW).into(classOf[Workflow]),
+                List[UInteger]() // To do
+              )
+            } else {
+              null
+            },
+            if (resourceType == "project") {
+              record.into(PROJECT).into(classOf[Project])
+            } else {
+              null
+            },
+            if (resourceType == "file") {
+              DashboardFileEntry(
+                record.into(USER).getEmail,
+                record.get(
+                  "user_file_access",
+                  classOf[UserFileAccessPrivilege]
+                ) == UserFileAccessPrivilege.WRITE,
+                record.into(FILE).into(classOf[File])
+              )
+            } else {
+              null
+            }
+          )
+        })
+        .toList,
+      more = moreRecords
+    )
 
   }
 
