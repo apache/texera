@@ -159,7 +159,7 @@ class DashboardResource {
       // Apply operators filter
       .and(getOperatorsFilter(operators))
       // Apply projectId filter
-      .and(getProjectFilter(projectIds, "workflow"))
+      .and(getProjectFilter(projectIds))
 
     var projectOptionalFilters: Condition = noCondition()
     projectOptionalFilters = projectOptionalFilters
@@ -529,7 +529,7 @@ class DashboardResource {
             .limit(count + 1)
             .offset(offset)
             .fetch()
-        case "project" => {
+        case "project" =>
           val orderedQuery = orderBy match {
             case "NameAsc"        => projectQuery.orderBy(PROJECT.NAME.asc())
             case "NameDesc"       => projectQuery.orderBy(PROJECT.NAME.desc())
@@ -544,8 +544,6 @@ class DashboardResource {
               )
           }
           orderedQuery.limit(count + 1).offset(offset).fetch()
-
-        }
         case "file" =>
           val orderedQuery =
             orderBy match {
@@ -577,7 +575,7 @@ class DashboardResource {
                 )
             }
           orderedQuery.limit(count + 1).offset(offset).fetch()
-        case "" => {
+        case "" =>
           val unionedTable =
             context
               .select()
@@ -588,29 +586,24 @@ class DashboardResource {
                   .union(sharedWorkflowFileQuery)
               )
           val orderedQuery = orderBy match {
-            case "NameAsc" => {
+            case "NameAsc" =>
               unionedTable
                 .orderBy(DSL.field("name").asc())
-            }
-            case "NameDesc" => {
+            case "NameDesc" =>
               unionedTable
                 .orderBy(DSL.field("name").desc())
-            }
-            case "CreateTimeDesc" => {
+            case "CreateTimeDesc" =>
               unionedTable
                 .orderBy(DSL.field("creation_time").desc())
-            }
-            case "EditTimeDesc" => {
+            case "EditTimeDesc" =>
               unionedTable
                 .orderBy(DSL.field("last_modified_time").desc())
-            }
             case _ =>
               throw new BadRequestException(
                 "Unknown orderBy. Only 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc' are allowed"
               )
           }
           orderedQuery.limit(count + 1).offset(offset).fetch()
-        }
 
         case _ =>
           throw new BadRequestException(
