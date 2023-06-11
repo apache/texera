@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
@@ -236,7 +236,7 @@ class ProjectResource {
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
-  ): List[DashboardFileEntry] = {
+  ): List[DashboardFile] = {
     verifyProjectExists(pid)
     context
       .select()
@@ -250,7 +250,7 @@ class ProjectResource {
       .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
       .fetch()
       .map(fileRecord =>
-        DashboardFileEntry(
+        DashboardFile(
           fileRecord.into(USER).getName,
           fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
           fileRecord.into(FILE).into(classOf[File])
