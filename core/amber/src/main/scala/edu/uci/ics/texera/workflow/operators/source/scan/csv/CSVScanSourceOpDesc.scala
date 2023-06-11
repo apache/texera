@@ -60,7 +60,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (filePath.isEmpty) {
       return null
     }
-    val inputReader = new InputStreamReader(new FileInputStream(new File(filePath.get)))
+    val inputReader =
+      new InputStreamReader(new FileInputStream(new File(filePath.get)), fileEncoding.getCharset)
 
     val csvFormat = new CsvFormat()
     csvFormat.setDelimiter(customDelimiter.get.charAt(0))

@@ -63,12 +63,13 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }
-    var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
+    var reader: CSVReader =
+      CSVReader.open(filePath.get, fileEncoding.getCharset.name())(CustomFormat)
     val firstRow: Array[String] = reader.iterator.next().toArray
     reader.close()
 
     // reopen the file to read from the beginning
-    reader = CSVReader.open(filePath.get)(CustomFormat)
+    reader = CSVReader.open(filePath.get, fileEncoding.getCharset.name())(CustomFormat)
 
     val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
     val endOffset =
