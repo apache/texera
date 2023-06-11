@@ -563,14 +563,14 @@ class WorkflowResourceSpec
     // search
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"))
-    assert(DashboardClickableFileEntryList.length == 3)
+    assert(DashboardClickableFileEntryList.results.length == 3)
 
   }
 
   it should "return an empty list when there are no matching resources" in {
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("not-existing-keyword"))
-    assert(DashboardClickableFileEntryList.isEmpty)
+    assert(DashboardClickableFileEntryList.results.isEmpty)
   }
 
   it should "return all resources when no keyword provided" in {
@@ -579,7 +579,7 @@ class WorkflowResourceSpec
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray(""))
-    assert(DashboardClickableFileEntryList.length == 2)
+    assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
   it should "only return resources that match the given keyword" in {
@@ -596,7 +596,7 @@ class WorkflowResourceSpec
 
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("unique"))
-    assert(DashboardClickableFileEntryList.length == 1)
+    assert(DashboardClickableFileEntryList.results.length == 1)
   }
 
   it should "return multiple matching resources from a single resource type" in {
@@ -613,7 +613,7 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("common"))
-    assert(DashboardClickableFileEntryList.length == 2)
+    assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
   it should "handle multiple keywords correctly" in {
@@ -631,7 +631,7 @@ class WorkflowResourceSpec
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test", "project1"))
     assert(
-      DashboardClickableFileEntryList.length == 1
+      DashboardClickableFileEntryList.results.length == 1
     ) // should only return the project
   }
 
@@ -660,22 +660,22 @@ class WorkflowResourceSpec
     // search resources with all resourceType
     var DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"))
-    assert(DashboardClickableFileEntryList.length == 6)
+    assert(DashboardClickableFileEntryList.results.length == 6)
 
     // filter resources by workflow
     DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "workflow")
-    assert(DashboardClickableFileEntryList.length == 1)
+    assert(DashboardClickableFileEntryList.results.length == 1)
 
     // filter resources by project
     DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "project")
-    assert(DashboardClickableFileEntryList.length == 3)
+    assert(DashboardClickableFileEntryList.results.length == 3)
 
     // filter resources by file
     DashboardClickableFileEntryList =
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test"), "file")
-    assert(DashboardClickableFileEntryList.length == 2)
+    assert(DashboardClickableFileEntryList.results.length == 2)
 
   }
 
@@ -709,7 +709,7 @@ class WorkflowResourceSpec
       dashboardResource.searchAllResources(sessionUser1, getKeywordsArray("test", "project"))
 
     // Assert that the search results include resources that match any of the provided keywords
-    assert(DashboardClickableFileEntryList.length == 1)
+    assert(DashboardClickableFileEntryList.results.length == 1)
   }
 
   it should "not return resources that belong to a different user" in {
@@ -724,7 +724,7 @@ class WorkflowResourceSpec
 
     // Assert that the search results do not include the project that belongs to the different user
     // Assuming that DashboardClickableFileEntryList is a list of resources where each resource has a `user` property
-    assert(DashboardClickableFileEntryList.length == 0)
+    assert(DashboardClickableFileEntryList.results.length == 0)
   }
 
   it should "handle reserved characters in the keywords in searchAllResources" in {
@@ -737,26 +737,261 @@ class WorkflowResourceSpec
       sessionUser1,
       getKeywordsArray(keywordInWorkflow1Content + "+-@()<>~*\"" + keywordInWorkflow1Content)
     )
-    assert(DashboardClickableFileEntryList.length == 1)
+    assert(DashboardClickableFileEntryList.results.length == 1)
 
     DashboardClickableFileEntryList = dashboardResource.searchAllResources(
       sessionUser1,
       getKeywordsArray(keywordInWorkflow1Content + "@" + keywordInWorkflow1Content)
     )
-    assert(DashboardClickableFileEntryList.size == 1)
+    assert(DashboardClickableFileEntryList.results.size == 1)
 
     DashboardClickableFileEntryList = dashboardResource.searchAllResources(
       sessionUser1,
       getKeywordsArray(keywordInWorkflow1Content + "+-@()<>~*\"")
     )
-    assert(DashboardClickableFileEntryList.size == 1)
+    assert(DashboardClickableFileEntryList.results.size == 1)
 
     DashboardClickableFileEntryList = dashboardResource.searchAllResources(
       sessionUser1,
       getKeywordsArray("+-@()<>~*\"" + keywordInWorkflow1Content)
     )
-    assert(DashboardClickableFileEntryList.size == 1)
+    assert(DashboardClickableFileEntryList.results.size == 1)
 
+  }
+
+  it should "paginate results correctly" in {
+    // This test is designed to verify that the pagination works correctly
+
+    // Create 1 workflow, 10 projects, 10 files
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    for (i <- 1 to 10) {
+      projectResource.createProject(sessionUser1, s"test project $i")
+      val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+      val filename = s"test_file$i.csv"
+      val response = fileResource.uploadFile(in, filename, sessionUser1)
+      assert(response.getStatusInfo.getStatusCode == 200)
+    }
+
+    // Request the first page of results (page size is 10)
+    val firstPage = dashboardResource.searchAllResources(sessionUser1, count = 10)
+
+    // Assert that the first page has 10 results
+    assert(firstPage.results.length == 10)
+    assert(firstPage.more) // Assert that there are more results to be fetched
+
+    // Request the second page of results
+    val secondPage = dashboardResource.searchAllResources(sessionUser1, count = 10, offset = 10)
+
+    // Assert that the second page has 10 results
+    assert(secondPage.results.length == 10)
+    assert(secondPage.more) // Assert that there are more results to be fetched
+
+    // Request the third page of results
+    val thirdPage = dashboardResource.searchAllResources(sessionUser1, count = 10, offset = 20)
+
+    // Assert that the third page has 5 results (since we only have 25 resources)
+    assert(thirdPage.results.length == 1)
+    assert(!thirdPage.more) // Assert that there are no more results to be fetched
+
+    // Assert that the results are unique across all pages
+    val allResults = firstPage.results ++ secondPage.results ++ thirdPage.results
+    assert(allResults.distinct.length == allResults.length)
+  }
+
+  it should "order workflow by name correctly" in {
+    // Create several resources with different names
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
+
+    // Retrieve resources ordered by name in ascending order
+    var resources =
+      dashboardResource.searchAllResources(
+        sessionUser1,
+        resourceType = "workflow",
+        orderBy = "NameAsc"
+      )
+
+    // Check the order of the results
+    assert(resources.results(0).workflow.workflow.getName() == "test_workflow1")
+    assert(resources.results(1).workflow.workflow.getName() == "test_workflow2")
+    assert(resources.results(2).workflow.workflow.getName() == "test_workflow3")
+
+    resources = dashboardResource.searchAllResources(
+      sessionUser1,
+      resourceType = "workflow",
+      orderBy = "NameDesc"
+    )
+    // Check the order of the results
+    assert(resources.results(0).workflow.workflow.getName() == "test_workflow3")
+    assert(resources.results(1).workflow.workflow.getName() == "test_workflow2")
+    assert(resources.results(2).workflow.workflow.getName() == "test_workflow1")
+  }
+
+  it should "order workflow by creation time in descending order correctly" in {
+    // Create several resources with different creation times
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    Thread.sleep(1000)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
+    Thread.sleep(1000)
+    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
+
+    // Retrieve resources ordered by creation time in descending order
+    var resources =
+      dashboardResource.searchAllResources(
+        sessionUser1,
+        resourceType = "workflow",
+        orderBy = "CreateTimeDesc"
+      )
+
+    // Check the order of the results
+    assert(resources.results(0).workflow.workflow.getName() == "test_workflow3")
+    assert(resources.results(1).workflow.workflow.getName() == "test_workflow2")
+    assert(resources.results(2).workflow.workflow.getName() == "test_workflow1")
+  }
+
+  it should "order project by name in ascending order correctly" in {
+    // Create several resources with different names
+    projectResource.createProject(sessionUser1, "test project C")
+    projectResource.createProject(sessionUser1, "test project A")
+    projectResource.createProject(sessionUser1, "test project B")
+
+    // Retrieve resources ordered by name in ascending order
+    val resources =
+      dashboardResource.searchAllResources(
+        sessionUser1,
+        resourceType = "project",
+        orderBy = "NameAsc"
+      )
+
+    // Check the order of the results
+    assert(resources.results(0).project.getName() == "test project A")
+    assert(resources.results(1).project.getName() == "test project B")
+    assert(resources.results(2).project.getName() == "test project C")
+  }
+
+  it should "order project by name in descending order correctly" in {
+    // Create several resources with different names
+    projectResource.createProject(sessionUser1, "test project C")
+    projectResource.createProject(sessionUser1, "test project A")
+    projectResource.createProject(sessionUser1, "test project B")
+
+    // Retrieve resources ordered by name in descending order
+    val resources =
+      dashboardResource.searchAllResources(
+        sessionUser1,
+        resourceType = "project",
+        orderBy = "NameDesc"
+      )
+
+    // Check the order of the results
+    assert(resources.results(0).project.getName() == "test project C")
+    assert(resources.results(1).project.getName() == "test project B")
+    assert(resources.results(2).project.getName() == "test project A")
+  }
+
+  it should "order project by creation time in descending order correctly" in {
+    // Create several resources with different creation times
+    projectResource.createProject(sessionUser1, "test project A")
+    Thread.sleep(1000)
+    projectResource.createProject(sessionUser1, "test project B")
+    Thread.sleep(1000)
+    projectResource.createProject(sessionUser1, "test project C")
+
+    // Retrieve resources ordered by creation time in descending order
+    val resources =
+      dashboardResource.searchAllResources(
+        sessionUser1,
+        resourceType = "project",
+        orderBy = "CreateTimeDesc"
+      )
+
+    // Check the order of the results
+    assert(resources.results(0).project.getName() == "test project C")
+    assert(resources.results(1).project.getName() == "test project B")
+    assert(resources.results(2).project.getName() == "test project A")
+  }
+
+  it should "throw a BadRequestException when given an unknown orderBy value" in {
+    // Attempt to retrieve resources with an invalid orderBy value
+    assertThrows[BadRequestException] {
+      dashboardResource.searchAllResources(sessionUser1, orderBy = "InvalidOrderBy")
+    }
+  }
+
+  it should "order file by name in ascending order correctly" in {
+    // Create several resources with different names
+    val inA = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    fileResource.uploadFile(inA, "test file A", sessionUser1)
+    Thread.sleep(1000)
+    val inB = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    fileResource.uploadFile(inB, "test file B", sessionUser1)
+    Thread.sleep(1000)
+    val inC = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    fileResource.uploadFile(inC, "test file C", sessionUser1)
+
+    // Retrieve resources ordered by name in ascending order
+    var resources =
+      dashboardResource.searchAllResources(sessionUser1, resourceType = "file", orderBy = "NameAsc")
+
+    // Check the order of the results
+    assert(resources.results(0).file.file.getName() == "test file A")
+    assert(resources.results(1).file.file.getName() == "test file B")
+    assert(resources.results(2).file.file.getName() == "test file C")
+
+    // Retrieve resources ordered by name in descending order
+    resources = dashboardResource.searchAllResources(
+      sessionUser1,
+      resourceType = "file",
+      orderBy = "NameDesc"
+    )
+    // Check the order of the results
+    assert(resources.results(2).file.file.getName() == "test file A")
+    assert(resources.results(1).file.file.getName() == "test file B")
+    assert(resources.results(0).file.file.getName() == "test file C")
+  }
+
+  it should "order file by creation time in descending order correctly" in {
+    // Create several resources with different names
+    val inA = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    fileResource.uploadFile(inA, "test file B", sessionUser1)
+    Thread.sleep(1000)
+    val inB = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    fileResource.uploadFile(inB, "test file A", sessionUser1)
+    Thread.sleep(1000)
+    val inC = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    fileResource.uploadFile(inC, "test file C", sessionUser1)
+
+    // Retrieve resources ordered by creation time in descending order
+    val resources =
+      dashboardResource.searchAllResources(
+        sessionUser1,
+        resourceType = "file",
+        orderBy = "CreateTimeDesc"
+      )
+
+    assert(resources.results(0).file.file.getName() == "test file C")
+    assert(resources.results(1).file.file.getName() == "test file A")
+    assert(resources.results(2).file.file.getName() == "test file B")
+  }
+
+  it should "order all resource types by creation_time in descending order correctly" in {
+    // Create resources
+    val inA = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
+    fileResource.uploadFile(inA, "test file C", sessionUser1)
+    Thread.sleep(1000)
+    projectResource.createProject(sessionUser1, "test project B")
+    Thread.sleep(1000)
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    Thread.sleep(1000)
+
+    // Retrieve resources ordered by name in descending order
+    val resources = dashboardResource.searchAllResources(sessionUser1, orderBy = "CreateTimeDesc")
+    assert(resources.results.length == 3)
+    // Check the order of the results
+    assert(resources.results(2).file.file.getName == "test file C")
+    assert(resources.results(1).project.getName == "test project B")
+    assert(resources.results(0).workflow.workflow.getName() == "test_workflow1")
   }
 
 }
