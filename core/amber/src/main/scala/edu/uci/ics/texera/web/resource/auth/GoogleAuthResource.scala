@@ -74,6 +74,9 @@ class GoogleAuthResource {
               user
           }
       }
+      if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
+        user.setUid(null)
+      }
       TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
     } else throw new NotAuthorizedException("Login credentials are incorrect.")
   }
