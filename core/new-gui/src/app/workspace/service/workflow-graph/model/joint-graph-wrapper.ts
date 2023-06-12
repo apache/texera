@@ -278,6 +278,15 @@ export class JointGraphWrapper {
     };
   }
 
+  public getCurrentHighlightedIDs(): readonly string[] {
+    return [
+      ...this.currentHighlightedOperators,
+      ...this.currentHighlightedGroups,
+      ...this.currentHighlightedLinks,
+      ...this.currentHighlightedCommentBoxes,
+    ];
+  }
+
   /**
    * Returns an Observable stream capturing the element position change event in JointJS graph.
    * An element can be an operator or a group.
