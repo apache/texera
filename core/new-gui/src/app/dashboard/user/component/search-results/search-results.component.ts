@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { DashboardEntry } from "../../type/dashboard-entry";
 
 export type LoadMoreFunction = (start: number, count: number) => Promise<{ entries: DashboardEntry[]; more: boolean }>;
@@ -8,14 +8,16 @@ export type LoadMoreFunction = (start: number, count: number) => Promise<{ entri
   templateUrl: "./search-results.component.html",
   styleUrls: ["./search-results.component.scss"],
 })
-export class SearchResultsComponent implements OnInit {
+export class SearchResultsComponent {
   loadMoreFunction: LoadMoreFunction | null = null;
   loading = false;
   more = false;
   entries: ReadonlyArray<DashboardEntry> = [];
+  @Input() public pid: number = 0;
+  @Input() editable = false;
+  @Output() deleted = new EventEmitter<DashboardEntry>();
+  @Output() duplicated = new EventEmitter<DashboardEntry>();
   constructor() {}
-
-  ngOnInit(): void {}
 
   reset(loadMoreFunction: LoadMoreFunction): void {
     this.entries = [];

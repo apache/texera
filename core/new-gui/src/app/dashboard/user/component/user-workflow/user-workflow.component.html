@@ -103,7 +103,6 @@
           [entry]="dashboardWorkflowEntry"
           (deleted)="deleteWorkflow(dashboardWorkflowEntry)"
           (duplicated)="onClickDuplicateWorkflow(dashboardWorkflowEntry)"
-          [pid]="pid"
           *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index">
         </texera-user-workflow-list-item>
       </nz-list>

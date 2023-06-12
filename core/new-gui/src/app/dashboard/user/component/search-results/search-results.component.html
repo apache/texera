@@ -10,12 +10,18 @@
       <ng-container *cdkVirtualFor="let entry of entries">
         <texera-user-project-list-item
           *ngIf="entry.type === 'project'"
+          [editable]="editable"
           [entry]="entry.project"></texera-user-project-list-item>
         <texera-user-workflow-list-item
+          (deleted)="deleted.emit(entry)"
+          (duplicated)="duplicated.emit(entry)"
+          [editable]="editable"
+          [pid]="pid"
           *ngIf="entry.type === 'workflow'"
           [entry]="entry"></texera-user-workflow-list-item>
         <texera-user-file-list-item
           *ngIf="entry.type === 'file'"
+          [editable]="editable"
           [entry]="entry.file">
         </texera-user-file-list-item>
       </ng-container>
@@ -27,7 +33,7 @@
         nz-button
         *ngIf="!loading && more"
         (click)="loadMore()">
-        loading more
+        Load more
       </button>
     </div>
   </cdk-virtual-scroll-viewport>
