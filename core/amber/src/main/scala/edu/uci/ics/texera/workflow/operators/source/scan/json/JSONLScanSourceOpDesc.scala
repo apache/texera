@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchem
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
-import java.io.{BufferedReader, FileReader, IOException}
+import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`iterator asScala`
 import scala.collection.mutable.ArrayBuffer
@@ -28,7 +28,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(path) =>
         // count lines and partition the task to each worker
-        val reader = new BufferedReader(new FileReader(path))
+        val reader = new BufferedReader(
+          new InputStreamReader(new FileInputStream(path), fileEncoding.getCharset)
+        )
         val offsetValue = offset.getOrElse(0)
         var lines = reader.lines().iterator().drop(offsetValue)
         if (limit.isDefined) lines = lines.take(limit.get)
@@ -63,7 +65,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val reader = new BufferedReader(new FileReader(filePath.get))
+    val reader = new BufferedReader(
+      new InputStreamReader(new FileInputStream(filePath.get), fileEncoding.getCharset)
+    )
     var fieldNames = Set[String]()
 
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
