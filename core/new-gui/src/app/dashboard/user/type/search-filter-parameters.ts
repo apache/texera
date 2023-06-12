@@ -66,7 +66,8 @@ export const toQueryStrings = (
 export const searchTestEntries = (
   keywords: string[],
   params: SearchFilterParameters,
-  testEntries: DashboardEntry[]
+  testEntries: DashboardEntry[],
+  type: "workflow" | "project" | "file" | null
 ): DashboardEntry[] => {
   const endOfDay = (date: Date) => {
     date.setHours(23);
@@ -117,6 +118,9 @@ export const searchTestEntries = (
         e.type === "workflow" &&
         e.workflow.projectIDs.some(id => params.projectIds.some(projectIdToFilterBy => projectIdToFilterBy == id))
     );
+  }
+  if (type) {
+    testEntries = testEntries.filter(e => e.type === type);
   }
   return testEntries;
 };

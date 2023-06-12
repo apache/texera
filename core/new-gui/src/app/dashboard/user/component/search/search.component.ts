@@ -17,7 +17,7 @@ export class SearchComponent {
   sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   private masterFilterList: ReadonlyArray<string> = [];
-  @ViewChild(SearchResultsComponent) private searchResultsComponent?: SearchResultsComponent;
+  @ViewChild(SearchResultsComponent) searchResultsComponent?: SearchResultsComponent;
   private _filters?: FiltersComponent;
   @ViewChild(FiltersComponent)
   get filters(): FiltersComponent {

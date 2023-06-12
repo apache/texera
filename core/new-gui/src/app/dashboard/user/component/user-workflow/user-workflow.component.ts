@@ -191,6 +191,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
       // If the filter lists are the same, do no make the same request again.
       return;
     }
+    this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
     this.searchResultsComponent.reset(async (start, count) => {
       const results = await firstValueFrom(
