@@ -51,7 +51,8 @@ export class SearchComponent {
           this.filters.getSearchKeywords(),
           this.filters.getSearchFilterParameters(),
           start,
-          count
+          count,
+          null
         )
       );
       return {

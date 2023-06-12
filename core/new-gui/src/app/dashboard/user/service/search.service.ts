@@ -21,10 +21,11 @@ export class SearchService {
     keywords: string[],
     params: SearchFilterParameters,
     start: number,
-    count: number
+    count: number,
+    type: "workflow" | "project" | "file" | null
   ): Observable<SearchResult> {
     return this.http.get<SearchResult>(
-      `${AppSettings.getApiEndpoint()}/${DASHBOARD_SEARCH_URL}?${toQueryStrings(keywords, params, start, count)}`
+      `${AppSettings.getApiEndpoint()}/${DASHBOARD_SEARCH_URL}?${toQueryStrings(keywords, params, start, count, type)}`
     );
   }
 }

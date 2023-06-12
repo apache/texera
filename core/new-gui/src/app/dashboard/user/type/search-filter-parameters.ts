@@ -16,7 +16,8 @@ export const toQueryStrings = (
   keywords: string[],
   params: SearchFilterParameters,
   start?: number,
-  count?: number
+  count?: number,
+  type?: "workflow" | "project" | "file" | null
 ): string => {
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
     if (keywords) {
@@ -46,7 +47,12 @@ export const toQueryStrings = (
     }
   }
   const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
-    [...queryStrings, ...(start ? [["start", start.toString()]] : []), ...(count ? [["count", count.toString()]] : [])]
+    [
+      ...queryStrings,
+      ...(start ? [["start", start.toString()]] : []),
+      ...(count ? [["count", count.toString()]] : []),
+      ["resourceType", type ? type.toString() : ""],
+    ]
       .filter(q => q[1])
       .map(([name, value]) => name + "=" + encodeURIComponent(value))
       .join("&");
