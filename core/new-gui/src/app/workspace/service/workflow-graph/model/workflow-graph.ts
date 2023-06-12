@@ -470,6 +470,15 @@ export class WorkflowGraph {
   }
 
   /**
+   * Returns whether the element exists in the graph.
+   * Can be an operator, comment box, or link.
+   * @param id element ID
+   */
+  public hasElementWithID(id: string): boolean {
+    return this.hasOperator(id) || this.hasCommentBox(id) || this.hasLinkWithID(id);
+  }
+
+  /**
    * Gets the operator with the operatorID. The object version of the operator is returned, as opposed to y-type data.
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID

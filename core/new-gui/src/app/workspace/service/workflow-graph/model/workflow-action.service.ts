@@ -29,6 +29,7 @@ import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 /**
  *
@@ -80,7 +81,8 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private notificationService: NotificationService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -506,6 +508,13 @@ export class WorkflowActionService {
   public highlightCommentBoxes(multiSelect: boolean, ...commentBoxIDs: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightCommentBoxes(...commentBoxIDs);
+  }
+
+  public highlightElements(multiSelect: boolean, ...elementIDs: string[]): void {
+    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
+    this.highlightOperators(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasOperator(id)));
+    this.highlightLinks(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasLinkWithID(id)));
+    this.highlightCommentBoxes(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasCommentBox(id)));
   }
 
   public disableOperators(ops: readonly string[]): void {
