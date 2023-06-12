@@ -285,7 +285,7 @@ export class SchemaPropagationService {
 export interface SchemaAttribute
   extends Readonly<{
     attributeName: string;
-    attributeType: "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "ANY";
+    attributeType: "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
   }> {}
 
 // input schema of an operator: an array of schemas at each input port
