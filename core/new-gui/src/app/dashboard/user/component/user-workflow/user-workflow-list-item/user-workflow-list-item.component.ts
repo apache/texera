@@ -50,7 +50,6 @@ export class UserWorkflowListItemComponent {
   @Input() editable = false;
   @Input() public pid: number = 0;
   userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map();
-  @Output() checkedChange: EventEmitter<boolean> = new EventEmitter<boolean>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
 

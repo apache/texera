@@ -4,7 +4,7 @@
     <nz-button-group
       class="utility-button-group"
       ngbDropdown>
-      <texera-sort-button [(entries)]="dashboardWorkflowEntries"></texera-sort-button>
+      <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <button
         (click)="onClickCreateNewWorkflowFromDashboard()"
         nz-button
@@ -89,24 +89,8 @@
     </nz-select>
   </div>
 
-  <nz-card class="section-list-container">
-    <!-- itemSize: the height (px) of each list item,
-      this MUST be approximately the same as list item size set in CSS,
-      .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
-    -->
-    <cdk-virtual-scroll-viewport
-      itemSize="80"
-      class="virtual-scroll-container">
-      <nz-list>
-        <texera-user-workflow-list-item
-          [editable]="true"
-          [entry]="dashboardWorkflowEntry"
-          (deleted)="deleteWorkflow(dashboardWorkflowEntry)"
-          (duplicated)="onClickDuplicateWorkflow(dashboardWorkflowEntry)"
-          [pid]="pid"
-          *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index">
-        </texera-user-workflow-list-item>
-      </nz-list>
-    </cdk-virtual-scroll-viewport>
-  </nz-card>
+  <texera-search-results
+    [editable]="true"
+    (deleted)="deleteWorkflow($event)"
+    (duplicated)="onClickDuplicateWorkflow($event)"></texera-search-results>
 </div>

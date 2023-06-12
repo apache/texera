@@ -1,4 +1,13 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  Output,
+  SimpleChanges,
+  ViewChild,
+} from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom, map } from "rxjs";
@@ -18,8 +27,10 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
 import { FileSaverService } from "../../service/user-file/file-saver.service";
-import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { FiltersComponent } from "../filters/filters.component";
+import { SearchResultsComponent } from "../search-results/search-results.component";
+import { SearchService } from "../../service/search.service";
+import { SortMethod } from "../../type/sort-method";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
@@ -60,7 +71,17 @@ export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
   templateUrl: "user-workflow.component.html",
   styleUrls: ["user-workflow.component.scss"],
 })
-export class UserWorkflowComponent implements OnInit, OnChanges {
+export class UserWorkflowComponent implements AfterViewInit, OnChanges {
+  private _searchResultsComponent?: SearchResultsComponent;
+  @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
+    if (this._searchResultsComponent) {
+      return this._searchResultsComponent;
+    }
+    throw new Error("Property cannot be accessed before it is initialized.");
+  }
+  set searchResultsComponent(value: SearchResultsComponent) {
+    this._searchResultsComponent = value;
+  }
   private _filters?: FiltersComponent;
   @ViewChild(FiltersComponent) get filters(): FiltersComponent {
     if (this._filters) {
@@ -69,20 +90,16 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     throw new Error("Property cannot be accessed before it is initialized.");
   }
   set filters(value: FiltersComponent) {
-    value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.searchWorkflow() });
+    value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.search() });
     this._filters = value;
   }
+  private masterFilterList: ReadonlyArray<string> | null = null;
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid: number = 0;
-  /* variables for workflow editing / search / sort */
-  // virtual scroll requires replacing the entire array reference in order to update view
-  // see https://github.com/angular/components/issues/14635
-  public dashboardWorkflowEntries: ReadonlyArray<DashboardEntry> = [];
+  public sortMethod = SortMethod.EditTimeDesc;
+  lastSortMethod: SortMethod | null = null;
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
-  public allDashboardWorkflowEntries: DashboardEntry[] = [];
-  public filteredDashboardWorkflowNames: Array<string> = [];
-  public workflowSearchValue: string = "";
   public owners = this.workflowPersistService.retrieveOwners().pipe(
     map((owners: string[]) => {
       return owners.map((user: string) => {
@@ -105,14 +122,19 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     private notificationService: NotificationService,
     private modalService: NgbModal,
     private router: Router,
-    private fileSaverService: FileSaverService
+    private fileSaverService: FileSaverService,
+    private searchService: SearchService
   ) {}
 
   get zipDownloadButtonEnabled(): boolean {
-    return this.dashboardWorkflowEntries.filter(i => i.checked).length > 0;
+    if (this._searchResultsComponent) {
+      return this.searchResultsComponent?.entries.filter(i => i.checked).length > 0;
+    } else {
+      return false;
+    }
   }
 
-  ngOnInit() {
+  ngAfterViewInit() {
     this.registerDashboardWorkflowEntriesRefresh();
   }
 
@@ -121,7 +143,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       if (propName === "pid" && changes[propName].currentValue) {
         // listen to see if component is to be re-rendered inside a different project
         this.pid = changes[propName].currentValue;
-        this.refreshDashboardWorkflowEntries();
+        this.search();
       }
     }
   }
@@ -136,7 +158,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     // retrieve updated values from modal via promise
     modalRef.result.then(result => {
       if (result) {
-        this.updateDashboardWorkflowEntryCache(result);
+        this.search();
       }
     });
   }
@@ -151,38 +173,49 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
     // retrieve updated values from modal via promise
     modalRef.result.then(result => {
       if (result) {
-        this.updateDashboardWorkflowEntryCache(result);
+        this.search();
       }
     });
-  }
-
-  /**
-   * Search workflows by owner name, workflow name, or workflow id
-   * Use fuse.js https://fusejs.io/ as the tool for searching
-   *
-   * search value Format (must follow this):
-   *  - WORKFLOWNAME owner:OWNERNAME(S) id:ID(S) operator:OPERATOR(S)
-   */
-  public async searchWorkflow(): Promise<void> {
-    if (this.filters.masterFilterList.length === 0) {
-      //if there are no tags, return all workflow entries
-      this.dashboardWorkflowEntries = this.allDashboardWorkflowEntries;
-      return;
-    }
-    this.dashboardWorkflowEntries = (await this.search()).map(i => new DashboardEntry(i));
   }
 
   /**
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
-  private async search(): Promise<ReadonlyArray<DashboardWorkflow>> {
-    return await firstValueFrom(
-      this.workflowPersistService.searchWorkflows(
-        this.filters.getSearchKeywords(),
-        this.filters.getSearchFilterParameters()
-      )
-    );
+  async search(): Promise<void> {
+    const sameList =
+      this.masterFilterList !== null &&
+      this.filters.masterFilterList.length === this.masterFilterList.length &&
+      this.filters.masterFilterList.every((v, i) => v === this.masterFilterList![i]);
+    if (sameList && this.sortMethod === this.lastSortMethod) {
+      // If the filter lists are the same, do no make the same request again.
+      return;
+    }
+    this.lastSortMethod = this.sortMethod;
+    this.masterFilterList = this.filters.masterFilterList;
+    this.searchResultsComponent.reset(async (start, count) => {
+      const results = await firstValueFrom(
+        this.searchService.search(
+          this.filters.getSearchKeywords(),
+          this.filters.getSearchFilterParameters(),
+          start,
+          count,
+          "workflow",
+          this.sortMethod
+        )
+      );
+      return {
+        entries: results.results.map(i => {
+          if (i.workflow) {
+            return new DashboardEntry(i.workflow);
+          } else {
+            throw new Error("Unexpected type in SearchResult.");
+          }
+        }),
+        more: results.more,
+      };
+    });
+    await this.searchResultsComponent.loadMore();
   }
 
   /**
@@ -208,8 +241,8 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: duplicatedWorkflowInfo => {
-              this.dashboardWorkflowEntries = [
-                ...this.dashboardWorkflowEntries,
+              this.searchResultsComponent.entries = [
+                ...this.searchResultsComponent.entries,
                 new DashboardEntry(duplicatedWorkflowInfo),
               ];
             }, // TODO: fix this with notification component
@@ -221,8 +254,8 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           .duplicateWorkflow(entry.workflow.workflow.wid)
           .pipe(
             concatMap(duplicatedWorkflowInfo => {
-              this.dashboardWorkflowEntries = [
-                ...this.dashboardWorkflowEntries,
+              this.searchResultsComponent.entries = [
+                ...this.searchResultsComponent.entries,
                 new DashboardEntry(duplicatedWorkflowInfo),
               ];
               return this.userProjectService.addWorkflowToProject(this.pid, duplicatedWorkflowInfo.workflow.wid!);
@@ -256,7 +289,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       .deleteWorkflow(entry.workflow.workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
-        this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
+        this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(
           workflowEntry => workflowEntry.workflow.workflow.wid !== entry.workflow.workflow.wid
         );
       });
@@ -268,57 +301,12 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.userService.isLogin()) {
-          this.refreshDashboardWorkflowEntries();
+          this.search();
           this.userProjectService.refreshProjectList();
         } else {
-          this.clearDashboardWorkflowEntries();
+          this.search();
         }
       });
-  }
-
-  /**
-   * This is a search function that filters displayed workflows by
-   * the project(s) they belong to.  It is currently separated
-   * from the fuzzy search logic
-   */
-  public filterWorkflowsByProject() {
-    let newWorkflowEntries = this.allDashboardWorkflowEntries.slice();
-    this.projectFilterList.forEach(
-      pid => (newWorkflowEntries = newWorkflowEntries.filter(workflow => workflow.workflow.projectIDs.includes(pid)))
-    );
-    this.dashboardWorkflowEntries = newWorkflowEntries;
-  }
-
-  private refreshDashboardWorkflowEntries(): void {
-    const observable =
-      this.pid === 0
-        ? this.workflowPersistService.retrieveWorkflowsBySessionUser()
-        : this.userProjectService.retrieveWorkflowsOfProject(this.pid);
-
-    observable.pipe(untilDestroyed(this)).subscribe(dashboardWorkflowEntries => {
-      this.allDashboardWorkflowEntries = dashboardWorkflowEntries.map(i => new DashboardEntry(i));
-      this.dashboardWorkflowEntries = [...this.allDashboardWorkflowEntries];
-      const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
-      this.filteredDashboardWorkflowNames = [...newEntries];
-    });
-  }
-
-  /**
-   * Used for adding / removing workflow(s) from a project.
-   *
-   * Updates local caches to reflect what was pushed into backend / returned
-   * from the modal
-   *
-   * @param dashboardWorkflowEntries - returned local cache of workflows
-   */
-  private updateDashboardWorkflowEntryCache(dashboardWorkflowEntries: DashboardWorkflow[]): void {
-    this.allDashboardWorkflowEntries = dashboardWorkflowEntries.map(i => new DashboardEntry(i));
-    // update searching / filtering
-    this.searchWorkflow();
-  }
-
-  private clearDashboardWorkflowEntries(): void {
-    this.dashboardWorkflowEntries = [];
   }
 
   /**
@@ -376,7 +364,10 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: uploadedWorkflow => {
-              this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, new DashboardEntry(uploadedWorkflow)];
+              this.searchResultsComponent.entries = [
+                ...this.searchResultsComponent.entries,
+                new DashboardEntry(uploadedWorkflow),
+              ];
             },
             error: (err: unknown) => alert(err),
           });
@@ -392,7 +383,7 @@ export class UserWorkflowComponent implements OnInit, OnChanges {
    * Download selected workflow as zip file
    */
   public async onClickOpenDownloadZip() {
-    const checkedEntries = this.dashboardWorkflowEntries.filter(i => i.checked);
+    const checkedEntries = this.searchResultsComponent.entries.filter(i => i.checked);
     if (checkedEntries.length > 0) {
       const zip = new JSZip();
       try {

@@ -18,6 +18,7 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { DashboardEntry } from "../../type/dashboard-entry";
+import { SearchResultsComponent } from "../search-results/search-results.component";
 
 describe("SearchComponent", () => {
   let component: SearchComponent;
@@ -25,7 +26,7 @@ describe("SearchComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [SearchComponent, FiltersComponent],
+      declarations: [SearchComponent, FiltersComponent, SearchResultsComponent],
       providers: [
         {
           provide: SearchService,
@@ -64,23 +65,32 @@ describe("SearchComponent", () => {
     component.filters.masterFilterList = [testWorkflowEntries[0].name];
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(component.entries.map(i => i.name)).toEqual([testWorkflowEntries[0].name]);
+    if (!component.searchResultsComponent) {
+      throw new Error("searchResultsComponent is null.");
+    }
+    expect(component.searchResultsComponent.entries.map(i => i.name)).toEqual([testWorkflowEntries[0].name]);
   });
 
   it("searches projects", async () => {
     component.filters.masterFilterList = [testUserProjects[0].name];
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(component.entries.map(i => i.name)).toEqual([testUserProjects[0].name]);
+    if (!component.searchResultsComponent) {
+      throw new Error("searchResultsComponent is null.");
+    }
+    expect(component.searchResultsComponent.entries.map(i => i.name)).toEqual([testUserProjects[0].name]);
   });
 
   it("searches workflows and projects", async () => {
     component.filters.masterFilterList = ["1"];
     fixture.detectChanges();
     await fixture.whenStable();
-    const names = component.entries.map(i => i.name);
+    if (!component.searchResultsComponent) {
+      throw new Error("searchResultsComponent is null.");
+    }
+    const names = component.searchResultsComponent.entries.map(i => i.name);
     expect(names).toContain(testWorkflowEntries[0].name);
     expect(names).toContain(testUserProjects[0].name);
-    expect(component.entries.length).toEqual(2);
+    expect(component.searchResultsComponent.entries.length).toEqual(2);
   });
 });
