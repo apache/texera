@@ -7,8 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseF
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
-import java.io.{BufferedReader, FileReader}
-import scala.collection.Iterator
+import java.io.{BufferedReader, FileInputStream, InputStreamReader}
 import scala.collection.JavaConverters._
 
 class JSONLScanSourceOpExec private[json] (
@@ -45,7 +44,9 @@ class JSONLScanSourceOpExec private[json] (
   }
   override def open(): Unit = {
     schema = desc.inferSchema()
-    reader = new BufferedReader(new FileReader(desc.filePath.get))
+    reader = new BufferedReader(
+      new InputStreamReader(new FileInputStream(desc.filePath.get), desc.fileEncoding.getCharset)
+    )
     rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
   }
 
