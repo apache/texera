@@ -4,11 +4,11 @@ from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
 
 import overrides
 import pandas
-from pyarrow.lib import Schema
+
 from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
-from ..util.arrow_utils import to_arrow_schema
+from core.models.schema.schema import Schema
 
 
 class Operator(ABC):
@@ -49,7 +49,7 @@ class Operator(ABC):
         self.__internal_output_schema = (
             raw_output_schema
             if isinstance(raw_output_schema, Schema)
-            else to_arrow_schema(raw_output_schema)
+            else Schema(raw_schema=raw_output_schema)
         )
 
     def open(self) -> None:

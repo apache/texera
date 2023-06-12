@@ -6,6 +6,7 @@ from .marker import EndOfAllMarker, Marker, SenderChangeMarker
 from .tuple import InputExhausted, Tuple, TupleLike, ArrowTableTupleProvider
 from .table import Table, TableLike
 from .batch import Batch, BatchLike
+from .schema import AttributeType, Field, Schema
 from .operator import (
     Operator,
     TupleOperator,
@@ -47,4 +48,7 @@ __all__ = [
     "DataPayload",
     "EndOfUpstream",
     "ExceptionInfo",
+    "AttributeType",
+    "Field",
+    "Schema",
 ]

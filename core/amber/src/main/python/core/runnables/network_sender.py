@@ -46,10 +46,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         if isinstance(data_payload, OutputDataFrame):
             # converting from a column-based dictionary is the fastest known method
             # https://stackoverflow.com/questions/57939092/fastest-way-to-construct-pyarrow-table-row-by-row
-            field_names = data_payload.schema.names
+            field_names = data_payload.schema.get_attr_names()
             table = Table.from_pydict(
                 {name: [t[name] for t in data_payload.frame] for name in field_names},
-                schema=data_payload.schema,
+                schema=data_payload.schema.as_arrow_schema(),
             )
             data_header = PythonDataHeader(tag=to, is_end=False)
             self._proxy_client.send_data(bytes(data_header), table)
