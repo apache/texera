@@ -18,7 +18,6 @@ import { OperatorMetadataService } from "../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { VersionsDisplayFrameComponent } from "./versions-display/versions-display-frame.component";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("PropertyEditorComponent", () => {
   let component: PropertyEditorComponent;
@@ -29,7 +28,7 @@ describe("PropertyEditorComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,

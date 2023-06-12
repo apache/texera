@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { VersionsDisplayFrameComponent } from "./versions-display-frame.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { RouterTestingModule } from "@angular/router/testing";
 
 describe("VersionsListDisplayComponent", () => {
   let component: VersionsDisplayFrameComponent;
@@ -11,7 +10,7 @@ describe("VersionsListDisplayComponent", () => {
     TestBed.configureTestingModule({
       declarations: [VersionsDisplayFrameComponent],
       providers: [],
-      imports: [RouterTestingModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
     }).compileComponents();
   }));
 
