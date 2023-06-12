@@ -84,7 +84,7 @@ final case class SinglePartition() extends PartitionInfo {}
 /**
   * Represents the input stream needs to send to every node
   */
-case class BroadcastPartition() extends PartitionInfo {}
+final case class BroadcastPartition() extends PartitionInfo {}
 
 /**
   * Represents there is no specific partitioning scheme of the input stream.
