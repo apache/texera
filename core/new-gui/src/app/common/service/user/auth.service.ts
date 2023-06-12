@@ -106,6 +106,7 @@ export class AuthService {
       this.notificationService.error("User System is disabled on the backend!");
       return this.logout();
     }
+
     const role = this.jwtHelperService.decodeToken(token).role;
     const email = this.jwtHelperService.decodeToken(token).email;
 
