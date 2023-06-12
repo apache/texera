@@ -10,15 +10,18 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.operators.{
+  PortDescriptor,
+  OperatorDescriptor,
+  StateTransferFunc
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
+import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
-import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor {
+class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -48,14 +51,17 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonSchemaTitle("Python script")
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
+
   @JsonProperty(required = true)
   @JsonSchemaTitle("Worker count")
   @JsonPropertyDescription("Specify how many parallel workers to lunch")
   var workers: Int = Int.box(1)
+
   @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Retain input columns")
   @JsonPropertyDescription("Keep the original input columns?")
   var retainInputColumns: Boolean = Boolean.box(false)
+
   @JsonProperty
   @JsonSchemaTitle("Extra output column(s)")
   @JsonPropertyDescription(
@@ -63,38 +69,80 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
   )
   var outputColumns: List[Attribute] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
+    val opInfo = this.operatorInfo
+    val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
+      inputPorts.map(p => Option(p.partitionRequirement))
+    } else {
+      opInfo.inputPorts.map(_ => None)
+    }
+    val dependency: Map[Int, Int] = if (inputPorts != null) {
+      inputPorts.zipWithIndex.flatMap {
+        case (port, i) => port.dependencies.map(dependee => i -> dependee)
+      }.toMap
+    } else {
+      Map()
+    }
+
     if (workers > 1)
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(numWorkers = workers, derivePartition = _ => UnknownPartition(), isOneToManyOp = true)
+        .copy(
+          numWorkers = workers,
+          derivePartition = _ => UnknownPartition(),
+          isOneToManyOp = true,
+          inputPorts = opInfo.inputPorts,
+          outputPorts = opInfo.outputPorts,
+          partitionRequirement = partitionRequirement,
+          dependency = dependency
+        )
     else
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
           _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
         )
-        .copy(derivePartition = _ => UnknownPartition(), isOneToManyOp = true)
+        .copy(
+          derivePartition = _ => UnknownPartition(),
+          isOneToManyOp = true,
+          inputPorts = opInfo.inputPorts,
+          outputPorts = opInfo.outputPorts,
+          partitionRequirement = partitionRequirement,
+          dependency = dependency
+        )
   }
 
-  override def operatorInfo: OperatorInfo =
+  override def operatorInfo: OperatorInfo = {
+    val inputPortInfo = if (inputPorts != null) {
+      inputPorts.map(p => InputPort(p.displayName, p.allowMultiInputs))
+    } else {
+      List(InputPort("", allowMultiInputs = true))
+    }
+    val outputPortInfo = if (outputPorts != null) {
+      outputPorts.map(p => OutputPort(p.displayName))
+    } else {
+      List(OutputPort(""))
+    }
+
     OperatorInfo(
       "Python UDF",
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
-      asScalaBuffer(singletonList(new InputPort("", true))).toList,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList,
+      inputPortInfo,
+      outputPortInfo,
       dynamicInputPorts = true,
       dynamicOutputPorts = true,
-      supportReconfiguration = true
+      supportReconfiguration = true,
+      allowPortCustomization = true
     )
+  }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
+    //    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
     val outputSchemaBuilder = Schema.newBuilder
     // keep the same schema from input

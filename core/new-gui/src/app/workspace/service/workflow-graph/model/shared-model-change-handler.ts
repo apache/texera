@@ -6,6 +6,7 @@ import {
   CommentBox,
   OperatorLink,
   OperatorPredicate,
+  PartitionInfo,
   Point,
   PortDescription,
 } from "../../../types/workflow-common.interface";
@@ -14,6 +15,7 @@ import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
 import { insert } from "@nrwl/workspace";
+import { isDefined } from "../../../../common/util/predicate";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -82,6 +84,7 @@ export class SharedModelChangeHandler {
               links: this.jointGraphWrapper.getCurrentHighlightedLinkIDs(),
               groups: [],
               commentBoxes: [],
+              ports: this.jointGraphWrapper.getCurrentHighlightedPortIDs(),
             });
           }
           this.jointGraph.getCell(key).remove();
@@ -301,36 +304,68 @@ export class SharedModelChangeHandler {
               operatorID: operatorID,
               newDisplayName: newName.toJSON(),
             });
-          } else if (event.path[event.path.length - 1] === "inputPorts") {
-            const addedInputPort = event.delta[1]?.insert ? event.delta[1]?.insert : event.delta[0]?.insert;
-            if (addedInputPort) {
-              this.onOperatorPortAdded(
-                operatorID,
-                true,
-                (addedInputPort as Y.Map<any>[])[0].toJSON() as PortDescription
-              );
-            }
-            if (event.delta[0]?.delete || event.delta[1]?.delete) {
-              this.onOperatorPortRemoved(operatorID, true);
-            }
-          } else if (event.path[event.path.length - 1] === "outputPorts") {
-            const addedOutputPort = event.delta[1]?.insert ? event.delta[1]?.insert : event.delta[0]?.insert;
-            if (addedOutputPort) {
-              this.onOperatorPortAdded(
-                operatorID,
-                false,
-                (addedOutputPort as Y.Map<any>[])[0].toJSON() as PortDescription
-              );
-            }
-            if (event.delta[0]?.delete || event.delta[1]?.delete) {
-              this.onOperatorPortRemoved(operatorID, false);
-            }
           } else if (event.path.includes("operatorProperties")) {
             this.onOperatorPropertyChanged(operatorID, event.transaction.local);
+          } else if (event.path.includes("inputPorts")) {
+            this.handlePortEvent(event, operatorID, true);
+          } else if (event.path.includes("outputPorts")) {
+            this.handlePortEvent(event, operatorID, false);
+          } else {
+            throw new Error(`undefined operation on shared type: .${event}`);
           }
         }
       });
     });
+  }
+
+  /**
+   * Handles the additon, deletion and deeper changes to operator ports.
+   * @param event
+   * @param operatorID
+   * @param isInput Since input and output ports are separate properties, need to access them differently.
+   * @private
+   */
+  private handlePortEvent(event: Y.YEvent<Y.Map<any>>, operatorID: string, isInput: boolean) {
+    if (event.path.length === 2) {
+      // Port added or deleted inferred by event.delta
+      const addedPort = event.delta[1]?.insert;
+      if (isDefined(addedPort)) {
+        this.onPortAdded(operatorID, isInput, (addedPort as Y.Map<any>[])[0].toJSON() as PortDescription);
+      } else if (isDefined(event.delta[0]?.delete) || isDefined(event.delta[1]?.delete)) {
+        this.onPortRemoved(operatorID, isInput);
+      }
+    } else {
+      const changedOperator = this.texeraGraph.getOperator(operatorID);
+      if (event.path.includes("displayName")) {
+        // Display name changed (via shared text editor)
+        const changedPort = isInput
+          ? changedOperator.inputPorts[event.path[2] as number]
+          : changedOperator.outputPorts[event.path[2] as number];
+        this.texeraGraph.portDisplayNameChangedSubject.next({
+          operatorID: operatorID,
+          portID: changedPort.portID,
+          newDisplayName: event.target.toJSON() as unknown as string,
+        });
+      } else if (event.path.length >= 3) {
+        // Port property changed
+        const newPortDescription = isInput
+          ? changedOperator.inputPorts[event.path[2] as number]
+          : changedOperator.outputPorts[event.path[2] as number];
+        if (isDefined(newPortDescription.partitionRequirement) && isDefined(newPortDescription.dependencies))
+          this.texeraGraph.portPropertyChangedSubject.next({
+            operatorPortID: {
+              operatorID: operatorID,
+              portID: newPortDescription.portID,
+            },
+            newProperty: {
+              partitionInfo: newPortDescription.partitionRequirement,
+              dependencies: newPortDescription.dependencies,
+            },
+          });
+      } else {
+        throw new Error(`undefined port operation on shared type: .${event}`);
+      }
+    }
   }
 
   /**
@@ -352,7 +387,7 @@ export class SharedModelChangeHandler {
     }
   }
 
-  private onOperatorPortAdded(operatorID: string, isInput: boolean, port: PortDescription) {
+  private onPortAdded(operatorID: string, isInput: boolean, port: PortDescription) {
     const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
     const portGroup = isInput ? "in" : "out";
     operatorJointElement.addPort({
@@ -366,10 +401,10 @@ export class SharedModelChangeHandler {
     });
 
     const operator = this.texeraGraph.getOperator(operatorID);
-    this.texeraGraph.operatorPortChangedSubject.next({ newOperator: operator });
+    this.texeraGraph.portAddedOrDeletedSubject.next({ newOperator: operator });
   }
 
-  private onOperatorPortRemoved(operatorID: string, isInput: boolean) {
+  private onPortRemoved(operatorID: string, isInput: boolean) {
     const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
     const portGroup = isInput ? "in" : "out";
     let lastPort;
@@ -383,7 +418,7 @@ export class SharedModelChangeHandler {
     }
 
     const operator = this.texeraGraph.getOperator(operatorID);
-    this.texeraGraph.operatorPortChangedSubject.next({ newOperator: operator });
+    this.texeraGraph.portAddedOrDeletedSubject.next({ newOperator: operator });
   }
 
   /**

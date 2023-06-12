@@ -227,7 +227,7 @@ export class WorkflowActionService {
   public addPort(operatorID: string, isInput: boolean, allowMultiInputs?: boolean): void {
     const operator = this.texeraGraph.getOperator(operatorID);
     const prefix = isInput ? "input-" : "output-";
-    let suffix = isInput ? operator.inputPorts.length + 1 : operator.outputPorts.length + 1;
+    let suffix = isInput ? operator.inputPorts.length : operator.outputPorts.length;
     let portID = prefix + suffix;
     // make sure portID has no conflict
     while (operator.inputPorts.find(p => p.portID === portID) !== undefined) {
@@ -441,6 +441,12 @@ export class WorkflowActionService {
     });
   }
 
+  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+    this.texeraGraph.bundleActions(() => {
+      this.texeraGraph.setPortProperty(operatorPortID, newProperty);
+    });
+  }
+
   /**
    * set a given link's breakpoint properties to specific values
    */
@@ -515,6 +521,15 @@ export class WorkflowActionService {
     this.highlightOperators(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasOperator(id)));
     this.highlightLinks(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasLinkWithID(id)));
     this.highlightCommentBoxes(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasCommentBox(id)));
+  }
+
+  public highlightPorts(multiSelect: boolean, ...ports: OperatorPort[]): void {
+    this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
+    this.getJointGraphWrapper().highlightPorts(...ports);
+  }
+
+  public unhighlightPorts(...ports: OperatorPort[]): void {
+    this.getJointGraphWrapper().unhighlightPorts(...ports);
   }
 
   public disableOperators(ops: readonly string[]): void {
@@ -656,7 +671,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorDeleteStream(),
       this.getTexeraGraph().getLinkAddStream(),
       this.getTexeraGraph().getLinkDeleteStream(),
-      this.getTexeraGraph().getOperatorPortChangeStream(),
+      this.getTexeraGraph().getPortAddedOrDeletedStream(),
       this.getOperatorGroup().getGroupAddStream(),
       this.getOperatorGroup().getGroupDeleteStream(),
       this.getOperatorGroup().getGroupCollapseStream(),
@@ -672,7 +687,9 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getCachedOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
-      this.getTexeraGraph().getOperatorVersionChangedStream()
+      this.getTexeraGraph().getOperatorVersionChangedStream(),
+      this.getTexeraGraph().getPortDisplayNameChangedSubject(),
+      this.getTexeraGraph().getPortPropertyChangedStream()
     );
   }
 

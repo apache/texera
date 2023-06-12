@@ -31,6 +31,7 @@ export interface OperatorAdditionalMetadata
     dynamicInputPorts?: boolean;
     dynamicOutputPorts?: boolean;
     supportReconfiguration?: boolean;
+    allowPortCustomization?: boolean;
   }> {}
 
 export interface OperatorSchema

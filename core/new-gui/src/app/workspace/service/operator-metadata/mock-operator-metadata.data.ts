@@ -1,5 +1,5 @@
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { BreakpointSchema } from "../../types/workflow-common.interface";
+import { BreakpointSchema, PortSchema } from "../../types/workflow-common.interface";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
 
@@ -326,5 +326,59 @@ export const mockBreakpointSchema: BreakpointSchema = {
         required: ["count"],
       },
     ],
+  },
+};
+
+export const mockPortSchema: PortSchema = {
+  jsonSchema: {
+    type: "object",
+    properties: {
+      partitionInfo: {
+        type: "object",
+        oneOf: [
+          {
+            title: "none",
+            properties: {
+              type: { const: "none" },
+            },
+          },
+          {
+            title: "hash",
+            properties: {
+              type: { const: "hash" },
+              hashColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+            },
+          },
+          {
+            title: "range",
+            properties: {
+              type: { const: "range" },
+              rangeColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              rangeMin: { type: "integer", title: "range min" },
+              rangeMax: { type: "integer", title: "range max" },
+            },
+          },
+          {
+            title: "single",
+            properties: {
+              type: { const: "single" },
+            },
+          },
+          {
+            title: "broadcast",
+            properties: {
+              type: { const: "broadcast" },
+            },
+          },
+        ],
+        title: "partition info",
+      },
+      dependencies: {
+        type: "array",
+        items: { type: "integer" },
+        title: "dependencies",
+      },
+    },
+    required: ["partitionInfo"],
   },
 };

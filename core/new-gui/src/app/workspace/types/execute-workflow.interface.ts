@@ -18,9 +18,7 @@ export interface LogicalOperator
   extends Readonly<{
     operatorID: string;
     operatorType: string;
-    // reason for not using `any` in this case is to
-    //  prevent types such as `undefined` or `null`
-    [uniqueAttributes: string]: string | number | boolean | Record<string, unknown>;
+    [uniqueAttributes: string]: any;
   }> {}
 
 export interface BreakpointInfo
