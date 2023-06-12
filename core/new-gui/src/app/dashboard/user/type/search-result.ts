@@ -12,4 +12,4 @@ export interface SearchResultItem {
 export interface SearchResult {
   results: SearchResultItem[];
   more: boolean;
-};
+}

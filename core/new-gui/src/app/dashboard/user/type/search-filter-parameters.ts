@@ -12,7 +12,12 @@ export interface SearchFilterParameters {
   projectIds: number[];
 }
 
-export const toQueryStrings = (keywords: string[], params: SearchFilterParameters, start?: number, count?: number): string => {
+export const toQueryStrings = (
+  keywords: string[],
+  params: SearchFilterParameters,
+  start?: number,
+  count?: number
+): string => {
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
     if (keywords) {
       for (const keyword of keywords) {

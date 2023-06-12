@@ -17,7 +17,12 @@ export class SearchService {
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
    * @param wid, the workflow id.
    */
-  public search(keywords: string[], params: SearchFilterParameters, start: number, count: number): Observable<SearchResult> {
+  public search(
+    keywords: string[],
+    params: SearchFilterParameters,
+    start: number,
+    count: number
+  ): Observable<SearchResult> {
     return this.http.get<SearchResult>(
       `${AppSettings.getApiEndpoint()}/${DASHBOARD_SEARCH_URL}?${toQueryStrings(keywords, params, start, count)}`
     );

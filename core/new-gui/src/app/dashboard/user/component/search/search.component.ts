@@ -1,9 +1,10 @@
-import { Component, OnInit, ViewChild } from "@angular/core";
+import { Component, ViewChild } from "@angular/core";
 import { DashboardEntry } from "../../type/dashboard-entry";
 import { SearchService } from "../../service/search.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { firstValueFrom } from "rxjs";
+import { SearchResultsComponent } from "../search-results/search-results.component";
 
 @UntilDestroy()
 @Component({
@@ -12,8 +13,8 @@ import { firstValueFrom } from "rxjs";
   styleUrls: ["./search.component.scss"],
 })
 export class SearchComponent {
-  entries: ReadonlyArray<DashboardEntry> = [];
   private masterFilterList: ReadonlyArray<string> = [];
+  @ViewChild(SearchResultsComponent) private searchResultsComponent?: SearchResultsComponent;
   private _filters?: FiltersComponent;
   @ViewChild(FiltersComponent)
   get filters(): FiltersComponent {
@@ -41,19 +42,33 @@ export class SearchComponent {
       return;
     }
     this.masterFilterList = this.filters.masterFilterList;
-    const results = await firstValueFrom(
-      this.searchService.search(this.filters.getSearchKeywords(), this.filters.getSearchFilterParameters())
-    );
-    this.entries = results.map(i => {
-      if (i.workflow) {
-        return new DashboardEntry(i.workflow);
-      } else if (i.project) {
-        return new DashboardEntry(i.project);
-      } else if (i.file) {
-        return new DashboardEntry(i.file);
-      } else {
-        throw new Error("Unexpected type in SearchResult.");
-      }
+    if (!this.searchResultsComponent) {
+      throw new Error("searchResultsComponent is undefined.");
+    }
+    this.searchResultsComponent.reset(async (start, count) => {
+      const results = await firstValueFrom(
+        this.searchService.search(
+          this.filters.getSearchKeywords(),
+          this.filters.getSearchFilterParameters(),
+          start,
+          count
+        )
+      );
+      return {
+        entries: results.results.map(i => {
+          if (i.workflow) {
+            return new DashboardEntry(i.workflow);
+          } else if (i.project) {
+            return new DashboardEntry(i.project);
+          } else if (i.file) {
+            return new DashboardEntry(i.file);
+          } else {
+            throw new Error("Unexpected type in SearchResult.");
+          }
+        }),
+        more: results.more,
+      };
     });
+    await this.searchResultsComponent.loadMore();
   }
 }

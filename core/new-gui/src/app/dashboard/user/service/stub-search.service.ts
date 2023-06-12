@@ -16,16 +16,14 @@ export class StubSearchService {
    */
   public search(keywords: string[], params: SearchFilterParameters): Observable<SearchResult> {
     return new Observable(observer => {
-      observer.next(
-        {
-          results: searchTestEntries(keywords, params, this.testEntries).map(i => ({
-            resourceType: i.type,
-            workflow: i.type === "workflow" ? i.workflow : undefined,
-            project: i.type === "project" ? i.project : undefined,
-          })),
-          more: false,
-        }
-      );
+      observer.next({
+        results: searchTestEntries(keywords, params, this.testEntries).map(i => ({
+          resourceType: i.type,
+          workflow: i.type === "workflow" ? i.workflow : undefined,
+          project: i.type === "project" ? i.project : undefined,
+        })),
+        more: false,
+      });
     });
   }
 }
