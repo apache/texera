@@ -46,7 +46,7 @@ export const toQueryStrings = (
     }
   }
   const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
-    [...queryStrings, ...(start ? ["start", start.toString()] : []), ...(count ? ["count", count.toString()] : [])]
+    [...queryStrings, ...(start ? [["start", start.toString()]] : []), ...(count ? [["count", count.toString()]] : [])]
       .filter(q => q[1])
       .map(([name, value]) => name + "=" + encodeURIComponent(value))
       .join("&");
