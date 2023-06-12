@@ -164,12 +164,12 @@ class ProjectResource {
   }
 
   /**
-    * This method returns a list of DashboardWorkflowEntry objects, which represents
+    * This method returns a list of DashboardWorkflow objects, which represents
     * all the workflows that are part of the specified project.
     *
     * @param pid project ID
     * @param sessionUser the session user
-    * @return list of DashboardWorkflowEntry objects
+    * @return list of DashboardWorkflow objects
     */
   @GET
   @Path("/{pid}/workflows")
