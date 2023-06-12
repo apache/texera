@@ -1,5 +1,6 @@
 import { result } from "lodash";
 import { DashboardEntry } from "./dashboard-entry";
+import { SortMethod } from "./sort-method";
 
 export interface SearchFilterParameters {
   createDateStart: Date | null;
@@ -17,7 +18,8 @@ export const toQueryStrings = (
   params: SearchFilterParameters,
   start?: number,
   count?: number,
-  type?: "workflow" | "project" | "file" | null
+  type?: "workflow" | "project" | "file" | null,
+  orderBy?: SortMethod
 ): string => {
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
     if (keywords) {
@@ -52,6 +54,7 @@ export const toQueryStrings = (
       ...(start ? [["start", start.toString()]] : []),
       ...(count ? [["count", count.toString()]] : []),
       ["resourceType", type ? type.toString() : ""],
+      ...(orderBy ? [["orderBy", SortMethod[orderBy]]] : []),
     ]
       .filter(q => q[1])
       .map(([name, value]) => name + "=" + encodeURIComponent(value))

@@ -5,6 +5,7 @@ import { FiltersComponent } from "../filters/filters.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { firstValueFrom } from "rxjs";
 import { SearchResultsComponent } from "../search-results/search-results.component";
+import { SortMethod } from "../../type/sort-method";
 
 @UntilDestroy()
 @Component({
@@ -13,6 +14,8 @@ import { SearchResultsComponent } from "../search-results/search-results.compone
   styleUrls: ["./search.component.scss"],
 })
 export class SearchComponent {
+  sortMethod = SortMethod.EditTimeDesc;
+  lastSortMethod: SortMethod | null = null;
   private masterFilterList: ReadonlyArray<string> = [];
   @ViewChild(SearchResultsComponent) private searchResultsComponent?: SearchResultsComponent;
   private _filters?: FiltersComponent;
@@ -37,11 +40,12 @@ export class SearchComponent {
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);
-    if (sameList) {
+    if (sameList && this.sortMethod === this.lastSortMethod) {
       // If the filter lists are the same, do no make the same request again.
       return;
     }
     this.masterFilterList = this.filters.masterFilterList;
+    this.lastSortMethod = this.sortMethod;
     if (!this.searchResultsComponent) {
       throw new Error("searchResultsComponent is undefined.");
     }
@@ -52,7 +56,8 @@ export class SearchComponent {
           this.filters.getSearchFilterParameters(),
           start,
           count,
-          null
+          null,
+          this.sortMethod
         )
       );
       return {

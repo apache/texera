@@ -1,4 +1,13 @@
-import { AfterViewInit, Component, Input, OnChanges, SimpleChanges, ViewChild } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  Output,
+  SimpleChanges,
+  ViewChild,
+} from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom, map } from "rxjs";
@@ -21,6 +30,7 @@ import { FileSaverService } from "../../service/user-file/file-saver.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SearchService } from "../../service/search.service";
+import { SortMethod } from "../../type/sort-method";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
@@ -86,6 +96,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
   private masterFilterList: ReadonlyArray<string> | null = null;
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid: number = 0;
+  public sortMethod = SortMethod.EditTimeDesc;
+  lastSortMethod: SortMethod | null = null;
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public owners = this.workflowPersistService.retrieveOwners().pipe(
@@ -170,12 +182,12 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
-  private async search(): Promise<void> {
+  async search(): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList![i]);
-    if (sameList) {
+    if (sameList && this.sortMethod === this.lastSortMethod) {
       // If the filter lists are the same, do no make the same request again.
       return;
     }
@@ -187,7 +199,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
           this.filters.getSearchFilterParameters(),
           start,
           count,
-          "workflow"
+          "workflow",
+          this.sortMethod
         )
       );
       return {

@@ -4,7 +4,7 @@
     <nz-button-group
       class="utility-button-group"
       ngbDropdown>
-      <!-- <texera-sort-button [(entries)]="entries"></texera-sort-button> -->
+      <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
     </nz-button-group>
     <texera-filters #filters></texera-filters>
   </nz-card>
