@@ -35,7 +35,7 @@ class Schema:
         self._name_type_mapping: MutableMapping[str, AttributeType] = dict()
 
         if arrow_schema is not None:
-            self.from_arrow_schema(arrow_schema)
+            self._from_arrow_schema(arrow_schema)
         if raw_schema is not None:
             self._from_raw_schema(raw_schema)
 
@@ -61,7 +61,7 @@ class Schema:
             attr_type = RAW_TYPE_MAPPING[raw_type]
             self.add(attr_name, attr_type)
 
-    def from_arrow_schema(self, arrow_schema: pa.Schema) -> None:
+    def _from_arrow_schema(self, arrow_schema: pa.Schema) -> None:
         """
         Resets the Schema by converting a pyarrow.Schema.
         :param arrow_schema: a pyarrow.Schema.
