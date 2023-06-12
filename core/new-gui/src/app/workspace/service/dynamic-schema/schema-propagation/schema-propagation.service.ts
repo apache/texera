@@ -294,7 +294,7 @@ export class SchemaPropagationService {
 }
 
 // possible types of an attribute
-export type SchemaAttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "ANY";
+export type SchemaAttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
 
 // schema: an array of attribute names and types
 export interface SchemaAttribute

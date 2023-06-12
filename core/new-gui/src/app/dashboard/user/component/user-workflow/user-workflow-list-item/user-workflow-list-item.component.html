@@ -1,17 +1,18 @@
 <nz-list-item class="workflow-list-item">
   <nz-list-item-meta>
-    <nz-list-item-meta-avatar>
+    <!-- Margin need only when the checkbox is not visible -->
+    <nz-list-item-meta-avatar [ngStyle]="{ 'margin-left': editable ? 'none' : '16px' }">
       <label
+        *ngIf="editable"
         nz-checkbox
         class="workflow-item-checkbox"
-        id="{{entry.workflow.wid}}"
+        id="{{workflow.wid}}"
         [(ngModel)]="entry.checked"></label>
       <nz-avatar
-        [ngStyle]="{ 'background-color': 'grey' }"
+        [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
         [nzGap]="4"
-        [nzText]="'' + entry.workflow.wid"
-        nzSize="default"
-        style="vertical-align: middle"></nz-avatar>
+        [nzText]="'' + workflow.wid"
+        nzSize="default"></nz-avatar>
     </nz-list-item-meta-avatar>
 
     <!-- editable name of saved workflow -->
@@ -19,19 +20,20 @@
       <div class="workflow-item-meta-title">
         <a
           *ngIf="!editingName; else customWorkflowTitle "
-          [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + entry.workflow.wid"
+          [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + workflow.wid"
           class="workflow-name"
-          >{{ entry.workflow.name }}</a
+          >{{ workflow.name }}</a
         >
         <ng-template #customWorkflowTitle>
           <input
             #customName
             (focusout)="confirmUpdateWorkflowCustomName(customName.value)"
             (keyup.enter)="confirmUpdateWorkflowCustomName(customName.value)"
-            placeholder="{{ entry.workflow.name }}"
-            value="{{ entry.workflow.name }}" />
+            placeholder="{{ workflow.name }}"
+            value="{{ workflow.name }}" />
         </ng-template>
         <button
+          *ngIf="editable"
           (click)="editingName = true"
           nz-button
           mat-card-title="Customize Workflow Name"
@@ -46,6 +48,7 @@
             nzType="edit"></i>
         </button>
         <button
+          *ngIf="editable"
           (click)="editingDescription = true"
           nz-button
           title="Add Description"
@@ -61,16 +64,16 @@
         </button>
         <i
           class="workflow-is-owner-icon"
-          *ngIf="entry.isOwner"
+          *ngIf="entry.workflow.isOwner"
           ngbTooltip="You are the owner"
           nz-icon
           nzTheme="outline"
           nzType="user"></i>
         <i
-          *ngIf="!entry.isOwner"
+          *ngIf="!entry.workflow.isOwner"
           ngbTooltip="{{
-                          entry.accessLevel
-                      }} access shared by {{ entry.ownerName }}"
+                          entry.workflow.accessLevel
+                      }} access shared by {{ entry.workflow.ownerName }}"
           nz-icon
           nzTheme="outline"
           nzType="team"></i>
@@ -82,9 +85,9 @@
       <div class="workflow-item-meta-description">
         <label
           *ngIf="!editingDescription; else customWorkflowDescription "
-          (click)="editingDescription = true"
+          (click)="editingDescription = editable"
           class="workflow-description">
-          {{ entry.workflow.description }}
+          {{ workflow.description }}
         </label>
         <ng-template #customWorkflowDescription>
           <input
@@ -93,7 +96,7 @@
             (focusout)="confirmUpdateWorkflowCustomDescription(customDescription.value)"
             (keyup.enter)="confirmUpdateWorkflowCustomDescription(customDescription.value)"
             class="workflow-editable-description"
-            value="{{ entry.workflow.description }}"
+            value="{{ workflow.description }}"
             maxlength="500" />
         </ng-template>
       </div>
@@ -101,8 +104,8 @@
 
     <!-- last access and created date of saved workflow -->
     <nz-list-item-meta-description class="metadata-container">
-      <span>Last Modified: {{ entry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span>
-      <span>Created: {{ entry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</span>
+      <span>Last Modified: {{ workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}</span>
+      <span>Created: {{ workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}</span>
     </nz-list-item-meta-description>
   </nz-list-item-meta>
 
@@ -110,7 +113,7 @@
     *ngIf="userProjectsMap.size > 0"
     class="project-label-container">
     <div
-      *ngFor="let projectID of entry.projectIDs"
+      *ngFor="let projectID of entry.workflow.projectIDs"
       class="project-label">
       <a
         *ngIf="userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
@@ -123,7 +126,7 @@
         {{userProjectsMap.get(projectID)!.name }}
       </a>
       <div
-        *ngIf="userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
+        *ngIf="editable && userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
         nz-tooltip="Remove from project"
         nzTooltipPlacement="bottom"
         class="project-label-remove"
@@ -139,13 +142,13 @@
     <nz-list-item-action>
       <button
         (click)="onClickOpenShareAccess()"
-        [disabled]="!entry.isOwner"
+        [disabled]="!entry.workflow.isOwner"
         nz-button
         title="Share the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }} to others"
         nz-tooltip="Share the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }} to others"
         nzTooltipPlacement="bottom"
         type="button">
@@ -155,16 +158,16 @@
           nzType="share-alt"></i>
       </button>
     </nz-list-item-action>
-    <nz-list-item-action>
+    <nz-list-item-action *ngIf="editable">
       <button
         (click)="duplicated.emit()"
         class="duplicate-workflow-btn"
         nz-button
         title="Duplicate the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nz-tooltip="Duplicate the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nzTooltipPlacement="bottom"
         type="button">
@@ -176,13 +179,13 @@
     </nz-list-item-action>
     <nz-list-item-action>
       <button
-        (click)="onClickDownloadWorkfllow(entry)"
+        (click)="onClickDownloadWorkfllow()"
         nz-button
         title="Download the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nz-tooltip="Download the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nzTooltipPlacement="bottom"
         type="button">
@@ -192,19 +195,19 @@
           nzTheme="outline"></i>
       </button>
     </nz-list-item-action>
-    <nz-list-item-action>
+    <nz-list-item-action *ngIf="editable">
       <button
         (nzOnConfirm)="deleted.emit()"
         nz-popconfirm
         nzPopconfirmTitle="Confirm to delete this workflow."
-        [disabled]="!entry.isOwner"
+        [disabled]="!entry.workflow.isOwner"
         class="delete-workflow-btn"
         nz-button
         title="Delete the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nz-tooltip="Delete the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nzTooltipPlacement="bottom">
         <i
@@ -215,13 +218,13 @@
     </nz-list-item-action>
     <nz-list-item-action *ngIf="workflowExecutionsTrackingEnabled">
       <button
-        (click)="onClickGetWorkflowExecutions(entry)"
+        (click)="onClickGetWorkflowExecutions()"
         nz-button
         title="Executions of the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nz-tooltip="Executions of the workflow {{
-                      entry.workflow.name
+                      workflow.name
                   }}"
         nzTooltipPlacement="bottom"
         type="button">
