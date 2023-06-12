@@ -12,7 +12,7 @@ export interface SearchFilterParameters {
   projectIds: number[];
 }
 
-export const toQueryStrings = (keywords: string[], params: SearchFilterParameters): string => {
+export const toQueryStrings = (keywords: string[], params: SearchFilterParameters, start?: number, count?: number): string => {
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
     if (keywords) {
       for (const keyword of keywords) {
@@ -41,7 +41,7 @@ export const toQueryStrings = (keywords: string[], params: SearchFilterParameter
     }
   }
   const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
-    [...queryStrings]
+    [...queryStrings, ...(start ? ["start", start.toString()] : []), ...(count ? ["count", count.toString()] : [])]
       .filter(q => q[1])
       .map(([name, value]) => name + "=" + encodeURIComponent(value))
       .join("&");
