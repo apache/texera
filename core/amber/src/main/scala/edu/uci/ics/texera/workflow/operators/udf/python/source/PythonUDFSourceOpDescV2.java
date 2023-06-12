@@ -68,11 +68,12 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 "1-out Python UDF",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
-                scala.collection.immutable.List.<InputPort>empty(),
+                scala.collection.immutable.List.empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
                 false,
                 false,
-                true
+                true,
+                false
         );
     }
 
