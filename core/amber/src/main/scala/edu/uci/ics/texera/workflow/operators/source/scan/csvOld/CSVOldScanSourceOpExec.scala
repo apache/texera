@@ -38,7 +38,7 @@ class CSVOldScanSourceOpExec private[csvOld] (val desc: CSVOldScanSourceOpDesc)
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = desc.customDelimiter.get.charAt(0)
     }
-    reader = CSVReader.open(desc.filePath.get)(CustomFormat)
+    reader = CSVReader.open(desc.filePath.get, desc.fileEncoding.getCharset.name())(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)
 

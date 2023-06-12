@@ -2,10 +2,9 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 
-import java.io.{BufferedReader, FileReader, IOException}
-import java.nio.charset.StandardCharsets
+import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
@@ -22,38 +21,48 @@ class TextScanSourceOpExec private[text] (
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (desc.outputAsSingleTuple) {
+    if (desc.attributeType.isOutputSingleTuple) {
       Iterator(
         Tuple
           .newBuilder(schema)
           .add(
             schema.getAttribute(outputAttributeName),
-            if (desc.outputAsBinary) Files.readAllBytes(path)
-            else new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
-            // currently using UTF_8 encoding, which will support all files
-            // that can be represented using Unicode characters
-            // NOTE : currently this mode may not support all binary files,
-            // as not all possible binary characters can necessarily be converted to valid UTF-8 strings
+            desc.attributeType match {
+              case TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE =>
+                new String(Files.readAllBytes(path), desc.fileEncodingHideable.getCharset)
+              case TextScanSourceAttributeType.BINARY => Files.readAllBytes(path)
+            }
           )
           .build()
       )
     } else { // normal text file scan mode
       rows.map(line => {
-        Tuple.newBuilder(schema).add(schema.getAttribute(outputAttributeName), line).build()
+        Tuple
+          .newBuilder(schema)
+          .add(
+            schema.getAttribute(outputAttributeName),
+            AttributeTypeUtils.parseField(line.asInstanceOf[Object], desc.attributeType.getType)
+          )
+          .build()
       })
     }
   }
 
   override def open(): Unit = {
     schema = desc.inferSchema()
-    if (desc.outputAsSingleTuple) {
+    if (desc.attributeType.isOutputSingleTuple) {
       path = Paths.get(desc.filePath.get)
     } else {
-      reader = new BufferedReader(new FileReader(desc.filePath.get))
+      reader = new BufferedReader(
+        new InputStreamReader(
+          new FileInputStream(desc.filePath.get),
+          desc.fileEncodingHideable.getCharset
+        )
+      )
       rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
     }
   }
 
   // in outputAsSingleTuple mode, Files.readAllBytes handles the closing of file
-  override def close(): Unit = if (!desc.outputAsSingleTuple) reader.close()
+  override def close(): Unit = if (!desc.attributeType.isOutputSingleTuple) reader.close()
 }
