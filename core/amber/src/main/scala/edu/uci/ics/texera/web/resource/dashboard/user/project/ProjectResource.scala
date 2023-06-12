@@ -223,12 +223,12 @@ class ProjectResource {
   }
 
   /**
-    * This method returns a list of DashboardFileEntry objects, which represents
+    * This method returns a list of DashboardFile objects, which represents
     * all the file objects that are part of the specified project.
     *
     * @param pid project ID
     * @param user the session user
-    * @return a list of DashboardFileEntry objects
+    * @return a list of DashboardFile objects
     */
   @GET
   @Path("/{pid}/files")
