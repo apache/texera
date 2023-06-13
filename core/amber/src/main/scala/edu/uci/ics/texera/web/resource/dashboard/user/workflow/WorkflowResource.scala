@@ -342,10 +342,9 @@ class WorkflowResource {
   @Path("/list")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowsBySessionUser(
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): List[DashboardWorkflow] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
+    context
       .select(
         WORKFLOW.WID,
         WORKFLOW.NAME,
@@ -369,7 +368,6 @@ class WorkflowResource {
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
-    workflowEntries
       .map(workflowRecord =>
         DashboardWorkflow(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
