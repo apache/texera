@@ -141,7 +141,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
 
-    this.workflowVersionService.getDisplayParticularVersionStream().subscribe(displayParticularVersion => {
+    this.workflowVersionService.getDisplayParticularVersionStream().subscribe((displayParticularVersion: boolean) => {
       if (displayParticularVersion) {
         this.initDiffEditor();
       } else {
