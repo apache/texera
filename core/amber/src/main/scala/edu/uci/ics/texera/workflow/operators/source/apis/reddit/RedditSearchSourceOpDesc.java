@@ -129,6 +129,7 @@ public class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
                 false,
                 false,
+                false,
                 false
         );
     }
