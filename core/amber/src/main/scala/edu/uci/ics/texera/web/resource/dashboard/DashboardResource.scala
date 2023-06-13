@@ -2,14 +2,14 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, _}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.{
   UserFileAccessPrivilege,
   WorkflowUserAccessPrivilege
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFileEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
@@ -31,7 +31,7 @@ object DashboardResource {
       resourceType: String,
       workflow: DashboardWorkflow,
       project: Project,
-      file: DashboardFileEntry
+      file: DashboardFile
   )
 
   case class DashboardSearchResult(
@@ -116,29 +116,29 @@ class DashboardResource {
         if (words.length == 1) {
           // Use "*" to enable sub-string search.
           workflowMatchQuery = workflowMatchQuery.and(
-            getSearchQuery(true, "workflow"),
+            getSearchQuery(subStringSearchEnabled = true, "workflow"),
             key
           )
           projectMatchQuery = projectMatchQuery.and(
-            getSearchQuery(true, "project"),
+            getSearchQuery(subStringSearchEnabled = true, "project"),
             key
           )
           fileMatchQuery = fileMatchQuery.and(
-            getSearchQuery(true, "file"),
+            getSearchQuery(subStringSearchEnabled = true, "file"),
             key
           )
         } else {
           // When the search query contains multiple words, sub-string search is not supported by MySQL.
           workflowMatchQuery = workflowMatchQuery.and(
-            getSearchQuery(false, "workflow"),
+            getSearchQuery(subStringSearchEnabled = false, "workflow"),
             key
           )
           projectMatchQuery = projectMatchQuery.and(
-            getSearchQuery(false, "project"),
+            getSearchQuery(subStringSearchEnabled = false, "project"),
             key
           )
           fileMatchQuery = fileMatchQuery.and(
-            getSearchQuery(false, "file"),
+            getSearchQuery(subStringSearchEnabled = false, "file"),
             key
           )
         }
@@ -159,7 +159,7 @@ class DashboardResource {
       // Apply operators filter
       .and(getOperatorsFilter(operators))
       // Apply projectId filter
-      .and(getProjectFilter(projectIds, "workflow"))
+      .and(getProjectFilter(projectIds))
 
     var projectOptionalFilters: Condition = noCondition()
     projectOptionalFilters = projectOptionalFilters
@@ -255,7 +255,7 @@ class DashboardResource {
         .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
         .leftJoin(WORKFLOW_OF_PROJECT)
         .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
-        .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid()))
+        .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
         .and(
           workflowMatchQuery
         )
@@ -291,7 +291,7 @@ class DashboardResource {
       .from(PROJECT)
       .join(USER)
       .on(PROJECT.OWNER_ID.eq(USER.UID))
-      .where(PROJECT.OWNER_ID.eq(user.getUid()))
+      .where(PROJECT.OWNER_ID.eq(user.getUid))
       .and(
         projectMatchQuery
       )
@@ -329,7 +329,7 @@ class DashboardResource {
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
       .join(USER)
       .on(FILE.OWNER_UID.eq(USER.UID))
-      .where(USER_FILE_ACCESS.UID.eq(user.getUid()))
+      .where(USER_FILE_ACCESS.UID.eq(user.getUid))
       .and(
         fileMatchQuery
       )
@@ -369,7 +369,7 @@ class DashboardResource {
       .on(FILE.OWNER_UID.eq(USER.UID))
       .join(WORKFLOW_USER_ACCESS)
       .on(FILE_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid()))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .and(
         fileMatchQuery
       )
@@ -508,7 +508,7 @@ class DashboardResource {
     // Combine all queries using union and fetch results
     val clickableFileEntry =
       resourceType match {
-        case "workflow" => {
+        case "workflow" =>
           val orderedQuery = orderBy match {
             case "NameAsc" =>
               workflowQuery.orderBy(WORKFLOW.NAME.asc())
@@ -529,9 +529,7 @@ class DashboardResource {
             .limit(count + 1)
             .offset(offset)
             .fetch()
-
-        }
-        case "project" => {
+        case "project" =>
           val orderedQuery = orderBy match {
             case "NameAsc"        => projectQuery.orderBy(PROJECT.NAME.asc())
             case "NameDesc"       => projectQuery.orderBy(PROJECT.NAME.desc())
@@ -546,9 +544,7 @@ class DashboardResource {
               )
           }
           orderedQuery.limit(count + 1).offset(offset).fetch()
-
-        }
-        case "file" => {
+        case "file" =>
           val orderedQuery =
             orderBy match {
               case "NameAsc" =>
@@ -579,8 +575,7 @@ class DashboardResource {
                 )
             }
           orderedQuery.limit(count + 1).offset(offset).fetch()
-        }
-        case "" => {
+        case "" =>
           val unionedTable =
             context
               .select()
@@ -591,29 +586,24 @@ class DashboardResource {
                   .union(sharedWorkflowFileQuery)
               )
           val orderedQuery = orderBy match {
-            case "NameAsc" => {
+            case "NameAsc" =>
               unionedTable
                 .orderBy(DSL.field("name").asc())
-            }
-            case "NameDesc" => {
+            case "NameDesc" =>
               unionedTable
                 .orderBy(DSL.field("name").desc())
-            }
-            case "CreateTimeDesc" => {
+            case "CreateTimeDesc" =>
               unionedTable
                 .orderBy(DSL.field("creation_time").desc())
-            }
-            case "EditTimeDesc" => {
+            case "EditTimeDesc" =>
               unionedTable
                 .orderBy(DSL.field("last_modified_time").desc())
-            }
             case _ =>
               throw new BadRequestException(
                 "Unknown orderBy. Only 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc' are allowed"
               )
           }
           orderedQuery.limit(count + 1).offset(offset).fetch()
-        }
 
         case _ =>
           throw new BadRequestException(
@@ -650,7 +640,7 @@ class DashboardResource {
               null
             },
             if (resourceType == "file") {
-              DashboardFileEntry(
+              DashboardFile(
                 record.into(USER).getEmail,
                 record.get(
                   "user_file_access",
