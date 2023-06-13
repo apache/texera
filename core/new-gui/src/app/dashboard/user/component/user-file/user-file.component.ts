@@ -37,8 +37,7 @@ export class UserFileComponent implements OnInit {
   constructor(
     private modalService: NgbModal,
     private userFileService: UserFileService,
-    private userService: UserService,
-    private notificationService: NotificationService
+    private userService: UserService
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }
@@ -66,12 +65,6 @@ export class UserFileComponent implements OnInit {
     });
   }
 
-  public onClickOpenShareAccess(dashboardUserFileEntry: DashboardFile): void {
-    const modalRef = this.modalService.open(ShareAccessComponent);
-    modalRef.componentInstance.type = "file";
-    modalRef.componentInstance.id = dashboardUserFileEntry.file.fid;
-  }
-
   public getFileArray(): ReadonlyArray<DashboardFile> {
     this.sortFileEntries(); // default sorting
     const fileArray = this.dashboardUserFileEntries;
@@ -96,62 +89,6 @@ export class UserFileComponent implements OnInit {
       .deleteFile(fid)
       .pipe(untilDestroyed(this))
       .subscribe(() => this.refreshDashboardFileEntries());
-  }
-
-  public addFileSizeUnit(fileSize: number): string {
-    return this.userFileService.addFileSizeUnit(fileSize);
-  }
-
-  public downloadFile(userFileEntry: DashboardFile): void {
-    this.userFileService
-      .downloadFile(userFileEntry.file.fid)
-      .pipe(untilDestroyed(this))
-      .subscribe((response: Blob) => {
-        const link = document.createElement("a");
-        link.download = userFileEntry.file.name;
-        link.href = URL.createObjectURL(new Blob([response]));
-        link.click();
-      });
-  }
-
-  public confirmUpdateFileCustomName(dashboardUserFileEntry: DashboardFile, name: string, index: number): void {
-    const {
-      file: { fid },
-    } = dashboardUserFileEntry;
-    this.userFileService
-      .changeFileName(fid, name)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.refreshDashboardFileEntries(),
-        (err: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
-          this.notificationService.error(err.error.message);
-        }
-      )
-      .add(() => (this.isEditingName = this.isEditingName.filter(fileIsEditing => fileIsEditing != index)));
-  }
-
-  public confirmUpdateFileCustomDescription(
-    dashboardUserFileEntry: DashboardFile,
-    description: string,
-    index: number
-  ): void {
-    const {
-      file: { fid },
-    } = dashboardUserFileEntry;
-    this.userFileService
-      .changeFileDescription(fid, description)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        () => this.refreshDashboardFileEntries(),
-        (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        }
-      )
-      .add(
-        () => (this.isEditingDescription = this.isEditingDescription.filter(fileIsEditing => fileIsEditing != index))
-      );
   }
 
   /**
@@ -222,7 +159,7 @@ export class UserFileComponent implements OnInit {
       .slice()
       .sort((left, right) =>
         left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
-          ? parseInt(right.file.uploadTime) - parseInt(left.file.uploadTime)
+          ? right.file.uploadTime - left.file.uploadTime
           : 0
       );
   }
@@ -236,7 +173,7 @@ export class UserFileComponent implements OnInit {
       .slice()
       .sort((left, right) =>
         left.file.uploadTime !== undefined && right.file.uploadTime !== undefined
-          ? parseInt(left.file.uploadTime) - parseInt(right.file.uploadTime)
+          ? left.file.uploadTime - right.file.uploadTime
           : 0
       );
   }

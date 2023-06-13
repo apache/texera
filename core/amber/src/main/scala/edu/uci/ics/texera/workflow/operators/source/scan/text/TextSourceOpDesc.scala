@@ -15,7 +15,11 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
   */
 trait TextSourceOpDesc {
   /* create new, identical limit and offset fields
-      with additional annotations to make hideable */
+      with additional annotations to make hideable
+
+      binary attributes and strings that are in outputAsSingleTuple mode
+      will always read the entire input, so limit / offset are disabled in these cases
+   */
 
   @JsonProperty()
   @JsonSchemaTitle("Limit")
@@ -23,9 +27,12 @@ trait TextSourceOpDesc {
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonSchemaInject(
     strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "outputAsSingleTuple"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
+      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
+      new JsonSchemaString(
+        path = HideAnnotation.hideExpectedValue,
+        value = "^binary$|^string [(]entire input in 1 tuple[)]$"
+      )
     )
   )
   var limitHideable: Option[Int] = None
@@ -36,9 +43,12 @@ trait TextSourceOpDesc {
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonSchemaInject(
     strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "outputAsSingleTuple"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
+      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
+      new JsonSchemaString(
+        path = HideAnnotation.hideExpectedValue,
+        value = "^binary$|^string [(]entire input in 1 tuple[)]$"
+      )
     )
   )
   var offsetHideable: Option[Int] = None
@@ -46,15 +56,9 @@ trait TextSourceOpDesc {
   // optional field allowing users to specify name of resulting output tuple attribute
   @JsonProperty()
   @JsonSchemaTitle("Output Attribute Name")
-  @JsonPropertyDescription("optionally specify name of output attribute")
+  @JsonPropertyDescription("optionally specify output attribute name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var attributeName: Option[String] = None
-
-  @JsonProperty(defaultValue = "false")
-  @JsonPropertyDescription(
-    "scan entire text into single output tuple"
-  )
-  var outputAsSingleTuple: Boolean = false
 
   def countNumLines(linesIterator: Iterator[String], offsetValue: Int): Int = {
     var lines = linesIterator.drop(offsetValue)

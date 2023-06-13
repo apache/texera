@@ -48,9 +48,17 @@ class DataProcessor(Runnable, Stoppable):
                 )
                 with replace_print(self._context.console_message_manager.print_buf):
                     for output in output_iterator:
+                        output_tuple = None if output is None else Tuple(output)
+                        if output_tuple is not None:
+                            schema = (
+                                self._context.operator_manager.operator.output_schema
+                            )
+                            output_tuple.finalize(schema)
+
                         self._context.tuple_processing_manager.current_output_tuple = (
-                            None if output is None else Tuple(output)
+                            output_tuple
                         )
+
                         self._switch_context()
 
                 # current tuple finished successfully

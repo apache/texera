@@ -1,5 +1,5 @@
 ﻿import { Injectable } from "@angular/core";
-import { Router, CanActivate } from "@angular/router";
+import { Router, CanActivate, RouterStateSnapshot, ActivatedRouteSnapshot } from "@angular/router";
 import { UserService } from "./user.service";
 import { environment } from "../../../../environments/environment";
 
@@ -10,11 +10,11 @@ import { environment } from "../../../../environments/environment";
 @Injectable()
 export class AuthGuardService implements CanActivate {
   constructor(private userService: UserService, private router: Router) {}
-  canActivate(): boolean {
+  canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
     if (this.userService.isLogin() || !environment.userSystemEnabled) {
       return true;
     } else {
-      this.router.navigate(["home"]);
+      this.router.navigate(["home"], { queryParams: { returnUrl: state.url === "/" ? null : state.url } });
       return false;
     }
   }

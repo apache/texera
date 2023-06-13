@@ -1,13 +1,13 @@
 import { Component, EventEmitter, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Observable, map } from "rxjs";
-import { HttpClient } from "@angular/common/http";
-import { UserProject } from "../../type/user-project";
+import { Observable } from "rxjs";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { remove } from "lodash-es";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { SearchFilterParameters } from "../../type/search-filter-parameters";
 
 @UntilDestroy()
 @Component({
@@ -16,13 +16,16 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
   styleUrls: ["./filters.component.scss"],
 })
 export class FiltersComponent implements OnInit {
-  private _masterFilterList: string[] = [];
+  private _masterFilterList: ReadonlyArray<string> = [];
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
-  public get masterFilterList(): string[] {
+  public get masterFilterList(): ReadonlyArray<string> {
     return this._masterFilterList;
   }
-  public set masterFilterList(value: string[]) {
+  public set masterFilterList(value: ReadonlyArray<string>) {
+    this.setMasterFilterList(value, true);
+  }
+  private setMasterFilterList(value: ReadonlyArray<string>, updateDropdown: boolean) {
     if (
       !this._masterFilterList ||
       !value ||
@@ -31,7 +34,9 @@ export class FiltersComponent implements OnInit {
     ) {
       // Only update when there is a change to prevent unnecessary calls to search.
       this._masterFilterList = value;
-      this.updateDropdownMenus(value);
+      if (updateDropdown) {
+        this.updateDropdownMenus(value);
+      }
       this.masterFilterListChange.emit(value);
     }
   }
@@ -49,11 +54,11 @@ export class FiltersComponent implements OnInit {
   public selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
   public selectedProjects: { name: string; pid: number }[] = [];
   /* variables for filtering workflows by projects */
-  public userProjectsList: Observable<UserProject[]>; // list of projects accessible by user
+  public userProjectsList: Observable<DashboardProject[]>; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   /* variables for project color tags */
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
-  public userProjectsLoaded: boolean = false; // tracks whether all UserProject information has been loaded (ready to render project colors)
+  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
+  public userProjectsLoaded: boolean = false; // tracks whether all DashboardProjectInterface information has been loaded (ready to render project colors)
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
 
   constructor(
@@ -63,7 +68,7 @@ export class FiltersComponent implements OnInit {
     private workflowPersistService: WorkflowPersistService
   ) {
     this.userProjectsList = this.userProjectService.retrieveProjectList().pipe(untilDestroyed(this));
-    this.userProjectsList.pipe(untilDestroyed(this)).subscribe((userProjectsList: UserProject[]) => {
+    this.userProjectsList.pipe(untilDestroyed(this)).subscribe((userProjectsList: DashboardProject[]) => {
       if (userProjectsList != null && userProjectsList.length > 0) {
         // map project ID to project object
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
@@ -175,7 +180,7 @@ export class FiltersComponent implements OnInit {
   /**
    * updates dropdown menus when nz-select bar is changed
    */
-  public updateDropdownMenus(tagListString: string[]): void {
+  public updateDropdownMenus(tagListString: ReadonlyArray<string>): void {
     //operators array is not cleared, so that operator object properties can be used for reconstruction of the array
     //operators map is too expensive/difficult to search for operator object properties
     this.selectedIDs = [];
@@ -191,7 +196,7 @@ export class FiltersComponent implements OnInit {
         const searchField = searchArray[0];
         const searchValue = searchArray[1].trim();
         const date_regex =
-          /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])[~](\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
+          /^(\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01]) ~ (\d{4})[-](0[1-9]|1[0-2])[-](0[1-9]|[12][0-9]|3[01])$/;
         const searchDate: RegExpMatchArray | null = searchValue.match(date_regex);
         switch (searchField) {
           case "owner":
@@ -313,7 +318,7 @@ export class FiltersComponent implements OnInit {
   /**
    * checks if a tag string is a workflow name or dropdown menu search parameter
    */
-  public checkIfWorkflowName(tag: string) {
+  private checkIfWorkflowName(tag: string) {
     const stringChecked: string[] = tag.split(":");
     return !(stringChecked.length === 2 && this.searchCriteria.includes(stringChecked[0]));
   }
@@ -346,8 +351,32 @@ export class FiltersComponent implements OnInit {
           this.getFormattedDateString(this.selectedMtime[1])
       );
     }
-    this._masterFilterList = newFilterList; // Avoid the call to updateDropdownMenus.
-    this.masterFilterListChange.emit(newFilterList);
+    this.setMasterFilterList(this.updateMasterFilterList(this.masterFilterList, newFilterList), false);
+  }
+
+  private updateMasterFilterList(masterFilterList: ReadonlyArray<string>, items: string[]): string[] {
+    const list = [...masterFilterList];
+    // The purpose of this function is to preserve order.
+    // Add the item if it doesn't exist.
+    for (const item of items) {
+      const ctime = item.startsWith("ctime: ");
+      const mtime = item.startsWith("mtime: ");
+      if (ctime || mtime) {
+        const index = list.findIndex(i => i.startsWith(ctime ? "ctime: " : "mtime: "));
+        if (index !== -1) {
+          list[index] = item;
+        } else {
+          list.push(item);
+        }
+      } else {
+        const index = list.indexOf(item);
+        if (index === -1) {
+          list.push(item);
+        }
+      }
+    }
+    // Remove ones that doesn't exist in the new list.
+    return list.filter(i => items.indexOf(i) !== -1);
   }
 
   /**
@@ -357,5 +386,22 @@ export class FiltersComponent implements OnInit {
     let dateMonth: number = date.getMonth() + 1;
     let dateDay: number = date.getDate();
     return `${date.getFullYear()}-${(dateMonth < 10 ? "0" : "") + dateMonth}-${(dateDay < 10 ? "0" : "") + dateDay}`;
+  }
+
+  public getSearchFilterParameters(): SearchFilterParameters {
+    return {
+      createDateStart: this.selectedCtime.length > 0 ? this.selectedCtime[0] : null,
+      createDateEnd: this.selectedCtime.length > 0 ? this.selectedCtime[1] : null,
+      modifiedDateStart: this.selectedMtime.length > 0 ? this.selectedMtime[0] : null,
+      modifiedDateEnd: this.selectedMtime.length > 0 ? this.selectedMtime[1] : null,
+      owners: this.selectedOwners,
+      ids: this.selectedIDs,
+      operators: this.selectedOperators.map(o => o.operatorType),
+      projectIds: this.selectedProjects.map(p => p.pid),
+    };
+  }
+
+  public getSearchKeywords(): string[] {
+    return this.masterFilterList.filter(tag => this.checkIfWorkflowName(tag));
   }
 }
