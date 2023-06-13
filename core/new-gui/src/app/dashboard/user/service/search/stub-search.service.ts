@@ -1,9 +1,9 @@
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { SearchResult } from "../type/search-result";
-import { SearchFilterParameters, searchTestEntries } from "../type/search-filter-parameters";
-import { DashboardEntry } from "../type/dashboard-entry";
-import { SortMethod } from "../type/sort-method";
+import { SearchResult } from "../../type/search-result";
+import { SearchFilterParameters, searchTestEntries } from "../../type/search-filter-parameters";
+import { DashboardEntry } from "../../type/dashboard-entry";
+import { SortMethod } from "../../type/sort-method";
 
 @Injectable({
   providedIn: "root",
@@ -13,7 +13,12 @@ export class StubSearchService {
 
   /**
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
-   * @param wid, the workflow id.
+   * @param keywords
+   * @param params
+   * @param start
+   * @param count
+   * @param type
+   * @param orderBy
    */
   public search(
     keywords: string[],

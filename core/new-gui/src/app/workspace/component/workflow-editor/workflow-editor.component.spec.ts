@@ -32,7 +32,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
-import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "src/app/dashboard/user/service/user-workflow/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
@@ -200,8 +200,7 @@ describe("WorkflowEditorComponent", () => {
     it("should try to highlight the operator when user mouse clicks on an operator", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       // install a spy on the highlight operator function and pass the call through
-      const highlightOperatorFunctionSpy = spyOn(jointGraphWrapper, "highlightOperators").and.callThrough();
-
+      spyOn(jointGraphWrapper, "highlightOperators").and.callThrough();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
       // unhighlight the operator in case it's automatically highlighted
@@ -223,7 +222,7 @@ describe("WorkflowEditorComponent", () => {
 
     it("should highlight the commentBox when user clicks on a commentBox", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      const highlightCommentBoxFunctionSpy = spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
+      spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
       const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
@@ -338,7 +337,7 @@ describe("WorkflowEditorComponent", () => {
     });
 
     it("should react to operator validation and change the color of operator box if the operator is valid ", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       workflowActionService.addLink(mockScanResultLink);
@@ -440,8 +439,7 @@ describe("WorkflowEditorComponent", () => {
         showAdvanced: false,
         isDisabled: false,
       };
-
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
       workflowActionService.addOperator(mockUnionPredicate, mockPoint);

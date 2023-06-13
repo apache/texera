@@ -2,7 +2,7 @@ import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/user-workflow/workflow-version.service";
 
 @UntilDestroy()
 @Component({

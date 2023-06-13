@@ -36,8 +36,8 @@ import { FiltersComponent } from "../filters/filters.component";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { StubUserProjectService } from "../../service/user-project/stub-user-project.service";
-import { SearchService } from "../../service/search.service";
-import { StubSearchService } from "../../service/stub-search.service";
+import { SearchService } from "../../service/search/search.service";
+import { StubSearchService } from "../../service/search/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { delay } from "rxjs";
 

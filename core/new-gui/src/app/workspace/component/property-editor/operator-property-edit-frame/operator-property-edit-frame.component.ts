@@ -32,7 +32,7 @@ import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
-import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/user-workflow/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
 import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
 import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
