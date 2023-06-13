@@ -1,13 +1,4 @@
-import {
-  AfterViewInit,
-  Component,
-  EventEmitter,
-  Input,
-  OnChanges,
-  Output,
-  SimpleChanges,
-  ViewChild,
-} from "@angular/core";
+import { AfterViewInit, Component, Input, OnChanges, SimpleChanges, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom, map } from "rxjs";
@@ -29,7 +20,7 @@ import * as JSZip from "jszip";
 import { FileSaverService } from "../../service/user-file/file-saver.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
-import { SearchService } from "../../service/search.service";
+import { SearchService } from "../../service/search/search.service";
 import { SortMethod } from "../../type/sort-method";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";

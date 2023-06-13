@@ -9,7 +9,6 @@ import org.jooq.meta.jaxb.Jdbc;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * This class is used to generate java classes representing the sql table in Texera database
@@ -26,15 +25,14 @@ import java.nio.file.Paths;
 public class RunCodegen {
 
     public static void main(String[] args) throws Exception {
-
-        Path jooqXmlPath = Paths.get("core").resolve("conf").resolve("jooq-conf.xml");
+        Path jooqXmlPath = Path.of("core").resolve("util").resolve("conf").resolve("jooq-conf.xml");
         Configuration jooqConfig = GenerationTool.load(Files.newInputStream(jooqXmlPath));
 
-        Path jdbcConfPath = Paths.get("core").resolve("conf").resolve("jdbc.conf");
+        Path jdbcConfPath = Path.of("core").resolve("amber").resolve("src").resolve("main").resolve("resources").resolve("application.conf");
         Config jdbcConfig = ConfigFactory.parseFile(jdbcConfPath.toFile());
 
         Jdbc jooqJdbcConfig = new Jdbc();
-        jooqJdbcConfig.setDriver(jdbcConfig.getString("jdbc.driver"));
+        jooqJdbcConfig.setDriver("com.mysql.cj.jdbc.Driver");
         jooqJdbcConfig.setUrl(jdbcConfig.getString("jdbc.url"));
         jooqJdbcConfig.setUsername(jdbcConfig.getString("jdbc.username"));
         jooqJdbcConfig.setPassword(jdbcConfig.getString("jdbc.password"));

@@ -99,7 +99,6 @@ object ProjectResource {
         .values(wid, pid)
     )
   }
-
   case class DashboardProject(
       pid: UInteger,
       name: String,
@@ -112,6 +111,7 @@ object ProjectResource {
 }
 
 @Path("/project")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 class ProjectResource {
@@ -163,7 +163,6 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}/workflows")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectWorkflows(
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
@@ -206,7 +205,6 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}/files")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
@@ -235,13 +233,11 @@ class ProjectResource {
   /**
     * This method inserts a new project into the database belonging to the session user
     * and with the specified name.
-    *
     * @param user the session user
     * @param name project name
     */
   @POST
   @Path("/create/{name}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def createProject(
       @Auth user: SessionUser,
       @PathParam("name") name: String
@@ -260,15 +256,12 @@ class ProjectResource {
   }
 
   /**
-    * This method adds a mapping between the specified workflow to the specified project
-    * into the database.
-    *
+    * This method adds a mapping between the specified workflow to the specified project into the database.
     * @param pid project ID
     * @param wid workflow ID
     */
   @POST
   @Path("/{pid}/workflow/{wid}/add")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def addWorkflowToProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger,
@@ -284,40 +277,31 @@ class ProjectResource {
   }
 
   /**
-    * This method adds a mapping between the specified file to the specified project
-    * into the database
-    *
+    * This method adds a mapping between the specified file to the specified project into the database
     * @param pid project ID
     * @param fid file ID
     */
   @POST
   @Path("/{pid}/user-file/{fid}/add")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def addFileToProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("fid") fid: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("fid") fid: UInteger
   ): Unit = {
-
     fileOfProjectDao.insert(new FileOfProject(fid, pid))
   }
 
   /**
     * This method updates the project name of the specified, existing project
-    *
     * @param pid project ID
     * @param name new name
     */
   @POST
   @Path("/{pid}/rename/{name}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectName(
       @PathParam("pid") pid: UInteger,
-      @PathParam("name") name: String,
-      @Auth sessionUser: SessionUser
+      @PathParam("name") name: String
   ): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
-
     if (StringUtils.isBlank(name)) {
       throw new BadRequestException("Cannot rename project to empty or blank name.")
     }
@@ -332,7 +316,6 @@ class ProjectResource {
 
   /**
     * This method updates the description of a specified, existing project
-    *
     * @param pid project ID
     */
   @POST
@@ -340,9 +323,9 @@ class ProjectResource {
   @Consumes(Array(MediaType.TEXT_PLAIN))
   def updateProjectDescription(
       @PathParam("pid") pid: UInteger,
-      description: String): Unit = {
+      description: String
+  ): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
-
     try {
       userProject.setDescription(description)
       userProjectDao.update(userProject)
@@ -360,14 +343,12 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/color/{colorHex}/add")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectColor(
       @PathParam("pid") pid: UInteger,
       @PathParam("colorHex") colorHex: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
-
     if (
       colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
         "^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$"
@@ -382,8 +363,7 @@ class ProjectResource {
 
   @POST
   @Path("/{pid}/color/delete")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def deleteProjectColor(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
+  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     userProject.setColor(null)
     userProjectDao.update(userProject)
@@ -396,8 +376,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/delete/{pid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def deleteProject(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
+  def deleteProject(@PathParam("pid") pid: UInteger): Unit = {
     userProjectDao.deleteById(pid)
   }
 
@@ -410,10 +389,10 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/workflow/{wid}/delete")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflowFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger): Unit = {
+      @PathParam("wid") wid: UInteger
+  ): Unit = {
     workflowOfProjectDao.deleteById(
       context.newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID).values(wid, pid)
     )
@@ -428,13 +407,12 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/user-file/{fid}/delete")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteFileFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("fid") fid: UInteger): Unit = {
+      @PathParam("fid") fid: UInteger
+  ): Unit = {
     fileOfProjectDao.deleteById(
       context.newRecord(FILE_OF_PROJECT.FID, FILE_OF_PROJECT.PID).values(fid, pid)
     )
   }
-
 }
