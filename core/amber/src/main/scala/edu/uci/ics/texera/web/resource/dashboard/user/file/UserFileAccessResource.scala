@@ -129,13 +129,11 @@ class UserFileAccessResource {
   @GET
   @Path("/owner/{fid}")
   def getOwner(@PathParam("fid") fid: UInteger): String = {
-    val uid = fileDao.fetchOneByFid(fid).getOwnerUid
-    userDao.fetchOneByUid(uid).getEmail
+    userDao.fetchOneByUid(fileDao.fetchOneByFid(fid).getOwnerUid).getEmail
   }
 
   /**
     * Retrieves the list of all shared accesses of the target file
-    *
     * @param fid the id of the file
     * @return a List of email/name/permission pair
     */
@@ -164,7 +162,6 @@ class UserFileAccessResource {
 
   /**
     * This method shares a file to a user with a specific access type
-    *
     * @param fid       the id of target file to be shared to
     * @param email     the email of target user to be shared
     * @param privilege the type of access to be shared
@@ -190,7 +187,6 @@ class UserFileAccessResource {
 
   /**
     * Revoke a user's access to a file
-    *
     * @param fid   the id of the file
     * @param email the email of target user whose access is about to be revoked
     * @return A successful resp if granted, failed resp otherwise

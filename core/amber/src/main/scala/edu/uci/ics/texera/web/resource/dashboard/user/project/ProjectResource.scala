@@ -91,95 +91,50 @@ object ProjectResource {
         .values(wid, pid)
     )
   }
-
-  /**
-    * This method verifies a project exists with the corresponding
-    * pid, throwing an exception in the case it does not.
-    *
-    * @param pid project ID
-    */
-  private def verifyProjectExists(pid: UInteger): Unit = {
-    if (!userProjectDao.existsById(pid)) {
-      throw new BadRequestException("The project does not exist.")
-    }
-  }
-
-  /**
-    * This method verifies the user with the specified uid has access to
-    * the project with the specified pid, assuming such a project exists.
-    *
-    * If user has no access, it will throw a ForbiddenException stating insufficient access
-    *
-    * @param uid user ID
-    * @param project user Project
-    * @return Project corresponding to pid
-    */
-  private def verifySessionUserHasProjectAccess(
-      uid: UInteger,
-      project: Project
-  ): Unit = {
-    if (project != null && project.getOwnerId != uid) {
-      // currently only owners should be able to access project
-      throw new ForbiddenException("No sufficient access privilege to project.")
-    }
-  }
 }
 
 @Path("/project")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ProjectResource {
 
   /**
-    * This method returns the specified project, if it exists and
-    * the user has access to it.
-    *
+    * This method returns the specified project, if it exists and the user has access to it.
     * @param pid project id
     * @return project specified by the project id
     */
   @GET
   @Path("/{pid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getProject(
-      @PathParam("pid") pid: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("pid") pid: UInteger
   ): Project = {
-    verifyProjectExists(pid)
-    val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
-    userProject
+    userProjectDao.fetchOneByPid(pid)
   }
 
   /**
     * This method returns the list of projects owned by the session user.
-    *
-    * @param sessionUser the session user
+    * @param user the session user
     * @return a list of projects belonging to owner
     */
   @GET
   @Path("/list")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def listProjectsOwnedByUser(@Auth sessionUser: SessionUser): util.List[Project] = {
-    val oid = sessionUser.getUser.getUid
-    userProjectDao.fetchByOwnerId(oid)
+  def listProjectsOwnedByUser(@Auth user: SessionUser): util.List[Project] = {
+    userProjectDao.fetchByOwnerId(user.getUid)
   }
 
   /**
     * This method returns a list of DashboardWorkflow objects, which represents
     * all the workflows that are part of the specified project.
-    *
     * @param pid project ID
     * @param sessionUser the session user
     * @return list of DashboardWorkflow objects
     */
   @GET
   @Path("/{pid}/workflows")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectWorkflows(
       @PathParam("pid") pid: UInteger,
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflow] = {
-    verifyProjectExists(pid)
-
     val uid = sessionUser.getUser.getUid
     val workflowEntries = context
       .select(
@@ -225,19 +180,16 @@ class ProjectResource {
   /**
     * This method returns a list of DashboardFile objects, which represents
     * all the file objects that are part of the specified project.
-    *
     * @param pid project ID
     * @param user the session user
     * @return a list of DashboardFile objects
     */
   @GET
   @Path("/{pid}/files")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def listProjectFiles(
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
   ): List[DashboardFile] = {
-    verifyProjectExists(pid)
     context
       .select()
       .from(FILE_OF_PROJECT)
@@ -262,49 +214,38 @@ class ProjectResource {
   /**
     * This method inserts a new project into the database belonging to the session user
     * and with the specified name.
-    *
-    * @param sessionUser the session user
+    * @param user the session user
     * @param name project name
     */
   @POST
   @Path("/create/{name}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def createProject(
-      @Auth sessionUser: SessionUser,
+      @Auth user: SessionUser,
       @PathParam("name") name: String
   ): Project = {
-    val oid = sessionUser.getUser.getUid
-
-    val userProject = new Project(null, name, null, oid, null, null)
+    val project = new Project(null, name, null, user.getUid, null, null)
     try {
-      userProjectDao.insert(userProject)
+      userProjectDao.insert(project)
     } catch {
       case _: Throwable =>
         throw new BadRequestException("Cannot create a new project with provided name.");
     }
-    userProjectDao.fetchOneByPid(userProject.getPid)
+    userProjectDao.fetchOneByPid(project.getPid)
   }
 
   /**
-    * This method adds a mapping between the specified workflow to the specified project
-    * into the database.
-    *
+    * This method adds a mapping between the specified workflow to the specified project into the database.
     * @param pid project ID
     * @param wid workflow ID
     */
   @POST
   @Path("/{pid}/workflow/{wid}/add")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def addWorkflowToProject(
       @PathParam("pid") pid: UInteger,
       @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): Unit = {
-    val uid = sessionUser.getUser.getUid
-    verifyProjectExists(pid)
-    val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(uid, userProject)
-    if (!hasReadAccess(wid, uid)) {
+    if (!hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege to workflow.")
     }
 
@@ -314,46 +255,31 @@ class ProjectResource {
   }
 
   /**
-    * This method adds a mapping between the specified file to the specified project
-    * into the database
-    *
+    * This method adds a mapping between the specified file to the specified project into the database
     * @param pid project ID
     * @param fid file ID
     */
   @POST
   @Path("/{pid}/user-file/{fid}/add")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def addFileToProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("fid") fid: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("fid") fid: UInteger
   ): Unit = {
-    val uid = sessionUser.getUser.getUid
-    verifyProjectExists(pid)
-    val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(uid, userProject)
-
     fileOfProjectDao.insert(new FileOfProject(fid, pid))
   }
 
   /**
     * This method updates the project name of the specified, existing project
-    *
     * @param pid project ID
     * @param name new name
     */
   @POST
   @Path("/{pid}/rename/{name}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectName(
       @PathParam("pid") pid: UInteger,
-      @PathParam("name") name: String,
-      @Auth sessionUser: SessionUser
+      @PathParam("name") name: String
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
-
     if (StringUtils.isBlank(name)) {
       throw new BadRequestException("Cannot rename project to empty or blank name.")
     }
@@ -368,22 +294,16 @@ class ProjectResource {
 
   /**
     * This method updates the description of a specified, existing project
-    *
     * @param pid project ID
     */
   @POST
   @Path("/{pid}/update/description")
   @Consumes(Array(MediaType.TEXT_PLAIN))
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectDescription(
       @PathParam("pid") pid: UInteger,
-      description: String,
-      @Auth sessionUser: SessionUser
+      description: String
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
-
     try {
       userProject.setDescription(description)
       userProjectDao.update(userProject)
@@ -401,16 +321,12 @@ class ProjectResource {
     */
   @POST
   @Path("/{pid}/color/{colorHex}/add")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateProjectColor(
       @PathParam("pid") pid: UInteger,
       @PathParam("colorHex") colorHex: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    verifyProjectExists(pid)
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
-
     if (
       colorHex == null || colorHex.length != 6 && colorHex.length != 3 || !colorHex.matches(
         "^[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}$"
@@ -425,11 +341,8 @@ class ProjectResource {
 
   @POST
   @Path("/{pid}/color/delete")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def deleteProjectColor(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
-    verifyProjectExists(pid)
+  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     userProject.setColor(null)
     userProjectDao.update(userProject)
   }
@@ -441,11 +354,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/delete/{pid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def deleteProject(@PathParam("pid") pid: UInteger, @Auth sessionUser: SessionUser): Unit = {
-    verifyProjectExists(pid)
-    val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
+  def deleteProject(@PathParam("pid") pid: UInteger): Unit = {
     userProjectDao.deleteById(pid)
   }
 
@@ -458,15 +367,10 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/workflow/{wid}/delete")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflowFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("wid") wid: UInteger
   ): Unit = {
-    verifyProjectExists(pid)
-    val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     workflowOfProjectDao.deleteById(
       context.newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID).values(wid, pid)
     )
@@ -481,18 +385,12 @@ class ProjectResource {
     */
   @DELETE
   @Path("/{pid}/user-file/{fid}/delete")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteFileFromProject(
       @PathParam("pid") pid: UInteger,
-      @PathParam("fid") fid: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("fid") fid: UInteger
   ): Unit = {
-    verifyProjectExists(pid)
-    val userProject: Project = userProjectDao.fetchOneByPid(pid)
-    verifySessionUserHasProjectAccess(sessionUser.getUser.getUid, userProject)
     fileOfProjectDao.deleteById(
       context.newRecord(FILE_OF_PROJECT.FID, FILE_OF_PROJECT.PID).values(fid, pid)
     )
   }
-
 }
