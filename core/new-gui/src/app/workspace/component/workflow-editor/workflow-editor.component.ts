@@ -1,11 +1,11 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, OnDestroy } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used:
 // 1) use `import * as jQuery` as follows, instead of using `$`,
 // 2) import any jquery plugins after importing jQuery
 // 3) always add the imports even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
-import { fromEvent, merge, Observable, Subject } from "rxjs";
+import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { assertType } from "src/app/common/util/assert";
@@ -22,18 +22,19 @@ import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, Point } from "../../types/workflow-common.interface";
+import { OperatorLink, OperatorPort, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/user-workflow/workflow-version.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import MouseMoveEvent = JQuery.MouseMoveEvent;
 import MouseLeaveEvent = JQuery.MouseLeaveEvent;
 import MouseEnterEvent = JQuery.MouseEnterEvent;
-import { ActivatedRoute, NavigationEnd, Router, ExtraOptions } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 
+import * as _ from "lodash";
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
 const defaultInteractiveOption = { vertexAdd: false, labelMove: false };
@@ -132,10 +133,13 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewDeleteLink();
     this.handleViewAddPort();
     this.handleViewRemovePort();
+    this.handlePortClick();
     this.handlePaperPan();
     this.handleGroupResize();
     this.handleViewMouseoverOperator();
     this.handleViewMouseoutOperator();
+    this.handlePortHighlightEvent();
+    this.registerPortDisplayNameChangeHandler();
 
     if (environment.executionStatusEnabled) {
       this.handleOperatorStatisticsUpdate();
@@ -573,6 +577,19 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  private registerPortDisplayNameChangeHandler(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getPortDisplayNameChangedSubject()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorID, portID, newDisplayName }) => {
+        const operatorJointElement = <joint.dia.Element>this.workflowActionService.getJointGraph().getCell(operatorID);
+        operatorJointElement.portProp(portID, "attrs/.port-label", {
+          text: newDisplayName,
+        });
+      });
+  }
+
   public contextMenu($event: MouseEvent, menu: NzDropdownMenuComponent): void {
     this.nzContextMenu.create($event, menu);
   }
@@ -630,8 +647,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const highlightedCommentBoxIDs = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-        const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
@@ -688,16 +705,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     )
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        const highlightedOperatorIDs = this.workflowActionService
+        this.workflowActionService
           .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorIDs();
-        const highlightedCommentBoxIDs = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedCommentBoxIDs();
-        const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        this.workflowActionService.unhighlightOperators(...highlightedOperatorIDs);
-        this.workflowActionService.unhighlightLinks(...highlightedLinkIDs);
-        this.workflowActionService.getJointGraphWrapper().unhighlightCommentBoxes(...highlightedCommentBoxIDs);
+          .unhighlightElements(this.workflowActionService.getJointGraphWrapper().getCurrentHighlights());
       });
   }
 
@@ -742,6 +752,41 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           }
         })
       );
+  }
+
+  private handlePortHighlightEvent(): void {
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .getJointPortHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(operatorPortIDs => {
+        operatorPortIDs.forEach(operatorPortID => {
+          const operatorJointElement = <joint.dia.Element>(
+            this.workflowActionService.getJointGraph().getCell(operatorPortID.operatorID)
+          );
+          operatorJointElement.portProp(operatorPortID.portID, "attrs/.port-body", {
+            r: 8,
+            stroke: "#4A95FF",
+            "stroke-width": 3,
+          });
+        });
+      });
+
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .getJointPortUnhighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(operatorPortIDs => {
+        operatorPortIDs.forEach(operatorPortID => {
+          const operatorJointElement = <joint.dia.Element>(
+            this.workflowActionService.getJointGraph().getCell(operatorPortID.operatorID)
+          );
+          operatorJointElement.portProp(operatorPortID.portID, "attrs/.port-body", {
+            r: 5,
+            stroke: "none",
+          });
+        });
+      });
   }
 
   private openCommentBox(commentBoxID: string): void {
@@ -898,6 +943,38 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .subscribe(elementView => {
         if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
           this.workflowActionService.removePort(elementView.model.id.toString(), false);
+        }
+      });
+  }
+
+  private handlePortClick(): void {
+    fromJointPaperEvent(this.getJointPaper(), "element:magnet:pointerclick")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        // set the multi-select mode
+        this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
+
+        const clickedPortID: OperatorPort = {
+          operatorID: event[0].model.id as string,
+          portID: event[2].getAttribute("port") as string,
+        };
+        const currentlyHighlightedPortIDs = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedPortIDs();
+
+        if (event[1].shiftKey) {
+          if (_.find(currentlyHighlightedPortIDs, clickedPortID) !== undefined) {
+            // if the link being clicked is already highlighted, unhighlight it
+            this.workflowActionService.unhighlightPorts(clickedPortID);
+          } else if (this.workflowActionService.getTexeraGraph().hasOperator(clickedPortID.operatorID)) {
+            // highlight the link if the link has not already been highlighted
+            this.workflowActionService.highlightPorts(<boolean>event[1].shiftKey, clickedPortID);
+          }
+        } else {
+          // if user doesn't click on the shift key, highlight only a single port
+          if (this.workflowActionService.getTexeraGraph().hasOperator(clickedPortID.operatorID)) {
+            this.workflowActionService.highlightPorts(<boolean>event[1].shiftKey, clickedPortID);
+          }
         }
       });
   }

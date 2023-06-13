@@ -32,7 +32,7 @@ import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
-import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/user-workflow/workflow-version.service";
 import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
 import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
 import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
@@ -315,27 +315,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .pipe(untilDestroyed(this))
       .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
   }
-
-  /**
-   * This method captures the change in operator's port via program instead of user updating the
-   *  json schema form in the user interface.
-   *
-   * For instance, when the input doesn't match the new json schema and the UI needs to remove the
-   *  invalid fields, this form will capture those events.
-   */
-  registerOperatorPortChangeHandler(): void {
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorPortChangeStream()
-      .pipe(
-        filter(_ => this.currentOperatorId !== undefined),
-        filter(operatorChanged => operatorChanged.newOperator.operatorID === this.currentOperatorId),
-        filter(operatorChanged => !isEqual(this.formData, operatorChanged.newOperator.inputPorts))
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.newOperator.inputPorts)));
-  }
-
   /**
    * This method handles the form change event and set the operator property
    *  in the texera graph.

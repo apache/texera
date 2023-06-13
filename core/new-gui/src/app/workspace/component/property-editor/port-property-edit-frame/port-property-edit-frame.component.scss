@@ -1,0 +1,17 @@
+#formly-title {
+  position: relative;
+
+  h3 {
+    margin: 0;
+    display: inline-block;
+  }
+
+  button {
+    position: absolute;
+    top: 45%;
+    transform: translateY(-55%);
+  }
+}
+.texera-workspace-property-editor-form {
+  padding-top: 20px;
+}
