@@ -1,5 +1,6 @@
 import { result } from "lodash";
 import { DashboardEntry } from "./dashboard-entry";
+import { SortMethod } from "./sort-method";
 
 export interface SearchFilterParameters {
   createDateStart: Date | null;
@@ -12,7 +13,14 @@ export interface SearchFilterParameters {
   projectIds: number[];
 }
 
-export const toQueryStrings = (keywords: string[], params: SearchFilterParameters): string => {
+export const toQueryStrings = (
+  keywords: string[],
+  params: SearchFilterParameters,
+  start?: number,
+  count?: number,
+  type?: "workflow" | "project" | "file" | null,
+  orderBy?: SortMethod
+): string => {
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
     if (keywords) {
       for (const keyword of keywords) {
@@ -41,7 +49,13 @@ export const toQueryStrings = (keywords: string[], params: SearchFilterParameter
     }
   }
   const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
-    [...queryStrings]
+    [
+      ...queryStrings,
+      ...(start ? [["start", start.toString()]] : []),
+      ...(count ? [["count", count.toString()]] : []),
+      ["resourceType", type ? type.toString() : ""],
+      ...(orderBy ? [["orderBy", SortMethod[orderBy]]] : []),
+    ]
       .filter(q => q[1])
       .map(([name, value]) => name + "=" + encodeURIComponent(value))
       .join("&");
@@ -52,7 +66,8 @@ export const toQueryStrings = (keywords: string[], params: SearchFilterParameter
 export const searchTestEntries = (
   keywords: string[],
   params: SearchFilterParameters,
-  testEntries: DashboardEntry[]
+  testEntries: DashboardEntry[],
+  type: "workflow" | "project" | "file" | null
 ): DashboardEntry[] => {
   const endOfDay = (date: Date) => {
     date.setHours(23);
@@ -103,6 +118,9 @@ export const searchTestEntries = (
         e.type === "workflow" &&
         e.workflow.projectIDs.some(id => params.projectIds.some(projectIdToFilterBy => projectIdToFilterBy == id))
     );
+  }
+  if (type) {
+    testEntries = testEntries.filter(e => e.type === type);
   }
   return testEntries;
 };

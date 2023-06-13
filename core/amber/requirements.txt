@@ -31,3 +31,4 @@ fs==2.4.16
 praw~=7.6.1
 python-lsp-server[all]==1.5.0
 python-lsp-server[websockets]
+bidict==0.22.0
