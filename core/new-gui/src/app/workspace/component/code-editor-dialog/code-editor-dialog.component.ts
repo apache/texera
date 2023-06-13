@@ -226,7 +226,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   }
 
   /**
-   * Gets the latest workflow's selected operator's code. 
+   * Gets the latest workflow's selected operator's code.
    * @private
    */
   private getCurrentWorkflowVersionCode(): string {
