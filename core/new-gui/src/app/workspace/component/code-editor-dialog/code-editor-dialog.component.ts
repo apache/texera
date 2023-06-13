@@ -2,6 +2,7 @@ import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } fr
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
@@ -51,6 +52,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
     @Inject(MAT_DIALOG_DATA) formControl: FormControl,
     private workflowActionService: WorkflowActionService,
+    private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
     this.formControl = formControl;
@@ -139,8 +141,14 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
 
-    this.initMonaco();
-    this.handleDisabledStatusChange();
+    this.workflowVersionService.getDisplayParticularVersionStream().subscribe(displayParticularVersion => {
+      if (displayParticularVersion) {
+        this.initDiffEditor();
+      } else {
+        this.initMonaco();
+        this.handleDisabledStatusChange();
+      }
+    });
   }
 
   /**
@@ -198,6 +206,39 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         }
       };
     }
+  }
+
+  private initDiffEditor() {
+    if (this.code == undefined) {
+      return;
+    }
+    const diffEditor = monaco.editor.createDiffEditor(this.divEditor?.nativeElement, {
+      ...this.editorOptions,
+      readOnly: true,
+    });
+    const leftModel = monaco.editor.createModel(this.code.toString(), "python");
+    const rightModel = monaco.editor.createModel(this.getCurrentWorkflowVersionCode(), "python");
+    diffEditor.setModel({
+      original: leftModel,
+      modified: rightModel,
+    });
+    this.editor = diffEditor;
+  }
+
+  /**
+   * Gets the latest workflow's selected operator's code. 
+   * @private
+   */
+  private getCurrentWorkflowVersionCode(): string {
+    const workflow = this.workflowActionService.getTempWorkflow();
+    const currentOperatorId: string = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedOperatorIDs()[0];
+    const operatorInfo = workflow?.content.operators?.filter(
+      operator => operator.operatorID === currentOperatorId
+    )?.[0];
+    const currentWorkflowVersionCode = operatorInfo?.operatorProperties.code;
+    return currentWorkflowVersionCode;
   }
 
   /**
