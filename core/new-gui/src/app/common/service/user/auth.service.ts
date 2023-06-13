@@ -103,7 +103,9 @@ export class AuthService {
 
     const uid = this.jwtHelperService.decodeToken(token).userId;
     if (uid === null) {
-      this.notificationService.error("User System is disabled on the backend!");
+      this.notificationService.error("User System is disabled on the backend!", {
+        nzDuration: 0,
+      });
       return this.logout();
     }
 

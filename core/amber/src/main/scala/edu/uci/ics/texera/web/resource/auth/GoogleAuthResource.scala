@@ -15,14 +15,12 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.{userDao, verifier}
-
 import java.util.Collections
 import javax.ws.rs._
-import javax.ws.rs.core.MediaType
 
 object GoogleAuthResource {
   final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  private val verifier =
+  final private lazy val verifier =
     new GoogleIdTokenVerifier.Builder(new NetHttpTransport, new JacksonFactory)
       .setAudience(
         Collections.singletonList(AmberUtils.amberConfig.getString("user-sys.googleClientId"))
@@ -33,8 +31,6 @@ object GoogleAuthResource {
 @Path("/auth/google")
 class GoogleAuthResource {
   @POST
-  @Consumes(Array(MediaType.TEXT_PLAIN))
-  @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/login")
   def login(credential: String): TokenIssueResponse = {
     val idToken = verifier.verify(credential)
