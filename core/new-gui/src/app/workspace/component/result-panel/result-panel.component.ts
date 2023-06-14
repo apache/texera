@@ -14,7 +14,7 @@ import { DynamicComponentConfig } from "../../../common/type/dynamic-component-c
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
-import { WorkflowVersionService } from "../../../dashboard/user/service/user-workflow/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent

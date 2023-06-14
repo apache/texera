@@ -12,9 +12,10 @@ import { Observable, of } from "rxjs";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
+import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { WorkflowSnapshotService } from "../../../dashboard/user/service/user-workflow/workflow-snapshot.service";
+import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
 
 class StubHttpClient {
   constructor() {}

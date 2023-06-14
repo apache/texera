@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { SearchComponent } from "./search.component";
-import { SearchService } from "../../service/search/search.service";
-import { StubSearchService } from "../../service/search/stub-search.service";
+import { SearchService } from "../../service/search.service";
+import { StubSearchService } from "../../service/stub-search.service";
 import { testUserProjects, testWorkflowEntries } from "../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";

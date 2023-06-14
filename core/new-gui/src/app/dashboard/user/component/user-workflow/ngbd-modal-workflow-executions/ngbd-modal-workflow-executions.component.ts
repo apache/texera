@@ -4,7 +4,7 @@ import { NgbActiveModal, NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import * as c3 from "c3";
 import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
-import { WorkflowExecutionsService } from "../../../service/user-workflow/workflow-executions.service";
+import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";

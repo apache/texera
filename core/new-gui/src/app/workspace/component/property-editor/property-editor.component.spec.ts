@@ -16,7 +16,7 @@ import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { WorkflowVersionService } from "src/app/dashboard/user/service/user-workflow/workflow-version.service";
+import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { VersionsDisplayFrameComponent } from "./versions-display/versions-display-frame.component";
 
 describe("PropertyEditorComponent", () => {
