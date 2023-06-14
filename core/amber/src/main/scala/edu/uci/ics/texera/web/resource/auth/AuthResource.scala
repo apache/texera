@@ -1,5 +1,4 @@
 package edu.uci.ics.texera.web.resource.auth
-import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
 import edu.uci.ics.texera.web.model.http.request.auth.{
@@ -37,6 +36,13 @@ object AuthResource {
         .fetchOneInto(classOf[User])
     ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
   }
+
+  @throws[NotAcceptableException]
+  def validateUsername(username: String): Unit = {
+    if (username == null) throw new NotAcceptableException("Username cannot be null.")
+    if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
+  }
+
 }
 
 @Path("/auth/")
@@ -49,9 +55,6 @@ class AuthResource {
   def login(request: UserLoginRequest): TokenIssueResponse = {
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
-        if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
-          user.setUid(null)
-        }
         TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
@@ -69,8 +72,7 @@ class AuthResource {
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
     val username = request.username
-    if (username == null) throw new NotAcceptableException("Username cannot be null.")
-    if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
+    validateUsername(username)
 
     userDao.fetchByName(username).size() match {
       case 0 =>
@@ -80,9 +82,6 @@ class AuthResource {
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)
-        if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
-          user.setUid(null)
-        }
         TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case _ =>
         // the username exists already
