@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute } from "@angular/router";
 import { GoogleService } from "../service/google.service";
 import { mergeMap, takeUntil } from "rxjs/operators";
 import { Subject } from "rxjs";
@@ -18,7 +18,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   unsubscriber = new Subject();
   constructor(
     private userService: UserService,
-    private router: Router,
     private route: ActivatedRoute,
     private googleService: GoogleService,
     private notificationService: NotificationService
@@ -32,19 +31,15 @@ export class HomeComponent implements OnInit, OnDestroy {
         takeUntil(this.unsubscriber)
       )
       .subscribe({
+        next: () => {
+          window.location.href = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
+        },
         error: (err: unknown) => {
           if (err instanceof HttpErrorResponse) {
             this.notificationService.error(err.error.message, {
               nzDuration: 0,
             });
           }
-        },
-        complete: () => {
-          Zone.current.wrap(() => {
-            const url = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
-            // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-            this.router.navigateByUrl(url);
-          }, "");
         },
       });
   }
