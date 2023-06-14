@@ -18,7 +18,7 @@ import { WorkflowResultExportService } from "../../service/workflow-result-expor
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/user-workflow/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
