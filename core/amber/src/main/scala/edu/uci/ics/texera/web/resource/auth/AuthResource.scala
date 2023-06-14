@@ -2,7 +2,11 @@ package edu.uci.ics.texera.web.resource.auth
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
-import edu.uci.ics.texera.web.model.http.request.auth.{RefreshTokenRequest, UserLoginRequest, UserRegistrationRequest}
+import edu.uci.ics.texera.web.model.http.request.auth.{
+  RefreshTokenRequest,
+  UserLoginRequest,
+  UserRegistrationRequest
+}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
