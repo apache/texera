@@ -14,24 +14,25 @@ import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-
+import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.userDao
 import java.util.Collections
 import javax.ws.rs._
+import javax.ws.rs.core.MediaType
+
+object GoogleAuthResource {
+  final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+}
 
 @Path("/auth/google")
 class GoogleAuthResource {
   final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.googleClientId")
-  final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-
-  @GET
-  @Path("/clientid")
-  def getClientId: String = {
-    clientId
-  }
-
   @POST
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/login")
   def login(credential: String): TokenIssueResponse = {
+    if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
+      throw new NotAcceptableException("User System is disabled on the backend!")
     val idToken = new GoogleIdTokenVerifier.Builder(new NetHttpTransport, new JacksonFactory)
       .setAudience(
         Collections.singletonList(clientId)
@@ -73,9 +74,6 @@ class GoogleAuthResource {
               userDao.insert(user)
               user
           }
-      }
-      if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
-        user.setUid(null)
       }
       TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
     } else throw new NotAuthorizedException("Login credentials are incorrect.")

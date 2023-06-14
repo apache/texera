@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { MatDialogModule } from "@angular/material/dialog";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormsModule } from "@angular/forms";
-import { WorkflowExecutionsService } from "../../../service/user-workflow/workflow-executions.service";
+import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { HttpClientModule } from "@angular/common/http";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions.component";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
