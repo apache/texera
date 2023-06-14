@@ -149,15 +149,15 @@ class WorkflowResourceSpec
 
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser2)
+      workflowResource.deleteWorkflow(workflow.workflow.getWid(), sessionUser2)
     )
 
     // delete all projects in the database
     var projects = projectResource.listProjectsOwnedByUser((sessionUser1))
-    projects.forEach(project => projectResource.deleteProject(project.getPid))
+    projects.forEach(project => projectResource.deleteProject(project.getPid(), sessionUser1))
 
     projects = projectResource.listProjectsOwnedByUser((sessionUser2))
-    projects.forEach(project => projectResource.deleteProject(project.getPid()))
+    projects.forEach(project => projectResource.deleteProject(project.getPid(), sessionUser2))
 
     // delete all files in the database
     var files = fileResource.getFileList(sessionUser1)
@@ -211,7 +211,7 @@ class WorkflowResourceSpec
     assertSameWorkflow(testWorkflow1, DashboardWorkflowEntryList.head)
     val DashboardWorkflowEntryList1 =
       workflowResource.searchWorkflows(sessionUser1, getKeywordsArray("text sear"))
-    assert(DashboardWorkflowEntryList1.isEmpty)
+    assert(DashboardWorkflowEntryList1.length == 0)
   }
 
   it should "return an all workflows when given an empty list of keywords" in {

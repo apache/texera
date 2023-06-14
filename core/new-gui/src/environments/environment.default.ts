@@ -55,11 +55,6 @@ export const defaultEnvironment = {
   inviteOnly: false,
 
   /**
-   * api key for google icons
-   */
-  googleAPI: "",
-
-  /**
    * whether user preset feature is enabled, requires user system to be enabled
    */
   userPresetEnabled: false,
@@ -93,6 +88,14 @@ export const defaultEnvironment = {
    */
   mapbox: {
     accessToken: "",
+  },
+
+  /**
+   * all google-related configs
+   */
+  google: {
+    clientID: "",
+    publicKey: "",
   },
 
   /**
