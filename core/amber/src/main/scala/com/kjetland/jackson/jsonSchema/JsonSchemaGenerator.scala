@@ -333,7 +333,9 @@ class JsonSchemaGenerator
 
       enums.asScala.foreach {
         enumValue =>
-          enumValuesNode.add(enumValue)
+          if (enumValue.nonEmpty) {
+            enumValuesNode.add(enumValue)
+          }
       }
     }
   }

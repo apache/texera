@@ -1,0 +1,28 @@
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Search</h2>
+    <nz-button-group
+      class="utility-button-group"
+      ngbDropdown>
+      <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+    </nz-button-group>
+    <texera-filters #filters></texera-filters>
+  </nz-card>
+
+  <div class="section-search-bar workflow-search-bar">
+    <texera-filters-instructions></texera-filters-instructions>
+    <nz-select
+      class="search-input-box"
+      name="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search all"
+      [nzBorderless]="true"
+      [nzOpen]="false"
+      ngDefaultControl
+      [(ngModel)]="filters.masterFilterList"
+      [nzAllowClear]="true">
+    </nz-select>
+  </div>
+
+  <texera-search-results></texera-search-results>
+</div>

@@ -1,13 +1,18 @@
 import datetime
-import pyarrow
+import pickle
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, List, Mapping, Iterator, TypeVar, Dict, Callable
 
 import pandas
+import pyarrow
+from pandas._libs.missing import checknull
+from pyarrow import Schema, lib
 
-AttributeType = TypeVar("AttributeType", int, float, str, datetime.datetime)
+AttributeType = TypeVar(
+    "AttributeType", int, float, str, datetime.datetime, bytes, bool, None
+)
 
 TupleLike = TypeVar(
     "TupleLike",
@@ -161,6 +166,73 @@ class Tuple:
         if output_field_names is None:
             output_field_names = self.get_field_names()
         return tuple(self[i] for i in output_field_names)
+
+    def cast_tuple_to_match_schema(self, schema: Schema):
+        # TODO: refactor this function.
+        for field_name in self.get_field_names():
+            try:
+                # convert NaN to None to support null value conversion
+                if checknull(self[field_name]):
+                    self[field_name] = None
+                field_value = self[field_name]
+                field = schema.field(field_name)
+                field_type = None if field is None else field.type
+                if field_type == pyarrow.binary():
+                    self[field_name] = b"pickle    " + pickle.dumps(field_value)
+            except Exception:
+                # Surpass exceptions during cast.
+                # Keep the value as it is if the cast fails, and continue to attempt
+                # on the next one.
+                continue
+
+    def validate_schema(self, schema: Schema) -> None:
+        """
+        Checks if the field values in the Tuple matches the expected Schema.
+        :param schema: pyarrow.Schema instance
+        :return:
+        """
+        # TODO: move it into texera Schema definition.
+        allowed_types = {
+            lib.Type_INT32: (int,),
+            lib.Type_INT64: (int,),
+            lib.Type_STRING: (str,),
+            lib.Type_DOUBLE: (float,),
+            lib.Type_BOOL: (bool,),
+            lib.Type_BINARY: (bytes,),
+            lib.Type_DATE64: (datetime.datetime,),
+            lib.Type_TIMESTAMP: (datetime.datetime,),
+            lib.Type_TIME64: (datetime.datetime,),
+        }
+
+        schema_fields = schema.names
+        tuple_fields = self.get_field_names()
+        expected_but_missing = set(schema_fields) - set(tuple_fields)
+        unexpected = set(tuple_fields) - set(schema_fields)
+        if expected_but_missing:
+            raise KeyError(
+                f"field{'' if len(expected_but_missing) == 1 else 's'} "
+                f"{', '.join(map(repr, expected_but_missing))} "
+                f"{'is' if len(expected_but_missing) == 1 else 'are'} "
+                f"expected but missing in the {self}."
+            )
+
+        if unexpected:
+            raise KeyError(
+                f"{self} contains {'an' if len(unexpected) == 1 else ''} unexpected "
+                f"field{'' if len(unexpected) == 1 else 's'}: "
+                f"{', '.join(map(repr,unexpected))}."
+            )
+
+        for field_name, field_value in self.as_key_value_pairs():
+            expected = schema.field(field_name).type
+
+            if not isinstance(
+                field_value, (allowed_types.get(expected.id), type(None))
+            ):
+                raise TypeError(
+                    f"Unmatched type for field '{field_name}', expected {expected}, "
+                    f"got {field_value} ({type(field_value)}) instead."
+                )
 
     def __iter__(self) -> Iterator[AttributeType]:
         return iter(self.get_fields())

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
@@ -8,7 +8,7 @@ import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { UserProject } from "../../../type/user-project";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -34,7 +34,7 @@ export class UserProjectSectionComponent implements OnInit {
   public updateProjectStatus = ""; // track any updates to user project for child components to rerender
 
   // temporarily here for file section color tags, TODO : remove once file service PR approved
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
 
   // ----- for file card
@@ -86,7 +86,7 @@ export class UserProjectSectionComponent implements OnInit {
   /**
    * navigate to another project page
    */
-  public jumpToProject({ pid }: UserProject): void {
+  public jumpToProject({ pid }: DashboardProject): void {
     this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
   public updateProjectColor(color: string) {
@@ -206,21 +206,20 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   private getUserProjectMetadata() {
-    // TODO : temporarily removed, revert back to retrieving data for just a single project after future PR to reuse UserFileSection component
-    // this.userProjectService
-    //   .retrieveProject(this.pid)
-    //   .pipe(untilDestroyed(this))
-    //   .subscribe(project => {
-    //     this.name = project.name;
-    //     this.ownerID = project.ownerID;
-    //     this.creationTime = project.creationTime;
-    //     if (project.color != null) {
-    //       this.color = project.color;
-    //       this.inputColor = "#" + project.color;
-    //       this.colorIsBright = this.userProjectService.isLightColor(project.color);
-    //     }
-    //     this.projectDataIsLoaded = true;
-    //   });
+    this.userProjectService
+      .retrieveProject(this.pid)
+      .pipe(untilDestroyed(this))
+      .subscribe(project => {
+        this.name = project.name;
+        this.ownerID = project.ownerID;
+        this.creationTime = project.creationTime;
+        if (project.color != null) {
+          this.color = project.color;
+          this.inputColor = "#" + project.color;
+          this.colorIsBright = UserProjectService.isLightColor(project.color);
+        }
+        this.projectDataIsLoaded = true;
+      });
 
     this.userProjectService
       .retrieveProjectList()

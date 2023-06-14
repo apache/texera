@@ -1,0 +1,40 @@
+<nz-card class="section-list-container">
+  <!-- itemSize: the height (px) of each list item,
+        this MUST be approximately the same as list item size set in CSS,
+        .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
+      -->
+  <cdk-virtual-scroll-viewport
+    itemSize="80"
+    class="virtual-scroll-container">
+    <nz-list>
+      <ng-container *cdkVirtualFor="let entry of entries">
+        <texera-user-project-list-item
+          *ngIf="entry.type === 'project'"
+          [editable]="editable"
+          [entry]="entry.project"></texera-user-project-list-item>
+        <texera-user-workflow-list-item
+          (deleted)="deleted.emit(entry)"
+          (duplicated)="duplicated.emit(entry)"
+          [editable]="editable"
+          [pid]="pid"
+          *ngIf="entry.type === 'workflow'"
+          [entry]="entry"></texera-user-workflow-list-item>
+        <texera-user-file-list-item
+          *ngIf="entry.type === 'file'"
+          [editable]="editable"
+          [entry]="entry.file">
+        </texera-user-file-list-item>
+      </ng-container>
+    </nz-list>
+    <div
+      nz-list-load-more
+      class="load-more">
+      <button
+        nz-button
+        *ngIf="!loading && more"
+        (click)="loadMore()">
+        Load more
+      </button>
+    </div>
+  </cdk-virtual-scroll-viewport>
+</nz-card>

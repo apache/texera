@@ -503,9 +503,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 return undefined;
               }
               const attributeName = c.value[propertyName];
-              return this.schemaPropagationService.getOperatorInputAttributeType(this.currentOperatorId, portIndex, attributeName);
+              return this.schemaPropagationService.getOperatorInputAttributeType(
+                this.currentOperatorId,
+                portIndex,
+                attributeName
+              );
             };
-
 
             type AttributeTypeRuleSchemaConstraint =
               typeof mapSource.attributeTypeRules[keyof typeof mapSource.attributeTypeRules];
@@ -593,7 +596,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               );
             };
 
-            if (!isDefined(this.currentOperatorId) || !isDefined(mapSource.attributeTypeRules) || !isDefined(mapSource.properties)) {
+            if (
+              !isDefined(this.currentOperatorId) ||
+              !isDefined(mapSource.attributeTypeRules) ||
+              !isDefined(mapSource.properties)
+            ) {
               return true;
             }
             const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
