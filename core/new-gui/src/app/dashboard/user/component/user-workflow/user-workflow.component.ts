@@ -68,7 +68,7 @@ export const WORKFLOW_BASE_URL = "workflow";
   templateUrl: "user-workflow.component.html",
   styleUrls: ["user-workflow.component.scss"],
 })
-export class UserWorkflowComponent implements AfterViewInit, OnChanges {
+export class UserWorkflowComponent implements AfterViewInit {
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
     if (this._searchResultsComponent) {
@@ -131,14 +131,14 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
     this.registerDashboardWorkflowEntriesRefresh();
   }
 
-  ngOnChanges(changes: SimpleChanges) {
-    for (const propName in changes) {
-      if (propName === "pid" && changes[propName].currentValue) {
-        // listen to see if component is to be re-rendered inside a different project
-        this.pid = changes[propName].currentValue;
-      }
-    }
-  }
+  // ngOnChanges(changes: SimpleChanges) {
+  //   for (const propName in changes) {
+  //     if (propName === "pid" && changes[propName].currentValue) {
+  //       // listen to see if component is to be re-rendered inside a different project
+  //       this.pid = changes[propName].currentValue;
+  //     }
+  //   }
+  // }
 
   /**
    * open the Modal to add workflow(s) to project
