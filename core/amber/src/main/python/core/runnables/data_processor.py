@@ -53,8 +53,7 @@ class DataProcessor(Runnable, Stoppable):
                             schema = (
                                 self._context.operator_manager.operator.output_schema
                             )
-                            output_tuple.cast_tuple_to_match_schema(schema)
-                            output_tuple.validate_schema(schema)
+                            output_tuple.finalize(schema)
 
                         self._context.tuple_processing_manager.current_output_tuple = (
                             output_tuple
