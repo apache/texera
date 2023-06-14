@@ -391,19 +391,20 @@ class WorkflowResourceSpec
   }
 
   "getProjectFilter" should "return a noCondition when the input projectIds list is null" in {
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(null)
+    val projectFilter: Condition = WorkflowResource.getProjectFilter(null, WORKFLOW_OF_PROJECT.PID)
     assert(projectFilter.toString == noCondition().toString)
   }
 
   it should "return a noCondition when the input projectIds list is empty" in {
     val projectFilter: Condition =
-      WorkflowResource.getProjectFilter(Collections.emptyList[UInteger]())
+      WorkflowResource.getProjectFilter(Collections.emptyList[UInteger](), WORKFLOW_OF_PROJECT.PID)
     assert(projectFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for a single projectId" in {
     val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition =
+      WorkflowResource.getProjectFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
   }
 
@@ -411,7 +412,8 @@ class WorkflowResourceSpec
     val projectIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
     )
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition =
+      WorkflowResource.getProjectFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
         .eq(UInteger.valueOf(1))
@@ -424,7 +426,8 @@ class WorkflowResourceSpec
     val projectIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2), UInteger.valueOf(2))
     )
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition =
+      WorkflowResource.getProjectFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
         .eq(UInteger.valueOf(1))
@@ -477,13 +480,13 @@ class WorkflowResourceSpec
   }
 
   "getDateFilter" should "return a noCondition when the input startDate and endDate are empty" in {
-    val dateFilter: Condition = WorkflowResource.getDateFilter("creation", "", "", "workflow")
+    val dateFilter: Condition = WorkflowResource.getDateFilter("", "", WORKFLOW.CREATION_TIME)
     assert(dateFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for creation date type with specific start and end date" in {
     val dateFilter: Condition =
-      WorkflowResource.getDateFilter("creation", "2023-01-01", "2023-12-31", "workflow")
+      WorkflowResource.getDateFilter("2023-01-01", "2023-12-31", WORKFLOW.CREATION_TIME)
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
@@ -495,7 +498,7 @@ class WorkflowResourceSpec
 
   it should "return a proper condition for modification date type with specific start and end date" in {
     val dateFilter: Condition =
-      WorkflowResource.getDateFilter("modification", "2023-01-01", "2023-12-31", "workflow")
+      WorkflowResource.getDateFilter("2023-01-01", "2023-12-31", WORKFLOW.LAST_MODIFIED_TIME)
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
@@ -507,15 +510,9 @@ class WorkflowResourceSpec
     )
   }
 
-  it should "throw an IllegalArgumentException for invalid dateType" in {
-    assertThrows[IllegalArgumentException] {
-      WorkflowResource.getDateFilter("invalidType", "2023-01-01", "2023-12-31", "workflow")
-    }
-  }
-
   it should "throw a ParseException when endDate is invalid" in {
     assertThrows[ParseException] {
-      WorkflowResource.getDateFilter("creation", "2023-01-01", "invalidDate", "workflow")
+      WorkflowResource.getDateFilter("2023-01-01", "invalidDate", WORKFLOW.CREATION_TIME)
     }
   }
 

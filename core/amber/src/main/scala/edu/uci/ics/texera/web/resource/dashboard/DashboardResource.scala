@@ -99,72 +99,49 @@ class DashboardResource {
       if (key != "") {
         val words = key.split("\\s+")
 
-        def getSearchQuery(subStringSearchEnabled: Boolean, resourceType: String): String = {
-          resourceType match {
-            case "workflow" =>
-              "MATCH(texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content) AGAINST(+{0}" +
-                (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode)"
-            case "project" =>
-              "MATCH(texera_db.project.name, texera_db.project.description) AGAINST (+{0}" +
-                (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode)"
-            case "file" =>
-              "MATCH(texera_db.file.name, texera_db.file.description) AGAINST (+{0}" +
-                (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode) "
-          }
+        def getSearchQuery(subStringSearchEnabled: Boolean, matchColumnStr: String): String = {
+          "MATCH(" + matchColumnStr + ") AGAINST(+{0}" +
+            (if (subStringSearchEnabled) "'*'" else "") + " IN BOOLEAN mode)"
         }
 
-        if (words.length == 1) {
-          // Use "*" to enable sub-string search.
-          workflowMatchQuery = workflowMatchQuery.and(
-            getSearchQuery(subStringSearchEnabled = true, "workflow"),
-            key
-          )
-          projectMatchQuery = projectMatchQuery.and(
-            getSearchQuery(subStringSearchEnabled = true, "project"),
-            key
-          )
-          fileMatchQuery = fileMatchQuery.and(
-            getSearchQuery(subStringSearchEnabled = true, "file"),
-            key
-          )
-        } else {
-          // When the search query contains multiple words, sub-string search is not supported by MySQL.
-          workflowMatchQuery = workflowMatchQuery.and(
-            getSearchQuery(subStringSearchEnabled = false, "workflow"),
-            key
-          )
-          projectMatchQuery = projectMatchQuery.and(
-            getSearchQuery(subStringSearchEnabled = false, "project"),
-            key
-          )
-          fileMatchQuery = fileMatchQuery.and(
-            getSearchQuery(subStringSearchEnabled = false, "file"),
-            key
-          )
-        }
+        val subStringSearchEnabled = words.length == 1
+        workflowMatchQuery = workflowMatchQuery.and(
+          getSearchQuery(
+            subStringSearchEnabled,
+            "texera_db.workflow.name, texera_db.workflow.description, texera_db.workflow.content"
+          ),
+          key
+        )
+        projectMatchQuery = projectMatchQuery.and(
+          getSearchQuery(
+            subStringSearchEnabled,
+            "texera_db.project.name, texera_db.project.description"
+          ),
+          key
+        )
+        fileMatchQuery = fileMatchQuery.and(
+          getSearchQuery(subStringSearchEnabled, "texera_db.file.name, texera_db.file.description"),
+          key
+        )
       }
     }
 
     // combine all filters with AND
-    var workflowOptionalFilters: Condition = noCondition()
-    workflowOptionalFilters = workflowOptionalFilters
-      // Apply creation_time date filter
-      .and(getDateFilter("creation", creationStartDate, creationEndDate, "workflow"))
-      // Apply lastModified_time date filter
-      .and(getDateFilter("modification", modifiedStartDate, modifiedEndDate, "workflow"))
-      // Apply workflowID filter
-      .and(getWorkflowIdFilter(workflowIDs))
-      // Apply owner filter
-      .and(getOwnerFilter(owners))
-      // Apply operators filter
-      .and(getOperatorsFilter(operators))
-      // Apply projectId filter
-      .and(getProjectFilter(projectIds))
+    val workflowOptionalFilters: Condition = createWorkflowFilterCondition(
+      creationStartDate,
+      creationEndDate,
+      modifiedStartDate,
+      modifiedEndDate,
+      workflowIDs,
+      owners,
+      operators,
+      projectIds
+    )
 
     var projectOptionalFilters: Condition = noCondition()
     projectOptionalFilters = projectOptionalFilters
-      .and(getDateFilter("creation", creationStartDate, creationEndDate, "project"))
-      .and(getProjectFilter(projectIds, "project"))
+      .and(getDateFilter(creationStartDate, creationEndDate, PROJECT.CREATION_TIME))
+      .and(getProjectFilter(projectIds, PROJECT.PID))
       // apply owner filter
       .and(getOwnerFilter(owners))
       .and(
@@ -177,7 +154,7 @@ class DashboardResource {
 
     var fileOptionalFilters: Condition = noCondition()
     fileOptionalFilters = fileOptionalFilters
-      .and(getDateFilter("creation", creationStartDate, creationEndDate, "file"))
+      .and(getDateFilter(creationStartDate, creationEndDate, FILE.UPLOAD_TIME))
       .and(getOwnerFilter(owners))
       .and(
         // these filters are not available in file. If any of them exists, the query should return 0 file
