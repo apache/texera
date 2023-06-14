@@ -1,10 +1,12 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute } from "@angular/router";
 import { GoogleService } from "../service/google.service";
 import { mergeMap, takeUntil } from "rxjs/operators";
 import { Subject } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
+import { NotificationService } from "../../common/service/notification/notification.service";
 
 @Component({
   selector: "texera-login",
@@ -16,9 +18,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   unsubscriber = new Subject();
   constructor(
     private userService: UserService,
-    private router: Router,
     private route: ActivatedRoute,
-    private googleService: GoogleService
+    private googleService: GoogleService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -28,13 +30,18 @@ export class HomeComponent implements OnInit, OnDestroy {
         mergeMap(res => this.userService.googleLogin(res.credential)),
         takeUntil(this.unsubscriber)
       )
-      .subscribe(
-        Zone.current.wrap(() => {
-          const url = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
-          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-          this.router.navigateByUrl(url);
-        }, "")
-      );
+      .subscribe({
+        next: () => {
+          window.location.href = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
+        },
+        error: (err: unknown) => {
+          if (err instanceof HttpErrorResponse) {
+            this.notificationService.error(err.error.message, {
+              nzDuration: 0,
+            });
+          }
+        },
+      });
   }
   ngOnDestroy(): void {
     this.unsubscriber.next(1);

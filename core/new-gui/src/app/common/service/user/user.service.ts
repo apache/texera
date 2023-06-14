@@ -79,8 +79,7 @@ export class UserService {
 
   private handleAccessToken(accessToken: string): void {
     AuthService.setAccessToken(accessToken);
-    const user = this.authService.loginWithExistingToken();
-    this.changeUser(user);
+    this.changeUser(this.authService.loginWithExistingToken());
   }
 
   /**

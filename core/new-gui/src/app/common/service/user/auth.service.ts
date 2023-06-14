@@ -102,7 +102,6 @@ export class AuthService {
     }
 
     const role = this.jwtHelperService.decodeToken(token).role;
-    const sub = this.jwtHelperService.decodeToken(token).sub;
     const email = this.jwtHelperService.decodeToken(token).email;
 
     if (this.inviteOnly && role == Role.INACTIVE) {
@@ -116,7 +115,7 @@ export class AuthService {
     this.registerAutoRefreshToken();
     return {
       uid: this.jwtHelperService.decodeToken(token).userId,
-      name: sub,
+      name: this.jwtHelperService.decodeToken(token).sub,
       email: email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
       role: role,
