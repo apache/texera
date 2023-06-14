@@ -11,7 +11,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileOfProjectDao,
   ProjectDao,
   ProjectUserAccessDao,
-  UserFileAccessDao,
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
@@ -23,7 +22,6 @@ import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.jooq.impl.DSL.case_
 import org.jooq.types.UInteger
-
 import java.sql.Timestamp
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -113,7 +111,6 @@ object ProjectResource {
 @Path("/project")
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
-@RolesAllowed(Array("REGULAR", "ADMIN"))
 class ProjectResource {
 
   /**
@@ -169,8 +166,8 @@ class ProjectResource {
   ): List[DashboardWorkflow] = {
     context
       .select()
-      .from(WORKFLOW_OF_PROJECT)
-      .join(WORKFLOW)
+      .from(WORKFLOW)
+      .join(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .join(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_PROJECT.WID))
