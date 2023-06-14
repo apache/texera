@@ -163,6 +163,7 @@
   </nz-dropdown-menu>
 
   <a
+    *ngIf="pid === null"
     [nzDropdownMenu]="projectSearchOptions"
     nz-dropdown
     nzTrigger="click"

@@ -33,11 +33,8 @@ import { SearchService } from "../../service/search.service";
 import { SortMethod } from "../../type/sort-method";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
-export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 export const WORKFLOW_BASE_URL = "workflow";
-export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
-export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -71,7 +68,7 @@ export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
   templateUrl: "user-workflow.component.html",
   styleUrls: ["user-workflow.component.scss"],
 })
-export class UserWorkflowComponent implements AfterViewInit, OnChanges {
+export class UserWorkflowComponent implements AfterViewInit {
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
     if (this._searchResultsComponent) {
@@ -95,11 +92,10 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
   // receive input from parent components (UserProjectSection), if any
-  @Input() public pid: number = 0;
+  @Input() public pid: number | null = null;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
-  public dashboardWorkflowEntriesIsEditingDescription: number[] = [];
   public owners = this.workflowPersistService.retrieveOwners().pipe(
     map((owners: string[]) => {
       return owners.map((user: string) => {
@@ -111,9 +107,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
     })
   );
   public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
-
-  public ROUTER_WORKFLOW_BASE_URL = "/workflow";
-  public ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
   constructor(
     private userService: UserService,
@@ -138,16 +131,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
     this.registerDashboardWorkflowEntriesRefresh();
   }
 
-  ngOnChanges(changes: SimpleChanges) {
-    for (const propName in changes) {
-      if (propName === "pid" && changes[propName].currentValue) {
-        // listen to see if component is to be re-rendered inside a different project
-        this.pid = changes[propName].currentValue;
-        this.search();
-      }
-    }
-  }
-
   /**
    * open the Modal to add workflow(s) to project
    */
@@ -158,7 +141,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
     // retrieve updated values from modal via promise
     modalRef.result.then(result => {
       if (result) {
-        this.search();
+        // force the search to update the workflow list.
+        this.search(true);
       }
     });
   }
@@ -173,7 +157,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
     // retrieve updated values from modal via promise
     modalRef.result.then(result => {
       if (result) {
-        this.search();
+        // force the search to update the workflow list.
+        this.search(true);
       }
     });
   }
@@ -182,22 +167,27 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
-  async search(): Promise<void> {
+  async search(forced: Boolean = false): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList![i]);
-    if (sameList && this.sortMethod === this.lastSortMethod) {
+    if (!forced && sameList && this.sortMethod === this.lastSortMethod) {
       // If the filter lists are the same, do no make the same request again.
       return;
     }
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
+    let filterParams = this.filters.getSearchFilterParameters();
+    if (this.pid) {
+      // force the project id in the search query to be the current pid.
+      filterParams.projectIds = [this.pid];
+    }
     this.searchResultsComponent.reset(async (start, count) => {
       const results = await firstValueFrom(
         this.searchService.search(
           this.filters.getSearchKeywords(),
-          this.filters.getSearchFilterParameters(),
+          filterParams,
           start,
           count,
           "workflow",
@@ -258,7 +248,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnChanges {
                 ...this.searchResultsComponent.entries,
                 new DashboardEntry(duplicatedWorkflowInfo),
               ];
-              return this.userProjectService.addWorkflowToProject(this.pid, duplicatedWorkflowInfo.workflow.wid!);
+              return this.userProjectService.addWorkflowToProject(this.pid!, duplicatedWorkflowInfo.workflow.wid!);
             }),
             catchError((err: unknown) => {
               throw err;
