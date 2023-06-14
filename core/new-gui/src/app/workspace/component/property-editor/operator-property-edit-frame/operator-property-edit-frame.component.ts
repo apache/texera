@@ -544,9 +544,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           };
 
           const checkEnumConstraint = (inputAttributeType: AttributeType, enumConstraint: AttributeTypeEnumRule) => {
-            if (!isDefined(enumConstraint)) {
-              return;
-            }
             if (!enumConstraint.includes(inputAttributeType)) {
               throw TypeError(`it's expected to be ${enumConstraint.join(" or ")}.`);
             }
@@ -612,11 +609,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               checkAllOfConstraint(inputAttributeType, constraint.allOf);
             }
           };
-
-          const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
-          if (!inputSchema) {
-            return true;
-          }
 
           // iterate through all properties in attributeType
           for (const [prop, constraint] of Object.entries(schema.attributeTypeRules)) {
