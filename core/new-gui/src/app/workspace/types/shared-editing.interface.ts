@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import * as _ from "lodash";
+import { isDefined } from "../../common/util/predicate";
 
 export type YTextify<T> = T extends string ? Y.Text : T;
 export type YArrayify<T> = T extends Array<any> ? Y.Array<any> : T;
@@ -48,7 +49,7 @@ export function createYTypeFromObject<T extends object>(obj: T): YType<T> {
         const yArray = new Y.Array();
         // Create YType for each array item and push
         for (const item of obj as any) {
-          if (item) yArray.push([createYTypeFromObject(item) as unknown]);
+          if (isDefined(item)) yArray.push([createYTypeFromObject(item) as unknown]);
         }
         return yArray as unknown as YType<T>;
       } else if (objType === "Object") {
