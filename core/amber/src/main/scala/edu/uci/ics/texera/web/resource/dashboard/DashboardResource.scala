@@ -197,7 +197,7 @@ class DashboardResource {
     // Retrieve workflow resource
     val workflowQuery =
       context
-        .select(
+        .selectDistinct(
           //common attributes: 4 columns
           DSL.inline("workflow").as("resourceType"),
           WORKFLOW.NAME,
@@ -231,8 +231,10 @@ class DashboardResource {
         .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
         .leftJoin(WORKFLOW_OF_PROJECT)
         .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
+        .leftJoin(PROJECT_USER_ACCESS)
+        .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
         .where(
-          WORKFLOW_USER_ACCESS.UID.eq(user.getUid).or(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+          WORKFLOW_USER_ACCESS.UID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid))
         )
         .and(workflowMatchQuery)
         .and(workflowOptionalFilters)
