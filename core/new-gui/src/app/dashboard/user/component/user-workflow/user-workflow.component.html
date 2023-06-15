@@ -45,7 +45,7 @@
       </nz-upload>
 
       <button
-        *ngIf="pid !== 0"
+        *ngIf="pid !== null"
         (click)="onClickOpenAddWorkflow()"
         nz-button
         title="Add workflow(s) to project"
@@ -58,7 +58,7 @@
           nzType="plus-square"></i>
       </button>
       <button
-        *ngIf="pid !== 0"
+        *ngIf="pid !== null"
         (click)="onClickOpenRemoveWorkflow()"
         nz-button
         title="Remove workflow(s) from project"
@@ -71,7 +71,9 @@
           nzType="minus-square"></i>
       </button>
     </nz-button-group>
-    <texera-filters #filters></texera-filters>
+    <texera-filters
+      [pid]="pid"
+      #filters></texera-filters>
   </nz-card>
 
   <div class="section-search-bar workflow-search-bar">
