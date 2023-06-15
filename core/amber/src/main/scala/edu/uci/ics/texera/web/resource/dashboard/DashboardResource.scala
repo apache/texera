@@ -197,7 +197,7 @@ class DashboardResource {
     // Retrieve workflow resource
     val workflowQuery =
       context
-        .selectDistinct(
+        .select(
           //common attributes: 4 columns
           DSL.inline("workflow").as("resourceType"),
           WORKFLOW.NAME,
@@ -238,6 +238,7 @@ class DashboardResource {
         )
         .and(workflowMatchQuery)
         .and(workflowOptionalFilters)
+        .groupBy(WORKFLOW.WID)
 
     // Retrieve project resource
     val projectQuery = context
@@ -589,7 +590,6 @@ class DashboardResource {
           )
       }
     val moreRecords = clickableFileEntry.size() > count
-
     DashboardSearchResult(
       results = clickableFileEntry
         .take(count)
