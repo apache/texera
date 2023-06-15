@@ -161,7 +161,7 @@
     <nz-list-item-action>
       <button
         (click)="onClickOpenShareAccess(entry.pid)"
-        [disabled]="false"
+        [disabled]="entry.ownerID !== uid"
         nz-button
         nz-tooltip="Share the project {{
 								entry.name

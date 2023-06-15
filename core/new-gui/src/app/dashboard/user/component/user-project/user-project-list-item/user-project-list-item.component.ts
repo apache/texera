@@ -28,6 +28,7 @@ export class UserProjectListItemComponent implements OnInit {
   }
   @Output() deleted = new EventEmitter<void>();
   @Input() editable = false;
+  @Input() uid: number | undefined;
   editingColor = false;
   editingName = false;
   editingDescription = false;
