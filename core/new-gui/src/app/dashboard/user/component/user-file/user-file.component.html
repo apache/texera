@@ -98,7 +98,8 @@
           *cdkVirtualFor="let entry of getFileArray()"
           [entry]="entry"
           (deleted)="deleteFile(entry.file.fid)"
-          [editable]="true"></texera-user-file-list-item>
+          [editable]="true"
+          [uid]="uid"></texera-user-file-list-item>
       </nz-list>
     </cdk-virtual-scroll-viewport>
   </nz-card>

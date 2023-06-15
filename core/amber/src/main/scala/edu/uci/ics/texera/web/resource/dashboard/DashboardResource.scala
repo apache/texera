@@ -53,7 +53,7 @@ class DashboardResource {
     * This method utilizes MySQL Boolean Full-Text Searches
     * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
     *
-    * @param sessionUser       The authenticated user performing the search.
+    * @param user       The authenticated user performing the search.
     * @param keywords          A list of search keywords. The API will return resources that match any of these keywords.
     * @param resourceType      The type of the resources to include in the search results. Acceptable values are "workflow", "project", "file" and "" (for all types).
     * @param creationStartDate The start of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
@@ -73,7 +73,7 @@ class DashboardResource {
   @GET
   @Path("/search")
   def searchAllResources(
-      @Auth sessionUser: SessionUser,
+      @Auth user: SessionUser,
       @QueryParam("query") keywords: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("resourceType") @DefaultValue("") resourceType: String = "",
       @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
@@ -89,7 +89,6 @@ class DashboardResource {
       @QueryParam("count") @DefaultValue("20") count: Int = 20,
       @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
   ): DashboardSearchResult = {
-    val user = sessionUser.getUser
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
     val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
     var workflowMatchQuery: Condition = noCondition()
@@ -232,11 +231,14 @@ class DashboardResource {
         .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
         .leftJoin(WORKFLOW_OF_PROJECT)
         .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
-        .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-        .and(
-          workflowMatchQuery
+        .leftJoin(PROJECT_USER_ACCESS)
+        .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
+        .where(
+          WORKFLOW_USER_ACCESS.UID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid))
         )
+        .and(workflowMatchQuery)
         .and(workflowOptionalFilters)
+        .groupBy(WORKFLOW.WID)
 
     // Retrieve project resource
     val projectQuery = context
@@ -588,7 +590,6 @@ class DashboardResource {
           )
       }
     val moreRecords = clickableFileEntry.size() > count
-
     DashboardSearchResult(
       results = clickableFileEntry
         .take(count)

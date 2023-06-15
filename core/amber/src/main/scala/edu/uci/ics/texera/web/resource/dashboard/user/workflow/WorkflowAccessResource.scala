@@ -3,7 +3,12 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  PROJECT_USER_ACCESS,
+  USER,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao,
@@ -59,7 +64,18 @@ object WorkflowAccessResource {
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[WorkflowUserAccess])
     if (access == null) {
-      WorkflowUserAccessPrivilege.NONE
+      val projectAccess = context
+        .select()
+        .from(PROJECT_USER_ACCESS)
+        .join(WORKFLOW_OF_PROJECT)
+        .on(WORKFLOW_OF_PROJECT.PID.eq(PROJECT_USER_ACCESS.PID))
+        .where(WORKFLOW_OF_PROJECT.WID.eq(wid).and(PROJECT_USER_ACCESS.UID.eq(uid)))
+        .fetchOneInto(classOf[WorkflowUserAccess])
+      if (projectAccess == null) {
+        WorkflowUserAccessPrivilege.NONE
+      } else {
+        projectAccess.getPrivilege
+      }
     } else {
       access.getPrivilege
     }

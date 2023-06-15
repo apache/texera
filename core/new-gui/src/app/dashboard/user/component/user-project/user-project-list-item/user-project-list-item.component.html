@@ -160,6 +160,22 @@
     *ngIf="editable">
     <nz-list-item-action>
       <button
+        (click)="onClickOpenShareAccess(entry.pid)"
+        [disabled]="entry.ownerID !== uid"
+        nz-button
+        nz-tooltip="Share the project {{
+								entry.name
+							}} to others"
+        nzTooltipPlacement="bottom"
+        type="button">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="share-alt"></i>
+      </button>
+    </nz-list-item-action>
+    <nz-list-item-action>
+      <button
         (nzOnConfirm)="deleted.emit()"
         nz-button
         nz-popconfirm

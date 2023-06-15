@@ -23,7 +23,10 @@ import edu.uci.ics.texera.web.resource.dashboard.user.file.{
   UserFileAccessResource,
   UserFileResource
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
+import edu.uci.ics.texera.web.resource.dashboard.user.project.{
+  ProjectResource,
+  ProjectAccessResource
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
@@ -183,6 +186,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[WorkflowResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[ProjectResource])
+    environment.jersey.register(classOf[ProjectAccessResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])
     environment.jersey.register(classOf[DashboardResource])
   }

@@ -1,9 +1,8 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
-import { DashboardFile, UserFile } from "../../../type/dashboard-file.interface";
+import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { UserService } from "src/app/common/service/user/user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 
@@ -14,7 +13,6 @@ import { ShareAccessComponent } from "../../share-access/share-access.component"
   styleUrls: ["./user-file-list-item.component.scss"],
 })
 export class UserFileListItemComponent {
-  uid: number | undefined;
   private _entry?: DashboardFile = {
     ownerEmail: "jingchf@uci.edu",
     writeAccess: true,
@@ -39,6 +37,7 @@ export class UserFileListItemComponent {
     this._entry = value;
   }
   @Input() editable = false;
+  @Input() uid: number | undefined;
   editingName = false;
   editingDescription = false;
   @Output() deleted = new EventEmitter<void>();
@@ -46,11 +45,8 @@ export class UserFileListItemComponent {
   constructor(
     private modalService: NgbModal,
     private userFileService: UserFileService,
-    private userService: UserService,
     private notificationService: NotificationService
-  ) {
-    this.uid = this.userService.getCurrentUser()?.uid;
-  }
+  ) {}
 
   public confirmUpdateFileCustomName(name: string): void {
     if (this.entry.file.name === name) {
