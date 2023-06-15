@@ -152,19 +152,19 @@ class ProjectResource {
   }
 
   /**
-   * This method returns a list of DashboardWorkflow objects, which represents
-   * all the workflows that are part of the specified project.
-   *
-   * @param pid  project ID
-   * @param user the session user
-   * @return list of DashboardWorkflow objects
-   */
+    * This method returns a list of DashboardWorkflow objects, which represents
+    * all the workflows that are part of the specified project.
+    *
+    * @param pid  project ID
+    * @param user the session user
+    * @return list of DashboardWorkflow objects
+    */
   @GET
   @Path("/{pid}/workflows")
   def listProjectWorkflows(
-                            @PathParam("pid") pid: UInteger,
-                            @Auth user: SessionUser
-                          ): List[DashboardWorkflow] = {
+      @PathParam("pid") pid: UInteger,
+      @Auth user: SessionUser
+  ): List[DashboardWorkflow] = {
     context
       .select()
       .from(WORKFLOW_OF_PROJECT)
