@@ -92,7 +92,7 @@
     <nz-list-item-action>
       <button
         (click)="onClickOpenShareAccess()"
-        [disabled]="!entry.writeAccess"
+        [disabled]="entry.file.ownerUid !== uid"
         nz-button
         nz-tooltip="Share the file {{
                       entry.file.name
