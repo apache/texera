@@ -120,8 +120,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}")
-  def getProject(
-      @PathParam("pid") pid: UInteger): Project = {
+  def getProject(@PathParam("pid") pid: UInteger): Project = {
     userProjectDao.fetchOneByPid(pid)
   }
 
