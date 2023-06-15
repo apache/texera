@@ -224,7 +224,7 @@ export class UserWorkflowComponent implements AfterViewInit {
    */
   public onClickDuplicateWorkflow(entry: DashboardEntry): void {
     if (entry.workflow.workflow.wid) {
-      if (this.pid === 0) {
+      if (this.pid === null) {
         // not nested within user project section
         this.workflowPersistService
           .duplicateWorkflow(entry.workflow.workflow.wid)
@@ -232,8 +232,8 @@ export class UserWorkflowComponent implements AfterViewInit {
           .subscribe({
             next: duplicatedWorkflowInfo => {
               this.searchResultsComponent.entries = [
-                ...this.searchResultsComponent.entries,
                 new DashboardEntry(duplicatedWorkflowInfo),
+                ...this.searchResultsComponent.entries,
               ];
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
@@ -245,8 +245,8 @@ export class UserWorkflowComponent implements AfterViewInit {
           .pipe(
             concatMap(duplicatedWorkflowInfo => {
               this.searchResultsComponent.entries = [
-                ...this.searchResultsComponent.entries,
                 new DashboardEntry(duplicatedWorkflowInfo),
+                ...this.searchResultsComponent.entries,
               ];
               return this.userProjectService.addWorkflowToProject(this.pid!, duplicatedWorkflowInfo.workflow.wid!);
             }),

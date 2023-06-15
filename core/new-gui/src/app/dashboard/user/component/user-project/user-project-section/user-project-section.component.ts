@@ -19,7 +19,7 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 })
 export class UserProjectSectionComponent implements OnInit {
   // information from the database about this project
-  public pid: number = 0;
+  public pid: number | null = null;
   public name: string = "";
   public description: string = "";
   public ownerID: number = 0;
@@ -103,7 +103,7 @@ export class UserProjectSectionComponent implements OnInit {
     }
 
     this.userProjectService
-      .updateProjectColor(this.pid, color)
+      .updateProjectColor(this.pid!, color)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
@@ -127,7 +127,7 @@ export class UserProjectSectionComponent implements OnInit {
     }
 
     this.userProjectService
-      .deleteProjectColor(this.pid)
+      .deleteProjectColor(this.pid!)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.color = null;
@@ -158,12 +158,12 @@ export class UserProjectSectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(
         () => {
-          this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
+          this.userProjectService.refreshFilesOfProject(this.pid!); // -- perform appropriate call for project page
         },
         (err: unknown) => {
           // @ts-ignore // TODO: fix this with notification component
           this.notificationService.error(err.error.message);
-          this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
+          this.userProjectService.refreshFilesOfProject(this.pid!); // -- perform appropriate call for project page
         }
       )
       .add(() => (this.isEditingFileName = this.isEditingFileName.filter(fileIsEditing => fileIsEditing != index)));
@@ -202,12 +202,12 @@ export class UserProjectSectionComponent implements OnInit {
    * @param userFileEntry
    */
   public deleteUserFileEntry(userFileEntry: DashboardFile): void {
-    this.userProjectService.deleteDashboardUserFileEntry(this.pid, userFileEntry);
+    this.userProjectService.deleteDashboardUserFileEntry(this.pid!, userFileEntry);
   }
 
   private getUserProjectMetadata() {
     this.userProjectService
-      .retrieveProject(this.pid)
+      .retrieveProject(this.pid!)
       .pipe(untilDestroyed(this))
       .subscribe(project => {
         this.name = project.name;

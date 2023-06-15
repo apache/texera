@@ -56,7 +56,7 @@ export class NavigationComponent implements OnInit {
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
 
-  @Input() private pid: number = 0;
+  @Input() private pid: number | null = null;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
@@ -385,7 +385,7 @@ export class NavigationComponent implements OnInit {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-    if (this.pid === 0) {
+    if (this.pid === null) {
       this.workflowPersistService
         .persistWorkflow(this.workflowActionService.getWorkflow())
         .pipe(untilDestroyed(this))
@@ -407,7 +407,7 @@ export class NavigationComponent implements OnInit {
           concatMap((updatedWorkflow: Workflow) => {
             this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             this.isSaving = false;
-            return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
+            return this.userProjectService.addWorkflowToProject(this.pid!, updatedWorkflow.wid!);
           }),
           catchError((err: unknown) => {
             throw err;
