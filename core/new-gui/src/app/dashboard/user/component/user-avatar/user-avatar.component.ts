@@ -26,7 +26,7 @@ export class UserAvatarComponent implements OnInit {
   @Input() googleId?: string;
   @Input() userName?: string;
   @Input() userColor?: string;
-  private publicKey = environment.google.publicKey;
+  private googleApiKey = environment.googleApiKey;
 
   constructor(private http: HttpClient) {}
 
@@ -35,7 +35,7 @@ export class UserAvatarComponent implements OnInit {
       throw new Error("google Id or user name should be provided");
     } else if (this.googleId) {
       // get the avatar of the google user
-      const googlePeopleAPIUrl = `https://people.googleapis.com/v1/people/${this.googleId}?personFields=names%2Cphotos&key=${this.publicKey}`;
+      const googlePeopleAPIUrl = `https://people.googleapis.com/v1/people/${this.googleId}?personFields=names%2Cphotos&key=${this.googleApiKey}`;
       this.http
         .get<GooglePeopleApiResponse>(googlePeopleAPIUrl)
         .pipe(untilDestroyed(this))
