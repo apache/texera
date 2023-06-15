@@ -4,6 +4,7 @@ import { UserService } from "../../common/service/user/user.service";
 import { StubUserService } from "../../common/service/user/stub-user.service";
 import { GoogleService } from "../service/google.service";
 import { RouterTestingModule } from "@angular/router/testing";
+import { HttpClientModule } from "@angular/common/http";
 
 describe("HomeComponent", () => {
   let component: HomeComponent;
@@ -13,7 +14,7 @@ describe("HomeComponent", () => {
     TestBed.configureTestingModule({
       declarations: [HomeComponent],
       providers: [{ provide: UserService, useClass: StubUserService }, GoogleService],
-      imports: [RouterTestingModule.withRoutes([{ path: "home", component: HomeComponent }])],
+      imports: [HttpClientModule, RouterTestingModule.withRoutes([{ path: "home", component: HomeComponent }])],
     }).compileComponents();
   }));
 
@@ -21,5 +22,9 @@ describe("HomeComponent", () => {
     fixture = TestBed.createComponent(HomeComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it("should create", () => {
+    expect(component).toBeTruthy();
   });
 });
