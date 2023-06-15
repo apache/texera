@@ -3,6 +3,7 @@ import { UserProjectService } from "../../service/user-project/user-project.serv
 import { DashboardProject } from "../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { UserService } from "../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
@@ -13,9 +14,6 @@ import { NotificationService } from "../../../../common/service/notification/not
 export class UserProjectComponent implements OnInit {
   // store list of projects / variables to create and edit projects
   public userProjectEntries: DashboardProject[] = [];
-  public userProjectEntriesIsEditingName: number[] = [];
-  public userProjectEntriesIsEditingDescription: number[] = [];
-  public collapsedProjectDescriptions: number[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
 
@@ -24,8 +22,15 @@ export class UserProjectComponent implements OnInit {
   public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
   public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
+  public uid: number | undefined;
 
-  constructor(private userProjectService: UserProjectService, private notificationService: NotificationService) {}
+  constructor(
+    private userProjectService: UserProjectService,
+    private notificationService: NotificationService,
+    private userService: UserService
+  ) {
+    this.uid = this.userService.getCurrentUser()?.uid;
+  }
 
   ngOnInit(): void {
     this.getUserProjectArray();
