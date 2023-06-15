@@ -247,7 +247,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     expect(component.operatorVersion).toEqual(mockResultPredicate.operatorVersion);
 
-    // check scan opeartor version
+    // check scan operator version
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     component.ngOnChanges({
       currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
