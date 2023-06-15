@@ -14,10 +14,9 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{DashboardFile, context}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.jooq.impl.DSL.case_
@@ -148,48 +147,6 @@ class ProjectResource {
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
       .where(PROJECT_USER_ACCESS.UID.eq(user.getUid))
       .fetchInto(classOf[DashboardProject])
-  }
-
-  /**
-    * This method returns a list of DashboardWorkflow objects, which represents
-    * all the workflows that are part of the specified project.
-    * @param pid project ID
-    * @param user the session user
-    * @return list of DashboardWorkflow objects
-    */
-  @GET
-  @Path("/{pid}/workflows")
-  def listProjectWorkflows(
-      @PathParam("pid") pid: UInteger,
-      @Auth user: SessionUser
-  ): List[DashboardWorkflow] = {
-    context
-      .select()
-      .from(WORKFLOW)
-      .join(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .where(WORKFLOW_OF_PROJECT.PID.eq(pid))
-      .fetch()
-      .map(workflowRecord =>
-        DashboardWorkflow(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
-            .toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          List()
-        )
-      )
-      .toList
   }
 
   /**
