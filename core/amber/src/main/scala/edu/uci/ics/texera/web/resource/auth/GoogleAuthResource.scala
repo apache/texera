@@ -31,7 +31,7 @@ class GoogleAuthResource {
   def getClientId: String = {
     clientId
   }
-  
+
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))
   @Produces(Array(MediaType.APPLICATION_JSON))
