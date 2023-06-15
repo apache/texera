@@ -18,9 +18,8 @@ export class GoogleService {
   constructor(private http: HttpClient) {}
 
   public googleInit(parent: HTMLElement | null) {
-    this.http
-      .get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" })
-      .subscribe(response => {
+    this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" }).subscribe({
+      next: response => {
         window.onGoogleLibraryLoad = () => {
           window.google.accounts.id.initialize({
             client_id: response,
@@ -31,7 +30,11 @@ export class GoogleService {
           window.google.accounts.id.renderButton(parent, { width: "270" });
           window.google.accounts.id.prompt();
         };
-      });
+      },
+      error: (err: unknown) => {
+        console.error(err);
+      },
+    });
   }
 
   get googleCredentialResponse() {
