@@ -5,6 +5,8 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
+import { Subject } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
 import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
@@ -47,6 +49,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
+  private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
 
   constructor(
     private sanitizer: DomSanitizer,
@@ -82,6 +85,11 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
     if (this.editor !== undefined) {
       this.editor.dispose();
+    }
+
+    if (!isUndefined(this.workflowVersionStreamSubject)) {
+      this.workflowVersionStreamSubject.next();
+      this.workflowVersionStreamSubject.complete();
     }
   }
 
@@ -142,14 +150,17 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
 
-    this.workflowVersionService.getDisplayParticularVersionStream().subscribe((displayParticularVersion: boolean) => {
-      if (displayParticularVersion) {
-        this.initDiffEditor();
-      } else {
-        this.initMonaco();
-        this.handleDisabledStatusChange();
-      }
-    });
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(takeUntil(this.workflowVersionStreamSubject))
+      .subscribe((displayParticularVersion: boolean) => {
+        if (displayParticularVersion) {
+          this.initDiffEditor();
+        } else {
+          this.initMonaco();
+          this.handleDisabledStatusChange();
+        }
+      });
   }
 
   /**
