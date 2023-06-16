@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from pyarrow.lib import Table
-from typing import List
+from typing import List, Optional
 
-from pyarrow.lib import Schema
-
+from core.models.schema.schema import Schema
 from core.models.tuple import Tuple
 
 
@@ -20,7 +19,7 @@ class InputDataFrame(DataPayload):
 @dataclass
 class OutputDataFrame(DataPayload):
     frame: List[Tuple]
-    schema: Schema = None
+    schema: Optional[Schema] = None
 
 
 @dataclass

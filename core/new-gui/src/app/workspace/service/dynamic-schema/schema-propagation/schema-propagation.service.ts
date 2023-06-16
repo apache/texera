@@ -82,7 +82,7 @@ export class SchemaPropagationService {
     operatorID: string,
     portIndex: number,
     attributeName: string
-  ): SchemaAttributeType | undefined {
+  ): AttributeType | undefined {
     return this.getPortInputSchema(operatorID, portIndex)?.find(e => e.attributeName === attributeName)?.attributeType;
   }
 
@@ -294,13 +294,13 @@ export class SchemaPropagationService {
 }
 
 // possible types of an attribute
-export type SchemaAttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
+export type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
 
 // schema: an array of attribute names and types
 export interface SchemaAttribute
   extends Readonly<{
     attributeName: string;
-    attributeType: SchemaAttributeType;
+    attributeType: AttributeType;
   }> {}
 
 // input schema of an operator: an array of schemas at each input port
