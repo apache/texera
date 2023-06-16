@@ -5,13 +5,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{
-  HashPartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, RangePartition, SinglePartition, BroadcastPartition, UnknownPartition}
 
 import scala.collection.JavaConverters._
 
@@ -39,7 +33,8 @@ class ProjectionOpDesc extends MapOpDesc {
       case RangePartition(rangeColumnIndices, min, max) =>
         val newIndices = rangeColumnIndices.flatMap(i => columnIndicesMapping.get(i))
         if (newIndices.nonEmpty) RangePartition(newIndices, min, max) else UnknownPartition()
-      case SinglePartition()  => inputPartitionInfo
+      case SinglePartition() => inputPartitionInfo
+      case BroadcastPartition()  => inputPartitionInfo
       case UnknownPartition() => inputPartitionInfo
     }
 
