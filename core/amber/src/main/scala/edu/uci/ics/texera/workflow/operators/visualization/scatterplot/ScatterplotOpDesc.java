@@ -38,8 +38,11 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 @JsonSchemaInject(json =
 "{" +
 "  \"attributeTypeRules\": {" +
-"    \"attribute\":{" +
-"      \"enum\": [\"integer\", \"long\", \"double\"]" +
+"    \"xColumn\":{" +
+"      \"enum\": [\"integer\", \"double\"]" +
+"    }," +
+"    \"yColumn\":{" +
+"      \"enum\": [\"integer\", \"double\"]" +
 "    }" +
 "  }" +
 "}")
