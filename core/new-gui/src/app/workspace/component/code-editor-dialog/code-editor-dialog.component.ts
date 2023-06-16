@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } fr
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/user-workflow/workflow-version.service";
+import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
