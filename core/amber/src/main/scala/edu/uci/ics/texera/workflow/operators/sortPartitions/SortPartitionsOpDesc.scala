@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.common.workflow.RangePartition
 @JsonSchemaInject(json ="""
 {
   "attributeTypeRules": {
-    "attribute":{
+    "sortAttributeName":{
       "enum": ["integer", "long", "double"]
     }
   }
