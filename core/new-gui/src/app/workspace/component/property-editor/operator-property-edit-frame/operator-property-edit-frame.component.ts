@@ -492,7 +492,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.validators.checkAttributeType = {
           expression: (control: AbstractControl, field: FormlyFieldConfig) => {
             if (
-              !(isDefined(this.currentOperatorId) && isDefined(mapSource.attributeTypeRules) && isDefined(mapSource.properties))
+              !(
+                isDefined(this.currentOperatorId) &&
+                isDefined(mapSource.attributeTypeRules) &&
+                isDefined(mapSource.properties)
+              )
             ) {
               return true;
             }
@@ -523,7 +527,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               }
             };
 
-            const checkConstConstraint = (inputAttributeType: AttributeType, constConstraint: AttributeTypeConstRule) => {
+            const checkConstConstraint = (
+              inputAttributeType: AttributeType,
+              constConstraint: AttributeTypeConstRule
+            ) => {
               const data = constConstraint?.$data;
               if (!isDefined(data)) {
                 return;
@@ -540,7 +547,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               }
             };
 
-            const checkAllOfConstraint = (inputAttributeType: AttributeType, allOfConstraint: AttributeTypeAllOfRule) => {
+            const checkAllOfConstraint = (
+              inputAttributeType: AttributeType,
+              allOfConstraint: AttributeTypeAllOfRule
+            ) => {
               // traverse through all "if-then" sets in "allOf" constraint
               for (const allOf of allOfConstraint) {
                 // Only return false when "if" condition is satisfied but "then" condition is not satisfied
@@ -558,13 +568,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 // add more to the condition if needed
                 if (ifCondSatisfied && isDefined(allOf.then.enum)) {
                   try {
-                  checkEnumConstraint(inputAttributeType, allOf.then.enum);
+                    checkEnumConstraint(inputAttributeType, allOf.then.enum);
                   } catch {
-                  // parse if condition to readable string
-                  const ifCondStr = Object.entries(allOf.if)
-                    .map(([ifProp]) => `'${ifProp}' is ${control.value[ifProp]}`)
-                    .join(" and ");
-                  throw TypeError(`it's expected to be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`);
+                    // parse if condition to readable string
+                    const ifCondStr = Object.entries(allOf.if)
+                      .map(([ifProp]) => `'${ifProp}' is ${control.value[ifProp]}`)
+                      .join(" and ");
+                    throw TypeError(`it's expected to be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`);
                   }
                 }
               }
