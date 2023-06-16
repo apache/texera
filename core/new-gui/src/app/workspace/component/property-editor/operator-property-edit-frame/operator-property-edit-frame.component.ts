@@ -569,6 +569,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               return;
             }
             const dataAttributeType = findAttributeType(data);
+            if (!isDefined(dataAttributeType)) {
+              // if data attribute type is not defined, then data attribute is not yet selected. skip validation
+              return;
+            }
             if (inputAttributeType !== dataAttributeType) {
               // get data attribute name for error message
               const dataAttributeName = control.value[data];
