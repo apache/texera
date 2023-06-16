@@ -487,6 +487,136 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
+      // Add custom validators for attribute type
+      if (isDefined(mapSource.attributeTypeRules)) {
+        mappedField.validators.checkAttributeType = {
+          expression: (control: AbstractControl, field: FormlyFieldConfig) => {
+            if (
+              !(isDefined(this.currentOperatorId) && isDefined(mapSource.attributeTypeRules) && isDefined(mapSource.properties))
+            ) {
+              return true;
+            }
+
+            const findAttributeType = (propertyName: string): AttributeType | undefined => {
+              if (
+                !isDefined(this.currentOperatorId) ||
+                !isDefined(mapSource.properties) ||
+                !isDefined(mapSource.properties[propertyName])
+              ) {
+                return undefined;
+              }
+              const portIndex = (mapSource.properties[propertyName] as CustomJSONSchema7).autofillAttributeOnPort;
+              if (!isDefined(portIndex)) {
+                return undefined;
+              }
+              const attributeName: string = control.value[propertyName];
+              return this.schemaPropagationService.getOperatorInputAttributeType(
+                this.currentOperatorId,
+                portIndex,
+                attributeName
+              );
+            };
+
+            const checkEnumConstraint = (inputAttributeType: AttributeType, enumConstraint: AttributeTypeEnumRule) => {
+              if (!enumConstraint.includes(inputAttributeType)) {
+                throw TypeError(`it's expected to be ${enumConstraint.join(" or ")}.`);
+              }
+            };
+
+            const checkConstConstraint = (inputAttributeType: AttributeType, constConstraint: AttributeTypeConstRule) => {
+              const data = constConstraint?.$data;
+              if (!isDefined(data)) {
+                return;
+              }
+              const dataAttributeType = findAttributeType(data);
+              if (!isDefined(dataAttributeType)) {
+                // if data attribute type is not defined, then data attribute is not yet selected. skip validation
+                return;
+              }
+              if (inputAttributeType !== dataAttributeType) {
+                // get data attribute name for error message
+                const dataAttributeName = control.value[data];
+                throw TypeError(`it's expected to be the same type as '${dataAttributeName}' (${dataAttributeType}).`);
+              }
+            };
+
+            const checkAllOfConstraint = (inputAttributeType: AttributeType, allOfConstraint: AttributeTypeAllOfRule) => {
+              // traverse through all "if-then" sets in "allOf" constraint
+              for (const allOf of allOfConstraint) {
+                // Only return false when "if" condition is satisfied but "then" condition is not satisfied
+                let ifCondSatisfied = true;
+                for (const [ifProp, ifConstraint] of Object.entries(allOf.if)) {
+                  // Currently, only support "valEnum" constraint
+                  // Find attribute value (not type)
+                  const ifAttributeValue = control.value[ifProp];
+                  if (!ifConstraint.valEnum?.includes(ifAttributeValue)) {
+                    ifCondSatisfied = false;
+                    break;
+                  }
+                }
+                // Currently, only support "enum" constraint,
+                // add more to the condition if needed
+                if (ifCondSatisfied && isDefined(allOf.then.enum)) {
+                  try {
+                  checkEnumConstraint(inputAttributeType, allOf.then.enum);
+                  } catch {
+                  // parse if condition to readable string
+                  const ifCondStr = Object.entries(allOf.if)
+                    .map(([ifProp]) => `'${ifProp}' is ${control.value[ifProp]}`)
+                    .join(" and ");
+                  throw TypeError(`it's expected to be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`);
+                  }
+                }
+              }
+            };
+
+            // Get the type of constrains for each property in AttributeTypeRuleSchema
+
+            const checkConstraint = (propertyName: string, constraint: AttributeTypeRuleSet) => {
+              const inputAttributeType = findAttributeType(propertyName);
+
+              if (!isDefined(inputAttributeType)) {
+                // when inputAttributeType is undefined, it means the property is not set
+                return;
+              }
+              if (isDefined(constraint.enum)) {
+                checkEnumConstraint(inputAttributeType, constraint.enum);
+              }
+
+              if (isDefined(constraint.const)) {
+                checkConstConstraint(inputAttributeType, constraint.const);
+              }
+              if (isDefined(constraint.allOf)) {
+                checkAllOfConstraint(inputAttributeType, constraint.allOf);
+              }
+            };
+
+            // iterate through all properties in attributeType
+            for (const [prop, constraint] of Object.entries(mapSource.attributeTypeRules)) {
+              try {
+                checkConstraint(prop, constraint);
+              } catch (err) {
+                // have to get the type, attribute name and property name again
+                // should consider reusing the part in findAttributeType()
+                const attributeName = control.value[prop];
+                const port = (mapSource.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
+                const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(
+                  this.currentOperatorId,
+                  port,
+                  attributeName
+                );
+                // @ts-ignore
+                const message = err.message;
+                field.validators.checkAttributeType.message =
+                  `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + message;
+                return false;
+              }
+            }
+            return true;
+          },
+        };
+      }
+
       return mappedField;
     };
 
@@ -525,133 +655,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           }
         }
       });
-    }
-
-    // Add custom validators for attribute type
-    if (isDefined(schema.attributeTypeRules)) {
-      field.validators.checkAttributeType = {
-        expression: (control: AbstractControl) => {
-          if (
-            !(isDefined(this.currentOperatorId) && isDefined(schema.attributeTypeRules) && isDefined(schema.properties))
-          ) {
-            return true;
-          }
-
-          const findAttributeType = (propertyName: string): AttributeType | undefined => {
-            if (
-              !isDefined(this.currentOperatorId) ||
-              !isDefined(schema.properties) ||
-              !isDefined(schema.properties[propertyName])
-            ) {
-              return undefined;
-            }
-            const portIndex = (schema.properties[propertyName] as CustomJSONSchema7).autofillAttributeOnPort;
-            if (!isDefined(portIndex)) {
-              return undefined;
-            }
-            const attributeName: string = control.value[propertyName];
-            return this.schemaPropagationService.getOperatorInputAttributeType(
-              this.currentOperatorId,
-              portIndex,
-              attributeName
-            );
-          };
-
-          const checkEnumConstraint = (inputAttributeType: AttributeType, enumConstraint: AttributeTypeEnumRule) => {
-            if (!enumConstraint.includes(inputAttributeType)) {
-              throw TypeError(`it's expected to be ${enumConstraint.join(" or ")}.`);
-            }
-          };
-
-          const checkConstConstraint = (inputAttributeType: AttributeType, constConstraint: AttributeTypeConstRule) => {
-            const data = constConstraint?.$data;
-            if (!isDefined(data)) {
-              return;
-            }
-            const dataAttributeType = findAttributeType(data);
-            if (!isDefined(dataAttributeType)) {
-              // if data attribute type is not defined, then data attribute is not yet selected. skip validation
-              return;
-            }
-            if (inputAttributeType !== dataAttributeType) {
-              // get data attribute name for error message
-              const dataAttributeName = control.value[data];
-              throw TypeError(`it's expected to be the same type as '${dataAttributeName}' (${dataAttributeType}).`);
-            }
-          };
-
-          const checkAllOfConstraint = (inputAttributeType: AttributeType, allOfConstraint: AttributeTypeAllOfRule) => {
-            // traverse through all "if-then" sets in "allOf" constraint
-            for (const allOf of allOfConstraint) {
-              // Only return false when "if" condition is satisfied but "then" condition is not satisfied
-              let ifCondSatisfied = true;
-              for (const [ifProp, ifConstraint] of Object.entries(allOf.if)) {
-                // Currently, only support "valEnum" constraint
-                // Find attribute value (not type)
-                const ifAttributeValue = control.value[ifProp];
-                if (!ifConstraint.valEnum?.includes(ifAttributeValue)) {
-                  ifCondSatisfied = false;
-                  break;
-                }
-              }
-              // Currently, only support "enum" constraint,
-              // add more to the condition if needed
-              if (ifCondSatisfied && isDefined(allOf.then.enum)) {
-                checkEnumConstraint(inputAttributeType, allOf.then.enum);
-                // parse if condition to readable string
-                const ifCondStr = Object.entries(allOf.if)
-                  .map(([ifProp]) => `'${ifProp}' is ${control.value[ifProp]}`)
-                  .join(" and ");
-                throw TypeError(`it's expected to be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`);
-              }
-            }
-          };
-
-          // Get the type of constrains for each property in AttributeTypeRuleSchema
-
-          const checkConstraint = (propertyName: string, constraint: AttributeTypeRuleSet) => {
-            const inputAttributeType = findAttributeType(propertyName);
-
-            if (!isDefined(inputAttributeType)) {
-              // when inputAttributeType is undefined, it means the property is not set
-              return;
-            }
-            if (isDefined(constraint.enum)) {
-              checkEnumConstraint(inputAttributeType, constraint.enum);
-            }
-
-            if (isDefined(constraint.const)) {
-              checkConstConstraint(inputAttributeType, constraint.const);
-            }
-            if (isDefined(constraint.allOf)) {
-              checkAllOfConstraint(inputAttributeType, constraint.allOf);
-            }
-          };
-
-          // iterate through all properties in attributeType
-          for (const [prop, constraint] of Object.entries(schema.attributeTypeRules)) {
-            try {
-              checkConstraint(prop, constraint);
-            } catch (err) {
-              // have to get the type, attribute name and property name again
-              // should consider reusing the part in findAttributeType()
-              const attributeName = control.value[prop];
-              const port = (schema.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
-              const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(
-                this.currentOperatorId,
-                port,
-                attributeName
-              );
-              // @ts-ignore
-              const message = err.message;
-              field.validators.checkAttributeType.message =
-                `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + message;
-              return false;
-            }
-          }
-          return true;
-        },
-      };
     }
 
     // not return field.fieldGroup directly because
