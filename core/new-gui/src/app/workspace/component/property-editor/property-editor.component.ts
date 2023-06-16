@@ -8,7 +8,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   DISPLAY_WORKFLOW_VERSIONS_EVENT,
   WorkflowVersionService,
-} from "src/app/dashboard/user/service/user-workflow/workflow-version.service";
+} from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { VersionsDisplayFrameComponent } from "./versions-display/versions-display-frame.component";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";

@@ -55,9 +55,9 @@ export const defaultEnvironment = {
   inviteOnly: false,
 
   /**
-   * api key for google icons
+   * Google Api Key for Google icons
    */
-  googleAPI: "",
+  googleApiKey: "",
 
   /**
    * whether user preset feature is enabled, requires user system to be enabled

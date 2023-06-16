@@ -101,14 +101,6 @@ export class AuthService {
       return this.logout();
     }
 
-    const uid = this.jwtHelperService.decodeToken(token).userId;
-    if (uid === null) {
-      this.notificationService.error("User System is disabled on the backend!", {
-        nzDuration: 0,
-      });
-      return this.logout();
-    }
-
     const role = this.jwtHelperService.decodeToken(token).role;
     const email = this.jwtHelperService.decodeToken(token).email;
 
@@ -122,7 +114,7 @@ export class AuthService {
     this.registerAutoLogout();
     this.registerAutoRefreshToken();
     return {
-      uid: uid,
+      uid: this.jwtHelperService.decodeToken(token).userId,
       name: this.jwtHelperService.decodeToken(token).sub,
       email: email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,

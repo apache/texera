@@ -47,11 +47,10 @@ class AuthResource {
   @POST
   @Path("/login")
   def login(request: UserLoginRequest): TokenIssueResponse = {
+    if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
+      throw new NotAcceptableException("User System is disabled on the backend!")
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
-        if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
-          user.setUid(null)
-        }
         TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
@@ -68,10 +67,11 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
+    if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
+      throw new NotAcceptableException("User System is disabled on the backend!")
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")
     if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
-
     userDao.fetchByName(username).size() match {
       case 0 =>
         val user = new User
@@ -80,9 +80,6 @@ class AuthResource {
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)
-        if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
-          user.setUid(null)
-        }
         TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case _ =>
         // the username exists already

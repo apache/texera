@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable } from "rxjs";
@@ -17,6 +17,8 @@ import { SearchFilterParameters } from "../../type/search-filter-parameters";
 })
 export class FiltersComponent implements OnInit {
   private _masterFilterList: ReadonlyArray<string> = [];
+  // receive input from parent components (UserProjectSection), if any
+  @Input() public pid: number | null = null;
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
   public get masterFilterList(): ReadonlyArray<string> {

@@ -3,10 +3,14 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{
+  ProjectUserAccessPrivilege,
+  UserFileAccessPrivilege
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileOfProjectDao,
   ProjectDao,
+  ProjectUserAccessDao,
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
@@ -14,10 +18,12 @@ import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.Dash
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
+import org.jooq.impl.DSL.case_
 import org.jooq.types.UInteger
-
+import java.sql.Timestamp
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -36,6 +42,7 @@ object ProjectResource {
   final private lazy val userProjectDao = new ProjectDao(context.configuration)
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private lazy val fileOfProjectDao = new FileOfProjectDao(context.configuration)
+  final private lazy val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
 
   /**
     * This method is used to insert any CSV files created from ResultExportService
@@ -91,6 +98,15 @@ object ProjectResource {
         .values(wid, pid)
     )
   }
+  case class DashboardProject(
+      pid: UInteger,
+      name: String,
+      description: String,
+      ownerID: UInteger,
+      creationTime: Timestamp,
+      color: String,
+      writeAccess: Boolean
+  )
 }
 
 @Path("/project")
@@ -99,15 +115,13 @@ object ProjectResource {
 class ProjectResource {
 
   /**
-    * This method returns the specified project, if it exists and the user has access to it.
+    * This method returns the specified project
     * @param pid project id
     * @return project specified by the project id
     */
   @GET
   @Path("/{pid}")
-  def getProject(
-      @PathParam("pid") pid: UInteger
-  ): Project = {
+  def getProject(@PathParam("pid") pid: UInteger): Project = {
     userProjectDao.fetchOneByPid(pid)
   }
 
@@ -118,49 +132,55 @@ class ProjectResource {
     */
   @GET
   @Path("/list")
-  def listProjectsOwnedByUser(@Auth user: SessionUser): util.List[Project] = {
-    userProjectDao.fetchByOwnerId(user.getUid)
+  def getProjectList(@Auth user: SessionUser): util.List[DashboardProject] = {
+    context
+      .selectDistinct(
+        PROJECT.PID,
+        PROJECT.NAME,
+        PROJECT.DESCRIPTION,
+        PROJECT.OWNER_ID,
+        PROJECT.CREATION_TIME,
+        PROJECT.COLOR,
+        case_()
+          .when(PROJECT_USER_ACCESS.PRIVILEGE.eq(ProjectUserAccessPrivilege.WRITE), "true")
+      )
+      .from(PROJECT)
+      .leftJoin(PROJECT_USER_ACCESS)
+      .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
+      .where(PROJECT_USER_ACCESS.UID.eq(user.getUid).or(PROJECT.OWNER_ID.eq(user.getUid)))
+      .fetchInto(classOf[DashboardProject])
   }
 
   /**
     * This method returns a list of DashboardWorkflow objects, which represents
     * all the workflows that are part of the specified project.
-    * @param pid project ID
-    * @param sessionUser the session user
+    *
+    * @param pid  project ID
+    * @param user the session user
     * @return list of DashboardWorkflow objects
     */
   @GET
   @Path("/{pid}/workflows")
   def listProjectWorkflows(
       @PathParam("pid") pid: UInteger,
-      @Auth sessionUser: SessionUser
+      @Auth user: SessionUser
   ): List[DashboardWorkflow] = {
-    val uid = sessionUser.getUser.getUid
-    val workflowEntries = context
-      .select(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
-        USER.NAME
-      )
+    context
+      .select()
       .from(WORKFLOW_OF_PROJECT)
-      .leftJoin(WORKFLOW)
+      .join(WORKFLOW)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(WORKFLOW_USER_ACCESS)
+      .join(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(WORKFLOW_OF_USER)
+      .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .leftJoin(USER)
+      .join(USER)
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .where(WORKFLOW_OF_PROJECT.PID.eq(pid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+      .where(WORKFLOW_OF_PROJECT.PID.eq(pid))
       .fetch()
-    workflowEntries
       .map(workflowRecord =>
         DashboardWorkflow(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid),
+          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)
             .into(classOf[WorkflowUserAccess])
@@ -168,10 +188,7 @@ class ProjectResource {
             .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          workflowOfProjectDao
-            .fetchByWid(workflowRecord.into(WORKFLOW).getWid)
-            .map(workflowOfProject => workflowOfProject.getPid)
-            .toList
+          List()
         )
       )
       .toList
@@ -226,6 +243,9 @@ class ProjectResource {
     val project = new Project(null, name, null, user.getUid, null, null)
     try {
       userProjectDao.insert(project)
+      projectUserAccessDao.merge(
+        new ProjectUserAccess(user.getUid, project.getPid, ProjectUserAccessPrivilege.WRITE)
+      )
     } catch {
       case _: Throwable =>
         throw new BadRequestException("Cannot create a new project with provided name.");
