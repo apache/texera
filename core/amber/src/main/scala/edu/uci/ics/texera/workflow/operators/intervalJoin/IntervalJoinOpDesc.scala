@@ -19,9 +19,11 @@ import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 {
   "attributeTypeRules": {
     "leftAttributeName": {
-      "enum": ["integer", "long", "double", "timestamp"],
+      "enum": ["integer", "long", "double", "timestamp"]
+    },
+    "rightAttributeName": {
       "const": {
-        "$data": "rightAttributeName"
+        "$data": "leftAttributeName"
       }
     }
   }
