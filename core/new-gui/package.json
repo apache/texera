@@ -18,8 +18,7 @@
     "format:fix": "yarn prettier-eslint --write \"src/**/*.{ts,js,html,scss,less,json}\"",
     "format:ci": "yarn prettier-eslint --list-different \"src/**/*.{ts,js,html,scss,less,json}\" && yarn eslint ./src",
     "e2e": "ng e2e",
-    "preinstall": "cd multi-target && yarn install && yarn run build",
-    "multi-target-updater": "cd multi-target && yarn run build && cd .. && yarn install ./multi-target -D",
+    "preinstall": "",
     "postinstall": "node git-version.js && ngcc --properties es2015 browser module main --first-only --create-ivy-entry-points && yarn --cwd node_modules/@danmarshall/deckgl-typings run postinstall && node ./decorate-angular-cli.js"
   },
   "private": true,
@@ -153,7 +152,6 @@
     "karma-coverage-istanbul-reporter": "3.0.3",
     "karma-jasmine": "4.0.1",
     "karma-jasmine-html-reporter": "1.7.0",
-    "multi-target": "file:multi-target",
     "ngx-pipes": "3.0.0",
     "nodecat": "2.0.0",
     "nz-tslint-rules": "0.901.2",
