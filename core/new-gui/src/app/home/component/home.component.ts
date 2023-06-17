@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
-import { Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { GoogleService } from "../service/google.service";
 import { mergeMap, takeUntil } from "rxjs/operators";
 import { Subject } from "rxjs";
@@ -14,7 +14,12 @@ import { Subject } from "rxjs";
 export class HomeComponent implements OnInit, OnDestroy {
   localLogin = environment.localLogin;
   unsubscriber = new Subject();
-  constructor(private userService: UserService, private router: Router, private googleService: GoogleService) {}
+  constructor(
+    private userService: UserService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private googleService: GoogleService
+  ) {}
 
   ngOnInit(): void {
     this.googleService.googleInit(document.getElementById("googleButton"));
@@ -25,8 +30,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       )
       .subscribe(
         Zone.current.wrap(() => {
+          const url = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
           // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-          this.router.navigate(["/dashboard/workflow"]);
+          this.router.navigateByUrl(url);
         }, "")
       );
   }
