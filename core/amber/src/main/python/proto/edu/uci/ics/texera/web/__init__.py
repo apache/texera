@@ -131,6 +131,7 @@ class WorkflowResultStore(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class OperatorResultMetadata(betterproto.Message):
     tuple_count: int = betterproto.int32_field(1)
+    change_detector: str = betterproto.string_field(2)
 
 
 from ...amber.engine.architecture import worker as __amber_engine_architecture_worker__

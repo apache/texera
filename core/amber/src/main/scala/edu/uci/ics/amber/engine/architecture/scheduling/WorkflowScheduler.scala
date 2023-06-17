@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -165,13 +166,19 @@ class WorkflowScheduler(
             val pythonUDFOpExec = pythonUDFOpExecConfig
               .initIOperatorExecutor((0, pythonUDFOpExecConfig))
               .asInstanceOf[PythonUDFOpExecV2]
+
+            val inputMappingList = pythonUDFOpExecConfig.inputToOrdinalMapping
+              .map(kv => LinkOrdinal(kv._1, kv._2))
+              .toList
+            val outputMappingList = pythonUDFOpExecConfig.outputToOrdinalMapping
+              .map(kv => LinkOrdinal(kv._1, kv._2))
+              .toList
             asyncRPCClient.send(
               InitializeOperatorLogic(
                 pythonUDFOpExec.getCode,
-                workflow
-                  .getInlinksIdsToWorkerLayer(workflow.workerToOpExecConfig(workerID).id)
-                  .toArray,
                 pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
+                inputMappingList,
+                outputMappingList,
                 pythonUDFOpExec.getOutputSchema
               ),
               workerID

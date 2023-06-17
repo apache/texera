@@ -29,8 +29,8 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, Wor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(
@@ -55,11 +55,12 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, allUpstreamLinkIds, isSource, schema) =>
+      case InitializeOperatorLogic(code, isSource, inputMapping, outputMapping, schema) =>
         InitializeOperatorLogicV2(
           code,
-          allUpstreamLinkIds,
           isSource,
+          inputMapping,
+          outputMapping,
           schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
         )
       case ReplayCurrentTuple() =>
