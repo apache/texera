@@ -144,27 +144,27 @@ class WorkflowResourceSpec
     // delete all workflows in the database
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid(), sessionUser1)
+      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser1)
     )
 
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid(), sessionUser2)
+      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser2)
     )
 
     // delete all projects in the database
-    var projects = projectResource.listProjectsOwnedByUser((sessionUser1))
-    projects.forEach(project => projectResource.deleteProject(project.getPid(), sessionUser1))
+    var projects = projectResource.getProjectList(sessionUser1)
+    projects.forEach(project => projectResource.deleteProject(project.pid))
 
-    projects = projectResource.listProjectsOwnedByUser((sessionUser2))
-    projects.forEach(project => projectResource.deleteProject(project.getPid(), sessionUser2))
+    projects = projectResource.getProjectList(sessionUser2)
+    projects.forEach(project => projectResource.deleteProject(project.pid))
 
     // delete all files in the database
     var files = fileResource.getFileList(sessionUser1)
-    files.forEach(file => fileResource.deleteFile(file.file.getFid(), sessionUser1))
+    files.forEach(file => fileResource.deleteFile(file.file.getFid, sessionUser1))
 
     files = fileResource.getFileList(sessionUser2)
-    files.forEach(file => fileResource.deleteFile(file.file.getFid(), sessionUser2))
+    files.forEach(file => fileResource.deleteFile(file.file.getFid, sessionUser2))
   }
 
   override protected def afterAll(): Unit = {
@@ -211,7 +211,7 @@ class WorkflowResourceSpec
     assertSameWorkflow(testWorkflow1, DashboardWorkflowEntryList.head)
     val DashboardWorkflowEntryList1 =
       workflowResource.searchWorkflows(sessionUser1, getKeywordsArray("text sear"))
-    assert(DashboardWorkflowEntryList1.length == 0)
+    assert(DashboardWorkflowEntryList1.isEmpty)
   }
 
   it should "return an all workflows when given an empty list of keywords" in {
@@ -391,19 +391,20 @@ class WorkflowResourceSpec
   }
 
   "getProjectFilter" should "return a noCondition when the input projectIds list is null" in {
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(null)
+    val projectFilter: Condition = WorkflowResource.getProjectFilter(null, WORKFLOW_OF_PROJECT.PID)
     assert(projectFilter.toString == noCondition().toString)
   }
 
   it should "return a noCondition when the input projectIds list is empty" in {
     val projectFilter: Condition =
-      WorkflowResource.getProjectFilter(Collections.emptyList[UInteger]())
+      WorkflowResource.getProjectFilter(Collections.emptyList[UInteger](), WORKFLOW_OF_PROJECT.PID)
     assert(projectFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for a single projectId" in {
     val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition =
+      WorkflowResource.getProjectFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
   }
 
@@ -411,7 +412,8 @@ class WorkflowResourceSpec
     val projectIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
     )
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition =
+      WorkflowResource.getProjectFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
         .eq(UInteger.valueOf(1))
@@ -424,7 +426,8 @@ class WorkflowResourceSpec
     val projectIdList = new java.util.ArrayList[UInteger](
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2), UInteger.valueOf(2))
     )
-    val projectFilter: Condition = WorkflowResource.getProjectFilter(projectIdList)
+    val projectFilter: Condition =
+      WorkflowResource.getProjectFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
         .eq(UInteger.valueOf(1))
@@ -477,13 +480,13 @@ class WorkflowResourceSpec
   }
 
   "getDateFilter" should "return a noCondition when the input startDate and endDate are empty" in {
-    val dateFilter: Condition = WorkflowResource.getDateFilter("creation", "", "", "workflow")
+    val dateFilter: Condition = WorkflowResource.getDateFilter("", "", WORKFLOW.CREATION_TIME)
     assert(dateFilter.toString == noCondition().toString)
   }
 
   it should "return a proper condition for creation date type with specific start and end date" in {
     val dateFilter: Condition =
-      WorkflowResource.getDateFilter("creation", "2023-01-01", "2023-12-31", "workflow")
+      WorkflowResource.getDateFilter("2023-01-01", "2023-12-31", WORKFLOW.CREATION_TIME)
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
@@ -495,7 +498,7 @@ class WorkflowResourceSpec
 
   it should "return a proper condition for modification date type with specific start and end date" in {
     val dateFilter: Condition =
-      WorkflowResource.getDateFilter("modification", "2023-01-01", "2023-12-31", "workflow")
+      WorkflowResource.getDateFilter("2023-01-01", "2023-12-31", WORKFLOW.LAST_MODIFIED_TIME)
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
@@ -507,15 +510,9 @@ class WorkflowResourceSpec
     )
   }
 
-  it should "throw an IllegalArgumentException for invalid dateType" in {
-    assertThrows[IllegalArgumentException] {
-      WorkflowResource.getDateFilter("invalidType", "2023-01-01", "2023-12-31", "workflow")
-    }
-  }
-
   it should "throw a ParseException when endDate is invalid" in {
     assertThrows[ParseException] {
-      WorkflowResource.getDateFilter("creation", "2023-01-01", "invalidDate", "workflow")
+      WorkflowResource.getDateFilter("2023-01-01", "invalidDate", WORKFLOW.CREATION_TIME)
     }
   }
 
@@ -724,7 +721,7 @@ class WorkflowResourceSpec
 
     // Assert that the search results do not include the project that belongs to the different user
     // Assuming that DashboardClickableFileEntryList is a list of resources where each resource has a `user` property
-    assert(DashboardClickableFileEntryList.results.length == 0)
+    assert(DashboardClickableFileEntryList.results.isEmpty)
   }
 
   it should "handle reserved characters in the keywords in searchAllResources" in {
@@ -813,9 +810,9 @@ class WorkflowResourceSpec
       )
 
     // Check the order of the results
-    assert(resources.results(0).workflow.workflow.getName() == "test_workflow1")
-    assert(resources.results(1).workflow.workflow.getName() == "test_workflow2")
-    assert(resources.results(2).workflow.workflow.getName() == "test_workflow3")
+    assert(resources.results(0).workflow.workflow.getName == "test_workflow1")
+    assert(resources.results(1).workflow.workflow.getName == "test_workflow2")
+    assert(resources.results(2).workflow.workflow.getName == "test_workflow3")
 
     resources = dashboardResource.searchAllResources(
       sessionUser1,
@@ -823,9 +820,9 @@ class WorkflowResourceSpec
       orderBy = "NameDesc"
     )
     // Check the order of the results
-    assert(resources.results(0).workflow.workflow.getName() == "test_workflow3")
-    assert(resources.results(1).workflow.workflow.getName() == "test_workflow2")
-    assert(resources.results(2).workflow.workflow.getName() == "test_workflow1")
+    assert(resources.results(0).workflow.workflow.getName == "test_workflow3")
+    assert(resources.results(1).workflow.workflow.getName == "test_workflow2")
+    assert(resources.results(2).workflow.workflow.getName == "test_workflow1")
   }
 
   it should "order workflow by creation time in descending order correctly" in {
@@ -845,9 +842,9 @@ class WorkflowResourceSpec
       )
 
     // Check the order of the results
-    assert(resources.results(0).workflow.workflow.getName() == "test_workflow3")
-    assert(resources.results(1).workflow.workflow.getName() == "test_workflow2")
-    assert(resources.results(2).workflow.workflow.getName() == "test_workflow1")
+    assert(resources.results(0).workflow.workflow.getName == "test_workflow3")
+    assert(resources.results(1).workflow.workflow.getName == "test_workflow2")
+    assert(resources.results(2).workflow.workflow.getName == "test_workflow1")
   }
 
   it should "order project by name in ascending order correctly" in {
@@ -865,9 +862,9 @@ class WorkflowResourceSpec
       )
 
     // Check the order of the results
-    assert(resources.results(0).project.getName() == "test project A")
-    assert(resources.results(1).project.getName() == "test project B")
-    assert(resources.results(2).project.getName() == "test project C")
+    assert(resources.results(0).project.getName == "test project A")
+    assert(resources.results(1).project.getName == "test project B")
+    assert(resources.results(2).project.getName == "test project C")
   }
 
   it should "order project by name in descending order correctly" in {
@@ -885,9 +882,9 @@ class WorkflowResourceSpec
       )
 
     // Check the order of the results
-    assert(resources.results(0).project.getName() == "test project C")
-    assert(resources.results(1).project.getName() == "test project B")
-    assert(resources.results(2).project.getName() == "test project A")
+    assert(resources.results(0).project.getName == "test project C")
+    assert(resources.results(1).project.getName == "test project B")
+    assert(resources.results(2).project.getName == "test project A")
   }
 
   it should "order project by creation time in descending order correctly" in {
@@ -907,9 +904,9 @@ class WorkflowResourceSpec
       )
 
     // Check the order of the results
-    assert(resources.results(0).project.getName() == "test project C")
-    assert(resources.results(1).project.getName() == "test project B")
-    assert(resources.results(2).project.getName() == "test project A")
+    assert(resources.results(0).project.getName == "test project C")
+    assert(resources.results(1).project.getName == "test project B")
+    assert(resources.results(2).project.getName == "test project A")
   }
 
   it should "throw a BadRequestException when given an unknown orderBy value" in {
@@ -935,9 +932,9 @@ class WorkflowResourceSpec
       dashboardResource.searchAllResources(sessionUser1, resourceType = "file", orderBy = "NameAsc")
 
     // Check the order of the results
-    assert(resources.results(0).file.file.getName() == "test file A")
-    assert(resources.results(1).file.file.getName() == "test file B")
-    assert(resources.results(2).file.file.getName() == "test file C")
+    assert(resources.results(0).file.file.getName == "test file A")
+    assert(resources.results(1).file.file.getName == "test file B")
+    assert(resources.results(2).file.file.getName == "test file C")
 
     // Retrieve resources ordered by name in descending order
     resources = dashboardResource.searchAllResources(
@@ -946,9 +943,9 @@ class WorkflowResourceSpec
       orderBy = "NameDesc"
     )
     // Check the order of the results
-    assert(resources.results(2).file.file.getName() == "test file A")
-    assert(resources.results(1).file.file.getName() == "test file B")
-    assert(resources.results(0).file.file.getName() == "test file C")
+    assert(resources.results(2).file.file.getName == "test file A")
+    assert(resources.results(1).file.file.getName == "test file B")
+    assert(resources.results(0).file.file.getName == "test file C")
   }
 
   it should "order file by creation time in descending order correctly" in {
@@ -970,9 +967,9 @@ class WorkflowResourceSpec
         orderBy = "CreateTimeDesc"
       )
 
-    assert(resources.results(0).file.file.getName() == "test file C")
-    assert(resources.results(1).file.file.getName() == "test file A")
-    assert(resources.results(2).file.file.getName() == "test file B")
+    assert(resources.results(0).file.file.getName == "test file C")
+    assert(resources.results(1).file.file.getName == "test file A")
+    assert(resources.results(2).file.file.getName == "test file B")
   }
 
   it should "order all resource types by creation_time in descending order correctly" in {
@@ -991,7 +988,7 @@ class WorkflowResourceSpec
     // Check the order of the results
     assert(resources.results(2).file.file.getName == "test file C")
     assert(resources.results(1).project.getName == "test project B")
-    assert(resources.results(0).workflow.workflow.getName() == "test_workflow1")
+    assert(resources.results(0).workflow.workflow.getName == "test_workflow1")
   }
 
 }

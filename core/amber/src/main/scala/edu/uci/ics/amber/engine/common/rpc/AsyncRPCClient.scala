@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlException
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -88,7 +89,7 @@ class AsyncRPCClient(
         case error: Throwable =>
           p.setException(error)
         case ControlException(msg) =>
-          p.setException(new RuntimeException(msg))
+          p.setException(new WorkflowRuntimeException(msg))
         case _ =>
           p.setValue(ret.controlReturn.asInstanceOf[p.returnType])
       }

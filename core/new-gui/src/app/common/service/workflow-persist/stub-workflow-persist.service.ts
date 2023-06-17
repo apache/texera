@@ -20,7 +20,7 @@ export class StubWorkflowPersistService {
 
   public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflow[]> {
     return new Observable(observer => {
-      return observer.next(searchTestEntries(keywords, params, this.testWorkflows).map(i => i.workflow));
+      return observer.next(searchTestEntries(keywords, params, this.testWorkflows, "workflow").map(i => i.workflow));
     });
   }
   /**
