@@ -218,8 +218,11 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   private getUserProjectMetadata() {
+    if (!isDefined(this.pid)) {
+      return;
+    }
     this.userProjectService
-      .retrieveProject(this.pid!)
+      .retrieveProject(this.pid)
       .pipe(untilDestroyed(this))
       .subscribe(project => {
         this.name = project.name;
