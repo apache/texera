@@ -3,6 +3,8 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { ShareAccessComponent } from "../../share-access/share-access.component";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 
 @UntilDestroy()
 @Component({
@@ -26,6 +28,7 @@ export class UserProjectListItemComponent implements OnInit {
   }
   @Output() deleted = new EventEmitter<void>();
   @Input() editable = false;
+  @Input() uid: number | undefined;
   editingColor = false;
   editingName = false;
   editingDescription = false;
@@ -36,7 +39,11 @@ export class UserProjectListItemComponent implements OnInit {
     return UserProjectService.isLightColor(this.color);
   }
 
-  constructor(private userProjectService: UserProjectService, private notificationService: NotificationService) {}
+  constructor(
+    private userProjectService: UserProjectService,
+    private notificationService: NotificationService,
+    private modalService: NgbModal
+  ) {}
 
   ngOnInit(): void {
     if (this.entry.color) {
@@ -143,5 +150,14 @@ export class UserProjectListItemComponent implements OnInit {
       .add(() => {
         this.editingDescription = false;
       });
+  }
+
+  /**
+   * open the Modal based on the workflow clicked on
+   */
+  public onClickOpenShareAccess(id: number): void {
+    const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.type = "project";
+    modalRef.componentInstance.id = id;
   }
 }
