@@ -60,6 +60,7 @@
       <texera-user-project-list-item
         *ngFor="let dashboardUserProjectEntry of userProjectEntries"
         [editable]="true"
+        [uid]="uid"
         [entry]="dashboardUserProjectEntry"
         (deleted)="deleteProject(dashboardUserProjectEntry.pid)">
       </texera-user-project-list-item>
