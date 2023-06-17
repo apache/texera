@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
@@ -20,6 +20,17 @@ import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "buildAttributeName": {
+      "const": {
+        "$data": "probeAttributeName"
+      }
+    }
+  }
+}
+""")
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   @JsonProperty(required = true)

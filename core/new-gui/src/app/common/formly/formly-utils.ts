@@ -1,6 +1,9 @@
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { isDefined } from "../util/predicate";
-import { SchemaAttribute } from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
+import {
+  PortInputSchema,
+  SchemaAttribute,
+} from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
@@ -53,7 +56,7 @@ export function createShouldHideFieldFunc(
 }
 
 export function setChildTypeDependency(
-  attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined,
+  attributes: ReadonlyArray<PortInputSchema | undefined> | undefined,
   parentName: string,
   fields: FormlyFieldConfig[],
   childName: string
