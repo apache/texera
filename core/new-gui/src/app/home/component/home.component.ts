@@ -1,50 +1,51 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { GoogleService } from "../service/google.service";
-import { mergeMap, takeUntil } from "rxjs/operators";
-import { Subject } from "rxjs";
+import { catchError, mergeMap } from "rxjs/operators";
+import { throwError } from "rxjs";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NotificationService } from "../../common/service/notification/notification.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { error } from "protractor";
 
+@UntilDestroy()
 @Component({
   selector: "texera-login",
   templateUrl: "./home.component.html",
   styleUrls: ["./home.component.scss"],
 })
-export class HomeComponent implements OnInit, OnDestroy {
+export class HomeComponent implements OnInit {
   localLogin = environment.localLogin;
-  unsubscriber = new Subject();
   constructor(
     private userService: UserService,
     private route: ActivatedRoute,
     private googleService: GoogleService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
     this.googleService.googleInit(document.getElementById("googleButton"));
     this.googleService.googleCredentialResponse
+      .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
       .pipe(
-        mergeMap(res => this.userService.googleLogin(res.credential)),
-        takeUntil(this.unsubscriber)
-      )
-      .subscribe({
-        next: () => {
-          window.location.href = this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow";
-        },
-        error: (err: unknown) => {
+        catchError((err: unknown) => {
+          console.log(err);
           if (err instanceof HttpErrorResponse) {
             this.notificationService.error(err.error.message, {
               nzDuration: 0,
             });
           }
-        },
-      });
-  }
-  ngOnDestroy(): void {
-    this.unsubscriber.next(1);
-    this.unsubscriber.complete();
+          return throwError(() => error);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(
+        Zone.current.wrap(() => {
+          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow");
+        }, "")
+      );
   }
 }
