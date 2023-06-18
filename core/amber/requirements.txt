@@ -17,7 +17,7 @@ pytz==2021.1
 six==1.15.0
 toml==0.10.2
 pytest-timeout==1.4.2
-protobuf==3.19.4
+protobuf==3.19.5
 betterproto~=2.0.0b3
 typing~=3.7.4.3
 asyncio~=3.4.3

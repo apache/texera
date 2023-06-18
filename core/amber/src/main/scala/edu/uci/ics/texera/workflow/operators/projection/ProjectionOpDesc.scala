@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   PartitionInfo,
   RangePartition,
   SinglePartition,
+  BroadcastPartition,
   UnknownPartition
 }
 
@@ -39,8 +40,9 @@ class ProjectionOpDesc extends MapOpDesc {
       case RangePartition(rangeColumnIndices, min, max) =>
         val newIndices = rangeColumnIndices.flatMap(i => columnIndicesMapping.get(i))
         if (newIndices.nonEmpty) RangePartition(newIndices, min, max) else UnknownPartition()
-      case SinglePartition()  => inputPartitionInfo
-      case UnknownPartition() => inputPartitionInfo
+      case SinglePartition()    => inputPartitionInfo
+      case BroadcastPartition() => inputPartitionInfo
+      case UnknownPartition()   => inputPartitionInfo
     }
 
     outputPartitionInfo
