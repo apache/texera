@@ -8,7 +8,6 @@ import { throwError } from "rxjs";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NotificationService } from "../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { error } from "protractor";
 
 @UntilDestroy()
 @Component({
@@ -32,13 +31,12 @@ export class HomeComponent implements OnInit {
       .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
       .pipe(
         catchError((err: unknown) => {
-          console.log(err);
           if (err instanceof HttpErrorResponse) {
             this.notificationService.error(err.error.message, {
               nzDuration: 0,
             });
           }
-          return throwError(() => error);
+          return throwError(() => err);
         }),
         untilDestroyed(this)
       )
