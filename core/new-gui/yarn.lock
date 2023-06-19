@@ -9443,13 +9443,6 @@ json-parse-even-better-errors@^2.3.0:
   resolved "https://registry.yarnpkg.com/json-parse-even-better-errors/-/json-parse-even-better-errors-2.3.1.tgz#7c47805a94319928e05777405dc12e1f7a4ee02d"
   integrity sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==
 
-json-ref-lite@1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/json-ref-lite/-/json-ref-lite-1.1.0.tgz#6040b9d75ce7cbec056045e50b054bf1de3cced7"
-  integrity sha512-IBQQ84uNPHSZlmckoUnj0+6ZOMGMJ9V0G4ALz5S8gdQqK1kuVkFLDa0draUlQ1qCxIf7jMcz18AyIaX2CoeSEA==
-  dependencies:
-    property-expr "^1.3.1"
-
 json-schema-traverse@^0.4.1:
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/json-schema-traverse/-/json-schema-traverse-0.4.1.tgz#69f6a87d9513ab8bb8fe63bdb0979c448e684660"
@@ -11545,11 +11538,6 @@ prop-types@^15.6.0:
     loose-envify "^1.4.0"
     object-assign "^4.1.1"
     react-is "^16.13.1"
-
-property-expr@^1.3.1:
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/property-expr/-/property-expr-1.5.1.tgz#22e8706894a0c8e28d58735804f6ba3a3673314f"
-  integrity sha512-CGuc0VUTGthpJXL36ydB6jnbyOf/rAHFvmVrJlH+Rg0DqqLFQGAP6hIaxD/G0OAmBJPhXDHuEJigrp0e0wFV6g==
 
 protocol-buffers-schema@^3.3.1:
   version "3.6.0"
