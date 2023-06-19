@@ -9,8 +9,9 @@
     <nz-list>
       <ng-container *cdkVirtualFor="let entry of entries">
         <nz-layout *ngIf="entry.type === 'project'">
-          <nz-sider *ngIf="showResourceTypes"
-                    [nzWidth]="40"
+          <nz-sider
+            *ngIf="showResourceTypes"
+            [nzWidth]="40"
             ><i
               class="resource-type-icon"
               nz-icon
@@ -23,8 +24,9 @@
               [entry]="entry.project"></texera-user-project-list-item> </nz-content
         ></nz-layout>
         <nz-layout *ngIf="entry.type === 'workflow'">
-          <nz-sider *ngIf="showResourceTypes"
-                    [nzWidth]="40"
+          <nz-sider
+            *ngIf="showResourceTypes"
+            [nzWidth]="40"
             ><i
               class="resource-type-icon"
               nz-icon
@@ -40,8 +42,9 @@
               [entry]="entry"></texera-user-workflow-list-item> </nz-content
         ></nz-layout>
         <nz-layout *ngIf="entry.type === 'file'">
-          <nz-sider *ngIf="showResourceTypes"
-                    [nzWidth]="40"
+          <nz-sider
+            *ngIf="showResourceTypes"
+            [nzWidth]="40"
             ><i
               class="resource-type-icon"
               nz-icon

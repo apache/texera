@@ -1,4 +1,4 @@
-import { Component, Input, ViewChild } from "@angular/core";
+import { Component, ViewChild } from "@angular/core";
 import { DashboardEntry } from "../../type/dashboard-entry";
 import { SearchService } from "../../service/search.service";
 import { FiltersComponent } from "../filters/filters.component";
