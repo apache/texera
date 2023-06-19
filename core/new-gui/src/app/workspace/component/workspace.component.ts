@@ -36,7 +36,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
-  public pid: number = 0;
+  public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
@@ -74,7 +74,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      * 2. Routed to this component from SavedWorkflowSection component
      *    - there is no related project
      */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) ?? 0;
+    this.pid = parseInt(this.route.snapshot.queryParams.pid) ?? undefined;
   }
 
   ngAfterViewInit(): void {
