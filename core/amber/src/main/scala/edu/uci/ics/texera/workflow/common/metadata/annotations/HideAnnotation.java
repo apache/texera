@@ -20,6 +20,7 @@ public class HideAnnotation {
     public final static String hideTarget = "hideTarget";
     public final static String hideType = "hideType";
     public final static String hideExpectedValue = "hideExpectedValue";
+    public final static String hideOnNull = "hideOnNull";
 
     /* The types of matching on which a hide occurs. Evaluated at runtime by javascript. */
     public static class Type {

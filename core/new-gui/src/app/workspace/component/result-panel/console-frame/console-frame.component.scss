@@ -1,3 +1,7 @@
+:host {
+  width: 100%;
+}
+
 .error-message {
   font-family: monaco, serif;
   font-size: 11px;
@@ -8,16 +12,60 @@
   color: red;
 }
 
-.console-message {
-  font-family: monaco, serif;
-  font-size: 11px;
-  font-style: normal;
-  font-variant: normal;
-  font-weight: 200;
-  line-height: 14px;
-}
-.infinite-container {
+.console-list-container {
   height: 200px;
   border: 1px solid #e8e8e8;
-  border-radius: 4px;
+  border-radius: 2px;
+  overflow: auto;
+
+  .console-message-entry {
+    //border: purple solid;
+    width: 100%;
+
+    .type-tag {
+      //border: solid darkblue;
+    }
+
+    .console-message {
+      width: 100%;
+      font-family: monaco, serif;
+      font-size: 11px;
+      font-style: normal;
+      font-variant: normal;
+      font-weight: 200;
+      line-height: 14px;
+      white-space: pre-line;
+      //border: solid black;
+    }
+
+    .worker-tag {
+      //width: 100%;
+      font-family: monaco, serif;
+      font-size: 8px;
+      font-style: normal;
+      font-variant: normal;
+      //border: solid red;
+      text-align: end;
+    }
+
+    .timestamp-tag {
+      //width: 100%;
+      font-family: monaco, serif;
+      font-size: 8px;
+      font-style: normal;
+      font-variant: normal;
+      //border: solid green;
+      text-align: end;
+    }
+
+    .source-tag {
+      //width: 100%;
+      font-family: monaco, serif;
+      font-size: 8px;
+      font-style: normal;
+      font-variant: normal;
+      //border: solid #0e5df0;
+      text-align: end;
+    }
+  }
 }

@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 

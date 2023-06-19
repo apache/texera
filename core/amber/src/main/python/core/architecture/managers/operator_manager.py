@@ -5,7 +5,7 @@ import fs
 from pathlib import Path
 from typing import Tuple, Optional, Mapping
 from loguru import logger
-from core.models import Operator
+from core.models import Operator, SourceOperator
 
 
 class OperatorManager:
@@ -109,6 +109,9 @@ class OperatorManager:
         self.operator = operator()
         self.operator.is_source = is_source
         self.operator.output_schema = output_schema
+        assert (
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
+        ), "Please use SourceOperator API for source operators."
 
     def update_operator(self, code: str, is_source: bool) -> None:
         """
@@ -124,6 +127,9 @@ class OperatorManager:
         operator: type(Operator) = self.load_operator(code)
         self.operator = operator()
         self.operator.is_source = is_source
+        assert (
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
+        ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self.operator.__dict__ = original_internal_state
         # TODO:

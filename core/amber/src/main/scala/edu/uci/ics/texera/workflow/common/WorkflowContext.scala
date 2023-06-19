@@ -4,6 +4,6 @@ import org.jooq.types.UInteger
 class WorkflowContext(
     var jobId: String = null,
     var userId: Option[UInteger] = None,
-    var wId: Int = -1,
+    var wId: UInteger = UInteger.valueOf(0),
     var executionID: Long = -1
 )

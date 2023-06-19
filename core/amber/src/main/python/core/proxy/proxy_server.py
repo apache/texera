@@ -202,9 +202,9 @@ class ProxyServer(FlightServerBase):
                 encoded = result
             else:
                 encoded = str(result).encode("utf-8")
+            yield Result(py_buffer(encoded))
         else:
             raise KeyError("Unknown action {!r}".format(action_name))
-        yield Result(py_buffer(encoded))
 
     @logger.catch(reraise=True)
     def register(self, name: str, action: Callable, description: str = "") -> None:

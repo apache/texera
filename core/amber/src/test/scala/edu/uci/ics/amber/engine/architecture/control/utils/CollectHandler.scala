@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import com.twitter.util.{Future, Promise}
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.{Collect, GenerateNumber}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity

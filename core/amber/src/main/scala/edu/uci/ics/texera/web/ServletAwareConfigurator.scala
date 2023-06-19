@@ -43,6 +43,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
               claims.getSubject,
               null,
               null,
+              null,
               null
             )
           )

@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.regex
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -9,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
@@ -29,8 +29,8 @@ class RegexOpDesc extends FilterOpDesc {
   @JsonPropertyDescription("regex match is case sensitive")
   var caseInsensitive: Boolean = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(operatorIdentifier, _ => new RegexOpExec(this))
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => new RegexOpExec(this))
   }
 
   override def operatorInfo: OperatorInfo =
@@ -39,6 +39,7 @@ class RegexOpDesc extends FilterOpDesc {
       operatorDescription = "Search a regular expression in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 }

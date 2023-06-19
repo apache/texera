@@ -1,9 +1,7 @@
 package edu.uci.ics.texera.web.service
 
-import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowPaused
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -15,13 +13,12 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.{
-  RemoveBreakpointRequest,
   SkipTupleRequest,
   WorkflowKillRequest,
   WorkflowPauseRequest,
   WorkflowResumeRequest
 }
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
@@ -30,7 +27,8 @@ class JobRuntimeService(
     client: AmberClient,
     stateStore: JobStateStore,
     wsInput: WebsocketInput,
-    breakpointService: JobBreakpointService
+    breakpointService: JobBreakpointService,
+    reconfigurationService: JobReconfigurationService
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -76,6 +74,7 @@ class JobRuntimeService(
   // Receive Resume
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
+    reconfigurationService.performReconfigurationOnResume()
     stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RESUMING))
     client.sendAsyncWithCallback[Unit](
       ResumeWorkflow(),

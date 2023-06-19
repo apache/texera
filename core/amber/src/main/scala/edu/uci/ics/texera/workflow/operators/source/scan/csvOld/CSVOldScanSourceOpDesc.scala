@@ -1,10 +1,10 @@
-package edu.uci.ics.texera.workflow.operators.source.scan.csv
+package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -13,7 +13,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import java.io.IOException
 import scala.jdk.CollectionConverters.asJavaIterableConverter
@@ -34,14 +33,14 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSVOld")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
     filePath match {
       case Some(_) =>
-        new ManyToOneOpExecConfig(operatorIdentifier, _ => new CSVOldScanSourceOpExec(this))
+        OpExecConfig.manyToOneLayer(operatorIdentifier, _ => new CSVOldScanSourceOpExec(this))
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
@@ -64,12 +63,13 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }
-    var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
+    var reader: CSVReader =
+      CSVReader.open(filePath.get, fileEncoding.getCharset.name())(CustomFormat)
     val firstRow: Array[String] = reader.iterator.next().toArray
     reader.close()
 
     // reopen the file to read from the beginning
-    reader = CSVReader.open(filePath.get)(CustomFormat)
+    reader = CSVReader.open(filePath.get, fileEncoding.getCharset.name())(CustomFormat)
 
     val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
     val endOffset =

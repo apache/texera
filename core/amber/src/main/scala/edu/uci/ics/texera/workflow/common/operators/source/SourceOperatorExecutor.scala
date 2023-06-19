@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 trait SourceOperatorExecutor extends ISourceOperatorExecutor {
 
-  override def produce(): Iterator[ITuple] = {
+  override def produceTuple(): Iterator[ITuple] = {
     produceTexeraTuple()
   }
 

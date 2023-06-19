@@ -16,10 +16,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = 1893250818;
+    private static final long serialVersionUID = 2055626456;
 
     private UInteger uid;
     private String   name;
+    private String   email;
     private String   password;
     private String   googleId;
     private UserRole role;
@@ -29,6 +30,7 @@ public class User implements IUser {
     public User(IUser value) {
         this.uid = value.getUid();
         this.name = value.getName();
+        this.email = value.getEmail();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
         this.role = value.getRole();
@@ -37,12 +39,14 @@ public class User implements IUser {
     public User(
         UInteger uid,
         String   name,
+        String   email,
         String   password,
         String   googleId,
         UserRole role
     ) {
         this.uid = uid;
         this.name = name;
+        this.email = email;
         this.password = password;
         this.googleId = googleId;
         this.role = role;
@@ -66,6 +70,16 @@ public class User implements IUser {
     @Override
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public String getEmail() {
+        return this.email;
+    }
+
+    @Override
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     @Override
@@ -104,6 +118,7 @@ public class User implements IUser {
 
         sb.append(uid);
         sb.append(", ").append(name);
+        sb.append(", ").append(email);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
         sb.append(", ").append(role);
@@ -120,6 +135,7 @@ public class User implements IUser {
     public void from(IUser from) {
         setUid(from.getUid());
         setName(from.getName());
+        setEmail(from.getEmail());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
         setRole(from.getRole());

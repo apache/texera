@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -10,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
 /**
@@ -32,7 +32,7 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
   @JsonProperty(value = "Matching type", required = true) var matchingType: MatchingType = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    new OneToOneOpExecConfig(
+    OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new DictionaryMatcherOpExec(this, operatorSchemaInfo)
     )
@@ -43,7 +43,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       "Matches tuples if they appear in a given dictionary",
       OperatorGroupConstants.SEARCH_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

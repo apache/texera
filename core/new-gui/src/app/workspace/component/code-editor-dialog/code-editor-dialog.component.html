@@ -12,7 +12,14 @@
     >close</mat-icon
   >
 </button>
-<h1 mat-dialog-title>Python Script</h1>
+<h1
+  mat-dialog-title
+  cdkDrag
+  cdkDragRootElement=".cdk-overlay-pane"
+  cdkDragBoundary=".cdk-overlay-container"
+  cdkDragHandle>
+  Python Script
+</h1>
 <div
   #editor
   class="code-editor"></div>

@@ -30,7 +30,9 @@ case class OperatorInfo(
     inputPorts: List[InputPort],
     outputPorts: List[OutputPort],
     dynamicInputPorts: Boolean = false,
-    dynamicOutputPorts: Boolean = false
+    dynamicOutputPorts: Boolean = false,
+    supportReconfiguration: Boolean = false,
+    allowPortCustomization: Boolean = false
 )
 
 case class OperatorMetadata(
@@ -97,6 +99,9 @@ object OperatorMetadataGenerator {
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorType")
     // remove operatorVersion from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorVersion")
+    // remove inputPorts/outputPorts from json schema
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("inputPorts")
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("outputPorts")
     // remove operatorType from required list
     val operatorTypeIndex =
       asScalaIterator(jsonSchema.get("required").asInstanceOf[ArrayNode].elements())

@@ -1,6 +1,6 @@
 import { fromEvent, merge, Observable, ReplaySubject, Subject } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { Point } from "../../../types/workflow-common.interface";
+import { OperatorPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
@@ -9,8 +9,7 @@ import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
 import Selectors = dia.Cell.Selectors;
-
-type operatorIDsType = { operatorIDs: string[] };
+import * as _ from "lodash";
 type linkIDType = { linkID: string };
 
 type JointModelEventInfo = {
@@ -46,6 +45,7 @@ export type JointHighlights = Readonly<{
   groups: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
+  ports: readonly OperatorPort[];
 }>;
 
 export type JointGraphContextType = Readonly<{
@@ -100,6 +100,7 @@ export class JointGraphWrapper {
     groups: [],
     links: [],
     commentBoxes: [],
+    ports: [],
   };
 
   // the currently highlighted operators' IDs
@@ -123,6 +124,10 @@ export class JointGraphWrapper {
 
   private jointCommentBoxUnhighlightStream = new Subject<readonly string[]>();
 
+  private jointPortHighlightStream = new Subject<readonly OperatorPort[]>();
+
+  private jointPortUnhighlightStream = new Subject<readonly OperatorPort[]>();
+
   private currentHighlightedCommentBoxes: string[] = [];
 
   // event stream of zooming the jointJS paper
@@ -139,6 +144,9 @@ export class JointGraphWrapper {
   // the currently highlighted links' ids
   private currentHighlightedLinks: string[] = [];
   // the linkIDs of those links with a breakpoint
+
+  private currentHighlightedPorts: OperatorPort[] = [];
+  // the IDs of ports currently being edited
   private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
@@ -265,6 +273,10 @@ export class JointGraphWrapper {
     return this.currentHighlightedLinks;
   }
 
+  public getCurrentHighlightedPortIDs(): readonly OperatorPort[] {
+    return this.currentHighlightedPorts;
+  }
+
   public getCurrentHighlightedCommentBoxIDs(): readonly string[] {
     return this.currentHighlightedCommentBoxes;
   }
@@ -275,7 +287,17 @@ export class JointGraphWrapper {
       groups: this.currentHighlightedGroups,
       links: this.currentHighlightedLinks,
       commentBoxes: this.currentHighlightedCommentBoxes,
+      ports: this.currentHighlightedPorts,
     };
+  }
+
+  public getCurrentHighlightedIDs(): readonly string[] {
+    return [
+      ...this.currentHighlightedOperators,
+      ...this.currentHighlightedGroups,
+      ...this.currentHighlightedLinks,
+      ...this.currentHighlightedCommentBoxes,
+    ];
   }
 
   /**
@@ -345,6 +367,7 @@ export class JointGraphWrapper {
     this.highlightGroups(...elements.groups);
     this.highlightLinks(...elements.links);
     this.highlightCommentBoxes(...elements.commentBoxes);
+    this.highlightPorts(...elements.ports);
   }
 
   public unhighlightElements(elements: JointHighlights): void {
@@ -352,6 +375,7 @@ export class JointGraphWrapper {
     this.unhighlightGroups(...elements.groups);
     this.unhighlightLinks(...elements.links);
     this.unhighlightCommentBoxes(...elements.commentBoxes);
+    this.unhighlightPorts(...elements.ports);
   }
 
   /**
@@ -469,6 +493,30 @@ export class JointGraphWrapper {
       this.jointCommentBoxUnhighlightStream.next(unhighlightedCommentBoxesIDs);
     }
   }
+
+  public highlightPorts(...operatorPortIDs: OperatorPort[]): void {
+    const highlightedOperatorPortIDs: OperatorPort[] = [];
+    operatorPortIDs
+      .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) === undefined)
+      .forEach(operatorPortID => {
+        if (!this.multiSelect) this.unhighlightPorts(...this.currentHighlightedPorts);
+        this.currentHighlightedPorts.push(operatorPortID);
+        highlightedOperatorPortIDs.push(operatorPortID);
+      });
+    this.jointPortHighlightStream.next(highlightedOperatorPortIDs);
+  }
+
+  public unhighlightPorts(...operatorPortIDs: OperatorPort[]): void {
+    const unhighlightedOperatorPortIDs: OperatorPort[] = [];
+    operatorPortIDs
+      .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) !== undefined)
+      .forEach(operatorPortID => {
+        this.currentHighlightedPorts.splice(_.indexOf(this.currentHighlightedPorts, operatorPortID), 1);
+        unhighlightedOperatorPortIDs.push(operatorPortID);
+      });
+    this.jointPortUnhighlightStream.next(unhighlightedOperatorPortIDs);
+  }
+
   /**
    * Gets the event stream of an operator being highlighted.
    */
@@ -541,6 +589,15 @@ export class JointGraphWrapper {
   public getJointCommentBoxUnhighlightStream(): Observable<readonly string[]> {
     return this.jointCommentBoxUnhighlightStream.asObservable();
   }
+
+  public getJointPortHighlightStream(): Observable<readonly OperatorPort[]> {
+    return this.jointPortHighlightStream.asObservable();
+  }
+
+  public getJointPortUnhighlightStream(): Observable<readonly OperatorPort[]> {
+    return this.jointPortUnhighlightStream.asObservable();
+  }
+
   /**
    * Gets the event stream of an element being dragged.
    */
@@ -898,6 +955,7 @@ export class JointGraphWrapper {
       this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
       this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
+      this.unhighlightPorts(...this.getCurrentHighlightedPortIDs());
     }
     // highlight the element and add it to the list of highlighted elements
     currentHighlightedElements.push(elementID);
@@ -938,29 +996,6 @@ export class JointGraphWrapper {
     });
   }
 
-  // Modifies an observable to buffer output while the jointgraph
-  // is in an async context
-  public createContextAwareStream<T>(source: Observable<T>) {
-    // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
-    // Retrieved on 02/06/2022
-
-    const BufferOnOffStream = this.jointGraphContext
-      .getChangeContextStream()
-      .pipe(map(([_, context]) => context.async));
-
-    const startBuffer = BufferOnOffStream.pipe(filter(async => async == true));
-
-    const stopBuffer = BufferOnOffStream.pipe(
-      filter(async => async == false),
-      map(x => true)
-    );
-
-    return merge(
-      source.pipe(bufferToggle(startBuffer, () => stopBuffer)),
-      source.pipe(windowToggle(stopBuffer, () => startBuffer))
-    ).pipe(mergeMap(x => x));
-  }
-
   public static jointGraphContextFactory() {
     class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
       private static jointPaper: joint.dia.Paper | undefined;
@@ -972,34 +1007,33 @@ export class JointGraphWrapper {
       // Custom RXJS operator to buffer output while the jointgraph
       // is in an async context
       public static bufferWhileAsync<T>(source: Observable<T>): Observable<T> {
-        // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
-        // Retrieved on 02/06/2022
+        const subject = new Subject<T>();
+        const buffer: T[] = [];
+        const clearBuffer = () => {
+          while (buffer.length > 0) {
+            subject.next(buffer.pop() as T);
+          }
+        };
 
-        const BufferOnOffStream = JointGraphContext.getChangeContextStream().pipe(map(([_, context]) => context.async));
-
-        const startBuffer = BufferOnOffStream.pipe(filter(async => async == true));
-
-        const stopBuffer = BufferOnOffStream.pipe(
-          filter(async => async == false),
-          map(x => true)
-        );
-
-        // Either buffertoggle or windowtoggle must be signalled to start first.
-        // Afterwards, they will start when the other stops.
-        // see Code adapted citation for more info.
-        let startBuffer_BT, stopBuffer_WT: Observable<boolean>;
-        if (JointGraphContext.async() == true) {
-          startBuffer_BT = startBuffer.pipe(startWith(true));
-          stopBuffer_WT = stopBuffer;
-        } else {
-          startBuffer_BT = startBuffer;
-          stopBuffer_WT = stopBuffer.pipe(startWith(true));
-        }
-
-        return merge(
-          source.pipe(bufferToggle(startBuffer_BT, () => stopBuffer)),
-          source.pipe(windowToggle(stopBuffer_WT, () => startBuffer))
-        ).pipe(mergeMap(x => x));
+        source.subscribe({
+          next: evt => {
+            if (JointGraphContext.async()) {
+              buffer.push(evt);
+            } else {
+              clearBuffer();
+              subject.next(evt);
+            }
+          },
+          error: (err: unknown) => {
+            clearBuffer();
+            subject.error(err);
+          },
+          complete: () => {
+            clearBuffer();
+            subject.complete();
+          },
+        });
+        return subject;
       }
 
       public static attachPaper(jointPaper: joint.dia.Paper) {

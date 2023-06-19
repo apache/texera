@@ -2,19 +2,19 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
-import java.io.{BufferedReader, FileReader, IOException}
+import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`iterator asScala`
 import scala.collection.mutable.ArrayBuffer
+
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(required = true)
@@ -24,13 +24,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("JSONL")
 
   @throws[IOException]
-  override def operatorExecutor(
-      operatorSchemaInfo: OperatorSchemaInfo
-  ): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     filePath match {
       case Some(path) =>
         // count lines and partition the task to each worker
-        val reader = new BufferedReader(new FileReader(path))
+        val reader = new BufferedReader(
+          new InputStreamReader(new FileInputStream(path), fileEncoding.getCharset)
+        )
         val offsetValue = offset.getOrElse(0)
         var lines = reader.lines().iterator().drop(offsetValue)
         if (limit.isDefined) lines = lines.take(limit.get)
@@ -39,15 +39,18 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
         val numWorkers = Constants.currentWorkerNum
 
-        new OneToOneOpExecConfig(
-          operatorIdentifier,
-          (i: Int) => {
-            val startOffset: Int = offsetValue + count / numWorkers * i
-            val endOffset: Int =
-              offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
-            new JSONLScanSourceOpExec(this, startOffset, endOffset)
-          }
-        )
+        OpExecConfig
+          .localLayer(
+            operatorIdentifier,
+            p => {
+              val i = p._1
+              val startOffset: Int = offsetValue + count / numWorkers * i
+              val endOffset: Int =
+                offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
+              new JSONLScanSourceOpExec(this, startOffset, endOffset)
+            }
+          )
+          .copy(numWorkers = numWorkers)
 
       case None =>
         throw new RuntimeException("File path is not provided.")
@@ -62,7 +65,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val reader = new BufferedReader(new FileReader(filePath.get))
+    val reader = new BufferedReader(
+      new InputStreamReader(new FileInputStream(filePath.get), fileEncoding.getCharset)
+    )
     var fieldNames = Set[String]()
 
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()

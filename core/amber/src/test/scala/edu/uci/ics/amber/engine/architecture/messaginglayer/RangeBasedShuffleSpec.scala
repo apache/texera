@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.RangeBas
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -29,42 +29,42 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
 
   "RangeBasedShuffleSpec" should "return 0 when value is less than rangeMin" in {
     val tuple = Tuple.newBuilder().add("Attr1", AttributeType.INTEGER, -600).build()
-    val idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 0)
+    val idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 0)
   }
 
   "RangeBasedShuffleSpec" should "return last receiver when value is more than rangeMax" in {
     val tuple = Tuple.newBuilder().add("Attr1", AttributeType.INTEGER, 800).build()
-    val idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 4)
+    val idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 4)
   }
 
   "RangeBasedShuffleSpec" should "find index correctly" in {
     var tuple = Tuple.newBuilder().add("Attr1", AttributeType.INTEGER, -400).build()
-    var idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 0)
+    var idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 0)
 
     tuple = Tuple.newBuilder().add("Attr1", AttributeType.INTEGER, -200).build()
-    idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 0)
+    idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 0)
 
     tuple = Tuple.newBuilder().add("Attr1", AttributeType.INTEGER, -199).build()
-    idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 1)
+    idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 1)
   }
 
   "RangeBasedShuffleSpec" should "handle different data types correctly" in {
     var tuple = Tuple.newBuilder().add("Attr1", AttributeType.INTEGER, -90).build()
-    var idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 1)
+    var idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 1)
 
     tuple = Tuple.newBuilder().add("Attr1", AttributeType.DOUBLE, -90.5).build()
-    idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 1)
+    idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 1)
 
     tuple = Tuple.newBuilder().add("Attr1", AttributeType.LONG, -90L).build()
-    idx = partitioner.selectBatchingIndex(tuple)
-    assert(idx == 1)
+    idx = partitioner.getBucketIndex(tuple)
+    assert(idx.next() == 1)
   }
 
 }

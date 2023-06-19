@@ -1,12 +1,11 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { from, interval, Observable, of, Subscription } from "rxjs";
+import { interval, Observable, Subscription } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { User, Role } from "../../type/user";
 import { timer } from "rxjs";
-import { mergeMap, startWith, ignoreElements } from "rxjs/operators";
+import { startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
-import { GoogleAuthService } from "ng-gapi";
 import { NotificationService } from "../notification/notification.service";
 import { environment } from "../../../../environments/environment";
 
@@ -35,7 +34,6 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private jwtHelperService: JwtHelperService,
-    private googleAuthService: GoogleAuthService,
     private notificationService: NotificationService
   ) {}
 
@@ -60,15 +58,10 @@ export class AuthService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
 
    */
-  public googleAuth(): Observable<Readonly<{ accessToken: string }>> {
-    return this.googleAuthService.getAuth().pipe(
-      mergeMap(auth => from(auth.grantOfflineAccess())),
-      mergeMap(({ code }) =>
-        this.http.post<Readonly<{ accessToken: string }>>(
-          `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-          { authCode: code }
-        )
-      )
+  public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+      `${credential}`
     );
   }
 
@@ -109,17 +102,21 @@ export class AuthService {
     }
 
     const role = this.jwtHelperService.decodeToken(token).role;
+    const email = this.jwtHelperService.decodeToken(token).email;
 
     if (this.inviteOnly && role == Role.INACTIVE) {
-      this.notificationService.error("Account pending approval!");
+      this.notificationService.loading("The account request of <b>" + email + "</b> is received and pending.", {
+        nzDuration: 0,
+      });
       return this.logout();
     }
 
     this.registerAutoLogout();
     this.registerAutoRefreshToken();
     return {
-      uid: this.jwtHelperService.decodeToken(token).uid,
+      uid: this.jwtHelperService.decodeToken(token).userId,
       name: this.jwtHelperService.decodeToken(token).sub,
+      email: email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
       role: role,
     };

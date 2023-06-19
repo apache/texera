@@ -1,6 +1,9 @@
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { isDefined } from "../util/predicate";
-import { SchemaAttribute } from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
+import {
+  PortInputSchema,
+  SchemaAttribute,
+} from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
@@ -20,7 +23,12 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
 }
 
 /* Factory function to make functions that hide expressions for a particular field */
-export function createShouldHideFieldFunc(hideTarget: string, hideType: HideType, hideExpectedValue: string) {
+export function createShouldHideFieldFunc(
+  hideTarget: string,
+  hideType: HideType,
+  hideExpectedValue: string,
+  hideOnNull: boolean | undefined
+) {
   let shared_regex: RegExp | null = null;
 
   const hideFunc = (model: any, formState: any, field?: FormlyFieldConfig | undefined) => {
@@ -32,7 +40,7 @@ export function createShouldHideFieldFunc(hideTarget: string, hideType: HideType
     let targetFieldValue: any = model[hideTarget];
     if (targetFieldValue === null || targetFieldValue === undefined) {
       // console.debug("Formly model does not contain hide target. Formly does not know what to hide.");
-      return false;
+      return hideOnNull === true;
     }
 
     switch (hideType) {
@@ -48,7 +56,7 @@ export function createShouldHideFieldFunc(hideTarget: string, hideType: HideType
 }
 
 export function setChildTypeDependency(
-  attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined,
+  attributes: ReadonlyArray<PortInputSchema | undefined> | undefined,
   parentName: string,
   fields: FormlyFieldConfig[],
   childName: string

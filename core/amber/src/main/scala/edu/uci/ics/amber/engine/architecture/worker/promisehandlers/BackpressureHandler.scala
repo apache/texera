@@ -1,6 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.{PauseType, WorkerAsyncRPCHandlerInitializer}
+import edu.uci.ics.amber.engine.architecture.worker.{
+  BackpressurePause,
+  WorkerAsyncRPCHandlerInitializer
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
@@ -17,13 +20,9 @@ trait BackpressureHandler {
 
   registerHandler { (msg: Backpressure, _) =>
     if (msg.enableBackpressure) {
-      pauseManager.recordRequest(PauseType.BackpressurePause, true)
-      dataProcessor.disableDataQueue()
+      pauseManager.pause(BackpressurePause)
     } else {
-      pauseManager.recordRequest(PauseType.BackpressurePause, false)
-      if (!pauseManager.isPaused()) {
-        dataProcessor.enableDataQueue()
-      }
+      pauseManager.resume(BackpressurePause)
     }
   }
 

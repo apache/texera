@@ -24,7 +24,6 @@ import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ReturnInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -161,7 +160,9 @@ class RecoverySpec
         if (stepAccumulated > 0) {
           recoveryQueue.add(InputTuple(upstream, ITuple(1, 2, 3)))
           val elem = recoveryQueue.get()
-          (1 until stepAccumulated).foreach(_ => assert(!recoveryQueue.isReadyToEmitNextControl))
+          (1 until stepAccumulated - 1).foreach(_ =>
+            assert(!recoveryQueue.isReadyToEmitNextControl)
+          )
           assert(recoveryQueue.isReadyToEmitNextControl)
         }
         assert(recoveryQueue.get() == ControlElement(controlPayload, from))

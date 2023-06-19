@@ -45,7 +45,18 @@ class ProxyClient(FlightClient):
         action = Action(action_name, payload)
         if options is None:
             options = FlightCallOptions(timeout=self._timeout)
-        return next(self.do_action(action, options)).body.to_pybytes()
+
+        # Arrow allows multiple results from the Action call return as a stream (
+        # interator). In Arrow 11, it alerts if the results are not consumed fully.
+        # As we do our own Async RPC management, we are currently not using results
+        # from Action call. In the future, this results can include credits for flow
+        # control purpose.
+        results = list(self.do_action(action, options))
+
+        # However, we will only expect exactly one result for now.
+        assert len(results) == 1
+
+        return results[0].body.to_pybytes()
 
     @logger.catch(reraise=True)
     def send_data(self, command: bytes, table: Optional[Table]) -> None:

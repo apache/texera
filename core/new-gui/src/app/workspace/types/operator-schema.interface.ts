@@ -30,6 +30,8 @@ export interface OperatorAdditionalMetadata
     outputPorts: ReadonlyArray<OutputPortInfo>;
     dynamicInputPorts?: boolean;
     dynamicOutputPorts?: boolean;
+    supportReconfiguration?: boolean;
+    allowPortCustomization?: boolean;
   }> {}
 
 export interface OperatorSchema

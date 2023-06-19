@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { Observable, ReplaySubject } from "rxjs";
-import { User } from "../../type/user";
+import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
 import { map } from "rxjs/operators";
@@ -34,12 +34,16 @@ export class UserService {
       .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
-  public googleLogin(): Observable<void> {
-    return this.authService.googleAuth().pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
+  public googleLogin(credential: string): Observable<void> {
+    return this.authService.googleAuth(credential).pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public isLogin(): boolean {
     return this.currentUser !== undefined;
+  }
+
+  public isAdmin(): boolean {
+    return this.currentUser?.role === Role.ADMIN;
   }
 
   public userChanged(): Observable<User | undefined> {
@@ -75,8 +79,7 @@ export class UserService {
 
   private handleAccessToken(accessToken: string): void {
     AuthService.setAccessToken(accessToken);
-    const user = this.authService.loginWithExistingToken();
-    this.changeUser(user);
+    this.changeUser(this.authService.loginWithExistingToken());
   }
 
   /**

@@ -6,6 +6,7 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.controller.Controller.recoveryDelay
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
@@ -52,6 +53,8 @@ final case class ControllerConfig(
 )
 
 object Controller {
+
+  val recoveryDelay: Long = AmberUtils.amberConfig.getLong("fault-tolerance.delay-before-recovery")
 
   def props(
       workflow: Workflow,
@@ -178,9 +181,10 @@ class Controller(
           infoIter.foreach { info =>
             info.ref ! PoisonPill // in case we can still access the worker
           }
+          globalRecoveryManager.markRecoveryStatus(CONTROLLER, true)
           logger.info("Global Recovery: triggering worker respawn")
           infoIter.foreach { info =>
-            val ref = workflow.getWorkerLayer(info.id).recover(info.id, deployNodes.head)
+            val ref = workflow.getOperator(info.id).recover(info.id, deployNodes.head, context)
             logger.info("Global Recovery: respawn " + info.id)
             val vidSet = infoIter.map(_.id).toSet
             // wait for some secs to re-send output
@@ -194,6 +198,8 @@ class Controller(
               }
             // let controller resend control messages immediately
             networkCommunicationActor ! ResendOutputTo(info.id, ref)
+            Thread.sleep(recoveryDelay)
+            globalRecoveryManager.markRecoveryStatus(CONTROLLER, false)
           }
       }
   }

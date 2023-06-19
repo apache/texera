@@ -76,6 +76,27 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     }
 
     /**
+     * Fetch records that have <code>email BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfEmail(String lowerInclusive, String upperInclusive) {
+        return fetchRange(User.USER.EMAIL, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>email IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByEmail(String... values) {
+        return fetch(User.USER.EMAIL, values);
+    }
+
+    /**
+     * Fetch a unique record that has <code>email = value</code>
+     */
+    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByEmail(String value) {
+        return fetchOne(User.USER.EMAIL, value);
+    }
+
+    /**
      * Fetch records that have <code>password BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfPassword(String lowerInclusive, String upperInclusive) {

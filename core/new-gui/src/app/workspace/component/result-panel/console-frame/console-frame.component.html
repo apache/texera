@@ -49,22 +49,71 @@
     </li>
   </ul>
 </nz-dropdown-menu>
-<nz-list nzSize="small">
-  <cdk-virtual-scroll-viewport
-    itemSize="14"
-    class="infinite-container">
-    <nz-list-item *cdkVirtualFor="let entry of consoleMessages">
-      <span *ngIf="entry.workerId">
-        <nz-tag [nzColor]="getWorkerColor(getWorkerIndex(entry.workerId))"> {{workerIdToAbbr(entry.workerId)}}</nz-tag>
-        <nz-tag *ngIf="showTimestamp">
-          {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
-        </nz-tag>
-        <nz-tag *ngIf="showSource"> {{entry.source}} </nz-tag>
-        <nz-badge [nzStatus]="labelMapping.get(entry.msgType)"> </nz-badge>
-        <span class="console-message"> {{ entry.message }} </span>
-      </span>
-    </nz-list-item>
-  </cdk-virtual-scroll-viewport>
+<nz-list
+  nzSize="small"
+  class="console-list-container"
+  #consoleList>
+  <nz-list-item
+    *ngFor="let entry of consoleMessages"
+    class="console-message-entry"
+    nzNoFlex>
+    <div
+      nz-row
+      nzJustify="end"
+      nzAlign="top">
+      <div
+        nz-col
+        nzSpan="1">
+        <nz-badge
+          [nzStatus]="labelMapping.get(entry.msgType)"
+          [nzTitle]="entry.msgType"
+          class="type-tag"></nz-badge>
+      </div>
+      <div
+        nz-col
+        nzSpan="15">
+        <div class="console-message">{{ entry.message }}</div>
+      </div>
+      <div
+        nz-col
+        nzSpan="8">
+        <div
+          nz-row
+          nzAlign="top"
+          nzJustify="end"
+          nzGutter="0">
+          <div
+            nz-col
+            nzFlex="auto">
+            <nz-tag
+              *ngIf="showSource"
+              class="source-tag">
+              {{entry.source}}
+            </nz-tag>
+          </div>
+          <div
+            nz-col
+            nzSpan="10">
+            <nz-tag
+              *ngIf="showTimestamp"
+              class="timestamp-tag">
+              {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
+            </nz-tag>
+          </div>
+          <div
+            nz-col
+            nzSpan="2">
+            <nz-tag
+              *ngIf="entry.workerId"
+              class="worker-tag"
+              [nzColor]="getWorkerColor(getWorkerIndex(entry.workerId))">
+              {{workerIdToAbbr(entry.workerId)}}</nz-tag
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  </nz-list-item>
 </nz-list>
 
 <nz-input-group

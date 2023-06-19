@@ -2,7 +2,10 @@ import pandas
 import pytest
 from copy import deepcopy
 
+from numpy import NaN
+
 from core.models import Tuple
+from core.models.schema.schema import Schema
 
 
 class TestTuple:
@@ -89,3 +92,19 @@ class TestTuple:
         assert tuple_ == Tuple({"1": "a", "3": "c"})
         tuple_ = Tuple({"1": field_accessor, "3": field_accessor})
         assert deepcopy(tuple_) == chr_tuple
+
+    def test_finalize_tuple(self):
+        tuple_ = Tuple(
+            {"name": "texera", "age": 21, "scores": [85, 94, 100], "height": NaN}
+        )
+        schema = Schema(
+            raw_schema={
+                "name": "string",
+                "age": "integer",
+                "scores": "binary",
+                "height": "double",
+            }
+        )
+        tuple_.finalize(schema)
+        assert isinstance(tuple_["scores"], bytes)
+        assert tuple_["height"] is None

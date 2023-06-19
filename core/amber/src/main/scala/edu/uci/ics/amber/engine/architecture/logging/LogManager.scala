@@ -1,15 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.logging
 
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
-import edu.uci.ics.amber.engine.architecture.logging.storage.{
-  DeterminantLogStorage,
-  LocalFSLogStorage
-}
+import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
-import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 //In-mem formats:
 sealed trait InMemDeterminant

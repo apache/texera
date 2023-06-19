@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.RangePartition
 
 class SortPartitionsOpDesc extends OperatorDescriptor {
 
@@ -32,18 +33,33 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("Maximum value of the domain of the attribute.")
   var domainMax: Long = _
 
-  @JsonIgnore
-  var opExecConfig: SortPartitionsOpExecConfig = _
-
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    opExecConfig = new SortPartitionsOpExecConfig(
-      this.operatorIdentifier,
-      sortAttributeName,
-      domainMin,
-      domainMax,
-      operatorSchemaInfo
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    val partitionRequirement = List(
+      Option(
+        RangePartition(
+          List(operatorSchemaInfo.inputSchemas(0).getIndex(sortAttributeName)),
+          domainMin,
+          domainMax
+        )
+      )
     )
-    opExecConfig
+
+    OpExecConfig
+      .oneToOneLayer(
+        operatorIdentifier,
+        p =>
+          new SortPartitionOpExec(
+            sortAttributeName,
+            operatorSchemaInfo,
+            p._1,
+            domainMin,
+            domainMax,
+            p._2.numWorkers
+          )
+      )
+      .copy(
+        partitionRequirement = partitionRequirement
+      )
   }
 
   override def operatorInfo: OperatorInfo =

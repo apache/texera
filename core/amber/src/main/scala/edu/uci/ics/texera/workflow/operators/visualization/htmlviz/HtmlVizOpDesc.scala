@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -9,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -36,7 +36,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    new OneToOneOpExecConfig(
+    OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo)
     )
