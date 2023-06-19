@@ -13,15 +13,14 @@ from proto.edu.uci.ics.amber.engine.common import (
     PythonDataHeader,
 )
 
-
 class NetworkSender(StoppableQueueBlockingRunnable):
     """
     Serialize and send messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
+    def __init__(self, shared_queue: InternalQueue, host: str, temp_path: str, output_port: str):
         super().__init__(self.__class__.__name__, queue=shared_queue)
-        self._proxy_client = ProxyClient(host=host, port=port)
+        self._proxy_client = ProxyClient(host=host, temp_path=temp_path, port=int(output_port))
 
     @overrides(check_signature=False)
     def receive(self, next_entry: InternalQueueElement):

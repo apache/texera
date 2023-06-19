@@ -1,29 +1,27 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ControlElement,
-  ControlElementV2,
-  DataElement
-}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2, DataElement}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import scala.collection.mutable
+import scala.io.Source
 import scala.math.pow
 
-class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
+class PythonProxyClient(val actorId: ActorVirtualIdentity)
     extends Runnable
     with AmberLogging
     with AutoCloseable
@@ -31,7 +29,28 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
-  val location: Location = Location.forGrpcInsecure("localhost", portNumber)
+//  var location: Location = Location.forGrpcInsecure("localhost", portNumber)
+  val location: Location = (() => {
+//    val environVariableName = "WORKER_PYTHON" + actorId.name.charAt(actorId.name.length - 1) + "_OUTPUT_PORT"
+//    var portNumber = System.getenv(environVariableName)
+    val fileName = "connection" + actorId.name + "_output.info"
+
+    val filePath = Paths.get("").toAbsolutePath.resolve(fileName).toAbsolutePath
+    logger.info(s"will try output file at: $filePath")
+
+    if (!Files.exists(filePath)) {
+      logger.info(s"Waiting for output port for: $fileName")
+      while (!Files.exists(filePath)) {
+        Thread.sleep(UNIT_WAIT_TIME_MS)
+      }
+    }
+    val source = Source.fromFile(fileName)
+    val portNumber = source.mkString.trim.toInt
+    source.close()
+    logger.info(s"Output port found for: $fileName at $portNumber")
+    Files.delete(filePath)
+    Location.forGrpcInsecure("localhost", portNumber)
+  }) ()
   private val MAX_TRY_COUNT: Int = 5
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _

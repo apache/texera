@@ -10,21 +10,34 @@ from pyarrow.flight import (
     FlightStreamWriter,
 )
 
+import socket
+
+def get_free_local_port():
+    with socket.socket() as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
 
 class ProxyClient(FlightClient):
     def __init__(
         self,
         scheme: str = "grpc+tcp",
         host: str = "localhost",
+        temp_path: str = "",
         port: int = 5005,
         timeout=1000,
         *args,
         **kwargs,
     ):
+        # port = get_free_local_port()
+
         location = f"{scheme}://{host}:{port}"
         super().__init__(location, *args, **kwargs)
         logger.debug(f"Connected to server at {location}")
         self._timeout = timeout
+
+        # fout = open(temp_path + "_input.info", "w")
+        # fout.write(str(port))
+        # fout.close()
 
     @logger.catch(reraise=True)
     def call_action(

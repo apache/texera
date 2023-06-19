@@ -26,5 +26,5 @@ if __name__ == "__main__":
     init_loguru_logger(sys.argv[3])
 
     PythonWorker(
-        host="localhost", input_port=int(sys.argv[1]), output_port=int(sys.argv[2])
+        host="localhost", temp_path=sys.argv[1], output_port=sys.argv[2]
     ).run()

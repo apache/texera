@@ -16,7 +16,12 @@ from pyarrow.flight import (
     ServerCallContext,
 )
 from pyarrow.ipc import RecordBatchStreamWriter
+import socket
 
+def get_free_local_port():
+    with socket.socket() as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
 
 class ProxyServer(FlightServerBase):
     """
@@ -81,8 +86,14 @@ class ProxyServer(FlightServerBase):
         return ack_decorator
 
     def __init__(
-        self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005
+        self, scheme: str = "grpc+tcp", host: str = "localhost", temp_path: str = ""
     ):
+        port = get_free_local_port()
+        fin = open(temp_path + "_output.info", "w")
+        fin.write(str(port))
+        fin.close()
+        self._port_number = port
+
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
         logger.debug(f"Serving on {location}")
@@ -91,6 +102,8 @@ class ProxyServer(FlightServerBase):
         # action name to callable map, will contain registered actions,
         # identified by action name.
         self._procedures: Dict[str, Tuple[Callable, str]] = dict()
+
+        # self.register(name="port output", action=ProxyServer.ack(msg=self._port_number)(lambda: None))
 
         # register heartbeat, this is the default action for the client to
         # check the aliveness of the server.

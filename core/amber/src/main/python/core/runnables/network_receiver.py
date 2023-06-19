@@ -19,8 +19,8 @@ class NetworkReceiver(Runnable, Stoppable):
     Receive and deserialize messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
-        self._proxy_server = ProxyServer(host=host, port=port)
+    def __init__(self, shared_queue: InternalQueue, host: str, temp_path: str):
+        self._proxy_server = ProxyServer(host=host, temp_path=temp_path)
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)

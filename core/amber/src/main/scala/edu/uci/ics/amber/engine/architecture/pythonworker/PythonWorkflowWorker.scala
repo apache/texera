@@ -16,9 +16,10 @@ import edu.uci.ics.texera.Utils
 
 import java.io.IOException
 import java.net.ServerSocket
+import java.nio.file.{Files, Path, Paths}
+import scala.sys.process.{BasicIO, Process}
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
-import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
   def props(
@@ -52,12 +53,12 @@ class PythonWorkflowWorker(
 
   // Input/Output port used in between Python and Java processes.
   private lazy val inputPortNum: Int = getFreeLocalPort
-  private lazy val outputPortNum: Int = getFreeLocalPort
+//  private lazy val outputPortNum: Int = getFreeLocalPort
   // Proxy Serve and Client
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val pythonProxyClient: PythonProxyClient =
-    new PythonProxyClient(outputPortNum, actorId)
+    new PythonProxyClient(actorId)
   private lazy val pythonProxyServer: PythonProxyServer =
     new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort, actorId)
 
@@ -118,8 +119,8 @@ class PythonWorkflowWorker(
   }
 
   override def preStart(): Unit = {
-    startPythonProcess()
     startProxyServer()
+    startPythonProcess()
     startProxyClient()
   }
 
@@ -135,13 +136,25 @@ class PythonWorkflowWorker(
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
 
+//    val fileNameInput = Paths.get("connection" + workerIndex.toString + "_input.info")
+//    val tempPathInput = Files.createFile(fileNameInput)
+//
+//    val fileNameOutput = Paths.get("connection" + workerIndex.toString + "_output.info")
+//    val tempPathOutput = Files.createFile(fileNameOutput)
+//    val actorName = "WORKER_PYTHON" + workerIndex
+//    val prints = tempPathInput.toString + " " + tempPathOutput.toString + " " + tempPathInput.getParent.toString + "connection" + workerIndex.toString
+    val prints = actorId.name
+    logger.info(s"try for: $prints")
+
     pythonServerProcess = Process(
       Seq(
         if (pythonENVPath.isEmpty) "python3"
         else pythonENVPath, // add fall back in case of empty
         "-u",
         udfEntryScriptPath,
-        Integer.toString(outputPortNum),
+//        actorName,
+        Paths.get("").toAbsolutePath.resolve("connection" + actorId.name).toAbsolutePath.toString,
+//        Integer.toString(outputPortNum),
         Integer.toString(inputPortNum),
         config.getString("python.log.streamHandler.level")
       )
