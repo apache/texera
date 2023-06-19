@@ -9,6 +9,7 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
+import { isDefined } from "../../../../../common/util/predicate";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -19,7 +20,7 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 })
 export class UserProjectSectionComponent implements OnInit {
   // information from the database about this project
-  public pid: number = 0;
+  public pid?: number = undefined;
   public name: string = "";
   public description: string = "";
   public ownerID: number = 0;
@@ -101,7 +102,9 @@ export class UserProjectSectionComponent implements OnInit {
     if (this.color === color) {
       return;
     }
-
+    if (!isDefined(this.pid)) {
+      return;
+    }
     this.userProjectService
       .updateProjectColor(this.pid, color)
       .pipe(untilDestroyed(this))
@@ -127,7 +130,7 @@ export class UserProjectSectionComponent implements OnInit {
     }
 
     this.userProjectService
-      .deleteProjectColor(this.pid)
+      .deleteProjectColor(this.pid!)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.color = null;
@@ -158,11 +161,17 @@ export class UserProjectSectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(
         () => {
+          if (!isDefined(this.pid)) {
+            return;
+          }
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         },
         (err: unknown) => {
           // @ts-ignore // TODO: fix this with notification component
           this.notificationService.error(err.error.message);
+          if (!isDefined(this.pid)) {
+            return;
+          }
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         }
       )
@@ -202,10 +211,16 @@ export class UserProjectSectionComponent implements OnInit {
    * @param userFileEntry
    */
   public deleteUserFileEntry(userFileEntry: DashboardFile): void {
+    if (!isDefined(this.pid)) {
+      return;
+    }
     this.userProjectService.deleteDashboardUserFileEntry(this.pid, userFileEntry);
   }
 
   private getUserProjectMetadata() {
+    if (!isDefined(this.pid)) {
+      return;
+    }
     this.userProjectService
       .retrieveProject(this.pid)
       .pipe(untilDestroyed(this))
@@ -237,7 +252,7 @@ export class UserProjectSectionComponent implements OnInit {
             }
 
             // get single project information
-            if (userProject.pid == this.pid) {
+            if (userProject.pid === this.pid) {
               this.name = userProject.name;
               this.description = userProject.description;
               this.ownerID = userProject.ownerID;

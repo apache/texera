@@ -31,6 +31,7 @@ import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SearchService } from "../../service/search.service";
 import { SortMethod } from "../../type/sort-method";
+import { isDefined } from "../../../../common/util/predicate";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 
@@ -92,7 +93,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
   // receive input from parent components (UserProjectSection), if any
-  @Input() public pid: number | null = null;
+  @Input() public pid?: number = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
@@ -179,7 +180,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
     let filterParams = this.filters.getSearchFilterParameters();
-    if (this.pid) {
+    if (isDefined(this.pid)) {
       // force the project id in the search query to be the current pid.
       filterParams.projectIds = [this.pid];
     }
@@ -224,7 +225,7 @@ export class UserWorkflowComponent implements AfterViewInit {
    */
   public onClickDuplicateWorkflow(entry: DashboardEntry): void {
     if (entry.workflow.workflow.wid) {
-      if (this.pid === 0) {
+      if (!isDefined(this.pid)) {
         // not nested within user project section
         this.workflowPersistService
           .duplicateWorkflow(entry.workflow.workflow.wid)
@@ -232,23 +233,24 @@ export class UserWorkflowComponent implements AfterViewInit {
           .subscribe({
             next: duplicatedWorkflowInfo => {
               this.searchResultsComponent.entries = [
-                ...this.searchResultsComponent.entries,
                 new DashboardEntry(duplicatedWorkflowInfo),
+                ...this.searchResultsComponent.entries,
               ];
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
       } else {
         // is nested within project section, also add duplicate workflow to project
+        let localPid = this.pid;
         this.workflowPersistService
           .duplicateWorkflow(entry.workflow.workflow.wid)
           .pipe(
             concatMap(duplicatedWorkflowInfo => {
               this.searchResultsComponent.entries = [
-                ...this.searchResultsComponent.entries,
                 new DashboardEntry(duplicatedWorkflowInfo),
+                ...this.searchResultsComponent.entries,
               ];
-              return this.userProjectService.addWorkflowToProject(this.pid!, duplicatedWorkflowInfo.workflow.wid!);
+              return this.userProjectService.addWorkflowToProject(localPid, duplicatedWorkflowInfo.workflow.wid!);
             }),
             catchError((err: unknown) => {
               throw err;
