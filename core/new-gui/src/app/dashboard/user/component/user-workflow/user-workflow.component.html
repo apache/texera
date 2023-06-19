@@ -4,7 +4,7 @@
     <nz-button-group
       class="utility-button-group"
       ngbDropdown>
-      <texera-sort-button [(entries)]="dashboardWorkflowEntries"></texera-sort-button>
+      <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <button
         (click)="onClickCreateNewWorkflowFromDashboard()"
         nz-button
@@ -45,7 +45,7 @@
       </nz-upload>
 
       <button
-        *ngIf="pid !== 0"
+        *ngIf="pid !== null"
         (click)="onClickOpenAddWorkflow()"
         nz-button
         title="Add workflow(s) to project"
@@ -58,7 +58,7 @@
           nzType="plus-square"></i>
       </button>
       <button
-        *ngIf="pid !== 0"
+        *ngIf="pid !== null"
         (click)="onClickOpenRemoveWorkflow()"
         nz-button
         title="Remove workflow(s) from project"
@@ -71,7 +71,9 @@
           nzType="minus-square"></i>
       </button>
     </nz-button-group>
-    <texera-filters #filters></texera-filters>
+    <texera-filters
+      [pid]="pid"
+      #filters></texera-filters>
   </nz-card>
 
   <div class="section-search-bar workflow-search-bar">
@@ -89,24 +91,8 @@
     </nz-select>
   </div>
 
-  <nz-card class="section-list-container">
-    <!-- itemSize: the height (px) of each list item,
-      this MUST be approximately the same as list item size set in CSS,
-      .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
-    -->
-    <cdk-virtual-scroll-viewport
-      itemSize="80"
-      class="virtual-scroll-container">
-      <nz-list>
-        <texera-user-workflow-list-item
-          [entry]="dashboardWorkflowEntry"
-          [owners]="(owners | async) ?? []"
-          (deleted)="deleteWorkflow(dashboardWorkflowEntry)"
-          (duplicated)="onClickDuplicateWorkflow(dashboardWorkflowEntry)"
-          [pid]="pid"
-          *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index">
-        </texera-user-workflow-list-item>
-      </nz-list>
-    </cdk-virtual-scroll-viewport>
-  </nz-card>
+  <texera-search-results
+    [editable]="true"
+    (deleted)="deleteWorkflow($event)"
+    (duplicated)="onClickDuplicateWorkflow($event)"></texera-search-results>
 </div>

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
-import { testWorkflowEntries } from "../user-workflow-test-fixtures";
+import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
 import { By } from "@angular/platform-browser";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
@@ -33,6 +33,7 @@ describe("UserWorkflowListItemComponent", () => {
     fixture = TestBed.createComponent(UserWorkflowListItemComponent);
     component = fixture.componentInstance;
     component.entry = testWorkflowEntries[0];
+    component.editable = true;
     fixture.detectChanges();
   });
 
@@ -42,16 +43,17 @@ describe("UserWorkflowListItemComponent", () => {
 
   it("sends http request to backend to retrieve export json", () => {
     // Test the workflow download button.
-    component.onClickDownloadWorkfllow(testWorkflowEntries[0]);
+    component.onClickDownloadWorkfllow();
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledOnceWith(
-      new Blob([JSON.stringify(testWorkflowEntries[0].workflow.content)], { type: "text/plain;charset=utf-8" }),
+      new Blob([JSON.stringify(testWorkflowEntries[0].workflow.workflow.content)], {
+        type: "text/plain;charset=utf-8",
+      }),
       "workflow 1.json"
     );
   });
 
   it("adding a workflow description adds a description to the workflow", waitForAsync(() => {
     fixture.whenStable().then(() => {
-      component.entry = { ...component.entry, workflow: { ...component.entry.workflow, description: undefined } };
       let addWorkflowDescriptionBtn = fixture.debugElement.query(By.css(".add-description-btn"));
       expect(addWorkflowDescriptionBtn).toBeTruthy();
       addWorkflowDescriptionBtn.triggerEventHandler("click", null);

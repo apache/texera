@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.Condition
+import org.jooq.{Condition, TableField}
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
 
@@ -61,13 +61,38 @@ object WorkflowResource {
     )
   }
 
-  case class DashboardWorkflowEntry(
+  case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
       projectIDs: List[UInteger]
   )
+
+  def createWorkflowFilterCondition(
+      creationStartDate: String,
+      creationEndDate: String,
+      modifiedStartDate: String,
+      modifiedEndDate: String,
+      workflowIDs: java.util.List[UInteger],
+      owners: java.util.List[String],
+      operators: java.util.List[String],
+      projectIds: java.util.List[UInteger]
+  ): Condition = {
+    noCondition()
+      // Apply creation_time date filter
+      .and(getDateFilter(creationStartDate, creationEndDate, WORKFLOW.CREATION_TIME))
+      // Apply lastModified_time date filter
+      .and(getDateFilter(modifiedStartDate, modifiedEndDate, WORKFLOW.LAST_MODIFIED_TIME))
+      // Apply workflowID filter
+      .and(getWorkflowIdFilter(workflowIDs))
+      // Apply owner filter
+      .and(getOwnerFilter(owners))
+      // Apply operators filter
+      .and(getOperatorsFilter(operators))
+      // Apply projectId filter
+      .and(getProjectFilter(projectIds, WORKFLOW_OF_PROJECT.PID))
+  }
 
   /**
     * Helper function to retrieve the owner filter.
@@ -95,11 +120,12 @@ object WorkflowResource {
     * Applies a filter based on the specified project IDs.
     *
     * @param projectIds The list of owner names to filter by.
+    * @param fieldToFilterOn the field for applying the project ids.
     * @return The projectId filter.
     */
   def getProjectFilter(
       projectIds: java.util.List[UInteger],
-      table: String = "workflow"
+      fieldToFilterOn: TableField[_, UInteger]
   ): Condition = {
     var projectIdFilter: Condition = noCondition()
     val projectIdSet: mutable.Set[UInteger] = mutable.Set()
@@ -107,12 +133,7 @@ object WorkflowResource {
       for (projectId <- projectIds) {
         if (!projectIdSet(projectId)) {
           projectIdSet += projectId
-          if (table == "workflow") {
-            projectIdFilter = projectIdFilter.or(WORKFLOW_OF_PROJECT.PID.eq(projectId))
-          } else if (table == "project") {
-            projectIdFilter = projectIdFilter.or(PROJECT.PID.eq(projectId))
-          }
-
+          projectIdFilter = projectIdFilter.or(fieldToFilterOn.eq(projectId))
         }
       }
     }
@@ -144,20 +165,17 @@ object WorkflowResource {
   /**
     * Returns a date filter condition for the specified date range and date type.
     *
-    * @param dateType  A string representing the type of date to filter by.
-    *                  Accepts "creation" for creation date or "modification" for modification date
     * @param startDate A string representing the start date of the filter range in "yyyy-MM-dd" format.
     *                  If empty, the default value "1970-01-01" will be used.
     * @param endDate   A string representing the end date of the filter range in "yyyy-MM-dd" format.
     *                  If empty, the default value "9999-12-31" will be used.
-    * @param resourceType A string representing type of resource, can only be 'workflow', 'project', 'file'
+    * @param fieldToFilterOn the field for applying the start and end dates.
     * @return A Condition object that can be used to filter workflows based on the date range and type.
     */
   def getDateFilter(
-      dateType: String,
       startDate: String,
       endDate: String,
-      resourceType: String
+      fieldToFilterOn: TableField[_, Timestamp]
   ): Condition = {
     var dateFilter: Condition = noCondition()
 
@@ -176,25 +194,7 @@ object WorkflowResource {
             new Timestamp(
               dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
             )
-        dateType match {
-          case "creation" =>
-            resourceType match {
-              case "workflow" =>
-                dateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
-              case "project" =>
-                dateFilter = PROJECT.CREATION_TIME.between(startTimestamp, endTimestamp)
-              case "file" => dateFilter = FILE.UPLOAD_TIME.between(startTimestamp, endTimestamp)
-            }
-          case "modification" =>
-            if (resourceType == "workflow") {
-              dateFilter = WORKFLOW.LAST_MODIFIED_TIME.between(startTimestamp, endTimestamp)
-            } else {
-              throw new IllegalArgumentException(
-                "DateType: modification can only be used when ResourceType is 'workflow'"
-              )
-            }
-          case _ => throw new IllegalArgumentException("Invalid dateType value")
-        }
+        dateFilter = fieldToFilterOn.between(startTimestamp, endTimestamp)
       } catch {
         case ex: ParseException =>
           println("Invalid date format. Please follow this date format: yyyy-MM-dd")
@@ -343,7 +343,7 @@ class WorkflowResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
-  ): List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
     val workflowEntries = context
       .select(
@@ -371,7 +371,7 @@ class WorkflowResource {
       .fetch()
     workflowEntries
       .map(workflowRecord =>
-        DashboardWorkflowEntry(
+        DashboardWorkflow(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)
@@ -462,7 +462,7 @@ class WorkflowResource {
   def duplicateWorkflow(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
-  ): DashboardWorkflowEntry = {
+  ): DashboardWorkflow = {
     val wid = workflow.getWid
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
@@ -498,14 +498,14 @@ class WorkflowResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflowEntry = {
+  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflow = {
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
       WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
-      DashboardWorkflowEntry(
+      DashboardWorkflow(
         isOwner = true,
         WorkflowUserAccessPrivilege.WRITE.toString,
         user.getName,
@@ -586,7 +586,7 @@ class WorkflowResource {
       @QueryParam("operator") operators: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("projectId") projectIds: java.util.List[UInteger] =
         new java.util.ArrayList[UInteger]()
-  ): List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
 
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
@@ -615,20 +615,16 @@ class WorkflowResource {
     }
 
     // combine all filters with AND
-    var optionalFilters: Condition = noCondition()
-    optionalFilters = optionalFilters
-      // Apply creation_time date filter
-      .and(getDateFilter("creation", creationStartDate, creationEndDate, "workflow"))
-      // Apply lastModified_time date filter
-      .and(getDateFilter("modification", modifiedStartDate, modifiedEndDate, "workflow"))
-      // Apply workflowID filter
-      .and(getWorkflowIdFilter(workflowIDs))
-      // Apply owner filter
-      .and(getOwnerFilter(owners))
-      // Apply operators filter
-      .and(getOperatorsFilter(operators))
-      // Apply projectId filter
-      .and(getProjectFilter(projectIds, "workflow"))
+    val optionalFilters: Condition = createWorkflowFilterCondition(
+      creationStartDate,
+      creationEndDate,
+      modifiedStartDate,
+      modifiedEndDate,
+      workflowIDs,
+      owners,
+      operators,
+      projectIds
+    )
 
     try {
       val workflowEntries = context
@@ -671,7 +667,7 @@ class WorkflowResource {
 
       workflowEntries
         .map(workflowRecord =>
-          DashboardWorkflowEntry(
+          DashboardWorkflow(
             workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
             workflowRecord
               .into(WORKFLOW_USER_ACCESS)
@@ -693,7 +689,7 @@ class WorkflowResource {
           "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?"
         )
         // return a empty list
-        List[DashboardWorkflowEntry]()
+        List[DashboardWorkflow]()
     }
   }
 

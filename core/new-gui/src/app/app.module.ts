@@ -124,6 +124,10 @@ import { UserProjectListItemComponent } from "./dashboard/user/component/user-pr
 import { SortButtonComponent } from "./dashboard/user/component/sort-button/sort-button.component";
 import { FiltersComponent } from "./dashboard/user/component/filters/filters.component";
 import { FiltersInstructionsComponent } from "./dashboard/user/component/filters-instructions/filters-instructions.component";
+import { UserFileListItemComponent } from "./dashboard/user/component/user-file/user-file-list-item/user-file-list-item.component";
+import { SearchComponent } from "./dashboard/user/component/search/search.component";
+import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
+import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 
 registerLocaleData(en);
 
@@ -189,6 +193,10 @@ registerLocaleData(en);
     SortButtonComponent,
     FiltersComponent,
     FiltersInstructionsComponent,
+    UserFileListItemComponent,
+    SearchComponent,
+    SearchResultsComponent,
+    PortPropertyEditFrameComponent,
   ],
   imports: [
     BrowserModule,
