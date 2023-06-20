@@ -1,5 +1,5 @@
 import { Component } from "@angular/core";
-import { FieldArrayType,FieldTypeConfig } from "@ngx-formly/core";
+import { FieldArrayType, FieldTypeConfig } from "@ngx-formly/core";
 
 @Component({
   // selector: 'formly-array-type',

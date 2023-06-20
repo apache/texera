@@ -617,7 +617,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 );
                 // @ts-ignore
                 const message = err.message;
-                if(field.validators === undefined){
+                if (field.validators === undefined) {
                   field.validators = {};
                 }
                 field.validators.checkAttributeType.message =

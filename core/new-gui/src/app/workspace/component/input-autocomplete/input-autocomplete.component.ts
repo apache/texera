@@ -12,7 +12,6 @@ import { map } from "rxjs";
   templateUrl: "./input-autocomplete.component.html",
   styleUrls: ["input-autocomplete.component.scss"],
 })
-
 export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   // the autocomplete selection list
   public suggestions: string[] = [];
