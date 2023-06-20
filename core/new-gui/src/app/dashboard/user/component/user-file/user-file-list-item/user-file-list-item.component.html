@@ -47,13 +47,15 @@
         <i
           *ngIf="entry.file.ownerUid === uid"
           class="file-is-owner-icon"
-          ngbTooltip="You are the OWNER"
+          nz-tooltip
+          nzTooltipTitle="You are the OWNER"
           nz-icon
           nzTheme="outline"
           nzType="user"></i>
         <i
           *ngIf="entry.file.ownerUid !== uid"
-          ngbTooltip="Access shared by {{ entry.ownerEmail }}"
+          nz-tooltip
+          nzTooltipTitle="Access shared by {{ entry.ownerEmail }}"
           nz-icon
           nzTheme="outline"
           nzType="team"></i>

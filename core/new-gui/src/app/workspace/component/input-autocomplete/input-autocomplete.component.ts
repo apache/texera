@@ -2,7 +2,6 @@ import { Component } from "@angular/core";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserFileService } from "src/app/dashboard/user/service/user-file/user-file.service";
-import { FormControl } from "@angular/forms";
 import { debounceTime } from "rxjs/operators";
 import { map } from "rxjs";
 

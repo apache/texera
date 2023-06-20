@@ -8,12 +8,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterModule } from "@angular/router";
-import { NgbModule, NgbPopoverModule } from "@ng-bootstrap/ng-bootstrap";
 import { FormlyModule } from "@ngx-formly/core";
-import { FormlyMaterialModule } from "@ngx-formly/material";
-import { FormlyMatDatepickerModule } from "@ngx-formly/material/datepicker";
-import { MatFormFieldModule } from "@angular/material/form-field";
-import { MatInputModule } from "@angular/material/input";
 import { NgPipesModule } from "ngx-pipes";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
@@ -130,6 +125,7 @@ import { UserFileListItemComponent } from "./dashboard/user/component/user-file/
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
+import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 
 registerLocaleData(en);
 
@@ -214,15 +210,12 @@ registerLocaleData(en);
     MatTooltipModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,
-    NgbModule,
-    NgbPopoverModule,
     RouterModule.forRoot([]),
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-    FormlyMaterialModule,
-    FormlyMatDatepickerModule,
+    FormlyNgZorroAntdModule,
     NzDatePickerModule,
     NzDropDownModule,
     NzButtonModule,
@@ -266,8 +259,6 @@ registerLocaleData(en);
     NzLayoutModule,
     MarkdownModule.forRoot(),
     DragDropModule,
-    MatInputModule,
-    MatFormFieldModule,
   ],
   providers: [
     AuthGuardService,

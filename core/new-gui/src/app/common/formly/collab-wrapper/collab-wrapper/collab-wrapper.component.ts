@@ -1,5 +1,5 @@
 import { AfterContentInit, Component, ElementRef, ViewChild } from "@angular/core";
-import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
+import { FieldTypeConfig, FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { merge } from "lodash";
 import Quill from "quill";
@@ -48,7 +48,7 @@ Quill.register("modules/cursors", QuillCursors);
   templateUrl: "./collab-wrapper.component.html",
   styleUrls: ["./collab-wrapper.component.css"],
 })
-export class CollabWrapperComponent extends FieldWrapper implements AfterContentInit {
+export class CollabWrapperComponent extends FieldWrapper<FieldTypeConfig> implements AfterContentInit {
   private quill?: Quill;
   private currentOperatorId: string = "";
   private operatorType: string = "";

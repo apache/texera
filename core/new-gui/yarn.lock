@@ -2402,13 +2402,6 @@
   dependencies:
     tslib "^2.0.0"
 
-"@ngx-formly/material@6.1.8":
-  version "6.1.8"
-  resolved "https://registry.yarnpkg.com/@ngx-formly/material/-/material-6.1.8.tgz#249c19d52a93f7079ac1a729eba16617a83508c9"
-  integrity sha512-J7g/hL5g4zQQFz58TXZexhxNjicoHPRi6a+3lWKSSSv+zVyJrEy2ZFqohviHA5rm66esSHOpO2yWm0wQsjbmWA==
-  dependencies:
-    tslib "^2.0.0"
-
 "@ngx-formly/ng-zorro-antd@6.1.8":
   version "6.1.8"
   resolved "https://registry.yarnpkg.com/@ngx-formly/ng-zorro-antd/-/ng-zorro-antd-6.1.8.tgz#83a13ba3379e2a36aae878a7f24b443b38f3c60d"
@@ -10348,12 +10341,12 @@ ng-zorro-antd@13.2.2:
     date-fns "^2.16.1"
     tslib "^2.3.0"
 
-ng2-file-upload@1.4.0:
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/ng2-file-upload/-/ng2-file-upload-1.4.0.tgz#8dea28d573234c52af474ad2a4001b335271e5c4"
-  integrity sha512-3J/KPU/tyh/ad6TFeUbrxX+SihUj0iOEt2Zsg4EX7mB3GFiQscXOfcUOxCkBtPWWWaqt3azrYbVGzsYa3/7NzQ==
+ng2-file-upload@2.0.0-3:
+  version "2.0.0-3"
+  resolved "https://registry.yarnpkg.com/ng2-file-upload/-/ng2-file-upload-2.0.0-3.tgz#0d95df9e59579fc142f62ac020cf16367c811d09"
+  integrity sha512-x0BWVJVO3uyc7l/6BWkdvXuAcDv5Jfnf3AGaxIGYGMxNb+64wuVzIjrAhwsoYyIR7qV2Q0X98UGkArq3jpr/hA==
   dependencies:
-    tslib "^1.9.0"
+    tslib "^2.0.0"
 
 ngx-bootstrap@5.6.2:
   version "5.6.2"
