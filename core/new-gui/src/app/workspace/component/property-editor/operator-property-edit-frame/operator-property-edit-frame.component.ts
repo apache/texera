@@ -617,6 +617,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 );
                 // @ts-ignore
                 const message = err.message;
+                if(field.validators === undefined){
+                  field.validators = {};
+                }
                 field.validators.checkAttributeType.message =
                   `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + message;
                 return false;
@@ -666,7 +669,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         }
       });
     }
-
     // not return field.fieldGroup directly because
     // doing so the validator in the field will not be triggered
     this.formlyFields = [field];

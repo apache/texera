@@ -1,12 +1,12 @@
 import { Component } from "@angular/core";
-import { FieldArrayType } from "@ngx-formly/core";
+import { FieldArrayType,FieldTypeConfig } from "@ngx-formly/core";
 
 @Component({
   // selector: 'formly-array-type',
   template: `
     <div class="mb-3">
-      <legend *ngIf="to.label">{{ to.label }}</legend>
-      <p *ngIf="to.description">{{ to.description }}</p>
+      <legend *ngIf="props.label">{{ props.label }}</legend>
+      <p *ngIf="props.description">{{ props.description }}</p>
 
       <div
         class="alert alert-danger"
@@ -22,7 +22,7 @@ import { FieldArrayType } from "@ngx-formly/core";
           class="col-10"
           [field]="field"></formly-field>
         <div
-          *ngIf="field.templateOptions?.removable !== false"
+          *ngIf="field.props?.removable !== false"
           class="col-2 text-right">
           <button
             class="btn btn-danger"
@@ -46,7 +46,7 @@ import { FieldArrayType } from "@ngx-formly/core";
     </div>
   `,
 })
-export class ArrayTypeComponent extends FieldArrayType {}
+export class ArrayTypeComponent extends FieldArrayType<FieldTypeConfig> {}
 
 /**  Copyright 2018 Google Inc. All Rights Reserved.
  Use of this source code is governed by an MIT-style license that

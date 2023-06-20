@@ -32,7 +32,7 @@ class PlainClipboard extends Clipboard {
 
 Quill.register(
   {
-    "modules/clipboard": PlainClipboard,
+    "modules/clipboard": PlainClipboard
   },
   true
 );
@@ -46,7 +46,7 @@ Quill.register("modules/cursors", QuillCursors);
 @UntilDestroy()
 @Component({
   templateUrl: "./collab-wrapper.component.html",
-  styleUrls: ["./collab-wrapper.component.css"],
+  styleUrls: ["./collab-wrapper.component.css"]
 })
 export class CollabWrapperComponent extends FieldWrapper implements AfterContentInit {
   private quill?: Quill;
@@ -54,7 +54,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
   private operatorType: string = "";
   private quillBinding?: QuillBinding;
   private sharedText?: Y.Text;
-  @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
+  @ViewChild("editor", { static: true }) divEditor?: ElementRef;
 
   constructor(private workflowActionService: WorkflowActionService) {
     super();
@@ -72,13 +72,13 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
 
   private setUpYTextEditor() {
     setTimeout(() => {
-      if (this.field.key === undefined || this.field.templateOptions === undefined) {
+      if (this.field.key === undefined || this.field.props === undefined) {
         throw Error(
           `form collab-wrapper field ${this.field} doesn't contain necessary .key and .templateOptions.presetKey attributes`
         );
       } else {
-        this.currentOperatorId = this.field.templateOptions.currentOperatorId;
-        this.operatorType = this.field.templateOptions.operatorType;
+        this.currentOperatorId = this.field.props.currentOperatorId;
+        this.operatorType = this.field.props.operatorType;
         let parents = [this.field.key];
         let parent = this.field.parent;
         while (parent?.key !== undefined) {
@@ -148,29 +148,31 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
         history: {
           // Local undo shouldn't undo changes
           // from remote users
-          userOnly: true,
+          userOnly: true
         },
         // Disable newline on enter and instead quit editing
         keyboard:
           this.field.type === "textarea"
             ? {}
             : {
-                bindings: {
-                  enter: {
-                    key: 13,
-                    handler: () => {},
-                  },
-                  shift_enter: {
-                    key: 13,
-                    shiftKey: true,
-                    handler: () => {},
-                  },
+              bindings: {
+                enter: {
+                  key: 13,
+                  handler: () => {
+                  }
                 },
-              },
+                shift_enter: {
+                  key: 13,
+                  shiftKey: true,
+                  handler: () => {
+                  }
+                }
+              }
+            }
       },
       formats: [],
       placeholder: "Start collaborating...",
-      theme: "bubble",
+      theme: "bubble"
     });
     this.quill.enable(this.evaluateInteractivity());
   }
@@ -199,10 +201,10 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
       wrappers: includePresetWrapper
         ? ["form-field", "preset-wrapper", "collab-wrapper"]
         : ["form-field", "collab-wrapper"],
-      templateOptions: {
+      props: {
         operatorType: operatorType,
-        currentOperatorId: currentOperatorId,
-      },
+        currentOperatorId: currentOperatorId
+      }
     };
     merge(mappedField, fieldConfig);
   }

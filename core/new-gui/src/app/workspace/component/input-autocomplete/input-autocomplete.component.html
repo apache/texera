@@ -1,16 +1,21 @@
 <mat-form-field>
-  <mat-label> {{ this.field?.templateOptions?.label }} </mat-label>
+  <nz-form-label> {{ this.field?.props?.label }} </nz-form-label>
   <input
+    type="input"
     (input)="autocomplete()"
     (focus)="autocomplete()"
-    [formControl]="getControl()"
-    [(ngModel)]="field?.formControl.value"
     matInput
     required
-    [nzAutocomplete]="auto" />
-  <mat-error>
+    [nzAutocomplete]="auto"
+    [formControl]="formControl"
+    [formlyAttributes]="field"
+  />
+  <div
+    class="alert alert-danger"
+    role="alert"
+    *ngIf="showError && formControl.errors">
     <formly-validation-message [field]="field"></formly-validation-message>
-  </mat-error>
+  </div>
   <nz-autocomplete
     [nzDataSource]="suggestions"
     nzBackfill

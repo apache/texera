@@ -12,6 +12,8 @@ import { NgbModule, NgbPopoverModule } from "@ng-bootstrap/ng-bootstrap";
 import { FormlyModule } from "@ngx-formly/core";
 import { FormlyMaterialModule } from "@ngx-formly/material";
 import { FormlyMatDatepickerModule } from "@ngx-formly/material/datepicker";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatInputModule } from "@angular/material/input";
 import { NgPipesModule } from "ngx-pipes";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
@@ -264,6 +266,8 @@ registerLocaleData(en);
     NzLayoutModule,
     MarkdownModule.forRoot(),
     DragDropModule,
+    MatInputModule,
+    MatFormFieldModule,
   ],
   providers: [
     AuthGuardService,
