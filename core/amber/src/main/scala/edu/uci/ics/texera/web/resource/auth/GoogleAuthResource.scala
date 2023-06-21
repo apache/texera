@@ -39,12 +39,13 @@ class GoogleAuthResource {
   def login(credential: String): TokenIssueResponse = {
     if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
       throw new NotAcceptableException("User System is disabled on the backend!")
-    val idToken = new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
-      .setAudience(
-        Collections.singletonList(clientId)
-      )
-      .build()
-      .verify(credential)
+    val idToken =
+      new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
+        .setAudience(
+          Collections.singletonList(clientId)
+        )
+        .build()
+        .verify(credential)
     if (idToken != null) {
       val payload = idToken.getPayload
       val googleId = payload.getSubject
