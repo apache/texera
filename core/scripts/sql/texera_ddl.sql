@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
 
 SET GLOBAL time_zone = '+00:00'; -- this line is mandatory
+SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
 
 CREATE TABLE IF NOT EXISTS user
 (
@@ -129,6 +130,18 @@ CREATE TABLE IF NOT EXISTS workflow_of_project
      FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
+
+CREATE TABLE IF NOT EXISTS project_user_access
+(
+    `uid`             INT UNSIGNED NOT NULL,
+    `pid`             INT UNSIGNED NOT NULL,
+    `privilege`          ENUM('NONE', 'READ', 'WRITE') NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (`uid`, `pid`),
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
+
 CREATE TABLE IF NOT EXISTS file_of_project
 (
      `fid`            INT UNSIGNED                     NOT NULL,
@@ -163,3 +176,13 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
+
+-- create fulltext search indexes
+
+CREATE FULLTEXT INDEX `idx_workflow_name_description_content` ON `texera_db`.`workflow` (name, description, content);
+
+CREATE FULLTEXT INDEX `idx_user_name` ON `texera_db`.`user` (name);
+
+CREATE FULLTEXT INDEX `idx_user_project_name_description` ON `texera_db`.`project` (name, description);
+
+CREATE FULLTEXT INDEX `idx_file_name_description` ON `texera_db`.`file` (name, description);

@@ -26,6 +26,6 @@ export class UserIconComponent {
    */
   public onClickLogout(): void {
     this.userService.logout();
-    location.reload();
+    window.location.href = "home";
   }
 }

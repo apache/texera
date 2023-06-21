@@ -6,15 +6,7 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
 }
 
 import java.io.{DataInputStream, DataOutputStream}
-import java.nio.file.{
-  CopyOption,
-  Files,
-  OpenOption,
-  Path,
-  Paths,
-  StandardCopyOption,
-  StandardOpenOption
-}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption, StandardOpenOption}
 
 class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
 

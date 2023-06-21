@@ -95,7 +95,7 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
       includeLeftBound: Boolean,
       includeRightBound: Boolean,
       timeIntervalType: TimeIntervalType
-  ) {
+  ) = {
     this() // Calling primary constructor, and it is first line
     this.leftAttributeName = leftTableAttributeName
     this.rightAttributeName = rightTableAttributeName

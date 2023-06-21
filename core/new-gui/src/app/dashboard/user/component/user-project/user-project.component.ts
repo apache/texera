@@ -1,9 +1,9 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../service/user-project/user-project.service";
-import { UserProject } from "../../type/user-project";
-import { Router } from "@angular/router";
+import { DashboardProject } from "../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { UserService } from "../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
@@ -13,10 +13,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 })
 export class UserProjectComponent implements OnInit {
   // store list of projects / variables to create and edit projects
-  public userProjectEntries: UserProject[] = [];
-  public userProjectEntriesIsEditingName: number[] = [];
-  public userProjectEntriesIsEditingDescription: number[] = [];
-  public collapsedProjectDescriptions: number[] = [];
+  public userProjectEntries: DashboardProject[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
 
@@ -25,91 +22,23 @@ export class UserProjectComponent implements OnInit {
   public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
   public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
-
-  public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
-  public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
+  public uid: number | undefined;
 
   constructor(
     private userProjectService: UserProjectService,
-    private router: Router,
-    private notificationService: NotificationService
-  ) {}
+    private notificationService: NotificationService,
+    private userService: UserService
+  ) {
+    this.uid = this.userService.getCurrentUser()?.uid;
+  }
 
   ngOnInit(): void {
     this.getUserProjectArray();
   }
 
-  public removeEditNameStatus(pid: number) {
-    this.userProjectEntriesIsEditingName = this.userProjectEntriesIsEditingName.filter(index => index != pid);
-  }
-
-  public removeEditDescriptionStatus(pid: number) {
-    this.userProjectEntriesIsEditingDescription = this.userProjectEntriesIsEditingDescription.filter(
-      index => index != pid
-    );
-  }
-
-  public removeCollapsedProjectDescriptionStatus(pid: number) {
-    this.collapsedProjectDescriptions = this.collapsedProjectDescriptions.filter(index => index != pid);
-  }
-
-  public saveProjectDescription(project: UserProject, newDescr: string, index: number): void {
-    // nothing happens if description is the same
-    if (project.description === newDescr) {
-      this.removeEditDescriptionStatus(project.pid);
-      return;
-    }
-
-    // update the project's description
-    this.userProjectService
-      .updateProjectDescription(project.pid, newDescr)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        () => {
-          let updatedProjectEntry = { ...project };
-          updatedProjectEntry.description = newDescr;
-          const newEntries = this.userProjectEntries.slice();
-          newEntries[index] = updatedProjectEntry;
-          this.userProjectEntries = newEntries;
-          this.notificationService.success(`Saved description for project: "${project.name}".`);
-        },
-        (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        }
-      )
-      .add(() => {
-        this.removeEditDescriptionStatus(project.pid);
-      });
-  }
-
-  public saveProjectName(project: UserProject, newName: string): void {
-    // nothing happens if name is the same
-    if (project.name === newName) {
-      this.removeEditNameStatus(project.pid);
-    } else if (this.isValidNewProjectName(newName, project)) {
-      this.userProjectService
-        .updateProjectName(project.pid, newName)
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          () => {
-            this.removeEditNameStatus(project.pid);
-            this.getUserProjectArray(); // refresh list of projects, name is read only property so cannot edit
-          },
-          (err: unknown) => {
-            // @ts-ignore
-            this.notificationService.error(err.error.message);
-          }
-        );
-    } else {
-      // show error message and do not call backend
-      this.notificationService.error(`Cannot create project named: "${newName}".  It must be a non-empty, unique name`);
-    }
-  }
-
   public deleteProject(pid: number): void {
     if (pid == undefined) {
-      return;
+      throw new Error("pid is undefined in deleteProject().");
     }
     this.userProjectService
       .deleteProject(pid)
@@ -131,8 +60,8 @@ export class UserProjectComponent implements OnInit {
       this.userProjectService
         .createProject(this.createProjectName)
         .pipe(untilDestroyed(this))
-        .subscribe(
-          createdProject => {
+        .subscribe({
+          next: createdProject => {
             this.userProjectEntries.push(createdProject); // update local list of projects
 
             // add color wheel input record for the newly created, colorless project
@@ -142,89 +71,17 @@ export class UserProjectComponent implements OnInit {
 
             this.unclickCreateButton();
           },
-          (err: unknown) => {
+          error: (err: unknown) => {
             // @ts-ignore
             this.notificationService.error(err.error.message);
-          }
-        );
+          },
+        });
     } else {
       // show error message and don't call backend
       this.notificationService.error(
         `Cannot create project named: "${this.createProjectName}".  It must be a non-empty, unique name`
       );
     }
-  }
-
-  public updateProjectColor(dashboardProjectEntry: UserProject, index: number) {
-    let color: string =
-      this.userProjectInputColors[this.userProjectToColorInputIndexMap.get(dashboardProjectEntry.pid)!].substring(1);
-    this.colorInputToggleArray[index] = false;
-
-    // validate that color is in proper HEX format
-    if (this.userProjectService.isInvalidColorFormat(color)) {
-      this.notificationService.error(
-        `Cannot update color for project: "${dashboardProjectEntry.name}".  It must be a valid HEX color format`
-      );
-      return;
-    }
-
-    if (color === this.userProjectEntries[index].color) {
-      return;
-    }
-
-    this.userProjectService
-      .updateProjectColor(dashboardProjectEntry.pid, color)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          // update local cache of project entries
-          let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
-          updatedDashboardProjectEntry.color = color;
-          const newProjectEntries = this.userProjectEntries.slice();
-          newProjectEntries[index] = updatedDashboardProjectEntry;
-          this.userProjectEntries = newProjectEntries;
-
-          // update color brightness record for this project
-          this.colorBrightnessMap.set(dashboardProjectEntry.pid, this.userProjectService.isLightColor(color));
-        },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
-      });
-  }
-
-  public removeProjectColor(dashboardProjectEntry: UserProject, index: number) {
-    this.colorInputToggleArray[index] = false;
-
-    if (dashboardProjectEntry.color == null) {
-      this.notificationService.error(`There is no color to delete for project: "${dashboardProjectEntry.name}"`);
-      return;
-    }
-
-    this.userProjectService
-      .deleteProjectColor(dashboardProjectEntry.pid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: _ => {
-          // update local cache of project entries
-          let updatedDashboardProjectEntry = { ...dashboardProjectEntry };
-          updatedDashboardProjectEntry.color = null;
-          const newProjectEntries = this.userProjectEntries.slice();
-          newProjectEntries[index] = updatedDashboardProjectEntry;
-          this.userProjectEntries = newProjectEntries;
-
-          // remove records of this project from color data structures
-          if (this.colorBrightnessMap.has(dashboardProjectEntry.pid)) {
-            this.colorBrightnessMap.delete(dashboardProjectEntry.pid);
-          }
-          this.userProjectInputColors[index] = "#ffffff"; // reset color wheel
-        },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
-      });
   }
 
   public sortByCreationTime(): void {
@@ -242,30 +99,16 @@ export class UserProjectComponent implements OnInit {
   }
 
   private getUserProjectArray() {
+    this.userProjectService.refreshProjectList();
     this.userProjectService
       .retrieveProjectList()
       .pipe(untilDestroyed(this))
       .subscribe(projectEntries => {
         this.userProjectEntries = projectEntries;
-
-        // map each pid to important color information, for access in HTML template
-        let index = 0;
-        for (var project of projectEntries) {
-          // used to store each project's updated color (via color wheel)
-          this.userProjectToColorInputIndexMap.set(project.pid, index);
-          this.userProjectInputColors.push(project.color == null ? "#ffffff" : "#" + project.color);
-          this.colorInputToggleArray.push(false);
-
-          // determine whether each project's color is light or dark
-          if (project.color != null) {
-            this.colorBrightnessMap.set(project.pid, this.userProjectService.isLightColor(project.color));
-          }
-          index++;
-        }
       });
   }
 
-  private isValidNewProjectName(newName: string, oldProject?: UserProject): boolean {
+  private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {
     if (typeof oldProject === "undefined") {
       return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
     } else {

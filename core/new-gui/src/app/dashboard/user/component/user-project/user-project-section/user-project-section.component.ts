@@ -8,7 +8,8 @@ import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { UserProject } from "../../../type/user-project";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
+import { isDefined } from "../../../../../common/util/predicate";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -19,7 +20,7 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 })
 export class UserProjectSectionComponent implements OnInit {
   // information from the database about this project
-  public pid: number = 0;
+  public pid?: number = undefined;
   public name: string = "";
   public description: string = "";
   public ownerID: number = 0;
@@ -34,7 +35,7 @@ export class UserProjectSectionComponent implements OnInit {
   public updateProjectStatus = ""; // track any updates to user project for child components to rerender
 
   // temporarily here for file section color tags, TODO : remove once file service PR approved
-  public userProjectsMap: ReadonlyMap<number, UserProject> = new Map(); // maps pid to its corresponding UserProject
+  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
   public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
 
   // ----- for file card
@@ -86,14 +87,14 @@ export class UserProjectSectionComponent implements OnInit {
   /**
    * navigate to another project page
    */
-  public jumpToProject({ pid }: UserProject): void {
+  public jumpToProject({ pid }: DashboardProject): void {
     this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
   public updateProjectColor(color: string) {
     color = color.substring(1);
     this.colorPickerIsSelected = false;
 
-    if (this.userProjectService.isInvalidColorFormat(color)) {
+    if (UserProjectService.isInvalidColorFormat(color)) {
       this.notificationService.error("Cannot update project color. Color must be in valid HEX format");
       return;
     }
@@ -101,14 +102,16 @@ export class UserProjectSectionComponent implements OnInit {
     if (this.color === color) {
       return;
     }
-
+    if (!isDefined(this.pid)) {
+      return;
+    }
     this.userProjectService
       .updateProjectColor(this.pid, color)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
           this.color = color;
-          this.colorIsBright = this.userProjectService.isLightColor(this.color);
+          this.colorIsBright = UserProjectService.isLightColor(this.color);
           this.updateProjectStatus = "updated project color"; // cause workflow / file components to update project filtering list
         },
         error: (err: unknown) => {
@@ -127,7 +130,7 @@ export class UserProjectSectionComponent implements OnInit {
     }
 
     this.userProjectService
-      .deleteProjectColor(this.pid)
+      .deleteProjectColor(this.pid!)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.color = null;
@@ -158,11 +161,17 @@ export class UserProjectSectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(
         () => {
+          if (!isDefined(this.pid)) {
+            return;
+          }
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         },
         (err: unknown) => {
           // @ts-ignore // TODO: fix this with notification component
           this.notificationService.error(err.error.message);
+          if (!isDefined(this.pid)) {
+            return;
+          }
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         }
       )
@@ -202,25 +211,30 @@ export class UserProjectSectionComponent implements OnInit {
    * @param userFileEntry
    */
   public deleteUserFileEntry(userFileEntry: DashboardFile): void {
+    if (!isDefined(this.pid)) {
+      return;
+    }
     this.userProjectService.deleteDashboardUserFileEntry(this.pid, userFileEntry);
   }
 
   private getUserProjectMetadata() {
-    // TODO : temporarily removed, revert back to retrieving data for just a single project after future PR to reuse UserFileSection component
-    // this.userProjectService
-    //   .retrieveProject(this.pid)
-    //   .pipe(untilDestroyed(this))
-    //   .subscribe(project => {
-    //     this.name = project.name;
-    //     this.ownerID = project.ownerID;
-    //     this.creationTime = project.creationTime;
-    //     if (project.color != null) {
-    //       this.color = project.color;
-    //       this.inputColor = "#" + project.color;
-    //       this.colorIsBright = this.userProjectService.isLightColor(project.color);
-    //     }
-    //     this.projectDataIsLoaded = true;
-    //   });
+    if (!isDefined(this.pid)) {
+      return;
+    }
+    this.userProjectService
+      .retrieveProject(this.pid)
+      .pipe(untilDestroyed(this))
+      .subscribe(project => {
+        this.name = project.name;
+        this.ownerID = project.ownerID;
+        this.creationTime = project.creationTime;
+        if (project.color != null) {
+          this.color = project.color;
+          this.inputColor = "#" + project.color;
+          this.colorIsBright = UserProjectService.isLightColor(project.color);
+        }
+        this.projectDataIsLoaded = true;
+      });
 
     this.userProjectService
       .retrieveProjectList()
@@ -234,11 +248,11 @@ export class UserProjectSectionComponent implements OnInit {
           const projectColorBrightnessMap: Map<number, boolean> = new Map();
           userProjectList.forEach(userProject => {
             if (userProject.color != null) {
-              projectColorBrightnessMap.set(userProject.pid, this.userProjectService.isLightColor(userProject.color));
+              projectColorBrightnessMap.set(userProject.pid, UserProjectService.isLightColor(userProject.color));
             }
 
             // get single project information
-            if (userProject.pid == this.pid) {
+            if (userProject.pid === this.pid) {
               this.name = userProject.name;
               this.description = userProject.description;
               this.ownerID = userProject.ownerID;
@@ -246,7 +260,7 @@ export class UserProjectSectionComponent implements OnInit {
               if (userProject.color != null) {
                 this.color = userProject.color;
                 this.inputColor = "#" + userProject.color;
-                this.colorIsBright = this.userProjectService.isLightColor(userProject.color);
+                this.colorIsBright = UserProjectService.isLightColor(userProject.color);
               }
             }
           });

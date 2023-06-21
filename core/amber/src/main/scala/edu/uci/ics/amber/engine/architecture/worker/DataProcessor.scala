@@ -25,7 +25,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   UNINITIALIZED
 }
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, EpochMarker}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
@@ -46,7 +46,6 @@ import edu.uci.ics.amber.engine.common.{
 import edu.uci.ics.amber.error.ErrorUtils.safely
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
-import scala.collection.mutable
 
 class DataProcessor( // dependencies:
     val workerIndex: Int,

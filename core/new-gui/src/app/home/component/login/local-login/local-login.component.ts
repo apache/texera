@@ -2,7 +2,11 @@ import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { HttpErrorResponse } from "@angular/common/http";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { catchError } from "rxjs/operators";
+import { throwError } from "rxjs";
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
@@ -14,7 +18,13 @@ export class LocalLoginComponent {
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
-  constructor(private formBuilder: FormBuilder, private userService: UserService, private router: Router) {
+  constructor(
+    private formBuilder: FormBuilder,
+    private userService: UserService,
+    private route: ActivatedRoute,
+    private notificationService: NotificationService,
+    private router: Router
+  ) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
@@ -55,11 +65,21 @@ export class LocalLoginComponent {
 
     this.userService
       .login(username, password)
-      .pipe(untilDestroyed(this))
+      .pipe(
+        catchError((err: unknown) => {
+          if (err instanceof HttpErrorResponse) {
+            this.notificationService.error(err.error.message, {
+              nzDuration: 0,
+            });
+          }
+          return throwError(() => err);
+        }),
+        untilDestroyed(this)
+      )
       .subscribe(
+        // The new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
         Zone.current.wrap(() => {
-          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-          this.router.navigate(["/dashboard/workflow"]);
+          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow");
         }, "")
       );
   }
@@ -90,11 +110,21 @@ export class LocalLoginComponent {
     // register the credentials with backend
     this.userService
       .register(registerUsername, registerPassword)
-      .pipe(untilDestroyed(this))
+      .pipe(
+        catchError((err: unknown) => {
+          if (err instanceof HttpErrorResponse) {
+            this.notificationService.error(err.error.message, {
+              nzDuration: 0,
+            });
+          }
+          return throwError(() => err);
+        }),
+        untilDestroyed(this)
+      )
       .subscribe(
+        // The new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
         Zone.current.wrap(() => {
-          // TODO temporary solution: the new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-          this.router.navigate(["/dashboard/workflow"]);
+          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow");
         }, "")
       );
   }

@@ -21,3 +21,14 @@
   font-size: 0.5em;
   color: gray;
 }
+
+::ng-deep {
+  // overwrite the color of the Formly error message box
+  .texera-workspace-property-editor-form {
+    [role="alert"] {
+      color: #856404;
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+    }
+  }
+}

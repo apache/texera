@@ -9,6 +9,7 @@ from core.models import (
     BatchLike,
     TableOperator,
     BatchOperator,
+    SourceOperator,
     TupleOperatorV2,
 )
 
@@ -24,4 +25,5 @@ __all__ = [
     "TableOperator",
     "BatchOperator",
     "TupleOperatorV2",
+    "SourceOperator",
 ]
