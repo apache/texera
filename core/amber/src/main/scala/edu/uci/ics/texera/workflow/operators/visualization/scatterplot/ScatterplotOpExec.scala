@@ -30,6 +30,7 @@ object ScatterplotOpExec {
     }
   }
 }
+
 class ScatterplotOpExec(
     private val opDesc: ScatterplotOpDesc,
     private val operatorSchemaInfo: OperatorSchemaInfo
