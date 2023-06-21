@@ -37,6 +37,8 @@ class ScatterplotOpExec(
   this.setFlatMapFunc(this.process)
   private val pixelGrid: Option[Array[Array[Boolean]]] =
     if (opDesc.isGeometric) {
+      // maintain a pixel grid to cache the shown points.
+      // depending on the resolution, it will only show one point per grid.
       Some(Array.ofDim[Boolean](Constants.MAX_RESOLUTION_ROWS, Constants.MAX_RESOLUTION_COLUMNS))
     } else {
       None
@@ -54,6 +56,7 @@ class ScatterplotOpExec(
         )
         .toInt
       if (pixelGrid.get(row_index)(column_index)) {
+        // ignore the point as another point on the same grid is shown already.
         return Iterator()
       }
       pixelGrid.get(row_index)(column_index) = true
