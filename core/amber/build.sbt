@@ -61,7 +61,7 @@ val akkaDependencies = Seq(
 val dropwizardVersion = "1.3.23"
 // jersey version should be the same as jersey-server that is contained in dropwizard
 val jerseyMultipartVersion = "2.25.1"
-val jacksonVersion = "2.13.2"
+
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-client" % dropwizardVersion,
@@ -72,22 +72,16 @@ val dropwizardDependencies = Seq(
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
-  // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
-  "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.11.0"
 )
 
-// deps from library
-//"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
-val slf4jVersion = "1.7.26"
+val jacksonVersion = "2.15.1"
 val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
-  "org.slf4j" % "slf4j-api" % slf4jVersion,
+  "org.slf4j" % "slf4j-api" % "1.7.26",
   "io.github.classgraph" % "classgraph" % "4.8.21",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
@@ -95,7 +89,11 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion % "test",
   "joda-time" % "joda-time" % "2.10.1" % "test",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test"
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
+  "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
+  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
+  "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -132,7 +130,7 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "11.0.0"
+val arrowVersion = "12.0.1"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
