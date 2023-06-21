@@ -49,7 +49,8 @@ class ScatterplotVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     scatterplotOpExec.open()
   }
 
-  it should "output the correct schema for geometric for the frontend to render it and process only one tuple because the other falls on the same pixel" in {
+  it should "output the correct schema for geometric for the frontend to render it and process only one tuple " +
+    "because the other falls on the same pixel" in {
     val processedTuple: Tuple =
       scatterplotOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
     assert(processedTuple.getField("xColumn").asInstanceOf[Double] == 73.142)
