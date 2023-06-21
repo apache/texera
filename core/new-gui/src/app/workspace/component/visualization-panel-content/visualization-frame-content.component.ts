@@ -6,14 +6,15 @@ import * as cloud from "d3-cloud";
 import { ChartType, WordCloudTuple } from "../../types/visualization.interface";
 import { merge, Subject } from "rxjs";
 import { environment } from "src/environments/environment";
-import * as mapboxgl from "mapbox-gl";
-import { MapboxLayer } from "@deck.gl/mapbox";
-import { ScatterplotLayer } from "@deck.gl/layers";
-import { ScatterplotLayerProps } from "@deck.gl/layers/scatterplot-layer/scatterplot-layer";
+
+import { MapboxLayer } from "@deck.gl/mapbox/typed";
+import { ScatterplotLayer, ScatterplotLayerProps } from "@deck.gl/layers/typed";
+
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, debounceTime } from "rxjs/operators";
 import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
+import * as mapboxgl from "mapbox-gl";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -33,7 +34,7 @@ type WordCloudControlsType = {
 @Component({
   selector: "texera-visualization-panel-content",
   templateUrl: "./visualization-frame-content.component.html",
-  styleUrls: ["./visualization-frame-content.component.scss"],
+  styleUrls: ["./visualization-frame-content.component.scss"]
 })
 export class VisualizationFrameContentComponent implements OnInit, AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
@@ -48,20 +49,21 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   public static readonly UPDATE_INTERVAL_MS = 2000;
   public static readonly WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS = 50;
 
-  private static readonly props: ScatterplotLayerProps<any> = {
-    opacity: 0.8,
-    filled: true,
-    radiusScale: 100,
-    radiusMinPixels: 1,
-    radiusMaxPixels: 25,
-    getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
-    getFillColor: [57, 73, 171],
-  };
+  // private props: ScatterplotLayerProps = {
+  //   opacity: 0.8,
+  //   filled: true,
+  //   radiusScale: 100,
+  //   radiusMinPixels: 1,
+  //   radiusMaxPixels: 25,
+  //   getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
+  //   getFillColor: [57, 73, 171]
+  // };
+
 
   wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
   // word cloud related controls
   wordCloudControls: WordCloudControlsType = {
-    scale: "linear",
+    scale: "linear"
   };
 
   wordCloudControlUpdateObservable = new Subject<WordCloudControlsType>();
@@ -73,7 +75,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
   displayWordCloud: boolean = false; // variable to decide whether to display the container for world cloud visualization
   displayMap: boolean = true; // variable to decide whether to hide/un-hide the map
-  data?: ReadonlyArray<object>;
+  data: ReadonlyArray<object> = [];
   chartType?: ChartType;
   columns: string[] = [];
   /* Mapbox doesn't allow drawing points on the map if the style is not rendered,
@@ -84,7 +86,8 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   private c3ChartElement?: c3.ChartAPI;
   private map?: mapboxgl.Map;
 
-  constructor(private workflowResultService: WorkflowResultService, private sanitizer: DomSanitizer) {}
+  constructor(private workflowResultService: WorkflowResultService, private sanitizer: DomSanitizer) {
+  }
 
   ngOnInit() {
     this.initMap();
@@ -132,7 +135,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     if (!operatorResultService) {
       return;
     }
-    this.data = operatorResultService.getCurrentResultSnapshot();
+    this.data = operatorResultService.getCurrentResultSnapshot() ?? [];
     this.chartType = operatorResultService.getChartType();
     if (!this.data || !this.chartType) {
       return;
@@ -185,30 +188,31 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     this.c3ChartElement = c3.generate({
       size: {
         height: VisualizationFrameContentComponent.HEIGHT,
-        width: VisualizationFrameContentComponent.WIDTH,
+        width: VisualizationFrameContentComponent.WIDTH
       },
       data: {
         json: result,
         keys: {
           x: xLabel,
-          value: [yLabel],
+          value: [yLabel]
         },
-        type: this.chartType as c3.ChartType,
+        type: this.chartType as c3.ChartType
       },
       axis: {
         x: {
           label: xLabel,
           tick: {
-            fit: true,
-          },
+            fit: true
+          }
         },
         y: {
-          label: yLabel,
-        },
+          label: yLabel
+        }
       },
-      bindto: VisualizationFrameContentComponent.CHART_ID,
+      bindto: VisualizationFrameContentComponent.CHART_ID
     });
   }
+
   generateSpatialScatterPlot() {
     /* after the map style is loaded, we add a layer of the data points */
     if (!this.isMapStyleRendered) {
@@ -228,7 +232,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
       center: [-96.35, 39.5],
       zoom: 3,
       maxZoom: 17,
-      minZoom: 0,
+      minZoom: 0
     });
   }
 
@@ -240,13 +244,23 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
       this.map?.removeLayer("scatter");
     }
 
-    const clusterLayer = new MapboxLayer({
+    const anotherProps: ScatterplotLayerProps = {
       id: "scatter",
-      type: ScatterplotLayer,
       data: this.data,
-      pickable: true,
-    });
-    clusterLayer.setProps(VisualizationFrameContentComponent.props);
+      getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
+      getFillColor: [57, 73, 171],
+      opacity: 0.8,
+      filled: true,
+      radiusScale: 100,
+      radiusMinPixels: 1,
+      radiusMaxPixels: 25,
+      pickable: true
+    };
+
+
+    const clusterLayer: MapboxLayer<ScatterplotLayer> = new MapboxLayer(anotherProps);
+
+    // @ts-ignore
     this.map.addLayer(clusterLayer);
   }
 
@@ -272,10 +286,10 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
         .attr(
           "transform",
           "translate(" +
-            VisualizationFrameContentComponent.WIDTH / 2 +
-            "," +
-            VisualizationFrameContentComponent.HEIGHT / 2 +
-            ")"
+          VisualizationFrameContentComponent.WIDTH / 2 +
+          "," +
+          VisualizationFrameContentComponent.HEIGHT / 2 +
+          ")"
         );
     }
 
@@ -386,19 +400,19 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     this.c3ChartElement = c3.generate({
       size: {
         height: VisualizationFrameContentComponent.HEIGHT,
-        width: VisualizationFrameContentComponent.WIDTH,
+        width: VisualizationFrameContentComponent.WIDTH
       },
       data: {
         columns: dataToDisplay,
-        type: this.chartType as c3.ChartType,
+        type: this.chartType as c3.ChartType
       },
       axis: {
         x: {
           type: "category",
-          categories: category,
-        },
+          categories: category
+        }
       },
-      bindto: VisualizationFrameContentComponent.CHART_ID,
+      bindto: VisualizationFrameContentComponent.CHART_ID
     });
   }
 
