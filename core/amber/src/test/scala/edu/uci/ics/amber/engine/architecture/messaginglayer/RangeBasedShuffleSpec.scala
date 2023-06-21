@@ -24,7 +24,7 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
       -400,
       600
     )
-  val attr:Attribute = new Attribute("Attr1", AttributeType.INTEGER)
+  val attr: Attribute = new Attribute("Attr1", AttributeType.INTEGER)
   val schema: Schema = Schema.newBuilder().add(attr).build()
 
   val partitioner: RangeBasedShufflePartitioner = RangeBasedShufflePartitioner(partitioning)
