@@ -6,15 +6,14 @@ import * as cloud from "d3-cloud";
 import { ChartType, WordCloudTuple } from "../../types/visualization.interface";
 import { merge, Subject } from "rxjs";
 import { environment } from "src/environments/environment";
-
 import { MapboxLayer } from "@deck.gl/mapbox/typed";
 import { ScatterplotLayer, ScatterplotLayerProps } from "@deck.gl/layers/typed";
-
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, debounceTime } from "rxjs/operators";
 import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
 import * as mapboxgl from "mapbox-gl";
+import { isDefined } from "../../../common/util/predicate";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -48,16 +47,6 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
   public static readonly WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS = 50;
-
-  // private props: ScatterplotLayerProps = {
-  //   opacity: 0.8,
-  //   filled: true,
-  //   radiusScale: 100,
-  //   radiusMinPixels: 1,
-  //   radiusMaxPixels: 25,
-  //   getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
-  //   getFillColor: [57, 73, 171]
-  // };
 
 
   wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
@@ -233,36 +222,34 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
       zoom: 3,
       maxZoom: 17,
       minZoom: 0
+      // antialias: true
     });
   }
 
   addNewOrReplaceExistingLayer() {
-    if (!this.map) {
+    if (!isDefined(this.map)) {
       return;
     }
-    if (this.map?.getLayer("scatter")) {
-      this.map?.removeLayer("scatter");
+    if (this.map.getLayer("scatter")) {
+      this.map.removeLayer("scatter");
     }
 
-    const anotherProps: ScatterplotLayerProps = {
-      id: "scatter",
-      data: this.data,
-      getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
-      getFillColor: [57, 73, 171],
-      opacity: 0.8,
-      filled: true,
-      radiusScale: 100,
-      radiusMinPixels: 1,
-      radiusMaxPixels: 25,
-      pickable: true
-    };
-
-
-    const clusterLayer: MapboxLayer<ScatterplotLayer> = new MapboxLayer(anotherProps);
-
-    // @ts-ignore
-    this.map.addLayer(clusterLayer);
+    this.map.addLayer(new MapboxLayer({
+        type: ScatterplotLayer,
+        id: "scatter",
+        data: this.data,
+        getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
+        getFillColor: [57, 73, 171],
+        opacity: 0.8,
+        filled: true,
+        radiusScale: 100,
+        radiusMinPixels: 1,
+        radiusMaxPixels: 25,
+        pickable: true
+      } as ScatterplotLayerProps)
+    );
   }
+
 
   updateWordCloudScale(scale: typeof wordCloudScaleOptions[number]) {
     if (this.wordCloudControls.scale !== scale) {
