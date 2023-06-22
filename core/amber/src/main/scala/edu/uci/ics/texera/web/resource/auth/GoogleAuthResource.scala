@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.auth
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
 import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.{
@@ -39,12 +39,13 @@ class GoogleAuthResource {
   def login(credential: String): TokenIssueResponse = {
     if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
       throw new NotAcceptableException("User System is disabled on the backend!")
-    val idToken = new GoogleIdTokenVerifier.Builder(new NetHttpTransport, new JacksonFactory)
-      .setAudience(
-        Collections.singletonList(clientId)
-      )
-      .build()
-      .verify(credential)
+    val idToken =
+      new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
+        .setAudience(
+          Collections.singletonList(clientId)
+        )
+        .build()
+        .verify(credential)
     if (idToken != null) {
       val payload = idToken.getPayload
       val googleId = payload.getSubject

@@ -9,7 +9,7 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
@@ -28,7 +28,7 @@ public class GoogleResource {
     private static final String APPLICATION_NAME = "Texera";
     private static final String TOKENS_DIRECTORY_PATH = Utils.amberHomePath()
             .resolve("../conf").resolve("tokens").toString();
-    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
     /**
      * Global instance of the scopes required by this quickstart.
