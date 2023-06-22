@@ -33,7 +33,7 @@ type WordCloudControlsType = {
 @Component({
   selector: "texera-visualization-panel-content",
   templateUrl: "./visualization-frame-content.component.html",
-  styleUrls: ["./visualization-frame-content.component.scss"]
+  styleUrls: ["./visualization-frame-content.component.scss"],
 })
 export class VisualizationFrameContentComponent implements OnInit, AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
@@ -48,11 +48,10 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   public static readonly UPDATE_INTERVAL_MS = 2000;
   public static readonly WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS = 50;
 
-
   wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
   // word cloud related controls
   wordCloudControls: WordCloudControlsType = {
-    scale: "linear"
+    scale: "linear",
   };
 
   wordCloudControlUpdateObservable = new Subject<WordCloudControlsType>();
@@ -75,8 +74,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   private c3ChartElement?: c3.ChartAPI;
   private map?: mapboxgl.Map;
 
-  constructor(private workflowResultService: WorkflowResultService, private sanitizer: DomSanitizer) {
-  }
+  constructor(private workflowResultService: WorkflowResultService, private sanitizer: DomSanitizer) {}
 
   ngOnInit() {
     this.initMap();
@@ -177,28 +175,28 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     this.c3ChartElement = c3.generate({
       size: {
         height: VisualizationFrameContentComponent.HEIGHT,
-        width: VisualizationFrameContentComponent.WIDTH
+        width: VisualizationFrameContentComponent.WIDTH,
       },
       data: {
         json: result,
         keys: {
           x: xLabel,
-          value: [yLabel]
+          value: [yLabel],
         },
-        type: this.chartType as c3.ChartType
+        type: this.chartType as c3.ChartType,
       },
       axis: {
         x: {
           label: xLabel,
           tick: {
-            fit: true
-          }
+            fit: true,
+          },
         },
         y: {
-          label: yLabel
-        }
+          label: yLabel,
+        },
       },
-      bindto: VisualizationFrameContentComponent.CHART_ID
+      bindto: VisualizationFrameContentComponent.CHART_ID,
     });
   }
 
@@ -221,7 +219,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
       center: [-96.35, 39.5],
       zoom: 3,
       maxZoom: 17,
-      minZoom: 0
+      minZoom: 0,
       // antialias: true
     });
   }
@@ -234,7 +232,8 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
       this.map.removeLayer("scatter");
     }
 
-    this.map.addLayer(new MapboxLayer({
+    this.map.addLayer(
+      new MapboxLayer({
         type: ScatterplotLayer,
         id: "scatter",
         data: this.data,
@@ -245,11 +244,10 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
         radiusScale: 100,
         radiusMinPixels: 1,
         radiusMaxPixels: 25,
-        pickable: true
+        pickable: true,
       } as ScatterplotLayerProps)
     );
   }
-
 
   updateWordCloudScale(scale: typeof wordCloudScaleOptions[number]) {
     if (this.wordCloudControls.scale !== scale) {
@@ -273,10 +271,10 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
         .attr(
           "transform",
           "translate(" +
-          VisualizationFrameContentComponent.WIDTH / 2 +
-          "," +
-          VisualizationFrameContentComponent.HEIGHT / 2 +
-          ")"
+            VisualizationFrameContentComponent.WIDTH / 2 +
+            "," +
+            VisualizationFrameContentComponent.HEIGHT / 2 +
+            ")"
         );
     }
 
@@ -387,19 +385,19 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     this.c3ChartElement = c3.generate({
       size: {
         height: VisualizationFrameContentComponent.HEIGHT,
-        width: VisualizationFrameContentComponent.WIDTH
+        width: VisualizationFrameContentComponent.WIDTH,
       },
       data: {
         columns: dataToDisplay,
-        type: this.chartType as c3.ChartType
+        type: this.chartType as c3.ChartType,
       },
       axis: {
         x: {
           type: "category",
-          categories: category
-        }
+          categories: category,
+        },
       },
-      bindto: VisualizationFrameContentComponent.CHART_ID
+      bindto: VisualizationFrameContentComponent.CHART_ID,
     });
   }
 
