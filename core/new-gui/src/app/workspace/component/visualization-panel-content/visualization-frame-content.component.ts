@@ -220,7 +220,6 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
       zoom: 3,
       maxZoom: 17,
       minZoom: 0,
-      // antialias: true
     });
   }
 
