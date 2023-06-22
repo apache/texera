@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { HomeComponent } from "./home.component";
 import { UserService } from "../../common/service/user/user.service";
 import { StubUserService } from "../../common/service/user/stub-user.service";
-import { GoogleLoginService } from "../service/google-login.service";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { GoogleService } from "../../common/service/user/google.service";
 
 describe("HomeComponent", () => {
   let component: HomeComponent;
@@ -13,7 +13,7 @@ describe("HomeComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [HomeComponent],
-      providers: [{ provide: UserService, useClass: StubUserService }, GoogleLoginService],
+      providers: [{ provide: UserService, useClass: StubUserService }, GoogleService],
       imports: [HttpClientTestingModule, RouterTestingModule.withRoutes([{ path: "home", component: HomeComponent }])],
     }).compileComponents();
   }));
