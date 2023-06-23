@@ -54,7 +54,6 @@
     "d3": "6.7.0",
     "d3-cloud": "1.2.5",
     "dagre": "0.8.5",
-    "deck.gl": "~8.9.19",
     "deep-map": "2.0.0",
     "edit-distance": "1.0.4",
     "es6-weak-map": "2.0.3",
