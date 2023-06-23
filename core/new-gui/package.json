@@ -36,7 +36,7 @@
     "@angular/router": "~13.3.9",
     "@auth0/angular-jwt": "5.1.0",
     "@danmarshall/deckgl-typings": "4.9.15",
-    "@ng-bootstrap/ng-bootstrap": "11.0.1",
+    "@ng-bootstrap/ng-bootstrap": "~11.0.1",
     "@ngneat/until-destroy": "8.1.4",
     "@ngx-formly/core": "5.11.1",
     "@ngx-formly/material": "5.11.1",

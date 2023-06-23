@@ -2403,7 +2403,7 @@
   dependencies:
     make-plural "^7.0.0"
 
-"@ng-bootstrap/ng-bootstrap@11.0.1":
+"@ng-bootstrap/ng-bootstrap@~11.0.1":
   version "11.0.1"
   resolved "https://registry.yarnpkg.com/@ng-bootstrap/ng-bootstrap/-/ng-bootstrap-11.0.1.tgz#6113b09bfb9b722f7ebf4b97d17e6addd0fd9e2f"
   integrity sha512-xpXpW2x2S9ZQhEu5kCmEAFf8WvkVD+rcKb1NLQiLuiZgAQR7GXVexXy5Y+RIvTjAQmPEVyxaSgYiJA6sWNJLNw==
