@@ -2403,12 +2403,12 @@
   dependencies:
     make-plural "^7.0.0"
 
-"@ng-bootstrap/ng-bootstrap@9.1.3":
-  version "9.1.3"
-  resolved "https://registry.yarnpkg.com/@ng-bootstrap/ng-bootstrap/-/ng-bootstrap-9.1.3.tgz#f48f42ad96ba75b50f1b87caa0dabcf5299a078c"
-  integrity sha512-Sl4lis1F5uSPrd4WsLEMX8b3fqzeHr4rgTFhocpx/IedZPaPdGec4a91TjdqcM/fNwzoXj1AdGrcMLpFFOxmvw==
+"@ng-bootstrap/ng-bootstrap@11.0.1":
+  version "11.0.1"
+  resolved "https://registry.yarnpkg.com/@ng-bootstrap/ng-bootstrap/-/ng-bootstrap-11.0.1.tgz#6113b09bfb9b722f7ebf4b97d17e6addd0fd9e2f"
+  integrity sha512-xpXpW2x2S9ZQhEu5kCmEAFf8WvkVD+rcKb1NLQiLuiZgAQR7GXVexXy5Y+RIvTjAQmPEVyxaSgYiJA6sWNJLNw==
   dependencies:
-    tslib "^2.0.0"
+    tslib "^2.3.0"
 
 "@ngneat/until-destroy@8.1.4":
   version "8.1.4"
@@ -4871,10 +4871,10 @@ boolify@^1.0.1:
   resolved "https://registry.yarnpkg.com/boolify/-/boolify-1.0.1.tgz#b5c09e17cacd113d11b7bb3ed384cc012994d86b"
   integrity sha512-ma2q0Tc760dW54CdOyJjhrg/a54317o1zYADQJFgperNGKIKgAUGIcKnuMiff8z57+yGlrGNEt4lPgZfCgTJgA==
 
-bootstrap@4.6.1:
-  version "4.6.1"
-  resolved "https://registry.yarnpkg.com/bootstrap/-/bootstrap-4.6.1.tgz#bc25380c2c14192374e8dec07cf01b2742d222a2"
-  integrity sha512-0dj+VgI9Ecom+rvvpNZ4MUZJz8dcX7WCX+eTID9+/8HgOkv3dsRzi8BGeZJCQU6flWQVYxwTQnEZFrmJSEO7og==
+bootstrap@~4.6.2:
+  version "4.6.2"
+  resolved "https://registry.yarnpkg.com/bootstrap/-/bootstrap-4.6.2.tgz#8e0cd61611728a5bf65a3a2b8d6ff6c77d5d7479"
+  integrity sha512-51Bbp/Uxr9aTuy6ca/8FbFloBUJZLHwnhTcnjIeRn2suQWsWzcuJhGjKDB5eppVte/8oCdOL3VuwxvZDUggwGQ==
 
 brace-expansion@^1.1.7:
   version "1.1.11"
@@ -10412,11 +10412,6 @@ ng2-file-upload@1.4.0:
   integrity sha512-3J/KPU/tyh/ad6TFeUbrxX+SihUj0iOEt2Zsg4EX7mB3GFiQscXOfcUOxCkBtPWWWaqt3azrYbVGzsYa3/7NzQ==
   dependencies:
     tslib "^1.9.0"
-
-ngx-bootstrap@5.6.2:
-  version "5.6.2"
-  resolved "https://registry.yarnpkg.com/ngx-bootstrap/-/ngx-bootstrap-5.6.2.tgz#e648f826d303c29255c16772676efd30695740d1"
-  integrity sha512-6YHXtdXkGH3w0NQoaUgNYAcrj064Lv5RTO284ha/hvpNTrh55yQz2cVh0VvwBk3MjyY2tdmLH4SuCJDszYdYiw==
 
 ngx-color-picker@12.0.1:
   version "12.0.1"
