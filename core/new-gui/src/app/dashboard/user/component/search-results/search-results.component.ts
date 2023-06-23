@@ -14,6 +14,7 @@ export class SearchResultsComponent {
   more = false;
   entries: ReadonlyArray<DashboardEntry> = [];
   private resetCounter = 0;
+  @Input() showResourceTypes = false;
   @Input() public pid: number = 0;
   @Input() editable = false;
   @Output() deleted = new EventEmitter<DashboardEntry>();

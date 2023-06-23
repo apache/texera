@@ -18,7 +18,7 @@ import { SearchFilterParameters } from "../../type/search-filter-parameters";
 export class FiltersComponent implements OnInit {
   private _masterFilterList: ReadonlyArray<string> = [];
   // receive input from parent components (UserProjectSection), if any
-  @Input() public pid: number | null = null;
+  @Input() public pid?: number = undefined;
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
   public get masterFilterList(): ReadonlyArray<string> {
