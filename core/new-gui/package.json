@@ -38,6 +38,8 @@
     "@deck.gl/core": "~8.9.19",
     "@deck.gl/layers": "~8.9.19",
     "@deck.gl/mapbox": "~8.9.19",
+    "@loaders.gl/core": "~3.4.2",
+    "@luma.gl/core": "~8.5.20",
     "@ng-bootstrap/ng-bootstrap": "~11.0.1",
     "@ngneat/until-destroy": "8.1.4",
     "@ngx-formly/core": "5.11.1",
