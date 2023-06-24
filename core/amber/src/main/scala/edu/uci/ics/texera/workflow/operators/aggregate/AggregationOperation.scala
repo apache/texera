@@ -22,7 +22,7 @@ import java.sql.Timestamp
             }
           },
           "then": {
-            "enum": ["integer", "long", "double"]
+            "enum": ["integer", "long", "double", "timestamp"]
           }
         },
         {
