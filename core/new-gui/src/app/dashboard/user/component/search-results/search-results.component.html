@@ -8,22 +8,55 @@
     class="virtual-scroll-container">
     <nz-list>
       <ng-container *cdkVirtualFor="let entry of entries">
-        <texera-user-project-list-item
-          *ngIf="entry.type === 'project'"
-          [editable]="editable"
-          [entry]="entry.project"></texera-user-project-list-item>
-        <texera-user-workflow-list-item
-          (deleted)="deleted.emit(entry)"
-          (duplicated)="duplicated.emit(entry)"
-          [editable]="editable"
-          [pid]="pid"
-          *ngIf="entry.type === 'workflow'"
-          [entry]="entry"></texera-user-workflow-list-item>
-        <texera-user-file-list-item
-          *ngIf="entry.type === 'file'"
-          [editable]="editable"
-          [entry]="entry.file">
-        </texera-user-file-list-item>
+        <nz-layout *ngIf="entry.type === 'project'">
+          <nz-sider
+            *ngIf="showResourceTypes"
+            [nzWidth]="40"
+            ><i
+              class="resource-type-icon"
+              nz-icon
+              nzTheme="outline"
+              nzType="container"></i
+          ></nz-sider>
+          <nz-content>
+            <texera-user-project-list-item
+              [editable]="editable"
+              [entry]="entry.project"></texera-user-project-list-item> </nz-content
+        ></nz-layout>
+        <nz-layout *ngIf="entry.type === 'workflow'">
+          <nz-sider
+            *ngIf="showResourceTypes"
+            [nzWidth]="40"
+            ><i
+              class="resource-type-icon"
+              nz-icon
+              nzTheme="outline"
+              nzType="project"></i
+          ></nz-sider>
+          <nz-content>
+            <texera-user-workflow-list-item
+              (deleted)="deleted.emit(entry)"
+              (duplicated)="duplicated.emit(entry)"
+              [editable]="editable"
+              [pid]="pid"
+              [entry]="entry"></texera-user-workflow-list-item> </nz-content
+        ></nz-layout>
+        <nz-layout *ngIf="entry.type === 'file'">
+          <nz-sider
+            *ngIf="showResourceTypes"
+            [nzWidth]="40"
+            ><i
+              class="resource-type-icon"
+              nz-icon
+              nzTheme="outline"
+              nzType="folder-open"></i
+          ></nz-sider>
+          <nz-content>
+            <texera-user-file-list-item
+              [editable]="editable"
+              [entry]="entry.file">
+            </texera-user-file-list-item> </nz-content
+        ></nz-layout>
       </ng-container>
     </nz-list>
     <div

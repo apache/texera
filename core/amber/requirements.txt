@@ -9,7 +9,7 @@ loguru==0.5.3
 packaging==20.9
 pluggy==1.0.0
 py==1.10.0
-pyarrow==11.0.0
+pyarrow==12.0.1
 pyparsing==2.4.7
 pytest==6.2.5
 python-dateutil==2.8.1

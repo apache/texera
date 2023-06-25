@@ -45,7 +45,7 @@
       </nz-upload>
 
       <button
-        *ngIf="pid !== null"
+        *ngIf="pid !== undefined"
         (click)="onClickOpenAddWorkflow()"
         nz-button
         title="Add workflow(s) to project"
@@ -58,7 +58,7 @@
           nzType="plus-square"></i>
       </button>
       <button
-        *ngIf="pid !== null"
+        *ngIf="pid !== undefined"
         (click)="onClickOpenRemoveWorkflow()"
         nz-button
         title="Remove workflow(s) from project"
