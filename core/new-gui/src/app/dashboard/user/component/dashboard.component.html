@@ -83,14 +83,26 @@
         <ul>
           <li
             nz-menu-item
-            nz-tooltip="Look up the user files"
+            nz-tooltip="Look up users"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/admin-user">
+            routerLink="/dashboard/admin/user">
             <span
               nz-icon
               nzType="user"></span>
             <span>Users</span>
+          </li>
+
+          <li
+            nz-menu-item
+            nz-tooltip="Setup gmail"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            routerLink="/dashboard/admin/gmail">
+            <span
+              nz-icon
+              nzType="mail"></span>
+            <span>Gmail</span>
           </li>
         </ul>
       </li>

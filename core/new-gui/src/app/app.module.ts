@@ -128,11 +128,13 @@ import { UserFileListItemComponent } from "./dashboard/user/component/user-file/
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
+import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    GmailComponent,
     AppComponent,
     WorkspaceComponent,
     NavigationComponent,
