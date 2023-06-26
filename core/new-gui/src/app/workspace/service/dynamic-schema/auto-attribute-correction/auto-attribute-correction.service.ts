@@ -22,9 +22,7 @@ import { environment } from "src/environments/environment";
  * - When user deletes an attribute (e.g., deselected in a projection operator),
  * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid.
  */
-@Injectable({
-  providedIn: "root",
-})
+@Injectable()
 export class AutoAttributeCorrectionService {
   // keep a copy of input schema map,
   // the inputSchemaMap in SchemaPropagationService always keeps the input schema up-to-date
@@ -87,7 +85,7 @@ export class AutoAttributeCorrectionService {
       // Resolve #ref in some json schema (e.g. Filter)
       const resolvedJsonSchema = await new Resolver().resolve(dynamicSchema.jsonSchema);
 
-      const matchFunc = (schema: CustomJSONSchema7, value: any) => {
+      const matchFunc = (schema: CustomJSONSchema7, _: any) => {
         if (schema.autofill === undefined) {
           return false;
         }
@@ -196,7 +194,6 @@ export class AutoAttributeCorrectionService {
     };
 
     const valueCopy: any = cloneDeep(currentProperties);
-    const newValue = updatePropertyRecurse(valueCopy, operatorJsonSchema);
-    return newValue;
+    return updatePropertyRecurse(valueCopy, operatorJsonSchema);
   }
 }
