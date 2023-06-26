@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 import {
   OperatorInputSchema,
   SchemaAttribute,
-  SchemaPropagationService,
+  SchemaPropagationService
 } from "../schema-propagation/schema-propagation.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
@@ -24,7 +24,7 @@ import { environment } from "src/environments/environment";
  * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid.
  */
 @Injectable({
-  providedIn: "root",
+  providedIn: "root"
 })
 export class AutoAttributeCorrectionService {
   // keep a copy of input schema map,
@@ -61,11 +61,11 @@ export class AutoAttributeCorrectionService {
     });
   }
 
-  private updateOperatorPropertiesOnInputSchemaChange(
+  private async updateOperatorPropertiesOnInputSchemaChange(
     operatorID: string,
     oldInputSchema: OperatorInputSchema,
     newInputSchema: OperatorInputSchema
-  ): void {
+  ): Promise<void> {
     const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (!dynamicSchema.jsonSchema.properties) {
       return;
@@ -86,62 +86,62 @@ export class AutoAttributeCorrectionService {
       // [[oldAttribute1, newAttribute1], [oldAttribute2, newAttribute2], ...]
       const mapping: SchemaAttribute[][] = attributeMapping.pairs();
       // Resolve #ref in some json schema (e.g. Filter)
-      const resolver = new Resolver();
-      resolver.resolve(dynamicSchema.jsonSchema).then(resolvedJsonSchema => {
-        const matchFunc = (schema: CustomJSONSchema7, value: any) => {
-          if (schema.autofill === undefined) {
-            return false;
-          }
-          if (schema.autofillAttributeOnPort === undefined && port === 0) {
-            return true;
-          }
-          return schema.autofillAttributeOnPort === port;
-        };
-        const mutationFunc = (schema: CustomJSONSchema7, value: any) => {
-          if (schema.autofill === "attributeName") {
-            // value must be a string
-            const attrMapping = mapping.find(p => p[0].attributeName === value);
-            if (attrMapping === undefined) {
-              return value;
-            }
-            if (isNull(attrMapping[1])) {
-              return "";
-            }
-            return attrMapping[1].attributeName;
-          }
-          if (schema.autofill === "attributeNameList") {
-            // value must be a list of strings
-            // map any existing variables
-            const newAttrs = (value as any[])
-              .map(attr => {
-                const attrMapping = mapping.find(p => p[0].attributeName === value);
-                if (attrMapping === undefined) {
-                  return value;
-                }
-                if (isNull(attrMapping[1])) {
-                  return "";
-                }
-                return attrMapping[1].attributeName;
-              })
-              .filter(v => !isNotNull(v) && v !== "");
-            // depending on if this is a projection operator, add new values
-            if (operator.operatorType === "Projection") {
-              mapping.filter(p => isNotNull(p[0])).forEach(p => newAttrs.push(p[1]));
-            }
-          }
-          return value;
-        };
+      const resolvedJsonSchema = await new Resolver().resolve(dynamicSchema.jsonSchema);
 
-        const newProperty = this.updateOperatorProperty(
-          operator.operatorProperties,
-          resolvedJsonSchema.result,
-          matchFunc,
-          mutationFunc
-        );
-        if (!isEqual(newProperty, operator.operatorProperties)) {
-          this.workflowActionService.setOperatorProperty(operatorID, newProperty);
+      const matchFunc = (schema: CustomJSONSchema7, value: any) => {
+        if (schema.autofill === undefined) {
+          return false;
         }
-      });
+        if (schema.autofillAttributeOnPort === undefined && port === 0) {
+          return true;
+        }
+        return schema.autofillAttributeOnPort === port;
+      };
+      const mutationFunc = (schema: CustomJSONSchema7, value: any) => {
+        if (schema.autofill === "attributeName") {
+          // value must be a string
+          const attrMapping = mapping.find(p => p[0].attributeName === value);
+          if (attrMapping === undefined) {
+            return value;
+          }
+          if (isNull(attrMapping[1])) {
+            return "";
+          }
+          return attrMapping[1].attributeName;
+        }
+        if (schema.autofill === "attributeNameList") {
+          // value must be a list of strings
+          // map any existing variables
+          const newAttrs = (value as any[])
+            .map(attr => {
+              const attrMapping = mapping.find(p => p[0].attributeName === value);
+              if (attrMapping === undefined) {
+                return value;
+              }
+              if (isNull(attrMapping[1])) {
+                return "";
+              }
+              return attrMapping[1].attributeName;
+            })
+            .filter(v => !isNotNull(v) && v !== "");
+          // depending on if this is a projection operator, add new values
+          if (operator.operatorType === "Projection") {
+            mapping.filter(p => isNotNull(p[0])).forEach(p => newAttrs.push(p[1]));
+          }
+        }
+        return value;
+      };
+
+      const newProperty = this.updateOperatorProperty(
+        operator.operatorProperties,
+        resolvedJsonSchema.result,
+        matchFunc,
+        mutationFunc
+      );
+      if (!isEqual(newProperty, operator.operatorProperties)) {
+        this.workflowActionService.setOperatorProperty(operatorID, newProperty);
+      }
+
     }
   }
 
@@ -151,10 +151,10 @@ export class AutoAttributeCorrectionService {
     matchFunc: (propertyValue: CustomJSONSchema7, value: any) => boolean,
     mutationFunc: (schema: CustomJSONSchema7, value: any) => any
   ): any {
+    console.log(operatorJsonSchema);
     const updatePropertyRecurse = (value: any, jsonSchema: CustomJSONSchema7): any => {
       if (matchFunc(jsonSchema, value)) {
-        const va = mutationFunc(jsonSchema, value);
-        return va;
+        return mutationFunc(jsonSchema, value);
       }
 
       if (jsonSchema.type === "array") {
@@ -188,7 +188,7 @@ export class AutoAttributeCorrectionService {
         });
         return newValue;
       } else {
-        // value should be an primitive object (string, int, boolean, etc..)
+        // value should be a primitive object (string, int, boolean, etc..)
         if (matchFunc(jsonSchema, value)) {
           return mutationFunc(jsonSchema, value);
         } else {
