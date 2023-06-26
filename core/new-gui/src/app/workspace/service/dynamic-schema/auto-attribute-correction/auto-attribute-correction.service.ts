@@ -8,8 +8,7 @@ import { DynamicSchemaService } from "../dynamic-schema.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { cloneDeep, isEqual } from "lodash-es";
-// TODO: Add typing for the below two packages
-// @ts-ignore
+// @ts-ignore TODO: Add typing for the below package
 import { levenshtein } from "edit-distance";
 import { Resolver } from "@stoplight/json-ref-resolver";
 import { isNotNull, isNull } from "src/app/common/util/assert";
