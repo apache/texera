@@ -22,6 +22,7 @@ import { OperatorCacheStatusService } from "../service/workflow-status/operator-
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -47,6 +48,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // list additional services in constructor so they are initialized even if no one use them directly
     private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,
+    private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
     private operatorCacheStatus: OperatorCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
