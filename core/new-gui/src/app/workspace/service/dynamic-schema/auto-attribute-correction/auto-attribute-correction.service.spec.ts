@@ -8,7 +8,6 @@ import {
   inject,
   TestBed,
   tick,
-  waitForAsync
 } from "@angular/core/testing";
 import { environment } from "../../../../../environments/environment";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
@@ -35,7 +34,6 @@ import {
   SCHEMA_PROPAGATION_ENDPOINT,
   SchemaPropagationService,
 } from "../schema-propagation/schema-propagation.service";
-
 
 describe("AttributeChangePropagationService", () => {
   let httpClient: HttpClient;

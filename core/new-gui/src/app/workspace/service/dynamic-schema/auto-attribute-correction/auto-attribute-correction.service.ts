@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 import {
   OperatorInputSchema,
   SchemaAttribute,
-  SchemaPropagationService
+  SchemaPropagationService,
 } from "../schema-propagation/schema-propagation.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
@@ -24,7 +24,7 @@ import { environment } from "src/environments/environment";
  * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid.
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class AutoAttributeCorrectionService {
   // keep a copy of input schema map,
@@ -141,7 +141,6 @@ export class AutoAttributeCorrectionService {
       if (!isEqual(newProperty, operator.operatorProperties)) {
         this.workflowActionService.setOperatorProperty(operatorID, newProperty);
       }
-
     }
   }
 
