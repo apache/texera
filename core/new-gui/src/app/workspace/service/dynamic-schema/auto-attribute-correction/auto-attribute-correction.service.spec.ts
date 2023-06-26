@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { async, discardPeriodicTasks, fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
+import { discardPeriodicTasks, fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 import { environment } from "../../../../../environments/environment";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { mockPoint } from "../../workflow-graph/model/mock-workflow-data";
@@ -27,7 +27,7 @@ import {
   SchemaPropagationService,
 } from "../schema-propagation/schema-propagation.service";
 
-describe("AttributeChangePropagationService", () => {
+describe("AutoAttributeCorrectionService", () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
