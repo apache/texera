@@ -22,7 +22,9 @@ import { environment } from "src/environments/environment";
  * - When user deletes an attribute (e.g., deselected in a projection operator),
  * all succeeding operators containing the attribute will delete the attribute from themselves and become invalid.
  */
-@Injectable()
+@Injectable({
+  providedIn: "root",
+})
 export class AutoAttributeCorrectionService {
   // keep a copy of input schema map,
   // the inputSchemaMap in SchemaPropagationService always keeps the input schema up-to-date
