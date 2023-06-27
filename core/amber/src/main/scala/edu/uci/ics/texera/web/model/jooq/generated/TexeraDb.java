@@ -6,7 +6,9 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -32,7 +34,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -1208459713;
+    private static final long serialVersionUID = -1778414185;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -50,9 +52,19 @@ public class TexeraDb extends SchemaImpl {
     public final FileOfProject FILE_OF_PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject.FILE_OF_PROJECT;
 
     /**
+     * The table <code>texera_db.file_of_workflow</code>.
+     */
+    public final FileOfWorkflow FILE_OF_WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow.FILE_OF_WORKFLOW;
+
+    /**
      * The table <code>texera_db.project</code>.
      */
     public final Project PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.Project.PROJECT;
+
+    /**
+     * The table <code>texera_db.project_user_access</code>.
+     */
+    public final ProjectUserAccess PROJECT_USER_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess.PROJECT_USER_ACCESS;
 
     /**
      * The table <code>texera_db.user</code>.
@@ -123,7 +135,9 @@ public class TexeraDb extends SchemaImpl {
         return Arrays.<Table<?>>asList(
             File.FILE,
             FileOfProject.FILE_OF_PROJECT,
+            FileOfWorkflow.FILE_OF_WORKFLOW,
             Project.PROJECT,
+            ProjectUserAccess.PROJECT_USER_ACCESS,
             User.USER,
             UserConfig.USER_CONFIG,
             UserFileAccess.USER_FILE_ACCESS,

@@ -1,4 +1,13 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import {
+  AfterViewChecked,
+  ChangeDetectorRef,
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges,
+} from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { Subject } from "rxjs";
@@ -8,12 +17,20 @@ import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { cloneDeep, isEqual } from "lodash-es";
-import { CustomJSONSchema7, hideTypes } from "../../../types/custom-json-schema.interface";
+import {
+  AttributeTypeAllOfRule,
+  AttributeTypeConstRule,
+  AttributeTypeEnumRule,
+  AttributeTypeRuleSet,
+  CustomJSONSchema7,
+  hideTypes,
+} from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
-import { ExecutionState, OperatorStatistics, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
+import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
-  SchemaAttribute,
+  PortInputSchema,
+  AttributeType,
   SchemaPropagationService,
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
@@ -32,11 +49,10 @@ import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
-import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
-import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
-import { WorkflowAccessEntry } from "../../../../dashboard/type/access.interface";
-import { WorkflowAccessService } from "../../../../dashboard/service/workflow-access/workflow-access.service";
-import { Workflow } from "../../../../common/type/workflow";
+import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
+import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
+import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
@@ -72,7 +88,7 @@ Quill.register("modules/cursors", QuillCursors);
   templateUrl: "./operator-property-edit-frame.component.html",
   styleUrls: ["./operator-property-edit-frame.component.scss"],
 })
-export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
+export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() currentOperatorId?: string;
 
   currentOperatorSchema?: OperatorSchema;
@@ -117,7 +133,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-  public allUserWorkflowAccess: ReadonlyArray<WorkflowAccessEntry> = [];
+  public allUserWorkflowAccess: ReadonlyArray<ShareAccess> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -134,7 +150,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private userFileService: UserFileService,
-    private workflowGrantAccessService: WorkflowAccessService,
+    private workflowGrantAccessService: ShareAccessService,
     private workflowStatusSerivce: WorkflowStatusService
   ) {}
 
@@ -144,6 +160,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       return;
     }
     this.rerenderEditorForm();
+  }
+
+  ngAfterViewChecked(): void {
+    this.changeDetectorRef.detectChanges();
   }
 
   switchDisplayComponent(targetConfig?: PropertyDisplayComponentConfig) {
@@ -172,9 +192,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.registerOperatorDisplayNameChangeHandler();
 
-    let workflow = this.workflowActionService.getWorkflow();
-    if (workflow) this.refreshGrantedList(workflow);
-
     this.workflowStatusSerivce
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
@@ -183,13 +200,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorStatus = update[this.currentOperatorId];
         }
       });
-  }
-
-  public refreshGrantedList(workflow: Workflow): void {
-    this.workflowGrantAccessService
-      .getAccessList(workflow.wid)
-      .pipe(untilDestroyed(this))
-      .subscribe((access: ReadonlyArray<WorkflowAccessEntry>) => (this.allUserWorkflowAccess = access));
   }
 
   async ngOnDestroy() {
@@ -204,28 +214,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * @param event
    */
   onFormChanges(event: Record<string, unknown>): void {
-    // This assumes "fileName" to be the only key for file names in an operator property.
-    const filename: string = <string>event["fileName"];
-    if (filename) {
-      const [owner, fname] = filename.split("/", 2);
-      this.allUserWorkflowAccess.forEach(userWorkflowAccess => {
-        this.userFileService
-          .grantUserFileAccess(
-            {
-              ownerName: owner,
-              file: { fid: -1, path: "", size: -1, description: "", uploadTime: "", name: fname },
-              accessLevel: "read",
-              isOwner: true,
-              projectIDs: [],
-            },
-            userWorkflowAccess.email,
-            "read"
-          )
-          .pipe(untilDestroyed(this))
-          .subscribe();
-      });
-    }
-
     this.sourceFormChangeEventStream.next(event);
   }
 
@@ -347,26 +335,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       )
       .pipe(untilDestroyed(this))
       .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
-  }
-
-  /**
-   * This method captures the change in operator's port via program instead of user updating the
-   *  json schema form in the user interface.
-   *
-   * For instance, when the input doesn't match the new json schema and the UI needs to remove the
-   *  invalid fields, this form will capture those events.
-   */
-  registerOperatorPortChangeHandler(): void {
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorPortChangeStream()
-      .pipe(
-        filter(_ => this.currentOperatorId !== undefined),
-        filter(operatorChanged => operatorChanged.newOperator.operatorID === this.currentOperatorId),
-        filter(operatorChanged => !isEqual(this.formData, operatorChanged.newOperator.inputPorts))
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.newOperator.inputPorts)));
   }
 
   /**
@@ -503,16 +471,159 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
-      if (isDefined(mapSource.enum)) {
-        mappedField.validators = {
-          inEnum: {
-            expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
-            message: (error: any, field: FormlyFieldConfig) =>
-              `"${field.formControl?.value}" is no longer a valid option`,
-          },
-        };
+      if (mappedField.validators === undefined) {
+        mappedField.validators = {};
+        // set show to true, or else the error will only show after the user changes the field
         mappedField.validation = {
           show: true,
+        };
+      }
+
+      if (isDefined(mapSource.enum)) {
+        mappedField.validators.inEnum = {
+          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
+          message: (error: any, field: FormlyFieldConfig) =>
+            `"${field.formControl?.value}" is no longer a valid option`,
+        };
+      }
+
+      // Add custom validators for attribute type
+      if (isDefined(mapSource.attributeTypeRules)) {
+        mappedField.validators.checkAttributeType = {
+          expression: (control: AbstractControl, field: FormlyFieldConfig) => {
+            if (
+              !(
+                isDefined(this.currentOperatorId) &&
+                isDefined(mapSource.attributeTypeRules) &&
+                isDefined(mapSource.properties)
+              )
+            ) {
+              return true;
+            }
+
+            const findAttributeType = (propertyName: string): AttributeType | undefined => {
+              if (
+                !isDefined(this.currentOperatorId) ||
+                !isDefined(mapSource.properties) ||
+                !isDefined(mapSource.properties[propertyName])
+              ) {
+                return undefined;
+              }
+              const portIndex = (mapSource.properties[propertyName] as CustomJSONSchema7).autofillAttributeOnPort;
+              if (!isDefined(portIndex)) {
+                return undefined;
+              }
+              const attributeName: string = control.value[propertyName];
+              return this.schemaPropagationService.getOperatorInputAttributeType(
+                this.currentOperatorId,
+                portIndex,
+                attributeName
+              );
+            };
+
+            const checkEnumConstraint = (inputAttributeType: AttributeType, enumConstraint: AttributeTypeEnumRule) => {
+              if (!enumConstraint.includes(inputAttributeType)) {
+                throw TypeError(`it's expected to be ${enumConstraint.join(" or ")}.`);
+              }
+            };
+
+            const checkConstConstraint = (
+              inputAttributeType: AttributeType,
+              constConstraint: AttributeTypeConstRule
+            ) => {
+              const data = constConstraint?.$data;
+              if (!isDefined(data)) {
+                return;
+              }
+              const dataAttributeType = findAttributeType(data);
+              if (!isDefined(dataAttributeType)) {
+                // if data attribute type is not defined, then data attribute is not yet selected. skip validation
+                return;
+              }
+              if (inputAttributeType !== dataAttributeType) {
+                // get data attribute name for error message
+                const dataAttributeName = control.value[data];
+                throw TypeError(`it's expected to be the same type as '${dataAttributeName}' (${dataAttributeType}).`);
+              }
+            };
+
+            const checkAllOfConstraint = (
+              inputAttributeType: AttributeType,
+              allOfConstraint: AttributeTypeAllOfRule
+            ) => {
+              // traverse through all "if-then" sets in "allOf" constraint
+              for (const allOf of allOfConstraint) {
+                // Only return false when "if" condition is satisfied but "then" condition is not satisfied
+                let ifCondSatisfied = true;
+                for (const [ifProp, ifConstraint] of Object.entries(allOf.if)) {
+                  // Currently, only support "valEnum" constraint
+                  // Find attribute value (not type)
+                  const ifAttributeValue = control.value[ifProp];
+                  if (!ifConstraint.valEnum?.includes(ifAttributeValue)) {
+                    ifCondSatisfied = false;
+                    break;
+                  }
+                }
+                // Currently, only support "enum" constraint,
+                // add more to the condition if needed
+                if (ifCondSatisfied && isDefined(allOf.then.enum)) {
+                  try {
+                    checkEnumConstraint(inputAttributeType, allOf.then.enum);
+                  } catch {
+                    // parse if condition to readable string
+                    const ifCondStr = Object.entries(allOf.if)
+                      .map(([ifProp]) => `'${ifProp}' is ${control.value[ifProp]}`)
+                      .join(" and ");
+                    throw TypeError(`it's expected to be ${allOf.then.enum?.join(" or ")}, given that ${ifCondStr}`);
+                  }
+                }
+              }
+            };
+
+            // Get the type of constrains for each property in AttributeTypeRuleSchema
+
+            const checkConstraint = (propertyName: string, constraint: AttributeTypeRuleSet) => {
+              const inputAttributeType = findAttributeType(propertyName);
+
+              if (!isDefined(inputAttributeType)) {
+                // when inputAttributeType is undefined, it means the property is not set
+                return;
+              }
+              if (isDefined(constraint.enum)) {
+                checkEnumConstraint(inputAttributeType, constraint.enum);
+              }
+
+              if (isDefined(constraint.const)) {
+                checkConstConstraint(inputAttributeType, constraint.const);
+              }
+              if (isDefined(constraint.allOf)) {
+                checkAllOfConstraint(inputAttributeType, constraint.allOf);
+              }
+            };
+
+            // iterate through all properties in attributeType
+            for (const [prop, constraint] of Object.entries(mapSource.attributeTypeRules)) {
+              try {
+                checkConstraint(prop, constraint);
+              } catch (err) {
+                // have to get the type, attribute name and property name again
+                // should consider reusing the part in findAttributeType()
+                const attributeName = control.value[prop];
+                const port = (mapSource.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
+                const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(
+                  this.currentOperatorId,
+                  port,
+                  attributeName
+                );
+                // @ts-ignore
+                const message = err.message;
+                field.validators.checkAttributeType.message =
+                  `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + message;
+                return false;
+              }
+            }
+            return true;
+          },
         };
       }
 
@@ -548,7 +659,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
         if (propertyValue.dependOn) {
           if (isDefined(this.currentOperatorId)) {
-            const attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined =
+            const attributes: ReadonlyArray<PortInputSchema | undefined> | undefined =
               this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }
@@ -556,7 +667,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
     }
 
-    this.formlyFields = fields;
+    // not return field.fieldGroup directly because
+    // doing so the validator in the field will not be triggered
+    this.formlyFields = [field];
   }
 
   allowModifyOperatorLogic(): void {

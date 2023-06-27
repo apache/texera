@@ -1,16 +1,17 @@
 import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 import { environment } from "../environments/environment";
-import { DashboardComponent } from "./dashboard/component/dashboard.component";
-import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
-import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
-import { UserProjectSectionComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/user-project-section.component";
-import { UserProjectListComponent } from "./dashboard/component/feature-container/user-project-list/user-project-list.component";
+import { DashboardComponent } from "./dashboard/user/component/dashboard.component";
+import { UserWorkflowComponent } from "./dashboard/user/component/user-workflow/user-workflow.component";
+import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
+import { UserProjectSectionComponent } from "./dashboard/user/component/user-project/user-project-section/user-project-section.component";
+import { UserProjectComponent } from "./dashboard/user/component/user-project/user-project.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { HomeComponent } from "./home/component/home.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
+import { SearchComponent } from "./dashboard/user/component/search/search.component";
 /*
  *  This file defines the url path
  *  The workflow workspace is set as default path
@@ -45,7 +46,7 @@ if (environment.userSystemEnabled) {
     children: [
       {
         path: "user-project",
-        component: UserProjectListComponent,
+        component: UserProjectComponent,
       },
       {
         path: "user-project/:pid",
@@ -53,11 +54,15 @@ if (environment.userSystemEnabled) {
       },
       {
         path: "workflow",
-        component: SavedWorkflowSectionComponent,
+        component: UserWorkflowComponent,
       },
       {
         path: "user-file",
-        component: UserFileSectionComponent,
+        component: UserFileComponent,
+      },
+      {
+        path: "search",
+        component: SearchComponent,
       },
       {
         path: "admin-user",

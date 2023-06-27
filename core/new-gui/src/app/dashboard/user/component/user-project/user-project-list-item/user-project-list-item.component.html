@@ -1,0 +1,193 @@
+<nz-list-item>
+  <nz-list-item-meta>
+    <nz-list-item-meta-avatar [ngStyle]="{'margin-left': '16px'}">
+      <div class="project-avatar-container">
+        <nz-avatar
+          (colorPickerSelect)="updateProjectColor()"
+          [(colorPicker)]="color"
+          [(cpToggle)]="editingColor"
+          [cpDisabled]="!editable"
+          [cpExtraTemplate]="colorMenuTemplate"
+          [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
+          [cpSaveClickOutside]="false"
+          [ngStyle]="{ 'background-color': entry.color === null ? 'grey' : '#' + entry.color, 'color' : lightColor ? 'black' : 'white'}"
+          [nzGap]="4"
+          [nzText]="'' + entry.pid"
+          nzSize="default"></nz-avatar>
+        <ng-template #colorMenuTemplate>
+          <div style="display: flex; padding: 0 16px 16px; justify-content: space-between">
+            <button
+              (click)="removeProjectColor()"
+              [disabled]="entry.color === null"
+              class="btn btn-outline-danger btn-xs">
+              Delete
+            </button>
+            <button
+              (click)="updateProjectColor()"
+              class="btn btn-primary btn-xs">
+              Save
+            </button>
+          </div>
+        </ng-template>
+      </div>
+    </nz-list-item-meta-avatar>
+
+    <!-- editable name of saved workflow -->
+    <nz-list-item-meta-title>
+      <ng-container *ngIf="!editingName; else editingProject">
+        <a
+          [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + entry.pid"
+          class="project-name">
+          {{entry.name}}</a
+        >
+        <button
+          *ngIf="editable"
+          (click)="editingName = true"
+          nz-button
+          title="Edit Project Name"
+          nz-tooltip="Edit Project Name"
+          nzSize="small"
+          nzTooltipPlacement="top"
+          nzType="text">
+          <i
+            class="edit-name-icon"
+            nz-icon
+            nzTheme="outline"
+            nzType="edit"></i>
+        </button>
+        <button
+          *ngIf="editable"
+          (click)="editingDescription = true"
+          nz-button
+          title="Add / Edit Description"
+          nz-tooltip="Add / Edit Description"
+          nzSize="small"
+          nzTooltipPlacement="top"
+          nzType="text">
+          <i
+            class="edit-description-icon"
+            nz-icon
+            nzTheme="outline"
+            nzType="plus-square"></i>
+        </button>
+        <button
+          (click)="descriptionCollapsed = true"
+          *ngIf="entry.description && entry.description?.trim() && !descriptionCollapsed"
+          nz-button
+          title="Collapse Description"
+          nz-tooltip="Collapse Description"
+          nzSize="small"
+          nzTooltipPlacement="top"
+          nzType="text">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="up-square"></i>
+        </button>
+        <button
+          (click)="descriptionCollapsed = false"
+          *ngIf="entry.description && entry.description?.trim() && descriptionCollapsed"
+          nz-button
+          title="Expand Description"
+          nz-tooltip="Expand Description"
+          nzSize="small"
+          nzTooltipPlacement="top"
+          nzType="text">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="down-square"></i>
+        </button>
+      </ng-container>
+
+      <ng-template #editingProject>
+        <input
+          #editedName
+          (focusout)="editingName = false"
+          (keyup.enter)="saveProjectName(editedName.value)"
+          placeholder="{{ entry.name }}"
+          value="{{ entry.name }}" />
+      </ng-template>
+    </nz-list-item-meta-title>
+
+    <!-- editable project description -->
+    <nz-list-item-meta-description>
+      <ng-container *ngIf="!editingDescription;else editDescriptionTemplate">
+        <div
+          *ngIf="entry.description && entry.description?.trim() && !descriptionCollapsed"
+          class="description-container">
+          <markdown [data]="entry.description"></markdown>
+        </div>
+      </ng-container>
+
+      <ng-template #editDescriptionTemplate>
+        <nz-input-group
+          [nzSuffix]="saveDescriptionIcon"
+          class="ant-input-affix-wrapper-textarea-with-clear-btn">
+          <textarea
+            #descriptionBox
+            (focusout)="saveProjectDescription(descriptionBox.value)"
+            [attr.maxlength]="MAX_PROJECT_DESCRIPTION_CHAR_COUNT"
+            nz-input
+            nzAutosize
+            placeholder="Enter project description">
+{{entry.description}}</textarea
+          >
+        </nz-input-group>
+        <div class="character-count">{{descriptionBox.value.length}}/{{MAX_PROJECT_DESCRIPTION_CHAR_COUNT}}</div>
+        <ng-template #saveDescriptionIcon>
+          <span
+            (click)="editingDescription = false"
+            *ngIf="descriptionBox.value !== entry.description"
+            class="ant-input-clear-icon"
+            nz-icon
+            nz-tooltip="Save"
+            nzTheme="fill"
+            nzTooltipPlacement="top"
+            nzType="check-circle"></span>
+        </ng-template>
+      </ng-template>
+    </nz-list-item-meta-description>
+
+    <!-- created time of project -->
+    <nz-list-item-meta-description>
+      <p>Created: {{entry.creationTime | date: "yyyy-MM-dd HH:mm"}}</p>
+    </nz-list-item-meta-description>
+  </nz-list-item-meta>
+
+  <ul
+    nz-list-item-actions
+    *ngIf="editable">
+    <nz-list-item-action>
+      <button
+        (click)="onClickOpenShareAccess(entry.pid)"
+        [disabled]="entry.ownerID !== uid"
+        nz-button
+        nz-tooltip="Share the project {{
+								entry.name
+							}} to others"
+        nzTooltipPlacement="bottom"
+        type="button">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="share-alt"></i>
+      </button>
+    </nz-list-item-action>
+    <nz-list-item-action>
+      <button
+        (nzOnConfirm)="deleted.emit()"
+        nz-button
+        nz-popconfirm
+        title="Delete the project {{entry.name}}"
+        nz-tooltip="Delete the project {{entry.name}}"
+        nzPopconfirmTitle="Confirm to delete this project."
+        nzTooltipPlacement="bottom">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="delete"></i>
+      </button>
+    </nz-list-item-action>
+  </ul>
+</nz-list-item>

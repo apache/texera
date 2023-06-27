@@ -15,18 +15,18 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, map, takeUntil } from "rxjs/operators";
+import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { isSink } from "../../service/workflow-graph/model/workflow-graph";
-import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { concatMap, catchError } from "rxjs/operators";
-import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
+import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
+import { isDefined } from "../../../common/util/predicate";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -57,7 +57,7 @@ export class NavigationComponent implements OnInit {
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
 
-  @Input() private pid: number = 0;
+  @Input() private pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
@@ -386,7 +386,7 @@ export class NavigationComponent implements OnInit {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-    if (this.pid === 0) {
+    if (!isDefined(this.pid)) {
       this.workflowPersistService
         .persistWorkflow(this.workflowActionService.getWorkflow())
         .pipe(untilDestroyed(this))
@@ -402,13 +402,14 @@ export class NavigationComponent implements OnInit {
         );
     } else {
       // add workflow to project, backend will create new mapping if not already added
+      let localPid = this.pid;
       this.workflowPersistService
         .persistWorkflow(this.workflowActionService.getWorkflow())
         .pipe(
           concatMap((updatedWorkflow: Workflow) => {
             this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             this.isSaving = false;
-            return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
+            return this.userProjectService.addWorkflowToProject(localPid, updatedWorkflow.wid!);
           }),
           catchError((err: unknown) => {
             throw err;

@@ -30,6 +30,9 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerStatistics,
     LinkCompletedV2,
     InitializeOperatorLogicV2,
+    LinkOrdinal,
+    PauseWorkerV2,
+    ResumeWorkerV2,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -152,8 +155,9 @@ class TestMainLoop:
             InitializeOperatorLogicV2(
                 code="from pytexera import *\n" + inspect.getsource(EchoOperator),
                 is_source=False,
+                input_ordinal_mapping=[LinkOrdinal(mock_link, 0)],
+                output_ordinal_mapping=[],
                 output_schema=mock_raw_schema,
-                upstream_link_ids=[mock_link],
             ),
         )
         payload = set_one_of(
@@ -176,8 +180,9 @@ class TestMainLoop:
             InitializeOperatorLogicV2(
                 code="from pytexera import *\n" + inspect.getsource(CountBatchOperator),
                 is_source=False,
+                input_ordinal_mapping=[LinkOrdinal(mock_link, 0)],
+                output_ordinal_mapping=[],
                 output_schema=mock_raw_schema,
-                upstream_link_ids=[mock_link],
             ),
         )
         payload = set_one_of(
@@ -211,6 +216,24 @@ class TestMainLoop:
         self, mock_controller, mock_sender_actor, command_sequence
     ):
         command = set_one_of(ControlCommandV2, QueryStatisticsV2())
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(command_id=command_sequence, command=command),
+        )
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
+    def mock_pause(self, mock_controller, mock_sender_actor, command_sequence):
+        command = set_one_of(ControlCommandV2, PauseWorkerV2())
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(command_id=command_sequence, command=command),
+        )
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
+    def mock_resume(self, mock_controller, mock_sender_actor, command_sequence):
+        command = set_one_of(ControlCommandV2, ResumeWorkerV2())
         payload = set_one_of(
             ControlPayloadV2,
             ControlInvocationV2(command_id=command_sequence, command=command),
@@ -406,6 +429,8 @@ class TestMainLoop:
         mock_query_statistics,
         mock_update_input_linking,
         mock_add_partitioning,
+        mock_pause,
+        mock_resume,
         mock_initialize_batch_count_operator_logic,
         mock_batch,
         mock_batch_data_elements,
@@ -452,41 +477,67 @@ class TestMainLoop:
             ),
         )
         operator = main_loop.context.operator_manager.operator
-
-        # can process a InputDataFrame
-
         output_data_elements = []
+
         # can process a InputDataFrame
         operator.BATCH_SIZE = 10
         for i in range(13):
             input_queue.put(mock_batch_data_elements[i])
         for i in range(10):
             output_data_elements.append(output_queue.get())
-        assert operator.count == 1
+
+        self.send_pause(
+            command_sequence, input_queue, mock_controller, mock_pause, output_queue
+        )
         # input queue 13, output queue 10, batch_buffer 3
+        assert operator.count == 1
         operator.BATCH_SIZE = 20
+        self.send_resume(
+            command_sequence, input_queue, mock_controller, mock_resume, output_queue
+        )
+
         for i in range(13, 41):
             input_queue.put(mock_batch_data_elements[i])
         for i in range(20):
             output_data_elements.append(output_queue.get())
-        assert operator.count == 2
+
+        self.send_pause(
+            command_sequence, input_queue, mock_controller, mock_pause, output_queue
+        )
         # input queue 41, output queue 30, batch_buffer 11
+        assert operator.count == 2
         operator.BATCH_SIZE = 5
+        self.send_resume(
+            command_sequence, input_queue, mock_controller, mock_resume, output_queue
+        )
+
         input_queue.put(mock_batch_data_elements[41])
-        for i in range(5):
-            output_data_elements.append(output_queue.get())
-        assert operator.count == 3
         input_queue.put(mock_batch_data_elements[42])
-        for i in range(5):
+        for i in range(10):
             output_data_elements.append(output_queue.get())
-        assert operator.count == 4
+
+        self.send_pause(
+            command_sequence, input_queue, mock_controller, mock_pause, output_queue
+        )
         # input queue 43, output queue 40, batch_buffer 3
+        assert operator.count == 4
+        self.send_resume(
+            command_sequence, input_queue, mock_controller, mock_resume, output_queue
+        )
+
         for i in range(43, 57):
             input_queue.put(mock_batch_data_elements[i])
         for i in range(15):
             output_data_elements.append(output_queue.get())
+
+        self.send_pause(
+            command_sequence, input_queue, mock_controller, mock_pause, output_queue
+        )
         # input queue 57, output queue 55, batch_buffer 2
         assert operator.count == 7
+        self.send_resume(
+            command_sequence, input_queue, mock_controller, mock_resume, output_queue
+        )
 
         input_queue.put(mock_end_of_upstream)
         for i in range(2):
@@ -502,3 +553,33 @@ class TestMainLoop:
         assert data_frame.frame[0] == Tuple(mock_batch[0])
 
         reraise()
+
+    @staticmethod
+    def send_pause(
+        command_sequence, input_queue, mock_controller, mock_pause, output_queue
+    ):
+        input_queue.put(mock_pause)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(worker_state=WorkerState.PAUSED),
+                )
+            ),
+        )
+
+    @staticmethod
+    def send_resume(
+        command_sequence, input_queue, mock_controller, mock_resume, output_queue
+    ):
+        input_queue.put(mock_resume)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(worker_state=WorkerState.RUNNING),
+                )
+            ),
+        )

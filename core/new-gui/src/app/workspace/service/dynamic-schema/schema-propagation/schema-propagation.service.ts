@@ -74,6 +74,18 @@ export class SchemaPropagationService {
     return this.operatorInputSchemaMap[operatorID];
   }
 
+  public getPortInputSchema(operatorID: string, portIndex: number): PortInputSchema | undefined {
+    return this.getOperatorInputSchema(operatorID)?.[portIndex];
+  }
+
+  public getOperatorInputAttributeType(
+    operatorID: string,
+    portIndex: number,
+    attributeName: string
+  ): AttributeType | undefined {
+    return this.getPortInputSchema(operatorID, portIndex)?.find(e => e.attributeName === attributeName)?.attributeType;
+  }
+
   /**
    * Apply the schema propagation result to an operator.
    * The schema propagation result contains the input attributes of operators.
@@ -126,7 +138,9 @@ export class SchemaPropagationService {
     // make a http post request to the API endpoint with the logical plan object
     return this.httpClient
       .post<SchemaPropagationResponse>(
-        `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
+        `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${
+          this.workflowActionService.getWorkflow().wid
+        }`,
         JSON.stringify(body),
         { headers: { "Content-Type": "application/json" } }
       )
@@ -279,16 +293,19 @@ export class SchemaPropagationService {
   }
 }
 
+// possible types of an attribute
+export type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
+
 // schema: an array of attribute names and types
 export interface SchemaAttribute
   extends Readonly<{
     attributeName: string;
-    attributeType: "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "ANY";
+    attributeType: AttributeType;
   }> {}
 
 // input schema of an operator: an array of schemas at each input port
-export type OperatorInputSchema = ReadonlyArray<ReadonlyArray<SchemaAttribute> | null>;
-
+export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
+export type PortInputSchema = ReadonlyArray<SchemaAttribute>;
 /**
  * The backend interface of the return object of a successful execution
  * of autocomplete API

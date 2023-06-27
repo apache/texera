@@ -1,19 +1,12 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { isEqual } from "lodash-es";
-import { Observable } from "rxjs";
 import { environment } from "../../../../../environments/environment";
-import { AppSettings } from "../../../../common/app-setting";
-import { UserFileService } from "../../../../dashboard/service/user-file/user-file.service";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { SchemaAttribute, SchemaPropagationService } from "../schema-propagation/schema-propagation.service";
-import { concatMap, map } from "rxjs/operators";
 
-// endpoint for retrieving table metadata
-export const SOURCE_TABLE_NAMES_ENDPOINT = "resources/table-metadata";
 // By contract, property name name for texera table name autocomplete
 export const tableNameInJsonSchema = "tableName";
 export const fileNameInJsonSchema = "fileName";
@@ -45,8 +38,7 @@ export class SourceTablesService {
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService,
-    private userFileService: UserFileService
+    private dynamicSchemaService: DynamicSchemaService
   ) {
     // do nothing if source tables are not enabled
     if (!environment.sourceTableEnabled) {
@@ -55,8 +47,6 @@ export class SourceTablesService {
 
     // when GUI starts up, fetch the source table information from the backend
     // this.registerSourceTableFetch(); // disabled as source tables are not used in the new engine
-
-    this.registerUpdateUserFileInFileSourceOp();
 
     this.registerOpPropertyDynamicUpdate();
 
@@ -69,13 +59,6 @@ export class SourceTablesService {
   public getTableSchemaMap(): ReadonlyMap<string, TableSchema> | undefined {
     return this.tableSchemaMap;
   }
-
-  private invokeSourceTableAPI(): Observable<Map<string, TableSchema>> {
-    return this.httpClient
-      .get<TableMetadata[]>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
-      .pipe(map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema]))));
-  }
-
   private changeInputToEnumInJsonSchema(
     schema: OperatorSchema,
     key: string,
@@ -125,22 +108,6 @@ export class SourceTablesService {
     }
     return schema;
   }
-
-  private handleSourceTableChange() {
-    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
-      const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
-      // if operator input attributes are in the result, set them in dynamic schema
-      const tableScanSchema = this.changeInputToEnumInJsonSchema(schema, tableNameInJsonSchema, this.tableNames);
-      if (!tableScanSchema) {
-        return;
-      }
-      if (!isEqual(schema, tableScanSchema)) {
-        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
-        this.dynamicSchemaService.setDynamicSchema(operatorID, tableScanSchema);
-      }
-    });
-  }
-
   /**
    * Handle property change of source operators. When a table of a source operator is selected,
    *  and the source operator also has property `attribute` or `attributes`, change them to be the column names of the table.
@@ -161,41 +128,6 @@ export class SourceTablesService {
         this.dynamicSchemaService.setDynamicSchema(operator.operatorID, newDynamicSchema);
       }
     }
-  }
-
-  private registerUpdateUserFileInFileSourceOp(): void {
-    this.userFileService
-      .getUserFilesChangedEvent()
-      .pipe(concatMap(_ => this.userFileService.retrieveDashboardUserFileEntryList()))
-      .subscribe(dashboardFileEntries => {
-        this.userFileNames = dashboardFileEntries.map(file => `${file.ownerName}/${file.file.name}`);
-
-        Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
-          const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
-          // if operator input attributes are in the result, set them in dynamic schema
-          const fileSchema = this.changeInputToEnumInJsonSchema(
-            schema,
-            fileNameInJsonSchema,
-            this.userFileNames,
-            "File Name"
-          );
-          if (!fileSchema) {
-            return;
-          }
-          if (!isEqual(schema, fileSchema)) {
-            SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
-            this.dynamicSchemaService.setDynamicSchema(operatorID, fileSchema);
-          }
-        });
-      });
-  }
-
-  private registerSourceTableFetch(): void {
-    this.invokeSourceTableAPI().subscribe(response => {
-      this.tableSchemaMap = response;
-      this.tableNames = Array.from(this.tableSchemaMap.keys());
-      this.handleSourceTableChange();
-    });
   }
 
   private registerOpPropertyDynamicUpdate(): void {

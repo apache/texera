@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.download
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -93,14 +93,17 @@ class BulkDownloaderOpExec(
           input match {
             case Some(contentStream) =>
               if (contentStream.available() > 0) {
+                val filename =
+                  s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
+                    .replace(".", "")}.download"
                 UserFileResource
-                  .saveUserFileSafe(
+                  .saveFile(
                     workflowContext.userId.get,
-                    s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
-                      .replace(".", "")}.download",
+                    filename,
                     contentStream,
                     s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
                   )
+                filename
               } else {
                 throw new RuntimeException(s"content is not available for $url")
               }
