@@ -7,7 +7,6 @@ from core.models import (
     EndOfUpstream,
     InternalQueue,
 )
-import time
 from core.models.internal_queue import DataElement, ControlElement
 from core.proxy import ProxyServer
 from core.util import Stoppable

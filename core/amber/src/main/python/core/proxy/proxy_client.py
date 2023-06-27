@@ -1,5 +1,4 @@
-from typing import Optional
-
+import socket
 from loguru import logger
 from pyarrow import Table
 from pyarrow.flight import (
@@ -9,27 +8,17 @@ from pyarrow.flight import (
     FlightDescriptor,
     FlightStreamWriter,
 )
+from typing import Optional
 
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    ControlReturnV2,
+)
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
     ControlPayloadV2,
     PythonControlMessage,
-    PythonDataHeader,
     ReturnInvocationV2,
 )
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    AddPartitioningV2,
-    ControlCommandV2,
-    ControlReturnV2,
-    QueryStatisticsV2,
-    UpdateInputLinkingV2,
-    WorkerExecutionCompletedV2,
-    WorkerState,
-    WorkerStatistics,
-    LinkCompletedV2,
-    InitializeOperatorLogicV2,
-)
-import socket
 
 
 def get_free_local_port():

@@ -1,7 +1,7 @@
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table
-from pandas import DataFrame
+
 from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
@@ -11,19 +11,6 @@ from proto.edu.uci.ics.amber.engine.common import (
     ControlPayloadV2,
     PythonControlMessage,
     PythonDataHeader,
-    ReturnInvocationV2,
-)
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    AddPartitioningV2,
-    ControlCommandV2,
-    ControlReturnV2,
-    QueryStatisticsV2,
-    UpdateInputLinkingV2,
-    WorkerExecutionCompletedV2,
-    WorkerState,
-    WorkerStatistics,
-    LinkCompletedV2,
-    InitializeOperatorLogicV2,
 )
 
 
