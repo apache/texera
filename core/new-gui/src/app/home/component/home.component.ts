@@ -2,12 +2,12 @@ import { Component, OnInit } from "@angular/core";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
 import { ActivatedRoute, Router } from "@angular/router";
-import { GoogleService } from "../service/google.service";
 import { catchError, mergeMap } from "rxjs/operators";
 import { throwError } from "rxjs";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NotificationService } from "../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { GoogleAuthService } from "../../common/service/user/google-auth.service";
 
 @UntilDestroy()
 @Component({
@@ -20,14 +20,14 @@ export class HomeComponent implements OnInit {
   constructor(
     private userService: UserService,
     private route: ActivatedRoute,
-    private googleService: GoogleService,
+    private googleAuthService: GoogleAuthService,
     private notificationService: NotificationService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
-    this.googleService.googleInit(document.getElementById("googleButton"));
-    this.googleService.googleCredentialResponse
+    this.googleAuthService.googleAuthInit(document.getElementById("googleButton"));
+    this.googleAuthService.googleCredentialResponse
       .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
       .pipe(
         catchError((err: unknown) => {
