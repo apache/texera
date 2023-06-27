@@ -1,13 +1,10 @@
-from threading import Thread
-
 from overrides import overrides
+from threading import Thread
 
 from core.models.internal_queue import InternalQueue
 from core.runnables import MainLoop, NetworkReceiver, NetworkSender
 from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
-import socket
-import time
 
 
 class PythonWorker(Runnable, Stoppable):
