@@ -7,21 +7,22 @@ from core.runnables import MainLoop, NetworkReceiver, NetworkSender
 from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
 import socket
-import os
+import time
+
 
 class PythonWorker(Runnable, Stoppable):
-    def __init__(self, host: str, temp_path: str, output_port: str):
+    def __init__(self, host: str, output_port: str):
         self._input_queue = InternalQueue()
         self._output_queue = InternalQueue()
-        self._network_receiver = NetworkReceiver(
-            self._input_queue, host=host, temp_path=temp_path
-        )
-        # os.environ[actor_name + "_INPUT_PORT"] = str(input_port)
+
+        self._network_receiver = NetworkReceiver(self._input_queue, host=host)
 
         self._network_sender = NetworkSender(
-            self._output_queue, host=host, temp_path=temp_path, output_port=output_port
+            self._output_queue,
+            host=host,
+            output_port=output_port,
+            handshake_port=self._network_receiver.proxy_server.get_port_number(),
         )
-        # os.environ[actor_name + "_OUTPUT_PORT"] = str(output_port)
 
         self._main_loop = MainLoop(self._input_queue, self._output_queue)
         self._network_receiver.register_shutdown(self.stop)
