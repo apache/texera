@@ -52,7 +52,6 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     var tryCount = 0
     while (!connected && tryCount <= MAX_TRY_COUNT) {
       try {
-        logger.info(s"trying to connect to $location")
         flightClient = FlightClient.builder(allocator, location).build()
         connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
         if (!connected)

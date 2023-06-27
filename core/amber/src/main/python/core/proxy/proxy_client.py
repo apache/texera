@@ -10,16 +10,6 @@ from pyarrow.flight import (
 )
 from typing import Optional
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    ControlReturnV2,
-)
-from proto.edu.uci.ics.amber.engine.common import (
-    ActorVirtualIdentity,
-    ControlPayloadV2,
-    PythonControlMessage,
-    ReturnInvocationV2,
-)
-
 
 def get_free_local_port():
     with socket.socket() as s:
@@ -93,13 +83,4 @@ class ProxyClient(FlightClient):
             writer.write_table(table)
 
     def handshake(self, handshake_port: int) -> None:
-        python_control_message = PythonControlMessage(
-            tag=ActorVirtualIdentity(),
-            payload=ControlPayloadV2(
-                return_invocation=ReturnInvocationV2(
-                    original_command_id=handshake_port,
-                    control_return=ControlReturnV2(),
-                )
-            ),
-        )
-        self.call_action("handshake", bytes(python_control_message))
+        self.call_action("handshake", bytes(str(handshake_port), "utf-8"))

@@ -2,10 +2,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV1,
-  returnInvocationToV1
-}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV1, returnInvocationToV1}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -18,6 +15,8 @@ import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import com.twitter.util.Promise
+
+import java.nio.charset.Charset
 
 private class AmberProducer(
     controlOutputPort: NetworkOutputPort[ControlPayload],
@@ -53,16 +52,8 @@ private class AmberProducer(
         listener.onNext(new Result("ack".getBytes))
         listener.onCompleted()
       case "handshake" =>
-//        action.getBody
-        val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
-//        val _portNumber = 0
-        pythonControlMessage.payload match {
-          case returnInvocation: ReturnInvocationV2 =>
-            promise.setValue(returnInvocation.originalCommandId.toInt)
-          case payload =>
-            throw new RuntimeException(s"not supported payload $payload")
-        }
-//        println(action.getBody.mkString("Array(", ", ", ")"))
+        val strPortNumber: String = new String(action.getBody, Charset.forName("UTF-8"))
+        promise.setValue(strPortNumber.toInt)
         listener.onNext(new Result("ok".getBytes))
         listener.onCompleted()
       case _ => throw new NotImplementedError()
