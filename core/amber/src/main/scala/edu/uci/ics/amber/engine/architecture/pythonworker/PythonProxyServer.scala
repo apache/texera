@@ -15,13 +15,9 @@ import org.apache.arrow.util.AutoCloseables
 
 import java.io.IOException
 import java.net.ServerSocket
-import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import com.twitter.util.{Future, Promise}
-import scala.io.Source
-import scala.util.{Failure, Success}
+import com.twitter.util.Promise
 
 private class AmberProducer(
     controlOutputPort: NetworkOutputPort[ControlPayload],

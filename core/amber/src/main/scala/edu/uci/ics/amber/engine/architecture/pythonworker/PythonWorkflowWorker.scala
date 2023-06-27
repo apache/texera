@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.Props
-import com.twitter.util.{Duration, Await, Promise}
+import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
@@ -15,14 +15,10 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.Utils
 
-import java.util.concurrent.atomic.AtomicInteger
-import java.io.IOException
-import java.net.ServerSocket
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Path
 import scala.sys.process.{BasicIO, Process}
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
-import scala.util.Try
 
 object PythonWorkflowWorker {
   def props(
