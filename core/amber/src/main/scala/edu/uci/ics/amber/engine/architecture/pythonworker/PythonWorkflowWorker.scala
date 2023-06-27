@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.Props
+import com.twitter.util.{Duration, Await, Promise}
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
@@ -14,12 +15,14 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.Utils
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.io.IOException
 import java.net.ServerSocket
 import java.nio.file.{Files, Path, Paths}
 import scala.sys.process.{BasicIO, Process}
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
+import scala.util.Try
 
 object PythonWorkflowWorker {
   def props(
@@ -52,15 +55,16 @@ class PythonWorkflowWorker(
     ) {
 
   // Input/Output port used in between Python and Java processes.
-  private lazy val inputPortNum: Int = getFreeLocalPort
+//  private lazy Atomic inputPortNum: Int = getFreeLocalPort
 //  private lazy val outputPortNum: Int = getFreeLocalPort
   // Proxy Serve and Client
+  private lazy val portNumberPromise = Promise[Int]()
+
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
+  private var pythonProxyServer: PythonProxyServer = _
   private lazy val pythonProxyClient: PythonProxyClient =
-    new PythonProxyClient(actorId)
-  private lazy val pythonProxyServer: PythonProxyServer =
-    new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort, actorId)
+    new PythonProxyClient(portNumberPromise, actorId)
 
   // TODO: find a better way to send Error log to frontend.
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
@@ -125,7 +129,20 @@ class PythonWorkflowWorker(
   }
 
   private def startProxyServer(): Unit = {
-    serverThreadExecutor.submit(pythonProxyServer)
+    var serverStart = false
+    while (!serverStart) {
+      pythonProxyServer =
+        new PythonProxyServer(controlOutputPort, dataOutputPort, actorId, portNumberPromise)
+      val future = serverThreadExecutor.submit(pythonProxyServer)
+      try {
+        future.get()
+        serverStart = true
+      } catch {
+        case e: Exception =>
+          future.cancel(true)
+          logger.info("Failed to start the server: " + e.getMessage + ", will try again")
+      }
+    }
   }
 
   private def startProxyClient(): Unit = {
@@ -135,51 +152,15 @@ class PythonWorkflowWorker(
   private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
-
-//    val fileNameInput = Paths.get("connection" + workerIndex.toString + "_input.info")
-//    val tempPathInput = Files.createFile(fileNameInput)
-//
-//    val fileNameOutput = Paths.get("connection" + workerIndex.toString + "_output.info")
-//    val tempPathOutput = Files.createFile(fileNameOutput)
-//    val actorName = "WORKER_PYTHON" + workerIndex
-//    val prints = tempPathInput.toString + " " + tempPathOutput.toString + " " + tempPathInput.getParent.toString + "connection" + workerIndex.toString
-    val prints = actorId.name
-    logger.info(s"try for: $prints")
-
     pythonServerProcess = Process(
       Seq(
         if (pythonENVPath.isEmpty) "python3"
         else pythonENVPath, // add fall back in case of empty
         "-u",
         udfEntryScriptPath,
-//        actorName,
-        Paths.get("").toAbsolutePath.resolve("connection" + actorId.name).toAbsolutePath.toString,
-//        Integer.toString(outputPortNum),
-        Integer.toString(inputPortNum),
+        Integer.toString(pythonProxyServer.getPortNumber.get()),
         config.getString("python.log.streamHandler.level")
       )
     ).run(BasicIO.standard(false))
-  }
-
-  /**
-    * Get a random free port.
-    *
-    * @return The port number.
-    * @throws IOException, might happen when getting a free port.
-    */
-  @throws[IOException]
-  private def getFreeLocalPort: Int = {
-    var s: ServerSocket = null
-    try {
-      // ServerSocket(0) results in availability of a free random port
-      s = new ServerSocket(0)
-      s.getLocalPort
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(e)
-    } finally {
-      assert(s != null)
-      s.close()
-    }
   }
 }

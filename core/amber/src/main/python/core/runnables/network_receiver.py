@@ -7,6 +7,7 @@ from core.models import (
     EndOfUpstream,
     InternalQueue,
 )
+import time
 from core.models.internal_queue import DataElement, ControlElement
 from core.proxy import ProxyServer
 from core.util import Stoppable
@@ -19,8 +20,16 @@ class NetworkReceiver(Runnable, Stoppable):
     Receive and deserialize messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, temp_path: str):
-        self._proxy_server = ProxyServer(host=host, temp_path=temp_path)
+    @logger.catch(reraise=True)
+    def __init__(self, shared_queue: InternalQueue, host: str):
+        server_start = False
+        while not server_start:
+            try:
+                self._proxy_server = ProxyServer(host=host)
+                server_start = True
+            except Exception as e:
+                logger.info("Error occurred while starting the server:", repr(e))
+                self._proxy_server.shutdown()
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
@@ -66,3 +75,7 @@ class NetworkReceiver(Runnable, Stoppable):
     def stop(self):
         self._proxy_server.shutdown()
         self._proxy_server.wait()
+
+    @property
+    def proxy_server(self):
+        return self._proxy_server

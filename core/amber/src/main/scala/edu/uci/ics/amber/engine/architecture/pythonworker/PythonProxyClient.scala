@@ -1,9 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2, DataElement}
+import com.twitter.util.{Await, Duration, Promise}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ControlElement,
+  ControlElementV2,
+  DataElement
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV2,
+  returnInvocationToV2
+}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -17,11 +25,12 @@ import org.apache.arrow.vector.VectorSchemaRoot
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.io.Source
 import scala.math.pow
 
-class PythonProxyClient(val actorId: ActorVirtualIdentity)
+class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
     with AmberLogging
     with AutoCloseable
@@ -29,28 +38,11 @@ class PythonProxyClient(val actorId: ActorVirtualIdentity)
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
-//  var location: Location = Location.forGrpcInsecure("localhost", portNumber)
   val location: Location = (() => {
-//    val environVariableName = "WORKER_PYTHON" + actorId.name.charAt(actorId.name.length - 1) + "_OUTPUT_PORT"
-//    var portNumber = System.getenv(environVariableName)
-    val fileName = "connection" + actorId.name + "_output.info"
-
-    val filePath = Paths.get("").toAbsolutePath.resolve(fileName).toAbsolutePath
-    logger.info(s"will try output file at: $filePath")
-
-    if (!Files.exists(filePath)) {
-      logger.info(s"Waiting for output port for: $fileName")
-      while (!Files.exists(filePath)) {
-        Thread.sleep(UNIT_WAIT_TIME_MS)
-      }
-    }
-    val source = Source.fromFile(fileName)
-    val portNumber = source.mkString.trim.toInt
-    source.close()
-    logger.info(s"Output port found for: $fileName at $portNumber")
-    Files.delete(filePath)
+    val portNumber = Await.result(portNumberPromise, timeout = Duration.fromSeconds(100))
     Location.forGrpcInsecure("localhost", portNumber)
-  }) ()
+  })()
+
   private val MAX_TRY_COUNT: Int = 5
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _

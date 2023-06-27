@@ -2,7 +2,10 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV1, returnInvocationToV1}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV1,
+  returnInvocationToV1
+}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -10,15 +13,24 @@ import org.apache.arrow.flight._
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
 
+import java.io.IOException
+import java.net.ServerSocket
 import java.nio.file.{Files, Paths}
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import com.twitter.util.{Future, Promise}
 import scala.io.Source
+import scala.util.{Failure, Success}
 
 private class AmberProducer(
     controlOutputPort: NetworkOutputPort[ControlPayload],
-    dataOutputPort: NetworkOutputPort[DataPayload]
+    dataOutputPort: NetworkOutputPort[DataPayload],
+    promise: Promise[Int]
 ) extends NoOpFlightProducer {
+  var _portNumber: AtomicInteger = new AtomicInteger(0)
 
+  def portNumber: AtomicInteger = _portNumber
   override def doAction(
       context: FlightProducer.CallContext,
       action: Action,
@@ -41,9 +53,21 @@ private class AmberProducer(
             )
           case payload =>
             throw new RuntimeException(s"not supported payload $payload")
-
         }
         listener.onNext(new Result("ack".getBytes))
+        listener.onCompleted()
+      case "handshake" =>
+//        action.getBody
+        val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
+//        val _portNumber = 0
+        pythonControlMessage.payload match {
+          case returnInvocation: ReturnInvocationV2 =>
+            promise.setValue(returnInvocation.originalCommandId.toInt)
+          case payload =>
+            throw new RuntimeException(s"not supported payload $payload")
+        }
+//        println(action.getBody.mkString("Array(", ", ", ")"))
+        listener.onNext(new Result("ok".getBytes))
         listener.onCompleted()
       case _ => throw new NotImplementedError()
     }
@@ -87,50 +111,25 @@ private class AmberProducer(
 }
 
 class PythonProxyServer(
-                         portNumber: Int,
     controlOutputPort: NetworkOutputPort[ControlPayload],
     dataOutputPort: NetworkOutputPort[DataPayload],
-    val actorId: ActorVirtualIdentity
+    val actorId: ActorVirtualIdentity,
+    promise: Promise[Int]
 ) extends Runnable
     with AutoCloseable
     with AmberLogging {
+  private lazy val portNumber: AtomicInteger = new AtomicInteger(getFreeLocalPort)
+  def getPortNumber: AtomicInteger = portNumber
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
-//  val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-  private val UNIT_WAIT_TIME_MS = 200
-  val location: Location = (() => {
-//    val environVariableName = "WORKER_PYTHON" + actorId.name.charAt(actorId.name.length - 1) + "_INPUT_PORT"
-//    var portNumber = System.getenv(environVariableName)
-//    if (portNumber == null) {
-//      while (portNumber == null) {
-//        Thread.sleep(UNIT_WAIT_TIME_MS)
-//        logger.info(s"Waiting for input port for: $environVariableName")
-//        portNumber = System.getenv(environVariableName + "_INPUT_PORT")
-//      }
-//      logger.info(s"Input port found for: $environVariableName at $portNumber")
-//    }
-//    Location.forGrpcInsecure("localhost", portNumber.toInt)
-//    val fileName = "connection" + actorId.name + "_input.info"
-//
-//    val filePath = Paths.get("").toAbsolutePath.resolve(fileName).toAbsolutePath
-//    logger.info(s"will try input file at: $filePath")
-//
-//    if (!Files.exists(filePath)) {
-//      logger.info(s"Waiting for input port for: $fileName")
-//      while (!Files.exists(filePath)) {
-//        Thread.sleep(UNIT_WAIT_TIME_MS)
-//      }
-//    }
-//    val source = Source.fromFile(fileName)
-//    val portNumber = source.mkString.trim.toInt
-//    source.close()
-    logger.info(s"Input port found at $portNumber")
-//    Files.delete(filePath)
-    Location.forGrpcInsecure("localhost", portNumber)
-  }) ()
 
-  val producer: FlightProducer = new AmberProducer(controlOutputPort, dataOutputPort)
+  val producer: FlightProducer = new AmberProducer(controlOutputPort, dataOutputPort, promise)
+
+  val location: Location = (() => {
+    Location.forGrpcInsecure("localhost", portNumber.intValue())
+  })()
+
   val server: FlightServer = FlightServer.builder(allocator, location, producer).build()
 
   override def run(): Unit = {
@@ -142,4 +141,25 @@ class PythonProxyServer(
     AutoCloseables.close(server, allocator)
   }
 
+  /**
+    * Get a random free port.
+    *
+    * @return The port number.
+    * @throws IOException  , might happen when getting a free port.
+    */
+  @throws[IOException]
+  private def getFreeLocalPort: Int = {
+    var s: ServerSocket = null
+    try {
+      // ServerSocket(0) results in availability of a free random port
+      s = new ServerSocket(0)
+      s.getLocalPort
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(e)
+    } finally {
+      assert(s != null)
+      s.close()
+    }
+  }
 }

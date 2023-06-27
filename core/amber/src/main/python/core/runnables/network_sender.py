@@ -1,7 +1,7 @@
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table
-
+from pandas import DataFrame
 from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
@@ -11,16 +11,38 @@ from proto.edu.uci.ics.amber.engine.common import (
     ControlPayloadV2,
     PythonControlMessage,
     PythonDataHeader,
+    ReturnInvocationV2,
 )
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    AddPartitioningV2,
+    ControlCommandV2,
+    ControlReturnV2,
+    QueryStatisticsV2,
+    UpdateInputLinkingV2,
+    WorkerExecutionCompletedV2,
+    WorkerState,
+    WorkerStatistics,
+    LinkCompletedV2,
+    InitializeOperatorLogicV2,
+)
+
 
 class NetworkSender(StoppableQueueBlockingRunnable):
     """
     Serialize and send messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, temp_path: str, output_port: str):
+    def __init__(
+        self,
+        shared_queue: InternalQueue,
+        host: str,
+        output_port: str,
+        handshake_port: int,
+    ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
-        self._proxy_client = ProxyClient(host=host, temp_path=temp_path, port=int(output_port))
+        self._proxy_client = ProxyClient(
+            host=host, port=int(output_port), handshake_port=handshake_port
+        )
 
     @overrides(check_signature=False)
     def receive(self, next_entry: InternalQueueElement):

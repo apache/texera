@@ -10,34 +10,51 @@ from pyarrow.flight import (
     FlightStreamWriter,
 )
 
+from proto.edu.uci.ics.amber.engine.common import (
+    ActorVirtualIdentity,
+    ControlPayloadV2,
+    PythonControlMessage,
+    PythonDataHeader,
+    ReturnInvocationV2,
+)
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    AddPartitioningV2,
+    ControlCommandV2,
+    ControlReturnV2,
+    QueryStatisticsV2,
+    UpdateInputLinkingV2,
+    WorkerExecutionCompletedV2,
+    WorkerState,
+    WorkerStatistics,
+    LinkCompletedV2,
+    InitializeOperatorLogicV2,
+)
 import socket
+
 
 def get_free_local_port():
     with socket.socket() as s:
-        s.bind(('', 0))
+        s.bind(("", 0))
         return s.getsockname()[1]
+
 
 class ProxyClient(FlightClient):
     def __init__(
         self,
         scheme: str = "grpc+tcp",
         host: str = "localhost",
-        temp_path: str = "",
         port: int = 5005,
+        handshake_port: int = 5005,
         timeout=1000,
         *args,
         **kwargs,
     ):
-        # port = get_free_local_port()
-
         location = f"{scheme}://{host}:{port}"
         super().__init__(location, *args, **kwargs)
         logger.debug(f"Connected to server at {location}")
         self._timeout = timeout
-
-        # fout = open(temp_path + "_input.info", "w")
-        # fout.write(str(port))
-        # fout.close()
+        # handshake
+        self.handshake(handshake_port=handshake_port)
 
     @logger.catch(reraise=True)
     def call_action(
@@ -74,3 +91,15 @@ class ProxyClient(FlightClient):
         writer: FlightStreamWriter
         with writer:
             writer.write_table(table)
+
+    def handshake(self, handshake_port: int) -> None:
+        python_control_message = PythonControlMessage(
+            tag=ActorVirtualIdentity(),
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=handshake_port,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+        self.call_action("handshake", bytes(python_control_message))

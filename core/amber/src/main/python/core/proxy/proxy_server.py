@@ -18,10 +18,12 @@ from pyarrow.flight import (
 from pyarrow.ipc import RecordBatchStreamWriter
 import socket
 
+
 def get_free_local_port():
     with socket.socket() as s:
-        s.bind(('', 0))
+        s.bind(("", 0))
         return s.getsockname()[1]
+
 
 class ProxyServer(FlightServerBase):
     """
@@ -85,25 +87,18 @@ class ProxyServer(FlightServerBase):
             return ack_decorator(original_func)
         return ack_decorator
 
-    def __init__(
-        self, scheme: str = "grpc+tcp", host: str = "localhost", temp_path: str = ""
-    ):
+    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost"):
         port = get_free_local_port()
-        fin = open(temp_path + "_output.info", "w")
-        fin.write(str(port))
-        fin.close()
-        self._port_number = port
-
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
         logger.debug(f"Serving on {location}")
+
+        self._port_number = port
         self.host = host
 
         # action name to callable map, will contain registered actions,
         # identified by action name.
         self._procedures: Dict[str, Tuple[Callable, str]] = dict()
-
-        # self.register(name="port output", action=ProxyServer.ack(msg=self._port_number)(lambda: None))
 
         # register heartbeat, this is the default action for the client to
         # check the aliveness of the server.
@@ -275,3 +270,12 @@ class ProxyServer(FlightServerBase):
         logger.debug("Server is shutting down...")
         time.sleep(1)
         self.shutdown()
+
+    def shutdown(self):
+        """Shut down after a delay."""
+        logger.debug("Server is shutting down...")
+        time.sleep(1)
+        self.shutdown()
+
+    def get_port_number(self):
+        return self._port_number
