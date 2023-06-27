@@ -11,12 +11,6 @@ from pyarrow.flight import (
 from typing import Optional
 
 
-def get_free_local_port():
-    with socket.socket() as s:
-        s.bind(("", 0))
-        return s.getsockname()[1]
-
-
 class ProxyClient(FlightClient):
     def __init__(
         self,
