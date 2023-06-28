@@ -3,9 +3,7 @@ import { ArrayTypeComponent } from "./array.type";
 import { ObjectTypeComponent } from "./object.type";
 import { MultiSchemaTypeComponent } from "./multischema.type";
 import { FormlyFieldConfig } from "@ngx-formly/core";
-import {
-  CodeareaCustomTemplateComponent
-} from "../../workspace/component/codearea-custom-template/codearea-custom-template.component";
+import { CodeareaCustomTemplateComponent } from "../../workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { InputAutoCompleteComponent } from "../../workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./collab-wrapper/collab-wrapper/collab-wrapper.component";
@@ -29,7 +27,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "minItems", message: minItemsValidationMessage },
     { name: "maxItems", message: maxItemsValidationMessage },
     { name: "uniqueItems", message: "should NOT have duplicate items" },
-    { name: "const", message: constValidationMessage }
+    { name: "const", message: constValidationMessage },
   ],
   types: [
     { name: "string", extends: "input", defaultOptions: { defaultValue: "" } },
@@ -38,18 +36,18 @@ export const TEXERA_FORMLY_CONFIG = {
       extends: "input",
       defaultOptions: {
         templateOptions: {
-          type: "number"
-        }
-      }
+          type: "number",
+        },
+      },
     },
     {
       name: "integer",
       extends: "input",
       defaultOptions: {
         templateOptions: {
-          type: "number"
-        }
-      }
+          type: "number",
+        },
+      },
     },
     { name: "boolean", extends: "checkbox" },
     { name: "enum", extends: "select" },
@@ -58,12 +56,12 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "object", component: ObjectTypeComponent },
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
-    { name: "inputautocomplete", component: InputAutoCompleteComponent, wrappers: ["form-field"] }
+    { name: "inputautocomplete", component: InputAutoCompleteComponent, wrappers: ["form-field"] },
   ],
   wrappers: [
     { name: "preset-wrapper", component: PresetWrapperComponent },
     { name: "collab-wrapper", component: CollabWrapperComponent },
-  ]
+  ],
 };
 
 export function minItemsValidationMessage(err: any, field: FormlyFieldConfig) {

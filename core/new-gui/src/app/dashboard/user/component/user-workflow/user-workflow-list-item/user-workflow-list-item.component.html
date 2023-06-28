@@ -22,7 +22,7 @@
           *ngIf="!editingName; else customWorkflowTitle "
           [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + workflow.wid"
           class="workflow-name"
-        >{{ workflow.name }}</a
+          >{{ workflow.name }}</a
         >
         <ng-template #customWorkflowTitle>
           <input
