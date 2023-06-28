@@ -94,7 +94,6 @@ class ProxyServer(FlightServerBase):
         logger.debug(f"Serving on {location}")
 
         self._port_number = port
-        self.host = host
 
         # action name to callable map, will contain registered actions,
         # identified by action name.
@@ -109,7 +108,7 @@ class ProxyServer(FlightServerBase):
         self.register(
             name="shutdown",
             action=ProxyServer.ack(msg="Bye bye!")(
-                lambda: threading.Thread(target=self._shutdown).start()
+                lambda: threading.Thread(target=self.graceful_shutdown).start()
             ),
             description="Shut down this server.",
         )
@@ -265,13 +264,7 @@ class ProxyServer(FlightServerBase):
     ##################
     # helper methods #
     ##################
-    def _shutdown(self):
-        """Shut down after a delay."""
-        logger.debug("Server is shutting down...")
-        time.sleep(1)
-        self.shutdown()
-
-    def shutdown(self):
+    def graceful_shutdown(self):
         """Shut down after a delay."""
         logger.debug("Server is shutting down...")
         time.sleep(1)

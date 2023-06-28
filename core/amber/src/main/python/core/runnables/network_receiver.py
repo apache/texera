@@ -28,7 +28,7 @@ class NetworkReceiver(Runnable, Stoppable):
                 server_start = True
             except Exception as e:
                 logger.info("Error occurred while starting the server:", repr(e))
-                self._proxy_server.shutdown()
+                self._proxy_server.graceful_shutdown()
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
@@ -72,7 +72,7 @@ class NetworkReceiver(Runnable, Stoppable):
     @logger.catch(reraise=True)
     @overrides
     def stop(self):
-        self._proxy_server.shutdown()
+        self._proxy_server.graceful_shutdown()
         self._proxy_server.wait()
 
     @property

@@ -17,7 +17,7 @@ class TestProxyClient:
     def server(self):
         server = ProxyServer()
         yield server
-        server.shutdown()
+        server.graceful_shutdown()
 
     @pytest.fixture
     def server_with_dp(self, data_queue):
@@ -28,7 +28,7 @@ class TestProxyClient:
             )
         )
         yield server
-        server.shutdown()
+        server.graceful_shutdown()
 
     @pytest.fixture
     def client(self):

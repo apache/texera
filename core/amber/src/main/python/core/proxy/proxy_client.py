@@ -12,28 +12,28 @@ from typing import Optional
 
 class ProxyClient(FlightClient):
     def __init__(
-        self,
-        scheme: str = "grpc+tcp",
-        host: str = "localhost",
-        port: int = 5005,
-        handshake_port: int = 5005,
-        timeout=1000,
-        *args,
-        **kwargs,
+            self,
+            scheme: str = "grpc+tcp",
+            host: str = "localhost",
+            port: int = 5005,
+            handshake_port: int = 5005,
+            timeout=1000,
+            *args,
+            **kwargs,
     ):
         location = f"{scheme}://{host}:{port}"
         super().__init__(location, *args, **kwargs)
         logger.debug(f"Connected to server at {location}")
         self._timeout = timeout
         # handshake
-        self.handshake(handshake_port=handshake_port)
+        self._handshake(handshake_port=handshake_port)
 
     @logger.catch(reraise=True)
     def call_action(
-        self,
-        action_name: str,
-        payload: bytes = bytes(),
-        options: Optional[FlightCallOptions] = None,
+            self,
+            action_name: str,
+            payload: bytes = bytes(),
+            options: Optional[FlightCallOptions] = None,
     ) -> bytes:
         """
         Call a specific remote action specified by the name, pass along a payload.
@@ -75,5 +75,5 @@ class ProxyClient(FlightClient):
         with writer:
             writer.write_table(table)
 
-    def handshake(self, handshake_port: int) -> None:
+    def _handshake(self, handshake_port: int) -> None:
         self.call_action("handshake", bytes(str(handshake_port), "utf-8"))
