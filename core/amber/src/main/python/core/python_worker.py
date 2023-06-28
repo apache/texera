@@ -11,9 +11,9 @@ class PythonWorker(Runnable, Stoppable):
     def __init__(self, host: str, output_port: str):
         self._input_queue = InternalQueue()
         self._output_queue = InternalQueue()
-
+        # start the server
         self._network_receiver = NetworkReceiver(self._input_queue, host=host)
-
+        # let Java knows where Python starts (do handshake)
         self._network_sender = NetworkSender(
             self._output_queue,
             host=host,

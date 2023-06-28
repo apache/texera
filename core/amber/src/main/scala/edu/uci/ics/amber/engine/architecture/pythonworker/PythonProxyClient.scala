@@ -33,6 +33,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = (() => {
+    // Read port number from promise until it's available
     val portNumber = Await.result(portNumberPromise, timeout = Duration.fromSeconds(100))
     Location.forGrpcInsecure("localhost", portNumber)
   })()

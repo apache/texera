@@ -22,6 +22,7 @@ class NetworkReceiver(Runnable, Stoppable):
     @logger.catch(reraise=True)
     def __init__(self, shared_queue: InternalQueue, host: str):
         server_start = False
+        # try to start the server until it succeeds
         while not server_start:
             try:
                 self._proxy_server = ProxyServer(host=host)

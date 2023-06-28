@@ -16,9 +16,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.Utils
 
 import java.nio.file.Path
-import scala.sys.process.{BasicIO, Process}
-import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
+import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
   def props(
@@ -50,12 +49,9 @@ class PythonWorkflowWorker(
       false
     ) {
 
-  // Input/Output port used in between Python and Java processes.
-//  private lazy Atomic inputPortNum: Int = getFreeLocalPort
-//  private lazy val outputPortNum: Int = getFreeLocalPort
-  // Proxy Serve and Client
+  // For receiving the Python server port number that will be available later
   private lazy val portNumberPromise = Promise[Int]()
-
+  // Proxy Server and Client
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private var pythonProxyServer: PythonProxyServer = _
@@ -125,6 +121,7 @@ class PythonWorkflowWorker(
   }
 
   private def startProxyServer(): Unit = {
+    // Try to start the server until it succeeds
     var serverStart = false
     while (!serverStart) {
       pythonProxyServer =

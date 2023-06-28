@@ -56,6 +56,7 @@ private class AmberProducer(
         listener.onCompleted()
       case "handshake" =>
         val strPortNumber: String = new String(action.getBody, Charset.forName("UTF-8"))
+        // Receive the port number from Python and put it into promise
         promise.setValue(strPortNumber.toInt)
         listener.onNext(new Result("ok".getBytes))
         listener.onCompleted()
