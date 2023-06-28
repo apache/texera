@@ -1,4 +1,3 @@
-import socket
 from loguru import logger
 from pyarrow import Table
 from pyarrow.flight import (
