@@ -22,7 +22,9 @@ class TestNetworkSender:
 
     @pytest.fixture
     def network_sender(self):
-        network_sender = NetworkSender(InternalQueue(), host="localhost", output_port=5555)
+        network_sender = NetworkSender(
+            InternalQueue(), host="localhost", output_port=5555
+        )
         yield network_sender
         network_sender.stop()
 

@@ -88,7 +88,7 @@ class TestProxyClient:
             client.send_data(command=bytes(), table=data_table)
 
     def test_client_can_send_data_with_handler(
-            self, data_queue: Queue, server_with_dp, client, data_table
+        self, data_queue: Queue, server_with_dp, client, data_table
     ):
         # send the pyarrow table to server as a flight
         client.send_data(bytes(), data_table)
