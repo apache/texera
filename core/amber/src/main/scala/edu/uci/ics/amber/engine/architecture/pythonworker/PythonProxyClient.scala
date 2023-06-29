@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import com.twitter.util.{Await, Duration, Promise}
+import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ControlElement,
   ControlElementV2,
