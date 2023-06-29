@@ -27,8 +27,8 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { isDefined } from "../../../common/util/predicate";
-import {moment} from "ngx-bootstrap/chronos/test/chain";
-import {Subscription, timer} from "rxjs";
+import { moment } from "ngx-bootstrap/chronos/test/chain";
+import { Subscription, timer } from "rxjs";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -72,7 +72,7 @@ export class NavigationComponent implements OnInit {
   public runDisable = false;
 
   public executionDuration = 0;
-  private durationUpdateSubscription:Subscription = new Subscription();
+  private durationUpdateSubscription: Subscription = new Subscription();
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
@@ -105,10 +105,12 @@ export class NavigationComponent implements OnInit {
       .subscribe(event => {
         this.executionDuration = event.duration;
         this.durationUpdateSubscription.unsubscribe();
-        if(event.isRunning){
-          this.durationUpdateSubscription = timer(1000, 1000).pipe(untilDestroyed(this)).subscribe(e =>{
-            this.executionDuration += 1000;
-          });
+        if (event.isRunning) {
+          this.durationUpdateSubscription = timer(1000, 1000)
+            .pipe(untilDestroyed(this))
+            .subscribe(e => {
+              this.executionDuration += 1000;
+            });
         }
       });
     this.executionState = executeWorkflowService.getExecutionState().state;
