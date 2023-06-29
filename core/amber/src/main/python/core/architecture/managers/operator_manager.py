@@ -64,7 +64,8 @@ class OperatorManager:
         with self.fs.open(file_name, "w") as file:
             file.write(code)
         logger.debug(
-            f"A tmp py file is written to {Path(self.fs.getsyspath('/')).joinpath(file_name)}."
+            f"A tmp py file is written to "
+            f"{Path(self.fs.getsyspath('/')).joinpath(file_name)}."
         )
 
         if module_name in sys.modules:
