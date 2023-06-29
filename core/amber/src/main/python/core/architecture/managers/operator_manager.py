@@ -17,6 +17,7 @@ class OperatorManager:
         self.operator: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
         self.operator_version: int = 0  # incremental only
+
     @cached_property
     def fs(self) -> FS:
         """
@@ -62,7 +63,9 @@ class OperatorManager:
 
         with self.fs.open(file_name, "w") as file:
             file.write(code)
-        logger.info(f"A tmp py file is written to {Path(self.fs.getsyspath('/')).joinpath(file_name)}.")
+        logger.info(
+            f"A tmp py file is written to {Path(self.fs.getsyspath('/')).joinpath(file_name)}."
+        )
 
         if module_name in sys.modules:
             operator_module = importlib.import_module(module_name)
@@ -97,13 +100,13 @@ class OperatorManager:
         """
 
         return (
-                inspect.isclass(cls)
-                and issubclass(cls, Operator)
-                and not inspect.isabstract(cls)
+            inspect.isclass(cls)
+            and issubclass(cls, Operator)
+            and not inspect.isabstract(cls)
         )
 
     def initialize_operator(
-            self, code: str, is_source: bool, output_schema: Mapping[str, str]
+        self, code: str, is_source: bool, output_schema: Mapping[str, str]
     ) -> None:
         """
         Initialize the operator logic with the given code. The output schema is
@@ -120,7 +123,7 @@ class OperatorManager:
         self.operator.is_source = is_source
         self.operator.output_schema = output_schema
         assert (
-                isinstance(self.operator, SourceOperator) == self.operator.is_source
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
 
     def update_operator(self, code: str, is_source: bool) -> None:
@@ -138,7 +141,7 @@ class OperatorManager:
         self.operator = operator()
         self.operator.is_source = is_source
         assert (
-                isinstance(self.operator, SourceOperator) == self.operator.is_source
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self.operator.__dict__ = original_internal_state
