@@ -1,3 +1,5 @@
+from typing import Optional
+
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table
@@ -24,7 +26,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         shared_queue: InternalQueue,
         host: str,
         output_port: str,
-        handshake_port: int,
+        handshake_port: Optional[int] = None,
     ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._proxy_client = ProxyClient(

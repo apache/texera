@@ -88,8 +88,10 @@ class ProxyServer(FlightServerBase):
             return ack_decorator(original_func)
         return ack_decorator
 
-    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost"):
-        port = get_free_local_port()
+    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost",
+                 port: Optional[int] = None):
+        if port is None:
+            port = get_free_local_port()
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
         logger.debug(f"Serving on {location}")

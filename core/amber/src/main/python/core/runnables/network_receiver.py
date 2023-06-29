@@ -1,3 +1,5 @@
+from typing import Optional
+
 from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
@@ -20,12 +22,13 @@ class NetworkReceiver(Runnable, Stoppable):
     """
 
     @logger.catch(reraise=True)
-    def __init__(self, shared_queue: InternalQueue, host: str):
+    def __init__(self, shared_queue: InternalQueue, host: str, port: Optional[int] =
+    None):
         server_start = False
         # try to start the server until it succeeds
         while not server_start:
             try:
-                self._proxy_server = ProxyServer(host=host)
+                self._proxy_server = ProxyServer(host=host, port=port)
                 server_start = True
             except Exception as e:
                 logger.info("Error occurred while starting the server:", repr(e))
