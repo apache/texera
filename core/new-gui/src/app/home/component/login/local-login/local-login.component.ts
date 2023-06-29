@@ -69,7 +69,7 @@ export class LocalLoginComponent {
         catchError((err: unknown) => {
           if (err instanceof HttpErrorResponse) {
             this.notificationService.error(err.error.message, {
-              nzDuration: 0,
+              nzDuration: 10,
             });
           }
           return throwError(() => err);
@@ -114,7 +114,7 @@ export class LocalLoginComponent {
         catchError((err: unknown) => {
           if (err instanceof HttpErrorResponse) {
             this.notificationService.error(err.error.message, {
-              nzDuration: 0,
+              nzDuration: 10,
             });
           }
           return throwError(() => err);
