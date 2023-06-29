@@ -38,7 +38,7 @@ class OperatorManager:
         #  not a priority to be fixed.
         temp_fs = fs.open_fs("temp://")
         root = Path(temp_fs.getsyspath("/"))
-        logger.info(f"Opening a tmp directory at {root}.")
+        logger.debug(f"Opening a tmp directory at {root}.")
         sys.path.append(str(root))
         return temp_fs
 
@@ -63,7 +63,7 @@ class OperatorManager:
 
         with self.fs.open(file_name, "w") as file:
             file.write(code)
-        logger.info(
+        logger.debug(
             f"A tmp py file is written to {Path(self.fs.getsyspath('/')).joinpath(file_name)}."
         )
 
@@ -73,7 +73,6 @@ class OperatorManager:
             operator_module.__dict__["__name__"] = module_name
             operator_module = importlib.reload(operator_module)
         else:
-            print("first time import", sys.path)
             operator_module = importlib.import_module(module_name)
         self.operator_module_name = module_name
 
@@ -89,7 +88,7 @@ class OperatorManager:
         :return:
         """
         self.fs.close()
-        logger.info(f"Tmp directory {self.fs.getsyspath('/')} is closed and cleared.")
+        logger.debug(f"Tmp directory {self.fs.getsyspath('/')} is closed and cleared.")
 
     @staticmethod
     def is_concrete_operator(cls: type) -> bool:

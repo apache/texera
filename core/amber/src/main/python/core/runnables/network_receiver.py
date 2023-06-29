@@ -32,8 +32,7 @@ class NetworkReceiver(Runnable, Stoppable):
                 self._proxy_server = ProxyServer(host=host, port=port)
                 server_start = True
             except Exception as e:
-                logger.info("Error occurred while starting the server:", repr(e))
-                self._proxy_server.graceful_shutdown()
+                logger.debug("Error occurred while starting the server:", repr(e))
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
