@@ -27,7 +27,6 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { isDefined } from "../../../common/util/predicate";
-import { moment } from "ngx-bootstrap/chronos/test/chain";
 import { Subscription, timer } from "rxjs";
 
 /**
