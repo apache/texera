@@ -268,7 +268,7 @@ class ProxyServer(FlightServerBase):
     def graceful_shutdown(self):
         """Shut down after a delay."""
         logger.debug("Server is shutting down...")
-        time.sleep(1)
+        time.sleep(0.2)
         self.shutdown()
 
     def get_port_number(self):
