@@ -33,7 +33,7 @@ export class HomeComponent implements OnInit {
         catchError((err: unknown) => {
           if (err instanceof HttpErrorResponse) {
             this.notificationService.error(err.error.message, {
-              nzDuration: 0,
+              nzDuration: 10,
             });
           }
           return throwError(() => err);
