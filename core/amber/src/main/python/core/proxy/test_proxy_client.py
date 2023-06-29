@@ -1,6 +1,5 @@
 from queue import Queue
 
-import mock as mock
 import pytest
 from pandas import DataFrame
 from pyarrow import ArrowNotImplementedError, Table
