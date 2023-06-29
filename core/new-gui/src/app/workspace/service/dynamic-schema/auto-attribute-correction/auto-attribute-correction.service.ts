@@ -7,12 +7,10 @@ import {
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
-import { cloneDeep, isEqual, map } from "lodash-es";
-// TODO: Add typing for the below two packages
-// @ts-ignore
-import jsonRefLite from "json-ref-lite";
-// @ts-ignore
+import { cloneDeep, isEqual } from "lodash-es";
+// @ts-ignore TODO: Add typing for the below package
 import { levenshtein } from "edit-distance";
+import { Resolver } from "@stoplight/json-ref-resolver";
 import { isNotNull, isNull } from "src/app/common/util/assert";
 import { environment } from "src/environments/environment";
 
@@ -62,11 +60,11 @@ export class AutoAttributeCorrectionService {
     });
   }
 
-  private updateOperatorPropertiesOnInputSchemaChange(
+  private async updateOperatorPropertiesOnInputSchemaChange(
     operatorID: string,
     oldInputSchema: OperatorInputSchema,
     newInputSchema: OperatorInputSchema
-  ): void {
+  ): Promise<void> {
     const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (!dynamicSchema.jsonSchema.properties) {
       return;
@@ -87,9 +85,9 @@ export class AutoAttributeCorrectionService {
       // [[oldAttribute1, newAttribute1], [oldAttribute2, newAttribute2], ...]
       const mapping: SchemaAttribute[][] = attributeMapping.pairs();
       // Resolve #ref in some json schema (e.g. Filter)
-      const resolvedJsonSchema = jsonRefLite.resolve(dynamicSchema.jsonSchema);
+      const resolvedJsonSchema = await new Resolver().resolve(dynamicSchema.jsonSchema);
 
-      const matchFunc = (schema: CustomJSONSchema7, value: any) => {
+      const matchFunc = (schema: CustomJSONSchema7, _: any) => {
         if (schema.autofill === undefined) {
           return false;
         }
@@ -135,7 +133,7 @@ export class AutoAttributeCorrectionService {
 
       const newProperty = this.updateOperatorProperty(
         operator.operatorProperties,
-        resolvedJsonSchema,
+        resolvedJsonSchema.result,
         matchFunc,
         mutationFunc
       );
@@ -151,10 +149,10 @@ export class AutoAttributeCorrectionService {
     matchFunc: (propertyValue: CustomJSONSchema7, value: any) => boolean,
     mutationFunc: (schema: CustomJSONSchema7, value: any) => any
   ): any {
+    console.log(operatorJsonSchema);
     const updatePropertyRecurse = (value: any, jsonSchema: CustomJSONSchema7): any => {
       if (matchFunc(jsonSchema, value)) {
-        const va = mutationFunc(jsonSchema, value);
-        return va;
+        return mutationFunc(jsonSchema, value);
       }
 
       if (jsonSchema.type === "array") {
@@ -188,7 +186,7 @@ export class AutoAttributeCorrectionService {
         });
         return newValue;
       } else {
-        // value should be an primitive object (string, int, boolean, etc..)
+        // value should be a primitive object (string, int, boolean, etc..)
         if (matchFunc(jsonSchema, value)) {
           return mutationFunc(jsonSchema, value);
         } else {
@@ -198,7 +196,6 @@ export class AutoAttributeCorrectionService {
     };
 
     const valueCopy: any = cloneDeep(currentProperties);
-    const newValue = updatePropertyRecurse(valueCopy, operatorJsonSchema);
-    return newValue;
+    return updatePropertyRecurse(valueCopy, operatorJsonSchema);
   }
 }
