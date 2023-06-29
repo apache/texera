@@ -1,7 +1,7 @@
 import importlib
 import inspect
 import sys
-from functools import cached_property
+from cached_property import cached_property
 
 import fs
 from pathlib import Path
