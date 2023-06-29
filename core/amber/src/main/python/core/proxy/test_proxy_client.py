@@ -1,5 +1,6 @@
 from queue import Queue
 
+import mock as mock
 import pytest
 from pandas import DataFrame
 from pyarrow import ArrowNotImplementedError, Table
@@ -15,13 +16,13 @@ class TestProxyClient:
 
     @pytest.fixture
     def server(self):
-        server = ProxyServer()
+        server = ProxyServer(port=5005)
         yield server
         server.graceful_shutdown()
 
     @pytest.fixture
     def server_with_dp(self, data_queue):
-        server = ProxyServer()
+        server = ProxyServer(port=5005)
         server.register_data_handler(
             lambda _, table: list(
                 map(data_queue.put, map(lambda t: t[1], table.to_pandas().iterrows()))
@@ -87,7 +88,7 @@ class TestProxyClient:
             client.send_data(command=bytes(), table=data_table)
 
     def test_client_can_send_data_with_handler(
-        self, data_queue: Queue, server_with_dp, client, data_table
+            self, data_queue: Queue, server_with_dp, client, data_table
     ):
         # send the pyarrow table to server as a flight
         client.send_data(bytes(), data_table)
