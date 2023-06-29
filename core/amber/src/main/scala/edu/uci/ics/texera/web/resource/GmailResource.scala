@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.web.resource
-import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeTokenRequest, GoogleRefreshTokenRequest}
+import com.google.api.client.googleapis.auth.oauth2.{
+  GoogleAuthorizationCodeTokenRequest,
+  GoogleRefreshTokenRequest
+}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -17,7 +20,8 @@ import javax.ws.rs.{GET, POST, Path}
 //@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/gmail")
 class GmailResource {
-  final private lazy val path = Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
+  final private lazy val path =
+    Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
   final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.googleClientId")
 
   def connect(transport: Transport, accessToken: String): Unit = {
