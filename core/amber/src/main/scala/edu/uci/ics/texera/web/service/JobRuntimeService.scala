@@ -85,6 +85,7 @@ class JobRuntimeService(
   // Receive Kill
   addSubscription(wsInput.subscribe((req: WorkflowKillRequest, uidOpt) => {
     client.shutdown()
+    stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
     stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
   }))
 
