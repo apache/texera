@@ -27,6 +27,7 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { isDefined } from "../../../common/util/predicate";
+import { Subscription, timer } from "rxjs";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -69,6 +70,9 @@ export class NavigationComponent implements OnInit {
   public runIcon = "play-circle";
   public runDisable = false;
 
+  public executionDuration = 0;
+  private durationUpdateSubscription: Subscription = new Subscription();
+
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
   // flag to display a particular version in the current canvas
@@ -94,6 +98,20 @@ export class NavigationComponent implements OnInit {
     public changeDetectionRef: ChangeDetectorRef,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
+    workflowWebsocketService
+      .subscribeToEvent("ExecutionDurationUpdateEvent")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        this.executionDuration = event.duration;
+        this.durationUpdateSubscription.unsubscribe();
+        if (event.isRunning) {
+          this.durationUpdateSubscription = timer(1000, 1000)
+            .pipe(untilDestroyed(this))
+            .subscribe(e => {
+              this.executionDuration += 1000;
+            });
+        }
+      });
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid

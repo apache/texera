@@ -78,8 +78,10 @@ message OperatorRuntimeStats{
 }
 
 message JobStatsStore {
-  map<string, OperatorRuntimeStats> operator_info = 1;
-  repeated OperatorWorkerMapping operator_worker_mapping = 2;
+  int64 startTimeStamp = 1;
+  int64 endTimeStamp = 2;
+  map<string, OperatorRuntimeStats> operator_info = 3;
+  repeated OperatorWorkerMapping operator_worker_mapping = 4;
 }
 
 message JobMetadataStore{

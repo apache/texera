@@ -63,6 +63,9 @@ class ClusterListener extends Actor with AmberLogging {
                   s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
                 )
                 jobService.client.shutdown()
+                jobService.stateStore.statsStore.updateState(stats =>
+                  stats.withEndTimeStamp(System.currentTimeMillis())
+                )
                 jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
                   jobInfo.withState(ABORTED).withError(t.getLocalizedMessage)
                 }
