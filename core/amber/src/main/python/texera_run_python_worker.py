@@ -22,7 +22,6 @@ def init_loguru_logger(stream_log_level) -> None:
 
 
 if __name__ == "__main__":
-
     init_loguru_logger(sys.argv[2])
 
-    PythonWorker(host="localhost", output_port=sys.argv[1]).run()
+    PythonWorker(host="localhost", output_port=int(sys.argv[1])).run()

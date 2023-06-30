@@ -8,7 +8,7 @@ from core.util.stoppable.stoppable import Stoppable
 
 
 class PythonWorker(Runnable, Stoppable):
-    def __init__(self, host: str, output_port: str):
+    def __init__(self, host: str, port: int):
         self._input_queue = InternalQueue()
         self._output_queue = InternalQueue()
         # start the server
@@ -17,7 +17,7 @@ class PythonWorker(Runnable, Stoppable):
         self._network_sender = NetworkSender(
             self._output_queue,
             host=host,
-            output_port=output_port,
+            port=port,
             handshake_port=self._network_receiver.proxy_server.get_port_number(),
         )
 

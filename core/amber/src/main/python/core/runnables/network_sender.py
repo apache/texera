@@ -25,12 +25,12 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         self,
         shared_queue: InternalQueue,
         host: str,
-        output_port: str,
+        port: int,
         handshake_port: Optional[int] = None,
     ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._proxy_client = ProxyClient(
-            host=host, port=int(output_port), handshake_port=handshake_port
+            host=host, port=port, handshake_port=handshake_port
         )
 
     @overrides(check_signature=False)

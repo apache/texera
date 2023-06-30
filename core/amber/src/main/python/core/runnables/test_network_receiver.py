@@ -34,7 +34,7 @@ class TestNetworkReceiver:
 
     @pytest.fixture
     def network_sender_thread(self, input_queue):
-        network_sender = NetworkSender(input_queue, host="localhost", output_port=5555)
+        network_sender = NetworkSender(input_queue, host="localhost", port=5555)
         network_sender_thread = threading.Thread(target=network_sender.run)
         yield network_sender_thread
         network_sender.stop()
