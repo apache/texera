@@ -1,3 +1,5 @@
+from typing import Optional
+
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table
@@ -19,9 +21,17 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     Serialize and send messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
+    def __init__(
+        self,
+        shared_queue: InternalQueue,
+        host: str,
+        port: int,
+        handshake_port: Optional[int] = None,
+    ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
-        self._proxy_client = ProxyClient(host=host, port=port)
+        self._proxy_client = ProxyClient(
+            host=host, port=port, handshake_port=handshake_port
+        )
 
     @overrides(check_signature=False)
     def receive(self, next_entry: InternalQueueElement):

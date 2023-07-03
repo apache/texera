@@ -1,5 +1,3 @@
-from typing import Optional
-
 from loguru import logger
 from pyarrow import Table
 from pyarrow.flight import (
@@ -9,6 +7,7 @@ from pyarrow.flight import (
     FlightDescriptor,
     FlightStreamWriter,
 )
+from typing import Optional
 
 
 class ProxyClient(FlightClient):
@@ -17,6 +16,7 @@ class ProxyClient(FlightClient):
         scheme: str = "grpc+tcp",
         host: str = "localhost",
         port: int = 5005,
+        handshake_port: Optional[int] = None,
         timeout=1000,
         *args,
         **kwargs,
@@ -25,6 +25,8 @@ class ProxyClient(FlightClient):
         super().__init__(location, *args, **kwargs)
         logger.debug(f"Connected to server at {location}")
         self._timeout = timeout
+        if handshake_port is not None:
+            self._handshake(handshake_port=handshake_port)
 
     @logger.catch(reraise=True)
     def call_action(
@@ -72,3 +74,13 @@ class ProxyClient(FlightClient):
         writer: FlightStreamWriter
         with writer:
             writer.write_table(table)
+
+    def _handshake(self, handshake_port: int) -> None:
+        """
+        Send the handshake port to Java Proxy Server, which will be forwarded to
+        the Java Proxy Client to use.
+        :param handshake_port: int, the port number for Java Proxy Client to connect
+        to Python Proxy Server.
+        :return:
+        """
+        self.call_action("handshake", bytes(str(handshake_port), "utf-8"))

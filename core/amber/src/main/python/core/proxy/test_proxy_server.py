@@ -9,7 +9,7 @@ class TestProxyServer:
     def server(self):
         server = ProxyServer()
         yield server
-        server.shutdown()
+        server.graceful_shutdown()
 
     def test_server_can_register_control_actions_with_lambda(self, server):
         assert "hello" not in server._procedures
