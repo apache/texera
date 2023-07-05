@@ -11,7 +11,6 @@ from core.models import (
     BatchOperator,
     SourceOperator,
     TupleOperatorV2,
-
 )
 from core.architecture.managers.debug_manager import breakpoint
 
@@ -29,5 +28,5 @@ __all__ = [
     "BatchOperator",
     "TupleOperatorV2",
     "SourceOperator",
-    "breakpoint"
+    "breakpoint",
 ]

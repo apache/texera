@@ -12,14 +12,16 @@ from core.models.single_blocking_io import SingleBlockingIO
 
 class DebugManager:
     DEBUGGER = None
+
     def __init__(self, condition: Condition, operator_manager: OperatorManager):
         self.trace_disabled = False
         self.pulled_conditions = dict()
         self._debug_in = SingleBlockingIO(condition)
         self._debug_out = SingleBlockingIO(condition)
         self._operator_manager = operator_manager
-        DebugManager.DEBUGGER = Pdb(stdin=self._debug_in, stdout=self._debug_out,
-                                    nosigint=True)
+        DebugManager.DEBUGGER = Pdb(
+            stdin=self._debug_in, stdout=self._debug_out, nosigint=True
+        )
         self.debugger = DebugManager.DEBUGGER
 
         # Customized prompt, we can design our prompt for the debugger.
@@ -72,13 +74,15 @@ class DebugManager:
 
             logger.info(self.debugger.breaks)
             # self._operator_manager.update_operator(code, is_source=self._operator_manager._operator.is_source)
-            self._operator_manager.add_operator_with_bp(code,
-                                                   is_source=self._operator_manager._operator.is_source)
+            self._operator_manager.add_operator_with_bp(
+                code, is_source=self._operator_manager._operator.is_source
+            )
+
     def disable_unnecessary_breakpoints(self, tuple_):
         bp_nums = [b.number for b in Breakpoint.bpbynumber if b is not None]
         for bp_num in bp_nums:
             if bp_num not in self.pulled_conditions:
-                conditions = self.debugger.get_bpbynumber(bp_num).cond.split('and')
+                conditions = self.debugger.get_bpbynumber(bp_num).cond.split("and")
                 data_conditions = list()
                 local_conditions = list()
                 for cond in conditions:
@@ -99,7 +103,7 @@ class DebugManager:
     def check_data_conditions(self, tuple_):
         disabled_bps = list()
         for id, cond in self.pulled_conditions.items():
-            if eval(cond, {'tuple_': tuple_}):
+            if eval(cond, {"tuple_": tuple_}):
                 # logger.info("enable 1")
                 self.debugger.get_bpbynumber(id).enable()
             else:
@@ -133,14 +137,10 @@ class DebugManager:
             frame = sys._getframe().f_back
 
             while frame:
-                frame.f_trace = \
-                    self.debugger.trace_dispatch
+                frame.f_trace = self.debugger.trace_dispatch
                 self.botframe = frame
                 frame = frame.f_back
             self.trace_disabled = False
-
-
-
 
 
 def breakpoint():

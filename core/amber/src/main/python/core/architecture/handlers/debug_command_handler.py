@@ -9,18 +9,14 @@ class WorkerDebugCommandHandler(Handler):
     cmd = WorkerDebugCommandV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        if command.cmd[:2]  in ["ss", 'ks', 'rs' , 'as']:
+        if command.cmd[:2] in ["ss", "ks", "rs", "as"]:
             handle_by_pdb = False
         else:
             handle_by_pdb = True
 
-
         if handle_by_pdb:
             # translate the command with the context.
             translated_command = self.translate_debug_command(command, context)
-
-
-
 
             # send the translated command to debugger to consume later.
             context.debug_manager.put_debug_command(translated_command)

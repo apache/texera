@@ -13,6 +13,7 @@ from core.util.runnable.runnable import Runnable
 
 # breakpoint = f"b {m}:13, 'doesnotexist' in tuple_['text'] and doc['positive'] == -1"
 
+
 class DataProcessor(Runnable, Stoppable):
     def __init__(self, context: Context):
         self._running = Event()
@@ -23,9 +24,9 @@ class DataProcessor(Runnable, Stoppable):
             self._context.tuple_processing_manager.context_switch_condition.wait()
         self._running.set()
         self._switch_context()
-        self.run_speed_log = open(f"run_speed"
-                                  f"{self._context.operator_manager.root.name}.csv",
-                                  "w")
+        self.run_speed_log = open(
+            f"run_speed" f"{self._context.operator_manager.root.name}.csv", "w"
+        )
         while self._running.is_set():
             self.process_tuple()
             self._switch_context()
@@ -80,7 +81,9 @@ class DataProcessor(Runnable, Stoppable):
                     else operator.on_finish(port)
                 )
                 with replace_print(self._context.console_message_manager.print_buf):
-                    for output in self._context.tuple_processing_manager.output_iterator:
+                    for (
+                        output
+                    ) in self._context.tuple_processing_manager.output_iterator:
                         output_tuple = None if output is None else Tuple(output)
                         if output_tuple is not None:
                             schema = (

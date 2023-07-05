@@ -110,13 +110,13 @@ class OperatorManager:
         """
 
         return (
-                inspect.isclass(cls)
-                and issubclass(cls, Operator)
-                and not inspect.isabstract(cls)
+            inspect.isclass(cls)
+            and issubclass(cls, Operator)
+            and not inspect.isabstract(cls)
         )
 
     def initialize_operator(
-            self, code: str, is_source: bool, output_schema: Mapping[str, str]
+        self, code: str, is_source: bool, output_schema: Mapping[str, str]
     ) -> None:
         """
         Initialize the operator logic with the given code. The output schema is
@@ -166,7 +166,7 @@ class OperatorManager:
 
         old_code = self.operator_source_code.splitlines()
         target_line = old_code[lineno - 1]
-        code_before = old_code[:lineno - 1]
+        code_before = old_code[: lineno - 1]
         code_after = old_code[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
@@ -181,7 +181,7 @@ class OperatorManager:
 
         old_code = self.operator_source_code.splitlines()
         target_line = old_code[lineno - 1]
-        code_before = old_code[:lineno - 1]
+        code_before = old_code[: lineno - 1]
         code_after = old_code[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
@@ -195,12 +195,14 @@ class OperatorManager:
 
         old_code = self.operator_source_code.splitlines()
         target_line = old_code[lineno - 1]
-        code_before = old_code[:lineno - 1]
+        code_before = old_code[: lineno - 1]
         code_after = old_code[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
-        bp_line = f"{indentation}import random\n{indentation}if random.random() > " \
-                  f"0.999: yield 'request({req_lineno}, {req_state})'"
+        bp_line = (
+            f"{indentation}import random\n{indentation}if random.random() > "
+            f"0.999: yield 'request({req_lineno}, {req_state})'"
+        )
 
         new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
         # print(new_code, file=sys.stdout)
@@ -209,7 +211,7 @@ class OperatorManager:
     def add_as(self, lineno, state):
         old_code = self.operator_source_code.splitlines()
         target_line = old_code[lineno - 1]
-        code_before = old_code[:lineno - 1]
+        code_before = old_code[: lineno - 1]
         code_after = old_code[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
@@ -225,20 +227,25 @@ class OperatorManager:
             logger.info(change)
 
             ss, lineno, state = change.split()
-            self.scheduled_updates[when] = (self.add_ss(int(lineno), state),
-                                            self.operator.is_source)
+            self.scheduled_updates[when] = (
+                self.add_ss(int(lineno), state),
+                self.operator.is_source,
+            )
         if change[:2] == "rs":
             logger.info(change)
             ss, lineno, req_lineno, req_state = change.split()
-            self.scheduled_updates[when] = (self.add_rs(int(lineno), int(req_lineno),
-                                            req_state),
-                                            self.operator.is_source)
+            self.scheduled_updates[when] = (
+                self.add_rs(int(lineno), int(req_lineno), req_state),
+                self.operator.is_source,
+            )
 
         if change[:2] == "as":
             logger.info(change)
             ss, lineno, state = change.split()
-            self.scheduled_updates[when] = (self.add_as(int(lineno),state),
-                                            self.operator.is_source)
+            self.scheduled_updates[when] = (
+                self.add_as(int(lineno), state),
+                self.operator.is_source,
+            )
         logger.info("updated code:\n" + self.scheduled_updates[when][0])
 
     def apply_available_code_update(self):
@@ -261,5 +268,3 @@ class OperatorManager:
             return self._operator_with_bp
         else:
             return self._operator
-
-

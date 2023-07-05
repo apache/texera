@@ -19,7 +19,7 @@ class TupleProcessingManager:
         self.finished_current: Event = Event()
         self.with_pdb = True
         self.my_id = None
-        self.my_upstream_id :LayerIdentity= None
+        self.my_upstream_id: LayerIdentity = None
 
     def get_output_tuple(self) -> Optional[Tuple]:
         ret, self.current_output_tuple = self.current_output_tuple, None
@@ -31,4 +31,3 @@ class TupleProcessingManager:
             return self._context_switch_condition
         else:
             return self._context_switch_condition_with_no_pdb
-
