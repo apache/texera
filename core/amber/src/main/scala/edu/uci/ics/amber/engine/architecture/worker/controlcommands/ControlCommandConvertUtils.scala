@@ -11,10 +11,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Replay
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.StateRequestHandler.StateRequest
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
-  ControlException,
-  ControlReturnV2
-}
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{ControlException, ControlReturnV2, StateReturn}
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
