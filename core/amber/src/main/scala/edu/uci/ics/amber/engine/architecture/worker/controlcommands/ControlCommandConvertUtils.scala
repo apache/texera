@@ -11,7 +11,10 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Replay
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.StateRequestHandler.StateRequest
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{ControlReturnV2, StateReturn}
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
+  ControlException,
+  ControlReturnV2
+}
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
@@ -27,8 +30,8 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, Wor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(
@@ -53,13 +56,12 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, id, inputMapping, outputMapping, isSource, schema) =>
+      case InitializeOperatorLogic(code, isSource, inputMapping, outputMapping, schema) =>
         InitializeOperatorLogicV2(
           code,
-          id,
+          isSource,
           inputMapping,
           outputMapping,
-          isSource,
           schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
         )
       case ReplayCurrentTuple() =>
@@ -115,7 +117,8 @@ object ControlCommandConvertUtils {
           selfWorkloadReturn.value.metrics,
           List[mutable.HashMap[ActorVirtualIdentity, List[Long]]]()
         )
-      case _ => controlReturnV2.value.value
+      case exp: ControlReturnV2.Value.ControlException => ControlException(exp.value.msg)
+      case _                                           => controlReturnV2.value.value
     }
   }
 

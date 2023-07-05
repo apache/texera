@@ -1,3 +1,5 @@
+from typing import Optional
+
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table
@@ -19,9 +21,17 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     Serialize and send messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
+    def __init__(
+        self,
+        shared_queue: InternalQueue,
+        host: str,
+        port: int,
+        handshake_port: Optional[int] = None,
+    ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
-        self._proxy_client = ProxyClient(host=host, port=port)
+        self._proxy_client = ProxyClient(
+            host=host, port=port, handshake_port=handshake_port
+        )
 
     @overrides(check_signature=False)
     def receive(self, next_entry: InternalQueueElement):
@@ -46,10 +56,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         if isinstance(data_payload, OutputDataFrame):
             # converting from a column-based dictionary is the fastest known method
             # https://stackoverflow.com/questions/57939092/fastest-way-to-construct-pyarrow-table-row-by-row
-            field_names = data_payload.schema.names
+            field_names = data_payload.schema.get_attr_names()
             table = Table.from_pydict(
                 {name: [t[name] for t in data_payload.frame] for name in field_names},
-                schema=data_payload.schema,
+                schema=data_payload.schema.as_arrow_schema(),
             )
             data_header = PythonDataHeader(tag=to, is_end=False)
             self._proxy_client.send_data(bytes(data_header), table)

@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
@@ -31,7 +30,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -177,10 +176,9 @@ class WorkflowScheduler(
             asyncRPCClient.send(
               InitializeOperatorLogic(
                 pythonUDFOpExec.getCode,
-                pythonUDFOpExecConfig.id,
+                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
                 inputMappingList,
                 outputMappingList,
-                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
                 pythonUDFOpExec.getOutputSchema
               ),
               workerID
@@ -191,11 +189,6 @@ class WorkflowScheduler(
       .onSuccess(_ =>
         uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
       )
-      .onFailure((err: Throwable) => {
-        logger.error("Failure when sending Python UDF code", err)
-        // report error to frontend
-        asyncRPCClient.sendToClient(FatalError(err))
-      })
   }
 
   private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {

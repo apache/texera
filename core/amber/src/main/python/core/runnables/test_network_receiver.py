@@ -6,9 +6,9 @@ import pytest
 from core.models import Tuple
 from core.models.internal_queue import InternalQueue, ControlElement, DataElement
 from core.models.payload import OutputDataFrame, EndOfUpstream
+from core.models.schema.schema import Schema
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
-from core.util.arrow_utils import to_arrow_schema
 from core.util.proto import set_one_of
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -30,7 +30,7 @@ class TestNetworkReceiver:
     def network_receiver(self, output_queue):
         network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555)
         yield network_receiver
-        network_receiver._proxy_server.shutdown()
+        network_receiver._proxy_server.graceful_shutdown()
 
     @pytest.fixture
     def network_sender_thread(self, input_queue):
@@ -50,7 +50,7 @@ class TestNetworkReceiver:
         )
         return OutputDataFrame(
             frame=[Tuple(r) for _, r in df_to_sent.iterrows()],
-            schema=to_arrow_schema({"Brand": "string", "Price": "integer"}),
+            schema=Schema(raw_schema={"Brand": "string", "Price": "integer"}),
         )
 
     @pytest.mark.timeout(2)

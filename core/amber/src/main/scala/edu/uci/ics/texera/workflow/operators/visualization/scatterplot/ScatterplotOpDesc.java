@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
@@ -34,6 +35,17 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  * This is the description of the operator
  */
 
+@JsonSchemaInject(json =
+"{" +
+"  \"attributeTypeRules\": {" +
+"    \"xColumn\":{" +
+"      \"enum\": [\"integer\", \"double\"]" +
+"    }," +
+"    \"yColumn\":{" +
+"      \"enum\": [\"integer\", \"double\"]" +
+"    }" +
+"  }" +
+"}")
 public class ScatterplotOpDesc extends VisualizationOperator {
     @JsonProperty(required = true)
     @JsonSchemaTitle("X-Column")
@@ -87,7 +99,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false, false);
+                false, false, false, false);
     }
 
     @Override

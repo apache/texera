@@ -1,15 +1,46 @@
 package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
+import java.sql.Timestamp
+
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "attribute": {
+      "allOf": [
+        {
+          "if": {
+            "aggFunction": {
+              "valEnum": ["sum", "average", "min", "max"]
+            }
+          },
+          "then": {
+            "enum": ["integer", "long", "double", "timestamp"]
+          }
+        },
+        {
+          "if": {
+            "aggFunction": {
+              "valEnum": ["concat"]
+            }
+          },
+          "then": {
+            "enum": ["string"]
+          }
+        }
+      ]
+    }
+  }
+}
+""")
 class AggregationOperation() {
-
   @JsonProperty(required = true)
   @JsonSchemaTitle("Aggregation Function")
   @JsonPropertyDescription("sum, count, average, min, max, or concat")
@@ -25,23 +56,29 @@ class AggregationOperation() {
   var resultAttribute: String = _
 
   @JsonIgnore
-  def getAggregationAttribute: Attribute = {
-    if (this.aggFunction == AggregationFunction.COUNT)
-      new Attribute(resultAttribute, AttributeType.INTEGER)
-    else if (this.aggFunction == AggregationFunction.CONCAT)
-      new Attribute(resultAttribute, AttributeType.STRING)
-    else
-      new Attribute(resultAttribute, AttributeType.DOUBLE)
+  def getAggregationAttribute(inputSchema: Schema): Attribute = {
+    val attrType = inputSchema.getAttribute(attribute).getType
+    val resultAttrType = this.aggFunction match {
+      case AggregationFunction.SUM     => attrType
+      case AggregationFunction.COUNT   => AttributeType.INTEGER
+      case AggregationFunction.AVERAGE => AttributeType.DOUBLE
+      case AggregationFunction.MIN     => attrType
+      case AggregationFunction.MAX     => attrType
+      case AggregationFunction.CONCAT  => AttributeType.STRING
+      case _                           => throw new RuntimeException("unknown agg functionL " + this.aggFunction)
+    }
+    new Attribute(resultAttribute, resultAttrType)
   }
 
   @JsonIgnore
-  def getAggFunc(): DistributedAggregation[Object] = {
+  def getAggFunc(inputSchema: Schema): DistributedAggregation[Object] = {
+    val attrType = inputSchema.getAttribute(attribute).getType
     val aggFunc = aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg()
       case AggregationFunction.COUNT   => countAgg()
-      case AggregationFunction.MAX     => maxAgg()
-      case AggregationFunction.MIN     => minAgg()
-      case AggregationFunction.SUM     => sumAgg()
+      case AggregationFunction.MAX     => maxAgg(attrType)
+      case AggregationFunction.MIN     => minAgg(attrType)
+      case AggregationFunction.SUM     => sumAgg(attrType)
       case AggregationFunction.CONCAT  => concatAgg()
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
@@ -49,15 +86,24 @@ class AggregationOperation() {
     aggFunc.asInstanceOf[DistributedAggregation[Object]]
   }
 
-  private def sumAgg(): DistributedAggregation[java.lang.Double] = {
-    new DistributedAggregation[java.lang.Double](
-      () => 0,
+  private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
+    if (
+      attributeType != AttributeType.INTEGER &&
+      attributeType != AttributeType.DOUBLE &&
+      attributeType != AttributeType.LONG &&
+      attributeType != AttributeType.TIMESTAMP
+    ) {
+      throw new UnsupportedOperationException(
+        "Unsupported attribute type for sum aggregation: " + attributeType
+      )
+    }
+    new DistributedAggregation[Object](
+      () => zero(attributeType),
       (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        partial + (if (value.isDefined) value.get else 0)
-
+        val value = tuple.getField[Object](attribute)
+        add(partial, value, attributeType)
       },
-      (partial1, partial2) => partial1 + partial2,
+      (partial1, partial2) => add(partial1, partial2, attributeType),
       partial => partial
     )
   }
@@ -100,27 +146,51 @@ class AggregationOperation() {
     )
   }
 
-  private def minAgg(): DistributedAggregation[java.lang.Double] = {
-    new DistributedAggregation[java.lang.Double](
-      () => Double.MaxValue,
+  private def minAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
+    if (
+      attributeType != AttributeType.INTEGER &&
+      attributeType != AttributeType.DOUBLE &&
+      attributeType != AttributeType.LONG &&
+      attributeType != AttributeType.TIMESTAMP
+    ) {
+      throw new UnsupportedOperationException(
+        "Unsupported attribute type for min aggregation: " + attributeType
+      )
+    }
+    new DistributedAggregation[Object](
+      () => maxValue(attributeType),
       (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        if (value.isDefined && value.get < partial) value.get else partial
+        val value = tuple.getField[Object](attribute)
+        val comp = compare(value, partial, attributeType)
+        if (value != null && comp < 0) value else partial
       },
-      (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
-      partial => if (partial == Double.MaxValue) null else partial
+      (partial1, partial2) =>
+        if (compare(partial1, partial2, attributeType) < 0) partial1 else partial2,
+      partial => if (partial == maxValue(attributeType)) null else partial
     )
   }
 
-  private def maxAgg(): DistributedAggregation[java.lang.Double] = {
-    new DistributedAggregation[java.lang.Double](
-      () => Double.MinValue,
+  private def maxAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
+    if (
+      attributeType != AttributeType.INTEGER &&
+      attributeType != AttributeType.DOUBLE &&
+      attributeType != AttributeType.LONG &&
+      attributeType != AttributeType.TIMESTAMP
+    ) {
+      throw new UnsupportedOperationException(
+        "Unsupported attribute type for max aggregation: " + attributeType
+      )
+    }
+    new DistributedAggregation[Object](
+      () => minValue(attributeType),
       (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        if (value.isDefined && value.get > partial) value.get else partial
+        val value = tuple.getField[Object](attribute)
+        val comp = compare(value, partial, attributeType)
+        if (value != null && comp > 0) value else partial
       },
-      (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
-      partial => if (partial == Double.MinValue) null else partial
+      (partial1, partial2) =>
+        if (compare(partial1, partial2, attributeType) > 0) partial1 else partial2,
+      partial => if (partial == maxValue(attributeType)) null else partial
     )
   }
 
@@ -152,5 +222,94 @@ class AggregationOperation() {
       }
     )
   }
+
+  // return a.compare(b),
+  // < 0 if a < b,
+  // > 0 if a > b,
+  //   0 if a = b
+  private def compare(a: Object, b: Object, attributeType: AttributeType): Int = {
+    if (a == null && b == null) {
+      return 0
+    } else if (a == null) {
+      return -1
+    } else if (b == null) {
+      return 1
+    }
+    attributeType match {
+      case AttributeType.INTEGER => a.asInstanceOf[Integer].compareTo(b.asInstanceOf[Integer])
+      case AttributeType.DOUBLE =>
+        a.asInstanceOf[java.lang.Double].compareTo(b.asInstanceOf[java.lang.Double])
+      case AttributeType.LONG =>
+        a.asInstanceOf[java.lang.Long].compareTo(b.asInstanceOf[java.lang.Long])
+      case AttributeType.TIMESTAMP =>
+        a.asInstanceOf[Timestamp].getTime.compareTo(b.asInstanceOf[Timestamp].getTime)
+      case _ =>
+        throw new UnsupportedOperationException(
+          "Unsupported attribute type for comparison: " + attributeType
+        )
+    }
+  }
+
+  private def add(a: Object, b: Object, attributeType: AttributeType): Object = {
+    if (a == null && b == null) {
+      return zero(attributeType)
+    } else if (a == null) {
+      return b
+    } else if (b == null) {
+      return a
+    }
+    attributeType match {
+      case AttributeType.INTEGER =>
+        Integer.valueOf(a.asInstanceOf[Integer] + b.asInstanceOf[Integer])
+      case AttributeType.DOUBLE =>
+        java.lang.Double.valueOf(
+          a.asInstanceOf[java.lang.Double] + b.asInstanceOf[java.lang.Double]
+        )
+      case AttributeType.LONG =>
+        java.lang.Long.valueOf(a.asInstanceOf[java.lang.Long] + b.asInstanceOf[java.lang.Long])
+      case AttributeType.TIMESTAMP =>
+        new Timestamp(a.asInstanceOf[Timestamp].getTime + b.asInstanceOf[Timestamp].getTime)
+      case _ =>
+        throw new UnsupportedOperationException(
+          "Unsupported attribute type for addition: " + attributeType
+        )
+    }
+  }
+
+  def zero(attributeType: AttributeType): Object =
+    attributeType match {
+      case AttributeType.INTEGER   => java.lang.Integer.valueOf(0)
+      case AttributeType.DOUBLE    => java.lang.Double.valueOf(0)
+      case AttributeType.LONG      => java.lang.Long.valueOf(0)
+      case AttributeType.TIMESTAMP => new Timestamp(0)
+      case _ =>
+        throw new UnsupportedOperationException(
+          "Unsupported attribute type for zero value: " + attributeType
+        )
+    }
+
+  def maxValue(attributeType: AttributeType): Object =
+    attributeType match {
+      case AttributeType.INTEGER   => Integer.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.DOUBLE    => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.LONG      => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.TIMESTAMP => new Timestamp(java.lang.Long.MAX_VALUE)
+      case _ =>
+        throw new UnsupportedOperationException(
+          "Unsupported attribute type for max value: " + attributeType
+        )
+    }
+
+  def minValue(attributeType: AttributeType): Object =
+    attributeType match {
+      case AttributeType.INTEGER   => Integer.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.DOUBLE    => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.LONG      => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.TIMESTAMP => new Timestamp(0)
+      case _ =>
+        throw new UnsupportedOperationException(
+          "Unsupported attribute type for min value: " + attributeType
+        )
+    }
 
 }

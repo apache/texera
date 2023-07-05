@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
-import { AdminUserService } from "../service/admin-user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzTableSortFn, NzTableFilterFn } from "ng-zorro-antd/table";
+import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
+import { AdminUserService } from "../service/admin-user.service";
 import { Role, User } from "../../../common/type/user";
 import { UserService } from "../../../common/service/user/user.service";
 

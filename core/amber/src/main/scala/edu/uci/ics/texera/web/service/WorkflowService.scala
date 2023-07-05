@@ -4,20 +4,10 @@ import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
 import scala.collection.JavaConverters._
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowExecutionErrorEvent
-}
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  TexeraWebApplication,
-  WebsocketInput,
-  WorkflowLifecycleManager
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
+import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowLifecycleManager}
 import edu.uci.ics.texera.web.model.websocket.request.{
   CacheStatusUpdateRequest,
-  TexeraWebSocketRequest,
   WorkflowExecuteRequest,
   WorkflowKillRequest
 }
@@ -27,7 +17,7 @@ import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
-import io.reactivex.rxjava3.subjects.{BehaviorSubject, Subject}
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
@@ -65,9 +55,7 @@ class WorkflowService(
 ) extends SubscriptionManager
     with LazyLogging {
   // state across execution:
-  var opResultStorage: OpResultStorage = new OpResultStorage(
-    AmberUtils.amberConfig.getString("storage.mode").toLowerCase
-  )
+  var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val errorHandler: Throwable => Unit = { t =>
     {
@@ -150,7 +138,7 @@ class WorkflowService(
         )
       )
     }
-    new WorkflowContext(jobID, uidOpt, wId)
+    new WorkflowContext(jobID, uidOpt, UInteger.valueOf(wId))
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {

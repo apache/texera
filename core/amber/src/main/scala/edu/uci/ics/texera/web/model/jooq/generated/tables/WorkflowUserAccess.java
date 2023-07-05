@@ -7,6 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables;
 import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
+import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserAccessRecord;
 
 import java.util.Arrays;
@@ -17,7 +18,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row4;
+import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -33,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccess extends TableImpl<WorkflowUserAccessRecord> {
 
-    private static final long serialVersionUID = -1685283943;
+    private static final long serialVersionUID = 712932299;
 
     /**
      * The reference instance of <code>texera_db.workflow_user_access</code>
@@ -59,14 +60,9 @@ public class WorkflowUserAccess extends TableImpl<WorkflowUserAccessRecord> {
     public final TableField<WorkflowUserAccessRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
-     * The column <code>texera_db.workflow_user_access.read_privilege</code>.
+     * The column <code>texera_db.workflow_user_access.privilege</code>.
      */
-    public final TableField<WorkflowUserAccessRecord, Boolean> READ_PRIVILEGE = createField(DSL.name("read_privilege"), org.jooq.impl.SQLDataType.BIT, this, "");
-
-    /**
-     * The column <code>texera_db.workflow_user_access.write_privilege</code>.
-     */
-    public final TableField<WorkflowUserAccessRecord, Boolean> WRITE_PRIVILEGE = createField(DSL.name("write_privilege"), org.jooq.impl.SQLDataType.BIT, this, "");
+    public final TableField<WorkflowUserAccessRecord, WorkflowUserAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), org.jooq.impl.SQLDataType.VARCHAR(5).nullable(false).defaultValue(org.jooq.impl.DSL.inline("NONE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege.class), this, "");
 
     /**
      * Create a <code>texera_db.workflow_user_access</code> table reference
@@ -161,11 +157,11 @@ public class WorkflowUserAccess extends TableImpl<WorkflowUserAccessRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row4 type methods
+    // Row3 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<UInteger, UInteger, Boolean, Boolean> fieldsRow() {
-        return (Row4) super.fieldsRow();
+    public Row3<UInteger, UInteger, WorkflowUserAccessPrivilege> fieldsRow() {
+        return (Row3) super.fieldsRow();
     }
 }

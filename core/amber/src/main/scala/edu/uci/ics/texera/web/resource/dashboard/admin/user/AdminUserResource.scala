@@ -12,8 +12,8 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object AdminUserResource {
-  final private val context = SqlServer.createDSLContext()
-  final private val userDao = new UserDao(context.configuration)
+  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val userDao = new UserDao(context.configuration)
 }
 
 @Path("/admin/user")

@@ -15,6 +15,9 @@ from core.architecture.sendsemantics.partitioner import Partitioner
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
+from core.architecture.sendsemantics.broad_cast_partitioner import (
+    BroadcastPartitioner,
+)
 from core.models import Tuple
 from core.models.payload import OutputDataFrame, DataPayload
 from core.util import get_one_of
@@ -24,6 +27,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     Partitioning,
     RoundRobinPartitioning,
     RangeBasedShufflePartitioning,
+    BroadcastPartitioning,
 )
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
 
@@ -40,6 +44,7 @@ class TupleToBatchConverter:
             RoundRobinPartitioning: RoundRobinPartitioner,
             HashBasedShufflePartitioning: HashBasedShufflePartitioner,
             RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
+            BroadcastPartitioning: BroadcastPartitioner,
         }
 
     def add_partitioning(self, tag: LinkIdentity, partitioning: Partitioning) -> None:

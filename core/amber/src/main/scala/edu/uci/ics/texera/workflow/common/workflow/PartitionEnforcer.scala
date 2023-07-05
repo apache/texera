@@ -50,6 +50,8 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
           )
         case SinglePartition() =>
           new AllToOne(inputLayer, layer, defaultBatchSize)
+        case BroadcastPartition() =>
+          new AllBroadcast(inputLayer, layer, defaultBatchSize)
         case UnknownPartition() =>
           new FullRoundRobin(inputLayer, layer, defaultBatchSize)
       }

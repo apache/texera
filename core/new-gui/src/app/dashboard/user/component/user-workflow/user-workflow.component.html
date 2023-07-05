@@ -1,0 +1,98 @@
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Workflows</h2>
+    <nz-button-group
+      class="utility-button-group"
+      ngbDropdown>
+      <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+      <button
+        (click)="onClickCreateNewWorkflowFromDashboard()"
+        nz-button
+        title="Create a new workflow"
+        nz-tooltip="Create a new workflow"
+        nzTooltipPlacement="bottom"
+        type="button">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="file-add"></i>
+      </button>
+      <button
+        [disabled]="!zipDownloadButtonEnabled"
+        (click)="onClickOpenDownloadZip()"
+        nz-button
+        title="Download added workflow as a ZIP file"
+        nz-tooltip="Download added workflow as a ZIP file"
+        nzTooltipPlacement="bottom"
+        type="button">
+        <i
+          nz-icon
+          nzType="cloud-download"
+          nzTheme="outline"></i>
+      </button>
+      <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
+        <button
+          nz-button
+          title="Upload ZIP/JSON file as workflow"
+          nz-tooltip="Upload ZIP/JSON file as workflow"
+          nzTooltipPlacement="bottom"
+          type="button">
+          <i
+            nz-icon
+            nzType="cloud-upload"
+            nzTheme="outline"></i>
+        </button>
+      </nz-upload>
+
+      <button
+        *ngIf="pid !== undefined"
+        (click)="onClickOpenAddWorkflow()"
+        nz-button
+        title="Add workflow(s) to project"
+        nz-tooltip="Add workflow(s) to project"
+        nzTooltipPlacement="bottom"
+        type="button">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="plus-square"></i>
+      </button>
+      <button
+        *ngIf="pid !== undefined"
+        (click)="onClickOpenRemoveWorkflow()"
+        nz-button
+        title="Remove workflow(s) from project"
+        nz-tooltip="Remove workflow(s) from project"
+        nzTooltipPlacement="bottom"
+        type="button">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="minus-square"></i>
+      </button>
+    </nz-button-group>
+    <texera-filters
+      [pid]="pid"
+      #filters></texera-filters>
+  </nz-card>
+
+  <div class="section-search-bar workflow-search-bar">
+    <texera-filters-instructions></texera-filters-instructions>
+    <nz-select
+      class="search-input-box"
+      name="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search all workflows"
+      [nzBorderless]="true"
+      [nzOpen]="false"
+      ngDefaultControl
+      [(ngModel)]="filters.masterFilterList"
+      [nzAllowClear]="true">
+    </nz-select>
+  </div>
+
+  <texera-search-results
+    [editable]="true"
+    (deleted)="deleteWorkflow($event)"
+    (duplicated)="onClickDuplicateWorkflow($event)"></texera-search-results>
+</div>

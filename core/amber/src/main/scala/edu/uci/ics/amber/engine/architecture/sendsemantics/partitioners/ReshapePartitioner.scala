@@ -17,10 +17,11 @@ import scala.collection.mutable.ArrayBuffer
   */
 class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
 
-  override def getBucketIndex(tuple: ITuple): Int = {
-    val bucketIndex = partitioner.getBucketIndex(tuple)
-    val newDestReceiver = recordSampleAndGetReceiverForReshape(bucketIndex)
-    originalReceiverIndexMapping(newDestReceiver)
+  override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
+    val it = partitioner.getBucketIndex(tuple)
+    it.map(bucketIndex =>
+      originalReceiverIndexMapping(recordSampleAndGetReceiverForReshape(bucketIndex))
+    )
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioner.allReceivers

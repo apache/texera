@@ -13,7 +13,7 @@ class TupleProcessingManager:
             Iterator[Union[Tuple, InputExhausted]]
         ] = None
         self.current_output_tuple: Optional[Tuple] = None
-        self.input_link_map: Mapping[LinkIdentity, int] = None
+        self.input_link_map: Mapping[LinkIdentity, int] = dict()
         self._context_switch_condition: Condition = Condition()
         self._context_switch_condition_with_no_pdb: Condition = Condition()
         self.finished_current: Event = Event()

@@ -1,9 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.control
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
-import akka.pattern.ask
 import akka.testkit.{TestKit, TestProbe}
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
 import edu.uci.ics.amber.engine.architecture.control.utils.ErrorHandler.ErrorCommand
@@ -29,7 +27,6 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import scala.collection.mutable
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class TrivialControlSpec

@@ -1,6 +1,5 @@
-from threading import Thread
-
 from overrides import overrides
+from threading import Thread
 
 from core.models.internal_queue import InternalQueue
 from core.runnables import MainLoop, NetworkReceiver, NetworkSender
@@ -9,15 +8,19 @@ from core.util.stoppable.stoppable import Stoppable
 
 
 class PythonWorker(Runnable, Stoppable):
-    def __init__(self, host: str, input_port: int, output_port: int):
+    def __init__(self, host: str, output_port: int):
         self._input_queue = InternalQueue()
         self._output_queue = InternalQueue()
-        self._network_receiver = NetworkReceiver(
-            self._input_queue, host=host, port=input_port
-        )
+        # start the server
+        self._network_receiver = NetworkReceiver(self._input_queue, host=host)
+        # let Java knows where Python starts (do handshake)
         self._network_sender = NetworkSender(
-            self._output_queue, host=host, port=output_port
+            self._output_queue,
+            host=host,
+            port=output_port,
+            handshake_port=self._network_receiver.proxy_server.get_port_number(),
         )
+
         self._main_loop = MainLoop(self._input_queue, self._output_queue)
         self._network_receiver.register_shutdown(self.stop)
 

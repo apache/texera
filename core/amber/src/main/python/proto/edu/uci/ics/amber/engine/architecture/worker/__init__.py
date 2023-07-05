@@ -160,12 +160,11 @@ class LinkOrdinal(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
-    id: "__common__.LayerIdentity" = betterproto.message_field(2)
+    is_source: bool = betterproto.bool_field(2)
     input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
     output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
-    is_source: bool = betterproto.bool_field(5)
     output_schema: Dict[str, str] = betterproto.map_field(
-        6, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        5, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 

@@ -1,9 +1,22 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+
 /**
   * The base interface of partition information in the compiler layer.
   */
-sealed trait PartitionInfo {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes(
+  Array(
+    new Type(value = classOf[HashPartition], name = "hash"),
+    new Type(value = classOf[RangePartition], name = "range"),
+    new Type(value = classOf[SinglePartition], name = "single"),
+    new Type(value = classOf[BroadcastPartition], name = "broadcast"),
+    new Type(value = classOf[UnknownPartition], name = "none")
+  )
+)
+sealed abstract class PartitionInfo {
 
   // whether this partition satisfies the other partition
   // in the default implementation, a partition only satisfies itself,
@@ -35,7 +48,7 @@ object HashPartition {
   * Represents an input stream is partitioned on multiple nodes
   * according to a hash function on the specified column indices.
   */
-case class HashPartition(hashColumnIndices: Seq[Int]) extends PartitionInfo
+final case class HashPartition(hashColumnIndices: Seq[Int]) extends PartitionInfo
 
 object RangePartition {
 
@@ -50,10 +63,10 @@ object RangePartition {
 
 /**
   * Represents an input stream is partitioned on multiple nodes
-  *  and each node contains data fit in a specific range.
+  * and each node contains data fit in a specific range.
   * The data within each node is also sorted.
   */
-case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax: Long)
+final case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax: Long)
     extends PartitionInfo {
 
   // if two streams of input with the same range partition are merged (without another sort),
@@ -66,9 +79,14 @@ case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax
 /**
   * Represent the input stream is not partitioned and all data are on a single node.
   */
-case class SinglePartition() extends PartitionInfo {}
+final case class SinglePartition() extends PartitionInfo {}
+
+/**
+  * Represents the input stream needs to send to every node
+  */
+final case class BroadcastPartition() extends PartitionInfo {}
 
 /**
   * Represents there is no specific partitioning scheme of the input stream.
   */
-case class UnknownPartition() extends PartitionInfo {}
+final case class UnknownPartition() extends PartitionInfo {}

@@ -4,6 +4,9 @@ version := "0.1-SNAPSHOT"
 
 scalaVersion := "2.12.15"
 
+semanticdbEnabled := true
+semanticdbVersion := scalafixSemanticdb.revision
+
 // to turn on, use: INFO
 // to turn off, use: WARNING
 scalacOptions ++= Seq("-Xelide-below", "WARNING")
@@ -12,6 +15,8 @@ scalacOptions ++= Seq("-Xelide-below", "WARNING")
 scalacOptions += "-feature"
 // to check deprecation warnings
 scalacOptions += "-deprecation"
+// to check unused imports
+scalacOptions += "-Ywarn-unused-import"
 
 conflictManager := ConflictManager.latestRevision
 
@@ -56,7 +61,7 @@ val akkaDependencies = Seq(
 val dropwizardVersion = "1.3.23"
 // jersey version should be the same as jersey-server that is contained in dropwizard
 val jerseyMultipartVersion = "2.25.1"
-val jacksonVersion = "2.13.2"
+
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-client" % dropwizardVersion,
@@ -67,22 +72,16 @@ val dropwizardDependencies = Seq(
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
-  // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
-  "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.11.0"
 )
 
-// deps from library
-//"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
-val slf4jVersion = "1.7.26"
+val jacksonVersion = "2.15.1"
 val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
-  "org.slf4j" % "slf4j-api" % slf4jVersion,
+  "org.slf4j" % "slf4j-api" % "1.7.26",
   "io.github.classgraph" % "classgraph" % "4.8.21",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
@@ -90,7 +89,11 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion % "test",
   "joda-time" % "joda-time" % "2.10.1" % "test",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test"
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
+  "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
+  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
+  "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -118,16 +121,15 @@ val hadoopDependencies = Seq(
 /////////////////////////////////////////////////////////////////////////////
 // Google Service related
 val googleServiceDependencies = Seq(
-  "com.google.oauth-client" % "google-oauth-client" % "1.31.4" exclude ("com.google.guava", "guava"),
-  "com.google.oauth-client" % "google-oauth-client-jetty" % "1.31.4" exclude ("com.google.guava", "guava"),
-  "com.google.api-client" % "google-api-client" % "1.31.1" exclude ("com.google.guava", "guava"),
+  "com.google.oauth-client" % "google-oauth-client-jetty" % "1.34.1" exclude ("com.google.guava", "guava"),
+  "com.google.api-client" % "google-api-client" % "2.2.0" exclude ("com.google.guava", "guava"),
   "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude ("com.google.guava", "guava"),
   "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude ("com.google.guava", "guava")
 )
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "10.0.0"
+val arrowVersion = "12.0.1"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,

@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import akka.actor.ActorRef
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{

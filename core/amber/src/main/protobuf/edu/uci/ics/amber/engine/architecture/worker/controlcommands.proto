@@ -55,11 +55,10 @@ message LinkOrdinal {
 
 message InitializeOperatorLogicV2 {
     string code = 1;
-    common.LayerIdentity id = 2 [(scalapb.field).no_box = true];
+    bool is_source = 2;
     repeated LinkOrdinal input_ordinal_mapping = 3;
     repeated LinkOrdinal output_ordinal_mapping = 4;
-    bool is_source = 5;
-    map<string, string> output_schema = 6;
+    map<string, string> output_schema = 5;
 }
 
 message ModifyOperatorLogicV2 {
