@@ -31,33 +31,15 @@ class DataProcessor(Runnable, Stoppable):
 
     def process_tuple(self) -> None:
         finished_current = self._context.tuple_processing_manager.finished_current
+        current_input = self._context.tuple_processing_manager.current_input
         try:
             while not finished_current.is_set():
 
-                start_time = time.time()
-                # opt1
-                # if isinstance(
-                #         self._context.tuple_processing_manager.current_input_tuple,
-                #         Tuple
-                # ):
-                #     self._context.debug_manager.disable_unnecessary_breakpoints(
-                #         self._context.tuple_processing_manager.current_input_tuple)
-
-                # #op1B + op2
-                # if isinstance(
-                #         self._context.tuple_processing_manager.current_input_tuple,
-                #         Tuple
-                # ) :
-                #     if 'doesnotexist' not in \
-                #             self._context.tuple_processing_manager.current_input_tuple[
-                #                 'text']:
-                #         self._context.operator_manager._static = False
-                #     else:
-                #         self._context.operator_manager._static = True
-                # self._context.debug_manager.check_and_swap_for_static_breakpoints()
+                if isinstance(current_input, Tuple):
+                    self._context.debug_manager.optimize_debugger(current_input)
 
                 operator = self._context.operator_manager.operator
-                tuple_ = self._context.tuple_processing_manager.current_input_tuple
+                tuple_ = self._context.tuple_processing_manager.current_input
                 link = self._context.tuple_processing_manager.current_input_link
                 port: int
                 if link is None:

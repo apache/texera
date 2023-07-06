@@ -82,7 +82,7 @@ class OperatorManager:
             operator_module = importlib.reload(operator_module)
         else:
             operator_module = importlib.import_module(module_name)
-        logger.info("new code:\n" + code)
+        logger.debug("loading code:\n" + code)
         self.operator_source_code = code
         self.operator_module_name = module_name
 

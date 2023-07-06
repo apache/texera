@@ -203,7 +203,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         This is being invoked for each Tuple/Marker that are unpacked from the
         DataElement.
         """
-        if isinstance(self.context.tuple_processing_manager.current_input_tuple, Tuple):
+        if isinstance(self.context.tuple_processing_manager.current_input, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
         self.context.operator_manager.apply_available_code_update()
         for output_tuple in self.process_tuple_with_udf():
@@ -240,7 +240,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     ControlCommandV2,
                     StateRequestV2(
                         tuple_id=str(
-                            self.context.tuple_processing_manager.current_input_tuple[
+                            self.context.tuple_processing_manager.current_input[
                                 "id"
                             ]
                         ),
@@ -265,7 +265,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 state_name = state_name.strip()
 
                 tuple_id = str(
-                    self.context.tuple_processing_manager.current_input_tuple["id"]
+                    self.context.tuple_processing_manager.current_input["id"]
                 )
                 self.context.debug_manager.states[(tuple_id, lineno, state_name)] = (
                     self.context.tuple_processing_manager.output_iterator.gi_frame.f_locals[
@@ -307,7 +307,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_control_payload(control_element.tag, control_element.payload)
 
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
-        self.context.tuple_processing_manager.current_input_tuple = tuple_
+        self.context.tuple_processing_manager.current_input = tuple_
         self.process_input_tuple()
         self._check_and_process_control()
 

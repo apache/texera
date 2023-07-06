@@ -7,7 +7,7 @@ from proto.edu.uci.ics.amber.engine.common import LinkIdentity, LayerIdentity
 
 class TupleProcessingManager:
     def __init__(self):
-        self.current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
+        self.current_input: Optional[Union[Tuple, InputExhausted]] = None
         self.current_input_link: Optional[LinkIdentity] = None
         self.current_input_tuple_iter: Optional[
             Iterator[Union[Tuple, InputExhausted]]
