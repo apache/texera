@@ -4,6 +4,8 @@ from bdb import Breakpoint
 from pdb import Pdb
 from threading import Condition
 
+from typing import List, Optional, Dict
+
 from core.architecture.managers.operator_manager import OperatorManager
 from loguru import logger
 
@@ -32,6 +34,7 @@ class DebugManager:
         self.breakpoints_managed = set()
         self.line_mapping = dict()
         self.states = dict()
+        self.breaks_backup = dict()
 
     def has_debug_command(self) -> bool:
         return self._debug_in.value is not None
@@ -45,7 +48,7 @@ class DebugManager:
         :return str: the fetched event, in string format.
         """
         event = self._debug_out.readline()
-        logger.info(f"received a debug event {repr(event)}" )
+        logger.info(f"received a debug event {repr(event)}")
         return event
 
     def put_debug_command(self, command: str) -> None:
@@ -69,11 +72,7 @@ class DebugManager:
                     # TODO: change line mapping
                     # self.debugger.clear_bpbynumber(bp.number)
             self.debugger.clear_all_breaks()
-            sys.settrace(None)
-            frame = sys._getframe().f_back
-            while frame and frame.f_back:
-                del frame.f_trace
-                frame = frame.f_back
+            self.disable_tracing()
 
             logger.info(self.debugger.breaks)
             # self._operator_manager.update_operator(code, is_source=self._operator_manager._operator.is_source)
@@ -121,26 +120,14 @@ class DebugManager:
             # all breakpoints are disabled, can disable debugger by removing tracing
             logger.debug("disabling debugger for current tuple")
             if self.trace_disabled:
-                 return
+                return
 
-            self.breaks_backup = self.debugger.breaks
+            self.disable_tracing(self.breaks_backup)
             self.debugger.breaks = []
 
-            sys.settrace(None)
-            self.trace_disabled = True
-            frame = sys._getframe().f_back
-            while frame and frame.f_back:
-                del frame.f_trace
-                frame = frame.f_back
-        else: # add tracing back
+        else:  # add tracing back
             self.debugger.breaks = self.breaks_backup
-            frame = sys._getframe().f_back
-
-            while frame:
-                frame.f_trace = self.debugger.trace_dispatch
-                self.botframe = frame
-                frame = frame.f_back
-            self.trace_disabled = False
+            self.enable_tracing()
 
     def optimize_debugger(self, current_tuple: Tuple):
         if DebugManager.OP1_ENABLED:
@@ -152,6 +139,27 @@ class DebugManager:
             else:
                 self._operator_manager._static = True
             self.check_and_swap_for_static_breakpoints()
+
+    def disable_tracing(self, preserved_breakpoints: Optional[Dict[Breakpoint]] = None):
+        if preserved_breakpoints is not None:
+            preserved_breakpoints.clear()
+            preserved_breakpoints.update(self.debugger.breaks)
+        # finish it
+        self.debugger.breaks = []
+        sys.settrace(None)
+        frame = sys._getframe().f_back
+        while frame and frame.f_back:
+            del frame.f_trace
+            frame = frame.f_back
+
+    def enable_tracing(self):
+        frame = sys._getframe().f_back
+
+        while frame:
+            frame.f_trace = self.debugger.trace_dispatch
+            self.botframe = frame
+            frame = frame.f_back
+        self.trace_disabled = False
 
 
 def breakpoint():
