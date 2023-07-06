@@ -141,7 +141,7 @@ class UserFileAccessResource {
   @GET
   @Path("list/{fid}")
   def getAccessList(
-      @PathParam("fid") fid: UInteger,
+      @PathParam("fid") fid: UInteger
   ): util.List[AccessEntry] = {
     context
       .select(
