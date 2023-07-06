@@ -1,9 +1,4 @@
-import {
-  AfterViewInit,
-  Component,
-  Input,
-  ViewChild,
-} from "@angular/core";
+import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom } from "rxjs";

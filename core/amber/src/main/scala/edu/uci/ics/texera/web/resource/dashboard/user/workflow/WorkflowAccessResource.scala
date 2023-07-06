@@ -110,7 +110,7 @@ class WorkflowAccessResource() {
   @GET
   @Path("/list/{wid}")
   def getAccessList(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: UInteger
   ): util.List[AccessEntry] = {
     context
       .select(
