@@ -24,9 +24,7 @@ class DataProcessor(Runnable, Stoppable):
             self._context.tuple_processing_manager.context_switch_condition.wait()
         self._running.set()
         self._switch_context()
-        self.run_speed_log = open(
-            f"run_speed" f"{self._context.operator_manager.root.name}.csv", "w"
-        )
+
         while self._running.is_set():
             self.process_tuple()
             self._switch_context()
@@ -81,9 +79,7 @@ class DataProcessor(Runnable, Stoppable):
                     else operator.on_finish(port)
                 )
                 with replace_print(self._context.console_message_manager.print_buf):
-                    for (
-                        output
-                    ) in self._context.tuple_processing_manager.output_iterator:
+                    for output in output_iterator:
                         output_tuple = None if output is None else Tuple(output)
                         if output_tuple is not None:
                             schema = (
@@ -98,7 +94,7 @@ class DataProcessor(Runnable, Stoppable):
 
                 # current tuple finished successfully
                 finished_current.set()
-                self.run_speed_log.write(f"{(time.time() - start_time) * 1000}\n")
+
         except Exception as err:
             logger.exception(err)
             self._context.exception_manager.set_exception_info(sys.exc_info())
@@ -129,4 +125,3 @@ class DataProcessor(Runnable, Stoppable):
 
     def stop(self):
         self._running.clear()
-        self.run_speed_log.close()

@@ -22,6 +22,8 @@ class OperatorManager:
         self.operator_version: int = 0  # incremental only
         self._static = False
         self.operator_source_code = ""
+        self.scheduled_updates = dict()
+        self.breakpoints_managed = set()
 
     @cached_property
     def fs(self) -> FS:
@@ -46,9 +48,6 @@ class OperatorManager:
         logger.debug(f"Opening a tmp directory at {root}.")
         sys.path.append(str(root))
         return temp_fs
-
-        self.scheduled_updates = dict()
-        self.breakpoints_managed = set()
 
     def gen_module_file_name(self) -> Tuple[str, str]:
         """

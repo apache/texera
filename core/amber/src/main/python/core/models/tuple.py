@@ -75,7 +75,8 @@ class ArrowTableTupleProvider:
             field_type = self._table.schema.field(field_name).type
 
             # for binary types, convert pickled objects back.
-            if field_type == pyarrow.binary() and value[:6] == b"pickle":
+            if field_type == pyarrow.binary() and value is not None and value[:6] == \
+                    b"pickle":
                 import pickle
 
                 value = pickle.loads(value[10:])

@@ -120,19 +120,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if isinstance(
             next_entry, DataElement
         ) and self.context.state_manager.confirm_state(WorkerState.READY):
-            # add breakpoint:
-            control_command = set_one_of(
-                ControlCommandV2,
-                WorkerDebugCommandV2(
-                    cmd=f"b 20, 'doesnotexist' in tuple_['text'] and 'hello' in tokens"
-                ),
-            )
-            self._async_rpc_client.send(
-                ActorVirtualIdentity(name="SELF"), control_command
-            )
-            self._pause_dp()
-            self._check_and_process_control()
-            self._switch_context()
+            # # add breakpoint:
+            # control_command = set_one_of(
+            #     ControlCommandV2,
+            #     WorkerDebugCommandV2(
+            #         cmd=f"b 20, 'doesnotexist' in tuple_['text'] and 'hello' in tokens"
+            #     ),
+            # )
+            # self._async_rpc_client.send(
+            #     ActorVirtualIdentity(name="SELF"), control_command
+            # )
+            # self._pause_dp()
+            # self._check_and_process_control()
+            # self._switch_context()
             # if 'TypeCasting' in self.context.tuple_processing_manager.my_upstream_id \
             #         .operator:  # second UDF
             #     # control_command = set_one_of(
