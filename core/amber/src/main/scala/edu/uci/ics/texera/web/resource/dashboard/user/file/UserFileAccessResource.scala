@@ -129,8 +129,7 @@ class UserFileAccessResource {
   @GET
   @Path("/owner/{fid}")
   def getOwner(@PathParam("fid") fid: UInteger): String = {
-    val uid = fileDao.fetchOneByFid(fid).getOwnerUid
-    userDao.fetchOneByUid(uid).getEmail
+    userDao.fetchOneByUid(fileDao.fetchOneByFid(fid).getOwnerUid).getEmail
   }
 
   /**
@@ -143,7 +142,6 @@ class UserFileAccessResource {
   @Path("list/{fid}")
   def getAccessList(
       @PathParam("fid") fid: UInteger,
-      @Auth user: SessionUser
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -157,7 +155,7 @@ class UserFileAccessResource {
       .where(
         USER_FILE_ACCESS.FID
           .eq(fid)
-          .and(USER_FILE_ACCESS.UID.notEqual(user.getUid))
+          .and(USER_FILE_ACCESS.UID.notEqual(fileDao.fetchOneByFid(fid).getOwnerUid))
       )
       .fetchInto(classOf[AccessEntry])
   }

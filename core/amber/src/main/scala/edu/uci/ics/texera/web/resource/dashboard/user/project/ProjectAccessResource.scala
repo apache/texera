@@ -47,7 +47,6 @@ class ProjectAccessResource() {
   @Path("/list/{pid}")
   def getAccessList(
       @PathParam("pid") pid: UInteger,
-      @Auth user: SessionUser
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -58,7 +57,7 @@ class ProjectAccessResource() {
       .from(PROJECT_USER_ACCESS)
       .join(USER)
       .on(USER.UID.eq(PROJECT_USER_ACCESS.UID))
-      .where(PROJECT_USER_ACCESS.PID.eq(pid).and(PROJECT_USER_ACCESS.UID.notEqual(user.getUid)))
+      .where(PROJECT_USER_ACCESS.PID.eq(pid).and(PROJECT_USER_ACCESS.UID.notEqual(projectDao.fetchOneByPid(pid).getOwnerId)))
       .fetchInto(classOf[AccessEntry])
   }
 

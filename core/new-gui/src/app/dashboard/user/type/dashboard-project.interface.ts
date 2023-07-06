@@ -5,4 +5,5 @@ export interface DashboardProject {
   ownerID: number;
   creationTime: number;
   color: string | null;
+  writeAccess: boolean;
 }

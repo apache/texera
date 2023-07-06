@@ -98,8 +98,7 @@ class WorkflowAccessResource() {
   @GET
   @Path("/owner/{wid}")
   def getOwner(@PathParam("wid") wid: UInteger): String = {
-    val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
-    userDao.fetchOneByUid(uid).getEmail
+    userDao.fetchOneByUid(workflowOfUserDao.fetchByWid(wid).get(0).getUid).getEmail
   }
 
   /**
@@ -112,7 +111,6 @@ class WorkflowAccessResource() {
   @Path("/list/{wid}")
   def getAccessList(
       @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -126,7 +124,7 @@ class WorkflowAccessResource() {
       .where(
         WORKFLOW_USER_ACCESS.WID
           .eq(wid)
-          .and(WORKFLOW_USER_ACCESS.UID.notEqual(sessionUser.getUser.getUid))
+          .and(WORKFLOW_USER_ACCESS.UID.notEqual(workflowOfUserDao.fetchByWid(wid).get(0).getUid))
       )
       .fetchInto(classOf[AccessEntry])
   }

@@ -4,11 +4,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
@@ -18,6 +14,7 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.util
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -242,17 +239,12 @@ class WorkflowResource {
   @GET
   @Path("/workflow-ids")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
+  def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
+    context
       .select(WORKFLOW_USER_ACCESS.WID)
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid.intValue().toString)
-      .toList
+      .fetchInto(classOf[String])
   }
 
   /**
@@ -263,22 +255,16 @@ class WorkflowResource {
   @GET
   @Path("/owners")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(USER.EMAIL)
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
+    context
+      .selectDistinct(USER.EMAIL)
       .from(WORKFLOW_USER_ACCESS)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
       .join(USER)
       .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(USER.UID)
-      .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(USER).getEmail)
-      .toList
+      .fetchInto(classOf[String])
   }
 
   /**

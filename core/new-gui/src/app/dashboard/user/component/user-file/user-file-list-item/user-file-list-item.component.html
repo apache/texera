@@ -20,7 +20,6 @@
           (click)="editingName = true"
           nz-button
           nz-tooltip="Customize File Name"
-          title="Customize File Name"
           nzSize="small"
           nzTooltipPlacement="bottom"
           nzType="text">
@@ -35,7 +34,6 @@
           class="add-description-btn"
           nz-button
           nz-tooltip="Add Description"
-          title="Add Description"
           nzSize="small"
           nzTooltipPlacement="bottom"
           nzType="text">
@@ -92,12 +90,9 @@
     <nz-list-item-action>
       <button
         (click)="onClickOpenShareAccess()"
-        [disabled]="entry.file.ownerUid !== uid"
+        [disabled]="!entry.writeAccess"
         nz-button
         nz-tooltip="Share the file {{
-                      entry.file.name
-                  }} to others"
-        title="Share the file {{
                       entry.file.name
                   }} to others"
         nzTooltipPlacement="bottom"
@@ -117,9 +112,6 @@
         nz-tooltip="Delete the file {{
                       entry.file.name
                   }}"
-        title="Delete the file {{
-                      entry.file.name
-                  }}"
         nzPopconfirmTitle="Confirm to delete this file."
         nzTooltipPlacement="bottom"
         type="button">
@@ -134,7 +126,6 @@
         (click)="downloadFile()"
         nz-button
         nz-tooltip="Download the {{ entry.file.name }}"
-        title="Download the {{ entry.file.name }}"
         nzTooltipPlacement="bottom">
         <i
           nz-icon
