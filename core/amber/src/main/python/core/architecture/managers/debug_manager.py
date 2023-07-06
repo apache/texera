@@ -15,7 +15,9 @@ from core.models.single_blocking_io import SingleBlockingIO
 
 class DebugManager:
     DEBUGGER = None
-    OP1_ENABLED = True
+    PAUSE_ON_HITTING_BREAKPOINT = False
+    PAUSE_ON_SETTING_BREAKPOINT = False
+    OP1_ENABLED = False
     OP2_ENABLED = False
 
     def __init__(self, condition: Condition, operator_manager: OperatorManager):
@@ -140,7 +142,8 @@ class DebugManager:
                 self._operator_manager._static = True
             self.check_and_swap_for_static_breakpoints()
 
-    def disable_tracing(self, preserved_breakpoints: Optional[Dict[Breakpoint]] = None):
+    def disable_tracing(self, preserved_breakpoints: Optional[Dict[str, Breakpoint]] =
+    None):
         if preserved_breakpoints is not None:
             preserved_breakpoints.clear()
             preserved_breakpoints.update(self.debugger.breaks)
@@ -160,6 +163,12 @@ class DebugManager:
             self.botframe = frame
             frame = frame.f_back
         self.trace_disabled = False
+
+    def is_setting_breakpoint_event(self, debug_event: str) -> bool:
+        return debug_event[:10] == "Breakpoint"
+
+    def is_breakpoint_hit_event(self, debug_event: str) -> bool:
+        return debug_event[:1] == ">"
 
 
 def breakpoint():
