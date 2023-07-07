@@ -130,7 +130,7 @@ class UserFileAccessResource {
   def grantAccess(
       @PathParam("fid") fid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String,
+      @PathParam("privilege") privilege: String
   ): Unit = {
     userFileAccessDao.merge(
       new UserFileAccess(
@@ -152,7 +152,7 @@ class UserFileAccessResource {
   @Path("/revoke/{fid}/{email}")
   def revokeAccess(
       @PathParam("fid") fid: UInteger,
-      @PathParam("email") email: String,
+      @PathParam("email") email: String
   ): Unit = {
     context
       .delete(USER_FILE_ACCESS)

@@ -136,7 +136,7 @@ class WorkflowAccessResource() {
   def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String,
+      @PathParam("privilege") privilege: String
   ): Unit = {
     workflowUserAccessDao.merge(
       new WorkflowUserAccess(
@@ -158,7 +158,7 @@ class WorkflowAccessResource() {
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
       @PathParam("wid") wid: UInteger,
-      @PathParam("email") email: String,
+      @PathParam("email") email: String
   ): Unit = {
     context
       .delete(WORKFLOW_USER_ACCESS)

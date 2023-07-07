@@ -228,7 +228,7 @@ class UserFileResource {
   @Path("/description/{fid}/{description}")
   def changeFileDescription(
       @PathParam("fid") fid: UInteger,
-      @PathParam("description") description: String,
+      @PathParam("description") description: String
   ): Unit = {
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)
