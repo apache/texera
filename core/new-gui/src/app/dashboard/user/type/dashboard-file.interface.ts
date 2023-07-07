@@ -1,7 +1,7 @@
 export interface DashboardFile
   extends Readonly<{
     ownerEmail: string;
-    writeAccess: boolean;
+    accessLevel: string;
     file: UserFile;
   }> {}
 

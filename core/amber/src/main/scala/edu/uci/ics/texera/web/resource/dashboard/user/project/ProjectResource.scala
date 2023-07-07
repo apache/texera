@@ -3,10 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  ProjectUserAccessPrivilege,
-  UserFileAccessPrivilege
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileOfProjectDao,
   ProjectDao,
@@ -21,7 +18,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
-import org.jooq.impl.DSL.case_
 import org.jooq.types.UInteger
 import java.sql.Timestamp
 import java.util
@@ -105,7 +101,7 @@ object ProjectResource {
       ownerID: UInteger,
       creationTime: Timestamp,
       color: String,
-      writeAccess: Boolean
+      accessLevel: String
   )
 }
 
@@ -141,8 +137,7 @@ class ProjectResource {
         PROJECT.OWNER_ID,
         PROJECT.CREATION_TIME,
         PROJECT.COLOR,
-        case_()
-          .when(PROJECT_USER_ACCESS.PRIVILEGE.eq(ProjectUserAccessPrivilege.WRITE), "true")
+        PROJECT_USER_ACCESS.PRIVILEGE
       )
       .from(PROJECT)
       .leftJoin(PROJECT_USER_ACCESS)
@@ -221,7 +216,7 @@ class ProjectResource {
       .map(fileRecord =>
         DashboardFile(
           fileRecord.into(USER).getName,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          fileRecord.into(USER_FILE_ACCESS).getPrivilege.toString,
           fileRecord.into(FILE).into(classOf[File])
         )
       )

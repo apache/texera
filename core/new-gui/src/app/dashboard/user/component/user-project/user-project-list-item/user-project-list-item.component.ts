@@ -155,9 +155,10 @@ export class UserProjectListItemComponent implements OnInit {
   /**
    * open the Modal based on the workflow clicked on
    */
-  public onClickOpenShareAccess(id: number): void {
+  public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";
     modalRef.componentInstance.type = "project";
-    modalRef.componentInstance.id = id;
+    modalRef.componentInstance.id = this.entry.pid;
   }
 }
