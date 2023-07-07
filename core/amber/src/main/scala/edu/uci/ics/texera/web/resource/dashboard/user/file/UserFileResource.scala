@@ -7,10 +7,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User, UserFileAccess}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
-  checkReadAccess,
-  checkWriteAccess
-}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
   DashboardFile,
   context,
@@ -183,7 +179,6 @@ class UserFileResource {
       @PathParam("fid") fid: UInteger,
       @Auth user: SessionUser
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
   }
@@ -194,7 +189,6 @@ class UserFileResource {
       @PathParam("fid") fid: UInteger,
       @Auth user: SessionUser
   ): Response = {
-    checkReadAccess(fid, user.getUid)
     Response
       .ok(
         new StreamingOutput() {
@@ -220,7 +214,6 @@ class UserFileResource {
       @PathParam("name") name: String,
       @Auth user: SessionUser
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     val validationRes = this.validateFileName(name, user.getUid)
     if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
@@ -236,9 +229,7 @@ class UserFileResource {
   def changeFileDescription(
       @PathParam("fid") fid: UInteger,
       @PathParam("description") description: String,
-      @Auth user: SessionUser
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)
     fileDao.update(userFile)

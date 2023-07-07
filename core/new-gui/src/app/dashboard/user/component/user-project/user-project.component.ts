@@ -20,7 +20,6 @@ export class UserProjectComponent implements OnInit {
   // used to manage setting project colors
   public userProjectToColorInputIndexMap: Map<number, number> = new Map(); // maps each project to its color wheel input index, even after reordering / sorting of projects
   public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
-  public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
   public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
   public uid: number | undefined;
 

@@ -142,7 +142,6 @@
     <nz-list-item-action>
       <button
         (click)="onClickOpenShareAccess()"
-        [disabled]="entry.workflow.accessLevel==='READ'"
         nz-button
         nz-tooltip="Share the workflow {{
                       workflow.name

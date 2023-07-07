@@ -87,6 +87,7 @@ export class UserFileListItemComponent {
 
   public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.writeAccess = this.entry.writeAccess;
     modalRef.componentInstance.type = "file";
     modalRef.componentInstance.id = this.entry.file.fid;
   }

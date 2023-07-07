@@ -156,8 +156,7 @@
     *ngIf="editable">
     <nz-list-item-action>
       <button
-        (click)="onClickOpenShareAccess(entry.pid)"
-        [disabled]="!entry.writeAccess"
+        (click)="onClickOpenShareAccess()"
         nz-button
         nz-tooltip="Share the project {{
 								entry.name
