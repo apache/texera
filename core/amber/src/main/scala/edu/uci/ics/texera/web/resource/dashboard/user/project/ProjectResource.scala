@@ -3,10 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  ProjectUserAccessPrivilege,
-  UserFileAccessPrivilege
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileOfProjectDao,
   ProjectDao,
@@ -21,7 +18,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
-import org.jooq.impl.DSL.case_
 import org.jooq.types.UInteger
 import java.sql.Timestamp
 import java.util
