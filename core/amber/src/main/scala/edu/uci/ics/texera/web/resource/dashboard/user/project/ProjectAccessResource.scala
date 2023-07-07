@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
@@ -10,7 +9,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.ProjectUserAccess
-import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 import java.util
@@ -46,8 +44,7 @@ class ProjectAccessResource() {
   @GET
   @Path("/list/{pid}")
   def getAccessList(
-      @PathParam("pid") pid: UInteger,
-      @Auth user: SessionUser
+      @PathParam("pid") pid: UInteger
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -58,7 +55,11 @@ class ProjectAccessResource() {
       .from(PROJECT_USER_ACCESS)
       .join(USER)
       .on(USER.UID.eq(PROJECT_USER_ACCESS.UID))
-      .where(PROJECT_USER_ACCESS.PID.eq(pid).and(PROJECT_USER_ACCESS.UID.notEqual(user.getUid)))
+      .where(
+        PROJECT_USER_ACCESS.PID
+          .eq(pid)
+          .and(PROJECT_USER_ACCESS.UID.notEqual(projectDao.fetchOneByPid(pid).getOwnerId))
+      )
       .fetchInto(classOf[AccessEntry])
   }
 

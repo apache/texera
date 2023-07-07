@@ -60,6 +60,7 @@
               </select>
             </div>
             <button
+              [disabled]="!writeAccess"
               style="width: 100%"
               nz-button
               nzType="primary"
@@ -92,6 +93,7 @@
       {{ entry.email }} ({{ entry.name }})
       <span class="badge badge-primary">{{ entry.privilege }}</span>
       <button
+        [disabled]="!writeAccess && entry.email !== currentEmail"
         (click)="revokeAccess(entry.email)"
         nz-button
         nz-tooltip="revoke access"

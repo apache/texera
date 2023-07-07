@@ -32,7 +32,6 @@ class DataProcessor(Runnable, Stoppable):
             while not finished_current.is_set():
                 if isinstance(current_input, Tuple):
                     self._context.debug_manager.optimize_debugger(current_input)
-
                 operator = self._context.operator_manager.operator
                 tuple_ = self._context.tuple_processing_manager.current_input
                 link = self._context.tuple_processing_manager.current_input_link
