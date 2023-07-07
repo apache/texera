@@ -151,6 +151,7 @@ class PythonWorkflowWorker(
         else pythonENVPath, // add fall back in case of empty
         "-u",
         udfEntryScriptPath,
+        actorId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
         config.getString("python.log.streamHandler.level")
       )
