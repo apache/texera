@@ -62,7 +62,7 @@ object UserFileResource {
 
   case class DashboardFile(
       ownerEmail: String,
-      writeAccess: Boolean,
+      accessLevel: String,
       file: File
   )
 }
@@ -112,7 +112,7 @@ class UserFileResource {
         fids += fileRecord.into(FILE).getFid
         fileEntries += DashboardFile(
           fileRecord.into(USER).getEmail,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          fileRecord.into(USER_FILE_ACCESS).getPrivilege.toString,
           fileRecord.into(FILE).into(classOf[File])
         )
       })
@@ -132,7 +132,7 @@ class UserFileResource {
         if (!fileEntries.exists(file => { file.file.getFid == fileRecord.into(FILE).getFid })) {
           fileEntries += DashboardFile(
             fileRecord.into(USER).getEmail,
-            writeAccess = false,
+            "READ",
             fileRecord.into(FILE).into(classOf[File])
           )
         }

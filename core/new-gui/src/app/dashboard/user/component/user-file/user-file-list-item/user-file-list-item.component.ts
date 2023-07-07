@@ -15,7 +15,7 @@ import { ShareAccessComponent } from "../../share-access/share-access.component"
 export class UserFileListItemComponent {
   private _entry?: DashboardFile = {
     ownerEmail: "jingchf@uci.edu",
-    writeAccess: true,
+    accessLevel: "WRITE",
     file: {
       ownerUid: 1,
       fid: 2,
@@ -87,7 +87,7 @@ export class UserFileListItemComponent {
 
   public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
-    modalRef.componentInstance.writeAccess = this.entry.writeAccess;
+    modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";
     modalRef.componentInstance.type = "file";
     modalRef.componentInstance.id = this.entry.file.fid;
   }

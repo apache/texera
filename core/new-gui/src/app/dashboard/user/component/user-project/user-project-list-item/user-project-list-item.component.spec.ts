@@ -16,7 +16,7 @@ describe("UserProjectListItemComponent", () => {
     name: "project1",
     ownerID: 1,
     pid: 1,
-    writeAccess: true,
+    accessLevel: "WRITE",
   };
 
   beforeEach(async () => {

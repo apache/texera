@@ -105,7 +105,7 @@ object ProjectResource {
       ownerID: UInteger,
       creationTime: Timestamp,
       color: String,
-      writeAccess: Boolean
+      accessLevel: String
   )
 }
 
@@ -141,8 +141,7 @@ class ProjectResource {
         PROJECT.OWNER_ID,
         PROJECT.CREATION_TIME,
         PROJECT.COLOR,
-        case_()
-          .when(PROJECT_USER_ACCESS.PRIVILEGE.eq(ProjectUserAccessPrivilege.WRITE), "true")
+        PROJECT_USER_ACCESS.PRIVILEGE
       )
       .from(PROJECT)
       .leftJoin(PROJECT_USER_ACCESS)
@@ -221,7 +220,7 @@ class ProjectResource {
       .map(fileRecord =>
         DashboardFile(
           fileRecord.into(USER).getName,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          fileRecord.into(USER_FILE_ACCESS).getPrivilege.toString,
           fileRecord.into(FILE).into(classOf[File])
         )
       )

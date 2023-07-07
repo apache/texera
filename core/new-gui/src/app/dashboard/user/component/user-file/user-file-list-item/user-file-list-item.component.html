@@ -105,7 +105,7 @@
     <nz-list-item-action *ngIf="editable">
       <button
         (nzOnConfirm)="deleted.emit()"
-        [disabled]="!entry.writeAccess"
+        [disabled]="entry.accessLevel==='READ'"
         nz-button
         nz-popconfirm
         nz-tooltip="Delete the file {{

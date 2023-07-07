@@ -157,7 +157,7 @@ export class UserProjectListItemComponent implements OnInit {
    */
   public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
-    modalRef.componentInstance.writeAccess = this.entry.writeAccess;
+    modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";
     modalRef.componentInstance.type = "project";
     modalRef.componentInstance.id = this.entry.pid;
   }

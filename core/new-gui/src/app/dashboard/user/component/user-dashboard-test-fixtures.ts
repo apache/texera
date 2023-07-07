@@ -159,7 +159,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
 ];
 
 export const testUserProjects: DashboardProject[] = [
-  { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, writeAccess: true },
-  { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, writeAccess: true },
-  { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, writeAccess: true },
+  { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
 ];
