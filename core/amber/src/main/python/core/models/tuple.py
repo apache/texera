@@ -208,7 +208,6 @@ class Tuple(TupleLike):
         """
         for field_name in self.get_field_names():
             try:
-
                 field_value: Field = self[field_name]
 
                 # convert NaN to None to support null value conversion

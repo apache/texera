@@ -94,7 +94,6 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_batch_data_elements(self, mock_batch, mock_sender_actor):
-
         data_elements = []
         for i in range(57):
             mock_tuple = Tuple({"test-1": "hello", "test-2": i})
