@@ -8,7 +8,7 @@ from core.util.stoppable.stoppable import Stoppable
 
 
 class PythonWorker(Runnable, Stoppable):
-    def __init__(self, host: str, output_port: int):
+    def __init__(self, worker_id: str, host: str, output_port: int):
         self._input_queue = InternalQueue()
         self._output_queue = InternalQueue()
         # start the server
@@ -21,7 +21,7 @@ class PythonWorker(Runnable, Stoppable):
             handshake_port=self._network_receiver.proxy_server.get_port_number(),
         )
 
-        self._main_loop = MainLoop(self._input_queue, self._output_queue)
+        self._main_loop = MainLoop(worker_id, self._input_queue, self._output_queue)
         self._network_receiver.register_shutdown(self.stop)
 
     @overrides

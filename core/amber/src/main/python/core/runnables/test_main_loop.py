@@ -242,7 +242,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def main_loop(self, input_queue, output_queue, mock_link):
-        main_loop = MainLoop(input_queue, output_queue)
+        main_loop = MainLoop("dummy_worker_id", input_queue, output_queue)
         yield main_loop
         main_loop.stop()
 
