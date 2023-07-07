@@ -101,7 +101,6 @@ class DebugManager:
                 logger.info(f"recorded local condition: {local_condition}")
                 self.pulled_conditions[bp_num] = data_condition
                 self.debugger.get_bpbynumber(bp_num).cond = local_condition
-                # logger.info(self.debugger.get_bpbynumber(bp_num).cond)
 
         self.check_data_conditions(tuple_)
 
@@ -134,10 +133,6 @@ class DebugManager:
         if DebugManager.OP1_ENABLED:
             self.disable_unnecessary_breakpoints(current_tuple)
         if DebugManager.OP2_ENABLED:
-            if "doesnotexist" not in current_tuple["text"]:
-                self._operator_manager._static = False
-            else:
-                self._operator_manager._static = True
             self.check_and_swap_for_static_breakpoints()
 
     def disable_tracing(

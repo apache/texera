@@ -203,10 +203,7 @@ class OperatorManager:
         code_after = old_code[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
-        bp_line = (
-            f"{indentation}import random\n{indentation}if random.random() > "
-            f"0.999: yield 'request({req_lineno}, {req_state})'"
-        )
+        bp_line = f"{indentation}yield 'request({req_lineno}, {req_state})'"
 
         new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
         # print(new_code, file=sys.stdout)
@@ -222,29 +219,25 @@ class OperatorManager:
         bp_line = f"{indentation}yield 'store({lineno}, {state})'"
 
         new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
-        # print(new_code, file=sys.stdout)
+
         return new_code
 
     def schedule_update_code(self, when: str, change: str):
-        logger.info("schedule update code")
-        if change[:2] == "ss":
-            logger.info(change)
-
+        if change[:2] == "ss":  # store state
             ss, lineno, state = change.split()
             self.scheduled_updates[when] = (
                 self.add_ss(int(lineno), state),
                 self.operator.is_source,
             )
-        if change[:2] == "rs":
-            logger.info(change)
+
+        if change[:2] == "rs":  # request state
             ss, lineno, req_lineno, req_state = change.split()
             self.scheduled_updates[when] = (
                 self.add_rs(int(lineno), int(req_lineno), req_state),
                 self.operator.is_source,
             )
 
-        if change[:2] == "as":
-            logger.info(change)
+        if change[:2] == "as":  # append state
             ss, lineno, state = change.split()
             self.scheduled_updates[when] = (
                 self.add_as(int(lineno), state),

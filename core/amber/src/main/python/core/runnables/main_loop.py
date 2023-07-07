@@ -235,45 +235,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             self._switch_context()
             output = self.context.tuple_processing_manager.get_output_tuple()
-            if isinstance(output, str) and "request(" in output:
-                line_no, state_name = output.strip("request(").strip(")").split(",")
-
-                control_command = set_one_of(
-                    ControlCommandV2,
-                    StateRequestV2(
-                        tuple_id=str(
-                            self.context.tuple_processing_manager.current_input["id"]
-                        ),
-                        line_no=int(line_no),
-                        state_name=state_name.strip(),
-                    ),
-                )
-                upstream = self.context.tuple_processing_manager.my_upstream_id
-                id = f'Worker:WF{upstream.workflow}-{"PythonUDFV2-operator-7a02dd1f-a97f-4590-85b8-cfff5d02ed99"}-main-0'
-                self._async_rpc_client.send(
-                    ActorVirtualIdentity(name=id), control_command
-                ).add_done_callback(
-                    lambda x: self.handle_state_return(
-                        state_name, x.result().state_return
-                    )
-                )
-                self._pause_dp()
-                self._check_and_process_control()
-
-            elif isinstance(output, str) and "store(" in output:
-                lineno, state_name = output.strip("store(").strip(")").split(",")
-                state_name = state_name.strip()
-
-                tuple_id = str(
-                    self.context.tuple_processing_manager.current_input["id"]
-                )
-                self.context.debug_manager.states[(tuple_id, lineno, state_name)] = (
-                    self.context.tuple_processing_manager.output_iterator.gi_frame.f_locals[
-                        state_name
-                    ]
-                    * 100
-                )
-                # print(self.context.debug_manager.states)
+            if isinstance(output, str):
+                self.handle_state_transfer_statements(output)
 
             else:
                 yield output
@@ -525,3 +488,45 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._pause_dp()
         self._check_and_process_control()
         self._switch_context()
+
+    def handle_state_transfer_statements(self, statement: str):
+        if "request(" in statement:
+            # request state
+            line_no, state_name = statement.strip("request(").strip(")").split(",")
+
+            control_command = set_one_of(
+                ControlCommandV2,
+                StateRequestV2(
+                    tuple_id=str(
+                        self.context.tuple_processing_manager.current_input["id"]
+                    ),
+                    line_no=int(line_no),
+                    state_name=state_name.strip(),
+                ),
+            )
+            upstream = self.context.tuple_processing_manager.my_upstream_id
+            target_worker_id = (
+                f"Worker:WF{upstream.workflow}"
+                f'-{"PythonUDFV2-operator-7a02dd1f-a97f-4590-85b8-cfff5d02ed99"}-main-0'
+            )
+            self._async_rpc_client.send(
+                ActorVirtualIdentity(name=target_worker_id), control_command
+            ).add_done_callback(
+                lambda ret: self.handle_state_return(
+                    state_name, ret.result().state_return
+                )
+            )
+            self._pause_dp()
+            self._check_and_process_control()
+
+        elif "store(" in statement:
+            # store state
+            lineno, state_name = statement.strip("store(").strip(")").split(",")
+            state_name = state_name.strip()
+
+            tuple_id = str(self.context.tuple_processing_manager.current_input["id"])
+            self.context.debug_manager.states[
+                (tuple_id, lineno, state_name)
+            ] = self.context.tuple_processing_manager.output_iterator.gi_frame.f_locals[
+                state_name
+            ]
