@@ -25,5 +25,6 @@ if __name__ == "__main__":
     _, worker_id, output_port, logger_level = sys.argv
     init_loguru_logger(logger_level)
 
-    PythonWorker(worker_id=worker_id, host="localhost", output_port=int(
-        output_port)).run()
+    PythonWorker(
+        worker_id=worker_id, host="localhost", output_port=int(output_port)
+    ).run()

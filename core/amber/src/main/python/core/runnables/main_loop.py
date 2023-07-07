@@ -41,8 +41,9 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 
 class MainLoop(StoppableQueueBlockingRunnable):
-    def __init__(self, worker_id: str, input_queue: InternalQueue, output_queue:
-    InternalQueue):
+    def __init__(
+        self, worker_id: str, input_queue: InternalQueue, output_queue: InternalQueue
+    ):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
