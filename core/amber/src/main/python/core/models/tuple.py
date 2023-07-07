@@ -1,4 +1,3 @@
-import pickle
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
