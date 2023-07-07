@@ -108,9 +108,9 @@ class OperatorManager:
         """
 
         return (
-                inspect.isclass(cls)
-                and issubclass(cls, Operator)
-                and not inspect.isabstract(cls)
+            inspect.isclass(cls)
+            and issubclass(cls, Operator)
+            and not inspect.isabstract(cls)
         )
 
     def initialize_operator(
@@ -131,7 +131,7 @@ class OperatorManager:
         self._operator.is_source = is_source
         self._operator.output_schema = output_schema
         assert (
-                isinstance(self.operator, SourceOperator) == self.operator.is_source
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
 
     def update_operator(self, code: str, is_source: bool) -> None:
@@ -149,7 +149,7 @@ class OperatorManager:
         self._operator = operator()
         self._operator.is_source = is_source
         assert (
-                isinstance(self.operator, SourceOperator) == self.operator.is_source
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self._operator.__dict__ = original_internal_state

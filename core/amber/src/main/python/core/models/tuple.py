@@ -78,8 +78,8 @@ class ArrowTableTupleProvider:
             if (
                 field_type == pyarrow.binary()
                 and value is not None
-                and value is not None and value[:6] == \
-                    b"pickle"
+                and value is not None
+                and value[:6] == b"pickle"
             ):
                 value = pickle.loads(value[10:])
             return value
@@ -209,7 +209,6 @@ class Tuple(TupleLike):
         """
         for field_name in self.get_field_names():
             try:
-
                 field_value: Field = self[field_name]
 
                 # convert NaN to None to support null value conversion

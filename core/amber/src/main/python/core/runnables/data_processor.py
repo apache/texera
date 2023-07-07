@@ -9,6 +9,7 @@ from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
 
+
 class DataProcessor(Runnable, Stoppable):
     def __init__(self, context: Context):
         self._running = Event()
@@ -29,7 +30,6 @@ class DataProcessor(Runnable, Stoppable):
         current_input = self._context.tuple_processing_manager.current_input
         try:
             while not finished_current.is_set():
-
                 if isinstance(current_input, Tuple):
                     self._context.debug_manager.optimize_debugger(current_input)
 

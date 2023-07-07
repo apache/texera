@@ -134,19 +134,18 @@ class DebugManager:
         if DebugManager.OP1_ENABLED:
             self.disable_unnecessary_breakpoints(current_tuple)
         if DebugManager.OP2_ENABLED:
-
-            if 'doesnotexist' not in current_tuple['text']:
+            if "doesnotexist" not in current_tuple["text"]:
                 self._operator_manager._static = False
             else:
                 self._operator_manager._static = True
             self.check_and_swap_for_static_breakpoints()
 
-    def disable_tracing(self, preserved_breakpoints: Optional[Dict[str, Breakpoint]] =
-    None):
+    def disable_tracing(
+        self, preserved_breakpoints: Optional[Dict[str, Breakpoint]] = None
+    ):
         if preserved_breakpoints is not None:
             preserved_breakpoints.clear()
             preserved_breakpoints.update(self.debugger.breaks)
-        # finish it
         self.debugger.breaks = []
         sys.settrace(None)
         frame = sys._getframe().f_back
