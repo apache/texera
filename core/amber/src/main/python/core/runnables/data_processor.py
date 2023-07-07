@@ -27,7 +27,6 @@ class DataProcessor(Runnable, Stoppable):
     def process_tuple(self) -> None:
         finished_current = self._context.tuple_processing_manager.finished_current
         while not finished_current.is_set():
-
             try:
                 operator = self._context.operator_manager.operator
                 tuple_ = self._context.tuple_processing_manager.current_input_tuple

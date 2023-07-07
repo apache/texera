@@ -49,7 +49,6 @@ class SingleBlockingIO(IO):
         """
         try:
             with self.condition:
-
                 # keeps waiting until a value is available
                 while self.value is None:
                     self.condition.notify()
