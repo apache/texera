@@ -1,5 +1,4 @@
 import sys
-import time
 from threading import Event
 
 from loguru import logger
@@ -9,10 +8,6 @@ from core.models import Tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
-
-
-# breakpoint = f"b {m}:13, 'doesnotexist' in tuple_['text'] and doc['positive'] == -1"
-
 
 class DataProcessor(Runnable, Stoppable):
     def __init__(self, context: Context):

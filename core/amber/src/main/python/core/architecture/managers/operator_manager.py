@@ -23,7 +23,6 @@ class OperatorManager:
         self._static = False
         self.operator_source_code = ""
         self.scheduled_updates = dict()
-        self.breakpoints_managed = set()
 
     @cached_property
     def fs(self) -> FS:
@@ -109,9 +108,9 @@ class OperatorManager:
         """
 
         return (
-            inspect.isclass(cls)
-            and issubclass(cls, Operator)
-            and not inspect.isabstract(cls)
+                inspect.isclass(cls)
+                and issubclass(cls, Operator)
+                and not inspect.isabstract(cls)
         )
 
     def initialize_operator(
@@ -132,7 +131,7 @@ class OperatorManager:
         self._operator.is_source = is_source
         self._operator.output_schema = output_schema
         assert (
-            isinstance(self.operator, SourceOperator) == self.operator.is_source
+                isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
 
     def update_operator(self, code: str, is_source: bool) -> None:
@@ -150,7 +149,7 @@ class OperatorManager:
         self._operator = operator()
         self._operator.is_source = is_source
         assert (
-            isinstance(self.operator, SourceOperator) == self.operator.is_source
+                isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self._operator.__dict__ = original_internal_state
@@ -158,21 +157,27 @@ class OperatorManager:
         #   it may be an interesting idea to preserve versions of code and versions
         #   of states whenever the operator logic is being updated.
 
-    def add_breakpoint(self, bp: Breakpoint):
+    def add_breakpoint(self, bp: Breakpoint) -> str:
+        """
+        Add a static breakpoint() line into the source code.
+        :param bp: the breakpoint to be converted into a static code line.
+        :return : the updated source code string
+        """
 
         lineno = bp.line
         condition = bp.cond
 
-        old_code = self.operator_source_code.splitlines()
-        target_line = old_code[lineno - 1]
-        code_before = old_code[: lineno - 1]
-        code_after = old_code[lineno:]
+        code_lines = self.operator_source_code.splitlines()
+        target_line = code_lines[lineno - 1]
+        code_before = code_lines[: lineno - 1]
+        code_after = code_lines[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
         bp_line = f"{indentation}{f'if {condition}:' if condition else ''}breakpoint()"
-
         new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
-        print(new_code, file=sys.stdout)
+
+        logger.debug("code with breakpoint:\n" + new_code)
+
         return new_code
 
     def add_ss(self, lineno, state):
