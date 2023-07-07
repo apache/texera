@@ -16,12 +16,6 @@ export class UserProjectComponent implements OnInit {
   public userProjectEntries: DashboardProject[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
-
-  // used to manage setting project colors
-  public userProjectToColorInputIndexMap: Map<number, number> = new Map(); // maps each project to its color wheel input index, even after reordering / sorting of projects
-  public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
-  public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
-  public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
   public uid: number | undefined;
 
   constructor(
@@ -37,9 +31,6 @@ export class UserProjectComponent implements OnInit {
   }
 
   public deleteProject(pid: number): void {
-    if (pid == undefined) {
-      throw new Error("pid is undefined in deleteProject().");
-    }
     this.userProjectService
       .deleteProject(pid)
       .pipe(untilDestroyed(this))
@@ -60,24 +51,8 @@ export class UserProjectComponent implements OnInit {
       this.userProjectService
         .createProject(this.createProjectName)
         .pipe(untilDestroyed(this))
-        .subscribe({
-          next: createdProject => {
-            this.userProjectEntries.push(createdProject); // update local list of projects
-
-            // add color wheel input record for the newly created, colorless project
-            this.userProjectToColorInputIndexMap.set(createdProject.pid, this.userProjectEntries.length - 1);
-            this.userProjectInputColors.push("#ffffff");
-            this.colorInputToggleArray.push(false);
-
-            this.unclickCreateButton();
-          },
-          error: (err: unknown) => {
-            // @ts-ignore
-            this.notificationService.error(err.error.message);
-          },
-        });
+        .subscribe(() => this.getUserProjectArray());
     } else {
-      // show error message and don't call backend
       this.notificationService.error(
         `Cannot create project named: "${this.createProjectName}".  It must be a non-empty, unique name`
       );

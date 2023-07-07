@@ -114,6 +114,7 @@ export class UserWorkflowListItemComponent {
   public async onClickOpenShareAccess(): Promise<void> {
     const owners = await firstValueFrom(this.workflowPersistService.retrieveOwners());
     const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.writeAccess = this.entry.workflow.accessLevel === "WRITE";
     modalRef.componentInstance.type = "workflow";
     modalRef.componentInstance.id = this.workflow.wid;
     modalRef.componentInstance.allOwners = owners;

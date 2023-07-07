@@ -620,10 +620,12 @@ class DashboardResource {
             if (resourceType == "file") {
               DashboardFile(
                 record.into(USER).getEmail,
-                record.get(
-                  "user_file_access",
-                  classOf[UserFileAccessPrivilege]
-                ) == UserFileAccessPrivilege.WRITE,
+                record
+                  .get(
+                    "user_file_access",
+                    classOf[UserFileAccessPrivilege]
+                  )
+                  .toString,
                 record.into(FILE).into(classOf[File])
               )
             } else {
