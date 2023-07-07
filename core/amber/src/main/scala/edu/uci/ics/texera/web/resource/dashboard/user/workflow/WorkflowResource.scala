@@ -242,7 +242,7 @@ class WorkflowResource {
     * @return WorkflowID[]
     */
   @GET
-  @Path("/userWorkflowIDs")
+  @Path("/user-workflow-ids")
   def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
     context
       .select(WORKFLOW_USER_ACCESS.WID)
@@ -257,7 +257,7 @@ class WorkflowResource {
     * @return OwnerName[]
     */
   @GET
-  @Path("/userWorkflowOwners")
+  @Path("/user-workflow-owners")
   def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
     context
       .selectDistinct(USER.EMAIL)
