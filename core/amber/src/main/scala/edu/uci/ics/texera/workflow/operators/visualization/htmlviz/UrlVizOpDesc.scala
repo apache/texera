@@ -25,7 +25,7 @@ import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 
 /**
-  * HTML Visualization operator to render any given HTML code
+  * URL Visualization operator to render any content in given URL link
   * This is the description of the operator
   */
 class UrlVizOpDesc extends VisualizationOperator {
