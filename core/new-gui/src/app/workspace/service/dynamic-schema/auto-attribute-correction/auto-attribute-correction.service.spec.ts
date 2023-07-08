@@ -27,8 +27,7 @@ import {
   SchemaPropagationService,
 } from "../schema-propagation/schema-propagation.service";
 
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-describe("AttributeChangePropagationService", () => {
+describe("AutoAttributeCorrectionService", () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
@@ -82,7 +81,7 @@ describe("AttributeChangePropagationService", () => {
     expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
     req2.flush(mockSchemaPropagationResponse2);
     httpTestingController.verify();
-
+    flush();
     expect(
       workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute
     ).toEqual("user_display_name");
@@ -116,7 +115,7 @@ describe("AttributeChangePropagationService", () => {
     expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
     req2.flush(mockSchemaPropagationResponse3);
     httpTestingController.verify();
-
+    flush();
     expect(
       workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorB.operatorID).operatorProperties.attribute
     ).toEqual("");
@@ -154,7 +153,7 @@ describe("AttributeChangePropagationService", () => {
     expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
     req2.flush(mockSchemaPropagationResponse5);
     httpTestingController.verify();
-
+    flush();
     expect(
       workflowActionService.getTexeraGraph().getOperator(mockSentimentOperatorC.operatorID).operatorProperties.attribute
     ).toEqual("screen_display_time");
