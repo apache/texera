@@ -13,8 +13,11 @@ import scala.util.Either
 /**
   * HTML Visualization operator to render any given HTML code
   */
-class HtmlVizOpExec(htmlContentAttrName: String, operatorSchemaInfo: OperatorSchemaInfo)
-    extends OperatorExecutor {
+class HtmlVizOpExec(
+    htmlContentAttrName: String,
+    url: Boolean,
+    operatorSchemaInfo: OperatorSchemaInfo
+) extends OperatorExecutor {
 
   override def open(): Unit = {}
 
@@ -28,10 +31,22 @@ class HtmlVizOpExec(htmlContentAttrName: String, operatorSchemaInfo: OperatorSch
   ): Iterator[Tuple] =
     tuple match {
       case Left(t) =>
-        val result = Tuple
-          .newBuilder(operatorSchemaInfo.outputSchemas(0))
-          .add("html-content", AttributeType.STRING, t.getField(htmlContentAttrName))
-          .build()
+        val result = if (url) {
+          val iframe =
+            "<!DOCTYPE html>\n<html lang=\"en\"><body><div class=\"modal-body\">\n<iframe src=\"" + t
+              .getField(
+                htmlContentAttrName
+              ) + "\" width=\"100%\" height=\"500px\"></iframe>\n</div></body>\n</html>"
+          Tuple
+            .newBuilder(operatorSchemaInfo.outputSchemas(0))
+            .add("html-content", AttributeType.STRING, iframe)
+            .build()
+        } else {
+          Tuple
+            .newBuilder(operatorSchemaInfo.outputSchemas(0))
+            .add("html-content", AttributeType.STRING, t.getField(htmlContentAttrName))
+            .build()
+        }
         Iterator(result)
 
       case Right(_) => Iterator()
