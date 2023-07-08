@@ -194,7 +194,7 @@ class OperatorManager:
         new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
         return new_code
 
-    def add_rs(self, lineno, req_lineno, req_state):
+    def add_rs(self, lineno, req_lineno, req_state, target_worker_id):
         lineno = lineno
 
         old_code = self.operator_source_code.splitlines()
@@ -203,9 +203,11 @@ class OperatorManager:
         code_after = old_code[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
-        bp_line = f"{indentation}yield 'request({req_lineno}, {req_state})'"
+        bp_line = f"{indentation}yield 'request({target_worker_id}, {req_lineno}," \
+                  f" {req_state})'"
 
         new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+        logger.info ("new code \n:" + new_code)
         # print(new_code, file=sys.stdout)
         return new_code
 
@@ -231,9 +233,9 @@ class OperatorManager:
             )
 
         if change[:2] == "rs":  # request state
-            ss, lineno, req_lineno, req_state = change.split()
+            ss, lineno, req_lineno, req_state, target_worker_id = change.split()
             self.scheduled_updates[when] = (
-                self.add_rs(int(lineno), int(req_lineno), req_state),
+                self.add_rs(int(lineno), int(req_lineno), req_state, target_worker_id),
                 self.operator.is_source,
             )
 
@@ -247,7 +249,6 @@ class OperatorManager:
 
     def apply_available_code_update(self):
         if self.scheduled_updates:
-            logger.info("applying change")
             self.update_operator(*self.scheduled_updates["tuple"])
             del self.scheduled_updates["tuple"]
 
