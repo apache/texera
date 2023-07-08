@@ -4,6 +4,7 @@ import { DashboardProject } from "../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../common/service/user/user.service";
+import { PublicProjectService } from "../../service/public-project/public-project.service";
 
 @UntilDestroy()
 @Component({
@@ -21,7 +22,8 @@ export class UserProjectComponent implements OnInit {
   constructor(
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
-    private userService: UserService
+    private userService: UserService,
+    private publicProjectService: PublicProjectService
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }
@@ -81,6 +83,13 @@ export class UserProjectComponent implements OnInit {
       .subscribe(projectEntries => {
         this.userProjectEntries = projectEntries;
       });
+  }
+
+  public addPublicProjects(): void {
+    this.publicProjectService
+      .addPublicProjects()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.ngOnInit());
   }
 
   private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {

@@ -50,7 +50,7 @@
       <div nz-row>
         <div
           nz-col
-          [nzSpan]="24">
+          [nzFlex]="24">
           <nz-card nzTitle="Share">
             <div style="height: 50px">
               Access Level:
@@ -66,6 +66,35 @@
               nzType="primary"
               type="submit">
               Share
+            </button>
+          </nz-card>
+        </div>
+
+        <div
+          *ngIf="isAdmin"
+          nz-col
+          [nzSpan]="12">
+          <nz-card nzTitle="Visibility">
+            <div style="height: 50px">
+              {{visibility}}
+            </div>
+            <button
+              *ngIf="visibility==='Private'"
+              style="width: 100%"
+              nz-button
+              nzType="primary"
+              nzDanger
+              (click)="makePublic()">
+              Make it Public
+            </button>
+            <button
+              *ngIf="visibility==='Public'"
+              style="width: 100%"
+              nz-button
+              nzType="primary"
+              nzDanger
+              (click)="makePrivate()">
+              Make it Private
             </button>
           </nz-card>
         </div>

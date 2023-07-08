@@ -186,9 +186,7 @@ class UserFileResource {
   @GET
   @Path("/download/{fid}")
   def downloadFile(
-      @PathParam("fid") fid: UInteger,
-      @Auth user: SessionUser
-  ): Response = {
+      @PathParam("fid") fid: UInteger): Response = {
     Response
       .ok(
         new StreamingOutput() {
