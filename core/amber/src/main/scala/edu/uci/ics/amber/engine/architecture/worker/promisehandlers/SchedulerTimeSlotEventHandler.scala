@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.{
-  PauseType,
   SchedulerTimeSlotExpiredPause,
   WorkerAsyncRPCHandlerInitializer
 }

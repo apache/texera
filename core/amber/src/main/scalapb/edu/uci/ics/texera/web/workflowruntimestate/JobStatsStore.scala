@@ -7,6 +7,8 @@ package edu.uci.ics.texera.web.workflowruntimestate
 
 @SerialVersionUID(0L)
 final case class JobStatsStore(
+    startTimeStamp: _root_.scala.Long = 0L,
+    endTimeStamp: _root_.scala.Long = 0L,
     operatorInfo: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats] = _root_.scala.collection.immutable.Map.empty,
     operatorWorkerMapping: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping] = _root_.scala.Seq.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[JobStatsStore] {
@@ -14,6 +16,20 @@ final case class JobStatsStore(
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
+      
+      {
+        val __value = startTimeStamp
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(1, __value)
+        }
+      };
+      
+      {
+        val __value = endTimeStamp
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(2, __value)
+        }
+      };
       operatorInfo.foreach { __item =>
         val __value = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(__item)
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
@@ -33,19 +49,33 @@ final case class JobStatsStore(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+      {
+        val __v = startTimeStamp
+        if (__v != 0L) {
+          _output__.writeInt64(1, __v)
+        }
+      };
+      {
+        val __v = endTimeStamp
+        if (__v != 0L) {
+          _output__.writeInt64(2, __v)
+        }
+      };
       operatorInfo.foreach { __v =>
         val __m = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(__v)
-        _output__.writeTag(1, 2)
+        _output__.writeTag(3, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
       operatorWorkerMapping.foreach { __v =>
         val __m = __v
-        _output__.writeTag(2, 2)
+        _output__.writeTag(4, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
     }
+    def withStartTimeStamp(__v: _root_.scala.Long): JobStatsStore = copy(startTimeStamp = __v)
+    def withEndTimeStamp(__v: _root_.scala.Long): JobStatsStore = copy(endTimeStamp = __v)
     def clearOperatorInfo = copy(operatorInfo = _root_.scala.collection.immutable.Map.empty)
     def addOperatorInfo(__vs: (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats)*): JobStatsStore = addAllOperatorInfo(__vs)
     def addAllOperatorInfo(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats)]): JobStatsStore = copy(operatorInfo = operatorInfo ++ __vs)
@@ -56,15 +86,25 @@ final case class JobStatsStore(
     def withOperatorWorkerMapping(__v: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]): JobStatsStore = copy(operatorWorkerMapping = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_)).toSeq
-        case 2 => operatorWorkerMapping
+        case 1 => {
+          val __t = startTimeStamp
+          if (__t != 0L) __t else null
+        }
+        case 2 => {
+          val __t = endTimeStamp
+          if (__t != 0L) __t else null
+        }
+        case 3 => operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_)).toSeq
+        case 4 => operatorWorkerMapping
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PRepeated(operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_).toPMessage).toVector)
-        case 2 => _root_.scalapb.descriptors.PRepeated(operatorWorkerMapping.iterator.map(_.toPMessage).toVector)
+        case 1 => _root_.scalapb.descriptors.PLong(startTimeStamp)
+        case 2 => _root_.scalapb.descriptors.PLong(endTimeStamp)
+        case 3 => _root_.scalapb.descriptors.PRepeated(operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toBase(_).toPMessage).toVector)
+        case 4 => _root_.scalapb.descriptors.PRepeated(operatorWorkerMapping.iterator.map(_.toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -75,6 +115,8 @@ final case class JobStatsStore(
 object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore = {
+    var __startTimeStamp: _root_.scala.Long = 0L
+    var __endTimeStamp: _root_.scala.Long = 0L
     val __operatorInfo: _root_.scala.collection.mutable.Builder[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats), _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]] = _root_.scala.collection.immutable.Map.newBuilder[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]
     val __operatorWorkerMapping: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]
     var _done__ = false
@@ -82,14 +124,20 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
-        case 10 =>
+        case 8 =>
+          __startTimeStamp = _input__.readInt64()
+        case 16 =>
+          __endTimeStamp = _input__.readInt64()
+        case 26 =>
           __operatorInfo += edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry](_input__))
-        case 18 =>
+        case 34 =>
           __operatorWorkerMapping += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping](_input__)
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore(
+        startTimeStamp = __startTimeStamp,
+        endTimeStamp = __endTimeStamp,
         operatorInfo = __operatorInfo.result(),
         operatorWorkerMapping = __operatorWorkerMapping.result()
     )
@@ -98,8 +146,10 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore(
-        operatorInfo = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toCustom(_)).toMap,
-        operatorWorkerMapping = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]]).getOrElse(_root_.scala.Seq.empty)
+        startTimeStamp = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        endTimeStamp = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        operatorInfo = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore._typemapper_operatorInfo.toCustom(_)).toMap,
+        operatorWorkerMapping = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -108,8 +158,8 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry
-      case 2 => __out = edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
+      case 3 => __out = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry
+      case 4 => __out = edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
     }
     __out
   }
@@ -119,6 +169,8 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
     )
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore(
+    startTimeStamp = 0L,
+    endTimeStamp = 0L,
     operatorInfo = _root_.scala.collection.immutable.Map.empty,
     operatorWorkerMapping = _root_.scala.Seq.empty
   )
@@ -258,17 +310,25 @@ object JobStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
   }
   
   implicit class JobStatsStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore](_l) {
+    def startTimeStamp: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.startTimeStamp)((c_, f_) => c_.copy(startTimeStamp = f_))
+    def endTimeStamp: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.endTimeStamp)((c_, f_) => c_.copy(endTimeStamp = f_))
     def operatorInfo: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]] = field(_.operatorInfo)((c_, f_) => c_.copy(operatorInfo = f_))
     def operatorWorkerMapping: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]] = field(_.operatorWorkerMapping)((c_, f_) => c_.copy(operatorWorkerMapping = f_))
   }
-  final val OPERATOR_INFO_FIELD_NUMBER = 1
-  final val OPERATOR_WORKER_MAPPING_FIELD_NUMBER = 2
+  final val STARTTIMESTAMP_FIELD_NUMBER = 1
+  final val ENDTIMESTAMP_FIELD_NUMBER = 2
+  final val OPERATOR_INFO_FIELD_NUMBER = 3
+  final val OPERATOR_WORKER_MAPPING_FIELD_NUMBER = 4
   @transient
   private[workflowruntimestate] val _typemapper_operatorInfo: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats)]]
   def of(
+    startTimeStamp: _root_.scala.Long,
+    endTimeStamp: _root_.scala.Long,
     operatorInfo: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats],
     operatorWorkerMapping: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]
   ): _root_.edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore = _root_.edu.uci.ics.texera.web.workflowruntimestate.JobStatsStore(
+    startTimeStamp,
+    endTimeStamp,
     operatorInfo,
     operatorWorkerMapping
   )

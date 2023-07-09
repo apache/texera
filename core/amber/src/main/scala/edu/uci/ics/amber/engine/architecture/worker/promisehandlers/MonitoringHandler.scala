@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object MonitoringHandler {

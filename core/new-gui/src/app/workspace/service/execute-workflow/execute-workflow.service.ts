@@ -28,8 +28,6 @@ export const EXECUTE_WORKFLOW_ENDPOINT = "queryplan/execute";
 export const PAUSE_WORKFLOW_ENDPOINT = "pause";
 export const RESUME_WORKFLOW_ENDPOINT = "resume";
 
-export const EXECUTION_TIMEOUT = 3000;
-
 /**
  * ExecuteWorkflowService sends the current workflow data to the backend
  *  for execution, then receives backend's response and broadcast it to other components.
@@ -59,9 +57,6 @@ export class ExecuteWorkflowService {
     previous: ExecutionStateInfo;
     current: ExecutionStateInfo;
   }>();
-
-  private executionTimeoutID: number | undefined;
-  private clearTimeoutState: ExecutionState[] | undefined;
 
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
@@ -212,12 +207,6 @@ export class ExecuteWorkflowService {
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);
     }, FORM_DEBOUNCE_TIME_MS);
-    this.setExecutionTimeout(
-      "submit workflow timeout",
-      ExecutionState.Initializing,
-      ExecutionState.Running,
-      ExecutionState.Aborted
-    );
 
     // add flag for new execution of workflow
     // so when next time the result panel is displayed, it will use new data
@@ -239,7 +228,6 @@ export class ExecuteWorkflowService {
       throw new Error("cannot pause workflow, the current execution state is " + this.currentState?.state);
     }
     this.workflowWebsocketService.send("WorkflowPauseRequest", {});
-    this.setExecutionTimeout("pause operation timeout", ExecutionState.Paused, ExecutionState.Aborted);
   }
 
   public killWorkflow(): void {
@@ -268,7 +256,6 @@ export class ExecuteWorkflowService {
       throw new Error("cannot resume workflow, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("WorkflowResumeRequest", {});
-    this.setExecutionTimeout("resume operation timeout", ExecutionState.Running, ExecutionState.Aborted);
   }
 
   public addBreakpointRuntime(linkID: string, breakpointData: Breakpoint): void {
@@ -346,35 +333,11 @@ export class ExecuteWorkflowService {
     };
   }
 
-  private setExecutionTimeout(message: string, ...clearTimeoutState: ExecutionState[]) {
-    if (this.executionTimeoutID !== undefined) {
-      this.clearExecutionTimeout();
-    }
-    this.executionTimeoutID = window.setTimeout(() => {
-      this.updateExecutionState({
-        state: ExecutionState.Aborted,
-        errorMessages: { timeout: message },
-      });
-    }, EXECUTION_TIMEOUT);
-    this.clearTimeoutState = clearTimeoutState;
-  }
-
-  private clearExecutionTimeout() {
-    if (this.executionTimeoutID !== undefined) {
-      window.clearTimeout(this.executionTimeoutID);
-      this.executionTimeoutID = undefined;
-      this.clearTimeoutState = undefined;
-    }
-  }
-
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
     if (isEqual(this.currentState, stateInfo)) {
       return;
     }
     this.updateWorkflowActionLock(stateInfo);
-    if (this.clearTimeoutState?.includes(stateInfo.state)) {
-      this.clearExecutionTimeout();
-    }
     const previousState = this.currentState;
     // update current state
     this.currentState = stateInfo;
@@ -440,11 +403,26 @@ export class ExecuteWorkflowService {
       );
     };
 
-    const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => ({
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-    }));
+    const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => {
+      let logicalOp: LogicalOperator = {
+        ...op.operatorProperties,
+        operatorID: op.operatorID,
+        operatorType: op.operatorType,
+      };
+      if (op.inputPorts.some(p => p.isDynamicPort)) {
+        logicalOp = {
+          ...logicalOp,
+          inputPorts: op.inputPorts,
+        };
+      }
+      if (op.outputPorts.some(p => p.isDynamicPort)) {
+        logicalOp = {
+          ...logicalOp,
+          outputPorts: op.outputPorts,
+        };
+      }
+      return logicalOp;
+    });
 
     const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => ({
       origin: {

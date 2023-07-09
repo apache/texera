@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
@@ -16,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -30,7 +30,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -166,13 +166,19 @@ class WorkflowScheduler(
             val pythonUDFOpExec = pythonUDFOpExecConfig
               .initIOperatorExecutor((0, pythonUDFOpExecConfig))
               .asInstanceOf[PythonUDFOpExecV2]
+
+            val inputMappingList = pythonUDFOpExecConfig.inputToOrdinalMapping
+              .map(kv => LinkOrdinal(kv._1, kv._2))
+              .toList
+            val outputMappingList = pythonUDFOpExecConfig.outputToOrdinalMapping
+              .map(kv => LinkOrdinal(kv._1, kv._2))
+              .toList
             asyncRPCClient.send(
               InitializeOperatorLogic(
                 pythonUDFOpExec.getCode,
-                workflow
-                  .getInlinksIdsToWorkerLayer(workflow.workerToOpExecConfig(workerID).id)
-                  .toArray,
                 pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
+                inputMappingList,
+                outputMappingList,
                 pythonUDFOpExec.getOutputSchema
               ),
               workerID
@@ -183,11 +189,6 @@ class WorkflowScheduler(
       .onSuccess(_ =>
         uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
       )
-      .onFailure((err: Throwable) => {
-        logger.error("Failure when sending Python UDF code", err)
-        // report error to frontend
-        asyncRPCClient.sendToClient(FatalError(err))
-      })
   }
 
   private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {

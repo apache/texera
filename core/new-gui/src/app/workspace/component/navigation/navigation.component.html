@@ -58,7 +58,6 @@
         {{autoSaveState}}
       </button>
     </div>
-
     <div
       *ngIf="userSystemEnabled"
       class="texera-navigation-coeditor-icons">
@@ -306,7 +305,6 @@
         </button>
       </nz-button-group>
     </div>
-
     <div
       [ngClass]="{
 				'texera-navigation-execute': true,
@@ -315,12 +313,19 @@
 					executionState !== ExecutionState.Completed &&
 					executionState !== ExecutionState.Aborted
 			}">
-      <label class="execution-name">
-        <input
-          [(ngModel)]="currentExecutionName"
-          placeholder="Untitled Execution" />
-      </label>
       <nz-button-group nzSize="large">
+        <label class="execution-name">
+          <input
+            [(ngModel)]="currentExecutionName"
+            placeholder="Untitled Execution" />
+        </label>
+        <button
+          [disabled]="true"
+          class="execution-duration"
+          nz-button
+          nzType="text">
+          {{ executionDuration | date: 'H:mm:ss': 'UTC' }}
+        </button>
         <button
           (click)="undoRedoService.undoAction()"
           [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"

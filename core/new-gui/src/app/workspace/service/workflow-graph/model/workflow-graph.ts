@@ -7,6 +7,8 @@ import {
   OperatorLink,
   OperatorPort,
   OperatorPredicate,
+  PartitionInfo,
+  PortProperty,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
@@ -109,7 +111,7 @@ export class WorkflowGraph {
     oldBreakpoint: object | undefined;
     linkID: string;
   }>();
-  public readonly operatorPortChangedSubject = new Subject<{
+  public readonly portAddedOrDeletedSubject = new Subject<{
     newOperator: OperatorPredicate;
   }>();
   public readonly commentBoxAddSubject = new Subject<CommentBox>();
@@ -117,6 +119,18 @@ export class WorkflowGraph {
   public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
+
+  public readonly portDisplayNameChangedSubject = new Subject<{
+    operatorID: string;
+    portID: string;
+    newDisplayName: string;
+  }>();
+
+  public readonly portPropertyChangedSubject = new Subject<{
+    operatorPortID: OperatorPort;
+    newProperty: PortProperty;
+  }>();
+
   private syncTexeraGraph = true;
   private syncJointGraph = true;
 
@@ -164,6 +178,18 @@ export class WorkflowGraph {
 
   public getSharedOperatorPropertyType(operatorID: string): YType<OperatorPropertiesType> {
     return this.getSharedOperatorType(operatorID).get("operatorProperties") as YType<OperatorPropertiesType>;
+  }
+
+  public getSharedPortDescriptionType(operatorPortID: OperatorPort): YType<PortDescription> | undefined {
+    const isInput = operatorPortID?.portID.includes("input");
+    const portListObject = isInput
+      ? this.getOperator(operatorPortID.operatorID).inputPorts
+      : this.getOperator(operatorPortID.operatorID).outputPorts;
+    const portIdx = portListObject.findIndex(portDescription => portDescription.portID === operatorPortID?.portID);
+    if (portIdx === -1) return undefined;
+    return this.getSharedOperatorType(<string>operatorPortID?.operatorID)
+      .get(isInput ? "inputPorts" : "outputPorts")
+      .get(portIdx) as YType<PortDescription>;
   }
 
   /**
@@ -470,6 +496,15 @@ export class WorkflowGraph {
   }
 
   /**
+   * Returns whether the element exists in the graph.
+   * Can be an operator, comment box, or link.
+   * @param id element ID
+   */
+  public hasElementWithID(id: string): boolean {
+    return this.hasOperator(id) || this.hasCommentBox(id) || this.hasLinkWithID(id);
+  }
+
+  /**
    * Gets the operator with the operatorID. The object version of the operator is returned, as opposed to y-type data.
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID
@@ -551,6 +586,31 @@ export class WorkflowGraph {
       >;
       outputPorts.delete(outputPorts.length - 1, 1);
     }
+  }
+
+  public hasPort(operatorPortID: OperatorPort): boolean {
+    if (!this.hasOperator(operatorPortID.operatorID)) return false;
+    const operator = this.getOperator(operatorPortID.operatorID);
+    if (operatorPortID.portID.includes("input")) {
+      return (
+        operator.inputPorts.find(portDescription => portDescription.portID === operatorPortID.portID) !== undefined
+      );
+    } else if (operatorPortID.portID.includes("output")) {
+      return (
+        operator.outputPorts.find(portDescription => portDescription.portID === operatorPortID.portID) !== undefined
+      );
+    } else return false;
+  }
+
+  public getPortDescription(operatorPortID: OperatorPort): PortDescription | undefined {
+    if (!this.hasPort(operatorPortID))
+      throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
+    const operator = this.getOperator(operatorPortID.operatorID);
+    if (operatorPortID.portID.includes("input")) {
+      return operator.inputPorts.find(portDescription => portDescription.portID === operatorPortID.portID);
+    } else if (operatorPortID.portID.includes("output")) {
+      return operator.outputPorts.find(portDescription => portDescription.portID === operatorPortID.portID);
+    } else return undefined;
   }
 
   /**
@@ -707,6 +767,22 @@ export class WorkflowGraph {
     updateYTypeFromObject(previousProperty, newProperty);
   }
 
+  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+    newProperty = newProperty as PortProperty;
+    if (!this.hasPort(operatorPortID))
+      throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
+    const portDescriptionSharedType = this.getSharedPortDescriptionType(operatorPortID);
+    if (portDescriptionSharedType === undefined) return;
+    portDescriptionSharedType.set(
+      "partitionRequirement",
+      createYTypeFromObject<PartitionInfo>((newProperty as PortProperty).partitionInfo) as unknown as PartitionInfo
+    );
+    portDescriptionSharedType.set(
+      "dependencies",
+      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
+    );
+  }
+
   /**
    * set the breakpoint property of a link to be newBreakpoint
    * Throws an error if link doesn't exist
@@ -854,10 +930,25 @@ export class WorkflowGraph {
     return this.breakpointChangeStream.asObservable();
   }
 
-  public getOperatorPortChangeStream(): Observable<{
+  public getPortAddedOrDeletedStream(): Observable<{
     newOperator: OperatorPredicate;
   }> {
-    return this.operatorPortChangedSubject.asObservable();
+    return this.portAddedOrDeletedSubject.asObservable();
+  }
+
+  public getPortDisplayNameChangedSubject(): Observable<{
+    operatorID: string;
+    portID: string;
+    newDisplayName: string;
+  }> {
+    return this.portDisplayNameChangedSubject;
+  }
+
+  public getPortPropertyChangedStream(): Observable<{
+    operatorPortID: OperatorPort;
+    newProperty: PortProperty;
+  }> {
+    return this.portPropertyChangedSubject.asObservable();
   }
 
   /**

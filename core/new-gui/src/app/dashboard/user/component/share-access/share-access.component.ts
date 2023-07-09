@@ -4,6 +4,7 @@ import { FormBuilder, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UserService } from "../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
@@ -12,6 +13,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   providers: [{ provide: "type", useValue: "workflow" }],
 })
 export class ShareAccessComponent implements OnInit {
+  @Input() writeAccess!: boolean;
   @Input() type!: string;
   @Input() id!: number;
   @Input() allOwners!: string[];
@@ -25,11 +27,15 @@ export class ShareAccessComponent implements OnInit {
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
+  currentEmail: string | undefined = "";
   constructor(
     public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
-    private formBuilder: FormBuilder
-  ) {}
+    private formBuilder: FormBuilder,
+    private userService: UserService
+  ) {
+    this.currentEmail = this.userService.getCurrentUser()?.email;
+  }
 
   ngOnInit(): void {
     this.accessService

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
@@ -19,8 +21,18 @@ class NetworkReceiver(Runnable, Stoppable):
     Receive and deserialize messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
-        self._proxy_server = ProxyServer(host=host, port=port)
+    @logger.catch(reraise=True)
+    def __init__(
+        self, shared_queue: InternalQueue, host: str, port: Optional[int] = None
+    ):
+        server_start = False
+        # try to start the server until it succeeds
+        while not server_start:
+            try:
+                self._proxy_server = ProxyServer(host=host, port=port)
+                server_start = True
+            except Exception as e:
+                logger.debug("Error occurred while starting the server:", repr(e))
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
@@ -64,5 +76,9 @@ class NetworkReceiver(Runnable, Stoppable):
     @logger.catch(reraise=True)
     @overrides
     def stop(self):
-        self._proxy_server.shutdown()
+        self._proxy_server.graceful_shutdown()
         self._proxy_server.wait()
+
+    @property
+    def proxy_server(self):
+        return self._proxy_server

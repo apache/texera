@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.oneToOneLayer
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
@@ -11,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   PartitionInfo,
   RangePartition,
   SinglePartition,
+  BroadcastPartition,
   UnknownPartition
 }
 
@@ -40,8 +40,9 @@ class ProjectionOpDesc extends MapOpDesc {
       case RangePartition(rangeColumnIndices, min, max) =>
         val newIndices = rangeColumnIndices.flatMap(i => columnIndicesMapping.get(i))
         if (newIndices.nonEmpty) RangePartition(newIndices, min, max) else UnknownPartition()
-      case SinglePartition()  => inputPartitionInfo
-      case UnknownPartition() => inputPartitionInfo
+      case SinglePartition()    => inputPartitionInfo
+      case BroadcastPartition() => inputPartitionInfo
+      case UnknownPartition()   => inputPartitionInfo
     }
 
     outputPartitionInfo

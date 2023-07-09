@@ -1,9 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  PROJECT_USER_ACCESS,
+  USER,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao,
@@ -11,14 +15,9 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
-  context,
-  hasWriteAccess
-}
-import io.dropwizard.auth.Auth
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
-
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -59,7 +58,18 @@ object WorkflowAccessResource {
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[WorkflowUserAccess])
     if (access == null) {
-      WorkflowUserAccessPrivilege.NONE
+      val projectAccess = context
+        .select()
+        .from(PROJECT_USER_ACCESS)
+        .join(WORKFLOW_OF_PROJECT)
+        .on(WORKFLOW_OF_PROJECT.PID.eq(PROJECT_USER_ACCESS.PID))
+        .where(WORKFLOW_OF_PROJECT.WID.eq(wid).and(PROJECT_USER_ACCESS.UID.eq(uid)))
+        .fetchOneInto(classOf[WorkflowUserAccess])
+      if (projectAccess == null) {
+        WorkflowUserAccessPrivilege.NONE
+      } else {
+        projectAccess.getPrivilege
+      }
     } else {
       access.getPrivilege
     }
@@ -82,8 +92,7 @@ class WorkflowAccessResource() {
   @GET
   @Path("/owner/{wid}")
   def getOwner(@PathParam("wid") wid: UInteger): String = {
-    val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
-    userDao.fetchOneByUid(uid).getEmail
+    userDao.fetchOneByUid(workflowOfUserDao.fetchByWid(wid).get(0).getUid).getEmail
   }
 
   /**
@@ -95,8 +104,7 @@ class WorkflowAccessResource() {
   @GET
   @Path("/list/{wid}")
   def getAccessList(
-      @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
+      @PathParam("wid") wid: UInteger
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -110,7 +118,7 @@ class WorkflowAccessResource() {
       .where(
         WORKFLOW_USER_ACCESS.WID
           .eq(wid)
-          .and(WORKFLOW_USER_ACCESS.UID.notEqual(sessionUser.getUser.getUid))
+          .and(WORKFLOW_USER_ACCESS.UID.notEqual(workflowOfUserDao.fetchByWid(wid).get(0).getUid))
       )
       .fetchInto(classOf[AccessEntry])
   }
@@ -128,12 +136,8 @@ class WorkflowAccessResource() {
   def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String,
-      @Auth user: SessionUser
+      @PathParam("privilege") privilege: String
   ): Unit = {
-    if (!hasWriteAccess(wid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
     workflowUserAccessDao.merge(
       new WorkflowUserAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -154,12 +158,8 @@ class WorkflowAccessResource() {
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
       @PathParam("wid") wid: UInteger,
-      @PathParam("email") email: String,
-      @Auth user: SessionUser
+      @PathParam("email") email: String
   ): Unit = {
-    if (!hasWriteAccess(wid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
     context
       .delete(WORKFLOW_USER_ACCESS)
       .where(

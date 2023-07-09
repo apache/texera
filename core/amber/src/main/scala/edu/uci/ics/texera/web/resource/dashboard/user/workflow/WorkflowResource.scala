@@ -12,18 +12,19 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.Condition
+import org.jooq.{Condition, TableField}
 import org.jooq.impl.DSL.{groupConcat, noCondition}
 import org.jooq.types.UInteger
+
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.util
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-import scala.collection.mutable.Set
 
 /**
   * This file handles various request related to saved-workflows.
@@ -61,15 +62,177 @@ object WorkflowResource {
     )
   }
 
-  case class DashboardWorkflowEntry(
+  case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
       projectIDs: List[UInteger]
   )
+
+  def createWorkflowFilterCondition(
+      creationStartDate: String,
+      creationEndDate: String,
+      modifiedStartDate: String,
+      modifiedEndDate: String,
+      workflowIDs: java.util.List[UInteger],
+      owners: java.util.List[String],
+      operators: java.util.List[String],
+      projectIds: java.util.List[UInteger]
+  ): Condition = {
+    noCondition()
+      // Apply creation_time date filter
+      .and(getDateFilter(creationStartDate, creationEndDate, WORKFLOW.CREATION_TIME))
+      // Apply lastModified_time date filter
+      .and(getDateFilter(modifiedStartDate, modifiedEndDate, WORKFLOW.LAST_MODIFIED_TIME))
+      // Apply workflowID filter
+      .and(getWorkflowIdFilter(workflowIDs))
+      // Apply owner filter
+      .and(getOwnerFilter(owners))
+      // Apply operators filter
+      .and(getOperatorsFilter(operators))
+      // Apply projectId filter
+      .and(getProjectFilter(projectIds, WORKFLOW_OF_PROJECT.PID))
+  }
+
+  /**
+    * Helper function to retrieve the owner filter.
+    * Applies a filter based on the specified owner emails.
+    *
+    * @param owners The list of owner emails to filter by.
+    * @return The owner filter.
+    */
+  def getOwnerFilter(owners: java.util.List[String]): Condition = {
+    var ownerFilter: Condition = noCondition()
+    val ownerSet: mutable.Set[String] = mutable.Set()
+    if (owners != null && !owners.isEmpty) {
+      for (owner <- owners) {
+        if (!ownerSet(owner)) {
+          ownerSet += owner
+          ownerFilter = ownerFilter.or(USER.EMAIL.eq(owner))
+        }
+      }
+    }
+    ownerFilter
+  }
+
+  /**
+    * Helper function to retrieve the project filter.
+    * Applies a filter based on the specified project IDs.
+    *
+    * @param projectIds The list of owner names to filter by.
+    * @param fieldToFilterOn the field for applying the project ids.
+    * @return The projectId filter.
+    */
+  def getProjectFilter(
+      projectIds: java.util.List[UInteger],
+      fieldToFilterOn: TableField[_, UInteger]
+  ): Condition = {
+    var projectIdFilter: Condition = noCondition()
+    val projectIdSet: mutable.Set[UInteger] = mutable.Set()
+    if (projectIds != null && projectIds.nonEmpty) {
+      for (projectId <- projectIds) {
+        if (!projectIdSet(projectId)) {
+          projectIdSet += projectId
+          projectIdFilter = projectIdFilter.or(fieldToFilterOn.eq(projectId))
+        }
+      }
+    }
+    projectIdFilter
+  }
+
+  /**
+    * Helper function to retrieve the workflowID filter.
+    * Applies a filter based on the specified workflow IDs.
+    *
+    * @param workflowIDs The list of workflow IDs to filter by.
+    * @return The workflowID filter.
+    */
+  def getWorkflowIdFilter(workflowIDs: java.util.List[UInteger]): Condition = {
+    var workflowIdFilter: Condition = noCondition()
+    val workflowIdSet: mutable.Set[UInteger] = mutable.Set()
+    if (workflowIDs != null && !workflowIDs.isEmpty) {
+      for (workflowID <- workflowIDs) {
+        if (!workflowIdSet(workflowID)) {
+          workflowIdSet += workflowID
+          workflowIdFilter = workflowIdFilter.or(WORKFLOW.WID.eq(workflowID))
+
+        }
+      }
+    }
+    workflowIdFilter
+  }
+
+  /**
+    * Returns a date filter condition for the specified date range and date type.
+    *
+    * @param startDate A string representing the start date of the filter range in "yyyy-MM-dd" format.
+    *                  If empty, the default value "1970-01-01" will be used.
+    * @param endDate   A string representing the end date of the filter range in "yyyy-MM-dd" format.
+    *                  If empty, the default value "9999-12-31" will be used.
+    * @param fieldToFilterOn the field for applying the start and end dates.
+    * @return A Condition object that can be used to filter workflows based on the date range and type.
+    */
+  def getDateFilter(
+      startDate: String,
+      endDate: String,
+      fieldToFilterOn: TableField[_, Timestamp]
+  ): Condition = {
+    var dateFilter: Condition = noCondition()
+
+    if (startDate.nonEmpty || endDate.nonEmpty) {
+      val start = if (startDate.nonEmpty) startDate else "1970-01-01"
+      val end = if (endDate.nonEmpty) endDate else "9999-12-31"
+      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+      try {
+        val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+        val endTimestamp =
+          if (end == "9999-12-31")
+            new Timestamp(
+              dateFormat.parse(end).getTime
+            )
+          else
+            new Timestamp(
+              dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
+            )
+        dateFilter = fieldToFilterOn.between(startTimestamp, endTimestamp)
+      } catch {
+        case ex: ParseException =>
+          println("Invalid date format. Please follow this date format: yyyy-MM-dd")
+          throw ex
+      }
+    }
+    dateFilter
+  }
+
+  /**
+    * Helper function to retrieve the operators filter.
+    * Applies a filter based on the specified operators.
+    *
+    * @param operators The list of operators to filter by.
+    * @return The operators filter.
+    */
+  def getOperatorsFilter(operators: java.util.List[String]): Condition = {
+    var operatorsFilter: Condition = noCondition()
+    if (operators != null && operators.nonEmpty) {
+      for (operator <- operators) {
+        val quotes = "\""
+        val searchKey =
+          "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operator" + quotes + "%"
+        operatorsFilter = operatorsFilter.or(
+          WORKFLOW.CONTENT
+            .likeIgnoreCase(
+              searchKey
+            )
+        )
+      }
+    }
+    operatorsFilter
+  }
+
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
 class WorkflowResource {
 
@@ -79,19 +242,13 @@ class WorkflowResource {
     * @return WorkflowID[]
     */
   @GET
-  @Path("/workflow-ids")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
+  @Path("/user-workflow-ids")
+  def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
+    context
       .select(WORKFLOW_USER_ACCESS.WID)
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid.intValue().toString)
-      .toList
+      .fetchInto(classOf[String])
   }
 
   /**
@@ -100,24 +257,17 @@ class WorkflowResource {
     * @return OwnerName[]
     */
   @GET
-  @Path("/owners")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(USER.EMAIL)
+  @Path("/user-workflow-owners")
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
+    context
+      .selectDistinct(USER.EMAIL)
       .from(WORKFLOW_USER_ACCESS)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
       .join(USER)
       .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(USER.UID)
-      .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(USER).getEmail)
-      .toList
+      .fetchInto(classOf[String])
   }
 
   /**
@@ -127,7 +277,6 @@ class WorkflowResource {
     */
   @GET
   @Path("/search-by-operators")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
       @Auth sessionUser: SessionUser
@@ -179,10 +328,9 @@ class WorkflowResource {
     */
   @GET
   @Path("/list")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
-  ): List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
     val workflowEntries = context
       .select(
@@ -210,7 +358,7 @@ class WorkflowResource {
       .fetch()
     workflowEntries
       .map(workflowRecord =>
-        DashboardWorkflowEntry(
+        DashboardWorkflow(
           workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)
@@ -237,7 +385,6 @@ class WorkflowResource {
     */
   @GET
   @Path("/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -262,7 +409,6 @@ class WorkflowResource {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/persist")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
 
@@ -297,11 +443,10 @@ class WorkflowResource {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/duplicate")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def duplicateWorkflow(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
-  ): DashboardWorkflowEntry = {
+  ): DashboardWorkflow = {
     val wid = workflow.getWid
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
@@ -336,15 +481,14 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflowEntry = {
+  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflow = {
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
       WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
-      DashboardWorkflowEntry(
+      DashboardWorkflow(
         isOwner = true,
         WorkflowUserAccessPrivilege.WRITE.toString,
         user.getName,
@@ -362,7 +506,6 @@ class WorkflowResource {
     */
   @DELETE
   @Path("/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
     if (workflowOfUserExists(wid, user.getUid)) {
@@ -381,7 +524,6 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/name")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateWorkflowName(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
@@ -396,32 +538,6 @@ class WorkflowResource {
     } else {
       val userWorkflow = workflowDao.fetchOneByWid(wid)
       userWorkflow.setName(name)
-      workflowDao.update(userWorkflow)
-    }
-  }
-
-  /**
-    * This method updates the description of a given workflow
-    *
-    * @return Response
-    */
-  @POST
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/update/description")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def updateWorkflowDescription(
-      workflow: Workflow,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
-    val wid = workflow.getWid
-    val description = workflow.getDescription
-    val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
-      val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setDescription(description)
       workflowDao.update(userWorkflow)
     }
   }
@@ -451,7 +567,7 @@ class WorkflowResource {
       @QueryParam("operator") operators: java.util.List[String] = new java.util.ArrayList[String](),
       @QueryParam("projectId") projectIds: java.util.List[UInteger] =
         new java.util.ArrayList[UInteger]()
-  ): List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
 
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
@@ -480,20 +596,16 @@ class WorkflowResource {
     }
 
     // combine all filters with AND
-    var optionalFilters: Condition = noCondition()
-    optionalFilters = optionalFilters
-      // Apply creation_time date filter
-      .and(getDateFilter("creation", creationStartDate, creationEndDate))
-      // Apply lastModified_time date filter
-      .and(getDateFilter("modification", modifiedStartDate, modifiedEndDate))
-      // Apply workflowID filter
-      .and(getWorkflowIdFilter(workflowIDs))
-      // Apply owner filter
-      .and(getOwnerFilter(owners))
-      // Apply operators filter
-      .and(getOperatorsFilter(operators))
-      // Apply projectId filter
-      .and(getProjectFilter(projectIds))
+    val optionalFilters: Condition = createWorkflowFilterCondition(
+      creationStartDate,
+      creationEndDate,
+      modifiedStartDate,
+      modifiedEndDate,
+      workflowIDs,
+      owners,
+      operators,
+      projectIds
+    )
 
     try {
       val workflowEntries = context
@@ -536,7 +648,7 @@ class WorkflowResource {
 
       workflowEntries
         .map(workflowRecord =>
-          DashboardWorkflowEntry(
+          DashboardWorkflow(
             workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
             workflowRecord
               .into(WORKFLOW_USER_ACCESS)
@@ -558,146 +670,8 @@ class WorkflowResource {
           "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?"
         )
         // return a empty list
-        List[DashboardWorkflowEntry]()
+        List[DashboardWorkflow]()
     }
   }
 
-  /**
-    * Helper function to retrieve the owner filter.
-    * Applies a filter based on the specified owner emails.
-    *
-    * @param owners The list of owner emails to filter by.
-    * @return The owner filter.
-    */
-  def getOwnerFilter(owners: java.util.List[String]): Condition = {
-    var ownerFilter: Condition = noCondition()
-    val ownerSet: mutable.Set[String] = mutable.Set()
-    if (owners != null && !owners.isEmpty) {
-      for (owner <- owners) {
-        if (!ownerSet(owner)) {
-          ownerSet += owner
-          ownerFilter = ownerFilter.or(USER.EMAIL.eq(owner))
-        }
-      }
-    }
-    ownerFilter
-  }
-
-  /**
-    * Helper function to retrieve the project filter.
-    * Applies a filter based on the specified project IDs.
-    *
-    * @param projectIds The list of owner names to filter by.
-    * @return The projectId filter.
-    */
-  def getProjectFilter(projectIds: java.util.List[UInteger]): Condition = {
-    var projectIdFilter: Condition = noCondition()
-    val projectIdSet: mutable.Set[UInteger] = mutable.Set()
-    if (projectIds != null && projectIds.nonEmpty) {
-      for (projectId <- projectIds) {
-        if (!projectIdSet(projectId)) {
-          projectIdSet += projectId
-          projectIdFilter = projectIdFilter.or(WORKFLOW_OF_PROJECT.PID.eq(projectId))
-
-        }
-      }
-    }
-    projectIdFilter
-  }
-
-  /**
-    * Helper function to retrieve the workflowID filter.
-    * Applies a filter based on the specified workflow IDs.
-    *
-    * @param workflowIDs The list of workflow IDs to filter by.
-    * @return The workflowID filter.
-    */
-  def getWorkflowIdFilter(workflowIDs: java.util.List[UInteger]): Condition = {
-    var workflowIdFilter: Condition = noCondition()
-    val workflowIdSet: mutable.Set[UInteger] = mutable.Set()
-    if (workflowIDs != null && !workflowIDs.isEmpty) {
-      for (workflowID <- workflowIDs) {
-        if (!workflowIdSet(workflowID)) {
-          workflowIdSet += workflowID
-          workflowIdFilter = workflowIdFilter.or(WORKFLOW.WID.eq(workflowID))
-
-        }
-      }
-    }
-    workflowIdFilter
-  }
-
-  /**
-    * Returns a date filter condition for the specified date range and date type.
-    *
-    * @param dateType  A string representing the type of date to filter by.
-    *                  Accepts "creation" for creation date or "modification" for modification date.
-    * @param startDate A string representing the start date of the filter range in "yyyy-MM-dd" format.
-    *                  If empty, the default value "1970-01-01" will be used.
-    * @param endDate   A string representing the end date of the filter range in "yyyy-MM-dd" format.
-    *                  If empty, the default value "9999-12-31" will be used.
-    * @return A Condition object that can be used to filter workflows based on the date range and type.
-    */
-  def getDateFilter(
-      dateType: String,
-      startDate: String,
-      endDate: String
-  ): Condition = {
-    var dateFilter: Condition = noCondition()
-
-    if (startDate.nonEmpty || endDate.nonEmpty) {
-      val start = if (startDate.nonEmpty) startDate else "1970-01-01"
-      val end = if (endDate.nonEmpty) endDate else "9999-12-31"
-      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-      try {
-        val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
-        val endTimestamp =
-          if (end == "9999-12-31")
-            new Timestamp(
-              dateFormat.parse(end).getTime
-            )
-          else
-            new Timestamp(
-              dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
-            )
-        dateType match {
-          case "creation" =>
-            dateFilter = WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp)
-          case "modification" =>
-            dateFilter = WORKFLOW.LAST_MODIFIED_TIME.between(startTimestamp, endTimestamp)
-          case _ => throw new IllegalArgumentException("Invalid dateType value")
-        }
-      } catch {
-        case ex: ParseException =>
-          println("Invalid date format. Please follow this date format: yyyy-MM-dd")
-          throw ex
-      }
-    }
-    dateFilter
-  }
-
-  /**
-    * Helper function to retrieve the operators filter.
-    * Applies a filter based on the specified operators.
-    *
-    * @param operators The list of operators to filter by.
-    * @return The operators filter.
-    */
-  def getOperatorsFilter(operators: java.util.List[String]): Condition = {
-    var operatorsFilter: Condition = noCondition()
-    if (operators != null && operators.nonEmpty) {
-      for (operator <- operators) {
-        val quotes = "\""
-        val searchKey =
-          "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operator" + quotes + "%"
-        operatorsFilter = operatorsFilter.or(
-          WORKFLOW.CONTENT
-            .likeIgnoreCase(
-              searchKey
-            )
-        )
-      }
-    }
-    operatorsFilter
-  }
 }

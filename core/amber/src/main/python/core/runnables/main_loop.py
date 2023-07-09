@@ -4,11 +4,9 @@ import traceback
 import typing
 from typing import Iterator, Optional, Union
 
-import pyarrow
 from loguru import logger
 from overrides import overrides
 from pampy import match
-from pandas._libs.missing import checknull
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
@@ -43,13 +41,14 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 
 class MainLoop(StoppableQueueBlockingRunnable):
-    def __init__(self, input_queue: InternalQueue, output_queue: InternalQueue):
+    def __init__(
+        self, worker_id: str, input_queue: InternalQueue, output_queue: InternalQueue
+    ):
         super().__init__(self.__class__.__name__, queue=input_queue)
-
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
 
-        self.context = Context(self)
+        self.context = Context(worker_id, self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
 
@@ -146,8 +145,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for output_tuple in self.process_tuple_with_udf():
             self._check_and_process_control()
             if output_tuple is not None:
-                schema = self.context.operator_manager.operator.output_schema
-                self.cast_tuple_to_match_schema(output_tuple, schema)
                 self.context.statistics_manager.increase_output_tuple_count()
                 for (
                     to,
@@ -325,23 +322,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_data()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
-
-    @staticmethod
-    def cast_tuple_to_match_schema(output_tuple, schema):
-        # TODO: move this into Tuple, after making Tuple aware of Schema
-
-        # right now only support casting ANY to binary.
-        import pickle
-
-        for field_name in output_tuple.get_field_names():
-            # convert NaN to None to support null value conversion
-            if checknull(output_tuple[field_name]):
-                output_tuple[field_name] = None
-            field_value = output_tuple[field_name]
-            field = schema.field(field_name)
-            field_type = None if field is None else field.type
-            if field_type == pyarrow.binary():
-                output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)
 
     def _send_console_message(self, console_message: PythonConsoleMessageV2):
         self._async_rpc_client.send(

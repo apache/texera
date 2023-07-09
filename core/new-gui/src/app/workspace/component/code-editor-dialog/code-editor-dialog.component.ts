@@ -2,8 +2,11 @@ import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } fr
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
+import { Subject } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
 import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
@@ -12,6 +15,7 @@ import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
 import { getWebsocketUrl } from "src/app/common/util/url";
+import { isUndefined } from "lodash";
 
 declare const monaco: any;
 
@@ -45,18 +49,30 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
+  private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
 
   constructor(
     private sanitizer: DomSanitizer,
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
     @Inject(MAT_DIALOG_DATA) formControl: FormControl,
     private workflowActionService: WorkflowActionService,
+    private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
     this.formControl = formControl;
   }
 
   ngOnDestroy(): void {
+    const dialog = document.getElementById("mat-dialog-udf");
+    if (dialog !== null) {
+      localStorage.setItem("udfDialogStyle", dialog.style.cssText);
+    }
+
+    const panel = document.querySelector<HTMLElement>(".cdk-overlay-pane");
+    if (panel !== null) {
+      localStorage.setItem("udfPanelStyle", panel.style.cssText);
+    }
+
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
 
     if (
@@ -69,6 +85,11 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
     if (this.editor !== undefined) {
       this.editor.dispose();
+    }
+
+    if (!isUndefined(this.workflowVersionStreamSubject)) {
+      this.workflowVersionStreamSubject.next();
+      this.workflowVersionStreamSubject.complete();
     }
   }
 
@@ -97,10 +118,21 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   ngAfterViewInit() {
     const dialog = document.getElementById("mat-dialog-udf");
     if (dialog !== null) {
-      // They are the actual width and height of the modal
+      // They are the actual width and height of the modal, the width and height in css will be the max size of resizing.
       dialog.style.width = "800px";
       dialog.style.height = "600px";
     }
+    const dialogStyle = localStorage.getItem("udfDialogStyle");
+    if (dialog !== null && dialogStyle !== null) {
+      dialog.style.cssText = dialogStyle;
+    }
+
+    const panel = document.querySelector<HTMLElement>(".cdk-overlay-pane");
+    const panelStyle = localStorage.getItem("udfPanelStyle");
+    if (panel !== null && panelStyle !== null) {
+      panel.style.cssText = panelStyle;
+    }
+
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
@@ -118,8 +150,17 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
 
-    this.initMonaco();
-    this.handleDisabledStatusChange();
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(takeUntil(this.workflowVersionStreamSubject))
+      .subscribe((displayParticularVersion: boolean) => {
+        if (displayParticularVersion) {
+          this.initDiffEditor();
+        } else {
+          this.initMonaco();
+          this.handleDisabledStatusChange();
+        }
+      });
   }
 
   /**
@@ -177,6 +218,39 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
         }
       };
     }
+  }
+
+  private initDiffEditor() {
+    if (isUndefined(this.code)) {
+      return;
+    }
+    const diffEditor = monaco.editor.createDiffEditor(this.divEditor?.nativeElement, {
+      ...this.editorOptions,
+      readOnly: true,
+    });
+    const leftModel = monaco.editor.createModel(this.code.toString(), "python");
+    const rightModel = monaco.editor.createModel(this.getCurrentWorkflowVersionCode(), "python");
+    diffEditor.setModel({
+      original: leftModel,
+      modified: rightModel,
+    });
+    this.editor = diffEditor;
+  }
+
+  /**
+   * Gets the latest workflow's selected operator's code.
+   * @private
+   */
+  private getCurrentWorkflowVersionCode(): string {
+    const workflow = this.workflowActionService.getTempWorkflow();
+    const currentOperatorId: string = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedOperatorIDs()[0];
+    const operatorInfo = workflow?.content.operators?.filter(
+      operator => operator.operatorID === currentOperatorId
+    )?.[0];
+    const currentWorkflowVersionCode = operatorInfo?.operatorProperties.code;
+    return currentWorkflowVersionCode;
   }
 
   /**
