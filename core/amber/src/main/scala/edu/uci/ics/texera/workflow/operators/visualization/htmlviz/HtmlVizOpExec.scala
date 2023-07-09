@@ -13,10 +13,8 @@ import scala.util.Either
 /**
   * HTML Visualization operator to render any given HTML code
   */
-class HtmlVizOpExec(
-    htmlContentAttrName: String,
-    operatorSchemaInfo: OperatorSchemaInfo
-) extends OperatorExecutor {
+class HtmlVizOpExec(htmlContentAttrName: String, operatorSchemaInfo: OperatorSchemaInfo)
+    extends OperatorExecutor {
 
   override def open(): Unit = {}
 
