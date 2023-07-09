@@ -148,9 +148,8 @@
           <nz-list-item-action>
             <button
               (click)="deleteUserFileEntry(file)"
-              [disabled]="!file.writeAccess"
+              [disabled]="file.accessLevel==='READ'"
               nz-button
-              title="Delete the file {{file.file.name}}"
               nz-tooltip="Delete the file {{file.file.name}}"
               nzTooltipPlacement="bottom"
               type="button">
