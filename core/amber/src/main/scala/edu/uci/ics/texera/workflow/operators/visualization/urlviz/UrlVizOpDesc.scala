@@ -50,7 +50,7 @@ class UrlVizOpDesc extends VisualizationOperator {
     )
 
   override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
-    val partialId = util.makeLayer(operatorIdentifier, "partial")
+    val partialId = util.makeLayer(operatorIdentifier, "url")
     val partialLayer = OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
@@ -58,7 +58,7 @@ class UrlVizOpDesc extends VisualizationOperator {
       )
       .withId(partialId)
       .withNumWorkers(1)
-    val finalId = util.makeLayer(operatorIdentifier, "global")
+    val finalId = util.makeLayer(operatorIdentifier, "html")
     val finalLayer = OpExecConfig
       .oneToOneLayer(operatorIdentifier, _ => new HtmlVizOpExec("html-content", operatorSchemaInfo))
       .withId(finalId)

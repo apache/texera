@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
 
 /**
-  * HTML Visualization operator to render any given HTML code
+  * URL Visualization operator to render any given URL link
   */
 class UrlVizOpPartialExec(
     htmlContentAttrName: String,
@@ -28,10 +28,10 @@ class UrlVizOpPartialExec(
     tuple match {
       case Left(t) =>
         val iframe =
-          "<!DOCTYPE html>\n<html lang=\"en\"><body><div class=\"modal-body\">\n<iframe src=\"" + t
+          "<!DOCTYPE html>\n" + "<html lang=\"en\">\n" + "<body><div class=\"modal-body\">\n" + "<iframe src=\"" + t
             .getField(
               htmlContentAttrName
-            ) + "\" width=\"100%\" height=\"500px\"></iframe>\n</div></body>\n</html>"
+            ) + "\" frameborder=\"0\" style=\"height:100vh; width:100%; border:none;\"></iframe>\n" + "</div></body>\n" + "</html>"
         Iterator(
           Tuple
             .newBuilder(operatorSchemaInfo.outputSchemas(0))
