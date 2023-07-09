@@ -15,7 +15,6 @@ import scala.util.Either
   */
 class HtmlVizOpExec(
     htmlContentAttrName: String,
-    url: Boolean,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
@@ -31,22 +30,10 @@ class HtmlVizOpExec(
   ): Iterator[Tuple] =
     tuple match {
       case Left(t) =>
-        val result = if (url) {
-          val iframe =
-            "<!DOCTYPE html>\n<html lang=\"en\"><body><div class=\"modal-body\">\n<iframe src=\"" + t
-              .getField(
-                htmlContentAttrName
-              ) + "\" width=\"100%\" height=\"500px\"></iframe>\n</div></body>\n</html>"
-          Tuple
-            .newBuilder(operatorSchemaInfo.outputSchemas(0))
-            .add("html-content", AttributeType.STRING, iframe)
-            .build()
-        } else {
-          Tuple
-            .newBuilder(operatorSchemaInfo.outputSchemas(0))
-            .add("html-content", AttributeType.STRING, t.getField(htmlContentAttrName))
-            .build()
-        }
+        val result = Tuple
+          .newBuilder(operatorSchemaInfo.outputSchemas(0))
+          .add("html-content", AttributeType.STRING, t.getField(htmlContentAttrName))
+          .build()
         Iterator(result)
 
       case Right(_) => Iterator()

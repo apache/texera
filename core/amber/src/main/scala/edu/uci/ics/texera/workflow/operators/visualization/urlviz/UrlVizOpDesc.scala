@@ -1,8 +1,9 @@
-package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
+package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, util}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -16,6 +17,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   OperatorSchemaInfo,
   Schema
 }
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpExec
 import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
@@ -25,7 +28,7 @@ import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 
 /**
-  * HTML Visualization operator to render any given HTML code
+  * URL Visualization operator to render any content in given URL link
   * This is the description of the operator
   */
 class UrlVizOpDesc extends VisualizationOperator {
@@ -36,11 +39,7 @@ class UrlVizOpDesc extends VisualizationOperator {
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    OpExecConfig.oneToOneLayer(
-      operatorIdentifier,
-      _ => new HtmlVizOpExec(urlContentAttrName, true, operatorSchemaInfo)
-    )
-
+    throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer")
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "URL visualizer",
@@ -50,6 +49,23 @@ class UrlVizOpDesc extends VisualizationOperator {
       asScalaBuffer(singletonList(OutputPort(""))).toList
     )
 
+  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
+    val partialId = util.makeLayer(operatorIdentifier, "partial")
+    val partialLayer = OpExecConfig
+      .oneToOneLayer(
+        operatorIdentifier,
+        _ => new UrlVizOpPartialExec(urlContentAttrName, operatorSchemaInfo)
+      )
+      .withId(partialId)
+      .withNumWorkers(1)
+    val finalId = util.makeLayer(operatorIdentifier, "global")
+    val finalLayer = OpExecConfig
+      .oneToOneLayer(operatorIdentifier, _ => new HtmlVizOpExec("html-content", operatorSchemaInfo))
+      .withId(finalId)
+    val layers = Array(partialLayer, finalLayer)
+    val links = Array(new LinkIdentity(partialLayer.id, finalLayer.id))
+    PhysicalPlan.apply(layers, links)
+  }
   override def getOutputSchema(schemas: Array[Schema]): Schema =
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
 }
