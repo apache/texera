@@ -9,15 +9,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.WorkerModifyLogic
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
-import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
-import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{PythonUDFOpDescV2, PythonUDFOpExecV2}
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.{
-  PythonUDFSourceOpDescV2,
-  PythonUDFSourceOpExecV2
-}
+import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
+import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpExecV2
 
 import scala.collection.mutable
 
@@ -41,7 +34,7 @@ trait ModifyLogicHandler {
       val workerCommand = if (operator.isPythonOperator) {
         ModifyPythonOperatorLogic(
           msg.newOp.getPythonCode,
-          isSource = operator.opExecClass.isAssignableFrom(classOf[PythonUDFSourceOpExecV2])
+          isSource = operator.opExecClass.isInstance(classOf[PythonUDFSourceOpExecV2])
         )
       } else {
         WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)

@@ -13,8 +13,8 @@ import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, Websoc
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler, WorkflowRewriter}
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.{
+import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
   PythonUDFOpDescV2
 }
@@ -95,6 +95,7 @@ class WorkflowJobService(
     stateStore.jobMetadataStore.updateState(jobInfo =>
       jobInfo.withState(READY).withEid(workflowContext.executionID).withError(null)
     )
+    stateStore.statsStore.updateState(stats => stats.withStartTimeStamp(System.currentTimeMillis()))
     client.sendAsyncWithCallback[Unit](
       StartWorkflow(),
       _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))

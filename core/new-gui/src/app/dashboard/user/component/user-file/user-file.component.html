@@ -5,7 +5,9 @@
       <a
         [nzDropdownMenu]="menu"
         nz-dropdown>
-        <button nz-button>
+        <button
+          nz-button
+          title="Sort">
           <i
             nz-icon
             nzTheme="outline"
@@ -47,6 +49,7 @@
         (click)="openFileAddComponent()"
         nz-button
         nz-tooltip="Upload file"
+        title="Upload file"
         nzTooltipPlacement="bottom">
         <i
           nz-icon
@@ -91,142 +94,12 @@
       class="virtual-scroll-container"
       itemSize="80">
       <nz-list>
-        <nz-list-item
-          *cdkVirtualFor="let dashboardUserFileEntry of getFileArray();let indexOfElement=index"
-          class="file-list-item">
-          <nz-list-item-meta class="file-item-meta">
-            <nz-list-item-meta-title>
-              <div class="file-item-meta-title">
-                <h4
-                  *ngIf="isEditingName.indexOf(indexOfElement) === -1; else customeFileName"
-                  class="file-name">
-                  {{ dashboardUserFileEntry.ownerEmail + "/" + dashboardUserFileEntry.file.name }}
-                </h4>
-                <ng-template #customeFileName>
-                  <input
-                    #customeFileName
-                    (focusout)="confirmUpdateFileCustomName(dashboardUserFileEntry, customeFileName.value, indexOfElement)"
-                    (keyup.enter)="confirmUpdateFileCustomName(dashboardUserFileEntry, customeFileName.value, indexOfElement)"
-                    placeholder="{{ dashboardUserFileEntry.file.name }}"
-                    value="{{ dashboardUserFileEntry.file.name }}" />
-                </ng-template>
-                <button
-                  (click)="isEditingName.push(indexOfElement)"
-                  nz-button
-                  nz-tooltip="Customize File Name"
-                  nzSize="small"
-                  nzTooltipPlacement="bottom"
-                  nzType="text">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="edit"></i>
-                </button>
-                <button
-                  (click)="isEditingDescription.push(indexOfElement)"
-                  class="add-description-btn"
-                  nz-button
-                  nz-tooltip="Add Description"
-                  nzSize="small"
-                  nzTooltipPlacement="bottom"
-                  nzType="text">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="plus-square"></i>
-                </button>
-                <i
-                  *ngIf="dashboardUserFileEntry.file.ownerUid === uid"
-                  class="file-is-owner-icon"
-                  ngbTooltip="You are the OWNER"
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="user"></i>
-                <i
-                  *ngIf="dashboardUserFileEntry.file.ownerUid !== uid"
-                  ngbTooltip="Access shared by {{ dashboardUserFileEntry.ownerEmail }}"
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="team"></i>
-              </div>
-            </nz-list-item-meta-title>
-
-            <!-- editable description of files -->
-            <nz-list-item-meta-description>
-              <div class="file-item-meta-description">
-                <label
-                  (click)="isEditingDescription.push(indexOfElement)"
-                  *ngIf="(isEditingDescription.indexOf(indexOfElement) === -1); else customFileDescription "
-                  class="file-description-label">
-                  {{ dashboardUserFileEntry.file.description }}
-                </label>
-                <ng-template #customFileDescription>
-                  <input
-                    #customFileDescription
-                    (focusout)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
-                    (keyup.enter)="confirmUpdateFileCustomDescription(dashboardUserFileEntry, customFileDescription.value, indexOfElement)"
-                    class="file-editable-description-input"
-                    maxlength="500"
-                    value="{{ dashboardUserFileEntry.file.description }}" />
-                </ng-template>
-              </div>
-            </nz-list-item-meta-description>
-
-            <nz-list-item-meta-description class="metadata-container">
-              <span>Size: {{ addFileSizeUnit(dashboardUserFileEntry.file.size) }}</span>
-              <span>Upload Time: {{ dashboardUserFileEntry.file.uploadTime | date: "yyyy-MM-dd HH:mm" }}</span>
-            </nz-list-item-meta-description>
-          </nz-list-item-meta>
-
-          <ul nz-list-item-actions>
-            <nz-list-item-action>
-              <button
-                (click)="onClickOpenShareAccess(dashboardUserFileEntry)"
-                [disabled]="!dashboardUserFileEntry.writeAccess"
-                nz-button
-                nz-tooltip="Share the file {{
-								dashboardUserFileEntry.file.name
-							}} to others"
-                nzTooltipPlacement="bottom"
-                type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="share-alt"></i>
-              </button>
-            </nz-list-item-action>
-            <nz-list-item-action>
-              <button
-                (nzOnConfirm)="deleteFile(dashboardUserFileEntry.file.fid)"
-                [disabled]="!dashboardUserFileEntry.writeAccess"
-                nz-button
-                nz-popconfirm
-                nz-tooltip="Delete the file {{
-								dashboardUserFileEntry.file.name
-							}}"
-                nzPopconfirmTitle="Confirm to delete this file."
-                nzTooltipPlacement="bottom"
-                type="button">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="delete"></i>
-              </button>
-            </nz-list-item-action>
-            <nz-list-item-action>
-              <button
-                (click)="downloadFile(dashboardUserFileEntry)"
-                nz-button
-                nz-tooltip="Download the {{ dashboardUserFileEntry.file.name }}"
-                nzTooltipPlacement="bottom">
-                <i
-                  nz-icon
-                  nzTheme="outline"
-                  nzType="download"></i>
-              </button>
-            </nz-list-item-action>
-          </ul>
-        </nz-list-item>
+        <texera-user-file-list-item
+          *cdkVirtualFor="let entry of getFileArray()"
+          [entry]="entry"
+          (deleted)="deleteFile(entry.file.fid)"
+          [editable]="true"
+          [uid]="uid"></texera-user-file-list-item>
       </nz-list>
     </cdk-virtual-scroll-viewport>
   </nz-card>

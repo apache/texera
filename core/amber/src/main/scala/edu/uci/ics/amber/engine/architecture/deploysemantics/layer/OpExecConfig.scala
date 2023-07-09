@@ -31,19 +31,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.common.{
-  Constants,
-  IOperatorExecutor,
-  ISinkOperatorExecutor,
-  ISourceOperatorExecutor
-}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
-import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
-import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 

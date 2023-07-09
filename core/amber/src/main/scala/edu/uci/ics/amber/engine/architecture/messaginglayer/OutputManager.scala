@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.InputEpochMarker
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.Constants.{
   adaptiveBufferingTimeoutMs,

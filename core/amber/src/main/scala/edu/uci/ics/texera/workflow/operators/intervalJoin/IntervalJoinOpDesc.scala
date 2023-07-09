@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.intervalJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.base.Preconditions
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
@@ -23,6 +23,20 @@ import edu.uci.ics.texera.workflow.common.workflow.HashPartition
   * 1. The tuples in both inputs come in ascending order
   * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
   */
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "leftAttributeName": {
+      "enum": ["integer", "long", "double", "timestamp"]
+    },
+    "rightAttributeName": {
+      "const": {
+        "$data": "leftAttributeName"
+      }
+    }
+  }
+}
+""")
 class IntervalJoinOpDesc extends OperatorDescriptor {
 
   @JsonProperty(required = true)
@@ -95,7 +109,7 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
       includeLeftBound: Boolean,
       includeRightBound: Boolean,
       timeIntervalType: TimeIntervalType
-  ) {
+  ) = {
     this() // Calling primary constructor, and it is first line
     this.leftAttributeName = leftTableAttributeName
     this.rightAttributeName = rightTableAttributeName
