@@ -145,6 +145,11 @@ export type WorkerAssignmentUpdateEvent = Readonly<{
   workerIds: readonly string[];
 }>;
 
+export type ExecutionDurationUpdateEvent = Readonly<{
+  duration: number;
+  isRunning: boolean;
+}>;
+
 export type ModifyLogicResponse = Readonly<{
   opId: string;
   isValid: boolean;
@@ -203,6 +208,7 @@ export type TexeraWebsocketEventTypeMap = {
   WorkerAssignmentUpdateEvent: WorkerAssignmentUpdateEvent;
   ModifyLogicResponse: ModifyLogicResponse;
   ModifyLogicCompletedEvent: ModifyLogicCompletedEvent;
+  ExecutionDurationUpdateEvent: ExecutionDurationUpdateEvent;
 };
 
 // helper type definitions to generate the request and event types

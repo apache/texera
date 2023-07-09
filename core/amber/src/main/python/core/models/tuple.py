@@ -1,10 +1,10 @@
-import pickle
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, List, Iterator, Dict, Callable, Sized, Container
 from typing_extensions import Protocol
 import pandas
+import pickle
 import pyarrow
 from loguru import logger
 from pandas._libs.missing import checknull
@@ -75,9 +75,11 @@ class ArrowTableTupleProvider:
             field_type = self._table.schema.field(field_name).type
 
             # for binary types, convert pickled objects back.
-            if field_type == pyarrow.binary() and value[:6] == b"pickle":
-                import pickle
-
+            if (
+                field_type == pyarrow.binary()
+                and value is not None
+                and value[:6] == b"pickle"
+            ):
                 value = pickle.loads(value[10:])
             return value
 
@@ -206,7 +208,6 @@ class Tuple(TupleLike):
         """
         for field_name in self.get_field_names():
             try:
-
                 field_value: Field = self[field_name]
 
                 # convert NaN to None to support null value conversion

@@ -16,6 +16,14 @@ from pyarrow.flight import (
     ServerCallContext,
 )
 from pyarrow.ipc import RecordBatchStreamWriter
+import socket
+
+
+def get_free_local_port():
+    # results a free random port
+    with socket.socket() as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
 
 
 class ProxyServer(FlightServerBase):
@@ -81,12 +89,18 @@ class ProxyServer(FlightServerBase):
         return ack_decorator
 
     def __init__(
-        self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005
+        self,
+        scheme: str = "grpc+tcp",
+        host: str = "localhost",
+        port: Optional[int] = None,
     ):
+        if port is None:
+            port = get_free_local_port()
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
         logger.debug(f"Serving on {location}")
-        self.host = host
+
+        self._port_number = port
 
         # action name to callable map, will contain registered actions,
         # identified by action name.
@@ -101,7 +115,7 @@ class ProxyServer(FlightServerBase):
         self.register(
             name="shutdown",
             action=ProxyServer.ack(msg="Bye bye!")(
-                lambda: threading.Thread(target=self._shutdown).start()
+                lambda: threading.Thread(target=self.graceful_shutdown).start()
             ),
             description="Shut down this server.",
         )
@@ -257,8 +271,11 @@ class ProxyServer(FlightServerBase):
     ##################
     # helper methods #
     ##################
-    def _shutdown(self):
+    def graceful_shutdown(self):
         """Shut down after a delay."""
         logger.debug("Server is shutting down...")
-        time.sleep(1)
+        time.sleep(0.2)
         self.shutdown()
+
+    def get_port_number(self):
+        return self._port_number

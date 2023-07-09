@@ -106,7 +106,7 @@ export class AuthService {
 
     if (this.inviteOnly && role == Role.INACTIVE) {
       this.notificationService.loading("The account request of <b>" + email + "</b> is received and pending.", {
-        nzDuration: 0,
+        nzDuration: 10,
       });
       return this.logout();
     }

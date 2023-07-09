@@ -94,7 +94,6 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_batch_data_elements(self, mock_batch, mock_sender_actor):
-
         data_elements = []
         for i in range(57):
             mock_tuple = Tuple({"test-1": "hello", "test-2": i})
@@ -242,7 +241,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def main_loop(self, input_queue, output_queue, mock_link):
-        main_loop = MainLoop(input_queue, output_queue)
+        main_loop = MainLoop("dummy_worker_id", input_queue, output_queue)
         yield main_loop
         main_loop.stop()
 

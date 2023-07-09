@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
+import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ControlElement,
   ControlElementV2,
@@ -23,7 +24,7 @@ import org.apache.arrow.vector.VectorSchemaRoot
 import scala.collection.mutable
 import scala.math.pow
 
-class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
+class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
     with AmberLogging
     with AutoCloseable
@@ -31,7 +32,12 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
-  val location: Location = Location.forGrpcInsecure("localhost", portNumber)
+  val location: Location = (() => {
+    // Read port number from promise until it's available
+    val portNumber = Await.result(portNumberPromise)
+    Location.forGrpcInsecure("localhost", portNumber)
+  })()
+
   private val MAX_TRY_COUNT: Int = 5
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
@@ -47,7 +53,6 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     var tryCount = 0
     while (!connected && tryCount <= MAX_TRY_COUNT) {
       try {
-        logger.info(s"trying to connect to $location")
         flightClient = FlightClient.builder(allocator, location).build()
         connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
         if (!connected)
