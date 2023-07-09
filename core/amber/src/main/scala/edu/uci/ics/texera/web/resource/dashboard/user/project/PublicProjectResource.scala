@@ -2,7 +2,10 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  ProjectUserAccessDao,
+  PublicProjectDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.PUBLIC_PROJECT
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege

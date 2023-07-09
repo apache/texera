@@ -39,7 +39,7 @@ export class ShareAccessComponent implements OnInit {
     private publicProjectService: PublicProjectService
   ) {
     this.currentEmail = this.userService.getCurrentUser()?.email;
-    this.isAdmin = this.userService.isAdmin()
+    this.isAdmin = this.userService.isAdmin();
   }
 
   ngOnInit(): void {

@@ -185,8 +185,7 @@ class UserFileResource {
 
   @GET
   @Path("/download/{fid}")
-  def downloadFile(
-      @PathParam("fid") fid: UInteger): Response = {
+  def downloadFile(@PathParam("fid") fid: UInteger): Response = {
     Response
       .ok(
         new StreamingOutput() {
