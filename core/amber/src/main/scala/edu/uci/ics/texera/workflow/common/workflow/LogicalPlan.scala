@@ -234,17 +234,6 @@ case class LogicalPlan(
           o.operatorInfo.outputPorts
       )
 
-      // special case for source operators, add an input port from a virtual operator
-      val sourceOps = ops.operators
-        .filter(op => op.isSourceOperator)
-        .map(op =>
-          op.copy(
-            inputPorts = List(InputPort()),
-            inputToOrdinalMapping = Map(LinkIdentity(SOURCE_STARTER_OP, op.id) -> 0)
-          )
-        )
-      sourceOps.foreach(op => ops = ops.setOperator(op))
-
       // add all physical operators to physical DAG
       ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
       // connect intra-operator links
