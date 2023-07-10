@@ -34,7 +34,8 @@ import scala.collection.JavaConverters.asScalaBuffer
 class UrlVizOpDesc extends VisualizationOperator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL")
-  @AutofillAttributeName var urlContentAttrName: String = _
+  @AutofillAttributeName
+  var urlContentAttrName: String = _
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
