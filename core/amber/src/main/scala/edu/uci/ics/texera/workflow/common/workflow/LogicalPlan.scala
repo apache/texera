@@ -1,11 +1,9 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_OP
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.InputPort
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -233,17 +231,6 @@ case class LogicalPlan(
         ops.layersOfLogicalOperator(o.operatorIdentifier).last.outputPorts ==
           o.operatorInfo.outputPorts
       )
-
-      // special case for source operators, add an input port from a virtual operator
-      val sourceOps = ops.operators
-        .filter(op => op.isSourceOperator)
-        .map(op =>
-          op.copy(
-            inputPorts = List(InputPort()),
-            inputToOrdinalMapping = Map(LinkIdentity(SOURCE_STARTER_OP, op.id) -> 0)
-          )
-        )
-      sourceOps.foreach(op => ops = ops.setOperator(op))
 
       // add all physical operators to physical DAG
       ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
