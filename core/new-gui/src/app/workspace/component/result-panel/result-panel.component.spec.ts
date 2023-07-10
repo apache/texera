@@ -8,7 +8,6 @@ import { OperatorMetadataService } from "../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { By } from "@angular/platform-browser";
 
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -21,7 +20,6 @@ describe("ResultPanelComponent", () => {
   let executeWorkflowService: ExecuteWorkflowService;
   let nzModalService: NzModalService;
   let workflowActionService: WorkflowActionService;
-  let resultPanelToggleService: ResultPanelToggleService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -30,7 +28,6 @@ describe("ResultPanelComponent", () => {
       providers: [
         WorkflowActionService,
         ExecuteWorkflowService,
-        ResultPanelToggleService,
         {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
@@ -43,7 +40,6 @@ describe("ResultPanelComponent", () => {
     fixture = TestBed.createComponent(ResultPanelComponent);
     component = fixture.componentInstance;
     executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
-    resultPanelToggleService = TestBed.inject(ResultPanelToggleService);
     nzModalService = TestBed.inject(NzModalService);
     workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
@@ -201,7 +197,6 @@ describe("ResultPanelComponent", () => {
 
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeTruthy();
 
-    resultPanelToggleService.toggleResultPanel();
     fixture.detectChanges();
 
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeFalsy();
@@ -222,7 +217,6 @@ describe("ResultPanelComponent", () => {
     fixture.detectChanges();
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeFalsy();
 
-    resultPanelToggleService.toggleResultPanel();
     fixture.detectChanges();
 
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeTruthy();

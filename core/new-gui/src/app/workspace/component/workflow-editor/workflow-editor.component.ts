@@ -1,11 +1,11 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, OnDestroy } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used:
 // 1) use `import * as jQuery` as follows, instead of using `$`,
 // 2) import any jquery plugins after importing jQuery
 // 3) always add the imports even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
-import { fromEvent, merge, Observable, Subject } from "rxjs";
+import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { assertType } from "src/app/common/util/assert";
@@ -14,7 +14,6 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
 import { OperatorInfo } from "../../service/workflow-graph/model/operator-group";
@@ -23,7 +22,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { OperatorLink, OperatorPort, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, buffer, debounceTime, takeUntil } from "rxjs/operators";
+import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
@@ -32,7 +31,7 @@ import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dro
 import MouseMoveEvent = JQuery.MouseMoveEvent;
 import MouseLeaveEvent = JQuery.MouseLeaveEvent;
 import MouseEnterEvent = JQuery.MouseEnterEvent;
-import { ActivatedRoute, NavigationEnd, Router, ExtraOptions } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 
 import * as _ from "lodash";
 // jointjs interactive options for enabling and disabling interactivity
@@ -91,7 +90,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private dynamicSchemaService: DynamicSchemaService,
     private dragDropService: DragDropService,
     private elementRef: ElementRef,
-    private resultPanelToggleService: ResultPanelToggleService,
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
@@ -536,10 +534,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    */
   private handleWindowResize(): void {
     // when the window is resized (limit to at most one event every 30ms).
-    merge(
-      fromEvent(window, "resize").pipe(auditTime(30)),
-      this.resultPanelToggleService.getToggleChangeStream().pipe(auditTime(30))
-    )
+    merge(fromEvent(window, "resize").pipe(auditTime(30)))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         // resize the JointJS paper dimensions

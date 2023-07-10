@@ -9,7 +9,6 @@ import { Workflow } from "../../common/type/workflow";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { SourceTablesService } from "../service/dynamic-schema/source-tables/source-tables.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
-import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
@@ -44,7 +43,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   constructor(
     private userService: UserService,
-    private resultPanelToggleService: ResultPanelToggleService,
     // list additional services in constructor so they are initialized even if no one use them directly
     private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,
@@ -111,20 +109,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     }
 
     this.registerLoadOperatorMetadata();
-
-    this.registerResultPanelToggleHandler();
   }
 
   ngOnDestroy() {
     this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
-  }
-
-  registerResultPanelToggleHandler() {
-    this.resultPanelToggleService
-      .getToggleChangeStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.showResultPanel = value));
   }
 
   registerAutoCacheWorkFlow(): void {

@@ -3,7 +3,6 @@ import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
@@ -52,7 +51,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
-    private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
   ) {}

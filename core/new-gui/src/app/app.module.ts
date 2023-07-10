@@ -67,7 +67,6 @@ import { OperatorLabelComponent } from "./workspace/component/operator-panel/ope
 import { OperatorPanelComponent } from "./workspace/component/operator-panel/operator-panel.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
-import { ResultPanelToggleComponent } from "./workspace/component/result-panel-toggle/result-panel-toggle.component";
 import { ResultPanelComponent } from "./workspace/component/result-panel/result-panel.component";
 import { VisualizationFrameContentComponent } from "./workspace/component/visualization-panel-content/visualization-frame-content.component";
 import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
@@ -154,7 +153,6 @@ registerLocaleData(en);
     RowModalComponent,
     OperatorLabelComponent,
     MiniMapComponent,
-    ResultPanelToggleComponent,
     ArrayTypeComponent,
     ObjectTypeComponent,
     PresetWrapperComponent,

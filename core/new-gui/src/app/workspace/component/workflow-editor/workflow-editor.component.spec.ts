@@ -13,7 +13,6 @@ import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as jQuery from "jquery";
 import * as joint from "jointjs";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { marbles } from "rxjs-marbles";
 import {
   mockCommentBox,
@@ -58,7 +57,6 @@ describe("WorkflowEditorComponent", () => {
           WorkflowUtilService,
           UndoRedoService,
           DragDropService,
-          ResultPanelToggleService,
           ValidationWorkflowService,
           WorkflowActionService,
           NzContextMenuService,
@@ -157,7 +155,6 @@ describe("WorkflowEditorComponent", () => {
           WorkflowUtilService,
           WorkflowActionService,
           UndoRedoService,
-          ResultPanelToggleService,
           ValidationWorkflowService,
           DragDropService,
           NzModalService,
@@ -223,7 +220,7 @@ describe("WorkflowEditorComponent", () => {
 
     it("should highlight the commentBox when user clicks on a commentBox", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      const highlightCommentBoxFunctionSpy = spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
+      spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
       const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
@@ -338,7 +335,7 @@ describe("WorkflowEditorComponent", () => {
     });
 
     it("should react to operator validation and change the color of operator box if the operator is valid ", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       workflowActionService.addLink(mockScanResultLink);
