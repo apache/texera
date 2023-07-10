@@ -12,7 +12,6 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-user-icon",
   templateUrl: "./user-icon.component.html",
-  styleUrls: ["./user-icon.component.scss"],
 })
 export class UserIconComponent {
   public user: User | undefined;

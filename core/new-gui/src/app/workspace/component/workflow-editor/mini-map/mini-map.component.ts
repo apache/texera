@@ -16,8 +16,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export const MINI_MAP_WRAPPER_ID = "texera-mini-map-wrapper";
 export const MINI_MAP_JOINTJS_MAP_ID = "texera-mini-map-editor-jointjs-body-id";
 export const MINI_MAP_NAVIGATOR_ID = "mini-map-navigator-id";
-export const MINI_MAP_GRID_SIZE = 45;
-
 /**
  * MiniMapComponent is the componenet that contains the mini-map of the workflow editor component.
  *  This component is used for navigating on the workflow editor paper.

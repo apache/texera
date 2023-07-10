@@ -1,7 +1,6 @@
 import { DatePipe, Location } from "@angular/common";
-import { ChangeDetectorRef, Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
-import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -88,14 +87,12 @@ export class NavigationComponent implements OnInit {
     public validationWorkflowService: ValidationWorkflowService,
     public workflowPersistService: WorkflowPersistService,
     public workflowVersionService: WorkflowVersionService,
-    public userService: UserService,
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
-    public changeDetectionRef: ChangeDetectorRef,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
     workflowWebsocketService
@@ -449,9 +446,7 @@ export class NavigationComponent implements OnInit {
    */
   onWorkflowNameChange() {
     this.workflowActionService.setWorkflowName(this.currentWorkflowName);
-    if (this.userService.isLogin()) {
-      this.persistWorkflow();
-    }
+    this.persistWorkflow();
   }
 
   onClickCreateNewWorkflow() {
