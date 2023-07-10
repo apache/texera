@@ -4,12 +4,8 @@
   <texera-operator-panel></texera-operator-panel>
 
   <nz-collapse style="position: absolute; bottom:0">
-    <nz-collapse-panel
-      #p
-      [nzActive]="false"
-      [nzExpandedIcon]="expandedIcon"
-    >
-      <p>erhgerhgerh</p>
+    <nz-collapse-panel #p [nzActive]="false" [nzExpandedIcon]="expandedIcon">
+      <texera-result-panel></texera-result-panel>
       <ng-template #expandedIcon>
         <span nz-icon nzType="caret-right" class="ant-collapse-arrow" [nzRotate]="p.nzActive ? 90 : -90"></span>
       </ng-template>
@@ -21,7 +17,7 @@
     <texera-mini-map></texera-mini-map>
   </div>
 
-  <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
+
   <div class="texera-git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</div>
 </div>
 

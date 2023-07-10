@@ -31,6 +31,11 @@ texera-operator-panel{
   width:400px;
 }
 
+texera-result-panel {
+  overflow: auto;
+  transition: height 1s;
+}
+
 
 
 
@@ -97,17 +102,7 @@ texera-operator-panel{
 }
 
 
-/**
-  * this style specifies that the result panel in the middle
-  * will occupy the 2nd (middle) column and use the last row (middle). It will
-  * be right under the workflow-editor
-  */
-.texera-result-panel-grid-container {
-  grid-column: 2/3;
-  grid-row: 5/6;
-  overflow: auto;
-  transition: height 1s;
-}
+
 
 
 .texera-git-commit-id {
