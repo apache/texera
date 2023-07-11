@@ -30,7 +30,7 @@ export class ShareAccessComponent implements OnInit {
   public ownerSearchValue?: string;
   currentEmail: string | undefined = "";
   isAdmin: boolean = false;
-  visibility: string = "Private";
+  isPublic: boolean = false;
   constructor(
     public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
@@ -57,7 +57,7 @@ export class ShareAccessComponent implements OnInit {
       .getType(this.id)
       .pipe(untilDestroyed(this))
       .subscribe(type => {
-        this.visibility = type;
+        this.isPublic = type === "Public";
       });
   }
 
@@ -89,17 +89,18 @@ export class ShareAccessComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => this.ngOnInit());
   }
-  public makePublic(): void {
-    this.publicProjectService
-      .makePublic(this.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
-  }
 
-  public makePrivate(): void {
-    this.publicProjectService
-      .makePrivate(this.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+  public visibilityChange(): void {
+    if (this.isPublic) {
+      this.publicProjectService
+        .makePrivate(this.id)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => this.ngOnInit());
+    } else {
+      this.publicProjectService
+        .makePublic(this.id)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => this.ngOnInit());
+    }
   }
 }

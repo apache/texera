@@ -1,16 +1,35 @@
-<div class="modal-header">
-  <h4
-    class="modal-title"
-    id="modal-basic-title">
-    Share This {{type}} With Someone
-  </h4>
-  <button
-    (click)="activeModal.dismiss('Cross click')"
-    aria-label="Close"
-    class="close"
-    type="button">
-    <span aria-hidden="true"> × </span>
-  </button>
+<div
+  class="modal-header"
+  nz-row
+  nzJustify="space-between">
+  <div nz-col>
+    <h4
+      class="modal-title"
+      id="modal-basic-title">
+      Share this {{type}} with others
+    </h4>
+  </div>
+  <div
+    nz-col
+    style="padding-top: 5px"
+    *ngIf="isAdmin">
+    <nz-switch
+      [ngModel]="isPublic"
+      nzCheckedChildren="Public"
+      nzUnCheckedChildren="Private"
+      (ngModelChange)="visibilityChange()"></nz-switch>
+  </div>
+  <div
+    nz-col
+    style="padding-top: 4px">
+    <button
+      (click)="activeModal.dismiss('Cross click')"
+      aria-label="Close"
+      class="close"
+      type="button">
+      <span aria-hidden="true"> × </span>
+    </button>
+  </div>
 </div>
 <div class="modal-body">
   <form
@@ -47,56 +66,24 @@
         </nz-form-item>
       </nz-card>
       <br />
-      <div nz-row>
-        <div
-          nz-col
-          [nzFlex]="24">
-          <nz-card nzTitle="Share">
-            <div style="height: 50px">
-              Access Level:
-              <select formControlName="accessLevel">
-                <option value="READ">read</option>
-                <option value="WRITE">write</option>
-              </select>
-            </div>
-            <button
-              [disabled]="!writeAccess"
-              style="width: 100%"
-              nz-button
-              nzType="primary"
-              type="submit">
-              Share
-            </button>
-          </nz-card>
-        </div>
 
-        <div
-          *ngIf="isAdmin"
-          nz-col
-          [nzSpan]="12">
-          <nz-card nzTitle="Visibility">
-            <div style="height: 50px">{{visibility}}</div>
-            <button
-              *ngIf="visibility==='Private'"
-              style="width: 100%"
-              nz-button
-              nzType="primary"
-              nzDanger
-              (click)="makePublic()">
-              Make it Public
-            </button>
-            <button
-              *ngIf="visibility==='Public'"
-              style="width: 100%"
-              nz-button
-              nzType="primary"
-              nzDanger
-              (click)="makePrivate()">
-              Make it Private
-            </button>
-          </nz-card>
+      <nz-card nzTitle="Share">
+        <div style="height: 50px">
+          Access Level:
+          <select formControlName="accessLevel">
+            <option value="READ">read</option>
+            <option value="WRITE">write</option>
+          </select>
         </div>
-      </div>
+        <button
+          [disabled]="!writeAccess"
+          style="width: 100%"
+          nz-button
+          nzType="primary"
+          type="submit">
+          Share
+        </button>
+      </nz-card>
     </div>
   </form>
   <br />
