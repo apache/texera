@@ -3,14 +3,10 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.common.base.Verify
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.mutable
@@ -46,7 +42,7 @@ case class LogicalPlan(
     operators: List[OperatorDescriptor],
     links: List[OperatorLink],
     breakpoints: List[BreakpointInfo],
-    var cachedOperatorIds: List[String] = List()
+    opsToReuseCache: List[String] = List()
 ) {
 
   lazy val operatorMap: Map[String, OperatorDescriptor] =
@@ -58,7 +54,7 @@ case class LogicalPlan(
   lazy val sourceOperators: List[String] =
     operatorMap.keys.filter(op => jgraphtDag.inDegreeOf(op) == 0).toList
 
-  lazy val sinkOperators: List[String] =
+  lazy val terminalOperators: List[String] =
     operatorMap.keys
       .filter(op => operatorMap(op).isInstanceOf[SinkOpDesc])
       .toList
@@ -81,7 +77,7 @@ case class LogicalPlan(
 
   def getSourceOperators: List[String] = this.sourceOperators
 
-  def getSinkOperators: List[String] = this.sinkOperators
+  def getTerminalOperators: List[String] = this.terminalOperators
 
   def getUpstream(operatorID: String): List[OperatorDescriptor] = {
     val upstream = new mutable.MutableList[OperatorDescriptor]
@@ -97,6 +93,52 @@ case class LogicalPlan(
       .outgoingEdgesOf(operatorID)
       .forEach(e => downstream += operatorMap(e.destination.operatorID))
     downstream.toList
+  }
+
+  def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
+    this.copy(operators :+ operatorDescriptor, links, breakpoints, opsToReuseCache)
+  }
+
+  def removeOperator(operatorId: String): LogicalPlan = {
+    this.copy(
+      operators.filter(o => o.operatorID != operatorId),
+      links.filter(l =>
+        l.origin.operatorID != operatorId && l.destination.operatorID != operatorId
+      ),
+      breakpoints.filter(b => b.operatorID != operatorId),
+      opsToReuseCache.filter(c => c != operatorId)
+    )
+  }
+
+  // returns a new physical plan with the edges added
+  def addEdge(
+    from: String,
+    to: String,
+    fromPort: Int = 0,
+    toPort: Int = 0
+  ): LogicalPlan = {
+    val newLink = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
+    val newLinks = links :+ newLink
+    this.copy(operators, newLinks, breakpoints, opsToReuseCache)
+  }
+
+  // returns a new physical plan with the edges removed
+  def removeEdge(
+    from: String,
+    to: String,
+    fromPort: Int = 0,
+    toPort: Int = 0
+  ): LogicalPlan = {
+    val linkToRemove = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
+    val newLinks = links.filter(l => l != linkToRemove)
+    this.copy(operators, newLinks, breakpoints, opsToReuseCache)
+  }
+
+  def removeEdge(
+    edge: OperatorLink
+  ): LogicalPlan = {
+    val newLinks = links.filter(l => l != edge)
+    this.copy(operators, newLinks, breakpoints, opsToReuseCache)
   }
 
   def opSchemaInfo(operatorID: String): OperatorSchemaInfo = {
@@ -184,32 +226,10 @@ case class LogicalPlan(
     )
   }
 
-  def toPhysicalPlan(
-      context: WorkflowContext,
-      opResultStorage: OpResultStorage
-  ): PhysicalPlan = {
+  def toPhysicalPlan(): PhysicalPlan = {
 
     if (errorList.nonEmpty) {
       throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
-    }
-
-    // assign storage to texera-managed sinks before generating exec config
-    operators.foreach {
-      case o @ (sink: ProgressiveSinkOpDesc) =>
-        val storageKey = sink.getCachedUpstreamId.getOrElse(o.operatorID)
-        // due to the size limit of single document in mongoDB (16MB)
-        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
-        val storageType =
-          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
-          else OpResultStorage.defaultStorageMode
-        sink.setStorage(
-          opResultStorage.create(
-            storageKey,
-            outputSchemaMap(o.operatorIdentifier).head,
-            storageType
-          )
-        )
-      case _ =>
     }
 
     var physicalPlan = PhysicalPlan(List(), List())

@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 object WorkflowCompiler {
 
@@ -15,6 +15,36 @@ object WorkflowCompiler {
     val outLinks =
       workflowCompiler.logicalPlan.links.filter(link => link.origin.operatorID == operatorID)
     outLinks.isEmpty
+  }
+
+  private def assignSinkStorage(
+    logicalPlan: LogicalPlan,
+    storage: OpResultStorage,
+    reuseStorageSet: Set[String] = Set()
+  ) = {
+    // assign storage to texera-managed sinks before generating exec config
+    logicalPlan.operators.foreach {
+      case o @ (sink: ProgressiveSinkOpDesc) =>
+        val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
+        // due to the size limit of single document in mongoDB (16MB)
+        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
+        val storageType = {
+          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
+          else OpResultStorage.defaultStorageMode
+        }
+        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
+          sink.setStorage(storage.get(storageKey))
+        } else {
+          sink.setStorage(
+            storage.create(
+              storageKey,
+              logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
+              storageType
+            )
+          )
+        }
+      case _ =>
+    }
   }
 
   class ConstraintViolationException(val violations: Map[String, Set[ConstraintViolation]])
@@ -36,7 +66,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
 
   def amberWorkflow(workflowId: WorkflowIdentity, opResultStorage: OpResultStorage): Workflow = {
     // pre-process: set output mode for sink based on the visualization operator before it
-    logicalPlan.getSinkOperators.foreach(sinkOpId => {
+    logicalPlan.getTerminalOperators.foreach(sinkOpId => {
       val sinkOp = logicalPlan.getOperator(sinkOpId)
       val upstream = logicalPlan.getUpstream(sinkOpId)
       if (upstream.nonEmpty) {
@@ -51,7 +81,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       }
     })
 
-    val physicalPlan0 = logicalPlan.toPhysicalPlan(this.context, opResultStorage)
+    val physicalPlan0 = logicalPlan.toPhysicalPlan()
 
     // create pipelined regions.
     val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(

@@ -445,7 +445,7 @@ export class ExecuteWorkflowService {
       op => !workflowGraph.isOperatorDisabled(op)
     );
 
-    return { operators, links, breakpoints, cachedOperatorIds };
+    return { operators, links, breakpoints, opsToViewResult: cachedOperatorIds };
   }
 
   public static transformBreakpoint(

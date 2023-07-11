@@ -8,38 +8,31 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
+import edu.uci.ics.texera.web.service.WebResultUpdate.{WebResultUpdate, convertWebResultUpdate}
 import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowresultstate.OperatorResultMetadata
 import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
+import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
-object JobResultService {
-
-  val defaultPageSize: Int = 5
-
+object WebResultUpdate {
   // convert Tuple from engine's format to JSON format
   def webDataFromTuple(
-      mode: WebOutputMode,
-      table: List[ITuple],
-      chartType: Option[String]
+    mode: WebOutputMode,
+    table: List[ITuple],
+    chartType: Option[String]
   ): WebDataUpdate = {
     val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
     WebDataUpdate(mode, tableInJson, chartType)
@@ -53,9 +46,9 @@ object JobResultService {
     * @return list of indices of modified pages, index starts from 1
     */
   def calculateDirtyPageIndices(
-      beforeSnapshot: List[ITuple],
-      afterSnapshot: List[ITuple],
-      pageSize: Int
+    beforeSnapshot: List[ITuple],
+    afterSnapshot: List[ITuple],
+    pageSize: Int
   ): List[Int] = {
     var currentIndex = 1
     var currentIndexPageCount = 0
@@ -102,13 +95,68 @@ object JobResultService {
   final case class SetDeltaMode() extends WebOutputMode
 
   case class WebPaginationUpdate(
-      mode: PaginationMode,
-      totalNumTuples: Long,
-      dirtyPageIndices: List[Int]
+    mode: PaginationMode,
+    totalNumTuples: Long,
+    dirtyPageIndices: List[Int]
   ) extends WebResultUpdate
 
   case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
-      extends WebResultUpdate
+    extends WebResultUpdate
+
+  /**
+    * For SET_SNAPSHOT output mode: result is the latest snapshot
+    * FOR SET_DELTA output mode:
+    *   - for insert-only delta: effectively the same as latest snapshot
+    *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
+    *
+    * Produces the WebResultUpdate to send to frontend from a result update from the engine.
+    */
+  def convertWebResultUpdate(
+    sink: ProgressiveSinkOpDesc,
+    oldTupleCount: Int,
+    newTupleCount: Int
+  ): WebResultUpdate = {
+    val webOutputMode: WebOutputMode = {
+      (sink.getOutputMode, sink.getChartType) match {
+        // visualization sinks use its corresponding mode
+        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
+        case (SET_DELTA, Some(_))    => SetDeltaMode()
+        // Non-visualization sinks use pagination mode
+        case (_, None) => PaginationMode()
+      }
+    }
+
+    val storage = sink.getStorage
+    val webUpdate = (webOutputMode, sink.getOutputMode) match {
+      case (PaginationMode(), SET_SNAPSHOT) =>
+        val numTuples = storage.getCount
+        val maxPageIndex = Math.ceil(numTuples / JobResultService.defaultPageSize.toDouble).toInt
+        WebPaginationUpdate(
+          PaginationMode(),
+          newTupleCount,
+          (1 to maxPageIndex).toList
+        )
+      case (SetSnapshotMode(), SET_SNAPSHOT) =>
+        webDataFromTuple(webOutputMode, storage.getAll.toList, sink.getChartType)
+      case (SetDeltaMode(), SET_DELTA) =>
+        val deltaList = storage.getAllAfter(oldTupleCount).toList
+        webDataFromTuple(webOutputMode, deltaList, sink.getChartType)
+
+      // currently not supported mode combinations
+      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
+      case _ =>
+        throw new RuntimeException(
+          "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
+        )
+    }
+    webUpdate
+  }
+}
+
+object JobResultService {
+
+  val defaultPageSize: Int = 5
+
 }
 
 /**
@@ -123,8 +171,8 @@ class JobResultService(
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager {
 
-  var progressiveResults: mutable.HashMap[String, ProgressiveResultService] =
-    mutable.HashMap[String, ProgressiveResultService]()
+  var progressiveResults: mutable.HashMap[String, ProgressiveSinkOpDesc] =
+    mutable.HashMap[String, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency =
     AmberUtils.amberConfig.getInt("web-server.workflow-result-pulling-in-seconds")
   private var resultUpdateCancellable: Cancellable = _
@@ -183,12 +231,9 @@ class JobResultService(
         val buf = mutable.HashMap[String, WebResultUpdate]()
         newState.operatorInfo.foreach {
           case (opId, info) =>
-            val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorResultMetadata())
-            // TODO: frontend now receives snapshots instead of deltas, we can optimize this
-            // if (oldInfo.tupleCount != info.tupleCount) {
+            val oldInfo = oldState.operatorInfo.getOrElse(opId, OperatorResultMetadata())
             buf(opId) =
-              progressiveResults(opId).convertWebResultUpdate(oldInfo.tupleCount, info.tupleCount)
-          //}
+              convertWebResultUpdate(progressiveResults(opId), oldInfo.tupleCount, info.tupleCount)
         }
         Iterable(WebResultUpdateEvent(buf.toMap))
       })
@@ -200,31 +245,13 @@ class JobResultService(
       state.withOperatorInfo(Map.empty)
     }
 
-    // If we have cache sources, make dummy sink operators for displaying results on the frontend.
-    logicalPlan.getSourceOperators.map(source => {
-      logicalPlan.getOperator(source) match {
-        case cacheSourceOpDesc: CacheSourceOpDesc =>
-          val dummySink = new ProgressiveSinkOpDesc()
-          dummySink.setStorage(opResultStorage.get(cacheSourceOpDesc.targetSinkStorageId))
-          progressiveResults += (
-            (
-              cacheSourceOpDesc.targetSinkStorageId,
-              new ProgressiveResultService(dummySink)
-            )
-          )
-        case other => //skip
-      }
-    })
-
-    // For cached operators and sinks, create result service so that the results can be displayed.
-    logicalPlan.getSinkOperators.map(sink => {
+    // For operators connected to a sink and sinks,
+    // create result service so that the results can be displayed.
+    logicalPlan.getTerminalOperators.map(sink => {
       logicalPlan.getOperator(sink) match {
         case sinkOp: ProgressiveSinkOpDesc =>
-          val service = new ProgressiveResultService(sinkOp)
-          sinkOp.getCachedUpstreamId match {
-            case Some(upstreamId) => progressiveResults += ((upstreamId, service))
-            case None             => progressiveResults += ((sink, service))
-          }
+          progressiveResults += ((sinkOp.getUpstreamId.get, sinkOp))
+          progressiveResults += ((sink, sinkOp))
         case other => // skip other non-texera-managed sinks, if any
       }
     })
@@ -235,8 +262,8 @@ class JobResultService(
     val from = request.pageSize * (request.pageIndex - 1)
     val opId = request.operatorID
     val paginationIterable =
-      if (opResultStorage.contains(opId)) {
-        opResultStorage.get(opId).getRange(from, from + request.pageSize)
+      if (progressiveResults.contains(opId)) {
+        progressiveResults(opId).getStorage.getRange(from, from + request.pageSize)
       } else {
         Iterable.empty
       }
@@ -249,9 +276,9 @@ class JobResultService(
   def onResultUpdate(): Unit = {
     workflowStateStore.resultStore.updateState { oldState =>
       val newInfo: Map[String, OperatorResultMetadata] = progressiveResults.map {
-        case (id, service) =>
-          val count = service.sink.getStorage.getCount.toInt
-          val mode = service.sink.getOutputMode
+        case (id, sink) =>
+          val count = sink.getStorage.getCount.toInt
+          val mode = sink.getOutputMode
           val changeDetector =
             if (mode == IncrementalOutputMode.SET_SNAPSHOT) {
               UUID.randomUUID.toString
