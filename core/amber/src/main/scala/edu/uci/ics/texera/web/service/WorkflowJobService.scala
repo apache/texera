@@ -31,7 +31,6 @@ class WorkflowJobService(
 
   val stateStore = new JobStateStore()
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(LogicalPlan(request.logicalPlan))
-  val logicalPlan: LogicalPlan = workflowCompiler.logicalPlan
   val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
     resultService.opResultStorage
@@ -39,7 +38,7 @@ class WorkflowJobService(
   private val controllerConfig = {
     val conf = ControllerConfig.default
     if (
-      logicalPlan.operators.exists {
+      workflowCompiler.logicalPlan.operators.exists {
         case x: DualInputPortsPythonUDFOpDescV2 => true
         case x: PythonUDFOpDescV2               => true
         case x: PythonUDFSourceOpDescV2         => true
@@ -76,13 +75,13 @@ class WorkflowJobService(
   workflowContext.executionID = -1 // for every new execution,
   // reset it so that the value doesn't carry over across executions
   def startWorkflow(): Unit = {
-    for (pair <- logicalPlan.breakpoints) {
+    for (pair <- workflowCompiler.logicalPlan.breakpoints) {
       Await.result(
         jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
         Duration.fromSeconds(10)
       )
     }
-    resultService.attachToJob(stateStore, logicalPlan, client)
+    resultService.attachToJob(stateStore, workflowCompiler.logicalPlan, client)
     if (WorkflowService.userSystemEnabled) {
       workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
         workflowContext.wId,
@@ -100,7 +99,6 @@ class WorkflowJobService(
       _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
     )
   }
-
 
   private[this] def createWorkflowCompiler(
       logicalPlan: LogicalPlan

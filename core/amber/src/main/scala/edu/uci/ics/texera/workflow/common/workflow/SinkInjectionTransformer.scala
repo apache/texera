@@ -31,7 +31,7 @@ object SinkInjectionTransformer {
       })
     })
 
-    // check precondition: all the terminal operators should sinks now
+    // check precondition: all the terminal operators should be sinks
     assert(
       logicalPlan.getTerminalOperators.forall(o =>
         logicalPlan.getOperator(o).isInstanceOf[SinkOpDesc]

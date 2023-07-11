@@ -5,9 +5,10 @@ import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegions
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.assignSinkStorage
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
 object WorkflowCompiler {
 
@@ -18,9 +19,9 @@ object WorkflowCompiler {
   }
 
   private def assignSinkStorage(
-    logicalPlan: LogicalPlan,
-    storage: OpResultStorage,
-    reuseStorageSet: Set[String] = Set()
+      logicalPlan: LogicalPlan,
+      storage: OpResultStorage,
+      reuseStorageSet: Set[String] = Set()
   ) = {
     // assign storage to texera-managed sinks before generating exec config
     logicalPlan.operators.foreach {
@@ -65,21 +66,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       .filter(o => o._2.nonEmpty)
 
   def amberWorkflow(workflowId: WorkflowIdentity, opResultStorage: OpResultStorage): Workflow = {
-    // pre-process: set output mode for sink based on the visualization operator before it
-    logicalPlan.getTerminalOperators.foreach(sinkOpId => {
-      val sinkOp = logicalPlan.getOperator(sinkOpId)
-      val upstream = logicalPlan.getUpstream(sinkOpId)
-      if (upstream.nonEmpty) {
-        (upstream.head, sinkOp) match {
-          // match the combination of a visualization operator followed by a sink operator
-          case (viz: VisualizationOperator, sink: ProgressiveSinkOpDesc) =>
-            sink.setOutputMode(viz.outputMode())
-            sink.setChartType(viz.chartType())
-          case _ =>
-          //skip
-        }
-      }
-    })
+    assignSinkStorage(logicalPlan, opResultStorage, Set())
 
     val physicalPlan0 = logicalPlan.toPhysicalPlan()
 

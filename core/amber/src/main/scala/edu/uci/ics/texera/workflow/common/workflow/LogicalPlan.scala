@@ -34,7 +34,7 @@ object LogicalPlan {
   }
 
   def apply(pojo: LogicalPlanPojo): LogicalPlan =
-    LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints, List())
+    SinkInjectionTransformer.transform(pojo)
 
 }
 
@@ -95,10 +95,14 @@ case class LogicalPlan(
     downstream.toList
   }
 
+  // returns a new logical plan with the given operator added
   def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
     this.copy(operators :+ operatorDescriptor, links, breakpoints, opsToReuseCache)
   }
 
+  // returns a new logical plan with the given operator removed
+  // removing an operator will also delete all the links connected to the operator,
+  // as well as removing breakpoints set on the operator, etc..
   def removeOperator(operatorId: String): LogicalPlan = {
     this.copy(
       operators.filter(o => o.operatorID != operatorId),
@@ -110,32 +114,33 @@ case class LogicalPlan(
     )
   }
 
-  // returns a new physical plan with the edges added
+  // returns a new logical plan with the given edge added
   def addEdge(
-    from: String,
-    to: String,
-    fromPort: Int = 0,
-    toPort: Int = 0
+      from: String,
+      to: String,
+      fromPort: Int = 0,
+      toPort: Int = 0
   ): LogicalPlan = {
     val newLink = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links :+ newLink
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
   }
 
-  // returns a new physical plan with the edges removed
+  // returns a new logical plan with the given edge removed
   def removeEdge(
-    from: String,
-    to: String,
-    fromPort: Int = 0,
-    toPort: Int = 0
+      from: String,
+      to: String,
+      fromPort: Int = 0,
+      toPort: Int = 0
   ): LogicalPlan = {
     val linkToRemove = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links.filter(l => l != linkToRemove)
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
   }
 
+  // returns a new logical plan with the given edge removed
   def removeEdge(
-    edge: OperatorLink
+      edge: OperatorLink
   ): LogicalPlan = {
     val newLinks = links.filter(l => l != edge)
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
