@@ -53,6 +53,11 @@ export class WorkflowResultService {
     return this.operatorResultServices.get(operatorID);
   }
 
+  public hasResult(operatorID: string): boolean {
+    return this.operatorResultServices.get(operatorID) !== undefined || 
+      this.paginatedResultServices.get(operatorID) !== undefined
+  }
+
   private handleCleanResultCache(event: WorkflowAvailableResultEvent): void {
     const removedOrInvalidatedOperators = new Set<string>();
     // remove operators that no longer have results
