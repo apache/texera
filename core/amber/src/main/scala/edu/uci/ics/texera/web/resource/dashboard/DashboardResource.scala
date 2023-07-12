@@ -275,7 +275,6 @@ class DashboardResource {
         projectMatchQuery
       )
       .and(projectOptionalFilters)
-      .groupBy(PROJECT.PID)
 
     // Retrieve file resource
     val fileQuery = context
@@ -314,8 +313,6 @@ class DashboardResource {
         fileMatchQuery
       )
       .and(fileOptionalFilters)
-      .groupBy(FILE.FID)
-
 
     // Retrieve files to which all shared workflows have access
     val sharedWorkflowFileQuery = context
