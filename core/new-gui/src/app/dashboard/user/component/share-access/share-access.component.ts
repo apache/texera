@@ -86,7 +86,12 @@ export class ShareAccessComponent implements OnInit {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+      .subscribe(() => {
+        if(this.currentEmail===userToRemove){
+          this.activeModal.close();
+        }
+        this.ngOnInit()
+      });
   }
 
   public visibilityChange(): void {

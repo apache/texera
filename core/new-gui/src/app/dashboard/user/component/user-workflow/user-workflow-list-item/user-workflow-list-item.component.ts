@@ -53,6 +53,7 @@ export class UserWorkflowListItemComponent {
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
 
+
   editingName = false;
   editingDescription = false;
   /** Whether tracking metadata information about executions is enabled. */

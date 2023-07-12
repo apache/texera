@@ -9,8 +9,8 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
   templateUrl: "public-project.component.html",
 })
 export class PublicProjectComponent implements OnInit {
-  @Input() writeAccess!: boolean;
-  userProjectEntries: DashboardProject[] = [];
+  @Input() userProjectEntries: DashboardProject[] = [];
+  publicProjectEntries: DashboardProject[] = [];
   checked = false;
   indeterminate = false;
   checkedList = new Set<number>();
@@ -23,12 +23,11 @@ export class PublicProjectComponent implements OnInit {
     this.publicProjectService
       .getPublicProjects()
       .pipe(untilDestroyed(this))
-      .subscribe(userProjectEntries => {
-        this.userProjectEntries = userProjectEntries;
+      .subscribe(publicProjects => {
+        console.log(this.userProjectEntries)
+        this.publicProjectEntries = publicProjects.filter(publicProject => this.userProjectEntries.every(userProject => userProject.pid !== publicProject.pid));
       });
   }
-
-
 
   updateCheckedSet(id: number, checked: boolean): void {
     if (checked) {
@@ -44,13 +43,13 @@ export class PublicProjectComponent implements OnInit {
   }
 
   onAllChecked(value: boolean): void {
-    this.userProjectEntries.forEach(item => this.updateCheckedSet(item.pid, value));
+    this.publicProjectEntries.forEach(item => this.updateCheckedSet(item.pid, value));
     this.refreshCheckedStatus();
   }
 
   refreshCheckedStatus(): void {
-    this.checked = this.userProjectEntries.every(item => this.checkedList.has(item.pid));
-    this.indeterminate = this.userProjectEntries.some(item => this.checkedList.has(item.pid)) && !this.checked;
+    this.checked = this.publicProjectEntries.every(item => this.checkedList.has(item.pid));
+    this.indeterminate = this.publicProjectEntries.some(item => this.checkedList.has(item.pid)) && !this.checked;
   }
   addPublicProjects(): void {
     this.publicProjectService

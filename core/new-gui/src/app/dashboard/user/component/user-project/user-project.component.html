@@ -70,7 +70,8 @@
         [editable]="true"
         [uid]="uid"
         [entry]="dashboardUserProjectEntry"
-        (deleted)="deleteProject(dashboardUserProjectEntry.pid)">
+        (deleted)="deleteProject(dashboardUserProjectEntry.pid)"
+        (refresh)="ngOnInit()">
       </texera-user-project-list-item>
     </nz-list>
   </nz-card>
