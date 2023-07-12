@@ -4,7 +4,10 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  ProjectUserAccessDao,
+  PublicProjectDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource.DashboardProject
 import io.dropwizard.auth.Auth
@@ -48,16 +51,15 @@ class PublicProjectResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/add")
   def addPublicProjects(checkedList: util.List[UInteger], @Auth user: SessionUser): Unit = {
-    checkedList.
-      forEach(pid => {
-        projectUserAccessDao.merge(
-          new ProjectUserAccess(
-            user.getUid,
-            pid,
-            ProjectUserAccessPrivilege.READ
-          )
+    checkedList.forEach(pid => {
+      projectUserAccessDao.merge(
+        new ProjectUserAccess(
+          user.getUid,
+          pid,
+          ProjectUserAccessPrivilege.READ
         )
-      })
+      )
+    })
   }
 
   @GET

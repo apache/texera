@@ -83,7 +83,6 @@ export class UserProjectComponent implements OnInit {
     this.userProjectEntries.sort((p1, p2) => p2.name.toLowerCase().localeCompare(p1.name.toLowerCase()));
   }
 
-
   private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {
     if (typeof oldProject === "undefined") {
       return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
@@ -97,7 +96,7 @@ export class UserProjectComponent implements OnInit {
   }
 
   public openPublicProject(): void {
-    const modalRef = this.modalService.open(PublicProjectComponent, {size: "lg"})
+    const modalRef = this.modalService.open(PublicProjectComponent, { size: "lg" });
     modalRef.componentInstance.userProjectEntries = this.userProjectEntries;
     modalRef.closed.pipe(untilDestroyed(this)).subscribe(() => {
       this.ngOnInit();

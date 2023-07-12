@@ -10,7 +10,7 @@ import { PublicProjectService } from "../../service/public-project/public-projec
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
-  styleUrls: ["share-access.component.scss"]
+  styleUrls: ["share-access.component.scss"],
 })
 export class ShareAccessComponent implements OnInit {
   @Input() writeAccess!: boolean;
@@ -87,10 +87,10 @@ export class ShareAccessComponent implements OnInit {
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if(this.currentEmail===userToRemove){
+        if (this.currentEmail === userToRemove) {
           this.activeModal.close();
         }
-        this.ngOnInit()
+        this.ngOnInit();
       });
   }
 

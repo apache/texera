@@ -14,18 +14,17 @@ export class PublicProjectComponent implements OnInit {
   checked = false;
   indeterminate = false;
   checkedList = new Set<number>();
-  constructor(
-    public activeModal: NgbActiveModal,
-    private publicProjectService: PublicProjectService
-  ) {}
+  constructor(public activeModal: NgbActiveModal, private publicProjectService: PublicProjectService) {}
 
   ngOnInit(): void {
     this.publicProjectService
       .getPublicProjects()
       .pipe(untilDestroyed(this))
       .subscribe(publicProjects => {
-        console.log(this.userProjectEntries)
-        this.publicProjectEntries = publicProjects.filter(publicProject => this.userProjectEntries.every(userProject => userProject.pid !== publicProject.pid));
+        console.log(this.userProjectEntries);
+        this.publicProjectEntries = publicProjects.filter(publicProject =>
+          this.userProjectEntries.every(userProject => userProject.pid !== publicProject.pid)
+        );
       });
   }
 

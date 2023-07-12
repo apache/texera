@@ -266,7 +266,6 @@ export class UserWorkflowComponent implements AfterViewInit {
       });
   }
 
-
   /**
    * Verify Uploaded file name and upload the file
    */

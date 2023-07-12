@@ -10,23 +10,27 @@
   <nz-table
     #rowSelectionTable
     [nzData]="publicProjectEntries"
-    [nzPageSize]="5"
-  >
+    [nzPageSize]="5">
     <thead>
-    <tr>
-      <th [nzChecked]="checked" [nzIndeterminate]="indeterminate" (nzCheckedChange)="onAllChecked($event)"></th>
-      <th>ID</th>
-      <th>Name</th>
-      <th>Creation Time</th>
-    </tr>
+      <tr>
+        <th
+          [nzChecked]="checked"
+          [nzIndeterminate]="indeterminate"
+          (nzCheckedChange)="onAllChecked($event)"></th>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Creation Time</th>
+      </tr>
     </thead>
     <tbody>
-    <tr *ngFor="let data of rowSelectionTable.data">
-      <td [nzChecked]="checkedList.has(data.pid)" (nzCheckedChange)="onItemChecked(data.pid, $event)"></td>
-      <td>{{ data.pid }}</td>
-      <td>{{ data.name }}</td>
-      <td>{{ data.creationTime | date: "yyyy-MM-dd HH:mm" }}</td>
-    </tr>
+      <tr *ngFor="let data of rowSelectionTable.data">
+        <td
+          [nzChecked]="checkedList.has(data.pid)"
+          (nzCheckedChange)="onItemChecked(data.pid, $event)"></td>
+        <td>{{ data.pid }}</td>
+        <td>{{ data.name }}</td>
+        <td>{{ data.creationTime | date: "yyyy-MM-dd HH:mm" }}</td>
+      </tr>
     </tbody>
   </nz-table>
 </div>
@@ -36,8 +40,7 @@
     nz-button
     nzType="primary"
     [disabled]="checkedList.size === 0"
-    (click)="addPublicProjects()"
-  >
+    (click)="addPublicProjects()">
     Confirm
   </button>
 </div>

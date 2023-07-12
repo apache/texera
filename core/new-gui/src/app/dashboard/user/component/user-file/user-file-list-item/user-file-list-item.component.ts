@@ -92,7 +92,7 @@ export class UserFileListItemComponent {
     modalRef.componentInstance.type = "file";
     modalRef.componentInstance.id = this.entry.file.fid;
     modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
-      this.refresh.emit()
+      this.refresh.emit();
     });
   }
 

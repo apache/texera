@@ -74,9 +74,9 @@ export class UserProjectListItemComponent implements OnInit {
       .updateProjectColor(this.entry.pid, color)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-          this.color = color;
-          this.entry = { ...this.entry, color: color };
-        });
+        this.color = color;
+        this.entry = { ...this.entry, color: color };
+      });
   }
 
   removeProjectColor(): void {
@@ -86,9 +86,9 @@ export class UserProjectListItemComponent implements OnInit {
       .deleteProjectColor(this.entry.pid)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-          this.color = "#ffffff"; // reset color wheel
-          this.entry = { ...this.entry, color: null };
-        });
+        this.color = "#ffffff"; // reset color wheel
+        this.entry = { ...this.entry, color: null };
+      });
   }
 
   saveProjectName(name: string): void {
@@ -100,11 +100,11 @@ export class UserProjectListItemComponent implements OnInit {
         .updateProjectName(this.entry.pid, name)
         .pipe(untilDestroyed(this))
         .subscribe(() => {
-            if (!this.entry) {
-              throw new Error("entry property must be provided to UserProjectListItemComponent.");
-            }
-            this.editingName = false;
-            this.entry.name = name;
+          if (!this.entry) {
+            throw new Error("entry property must be provided to UserProjectListItemComponent.");
+          }
+          this.editingName = false;
+          this.entry.name = name;
         });
     }
   }
@@ -121,10 +121,10 @@ export class UserProjectListItemComponent implements OnInit {
       .updateProjectDescription(this.entry.pid, description)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-          this.entry.description = description;
-          this.notificationService.success(`Saved description for project: "${this.entry.name}".`);
-          this.editingDescription = false;
-        })
+        this.entry.description = description;
+        this.notificationService.success(`Saved description for project: "${this.entry.name}".`);
+        this.editingDescription = false;
+      });
   }
 
   public onClickOpenShareAccess(): void {
@@ -133,7 +133,7 @@ export class UserProjectListItemComponent implements OnInit {
     modalRef.componentInstance.type = "project";
     modalRef.componentInstance.id = this.entry.pid;
     modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
-      this.refresh.emit()
+      this.refresh.emit();
     });
   }
 }
