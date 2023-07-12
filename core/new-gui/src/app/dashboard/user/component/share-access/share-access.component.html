@@ -14,8 +14,7 @@
       nzUnCheckedChildren="Private"
       (ngModelChange)="visibilityChange()"></nz-switch>
   </div>
-  <div
-    nz-col>
+  <div nz-col>
     <button
       (click)="activeModal.dismiss('Cross click')"
       class="close"
@@ -24,7 +23,9 @@
     </button>
   </div>
 </div>
-<div class="modal-body" style="background: #ececec;">
+<div
+  class="modal-body"
+  style="background: #ececec">
   <form
     [formGroup]="validateForm"
     (ngSubmit)="grantAccess()">
