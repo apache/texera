@@ -3,11 +3,10 @@
   nz-row
   nzJustify="space-between">
   <div nz-col>
-    <h4>Share this {{type}} with others</h4>
+    <h5>Share this {{type}} with others</h5>
   </div>
   <div
     nz-col
-    style="padding-top: 5px"
     *ngIf="isAdmin && type==='project'">
     <nz-switch
       [ngModel]="isPublic"
@@ -16,8 +15,7 @@
       (ngModelChange)="visibilityChange()"></nz-switch>
   </div>
   <div
-    nz-col
-    style="padding-top: 4px">
+    nz-col>
     <button
       (click)="activeModal.dismiss('Cross click')"
       class="close"
@@ -26,7 +24,7 @@
     </button>
   </div>
 </div>
-<div class="modal-body">
+<div class="modal-body" style="background: #ececec;">
   <form
     [formGroup]="validateForm"
     (ngSubmit)="grantAccess()">
