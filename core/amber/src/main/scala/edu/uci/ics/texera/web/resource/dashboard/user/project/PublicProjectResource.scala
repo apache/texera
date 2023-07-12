@@ -2,17 +2,16 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  ProjectUserAccessDao,
-  PublicProjectDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.PUBLIC_PROJECT
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource.DashboardProject
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
+import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 
@@ -48,19 +47,28 @@ class PublicProjectResource {
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/add")
-  def add(@Auth user: SessionUser): Unit = {
-    context
-      .select()
-      .from(PUBLIC_PROJECT)
-      .fetchInto(classOf[PublicProject])
-      .forEach(project => {
+  def addPublicProjects(checkedList: util.List[UInteger], @Auth user: SessionUser): Unit = {
+    checkedList.
+      forEach(pid => {
         projectUserAccessDao.merge(
           new ProjectUserAccess(
             user.getUid,
-            project.getPid,
+            pid,
             ProjectUserAccessPrivilege.READ
           )
         )
       })
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/list")
+  def listPublicProjects(): util.List[DashboardProject] = {
+    context
+      .select()
+      .from(PROJECT)
+      .leftJoin(PUBLIC_PROJECT)
+      .on(PUBLIC_PROJECT.PID.eq(PROJECT.PID))
+      .fetchInto(classOf[DashboardProject])
   }
 }

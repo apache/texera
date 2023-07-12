@@ -105,7 +105,10 @@ export class UserWorkflowComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
-    this.registerDashboardWorkflowEntriesRefresh();
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.search());
   }
 
   /**
@@ -263,19 +266,6 @@ export class UserWorkflowComponent implements AfterViewInit {
       });
   }
 
-  private registerDashboardWorkflowEntriesRefresh(): void {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.isLogin()) {
-          this.search();
-          this.userProjectService.refreshProjectList();
-        } else {
-          this.search();
-        }
-      });
-  }
 
   /**
    * Verify Uploaded file name and upload the file

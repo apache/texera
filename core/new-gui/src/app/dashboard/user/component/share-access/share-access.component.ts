@@ -10,8 +10,7 @@ import { PublicProjectService } from "../../service/public-project/public-projec
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
-  styleUrls: ["share-access.component.scss"],
-  providers: [{ provide: "type", useValue: "workflow" }],
+  styleUrls: ["share-access.component.scss"]
 })
 export class ShareAccessComponent implements OnInit {
   @Input() writeAccess!: boolean;

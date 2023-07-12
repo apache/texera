@@ -32,7 +32,7 @@ export class UserProjectListItemComponent implements OnInit {
   editingColor = false;
   editingName = false;
   editingDescription = false;
-  descriptionCollapsed = false;
+  descriptionCollapsed = true;
   color = "#ffffff";
   /** To make sure info remains visible against white background */
   get lightColor() {
@@ -72,16 +72,10 @@ export class UserProjectListItemComponent implements OnInit {
     this.userProjectService
       .updateProjectColor(this.entry.pid, color)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
+      .subscribe(() => {
           this.color = color;
           this.entry = { ...this.entry, color: color };
-        },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
-      });
+        });
   }
 
   removeProjectColor(): void {
@@ -137,24 +131,13 @@ export class UserProjectListItemComponent implements OnInit {
     this.userProjectService
       .updateProjectDescription(this.entry.pid, description)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
+      .subscribe(() => {
           this.entry.description = description;
           this.notificationService.success(`Saved description for project: "${this.entry.name}".`);
-        },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
-      })
-      .add(() => {
-        this.editingDescription = false;
-      });
+          this.editingDescription = false;
+        })
   }
 
-  /**
-   * open the Modal based on the workflow clicked on
-   */
   public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
     modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";

@@ -5,6 +5,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { PublicProjectService } from "../../service/public-project/public-project.service";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { PublicProjectComponent } from "./public-project/public-project.component";
 
 @UntilDestroy()
 @Component({
@@ -23,20 +25,26 @@ export class UserProjectComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     private userService: UserService,
-    private publicProjectService: PublicProjectService
+    private publicProjectService: PublicProjectService,
+    private modalService: NgbModal
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }
 
   ngOnInit(): void {
-    this.getUserProjectArray();
+    this.userProjectService
+      .getProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(projectEntries => {
+        this.userProjectEntries = projectEntries;
+      });
   }
 
   public deleteProject(pid: number): void {
     this.userProjectService
       .deleteProject(pid)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.getUserProjectArray());
+      .subscribe(() => this.ngOnInit());
   }
 
   public clickCreateButton(): void {
@@ -53,7 +61,7 @@ export class UserProjectComponent implements OnInit {
       this.userProjectService
         .createProject(this.createProjectName)
         .pipe(untilDestroyed(this))
-        .subscribe(() => this.getUserProjectArray());
+        .subscribe(() => this.ngOnInit());
     } else {
       this.notificationService.error(
         `Cannot create project named: "${this.createProjectName}".  It must be a non-empty, unique name`
@@ -75,22 +83,6 @@ export class UserProjectComponent implements OnInit {
     this.userProjectEntries.sort((p1, p2) => p2.name.toLowerCase().localeCompare(p1.name.toLowerCase()));
   }
 
-  private getUserProjectArray() {
-    this.userProjectService.refreshProjectList();
-    this.userProjectService
-      .retrieveProjectList()
-      .pipe(untilDestroyed(this))
-      .subscribe(projectEntries => {
-        this.userProjectEntries = projectEntries;
-      });
-  }
-
-  public addPublicProjects(): void {
-    this.publicProjectService
-      .addPublicProjects()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
-  }
 
   private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {
     if (typeof oldProject === "undefined") {
@@ -102,5 +94,12 @@ export class UserProjectComponent implements OnInit {
           0
       );
     }
+  }
+
+  public openPublicProject(): void {
+    const modalRef = this.modalService.open(PublicProjectComponent)
+    modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
+      this.ngOnInit();
+    });
   }
 }

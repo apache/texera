@@ -3,16 +3,12 @@
   nz-row
   nzJustify="space-between">
   <div nz-col>
-    <h4
-      class="modal-title"
-      id="modal-basic-title">
-      Share this {{type}} with others
-    </h4>
+    <h4>Share this {{type}} with others</h4>
   </div>
   <div
     nz-col
     style="padding-top: 5px"
-    *ngIf="isAdmin">
+    *ngIf="isAdmin && type==='project'">
     <nz-switch
       [ngModel]="isPublic"
       nzCheckedChildren="Public"
@@ -24,10 +20,9 @@
     style="padding-top: 4px">
     <button
       (click)="activeModal.dismiss('Cross click')"
-      aria-label="Close"
       class="close"
       type="button">
-      <span aria-hidden="true"> × </span>
+      <span> × </span>
     </button>
   </div>
 </div>
