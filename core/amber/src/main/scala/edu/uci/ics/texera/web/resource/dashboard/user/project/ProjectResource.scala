@@ -139,10 +139,11 @@ class ProjectResource {
         PROJECT.COLOR,
         PROJECT_USER_ACCESS.PRIVILEGE
       )
-      .from(PROJECT)
-      .leftJoin(PROJECT_USER_ACCESS)
+      .from(PROJECT_USER_ACCESS)
+      .join(PROJECT)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
-      .where(PROJECT_USER_ACCESS.UID.eq(user.getUid).or(PROJECT.OWNER_ID.eq(user.getUid)))
+      .where(PROJECT.OWNER_ID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid)))
+      .groupBy(PROJECT.PID)
       .fetchInto(classOf[DashboardProject])
   }
 

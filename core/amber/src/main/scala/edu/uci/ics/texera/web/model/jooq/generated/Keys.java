@@ -9,6 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -23,6 +24,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileOfWorkflow
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ProjectRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ProjectUserAccessRecord;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.PublicProjectRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserConfigRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserFileAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
@@ -69,6 +71,7 @@ public class Keys {
     public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = UniqueKeys0.KEY_PROJECT_PRIMARY;
     public static final UniqueKey<ProjectRecord> KEY_PROJECT_OWNER_ID = UniqueKeys0.KEY_PROJECT_OWNER_ID;
     public static final UniqueKey<ProjectUserAccessRecord> KEY_PROJECT_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_PROJECT_USER_ACCESS_PRIMARY;
+    public static final UniqueKey<PublicProjectRecord> KEY_PUBLIC_PROJECT_PRIMARY = UniqueKeys0.KEY_PUBLIC_PROJECT_PRIMARY;
     public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = UniqueKeys0.KEY_USER_PRIMARY;
     public static final UniqueKey<UserRecord> KEY_USER_EMAIL = UniqueKeys0.KEY_USER_EMAIL;
     public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = UniqueKeys0.KEY_USER_GOOGLE_ID;
@@ -93,6 +96,7 @@ public class Keys {
     public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = ForeignKeys0.PROJECT_IBFK_1;
     public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS_IBFK_1 = ForeignKeys0.PROJECT_USER_ACCESS_IBFK_1;
     public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS_IBFK_2 = ForeignKeys0.PROJECT_USER_ACCESS_IBFK_2;
+    public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT_IBFK_1 = ForeignKeys0.PUBLIC_PROJECT_IBFK_1;
     public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = ForeignKeys0.USER_CONFIG_IBFK_1;
     public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = ForeignKeys0.USER_FILE_ACCESS_IBFK_1;
     public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = ForeignKeys0.USER_FILE_ACCESS_IBFK_2;
@@ -127,6 +131,7 @@ public class Keys {
         public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = Internal.createUniqueKey(Project.PROJECT, "KEY_project_PRIMARY", Project.PROJECT.PID);
         public static final UniqueKey<ProjectRecord> KEY_PROJECT_OWNER_ID = Internal.createUniqueKey(Project.PROJECT, "KEY_project_owner_id", Project.PROJECT.OWNER_ID, Project.PROJECT.NAME);
         public static final UniqueKey<ProjectUserAccessRecord> KEY_PROJECT_USER_ACCESS_PRIMARY = Internal.createUniqueKey(ProjectUserAccess.PROJECT_USER_ACCESS, "KEY_project_user_access_PRIMARY", ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID);
+        public static final UniqueKey<PublicProjectRecord> KEY_PUBLIC_PROJECT_PRIMARY = Internal.createUniqueKey(PublicProject.PUBLIC_PROJECT, "KEY_public_project_PRIMARY", PublicProject.PUBLIC_PROJECT.PID);
         public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
         public static final UniqueKey<UserRecord> KEY_USER_EMAIL = Internal.createUniqueKey(User.USER, "KEY_user_email", User.USER.EMAIL);
         public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = Internal.createUniqueKey(User.USER, "KEY_user_google_id", User.USER.GOOGLE_ID);
@@ -149,6 +154,7 @@ public class Keys {
         public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Project.PROJECT, "project_ibfk_1", Project.PROJECT.OWNER_ID);
         public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access_ibfk_1", ProjectUserAccess.PROJECT_USER_ACCESS.UID);
         public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access_ibfk_2", ProjectUserAccess.PROJECT_USER_ACCESS.PID);
+        public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, PublicProject.PUBLIC_PROJECT, "public_project_ibfk_1", PublicProject.PUBLIC_PROJECT.PID);
         public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserConfig.USER_CONFIG, "user_config_ibfk_1", UserConfig.USER_CONFIG.UID);
         public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_1", UserFileAccess.USER_FILE_ACCESS.UID);
         public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_2", UserFileAccess.USER_FILE_ACCESS.FID);

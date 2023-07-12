@@ -65,7 +65,7 @@ export class UserWorkflowListItemComponent {
     private userProjectService: UserProjectService
   ) {
     this.userProjectService
-      .retrieveProjectList()
+      .getProjectList()
       .pipe(untilDestroyed(this))
       .subscribe(userProjectsList => {
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));

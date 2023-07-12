@@ -5,8 +5,6 @@ import { UserFileService } from "../../service/user-file/user-file.service";
 import { DashboardFile, SortMethod } from "../../type/dashboard-file.interface";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ShareAccessComponent } from "../share-access/share-access.component";
 import Fuse from "fuse.js";
 
 @UntilDestroy()
@@ -18,8 +16,6 @@ import Fuse from "fuse.js";
 export class UserFileComponent implements OnInit {
   // variables for file editing / search / sort
   public dashboardUserFileEntries: ReadonlyArray<DashboardFile> = [];
-  public isEditingName: number[] = [];
-  public isEditingDescription: number[] = [];
   public userFileSearchValue: string = "";
   public filteredFilenames: Array<string> = [];
   public isTyping: boolean = false;

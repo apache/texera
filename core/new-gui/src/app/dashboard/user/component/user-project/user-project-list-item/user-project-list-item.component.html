@@ -171,6 +171,7 @@
     </nz-list-item-action>
     <nz-list-item-action>
       <button
+        [disabled]="entry.accessLevel === 'READ'"
         (nzOnConfirm)="deleted.emit()"
         nz-button
         nz-popconfirm

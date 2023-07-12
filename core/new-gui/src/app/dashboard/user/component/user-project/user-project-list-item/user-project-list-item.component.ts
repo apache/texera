@@ -27,12 +27,13 @@ export class UserProjectListItemComponent implements OnInit {
     this._entry = value;
   }
   @Output() deleted = new EventEmitter<void>();
+  @Output() refresh = new EventEmitter<void>();
   @Input() editable = false;
   @Input() uid: number | undefined;
   editingColor = false;
   editingName = false;
   editingDescription = false;
-  descriptionCollapsed = false;
+  descriptionCollapsed = true;
   color = "#ffffff";
   /** To make sure info remains visible against white background */
   get lightColor() {
@@ -72,15 +73,9 @@ export class UserProjectListItemComponent implements OnInit {
     this.userProjectService
       .updateProjectColor(this.entry.pid, color)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.color = color;
-          this.entry = { ...this.entry, color: color };
-        },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
+      .subscribe(() => {
+        this.color = color;
+        this.entry = { ...this.entry, color: color };
       });
   }
 
@@ -90,15 +85,9 @@ export class UserProjectListItemComponent implements OnInit {
     this.userProjectService
       .deleteProjectColor(this.entry.pid)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: _ => {
-          this.color = "#ffffff"; // reset color wheel
-          this.entry = { ...this.entry, color: null };
-        },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
+      .subscribe(() => {
+        this.color = "#ffffff"; // reset color wheel
+        this.entry = { ...this.entry, color: null };
       });
   }
 
@@ -110,18 +99,12 @@ export class UserProjectListItemComponent implements OnInit {
       this.userProjectService
         .updateProjectName(this.entry.pid, name)
         .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => {
-            if (!this.entry) {
-              throw new Error("entry property must be provided to UserProjectListItemComponent.");
-            }
-            this.editingName = false;
-            this.entry.name = name;
-          },
-          error: (err: unknown) => {
-            // @ts-ignore
-            this.notificationService.error(err.error.message);
-          },
+        .subscribe(() => {
+          if (!this.entry) {
+            throw new Error("entry property must be provided to UserProjectListItemComponent.");
+          }
+          this.editingName = false;
+          this.entry.name = name;
         });
     }
   }
@@ -137,28 +120,20 @@ export class UserProjectListItemComponent implements OnInit {
     this.userProjectService
       .updateProjectDescription(this.entry.pid, description)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.entry.description = description;
-          this.notificationService.success(`Saved description for project: "${this.entry.name}".`);
-        },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
-      })
-      .add(() => {
+      .subscribe(() => {
+        this.entry.description = description;
+        this.notificationService.success(`Saved description for project: "${this.entry.name}".`);
         this.editingDescription = false;
       });
   }
 
-  /**
-   * open the Modal based on the workflow clicked on
-   */
   public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.open(ShareAccessComponent);
     modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";
     modalRef.componentInstance.type = "project";
     modalRef.componentInstance.id = this.entry.pid;
+    modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
+      this.refresh.emit();
+    });
   }
 }

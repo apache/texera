@@ -41,6 +41,7 @@ export class UserFileListItemComponent {
   editingName = false;
   editingDescription = false;
   @Output() deleted = new EventEmitter<void>();
+  @Output() refresh = new EventEmitter<void>();
 
   constructor(
     private modalService: NgbModal,
@@ -90,6 +91,9 @@ export class UserFileListItemComponent {
     modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";
     modalRef.componentInstance.type = "file";
     modalRef.componentInstance.id = this.entry.file.fid;
+    modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
+      this.refresh.emit();
+    });
   }
 
   public downloadFile(): void {

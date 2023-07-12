@@ -237,7 +237,7 @@ export class UserProjectSectionComponent implements OnInit {
       });
 
     this.userProjectService
-      .retrieveProjectList()
+      .getProjectList()
       .pipe(untilDestroyed(this))
       .subscribe(userProjectList => {
         if (userProjectList != null && userProjectList.length > 0) {

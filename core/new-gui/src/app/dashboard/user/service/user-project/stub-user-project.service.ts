@@ -6,11 +6,7 @@ import { UserProjectService } from "./user-project.service";
 import { testUserProjects } from "../../component/user-dashboard-test-fixtures";
 
 export class StubUserProjectService {
-  public refreshProjectList(): Observable<DashboardProject[]> {
-    return this.retrieveProjectList();
-  }
-
-  public retrieveProjectList(): Observable<DashboardProject[]> {
+  public getProjectList(): Observable<DashboardProject[]> {
     return new Observable(observer => observer.next(testUserProjects.slice()));
   }
 
