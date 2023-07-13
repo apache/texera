@@ -20,7 +20,8 @@ class Context:
     Context class can be viewed as a friend of DataProcessor.
     """
 
-    def __init__(self, main_loop):
+    def __init__(self, worker_id, main_loop):
+        self.worker_id = worker_id
         self.main_loop = main_loop
         self.input_queue = main_loop._input_queue
         self.operator_manager = OperatorManager()
