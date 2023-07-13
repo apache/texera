@@ -10,7 +10,6 @@ if jps -m | grep -q "TexeraWebApplication"; then
     # Restart TexeraRunWorker
     cd "$(dirname "$0")"
     cd ../
-    pwd
     ./scripts/worker.sh >/dev/null
 
     echo "TexeraRunWorker restarted."
