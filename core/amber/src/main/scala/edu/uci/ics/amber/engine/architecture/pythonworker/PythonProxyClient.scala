@@ -22,7 +22,6 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
-import scala.math.pow
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
@@ -38,7 +37,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     Location.forGrpcInsecure("localhost", portNumber)
   })()
 
-  private val MAX_TRY_COUNT: Int = 5
+  private val MAX_TRY_COUNT: Int = 2
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
   private var running: Boolean = true
@@ -59,12 +58,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           throw new RuntimeException("heartbeat failed")
       } catch {
         case _: RuntimeException =>
-          val retryWaitTimeInMs = UNIT_WAIT_TIME_MS * pow(2, tryCount).toInt
           logger.warn(
-            s"Failed to connect to Flight Server in this attempt, retrying after $retryWaitTimeInMs ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
+            s"Failed to connect to Flight Server in this attempt, retrying after $UNIT_WAIT_TIME_MS ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
           )
           flightClient.close()
-          Thread.sleep(retryWaitTimeInMs)
+          Thread.sleep(UNIT_WAIT_TIME_MS)
           tryCount += 1
       }
     }
@@ -158,12 +156,18 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   override def close(): Unit = {
-
     val action: Action = new Action("shutdown")
-    flightClient.doAction(action) // do not expect reply
+    try {
+      flightClient.doAction(action) // do not expect reply
 
-    flightClient.close()
-
+      flightClient.close()
+    } catch {
+      case _: NullPointerException =>
+        running = false
+        logger.warn(
+          s"Unable to close the flight client because it is null"
+        )
+    }
     // stop the main loop
     running = false
   }
