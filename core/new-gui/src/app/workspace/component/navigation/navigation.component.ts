@@ -28,6 +28,7 @@ import { OperatorMenuService } from "../../service/operator-menu/operator-menu.s
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { isDefined } from "../../../common/util/predicate";
 import { Subscription, timer } from "rxjs";
+
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
