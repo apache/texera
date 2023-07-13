@@ -7,7 +7,6 @@ import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
-import { SourceTablesService } from "../service/dynamic-schema/source-tables/source-tables.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
@@ -46,7 +45,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private userService: UserService,
     private resultPanelToggleService: ResultPanelToggleService,
     // list additional services in constructor so they are initialized even if no one use them directly
-    private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,
     private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
