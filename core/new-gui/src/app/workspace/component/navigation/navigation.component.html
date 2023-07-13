@@ -379,9 +379,10 @@
           <span> {{ runButtonText }} </span>
         </button>
         <ng-template #execution_name>
-          <input [(ngModel)]="currentExecutionName" placeholder="Untitled Execution" />
+          <input
+            [(ngModel)]="currentExecutionName"
+            placeholder="Untitled Execution" />
         </ng-template>
-
 
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
