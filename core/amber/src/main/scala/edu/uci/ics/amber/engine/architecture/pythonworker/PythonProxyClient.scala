@@ -165,7 +165,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
       case _: NullPointerException =>
         running = false
         logger.warn(
-          s"Failed to close since the flight client is null"
+          s"Unable to close the flight client because it is null"
         )
     }
     // stop the main loop
