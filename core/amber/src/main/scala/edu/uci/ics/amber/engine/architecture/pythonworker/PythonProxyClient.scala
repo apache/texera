@@ -22,7 +22,6 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
-import scala.math.pow
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
