@@ -268,9 +268,9 @@ class DashboardResource {
         DSL.inline(null, classOf[UserFileAccessPrivilege]).as("user_file_access")
       )
       .from(PROJECT)
-      .join(USER)
-      .on(PROJECT.OWNER_ID.eq(USER.UID))
-      .where(PROJECT.OWNER_ID.eq(user.getUid))
+      .leftJoin(PROJECT_USER_ACCESS)
+      .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
+      .where(PROJECT_USER_ACCESS.UID.eq(user.getUid))
       .and(
         projectMatchQuery
       )
