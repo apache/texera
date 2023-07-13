@@ -314,9 +314,6 @@
 					executionState !== ExecutionState.Aborted
 			}">
       <nz-button-group nzSize="large">
-<!--        <label class="execution-name">-->
-<!--          <input [(ngModel)]="currentExecutionName" placeholder="Untitled Execution" />-->
-<!--        </label>-->
         <button
           [disabled]="true"
           class="execution-duration"
@@ -364,7 +361,6 @@
             nzTheme="outline"
             nzType="exclamation-circle"></i>
         </button>
-
         <button
           (click)="onClickRunHandler()"
           nz-popover
