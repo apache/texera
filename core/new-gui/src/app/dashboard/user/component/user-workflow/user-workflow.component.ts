@@ -105,7 +105,10 @@ export class UserWorkflowComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
-    this.registerDashboardWorkflowEntriesRefresh();
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.search());
   }
 
   /**
@@ -260,20 +263,6 @@ export class UserWorkflowComponent implements AfterViewInit {
         this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(
           workflowEntry => workflowEntry.workflow.workflow.wid !== entry.workflow.workflow.wid
         );
-      });
-  }
-
-  private registerDashboardWorkflowEntriesRefresh(): void {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.isLogin()) {
-          this.search();
-          this.userProjectService.refreshProjectList();
-        } else {
-          this.search();
-        }
       });
   }
 
