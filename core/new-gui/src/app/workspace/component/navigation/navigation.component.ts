@@ -29,6 +29,7 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 import { isDefined } from "../../../common/util/predicate";
 import { Subscription, timer } from "rxjs";
 
+
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -511,6 +512,7 @@ export class NavigationComponent implements OnInit {
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
   }
+
 
   private registerWorkflowModifiableChangedHandler(): void {
     this.workflowActionService

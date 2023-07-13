@@ -314,11 +314,9 @@
 					executionState !== ExecutionState.Aborted
 			}">
       <nz-button-group nzSize="large">
-        <label class="execution-name">
-          <input
-            [(ngModel)]="currentExecutionName"
-            placeholder="Untitled Execution" />
-        </label>
+<!--        <label class="execution-name">-->
+<!--          <input [(ngModel)]="currentExecutionName" placeholder="Untitled Execution" />-->
+<!--        </label>-->
         <button
           [disabled]="true"
           class="execution-duration"
@@ -366,8 +364,13 @@
             nzTheme="outline"
             nzType="exclamation-circle"></i>
         </button>
+
         <button
           (click)="onClickRunHandler()"
+          nz-popover
+          nzPopoverTitle="Enter Execution Name"
+          [nzPopoverContent]="execution_name"
+          nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           class="texera-navigation-run-button animate-to-reveal-stop-button"
           nz-button
@@ -379,6 +382,11 @@
             nzType="{{ runIcon }}"></i>
           <span> {{ runButtonText }} </span>
         </button>
+        <ng-template #execution_name>
+          <input [(ngModel)]="currentExecutionName" placeholder="Untitled Execution" />
+        </ng-template>
+
+
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
             *ngIf="workflowWebsocketService.isConnected"
