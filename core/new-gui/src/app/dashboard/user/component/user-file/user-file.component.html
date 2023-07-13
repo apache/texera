@@ -98,6 +98,7 @@
           *cdkVirtualFor="let entry of getFileArray()"
           [entry]="entry"
           (deleted)="deleteFile(entry.file.fid)"
+          (refresh)="ngOnInit()"
           [editable]="true"
           [uid]="uid"></texera-user-file-list-item>
       </nz-list>

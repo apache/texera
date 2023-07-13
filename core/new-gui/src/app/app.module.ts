@@ -128,11 +128,13 @@ import { SearchComponent } from "./dashboard/user/component/search/search.compon
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
+import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
     NavigationComponent,
