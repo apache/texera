@@ -47,7 +47,7 @@ class ClusterListener extends Actor with AmberLogging {
       .map(_.address)
   }
 
-  private def forcefullyStop(jobService:WorkflowJobService, cause:Throwable): Unit ={
+  private def forcefullyStop(jobService: WorkflowJobService, cause: Throwable): Unit = {
     jobService.client.shutdown()
     jobService.stateStore.statsStore.updateState(stats =>
       stats.withEndTimeStamp(System.currentTimeMillis())
@@ -65,8 +65,10 @@ class ClusterListener extends Actor with AmberLogging {
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (jobService != null && !jobService.workflow.isCompleted) {
-            if(AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")){
-              logger.info(s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}")
+            if (AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")) {
+              logger.info(
+                s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+              )
               try {
                 futures.append(jobService.client.notifyNodeFailure(member.address))
               } catch {
@@ -76,8 +78,10 @@ class ClusterListener extends Actor with AmberLogging {
                   )
                   forcefullyStop(jobService, t)
               }
-            }else{
-              logger.info(s"Kill execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}")
+            } else {
+              logger.info(
+                s"Kill execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+              )
               forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
             }
           }
