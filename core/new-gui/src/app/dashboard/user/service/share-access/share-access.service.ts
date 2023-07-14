@@ -3,17 +3,13 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { ShareAccess } from "../../type/share-access.interface";
-import { map } from "rxjs/operators";
+
 export const BASE = `${AppSettings.getApiEndpoint()}/access`;
 @Injectable({
   providedIn: "root",
 })
 export class ShareAccessService {
   constructor(private http: HttpClient) {}
-
-  public isReadOnly(id: number): Observable<boolean> {
-    return this.http.get(`${BASE}/workflow/readonly/${id}`).pipe(map((resp: any) => resp));
-  }
 
   public grantAccess(type: string, id: number, email: string, privilege: string): Observable<void> {
     return this.http.put<void>(`${BASE}/${type}/grant/${id}/${email}/${privilege}`, null);

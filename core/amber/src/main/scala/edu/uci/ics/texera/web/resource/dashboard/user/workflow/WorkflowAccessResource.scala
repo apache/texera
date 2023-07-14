@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   PROJECT_USER_ACCESS,
@@ -16,11 +15,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
-  context,
-  hasWriteAccess
-}
-import io.dropwizard.auth.Auth
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
@@ -99,17 +94,6 @@ class WorkflowAccessResource() {
   @Path("/owner/{wid}")
   def getOwner(@PathParam("wid") wid: UInteger): String = {
     userDao.fetchOneByUid(workflowOfUserDao.fetchByWid(wid).get(0).getUid).getEmail
-  }
-
-  /**
-    * This method returns if current user has readonly access to a workflow
-    * @param wid , workflow id
-    * @return True or False
-    */
-  @GET
-  @Path("/readonly/{wid}")
-  def readOnly(@PathParam("wid") wid: UInteger, @Auth user: SessionUser): Boolean = {
-    !hasWriteAccess(wid, user.getUid)
   }
 
   /**
