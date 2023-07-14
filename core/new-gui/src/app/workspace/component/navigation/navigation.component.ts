@@ -370,6 +370,7 @@ export class NavigationComponent implements OnInit {
           wid: undefined,
           creationTime: undefined,
           lastModifiedTime: undefined,
+          readonly: false,
         };
 
         this.workflowActionService.enableWorkflowModification();

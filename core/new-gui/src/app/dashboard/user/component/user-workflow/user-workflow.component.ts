@@ -359,6 +359,7 @@ export class UserWorkflowComponent implements AfterViewInit {
               wid: undefined,
               creationTime: undefined,
               lastModifiedTime: undefined,
+              readonly: false,
             };
             const workflowJson = JSON.stringify(workflowCopy.content);
             zip.file(fileName, workflowJson);

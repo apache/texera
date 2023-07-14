@@ -23,6 +23,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     ),
     creationTime: 1557787975000,
     lastModifiedTime: 1705673070000,
+    readonly: false,
   };
 
   // for filter & sorting tests

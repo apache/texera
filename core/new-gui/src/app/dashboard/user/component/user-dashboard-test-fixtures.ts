@@ -31,6 +31,7 @@ export const testWorkflow1: Workflow = {
   content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
   creationTime: januaryFirst1970,
   lastModifiedTime: januaryFirst1970 + 2,
+  readonly: false,
 };
 
 export const testWorkflow2: Workflow = {
@@ -40,6 +41,7 @@ export const testWorkflow2: Workflow = {
   content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
   creationTime: januaryFirst1970 + (oneDay + 3),
   lastModifiedTime: januaryFirst1970 + (oneDay + 3),
+  readonly: false,
 };
 
 export const testWorkflow3: Workflow = {
@@ -49,6 +51,7 @@ export const testWorkflow3: Workflow = {
   content: testWorkflowContent(["Aggregation", "NlpSentiment"]),
   creationTime: januaryFirst1970 + oneDay,
   lastModifiedTime: januaryFirst1970 + (oneDay + 4),
+  readonly: false,
 };
 
 export const testWorkflow4: Workflow = {
@@ -58,6 +61,7 @@ export const testWorkflow4: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + (oneDay + 3) * 2,
   lastModifiedTime: januaryFirst1970 + oneDay * 2 + 6,
+  readonly: false,
 };
 
 export const testWorkflow5: Workflow = {
@@ -67,6 +71,7 @@ export const testWorkflow5: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + oneDay * 2,
   lastModifiedTime: januaryFirst1970 + oneDay * 2 + 8,
+  readonly: false,
 };
 
 export const testDownloadWorkflow1: Workflow = {
@@ -76,6 +81,7 @@ export const testDownloadWorkflow1: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970, //januaryFirst1970 is 1970-01-01 in PST
   lastModifiedTime: januaryFirst1970 + 2,
+  readonly: false,
 };
 
 export const testDownloadWorkflow2: Workflow = {
@@ -85,6 +91,7 @@ export const testDownloadWorkflow2: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + (oneDay + 3), // oneDay is the number of milliseconds in a day
   lastModifiedTime: januaryFirst1970 + (oneDay + 3),
+  readonly: false,
 };
 
 export const testDownloadWorkflow3: Workflow = {
@@ -94,6 +101,7 @@ export const testDownloadWorkflow3: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + oneDay,
   lastModifiedTime: januaryFirst1970 + (oneDay + 4),
+  readonly: false,
 };
 
 export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [

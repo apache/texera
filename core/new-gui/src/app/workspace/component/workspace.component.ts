@@ -165,11 +165,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .subscribe(
         (workflow: Workflow) => {
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-          this.workflowActionService.enableWorkflowModification();
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
           // load the fetched workflow
           this.workflowActionService.reloadWorkflow(workflow);
+          this.workflowActionService.enableWorkflowModification();
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
