@@ -18,7 +18,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAcce
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
-
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
