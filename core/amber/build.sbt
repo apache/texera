@@ -35,7 +35,7 @@ PB.generate / excludeFilter := "scalapb.proto"
 
 /////////////////////////////////////////////////////////////////////////////
 // Akka related
-val akkaVersion = "2.6.12"
+val akkaVersion = "2.8.3"
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-remote" % akkaVersion,
