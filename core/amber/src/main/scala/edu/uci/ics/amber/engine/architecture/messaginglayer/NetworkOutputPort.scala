@@ -9,7 +9,8 @@ import scala.collection.mutable
 
 /**
   * NetworkOutput for generating sequence number when sending payloads
-  * @param selfID ActorVirtualIdentity for the sender
+  *
+  * @param selfID  ActorVirtualIdentity for the sender
   * @param handler actual sending logic
   * @tparam T payload
   */
@@ -18,7 +19,9 @@ class NetworkOutputPort[T](
     val handler: (ActorVirtualIdentity, ActorVirtualIdentity, Long, T) => Unit
 ) {
   private val idToSequenceNums = new mutable.AnyRefMap[ActorVirtualIdentity, AtomicLong]()
+
   def sendTo(to: ActorVirtualIdentity, payload: T): Unit = {
+
     var receiverId = to
     if (to == SELF) {
       // selfID and VirtualIdentity.SELF should be one key

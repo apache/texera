@@ -96,7 +96,7 @@ class AsyncRPCServer(
     if (call.command.isInstanceOf[QueryStatistics]) {
       return
     }
-    logger.info(
+    logger.debug(
       s"receive command: ${call.command} from $sender (controlID: ${call.commandID})"
     )
   }

@@ -3,6 +3,8 @@ import inspect
 import sys
 from cached_property import cached_property
 
+from bdb import Breakpoint
+
 import fs
 from pathlib import Path
 from typing import Tuple, Optional, Mapping
@@ -14,9 +16,13 @@ from core.models import Operator, SourceOperator
 
 class OperatorManager:
     def __init__(self):
-        self.operator: Optional[Operator] = None
+        self._operator: Optional[Operator] = None
+        self._operator_with_bp: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
         self.operator_version: int = 0  # incremental only
+        self._static = False
+        self.operator_source_code = ""
+        self.scheduled_updates = dict()
 
     @cached_property
     def fs(self) -> FS:
@@ -75,6 +81,8 @@ class OperatorManager:
             operator_module = importlib.reload(operator_module)
         else:
             operator_module = importlib.import_module(module_name)
+        logger.debug("loading code:\n" + code)
+        self.operator_source_code = code
         self.operator_module_name = module_name
 
         operators = list(
@@ -119,9 +127,9 @@ class OperatorManager:
         :return:
         """
         operator: type(Operator) = self.load_operator(code)
-        self.operator = operator()
-        self.operator.is_source = is_source
-        self.operator.output_schema = output_schema
+        self._operator = operator()
+        self._operator.is_source = is_source
+        self._operator.output_schema = output_schema
         assert (
             isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
@@ -138,13 +146,125 @@ class OperatorManager:
         """
         original_internal_state = self.operator.__dict__
         operator: type(Operator) = self.load_operator(code)
-        self.operator = operator()
-        self.operator.is_source = is_source
+        self._operator = operator()
+        self._operator.is_source = is_source
         assert (
             isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
-        self.operator.__dict__ = original_internal_state
+        self._operator.__dict__ = original_internal_state
         # TODO:
         #   it may be an interesting idea to preserve versions of code and versions
         #   of states whenever the operator logic is being updated.
+
+    def add_breakpoint(self, bp: Breakpoint) -> str:
+        """
+        Add a static breakpoint() line into the source code.
+        :param bp: the breakpoint to be converted into a static code line.
+        :return : the updated source code string
+        """
+
+        lineno = bp.line
+        condition = bp.cond
+
+        code_lines = self.operator_source_code.splitlines()
+        target_line = code_lines[lineno - 1]
+        code_before = code_lines[: lineno - 1]
+        code_after = code_lines[lineno:]
+
+        indentation = " " * (len(target_line) - len(target_line.lstrip()))
+        bp_line = f"{indentation}{f'if {condition}:' if condition else ''}breakpoint()"
+        new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+
+        logger.debug("code with breakpoint:\n" + new_code)
+
+        return new_code
+
+    def add_ss(self, lineno, state):
+        lineno = lineno
+
+        old_code = self.operator_source_code.splitlines()
+        target_line = old_code[lineno - 1]
+        code_before = old_code[: lineno - 1]
+        code_after = old_code[lineno:]
+
+        indentation = " " * (len(target_line) - len(target_line.lstrip()))
+        bp_line = f"{indentation}tuple_['{state}'] = {state}*100"
+
+        new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+        return new_code
+
+    def add_rs(self, lineno, req_lineno, req_state, target_worker_id):
+        lineno = lineno
+
+        old_code = self.operator_source_code.splitlines()
+        target_line = old_code[lineno - 1]
+        code_before = old_code[: lineno - 1]
+        code_after = old_code[lineno:]
+
+        indentation = " " * (len(target_line) - len(target_line.lstrip()))
+        bp_line = (
+            f"{indentation}yield 'request({target_worker_id}, {req_lineno},"
+            f" {req_state})'"
+        )
+
+        new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+        logger.info("new code \n:" + new_code)
+        # print(new_code, file=sys.stdout)
+        return new_code
+
+    def add_as(self, lineno, state):
+        old_code = self.operator_source_code.splitlines()
+        target_line = old_code[lineno - 1]
+        code_before = old_code[: lineno - 1]
+        code_after = old_code[lineno:]
+
+        indentation = " " * (len(target_line) - len(target_line.lstrip()))
+        bp_line = f"{indentation}yield 'store({lineno}, {state})'"
+
+        new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
+
+        return new_code
+
+    def schedule_update_code(self, when: str, change: str):
+        if change[:2] == "ss":  # store state
+            ss, lineno, state = change.split()
+            self.scheduled_updates[when] = (
+                self.add_ss(int(lineno), state),
+                self.operator.is_source,
+            )
+
+        if change[:2] == "rs":  # request state
+            ss, lineno, req_lineno, req_state, target_worker_id = change.split()
+            self.scheduled_updates[when] = (
+                self.add_rs(int(lineno), int(req_lineno), req_state, target_worker_id),
+                self.operator.is_source,
+            )
+
+        if change[:2] == "as":  # append state
+            ss, lineno, state = change.split()
+            self.scheduled_updates[when] = (
+                self.add_as(int(lineno), state),
+                self.operator.is_source,
+            )
+        logger.info("updated code:\n" + self.scheduled_updates[when][0])
+
+    def apply_available_code_update(self):
+        if self.scheduled_updates:
+            self.update_operator(*self.scheduled_updates["tuple"])
+            del self.scheduled_updates["tuple"]
+
+    def add_operator_with_bp(self, code, is_source):
+        original_internal_state = self._operator.__dict__
+        operator: type(Operator) = self.load_operator(code)
+        self._operator_with_bp = operator()
+        self._operator_with_bp.is_source = is_source
+        # overwrite the internal state
+        self._operator_with_bp.__dict__ = original_internal_state
+
+    @property
+    def operator(self):
+        if self._static:
+            return self._operator_with_bp
+        else:
+            return self._operator

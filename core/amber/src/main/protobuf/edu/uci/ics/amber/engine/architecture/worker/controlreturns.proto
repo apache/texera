@@ -32,6 +32,10 @@ message EvaluatedValue {
   repeated TypedValue attributes = 2;
 }
 
+message StateReturn {
+  bytes bytes = 1;
+}
+
 message ControlReturnV2 {
   oneof value {
     ControlException control_exception = 1;
@@ -41,6 +45,7 @@ message ControlReturnV2 {
     CurrentInputTupleInfo current_input_tuple_info = 4;
     EvaluatedValue evaluated_value = 5;
     SelfWorkloadReturn self_workload_return = 6;
+    StateReturn state_return = 7;
   }
 }
 

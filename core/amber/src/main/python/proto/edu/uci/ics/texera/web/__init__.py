@@ -105,11 +105,13 @@ class OperatorRuntimeStats(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class JobStatsStore(betterproto.Message):
+    start_time_stamp: int = betterproto.int64_field(1)
+    end_time_stamp: int = betterproto.int64_field(2)
     operator_info: Dict[str, "OperatorRuntimeStats"] = betterproto.map_field(
-        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
+        3, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
     operator_worker_mapping: List["OperatorWorkerMapping"] = betterproto.message_field(
-        2
+        4
     )
 
 

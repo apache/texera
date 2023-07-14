@@ -83,6 +83,11 @@ message EvaluateExpressionV2 {
 message WorkerDebugCommandV2 {
     string cmd = 1;
 }
+message StateRequestV2{
+    string tuple_id = 1;
+    int32 line_no = 2;
+    string state_name = 3;
+}
 
 message QuerySelfWorkloadMetricsV2{
 }
@@ -119,6 +124,7 @@ message ControlCommandV2 {
         QuerySelfWorkloadMetricsV2 query_self_workload_metrics = 41;
 
         WorkerDebugCommandV2 worker_debug_command = 81;
+        StateRequestV2 state_request = 82;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }

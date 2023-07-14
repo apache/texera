@@ -31,6 +31,9 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
     LinkCompletedV2,
     PythonConsoleMessageV2,
+    WorkerDebugCommandV2,
+    StateRequestV2,
+    StateReturn,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -38,6 +41,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     ControlPayloadV2,
     ReturnInvocationV2,
 )
+import time
 
 
 class MainLoop(StoppableQueueBlockingRunnable):
@@ -56,6 +60,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         threading.Thread(
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
+        self.main_loop_start_time = time.time()
 
     def complete(self) -> None:
         """
@@ -73,6 +78,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
             ActorVirtualIdentity(name="CONTROLLER"), control_command
         )
         self.context.close()
+        import bdb
+
+        logger.info("total time in eval: " + str(bdb.total_time))
+        logger.info(
+            "total time of operator: " + str(time.time() - self.main_loop_start_time)
+        )
 
     def _check_and_process_control(self) -> None:
         """
@@ -106,6 +117,26 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     1. a ControlElement;
                     2. a DataElement.
         """
+        if isinstance(
+            next_entry, DataElement
+        ) and self.context.state_manager.confirm_state(WorkerState.READY):
+            # add simulated debug comments here - for experimental purpose
+
+            # examples:
+
+            # add a breakpoint
+            # self.simulate_debug_command(
+            #     "b 20, 'Udon' in tuple_['text'] and 'welcome' in tokens"
+            # )
+
+            # add a state transfer (active request)
+            # self.simulate_debug_command(
+            #     "rs 20 22 tokens "
+            #     "PythonUDFV2-operator-8c277eca-adb7-4b4f-866c-3e8950535ef1-main"
+            # )
+
+            pass
+
         match(
             next_entry,
             DataElement,
@@ -139,9 +170,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         This is being invoked for each Tuple/Marker that are unpacked from the
         DataElement.
         """
-        if isinstance(self.context.tuple_processing_manager.current_input_tuple, Tuple):
+        if isinstance(self.context.tuple_processing_manager.current_input, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
-
+        self.context.operator_manager.apply_available_code_update()
         for output_tuple in self.process_tuple_with_udf():
             self._check_and_process_control()
             if output_tuple is not None:
@@ -167,7 +198,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
         while not finished_current.is_set():
             self._check_and_process_control()
             self._switch_context()
-            yield self.context.tuple_processing_manager.get_output_tuple()
+            output = self.context.tuple_processing_manager.get_output()
+            if isinstance(output, str):
+                self.handle_state_transfer_statements(output)
+            else:
+                yield output
+
+    def handle_state_return(self, state_name, state_return: StateReturn):
+        import pickle
+
+        self.context.tuple_processing_manager.output_iterator.gi_frame.f_locals[
+            state_name
+        ] = pickle.loads(state_return.bytes)
+        self._resume_dp()
 
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
@@ -190,7 +233,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_control_payload(control_element.tag, control_element.payload)
 
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
-        self.context.tuple_processing_manager.current_input_tuple = tuple_
+        self.context.tuple_processing_manager.current_input = tuple_
         self.process_input_tuple()
         self._check_and_process_control()
 
@@ -344,6 +387,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _check_and_report_debug_event(self) -> None:
         if self.context.debug_manager.has_debug_event():
             debug_event = self.context.debug_manager.get_debug_event()
+
             self._send_console_message(
                 PythonConsoleMessageV2(
                     timestamp=datetime.datetime.now(),
@@ -352,7 +396,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     message=debug_event,
                 )
             )
+            auto_resume = False
+
+            if self.context.debug_manager.is_breakpoint_hit_event(debug_event):
+                if not self.context.debug_manager.PAUSE_ON_HITTING_BREAKPOINT:
+                    auto_resume = True
+
+            if self.context.debug_manager.is_setting_breakpoint_event(debug_event):
+                if not self.context.debug_manager.PAUSE_ON_SETTING_BREAKPOINT:
+                    auto_resume = True
+
+            if auto_resume:
+                control_command = set_one_of(
+                    ControlCommandV2,
+                    WorkerDebugCommandV2(cmd="c"),
+                )
+                self._async_rpc_client.send(
+                    ActorVirtualIdentity(name="SELF"), control_command
+                )
+
             self._pause_dp()
+            self._check_and_process_control()
+            self._switch_context()
 
     def _check_and_report_exception(self) -> None:
         if self.context.exception_manager.has_exception():
@@ -376,3 +441,53 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_report_print()
         self._check_and_report_debug_event()
         self._check_and_report_exception()
+
+    def simulate_debug_command(self, debug_command: str):
+        control_command = set_one_of(
+            ControlCommandV2,
+            WorkerDebugCommandV2(cmd=debug_command),
+        )
+        self._async_rpc_client.send(ActorVirtualIdentity(name="SELF"), control_command)
+        self._pause_dp()
+        self._check_and_process_control()
+        self._switch_context()
+
+    def handle_state_transfer_statements(self, statement: str):
+        if "request(" in statement:
+            # request state
+            target_worker_id, line_no, state_name = (
+                statement.strip("request(").strip(")").split(",")
+            )
+
+            control_command = set_one_of(
+                ControlCommandV2,
+                StateRequestV2(
+                    tuple_id=str(
+                        self.context.tuple_processing_manager.current_input["id"]
+                    ),
+                    line_no=int(line_no),
+                    state_name=state_name.strip(),
+                ),
+            )
+            self._async_rpc_client.send(
+                ActorVirtualIdentity(name=target_worker_id), control_command
+            ).add_done_callback(
+                lambda ret: self.handle_state_return(
+                    state_name, ret.result().state_return
+                )
+            )
+            logger.info("sent a request to " + target_worker_id)
+            self._pause_dp()
+            self._check_and_process_control()
+
+        elif "store(" in statement:
+            # store state
+            lineno, state_name = statement.strip("store(").strip(")").split(",")
+            state_name = state_name.strip()
+
+            tuple_id = str(self.context.tuple_processing_manager.current_input["id"])
+            self.context.debug_manager.states[
+                (tuple_id, lineno, state_name)
+            ] = self.context.tuple_processing_manager.output_iterator.gi_frame.f_locals[
+                state_name
+            ]
