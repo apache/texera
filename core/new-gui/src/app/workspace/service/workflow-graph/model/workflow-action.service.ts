@@ -30,6 +30,7 @@ import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
 
 /**
  *
@@ -82,7 +83,8 @@ export class WorkflowActionService {
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
     private workflowUtilService: WorkflowUtilService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private shareAccessService: ShareAccessService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -112,12 +114,19 @@ export class WorkflowActionService {
    * Workflow modification lock interface (allows or prevents commands that would modify the workflow graph).
    */
   public enableWorkflowModification() {
-    if (this.workflowModificationEnabled) {
-      return;
+    const wid = this.workflowMetadata.wid;
+    if (wid) {
+      this.shareAccessService.isReadOnly(wid).subscribe(isReadOnly => {
+        console.log("here", wid);
+        if (!isReadOnly) {
+          if (!this.workflowModificationEnabled) {
+            this.workflowModificationEnabled = true;
+            this.enableModificationStream.next(true);
+            this.undoRedoService.enableWorkFlowModification();
+          }
+        }
+      });
     }
-    this.workflowModificationEnabled = true;
-    this.enableModificationStream.next(true);
-    this.undoRedoService.enableWorkFlowModification();
   }
 
   public disableWorkflowModification() {

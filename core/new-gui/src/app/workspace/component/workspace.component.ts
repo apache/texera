@@ -22,7 +22,6 @@ import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
-import { ShareAccessService } from "../../dashboard/user/service/share-access/share-access.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -60,8 +59,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
     private router: Router,
-    private notificationService: NotificationService,
-    private shareAccessService: ShareAccessService
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit() {
@@ -167,18 +165,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .subscribe(
         (workflow: Workflow) => {
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-          this.shareAccessService
-            .isReadOnly(wid)
-            .pipe(untilDestroyed(this))
-            .subscribe(isReadOnly => {
-              if (!isReadOnly) {
-                this.workflowActionService.enableWorkflowModification();
-              }
-            });
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
           // load the fetched workflow
           this.workflowActionService.reloadWorkflow(workflow);
+          this.workflowActionService.enableWorkflowModification();
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
