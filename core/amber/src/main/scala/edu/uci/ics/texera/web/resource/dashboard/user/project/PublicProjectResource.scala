@@ -4,11 +4,8 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  ProjectUserAccessDao,
-  PublicProjectDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Project, ProjectUserAccess, PublicProject}
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource.DashboardProject
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
@@ -65,12 +62,12 @@ class PublicProjectResource {
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/list")
-  def listPublicProjects(): util.List[DashboardProject] = {
+  def listPublicProjects(): util.List[Project] = {
     context
       .select()
-      .from(PROJECT)
-      .leftJoin(PUBLIC_PROJECT)
+      .from(PUBLIC_PROJECT)
+      .leftJoin(PROJECT)
       .on(PUBLIC_PROJECT.PID.eq(PROJECT.PID))
-      .fetchInto(classOf[DashboardProject])
+      .fetchInto(classOf[Project])
   }
 }

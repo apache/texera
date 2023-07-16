@@ -26,6 +26,7 @@
       <tr *ngFor="let data of rowSelectionTable.data">
         <td
           [nzChecked]="checkedList.has(data.pid)"
+          [nzDisabled]="disabledList.has(data.pid)"
           (nzCheckedChange)="onItemChecked(data.pid, $event)"></td>
         <td>{{ data.pid }}</td>
         <td>{{ data.name }}</td>

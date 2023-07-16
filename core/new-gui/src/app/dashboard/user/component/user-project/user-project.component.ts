@@ -97,7 +97,9 @@ export class UserProjectComponent implements OnInit {
 
   public openPublicProject(): void {
     const modalRef = this.modalService.open(PublicProjectComponent, { size: "lg" });
-    modalRef.componentInstance.userProjectEntries = this.userProjectEntries;
+    const res = new Set(this.userProjectEntries.map(project => project.pid));
+    console.log(res);
+    modalRef.componentInstance.disabledList = res
     modalRef.closed.pipe(untilDestroyed(this)).subscribe(() => {
       this.ngOnInit();
     });

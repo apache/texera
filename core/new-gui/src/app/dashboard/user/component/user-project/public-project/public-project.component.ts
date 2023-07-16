@@ -9,7 +9,7 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
   templateUrl: "public-project.component.html",
 })
 export class PublicProjectComponent implements OnInit {
-  @Input() userProjectEntries: DashboardProject[] = [];
+  @Input() disabledList: Set<number> = new Set<number>();
   publicProjectEntries: DashboardProject[] = [];
   checked = false;
   indeterminate = false;
@@ -20,12 +20,7 @@ export class PublicProjectComponent implements OnInit {
     this.publicProjectService
       .getPublicProjects()
       .pipe(untilDestroyed(this))
-      .subscribe(publicProjects => {
-        console.log(this.userProjectEntries);
-        this.publicProjectEntries = publicProjects.filter(publicProject =>
-          this.userProjectEntries.every(userProject => userProject.pid !== publicProject.pid)
-        );
-      });
+      .subscribe(publicProjects => (this.publicProjectEntries = publicProjects));
   }
 
   updateCheckedSet(id: number, checked: boolean): void {
