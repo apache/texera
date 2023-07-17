@@ -31,6 +31,8 @@ public class OPversion {
                 opMap.put(operatorName, version);
             } catch (GitAPIException e) {
                 e.printStackTrace();
+            } catch (NullPointerException e) {
+                opMap.put(operatorName, "N/A");
             }
         }
         return opMap.get(operatorName);
