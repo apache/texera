@@ -132,7 +132,7 @@
         </ng-template>
       </td>
       <td style="color: #1890ff">
-        <div *ngIf="currentUid!==user.uid">
+        <div>
           <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
             <a (click)="startEdit(user)">Edit</a>
           </ng-container>
