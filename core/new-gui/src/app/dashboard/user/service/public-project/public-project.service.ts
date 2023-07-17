@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { DashboardProject } from "../../type/dashboard-project.interface";
+import { PublicProject } from "../../type/dashboard-project.interface";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/public/project`;
 
@@ -24,8 +24,8 @@ export class PublicProjectService {
     return this.http.put<void>(`${USER_BASE_URL}/private/${pid}`, null);
   }
 
-  public getPublicProjects(): Observable<DashboardProject[]> {
-    return this.http.get<DashboardProject[]>(`${USER_BASE_URL}/list`);
+  public getPublicProjects(): Observable<PublicProject[]> {
+    return this.http.get<PublicProject[]>(`${USER_BASE_URL}/list`);
   }
 
   public addPublicProjects(CheckedId: number[]): Observable<void> {

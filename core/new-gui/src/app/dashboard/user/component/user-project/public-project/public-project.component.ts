@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PublicProjectService } from "../../../service/public-project/public-project.service";
-import { DashboardProject } from "../../../type/dashboard-project.interface";
+import { PublicProject } from "../../../type/dashboard-project.interface";
 
 @UntilDestroy()
 @Component({
@@ -10,7 +10,7 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
 })
 export class PublicProjectComponent implements OnInit {
   @Input() disabledList: Set<number> = new Set<number>();
-  publicProjectEntries: DashboardProject[] = [];
+  publicProjectEntries: PublicProject[] = [];
   checked = false;
   indeterminate = false;
   checkedList = new Set<number>();

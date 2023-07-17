@@ -46,7 +46,6 @@ export class ShareAccessComponent implements OnInit {
       .subscribe(name => {
         this.owner = name;
       });
-
   }
 
   public onChange(value: string): void {
