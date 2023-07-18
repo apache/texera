@@ -1,6 +1,7 @@
 import { Component, Input } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { VisualizationFrameContentComponent } from "../../visualization-panel-content/visualization-frame-content.component";
+import { ViewChild, TemplateRef } from "@angular/core";
 
 /**
  * VisualizationFrameComponent displays the button for visualization in ResultPanel when the result type is chart.
@@ -15,6 +16,8 @@ import { VisualizationFrameContentComponent } from "../../visualization-panel-co
 })
 export class VisualizationFrameComponent {
   @Input() operatorId?: string;
+  @ViewChild("modalTitleMax") modalTitleMax!: TemplateRef<{}>;
+  @ViewChild("modalTitleMin") modalTitleMin!: TemplateRef<{}>;
   modalRef?: NzModalRef;
 
   constructor(private modalService: NzModalService) {}
@@ -25,11 +28,36 @@ export class VisualizationFrameComponent {
     }
 
     this.modalRef = this.modalService.create({
-      nzTitle: "Visualization",
+      nzTitle: this.modalTitleMax,
       nzStyle: { top: "20px" },
       nzWidth: 1100,
-      nzFooter: null, // null indicates that the footer of the window would be hidden
       nzContent: VisualizationFrameContentComponent,
+      nzBodyStyle: { height: "800px" },
+      nzComponentParams: {
+        operatorId: this.operatorId,
+      },
+    });
+  }
+
+  maximize(): void {
+    // @ts-ignore
+    this.modalRef.updateConfig({
+      nzTitle: this.modalTitleMin,
+      nzWidth: "100vw",
+      nzStyle: { top: "0", bottom: "0", left: "0", right: "0", height: "100vh", width: "100vw" },
+      nzBodyStyle: { width: "100vw", height: "100vh", padding: "0" },
+      nzFooter: null,
+    });
+  }
+
+  minimize(): void {
+    // @ts-ignore
+    this.modalRef.updateConfig({
+      nzTitle: this.modalTitleMax,
+      nzStyle: { top: "20px", width: "1100px", height: "800px" },
+      nzWidth: 1100,
+      nzContent: VisualizationFrameContentComponent,
+      nzBodyStyle: { width: "1100px", height: "800px" },
       nzComponentParams: {
         operatorId: this.operatorId,
       },

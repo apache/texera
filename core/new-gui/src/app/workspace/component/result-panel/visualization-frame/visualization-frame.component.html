@@ -3,3 +3,27 @@
   (click)="onClickVisualize()">
   Visualize
 </button>
+
+<ng-template #modalTitleMax>
+  <div style="display: flex; align-items: center; justify-content: space-between">
+    <span>Visualization</span>
+    <button
+      class="ant-btn ant-btn-primary"
+      style="margin-right: 20px"
+      (click)="maximize()">
+      Maximize
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #modalTitleMin>
+  <div style="display: flex; align-items: center; justify-content: space-between">
+    <span>Visualization</span>
+    <button
+      class="ant-btn ant-btn-primary"
+      style="margin-right: 20px"
+      (click)="minimize()">
+      Minimize
+    </button>
+  </div>
+</ng-template>
