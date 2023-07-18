@@ -1,4 +1,4 @@
-from typing import Protocol, Sized, Container, Iterator, Callable
+from typing import Protocol, Sized, Container, Iterator
 
 import pandas
 
@@ -25,6 +25,8 @@ class Table(TableLike):
             self.__data_frame = pandas.DataFrame.from_records(
                 (i.as_dict() for i in table_like)
             )
+        else:
+            raise TypeError(f"unsupported table_like type :{type(table_like)}")
 
     def __getattr__(self, item):
         return self.__data_frame.__getattr__(item)
