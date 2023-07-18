@@ -215,17 +215,12 @@ class TableOperator(TupleOperatorV2):
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(
-            pandas.DataFrame([i.as_series() for i in self.__table_data[port]])
-        )
+        table = Table(self.__table_data[port])
+
         for output_table in self.process_table(table, port):
             if output_table is not None:
-                if isinstance(output_table, pandas.DataFrame):
-                    # TODO: integrate into Table as a helper function.
-                    # convert from Table to Tuple, only supports pandas.DataFrames for
-                    # now.
-                    for _, output_tuple in output_table.iterrows():
-                        yield output_tuple
+                if isinstance(output_table, (Table, list)):
+                    yield from output_table.as_tuples()
                 else:
                     yield output_table
 
