@@ -47,10 +47,8 @@ class Table(TableLike):
         return self.__data_frame.__setitem__(key, value)
 
     def as_tuples(self) -> Iterator[Tuple]:
-        for t in self.__data_frame.itertuples():
-            d = t._asdict()
-            del d["Index"]
-            yield Tuple(d)
+        for t in self.__data_frame.itertuples(index=False):
+            yield Tuple(t._asdict())
 
     def as_dataframe(self) -> pandas.DataFrame:
         return self.__data_frame.__deepcopy__()
