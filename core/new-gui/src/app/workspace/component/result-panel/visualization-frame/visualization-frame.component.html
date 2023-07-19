@@ -4,26 +4,16 @@
   Visualize
 </button>
 
-<ng-template #modalTitleMax>
+<ng-template #modalTitle>
   <div style="display: flex; align-items: center; justify-content: space-between">
     <span>Visualization</span>
-    <button
-      class="ant-btn ant-btn-primary"
-      style="margin-right: 20px"
-      (click)="maximize()">
-      Maximize
-    </button>
-  </div>
-</ng-template>
-
-<ng-template #modalTitleMin>
-  <div style="display: flex; align-items: center; justify-content: space-between">
-    <span>Visualization</span>
-    <button
-      class="ant-btn ant-btn-primary"
-      style="margin-right: 20px"
-      (click)="minimize()">
-      Minimize
-    </button>
+    <span
+      class="ant-modal-close-x"
+      style="position: absolute; top: 0; right: 40px">
+      <i
+        nz-icon
+        [nzType]="isFullscreen ? 'fullscreen-exit' : 'fullscreen'"
+        (click)="toggleFullscreen()"></i>
+    </span>
   </div>
 </ng-template>
