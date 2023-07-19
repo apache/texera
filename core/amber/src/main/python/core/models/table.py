@@ -38,7 +38,7 @@ class Table(TableLike):
         return self.__data_frame.__len__()
 
     def __str__(self) -> str:
-        return "Table " + self.__data_frame.__str__()
+        return f"Table[{self.__data_frame}]"
 
     def __getitem__(self, item):
         return self.__data_frame.__getitem__(item)
@@ -47,8 +47,19 @@ class Table(TableLike):
         return self.__data_frame.__setitem__(key, value)
 
     def as_tuples(self) -> Iterator[Tuple]:
+        """
+        Convert rows of the table into Tuples, and returning an iterator of Tuples
+        following their row index order.
+        :return:
+        """
         for t in self.__data_frame.itertuples(index=False):
+            # TODO: Converting to NamedTuple will cause the field names be renamed to
+            #   valid Python identifiers.
             yield Tuple(t._asdict())
 
     def as_dataframe(self) -> pandas.DataFrame:
+        """
+        Return a deepcopy of the internal pandas.DataFrame.
+        :return:
+        """
         return self.__data_frame.__deepcopy__()
