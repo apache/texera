@@ -109,10 +109,10 @@
     "@angular/cli": "~13.3.9",
     "@angular/compiler-cli": "~13.3.9",
     "@angular/language-service": "~13.3.9",
-    "@nrwl/cli": "14.0.0",
-    "@nrwl/cypress": "14.0.0",
+    "@nrwl/cli": "14.4.0",
+    "@nrwl/cypress": "14.4.0",
     "@nrwl/nx-cloud": "16.1.1",
-    "@nrwl/workspace": "14.0.0",
+    "@nrwl/workspace": "14.4.0",
     "@types/backbone": "1.4.15",
     "@types/c3": "0.7.8",
     "@types/d3": "6.7.5",
@@ -152,17 +152,18 @@
     "ngx-pipes": "3.0.0",
     "nodecat": "2.0.0",
     "nz-tslint-rules": "0.901.2",
-    "prettier": "2.8.0",
+    "prettier": "2.8.8",
     "prettier-eslint-cli": "7.1.0",
     "rxjs-marbles": "7.0.1",
     "sass": "1.49.9",
     "ts-node": "4.1.0",
-    "typescript": "4.5.5",
+    "typescript": "4.7.4",
     "webpack-bundle-analyzer": "4.5.0",
-    "nx": "14.0.0"
+    "nx": "14.4.0"
   },
   "browserslist": [
     "defaults",
     "not ie <= 11"
   ]
 }
+
