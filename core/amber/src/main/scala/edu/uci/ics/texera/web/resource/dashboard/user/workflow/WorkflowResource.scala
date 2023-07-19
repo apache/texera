@@ -70,6 +70,16 @@ object WorkflowResource {
       projectIDs: List[UInteger]
   )
 
+  case class WorkflowWithPrivilege(
+      name: String,
+      description: String,
+      wid: UInteger,
+      content: String,
+      creationTime: Timestamp,
+      lastModifiedTime: Timestamp,
+      readonly: Boolean
+  )
+
   def createWorkflowFilterCondition(
       creationStartDate: String,
       creationEndDate: String,
@@ -387,11 +397,19 @@ class WorkflowResource {
   @Path("/{wid}")
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
-  ): Workflow = {
-    val user = sessionUser.getUser
+      @Auth user: SessionUser
+  ): WorkflowWithPrivilege = {
     if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
-      workflowDao.fetchOneByWid(wid)
+      val workflow = workflowDao.fetchOneByWid(wid)
+      WorkflowWithPrivilege(
+        workflow.getName,
+        workflow.getDescription,
+        workflow.getWid,
+        workflow.getContent,
+        workflow.getCreationTime,
+        workflow.getLastModifiedTime,
+        !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
+      )
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
     }

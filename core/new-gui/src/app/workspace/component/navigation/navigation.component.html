@@ -365,6 +365,7 @@
           (click)="onClickRunHandler()"
           nz-popover
           nzPopoverTitle="Enter Execution Name"
+          [nzPopoverTrigger]="userSystemEnabled?'hover':null"
           [nzPopoverContent]="execution_name"
           nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
