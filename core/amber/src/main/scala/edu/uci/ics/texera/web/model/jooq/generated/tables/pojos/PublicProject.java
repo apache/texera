@@ -15,20 +15,24 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class PublicProject implements IPublicProject {
 
-    private static final long serialVersionUID = -2043335448;
+    private static final long serialVersionUID = -956065810;
 
     private UInteger pid;
+    private UInteger uid;
 
     public PublicProject() {}
 
     public PublicProject(IPublicProject value) {
         this.pid = value.getPid();
+        this.uid = value.getUid();
     }
 
     public PublicProject(
-        UInteger pid
+        UInteger pid,
+        UInteger uid
     ) {
         this.pid = pid;
+        this.uid = uid;
     }
 
     @Override
@@ -42,10 +46,21 @@ public class PublicProject implements IPublicProject {
     }
 
     @Override
+    public UInteger getUid() {
+        return this.uid;
+    }
+
+    @Override
+    public void setUid(UInteger uid) {
+        this.uid = uid;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("PublicProject (");
 
         sb.append(pid);
+        sb.append(", ").append(uid);
 
         sb.append(")");
         return sb.toString();
@@ -58,6 +73,7 @@ public class PublicProject implements IPublicProject {
     @Override
     public void from(IPublicProject from) {
         setPid(from.getPid());
+        setUid(from.getUid());
     }
 
     @Override
