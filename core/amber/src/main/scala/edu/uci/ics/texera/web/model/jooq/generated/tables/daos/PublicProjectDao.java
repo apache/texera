@@ -59,4 +59,18 @@ public class PublicProjectDao extends DAOImpl<PublicProjectRecord, edu.uci.ics.t
     public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.PublicProject fetchOneByPid(UInteger value) {
         return fetchOne(PublicProject.PUBLIC_PROJECT.PID, value);
     }
+
+    /**
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.PublicProject> fetchRangeOfUid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(PublicProject.PUBLIC_PROJECT.UID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>uid IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.PublicProject> fetchByUid(UInteger... values) {
+        return fetch(PublicProject.PUBLIC_PROJECT.UID, values);
+    }
 }

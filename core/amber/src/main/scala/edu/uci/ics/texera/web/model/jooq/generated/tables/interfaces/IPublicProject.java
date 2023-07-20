@@ -25,6 +25,16 @@ public interface IPublicProject extends Serializable {
      */
     public UInteger getPid();
 
+    /**
+     * Setter for <code>texera_db.public_project.uid</code>.
+     */
+    public void setUid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.public_project.uid</code>.
+     */
+    public UInteger getUid();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

@@ -17,7 +17,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row1;
+import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -33,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class PublicProject extends TableImpl<PublicProjectRecord> {
 
-    private static final long serialVersionUID = -1609214243;
+    private static final long serialVersionUID = 509034382;
 
     /**
      * The reference instance of <code>texera_db.public_project</code>
@@ -52,6 +52,11 @@ public class PublicProject extends TableImpl<PublicProjectRecord> {
      * The column <code>texera_db.public_project.pid</code>.
      */
     public final TableField<PublicProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.public_project.uid</code>.
+     */
+    public final TableField<PublicProjectRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED, this, "");
 
     /**
      * Create a <code>texera_db.public_project</code> table reference
@@ -142,11 +147,11 @@ public class PublicProject extends TableImpl<PublicProjectRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row1 type methods
+    // Row2 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row1<UInteger> fieldsRow() {
-        return (Row1) super.fieldsRow();
+    public Row2<UInteger, UInteger> fieldsRow() {
+        return (Row2) super.fieldsRow();
     }
 }

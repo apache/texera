@@ -5,7 +5,6 @@ import { ShareAccessService } from "../../service/share-access/share-access.serv
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
-import { PublicProjectService } from "../../service/public-project/public-project.service";
 
 @UntilDestroy()
 @Component({
@@ -27,17 +26,13 @@ export class ShareAccessComponent implements OnInit {
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
   currentEmail: string | undefined = "";
-  isAdmin: boolean = false;
-  isPublic: boolean = false;
   constructor(
     public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
     private formBuilder: FormBuilder,
-    private userService: UserService,
-    private publicProjectService: PublicProjectService
+    private userService: UserService
   ) {
     this.currentEmail = this.userService.getCurrentUser()?.email;
-    this.isAdmin = this.userService.isAdmin();
   }
 
   ngOnInit(): void {
@@ -50,12 +45,6 @@ export class ShareAccessComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(name => {
         this.owner = name;
-      });
-    this.publicProjectService
-      .getType(this.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(type => {
-        this.isPublic = type === "Public";
       });
   }
 
@@ -91,19 +80,5 @@ export class ShareAccessComponent implements OnInit {
         }
         this.ngOnInit();
       });
-  }
-
-  public visibilityChange(): void {
-    if (this.isPublic) {
-      this.publicProjectService
-        .makePrivate(this.id)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.ngOnInit());
-    } else {
-      this.publicProjectService
-        .makePublic(this.id)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.ngOnInit());
-    }
   }
 }

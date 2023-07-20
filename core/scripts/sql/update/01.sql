@@ -1,3 +1,4 @@
+USE `texera_db`;
 CREATE TABLE IF NOT EXISTS public_project
 (
     `pid`             INT UNSIGNED NOT NULL,

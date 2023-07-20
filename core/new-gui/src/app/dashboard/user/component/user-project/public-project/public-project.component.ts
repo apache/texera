@@ -2,15 +2,15 @@ import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PublicProjectService } from "../../../service/public-project/public-project.service";
-import { DashboardProject } from "../../../type/dashboard-project.interface";
+import { PublicProject } from "../../../type/dashboard-project.interface";
 
 @UntilDestroy()
 @Component({
   templateUrl: "public-project.component.html",
 })
 export class PublicProjectComponent implements OnInit {
-  @Input() userProjectEntries: DashboardProject[] = [];
-  publicProjectEntries: DashboardProject[] = [];
+  @Input() disabledList: Set<number> = new Set<number>();
+  publicProjectEntries: PublicProject[] = [];
   checked = false;
   indeterminate = false;
   checkedList = new Set<number>();
@@ -20,12 +20,7 @@ export class PublicProjectComponent implements OnInit {
     this.publicProjectService
       .getPublicProjects()
       .pipe(untilDestroyed(this))
-      .subscribe(publicProjects => {
-        console.log(this.userProjectEntries);
-        this.publicProjectEntries = publicProjects.filter(publicProject =>
-          this.userProjectEntries.every(userProject => userProject.pid !== publicProject.pid)
-        );
-      });
+      .subscribe(publicProjects => (this.publicProjectEntries = publicProjects));
   }
 
   updateCheckedSet(id: number, checked: boolean): void {

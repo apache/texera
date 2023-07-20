@@ -208,7 +208,7 @@ class DashboardResource {
           WORKFLOW.LAST_MODIFIED_TIME,
           WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
-          USER.NAME.as("userName"),
+          USER.NAME,
           // project attributes: 3 columns
           DSL.inline(null, classOf[UInteger]).as("pid"),
           DSL.inline(null, classOf[UInteger]).as("owner_id"),
