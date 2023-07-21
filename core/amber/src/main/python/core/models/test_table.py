@@ -62,32 +62,32 @@ class TestTable:
 
     def test_table_from_data_frame(self, target_table, a_timestamp):
         assert (
-                Table(
-                    pandas.DataFrame(
-                        {
-                            "field1": [1, 2],
-                            "field2": ["hello", "world"],
-                            "field3": [2.3, 0.0],
-                            "field4": [True, False],
-                            "field5": [
-                                a_timestamp,
-                                datetime.datetime.fromtimestamp(1000000000),
-                            ],
-                            "field6": [b"some binary", pickle.dumps([1, 2, 3])],
-                            "7_special-name": [None, "a strange value"],
-                        },
-                        columns=[
-                            "field1",
-                            "field2",
-                            "field3",
-                            "field4",
-                            "field5",
-                            "field6",
-                            "7_special-name",
+            Table(
+                pandas.DataFrame(
+                    {
+                        "field1": [1, 2],
+                        "field2": ["hello", "world"],
+                        "field3": [2.3, 0.0],
+                        "field4": [True, False],
+                        "field5": [
+                            a_timestamp,
+                            datetime.datetime.fromtimestamp(1000000000),
                         ],
-                    )
+                        "field6": [b"some binary", pickle.dumps([1, 2, 3])],
+                        "7_special-name": [None, "a strange value"],
+                    },
+                    columns=[
+                        "field1",
+                        "field2",
+                        "field3",
+                        "field4",
+                        "field5",
+                        "field6",
+                        "7_special-name",
+                    ],
                 )
-                == target_table
+            )
+            == target_table
         )
 
     def test_table_from_list_of_tuples(self, target_table, target_tuples):
@@ -96,7 +96,7 @@ class TestTable:
         assert list(table.as_tuples()) == target_tuples
 
     def test_table_from_list_of_series(
-            self, target_table, a_timestamp, target_raw_tuples, target_tuples
+        self, target_table, a_timestamp, target_raw_tuples, target_tuples
     ):
         table = Table([pandas.Series(raw_tuple) for raw_tuple in target_raw_tuples])
 
