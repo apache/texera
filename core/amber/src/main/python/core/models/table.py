@@ -1,3 +1,5 @@
+import pickle
+from datetime import datetime
 from typing import Protocol, Sized, Container, Iterator
 
 import pandas
@@ -19,12 +21,28 @@ class TableLike(
 
 class Table(TableLike):
     def __init__(self, table_like: TableLike):
-        if isinstance(table_like, pandas.DataFrame):
+        if isinstance(table_like, Table):
+            self.__data_frame = table_like.__data_frame
+        elif isinstance(table_like, pandas.DataFrame):
             self.__data_frame = table_like
         elif isinstance(table_like, list):
-            self.__data_frame = pandas.DataFrame.from_records(
-                (i.as_dict() for i in table_like)
-            )
+            # only supports List[TupleLike] now.
+            self.column_names = None
+            def iterate_tuples(tuple_like_iter):
+                for tuple_like in tuple_like_iter:
+                    tuple_ = Tuple(tuple_like)
+                    field_names = tuple_.get_field_names()
+
+                    if self.column_names is not None:
+                        assert field_names == self.column_names
+                    self.column_names = field_names
+
+                    yield tuple_.get_fields()
+
+            self.__data_frame = pandas.DataFrame.from_records(list(iterate_tuples(
+                table_like)), columns=self.column_names)
+
+
         else:
             raise TypeError(f"unsupported table_like type :{type(table_like)}")
 
@@ -52,10 +70,8 @@ class Table(TableLike):
         following their row index order.
         :return:
         """
-        for t in self.__data_frame.itertuples(index=False):
-            # TODO: Converting to NamedTuple will cause the field names be renamed to
-            #   valid Python identifiers.
-            yield Tuple(t._asdict())
+        for t in self.__data_frame.itertuples(index=False, name=None):
+            yield Tuple(dict(zip(self.__data_frame.columns, t)))
 
     def as_dataframe(self) -> pandas.DataFrame:
         """
@@ -63,3 +79,7 @@ class Table(TableLike):
         :return:
         """
         return self.__data_frame.__deepcopy__()
+
+    def __eq__(self, other: "Table")-> bool:
+        return all (a == b for a, b in zip(self.as_tuples(),other.as_tuples()))
+
