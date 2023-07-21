@@ -60,7 +60,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
   def manipulateTable(): String = {
     assert(value.nonEmpty)
     s"""
-       |        table['$value'] = table[table['$value'] != 0]['$value'] # remove 0 from the data
+       |        table['$value'] = table[table['$value'] > 0]['$value'] # remove non-positive numbers from the data
        |        table = table.dropna() #remove missing values
        |""".stripMargin
   }
@@ -101,7 +101,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
       |                     <p>Possible reasons are:</p>
       |                     <ul>
       |                     <li>input table is empty</li>
-      |                     <li>value column contains only 0</li>
+      |                     <li>value column contains only non-positive numbers</li>
       |                     <li>value column is not available</li>
       |                     </ul>'''
       |           yield {'html-content': html}
