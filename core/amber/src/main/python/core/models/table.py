@@ -1,5 +1,3 @@
-import pickle
-from datetime import datetime
 from typing import Protocol, Sized, Container, Iterator
 
 import pandas
@@ -28,6 +26,7 @@ class Table(TableLike):
         elif isinstance(table_like, list):
             # only supports List[TupleLike] now.
             self.column_names = None
+
             def iterate_tuples(tuple_like_iter):
                 for tuple_like in tuple_like_iter:
                     tuple_ = Tuple(tuple_like)
@@ -39,9 +38,9 @@ class Table(TableLike):
 
                     yield tuple_.get_fields()
 
-            self.__data_frame = pandas.DataFrame.from_records(list(iterate_tuples(
-                table_like)), columns=self.column_names)
-
+            self.__data_frame = pandas.DataFrame.from_records(
+                list(iterate_tuples(table_like)), columns=self.column_names
+            )
 
         else:
             raise TypeError(f"unsupported table_like type :{type(table_like)}")
@@ -80,6 +79,5 @@ class Table(TableLike):
         """
         return self.__data_frame.__deepcopy__()
 
-    def __eq__(self, other: "Table")-> bool:
-        return all (a == b for a, b in zip(self.as_tuples(),other.as_tuples()))
-
+    def __eq__(self, other: "Table") -> bool:
+        return all(a == b for a, b in zip(self.as_tuples(), other.as_tuples()))
