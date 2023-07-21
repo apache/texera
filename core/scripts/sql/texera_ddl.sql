@@ -180,6 +180,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
 CREATE TABLE IF NOT EXISTS public_project
 (
     `pid`             INT UNSIGNED NOT NULL,
+    `uid`             INT UNSIGNED,
     PRIMARY KEY (`pid`),
     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
