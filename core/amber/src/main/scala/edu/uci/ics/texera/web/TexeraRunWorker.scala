@@ -27,5 +27,4 @@ object TexeraRunWorker {
     // start actor system worker node
     AmberUtils.startActorWorker(argMap.get('serverAddr).asInstanceOf[Option[String]])
   }
-
 }
