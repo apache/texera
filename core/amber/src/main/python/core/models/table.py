@@ -20,7 +20,7 @@ class TableLike(
 class Table(TableLike):
     def __init__(self, table_like: TableLike):
         if isinstance(table_like, Table):
-            self.__data_frame = table_like.__data_frame
+            self.__data_frame = table_like.as_dataframe()
         elif isinstance(table_like, pandas.DataFrame):
             self.__data_frame = table_like
         elif isinstance(table_like, list):
