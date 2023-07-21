@@ -71,7 +71,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
     assert(hierarchy.nonEmpty)
     val attributes = hierarchy.map(_.attributeName).mkString("'", "','", "'")
     s"""
-      |        fig = px.treemap(table, path=[$attributes], values='$value',
+      |           fig = px.treemap(table, path=[$attributes], values='$value',
       |                        color='$value', hover_data=[$attributes],
       |                        color_continuous_scale='RdBu')
       |""".stripMargin
@@ -91,10 +91,20 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
       |    @overrides
       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
       |        ${manipulateTable()}
-      |        ${createPlotlyFigure()}
-      |        # convert fig to html content
-      |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-      |        yield {'html-content': html}
+      |        if not table.empty:
+      |           ${createPlotlyFigure()}
+      |           # convert fig to html content
+      |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+      |           yield {'html-content': html}
+      |        else:
+      |           html = '''<h1>TreeMsp is not available.</h1>
+      |                     <p>Possible reasons are:</p>
+      |                     <ul>
+      |                     <li>input table is empty</li>
+      |                     <li>value column contains only 0</li>
+      |                     <li>value column is not available</li>
+      |                     </ul>'''
+      |           yield {'html-content': html}
       |""".stripMargin
     final_code
   }
