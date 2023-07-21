@@ -97,7 +97,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
       |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
       |           yield {'html-content': html}
       |        else:
-      |           html = '''<h1>TreeMsp is not available.</h1>
+      |           html = '''<h1>TreeMap is not available.</h1>
       |                     <p>Possible reasons are:</p>
       |                     <ul>
       |                     <li>input table is empty</li>
