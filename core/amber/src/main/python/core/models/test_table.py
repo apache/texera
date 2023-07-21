@@ -51,7 +51,7 @@ class TestTable:
         assert target_table["field3"][0] == 2.3
         assert target_table["field3"][1] == 0.0
         assert target_table["field4"][0]
-        assert target_table["field4"][1]
+        assert not target_table["field4"][1]
         assert target_table["field5"][0] == a_timestamp
         assert target_table["field5"][1] == datetime.datetime.fromtimestamp(1000000000)
         assert target_table["field6"][0] == b"some binary"
