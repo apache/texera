@@ -1,5 +1,5 @@
-from typing import Protocol, Sized, Container, Iterator
-
+from typing import Sized, Container, Iterator
+from typing_extensions import Protocol
 import pandas
 
 from core.models import Tuple
