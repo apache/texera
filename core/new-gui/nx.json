@@ -12,15 +12,8 @@
     "default": {
       "runner": "@nrwl/nx-cloud",
       "options": {
-        "cacheableOperations": [
-          "build",
-          "lint",
-          "e2e"
-        ],
-        "runtimeCacheInputs": [
-          "node -v",
-          "yarn run nodecat ./src/environments/environment.prod.ts"
-        ],
+        "cacheableOperations": ["build", "lint", "e2e"],
+        "runtimeCacheInputs": ["node -v", "yarn run nodecat ./src/environments/environment.prod.ts"],
         "accessToken": "MWY5NjA0ZDAtNTdjOS00NDY3LWIzNjYtNTYyMWU5OGFkYjgzfHJlYWQtd3JpdGU=",
         "parallel": 1
       }
@@ -30,8 +23,7 @@
     "defaultBase": "master"
   },
   "cli": {
-    "analytics": false,
-    "defaultCollection": "@angular-eslint/schematics"
+    "analytics": false
   },
   "defaultProject": "texera-gui",
   "generators": {
@@ -42,5 +34,6 @@
     "@schematics/angular:directive": {
       "prefix": "texera"
     }
-  }
+  },
+  "$schema": "./node_modules/nx/schemas/nx-schema.json"
 }

@@ -19,7 +19,7 @@ import { isDefined } from "../../../common/util/predicate";
 
 export const wordCloudScaleOptions = ["linear", "square root", "logarithmic"] as const;
 type WordCloudControlsType = {
-  scale: typeof wordCloudScaleOptions[number];
+  scale: (typeof wordCloudScaleOptions)[number];
 };
 
 // TODO: The current design doesn't decouple the visualization types into different modules
@@ -248,7 +248,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     );
   }
 
-  updateWordCloudScale(scale: typeof wordCloudScaleOptions[number]) {
+  updateWordCloudScale(scale: (typeof wordCloudScaleOptions)[number]) {
     if (this.wordCloudControls.scale !== scale) {
       this.wordCloudControls.scale = scale;
       this.wordCloudControlUpdateObservable.next(this.wordCloudControls);

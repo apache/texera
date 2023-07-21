@@ -2,9 +2,7 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
-      "path": [
-        "./node_modules/path-browserify"
-      ]
+      "path": ["./node_modules/path-browserify"]
     },
     "strict": true,
     "skipLibCheck": true,
