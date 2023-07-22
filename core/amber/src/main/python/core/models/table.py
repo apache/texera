@@ -1,8 +1,9 @@
 from typing import Sized, Container, Iterator
+
 from typing_extensions import Protocol
 import pandas
 
-from core.models import Tuple
+from core.models import Tuple, TupleLike
 
 
 class TableLike(
@@ -17,51 +18,46 @@ class TableLike(
         ...
 
 
-class Table(TableLike):
-    def __init__(self, table_like: TableLike):
+class Table(pandas.DataFrame):
+    @staticmethod
+    def from_table(table):
+        return table
+
+    @staticmethod
+    def from_data_frame(df):
+        return df
+
+    @staticmethod
+    def from_tuple_likes(tuple_likes: Iterator[TupleLike]):
+        column_names = None
+        records = []
+        for tuple_like in tuple_likes:
+            tuple_ = Tuple(tuple_like)
+            field_names = tuple_.get_field_names()
+
+            if column_names is not None:
+                assert field_names == column_names
+            else:
+                column_names = field_names
+
+            records.append(tuple_.get_fields())
+
+        return pandas.DataFrame.from_records(records, columns=column_names)
+
+    def __init__(self, table_like):
+        df: pandas.DataFrame
+
         if isinstance(table_like, Table):
-            self.__data_frame = table_like.as_dataframe()
-        elif isinstance(table_like, pandas.DataFrame):
-            self.__data_frame = table_like
+            df = self.from_table(table_like)
+        if isinstance(table_like, pandas.DataFrame):
+            df = self.from_data_frame(table_like)
         elif isinstance(table_like, list):
-            # only supports List[TupleLike] now.
-            self.column_names = None
-
-            def iterate_tuples(tuple_like_iter):
-                for tuple_like in tuple_like_iter:
-                    tuple_ = Tuple(tuple_like)
-                    field_names = tuple_.get_field_names()
-
-                    if self.column_names is not None:
-                        assert field_names == self.column_names
-                    self.column_names = field_names
-
-                    yield tuple_.get_fields()
-
-            self.__data_frame = pandas.DataFrame.from_records(
-                list(iterate_tuples(table_like)), columns=self.column_names
-            )
-
-        else:
-            raise TypeError(f"unsupported table_like type :{type(table_like)}")
-
-    def __getattr__(self, item):
-        return self.__data_frame.__getattr__(item)
-
-    def __contains__(self, item) -> bool:
-        return self.__data_frame.__contains__(item)
-
-    def __len__(self) -> int:
-        return self.__data_frame.__len__()
+            # only supports List[TupleLike]
+            df = self.from_tuple_likes(table_like)
+        super().__init__(df)
 
     def __str__(self) -> str:
         return f"Table[{self.__data_frame}]"
-
-    def __getitem__(self, item):
-        return self.__data_frame.__getitem__(item)
-
-    def __setitem__(self, key, value) -> None:
-        return self.__data_frame.__setitem__(key, value)
 
     def as_tuples(self) -> Iterator[Tuple]:
         """
@@ -69,8 +65,8 @@ class Table(TableLike):
         following their row index order.
         :return:
         """
-        for t in self.__data_frame.itertuples(index=False, name=None):
-            yield Tuple(dict(zip(self.__data_frame.columns, t)))
+        for raw_tuple in self.itertuples(index=False, name=None):
+            yield Tuple(dict(zip(self.columns, raw_tuple)))
 
     def as_dataframe(self) -> pandas.DataFrame:
         """

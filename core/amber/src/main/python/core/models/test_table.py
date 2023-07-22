@@ -3,7 +3,7 @@ import pickle
 
 import pandas
 import pytest
-from pandas import RangeIndex, Index
+from pandas import RangeIndex
 
 from core.models import Table, Tuple
 
@@ -24,6 +24,7 @@ class TestTable:
                 "field5": a_timestamp,
                 "field6": b"some binary",
                 "7_special-name": None,
+                "none": None,
             },
             {
                 "field1": 2,
@@ -33,6 +34,7 @@ class TestTable:
                 "field5": datetime.datetime.fromtimestamp(1000000000),
                 "field6": pickle.dumps([1, 2, 3]),
                 "7_special-name": "a strange value",
+                "none": None,
             },
         ]
 
@@ -59,6 +61,8 @@ class TestTable:
         assert target_table["field6"][1] == pickle.dumps([1, 2, 3])
         assert target_table["7_special-name"][0] is None
         assert target_table["7_special-name"][1] == "a strange value"
+        assert target_table["none"][0] is None
+        assert target_table["none"][1] is None
 
     def test_table_from_data_frame(self, target_table, a_timestamp):
         assert (
@@ -75,6 +79,7 @@ class TestTable:
                         ],
                         "field6": [b"some binary", pickle.dumps([1, 2, 3])],
                         "7_special-name": [None, "a strange value"],
+                        "none": [None, None],
                     },
                     columns=[
                         "field1",
@@ -84,6 +89,7 @@ class TestTable:
                         "field5",
                         "field6",
                         "7_special-name",
+                        "none",
                     ],
                 )
             )
@@ -110,9 +116,9 @@ class TestTable:
 
     def test_use_table_as_data_frame(self, target_table):
         df = target_table
-
         assert (df.index == RangeIndex(start=0, stop=2, step=1)).all()
-        assert (df.columns == Index(df.column_names)).all()
+        concat_df = pandas.concat([df, df])
+        assert len(concat_df) == 4
 
     def test_validation_of_schema(self):
         with pytest.raises(AssertionError):
