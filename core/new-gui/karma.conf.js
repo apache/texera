@@ -1,30 +1,30 @@
 // Karma configuration file, see link for more information
 // https://karma-runner.github.io/1.0/config/configuration-file.html
 
-module.exports = function(config) {
+module.exports = function (config) {
   config.set({
     basePath: "",
     frameworks: ["jasmine", "@angular-devkit/build-angular"],
     plugins: [
       require("karma-jasmine"),
       require("karma-chrome-launcher"),
-      require("karma-coverage"),
       require("karma-jasmine-html-reporter"),
-      require("@angular-devkit/build-angular/plugins/karma")
+      require("karma-coverage-istanbul-reporter"),
+      require("@angular-devkit/build-angular/plugins/karma"),
     ],
     client: {
       clearContext: false, // leave Jasmine Spec Runner output visible in browser
       jasmine: {
-        random: false // disable the random running order
-      }
+        random: false, // disable the random running order
+      },
     },
-    coverageReporter: {
-      dir: "build/reports/coverage",
-      reporters: [
-        { type: "lcov", subdir: "report-lcov" }
-      ]
+    coverageIstanbulReporter: {
+      dir: require("path").join(__dirname, "coverage"),
+      reports: ["html", "lcovonly"],
+      fixWebpackSourcePaths: true,
     },
-    reporters: ["progress", "kjhtml", "coverage"],
+
+    reporters: ["progress", "kjhtml"],
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
@@ -32,8 +32,8 @@ module.exports = function(config) {
     browsers: ["Chrome"],
     singleRun: false,
     captureTimeout: 60000,
-    browserDisconnectTimeout: 10000,
-    browserDisconnectTolerance: 3,
-    browserNoActivityTimeout: 60000
+    browserDisconnectTimeout : 10000,
+    browserDisconnectTolerance : 3,
+    browserNoActivityTimeout : 60000,
   });
 };
