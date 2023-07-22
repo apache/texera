@@ -64,6 +64,9 @@ class TestTable:
         assert target_table["none"][0] is None
         assert target_table["none"][1] is None
 
+    def test_as_tuples_preserve_types(self, target_table, target_tuples):
+        assert list(target_table.as_tuples()) == target_tuples
+
     def test_table_from_data_frame(self, target_table, a_timestamp):
         assert (
             Table(
