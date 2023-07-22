@@ -68,12 +68,5 @@ class Table(pandas.DataFrame):
         for raw_tuple in self.itertuples(index=False, name=None):
             yield Tuple(dict(zip(self.columns, raw_tuple)))
 
-    def as_dataframe(self) -> pandas.DataFrame:
-        """
-        Return a deepcopy of the internal pandas.DataFrame.
-        :return:
-        """
-        return self.__data_frame.__deepcopy__()
-
     def __eq__(self, other: "Table") -> bool:
         return all(a == b for a, b in zip(self.as_tuples(), other.as_tuples()))
