@@ -11,16 +11,15 @@ class HoriBarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new HoriBarChartOpDesc()
   }
 
-  it should "generate a list of hierarchy sections in the python code" in {
-    val attributes = Array.fill(3)(new HierarchySection())
-    attributes(0).attributeName = "column_a"
-    attributes(1).attributeName = "column_b"
-    attributes(2).attributeName = "column_c"
-    //opDesc.hierarchy = attributes.toList
-    assert(opDesc.createPlotlyFigure().contains("['column_a','column_b','column_c']"))
+  it should "list titles of axes in the python code" in {
+    opDesc.fields = "geo.state_name"
+    opDesc.value = "person.count"
+    val temp = opDesc.createPlotlyFigure()
+    assert(temp.contains("geo.state_name"))
+    assert(temp.contains("person.count"))
   }
 
-  it should "throw assertion error if hierarchy is empty" in {
+  it should "throw assertion error if chart is empty" in {
     assertThrows[AssertionError] {
       opDesc.createPlotlyFigure()
     }

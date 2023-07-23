@@ -41,14 +41,14 @@ class HoriBarChartOpDesc extends VisualizationOperator with PythonOperatorDescri
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Fields")
-  @JsonPropertyDescription("Visualize data in a Horizontal Bar Chart")
+  @JsonPropertyDescription("Visualize categorical data in a Bar Chart")
   @AutofillAttributeName
   var fields: String = _
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
   @JsonPropertyDescription("Orientation Style")
-  var Orientation: Boolean = true
+  var Orientation: Boolean = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -66,7 +66,6 @@ class HoriBarChartOpDesc extends VisualizationOperator with PythonOperatorDescri
   def manipulateTable(): String = {
     assert(value.nonEmpty)
     s"""
-       |        table['$value'] = table[table['$value'] > 0]['$value'] # remove non-positive numbers from the data
        |        table = table.dropna() #remove missing values
        |""".stripMargin
   }
@@ -97,7 +96,7 @@ class HoriBarChartOpDesc extends VisualizationOperator with PythonOperatorDescri
                         |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                        |        #table = table.groupby(['$fields'])['$fields'].count().reset_index(name='$value')
+                        |        ${manipulateTable()}
                         |        print(table)
                         |        if ($truthy):
                         |           fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h'))
