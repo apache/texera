@@ -31,18 +31,24 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   }
 }
 """)
-class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class HoriBarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with each tree node")
+  @JsonPropertyDescription("the value associated with each category")
   @AutofillAttributeName
-  var value: String = ""
+  var value: String = _
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Hierarchy Path")
-  @JsonPropertyDescription("hierarchy of sectors, from root to leaves")
-  var hierarchy: List[HierarchySection] = List()
+  @JsonSchemaTitle("Fields")
+  @JsonPropertyDescription("Visualize data in a Horizontal Bar Chart")
+  @AutofillAttributeName
+  var fields: String = _
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Horizontal Orientation")
+  @JsonPropertyDescription("Orientation Style")
+  var Orientation: Boolean = true
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -50,8 +56,8 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "TreeMap Visualizer",
-      "Visualize data in a tree hierarchy",
+      "Hori-BarChart",
+      "Visualize data in a Horizontal Bar Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -68,44 +74,40 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
-    assert(hierarchy.nonEmpty)
-    val attributes = hierarchy.map(_.attributeName).mkString("'", "','", "'")
     s"""
-       |           fig = px.treemap(table, path=[$attributes], values='$value',
-       |                        color='$value', hover_data=[$attributes],
-       |                        color_continuous_scale='RdBu')
+       |fig = px.bar(table, y= '$fields', x='$value', orientation = 'h')
        |""".stripMargin
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+    var truthy = ""
+    if (Orientation) truthy = "True"
     val final_code = s"""
                         |from pytexera import *
                         |
                         |import plotly.express as px
+                        |import pandas as pd
                         |import plotly.graph_objects as go
                         |import plotly.io
-                        |import numpy as np
+                        |import json
+                        |import pickle
+                        |import plotly
                         |
                         |class ProcessTableOperator(UDFTableOperator):
                         |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                        |        ${manipulateTable()}
-                        |        if not table.empty:
-                        |           ${createPlotlyFigure()}
-                        |           # convert fig to html content
-                        |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                        |           yield {'html-content': html}
+                        |        #table = table.groupby(['$fields'])['$fields'].count().reset_index(name='$value')
+                        |        print(table)
+                        |        if ($truthy):
+                        |           fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h'))
                         |        else:
-                        |           html = '''<h1>TreeMap is not available.</h1>
-                        |                     <p>Possible reasons are:</p>
-                        |                     <ul>
-                        |                     <li>input table is empty</li>
-                        |                     <li>value column contains only non-positive numbers</li>
-                        |                     <li>value column is not available</li>
-                        |                     </ul>'''
-                        |           yield {'html-content': html}
-                        |""".stripMargin
+                        |           fig = go.Figure(px.bar(table, y='$value', x='$fields'))
+                        |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
+                        |        # use latest plotly lib in html
+                        |        #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
+                        |        yield {'html-content':html}
+                        |        """.stripMargin
     final_code
   }
 
