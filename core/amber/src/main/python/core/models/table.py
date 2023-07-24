@@ -1,21 +1,22 @@
-from typing import Sized, Container, Iterator
+from typing import Iterator, TypeVar, List
 
-from typing_extensions import Protocol
+from pampy import match
 import pandas
 
 from core.models import Tuple, TupleLike
 
 
-class TableLike(
-    Protocol,
-    Sized,
-    Container,
-):
-    def __getitem__(self, item):
-        ...
+# @typing_extensions.runtime_checkable
+# class TableLike(
+#     Protocol,
+#     Sized,
+#     Container,
+# ):
+#     def __getitem__(self, item):
+#         ...
 
-    def __setitem__(self, key, value):
-        ...
+
+TableLike = TypeVar("TableLike", pandas.DataFrame, List[TupleLike])
 
 
 class Table(pandas.DataFrame):
@@ -29,6 +30,8 @@ class Table(pandas.DataFrame):
 
     @staticmethod
     def from_tuple_likes(tuple_likes: Iterator[TupleLike]):
+        # TODO: currently only validate all Tuples have the same fields.
+        #  should validate types as well
         column_names = None
         records = []
         for tuple_like in tuple_likes:
@@ -54,6 +57,8 @@ class Table(pandas.DataFrame):
         elif isinstance(table_like, list):
             # only supports List[TupleLike]
             df = self.from_tuple_likes(table_like)
+        else:
+            raise TypeError(f"unsupported tablelike type {type(table_like)}")
         super().__init__(df)
 
     def as_tuples(self) -> Iterator[Tuple]:
@@ -70,3 +75,26 @@ class Table(pandas.DataFrame):
             return all(a == b for a, b in zip(self.as_tuples(), other.as_tuples()))
         else:
             return super().__eq__(other).all()
+
+
+def all_output_to_tuple(output) -> Iterator[Tuple]:
+    """
+    Convert all kinds of types into Tuples.
+    :param output:
+    :return:
+    """
+    yield from match(
+        output,
+        None,
+        iter([None]),
+        Table,
+        lambda x: x.as_tuples(),
+        pandas.DataFrame,
+        lambda x: Table(x).as_tuples(),
+        List[TupleLike],
+        lambda x: (Tuple(t) for t in x),
+        TupleLike,
+        lambda x: iter([Tuple(x)]),
+        Tuple,
+        lambda x: iter([x]),
+    )

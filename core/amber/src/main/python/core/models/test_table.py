@@ -98,14 +98,13 @@ class TestTable:
     def test_table_from_data_frame(self, target_table, target_data_frame):
         assert Table(target_data_frame) == target_table
 
-
     def test_table_from_list_of_tuples(self, target_table, target_tuples):
         table = Table(target_tuples)
         assert table == target_table
         assert list(table.as_tuples()) == target_tuples
 
     def test_table_from_list_of_series(
-            self, target_table, a_timestamp, target_raw_tuples, target_tuples
+        self, target_table, a_timestamp, target_raw_tuples, target_tuples
     ):
         table = Table([pandas.Series(raw_tuple) for raw_tuple in target_raw_tuples])
 
@@ -122,7 +121,7 @@ class TestTable:
         assert (df.index == RangeIndex(start=0, stop=2, step=1)).all()
         concat_df = pandas.concat([df, df])
         assert len(concat_df) == 4
-        assert target_table.equals( target_data_frame)
+        assert target_table.equals(target_data_frame)
 
     def test_validation_of_schema(self):
         with pytest.raises(AssertionError):
