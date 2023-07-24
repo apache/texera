@@ -147,7 +147,7 @@ describe("ValidationWorkflowService", () => {
         w: { operatorID: "1", isValid: true },
         x: { operatorID: "2", isValid: true },
         y: { operatorID: "1", isValid: true },
-        z: { operatorID: "2", isValid: false },// If the link is deleted, the one missing input link is invalid
+        z: { operatorID: "2", isValid: false }, // If the link is deleted, the one missing input link is invalid
       });
 
       m.expect(
