@@ -4,7 +4,9 @@ import {
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
-  mockScanResultLink, mockScanSentimentLink, mockSentimentPredicate
+  mockScanResultLink,
+  mockScanSentimentLink,
+  mockSentimentPredicate,
 } from "../workflow-graph/model/mock-workflow-data";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../undo-redo/undo-redo.service";
@@ -133,7 +135,11 @@ describe("ValidationWorkflowService", () => {
         b: () => workflowActionservice.addOperator(mockSentimentPredicate, mockPoint),
         c: () => workflowActionservice.addLink(mockScanSentimentLink),
         d: () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "test-table" }),
-        e: () => workflowActionservice.setOperatorProperty(mockSentimentPredicate.operatorID, { attribute: "test-attribute", resultAttribute: "result-attribtue"}),
+        e: () =>
+          workflowActionservice.setOperatorProperty(mockSentimentPredicate.operatorID, {
+            attribute: "test-attribute",
+            resultAttribute: "result-attribtue",
+          }),
         f: () => workflowActionservice.deleteLinkWithID(mockScanSentimentLink.linkID),
       });
 
