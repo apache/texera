@@ -441,7 +441,6 @@ export class ExecuteWorkflowService {
       ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
     );
 
-
     return { operators, links, breakpoints };
   }
 

@@ -49,7 +49,6 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
-
   public readonly COPY_OFFSET = 20;
 
   constructor(
@@ -112,7 +111,6 @@ export class OperatorMenuService {
     }
   }
 
-
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators
@@ -134,7 +132,6 @@ export class OperatorMenuService {
         this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }
-
 
   /**
    * saves highlighted elements to the system clipboard

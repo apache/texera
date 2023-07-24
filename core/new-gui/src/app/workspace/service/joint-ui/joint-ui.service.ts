@@ -895,7 +895,6 @@ export class JointUIService {
     return isDisabled ? "#E0E0E0" : "#FFFFFF";
   }
 
-
   /**
    * This function creates a custom svg style for the group.
    * This function also makes collapse button and expand button defined above to emit

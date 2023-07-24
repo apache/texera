@@ -43,7 +43,7 @@ class WorkflowJobService(
         case _: DualInputPortsPythonUDFOpDescV2 => true
         case _: PythonUDFOpDescV2               => true
         case _: PythonUDFSourceOpDescV2         => true
-        case _ => false
+        case _                                  => false
       }
     ) {
       conf.supportFaultTolerance = false
