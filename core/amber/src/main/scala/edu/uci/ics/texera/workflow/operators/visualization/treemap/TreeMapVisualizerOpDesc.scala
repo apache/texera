@@ -88,7 +88,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
       |
       |class ProcessTableOperator(UDFTableOperator):
       |
-      |    def render_error(self, error_msg, df):
+      |    def render_error(self, error_msg):
       |        return '''<h1>TreeMap is not available.</h1>
       |                  <p>Reasons is: {} </p>
       |               '''.format(error_msg)
