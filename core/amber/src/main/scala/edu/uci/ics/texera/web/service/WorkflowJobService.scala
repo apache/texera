@@ -39,10 +39,10 @@ class WorkflowJobService(
     val conf = ControllerConfig.default
     if (
       workflowCompiler.logicalPlan.operators.exists {
-        case x: DualInputPortsPythonUDFOpDescV2 => true
-        case x: PythonUDFOpDescV2               => true
-        case x: PythonUDFSourceOpDescV2         => true
-        case other                              => false
+        case _: DualInputPortsPythonUDFOpDescV2 => true
+        case _: PythonUDFOpDescV2               => true
+        case _: PythonUDFSourceOpDescV2         => true
+        case _                                  => false
       }
     ) {
       conf.supportFaultTolerance = false
@@ -98,6 +98,10 @@ class WorkflowJobService(
       StartWorkflow(),
       _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
     )
+  }
+
+  private[this] def createLogicalPlan(): LogicalPlan = {
+    LogicalPlan(request.logicalPlan)
   }
 
   private[this] def createWorkflowCompiler(

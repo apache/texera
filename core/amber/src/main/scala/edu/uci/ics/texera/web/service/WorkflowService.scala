@@ -71,7 +71,6 @@ class WorkflowService(
     new JobResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
     new ResultExportService(opResultStorage, UInteger.valueOf(wId))
-
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"wid=$wId",
     cleanUpTimeout,

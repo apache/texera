@@ -1,8 +1,6 @@
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
-
-import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
 import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
 import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
@@ -511,20 +509,6 @@ export class JointUIService {
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
   }
 
-  public changeOperatorCacheStatus(
-    jointPaper: joint.dia.Paper,
-    operator: OperatorPredicate,
-    cacheStatus?: OperatorResultCacheStatus
-  ): void {
-    // const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
-    // const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
-    //
-    // const cacheIndicatorText = cacheText === "" ? "" : "cache";
-    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
-    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
-    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
-  }
-
   public changeOperatorJointDisplayName(
     operator: OperatorPredicate,
     jointPaper: joint.dia.Paper,
@@ -913,29 +897,6 @@ export class JointUIService {
         "x-alignment": "middle",
         "y-alignment": "middle",
       },
-      ".texera-operator-result-cache-text": {
-        text: JointUIService.getOperatorCacheDisplayText(operator) === "" ? "" : "cache",
-        fill: "#595959",
-        "font-size": "14px",
-        visible: true,
-        "ref-x": 80,
-        "ref-y": 60,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-
-      // ".texera-operator-result-cache-icon": {
-      //   "xlink:href": JointUIService.getOperatorCacheIcon(operator),
-      //   title: JointUIService.getOperatorCacheDisplayText(operator),
-      //   width: 40,
-      //   height: 40,
-      //   "ref-x": 75,
-      //   "ref-y": 50,
-      //   ref: "rect.body",
-      //   "x-alignment": "middle",
-      //   "y-alignment": "middle",
-      // },
       ".texera-operator-view-result-icon": {
         "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
         width: 20,
@@ -953,36 +914,6 @@ export class JointUIService {
   public static getOperatorFillColor(operator: OperatorPredicate): string {
     const isDisabled = operator.isDisabled ?? false;
     return isDisabled ? "#E0E0E0" : "#FFFFFF";
-  }
-
-  public static getOperatorCacheDisplayText(
-    operator: OperatorPredicate,
-    cacheStatus?: OperatorResultCacheStatus
-  ): string {
-    if (cacheStatus === undefined) {
-      return "";
-    }
-    return cacheStatus;
-  }
-
-  public static getOperatorCacheIcon(operator: OperatorPredicate, cacheStatus?: OperatorResultCacheStatus): string {
-    if (cacheStatus && cacheStatus !== "cache not enabled") {
-      if (cacheStatus === "cache valid") {
-        return "assets/svg/operator-result-cache-successful.svg";
-      } else if (cacheStatus === "cache invalid") {
-        return "assets/svg/operator-result-cache-invalid.svg";
-      } else {
-        const _exhaustiveCheck: never = cacheStatus;
-        return "";
-      }
-    } else {
-      const isCached = operator.isCached ?? false;
-      if (isCached) {
-        return "assets/svg/operator-result-cache-to-be-cached.svg";
-      } else {
-        return "";
-      }
-    }
   }
 
   public static getOperatorViewResultIcon(operator: OperatorPredicate): string {
