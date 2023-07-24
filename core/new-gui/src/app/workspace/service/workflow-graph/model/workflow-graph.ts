@@ -88,6 +88,10 @@ export class WorkflowGraph {
     newDisabled: string[];
     newEnabled: string[];
   }>();
+  public readonly viewResultOperatorChangedSubject = new Subject<{
+    newViewResultOps: string[];
+    newUnviewResultOps: string[];
+  }>();
   public readonly cachedOperatorChangedSubject = new Subject<{
     newCached: string[];
     newUnCached: string[];
@@ -441,7 +445,7 @@ export class WorkflowGraph {
     if (this.isOperatorCached(operatorID)) {
       return;
     }
-    this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", true);
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", true);
   }
 
   /**
@@ -456,7 +460,7 @@ export class WorkflowGraph {
     if (!this.isOperatorCached(operatorID)) {
       return;
     }
-    this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", false);
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", false);
   }
 
   /**
@@ -468,7 +472,7 @@ export class WorkflowGraph {
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    return operator.isCached ?? false;
+    return operator.viewResult ?? false;
   }
 
   public getCachedOperators(): ReadonlySet<string> {
@@ -879,6 +883,13 @@ export class WorkflowGraph {
     newUnCached: ReadonlyArray<string>;
   }> {
     return this.cachedOperatorChangedSubject.asObservable();
+  }
+
+  public getViewResultOperatorsChangedStream(): Observable<{
+    newViewResultOps: ReadonlyArray<string>;
+    newUnviewResultOps: ReadonlyArray<string>;
+  }> {
+    return this.viewResultOperatorChangedSubject.asObservable();
   }
 
   public getOperatorDisplayNameChangedStream(): Observable<{

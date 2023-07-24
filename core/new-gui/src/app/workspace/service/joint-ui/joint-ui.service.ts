@@ -126,8 +126,7 @@ export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
  */
 export const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
-export const operatorCacheTextClass = "texera-operator-result-cache-text";
-export const operatorCacheIconClass = "texera-operator-result-cache-icon";
+export const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
 export const operatorProcessedCountClass = "texera-operator-processed-count";
 export const operatorOutputCountClass = "texera-operator-output-count";
@@ -156,10 +155,9 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorOutputCountClass}"></text>
       <text class="${operatorAbbreviatedCountClass}"></text>
       <text class="${operatorStateClass}"></text>
-      <text class="${operatorCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
       <text class="${operatorCoeditorChangedPropertyClass}"></text>
-      <image class="${operatorCacheIconClass}"></image>
+      <image class="${operatorViewResultIconClass}"></image>
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
       <path class="right-boundary"></path>
@@ -504,18 +502,27 @@ export class JointUIService {
     jointPaper.getModelById(operator.operatorID).attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
   }
 
+  public changeOperatorViewResultStatus(
+    jointPaper: joint.dia.Paper,
+    operator: OperatorPredicate,
+    viewResult?: boolean
+  ): void {
+    const icon = JointUIService.getOperatorViewResultIcon(operator);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
+  }
+
   public changeOperatorCacheStatus(
     jointPaper: joint.dia.Paper,
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): void {
-    const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
-    const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
-
-    const cacheIndicatorText = cacheText === "" ? "" : "cache";
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
+    // const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
+    // const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
+    //
+    // const cacheIndicatorText = cacheText === "" ? "" : "cache";
+    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
+    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
+    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
   }
 
   public changeOperatorJointDisplayName(
@@ -917,11 +924,22 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      ".texera-operator-result-cache-icon": {
-        "xlink:href": JointUIService.getOperatorCacheIcon(operator),
-        title: JointUIService.getOperatorCacheDisplayText(operator),
-        width: 40,
-        height: 40,
+
+      // ".texera-operator-result-cache-icon": {
+      //   "xlink:href": JointUIService.getOperatorCacheIcon(operator),
+      //   title: JointUIService.getOperatorCacheDisplayText(operator),
+      //   width: 40,
+      //   height: 40,
+      //   "ref-x": 75,
+      //   "ref-y": 50,
+      //   ref: "rect.body",
+      //   "x-alignment": "middle",
+      //   "y-alignment": "middle",
+      // },
+      ".texera-operator-view-result-icon": {
+        "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
+        width: 20,
+        height: 20,
         "ref-x": 75,
         "ref-y": 50,
         ref: "rect.body",
@@ -941,11 +959,10 @@ export class JointUIService {
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): string {
-    if (cacheStatus && cacheStatus !== "cache not enabled") {
-      return cacheStatus;
+    if (cacheStatus === undefined) {
+      return "";
     }
-    const isCached = operator.isCached ?? false;
-    return isCached ? "to be cached" : "";
+    return cacheStatus;
   }
 
   public static getOperatorCacheIcon(operator: OperatorPredicate, cacheStatus?: OperatorResultCacheStatus): string {
@@ -965,6 +982,14 @@ export class JointUIService {
       } else {
         return "";
       }
+    }
+  }
+
+  public static getOperatorViewResultIcon(operator: OperatorPredicate): string {
+    if (operator.viewResult) {
+      return "assets/svg/operator-view-result.svg";
+    } else {
+      return "";
     }
   }
 

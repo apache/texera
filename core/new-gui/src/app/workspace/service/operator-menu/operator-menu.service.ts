@@ -154,7 +154,7 @@ export class OperatorMenuService {
   handleCacheOperatorStatusChange() {
     merge(
       this.effectivelyHighlightedOperators,
-      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream(),
+      this.workflowActionService.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
       const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(

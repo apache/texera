@@ -87,12 +87,8 @@ case class LogicalPlan(
     upstream.toList
   }
 
-  def getDownstream(operatorID: String): List[OperatorDescriptor] = {
-    val downstream = new mutable.MutableList[OperatorDescriptor]
-    jgraphtDag
-      .outgoingEdgesOf(operatorID)
-      .forEach(e => downstream += operatorMap(e.destination.operatorID))
-    downstream.toList
+  def getUpstreamEdges(operatorID: String): List[OperatorLink] = {
+    links.filter(l => l.destination.operatorID == operatorID)
   }
 
   // returns a new logical plan with the given operator added
@@ -144,6 +140,18 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val newLinks = links.filter(l => l != edge)
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
+  }
+
+  def getDownstream(operatorID: String): List[OperatorDescriptor] = {
+    val downstream = new mutable.MutableList[OperatorDescriptor]
+    jgraphtDag
+      .outgoingEdgesOf(operatorID)
+      .forEach(e => downstream += operatorMap(e.destination.operatorID))
+    downstream.toList
+  }
+
+  def getDownstreamEdges(operatorID: String): List[OperatorLink] = {
+    links.filter(l => l.origin.operatorID == operatorID)
   }
 
   def opSchemaInfo(operatorID: String): OperatorSchemaInfo = {

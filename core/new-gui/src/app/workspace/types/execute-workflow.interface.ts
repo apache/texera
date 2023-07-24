@@ -37,7 +37,7 @@ export interface LogicalPlan
     operators: LogicalOperator[];
     links: LogicalLink[];
     breakpoints: BreakpointInfo[];
-    cachedOperatorIds: string[];
+    opsToViewResult: string[];
   }> {}
 
 /**
