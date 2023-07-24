@@ -388,7 +388,7 @@
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
             *ngIf="workflowWebsocketService.isConnected"
-            nz-tooltip="connected"
+            [nz-tooltip]="'Status: connected, Number of workers: ' +workflowWebsocketService.numWorkers"
             nzStatus="success"
             nzTooltipPlacement="bottom"></nz-badge>
           <nz-badge

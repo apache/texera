@@ -1,15 +1,16 @@
 package edu.uci.ics.texera.web.resource
 
+import akka.actor.TypedActor.context
+import akka.cluster.Cluster
+
 import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.WorkflowService
@@ -57,10 +58,14 @@ class WorkflowWebsocketResource extends LazyLogging {
     try {
       request match {
         case wIdRequest: RegisterWIdRequest =>
+          println("received websocket initialization request!")
           // hack to refresh frontend run button state
           send(session, WorkflowStateEvent("Uninitialized"))
           val workflowState = WorkflowService.getOrCreate(wIdRequest.wId)
           sessionState.subscribe(workflowState)
+          println("Cluster size")
+          println(ClusterListener.numWorkerNodesInCluster)
+          send(session, ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
           send(session, RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>
           send(session, HeartBeatResponse())
