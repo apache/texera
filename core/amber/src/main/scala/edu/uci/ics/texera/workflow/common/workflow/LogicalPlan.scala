@@ -16,7 +16,7 @@ case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
 
 object LogicalPlan {
 
-  def toJgraphtDAG(
+  private def toJgraphtDAG(
       operatorList: List[OperatorDescriptor],
       links: List[OperatorLink]
   ): DirectedAcyclicGraph[String, OperatorLink] = {
@@ -87,27 +87,9 @@ case class LogicalPlan(
     upstream.toList
   }
 
-  def getUpstreamEdges(operatorID: String): List[OperatorLink] = {
-    links.filter(l => l.destination.operatorID == operatorID)
-  }
-
   // returns a new logical plan with the given operator added
   def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
     this.copy(operators :+ operatorDescriptor, links, breakpoints, opsToReuseCache)
-  }
-
-  // returns a new logical plan with the given operator removed
-  // removing an operator will also delete all the links connected to the operator,
-  // as well as removing breakpoints set on the operator, etc..
-  def removeOperator(operatorId: String): LogicalPlan = {
-    this.copy(
-      operators.filter(o => o.operatorID != operatorId),
-      links.filter(l =>
-        l.origin.operatorID != operatorId && l.destination.operatorID != operatorId
-      ),
-      breakpoints.filter(b => b.operatorID != operatorId),
-      opsToReuseCache.filter(c => c != operatorId)
-    )
   }
 
   // returns a new logical plan with the given edge added
@@ -239,7 +221,7 @@ case class LogicalPlan(
     )
   }
 
-  def toPhysicalPlan(): PhysicalPlan = {
+  def toPhysicalPlan: PhysicalPlan = {
 
     if (errorList.nonEmpty) {
       throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")

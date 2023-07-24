@@ -38,7 +38,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
       storage: OpResultStorage
-  ) = {
+  ): Unit = {
     // assign storage to texera-managed sinks before generating exec config
     logicalPlan.operators.foreach {
       case o @ (sink: ProgressiveSinkOpDesc) =>
@@ -70,7 +70,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
 
     assignSinkStorage(logicalPlan, opResultStorage)
 
-    val physicalPlan0 = logicalPlan.toPhysicalPlan()
+    val physicalPlan0 = logicalPlan.toPhysicalPlan
 
     // create pipelined regions.
     val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(
