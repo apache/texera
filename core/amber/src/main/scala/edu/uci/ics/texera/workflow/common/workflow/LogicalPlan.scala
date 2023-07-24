@@ -132,10 +132,6 @@ case class LogicalPlan(
     downstream.toList
   }
 
-  def getDownstreamEdges(operatorID: String): List[OperatorLink] = {
-    links.filter(l => l.origin.operatorID == operatorID)
-  }
-
   def opSchemaInfo(operatorID: String): OperatorSchemaInfo = {
     val op = operatorMap(operatorID)
     val inputSchemas: Array[Schema] =
