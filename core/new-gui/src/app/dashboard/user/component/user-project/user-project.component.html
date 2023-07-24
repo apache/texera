@@ -37,7 +37,6 @@
     <button
       (click)="clickCreateButton()"
       nz-button
-      title="Create a new project"
       nz-tooltip="Create a new project"
       nzTooltipPlacement="bottom"
       type="button">
@@ -56,13 +55,23 @@
   </nz-card>
 
   <nz-card>
+    <button
+      (click)="openPublicProject()"
+      nz-button
+      nzType="primary">
+      Public Projects
+    </button>
+  </nz-card>
+
+  <nz-card>
     <nz-list>
       <texera-user-project-list-item
         *ngFor="let dashboardUserProjectEntry of userProjectEntries"
         [editable]="true"
         [uid]="uid"
         [entry]="dashboardUserProjectEntry"
-        (deleted)="deleteProject(dashboardUserProjectEntry.pid)">
+        (deleted)="deleteProject(dashboardUserProjectEntry.pid)"
+        (refresh)="ngOnInit()">
       </texera-user-project-list-item>
     </nz-list>
   </nz-card>

@@ -1,18 +1,22 @@
-<div class="modal-header">
-  <h4
-    class="modal-title"
-    id="modal-basic-title">
-    Share This {{type}} With Someone
-  </h4>
-  <button
-    (click)="activeModal.dismiss('Cross click')"
-    aria-label="Close"
-    class="close"
-    type="button">
-    <span aria-hidden="true"> × </span>
-  </button>
+<div
+  class="modal-header"
+  nz-row
+  nzJustify="space-between">
+  <div nz-col>
+    <h5>Share this {{type}} with others</h5>
+  </div>
+  <div nz-col>
+    <button
+      (click)="activeModal.dismiss('Cross click')"
+      class="close"
+      type="button">
+      <span> × </span>
+    </button>
+  </div>
 </div>
-<div class="modal-body">
+<div
+  class="modal-body"
+  style="background: #ececec">
   <form
     [formGroup]="validateForm"
     (ngSubmit)="grantAccess()">
@@ -47,29 +51,24 @@
         </nz-form-item>
       </nz-card>
       <br />
-      <div nz-row>
-        <div
-          nz-col
-          [nzSpan]="24">
-          <nz-card nzTitle="Share">
-            <div style="height: 50px">
-              Access Level:
-              <select formControlName="accessLevel">
-                <option value="READ">read</option>
-                <option value="WRITE">write</option>
-              </select>
-            </div>
-            <button
-              [disabled]="!writeAccess"
-              style="width: 100%"
-              nz-button
-              nzType="primary"
-              type="submit">
-              Share
-            </button>
-          </nz-card>
+
+      <nz-card nzTitle="Share">
+        <div style="height: 50px">
+          Access Level:
+          <select formControlName="accessLevel">
+            <option value="READ">read</option>
+            <option value="WRITE">write</option>
+          </select>
         </div>
-      </div>
+        <button
+          [disabled]="!writeAccess"
+          style="width: 100%"
+          nz-button
+          nzType="primary"
+          type="submit">
+          Share
+        </button>
+      </nz-card>
     </div>
   </form>
   <br />
