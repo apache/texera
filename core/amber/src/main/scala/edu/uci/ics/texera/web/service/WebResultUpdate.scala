@@ -8,7 +8,10 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 
 object WebResultUpdate {
-  // convert Tuple from engine's format to JSON format
+
+  /**
+    *  convert Tuple from engine's format to JSON format
+    */
   private def tuplesToWebData(
       mode: WebOutputMode,
       table: List[ITuple],
