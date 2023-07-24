@@ -58,7 +58,6 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.horiBarChart.HoriBarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
@@ -136,8 +135,7 @@ trait StateTransferFunc
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
-    new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
-    new Type(value = classOf[HoriBarChartOpDesc], name = "HoriBarChart")
+    new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct")
   )
 )
 abstract class OperatorDescriptor extends Serializable {

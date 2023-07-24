@@ -1,14 +1,14 @@
-package edu.uci.ics.texera.workflow.operators.visualization.horiBarChart
+package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-class HoriBarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
+class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
-  var opDesc: HoriBarChartOpDesc = _
+  var opDesc: BarChartOpDesc = _
 
   before {
-    opDesc = new HoriBarChartOpDesc()
+    opDesc = new BarChartOpDesc()
   }
 
   it should "list titles of axes in the python code" in {
