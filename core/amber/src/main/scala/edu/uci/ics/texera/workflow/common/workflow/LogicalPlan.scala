@@ -33,9 +33,9 @@ object LogicalPlan {
     workflowDag
   }
 
-  def apply(pojo: LogicalPlanPojo): LogicalPlan =
+  def apply(pojo: LogicalPlanPojo): LogicalPlan = {
     SinkInjectionTransformer.transform(pojo)
-
+  }
 }
 
 case class LogicalPlan(
@@ -56,7 +56,7 @@ case class LogicalPlan(
 
   lazy val terminalOperators: List[String] =
     operatorMap.keys
-      .filter(op => operatorMap(op).isInstanceOf[SinkOpDesc])
+      .filter(op => jgraphtDag.outDegreeOf(op) == 0)
       .toList
 
   lazy val (inputSchemaMap, errorList) = propagateWorkflowSchema()

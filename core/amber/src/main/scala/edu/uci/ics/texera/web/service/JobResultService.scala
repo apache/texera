@@ -15,8 +15,12 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.WebResultUpdate.{WebResultUpdate, convertWebResultUpdate}
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
-import edu.uci.ics.texera.web.workflowresultstate.OperatorResultMetadata
+import edu.uci.ics.texera.web.storage.{
+  JobStateStore,
+  OperatorResultMetadata,
+  WorkflowResultStore,
+  WorkflowStateStore
+}
 import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
@@ -175,7 +179,7 @@ class JobResultService(
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager {
 
-  var progressiveResults: mutable.HashMap[String, ProgressiveSinkOpDesc] =
+  var sinkOperators: mutable.HashMap[String, ProgressiveSinkOpDesc] =
     mutable.HashMap[String, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency =
     AmberUtils.amberConfig.getInt("web-server.workflow-result-pulling-in-seconds")
@@ -233,20 +237,20 @@ class JobResultService(
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, WebResultUpdate]()
-        newState.operatorInfo.foreach {
+        newState.resultInfo.foreach {
           case (opId, info) =>
-            val oldInfo = oldState.operatorInfo.getOrElse(opId, OperatorResultMetadata())
+            val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
             buf(opId) =
-              convertWebResultUpdate(progressiveResults(opId), oldInfo.tupleCount, info.tupleCount)
+              convertWebResultUpdate(sinkOperators(opId), oldInfo.tupleCount, info.tupleCount)
         }
         Iterable(WebResultUpdateEvent(buf.toMap))
       })
     )
 
     // first clear all the results
-    progressiveResults.clear()
-    workflowStateStore.resultStore.updateState { state =>
-      state.withOperatorInfo(Map.empty)
+    sinkOperators.clear()
+    workflowStateStore.resultStore.updateState { _ =>
+      WorkflowResultStore() // empty result store
     }
 
     // For operators connected to a sink and sinks,
@@ -254,8 +258,8 @@ class JobResultService(
     logicalPlan.getTerminalOperators.map(sink => {
       logicalPlan.getOperator(sink) match {
         case sinkOp: ProgressiveSinkOpDesc =>
-          progressiveResults += ((sinkOp.getUpstreamId.get, sinkOp))
-          progressiveResults += ((sink, sinkOp))
+          sinkOperators += ((sinkOp.getUpstreamId.get, sinkOp))
+          sinkOperators += ((sink, sinkOp))
         case other => // skip other non-texera-managed sinks, if any
       }
     })
@@ -266,8 +270,8 @@ class JobResultService(
     val from = request.pageSize * (request.pageIndex - 1)
     val opId = request.operatorID
     val paginationIterable =
-      if (progressiveResults.contains(opId)) {
-        progressiveResults(opId).getStorage.getRange(from, from + request.pageSize)
+      if (sinkOperators.contains(opId)) {
+        sinkOperators(opId).getStorage.getRange(from, from + request.pageSize)
       } else {
         Iterable.empty
       }
@@ -278,8 +282,8 @@ class JobResultService(
   }
 
   def onResultUpdate(): Unit = {
-    workflowStateStore.resultStore.updateState { oldState =>
-      val newInfo: Map[String, OperatorResultMetadata] = progressiveResults.map {
+    workflowStateStore.resultStore.updateState { _ =>
+      val newInfo: Map[String, OperatorResultMetadata] = sinkOperators.map {
         case (id, sink) =>
           val count = sink.getStorage.getCount.toInt
           val mode = sink.getOutputMode
@@ -289,7 +293,7 @@ class JobResultService(
             } else ""
           (id, OperatorResultMetadata(count, changeDetector))
       }.toMap
-      oldState.withOperatorInfo(newInfo)
+      WorkflowResultStore(newInfo)
     }
   }
 

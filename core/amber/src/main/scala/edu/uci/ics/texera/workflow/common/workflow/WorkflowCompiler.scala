@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegions
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.assignSinkStorage
+
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
@@ -16,36 +16,6 @@ object WorkflowCompiler {
     val outLinks =
       workflowCompiler.logicalPlan.links.filter(link => link.origin.operatorID == operatorID)
     outLinks.isEmpty
-  }
-
-  private def assignSinkStorage(
-      logicalPlan: LogicalPlan,
-      storage: OpResultStorage,
-      reuseStorageSet: Set[String] = Set()
-  ) = {
-    // assign storage to texera-managed sinks before generating exec config
-    logicalPlan.operators.foreach {
-      case o @ (sink: ProgressiveSinkOpDesc) =>
-        val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
-        // due to the size limit of single document in mongoDB (16MB)
-        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
-        val storageType = {
-          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
-          else OpResultStorage.defaultStorageMode
-        }
-        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
-          sink.setStorage(storage.get(storageKey))
-        } else {
-          sink.setStorage(
-            storage.create(
-              storageKey,
-              logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
-              storageType
-            )
-          )
-        }
-      case _ =>
-    }
   }
 
   class ConstraintViolationException(val violations: Map[String, Set[ConstraintViolation]])
@@ -65,8 +35,40 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       .map(o => (o._1, o._2.validate().toSet))
       .filter(o => o._2.nonEmpty)
 
-  def amberWorkflow(workflowId: WorkflowIdentity, opResultStorage: OpResultStorage): Workflow = {
-    assignSinkStorage(logicalPlan, opResultStorage, Set())
+  private def assignSinkStorage(
+      logicalPlan: LogicalPlan,
+      storage: OpResultStorage
+  ) = {
+    // assign storage to texera-managed sinks before generating exec config
+    logicalPlan.operators.foreach {
+      case o @ (sink: ProgressiveSinkOpDesc) =>
+        val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
+        // due to the size limit of single document in mongoDB (16MB)
+        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
+        val storageType = {
+          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
+          else OpResultStorage.defaultStorageMode
+        }
+
+        sink.setStorage(
+          storage.create(
+            storageKey,
+            logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
+            storageType
+          )
+        )
+      case _ =>
+    }
+  }
+
+  def amberWorkflow(
+      workflowId: WorkflowIdentity,
+      opResultStorage: OpResultStorage
+  ): Workflow = {
+
+    logicalPlan.operatorMap.values.foreach(initOperator)
+
+    assignSinkStorage(logicalPlan, opResultStorage)
 
     val physicalPlan0 = logicalPlan.toPhysicalPlan()
 

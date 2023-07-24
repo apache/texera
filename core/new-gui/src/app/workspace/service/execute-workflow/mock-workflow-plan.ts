@@ -42,8 +42,7 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
     },
   ],
   breakpoints: [],
-  opsToViewResult: [],
-  opsToReuseResult: [],
+  cachedOperatorIds: [],
 };
 
 export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new WorkflowGraph(
@@ -96,6 +95,5 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
     },
   ],
   breakpoints: [],
-  opsToViewResult: [],
-  opsToReuseResult: [],
+  cachedOperatorIds: [],
 };

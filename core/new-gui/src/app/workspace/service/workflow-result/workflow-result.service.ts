@@ -54,8 +54,10 @@ export class WorkflowResultService {
   }
 
   public hasResult(operatorID: string): boolean {
-    return this.operatorResultServices.get(operatorID) !== undefined || 
+    return (
+      this.operatorResultServices.get(operatorID) !== undefined ||
       this.paginatedResultServices.get(operatorID) !== undefined
+    );
   }
 
   private handleCleanResultCache(event: WorkflowAvailableResultEvent): void {

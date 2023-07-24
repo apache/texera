@@ -65,11 +65,13 @@ class WorkflowService(
   }
   val wsInput = new WebsocketInput(errorHandler)
   val stateStore = new WorkflowStateStore()
+  var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
+
   val resultService: JobResultService =
     new JobResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
     new ResultExportService(opResultStorage, UInteger.valueOf(wId))
-  var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
+
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"wid=$wId",
     cleanUpTimeout,
