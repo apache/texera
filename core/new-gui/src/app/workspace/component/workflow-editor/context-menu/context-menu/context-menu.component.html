@@ -56,8 +56,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()">
+    *ngIf="(operatorMenu.isViewingResult && operatorMenu.isViewResultClickable)"
+    (click)="operatorMenu.viewResultHighlightedOperators()">
     <span
       nz-icon
       nzType="eye"
@@ -66,8 +66,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()">
+    *ngIf="(! operatorMenu.isViewingResult && operatorMenu.isViewResultClickable)"
+    (click)="operatorMenu.viewResultHighlightedOperators()">
     <span
       nz-icon
       nzType="eye-invisible"

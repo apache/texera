@@ -442,7 +442,7 @@ export class WorkflowGraph {
     if (isSink(operator)) {
       return;
     }
-    if (this.isOperatorCached(operatorID)) {
+    if (this.isViewingResult(operatorID)) {
       return;
     }
     this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", true);
@@ -457,7 +457,7 @@ export class WorkflowGraph {
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (!this.isOperatorCached(operatorID)) {
+    if (!this.isViewingResult(operatorID)) {
       return;
     }
     this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", false);
@@ -467,7 +467,7 @@ export class WorkflowGraph {
    * This method gets this status from readonly object version of the operator data as opposed to y-type data.
    * @param operatorID
    */
-  public isOperatorCached(operatorID: string): boolean {
+  public isViewingResult(operatorID: string): boolean {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -478,7 +478,7 @@ export class WorkflowGraph {
   public getCachedOperators(): ReadonlySet<string> {
     return new Set(
       Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
-        this.isOperatorCached(op)
+        this.isViewingResult(op)
       )
     );
   }
