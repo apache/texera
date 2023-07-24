@@ -71,7 +71,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
     assert(hierarchy.nonEmpty)
     val attributes = hierarchy.map(_.attributeName).mkString("'", "','", "'")
     s"""
-      |           fig = px.treemap(table, path=[$attributes], values='$value',
+      |        fig = px.treemap(table, path=[$attributes], values='$value',
       |                        color='$value', hover_data=[$attributes],
       |                        color_continuous_scale='RdBu')
       |""".stripMargin
@@ -88,23 +88,25 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
       |
       |class ProcessTableOperator(UDFTableOperator):
       |
+      |    def render_error(self, error_msg, df):
+      |        return '''<h1>TreeMap is not available.</h1>
+      |                  <p>Reasons is: {} </p>
+      |               '''.format(error_msg)
+      |
       |    @overrides
       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+      |        original_table = table
+      |        if table.empty:
+      |           yield {'html-content': self.render_error("input table is empty.", original_table)}
+      |           return
       |        ${manipulateTable()}
-      |        if not table.empty:
-      |           ${createPlotlyFigure()}
-      |           # convert fig to html content
-      |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-      |           yield {'html-content': html}
-      |        else:
-      |           html = '''<h1>TreeMap is not available.</h1>
-      |                     <p>Possible reasons are:</p>
-      |                     <ul>
-      |                     <li>input table is empty</li>
-      |                     <li>value column contains only non-positive numbers</li>
-      |                     <li>value column is not available</li>
-      |                     </ul>'''
-      |           yield {'html-content': html}
+      |        if table.empty:
+      |           yield {'html-content': self.render_error("value column contains only non-positive numbers.", original_table)}
+      |           return
+      |        ${createPlotlyFigure()}
+      |        # convert fig to html content
+      |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+      |        yield {'html-content': html}
       |""".stripMargin
     final_code
   }
