@@ -56,9 +56,6 @@ class Table(pandas.DataFrame):
             df = self.from_tuple_likes(table_like)
         super().__init__(df)
 
-    def __str__(self) -> str:
-        return f"Table[{self.__data_frame}]"
-
     def as_tuples(self) -> Iterator[Tuple]:
         """
         Convert rows of the table into Tuples, and returning an iterator of Tuples
@@ -69,4 +66,7 @@ class Table(pandas.DataFrame):
             yield Tuple(dict(zip(self.columns, raw_tuple)))
 
     def __eq__(self, other: "Table") -> bool:
-        return all(a == b for a, b in zip(self.as_tuples(), other.as_tuples()))
+        if isinstance(other, Table):
+            return all(a == b for a, b in zip(self.as_tuples(), other.as_tuples()))
+        else:
+            return super().__eq__(other).all()
