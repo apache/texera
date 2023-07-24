@@ -1,0 +1,73 @@
+package edu.uci.ics.texera.workflow.operators.visualization.DotPlot
+
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+
+@JsonSchemaTitle("DotPlot Visualization Operator")
+class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+
+  @JsonProperty(value = "Count Attribute", required = true)
+  @JsonSchemaTitle("Count Attribute")
+  @JsonPropertyDescription("the attribute for the counting of the dot plot")
+  @AutofillAttributeName
+  var CountAttribute: String = ""
+
+  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+  }
+
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "DotPlot Visualizer",
+      "Visualize data using a dot plot",
+      OperatorGroupConstants.VISUALIZATION_GROUP,
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
+    )
+
+  override def numWorkers() = 1
+  def createPlotlyFigure(): String = {
+    s"""
+       |        table = table.groupby(['$CountAttribute'])['$CountAttribute'].count().reset_index(name='counts')
+       |        fig = px.strip(table, x='counts', y='$CountAttribute', orientation='h', color='$CountAttribute',
+       |               color_discrete_sequence=px.colors.qualitative.Dark2)
+       |
+       |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
+       |
+       |        fig.update_layout(title='Styled Categorical Dot Plot',
+       |                          xaxis_title='Counts',
+       |                          yaxis_title='$CountAttribute',
+       |                          yaxis=dict(showline=True, showgrid=False, showticklabels=True),
+       |                          xaxis=dict(showline=True, showgrid=True, showticklabels=True),
+       |                          height=800)
+       |""".stripMargin
+  }
+
+  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+    val final_code = s"""
+                        |from pytexera import *
+                        |
+                        |import plotly.express as px
+                        |import plotly.graph_objects as go
+                        |import plotly.io
+                        |
+                        |class ProcessTableOperator(UDFTableOperator):
+                        |
+                        |    @overrides
+                        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                        |        ${createPlotlyFigure()}
+                        |        # convert fig to html content
+                        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+                        |        yield {'html-content': html}
+                        |""".stripMargin
+    final_code
+  }
+
+  // make the chart type to html visualization so it can be recognized by both backend and frontend.
+  override def chartType(): String = VisualizationConstants.HTML_VIZ
+}
