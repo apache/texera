@@ -305,22 +305,8 @@
         </button>
       </nz-button-group>
     </div>
-    <div
-      [ngClass]="{
-				'texera-navigation-execute': true,
-				'reveal-stop-button':
-					executionState !== ExecutionState.Uninitialized &&
-					executionState !== ExecutionState.Completed &&
-					executionState !== ExecutionState.Aborted
-			}">
+    <div class="texera-navigation-execute">
       <nz-button-group nzSize="large">
-        <button
-          [disabled]="true"
-          class="execution-duration"
-          nz-button
-          nzType="text">
-          {{ executionDuration | date: 'H:mm:ss': 'UTC' }}
-        </button>
         <button
           (click)="undoRedoService.undoAction()"
           [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
@@ -344,14 +330,12 @@
             nzType="redo"></i>
         </button>
         <button
-          #runStopButton
           (click)="handleKill()"
           [disabled]="
 						executionState === ExecutionState.Uninitialized ||
 						executionState === ExecutionState.Completed ||
 						executionState === ExecutionState.Aborted
 					"
-          class="texera-navigation-stop-button"
           nz-button
           nzDanger
           nzType="primary"
@@ -369,11 +353,11 @@
           [nzPopoverContent]="execution_name"
           nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
-          class="texera-navigation-run-button animate-to-reveal-stop-button"
+          class="run-button animate-to-reveal-stop-button"
           nz-button
           nzType="primary">
+          <span id="duration"> {{ executionDuration | date: 'H:mm:ss': 'UTC' }} </span>
           <i
-            class="texera-navigation-run-button-icon"
             nz-icon
             nzTheme="outline"
             nzType="{{ runIcon }}"></i>
