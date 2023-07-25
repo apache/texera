@@ -71,9 +71,7 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
   def createPlotlyFigure(): String = {
     assert(x_value.nonEmpty && y_value.nonEmpty && z_value.nonEmpty)
     s"""
-       |        default_size = 10 # in case values are missing
-       |        fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value',
-       |                                   size_max = default_size), log_x=True, log_y=True)
+       |        fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100))
        |
        |""".stripMargin
   }
