@@ -5,15 +5,6 @@
   <div nz-col>
     <h5>Share this {{type}} with others</h5>
   </div>
-  <div
-    nz-col
-    *ngIf="isAdmin && type==='project'">
-    <nz-switch
-      [ngModel]="isPublic"
-      nzCheckedChildren="Public"
-      nzUnCheckedChildren="Private"
-      (ngModelChange)="visibilityChange()"></nz-switch>
-  </div>
   <div nz-col>
     <button
       (click)="activeModal.dismiss('Cross click')"
