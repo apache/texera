@@ -24,19 +24,6 @@ class TupleLike(Protocol):
         ...
 
 
-# TupleLike:
-# Dict[str, Field],
-# typing.Tuple[typing.Tuple[str, Field]],
-# List[typing.Tuple[str, Field]]
-
-
-# TableLike:
-# Dict[str, List[Field]]
-# Dict[str, typing.Tuple[Field]]
-# List[TupleLike]
-# tying.Tuple[TupleLike]
-
-
 @dataclass
 class InputExhausted:
     pass

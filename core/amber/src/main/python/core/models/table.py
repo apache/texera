@@ -6,16 +6,6 @@ import pandas
 from core.models import Tuple, TupleLike
 
 
-# @typing_extensions.runtime_checkable
-# class TableLike(
-#     Protocol,
-#     Sized,
-#     Container,
-# ):
-#     def __getitem__(self, item):
-#         ...
-
-
 TableLike = TypeVar("TableLike", pandas.DataFrame, List[TupleLike])
 
 
@@ -52,7 +42,7 @@ class Table(pandas.DataFrame):
 
         if isinstance(table_like, Table):
             df = self.from_table(table_like)
-        if isinstance(table_like, pandas.DataFrame):
+        elif isinstance(table_like, pandas.DataFrame):
             df = self.from_data_frame(table_like)
         elif isinstance(table_like, list):
             # only supports List[TupleLike]
