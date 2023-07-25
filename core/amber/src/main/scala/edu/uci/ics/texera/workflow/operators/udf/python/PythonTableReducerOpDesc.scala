@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
-  @JsonSchemaTitle("Add/Modify column(s)")
+  @JsonSchemaTitle("Output columns")
   var lambdaAttributeUnits: List[LambdaAttributeUnit] = List()
   override def numWorkers(): Int = 1
 
