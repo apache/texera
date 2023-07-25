@@ -26,11 +26,26 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
   @AutofillAttributeName
   var value: String = ""
 
+  @JsonProperty(value = "xlabel", required = true)
+  @JsonSchemaTitle("X label")
+  @JsonPropertyDescription("the value for the label of x axis")
+  var xlabel: String = ""
+
   @JsonProperty(value = "date", required = true)
   @JsonSchemaTitle("Date Column")
-  @JsonPropertyDescription("the date column specifying the date of each data entry")
+  @JsonPropertyDescription("select the date column")
   @AutofillAttributeName
   var date: String = ""
+
+  @JsonProperty(value = "ylabel", required = true)
+  @JsonSchemaTitle("Y label")
+  @JsonPropertyDescription("the value for the label of y axis")
+  var ylabel : String = ""
+
+  @JsonProperty(value = "title", required = false)
+  @JsonSchemaTitle("Plot title")
+  @JsonPropertyDescription("The value for the plot tile")
+  var title: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -59,7 +74,9 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
 
   def createPlotlyFigure(): String = {
     s"""
-       |           fig = px.line(table, x='$date', y='$value')
+       |           fig = px.line(table, x='$date', y='$value', title='$title')
+       |           fig.update_xaxes(dtick='M3', title='$xlabel')
+       |           fig.update_yaxes(title='$ylabel')
        |""".stripMargin
   }
 
