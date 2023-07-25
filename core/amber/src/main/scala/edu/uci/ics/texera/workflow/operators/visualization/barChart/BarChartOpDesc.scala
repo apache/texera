@@ -3,10 +3,23 @@ package edu.uci.ics.texera.workflow.operators.visualization.barChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -19,6 +32,11 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
 }
 """)
 class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+
+  @JsonProperty(defaultValue = "Bar Graph Visual")
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("Add a title to your visualization")
+  var title: String = _
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -84,15 +102,24 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
                         |        ${manipulateTable()}
-                        |        print(table)
-                        |        if ($truthy):
-                        |           fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h'))
+                        |        if not table.empty and '$fields' != '$value':
+                        |           if ($truthy):
+                        |              fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h', title='$title'))
+                        |           else:
+                        |              fig = go.Figure(px.bar(table, y='$value', x='$fields', title='$title'))
+                        |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
+                        |           # use latest plotly lib in html
+                        |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
+                        |           yield {'html-content':html}
                         |        else:
-                        |           fig = go.Figure(px.bar(table, y='$value', x='$fields'))
-                        |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-                        |        # use latest plotly lib in html
-                        |        #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
-                        |        yield {'html-content':html}
+                        |           html = '''<h1>Bar Chart is not available.</h1>
+                        |                     <p>Possible reasons are:</p>
+                        |                     <ul>
+                        |                     <li>input table is empty</li>
+                        |                     <li>value column is not available</li>
+                        |                     <li>both value column and field column are the same</li>
+                        |                     </ul>'''
+                        |           yield {'html-content': html}
                         |        """.stripMargin
     final_code
   }
