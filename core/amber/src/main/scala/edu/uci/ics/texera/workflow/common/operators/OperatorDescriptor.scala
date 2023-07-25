@@ -137,7 +137,7 @@ trait StateTransferFunc
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
-    new Type(value = classOf[GanttChartOpDesc], name = "GanttChartVisualizer1")
+    new Type(value = classOf[GanttChartOpDesc], name = "GanttChart")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
