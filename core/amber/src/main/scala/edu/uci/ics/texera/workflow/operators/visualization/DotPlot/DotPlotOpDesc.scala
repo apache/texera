@@ -8,7 +8,6 @@ import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
-@JsonSchemaTitle("DotPlot Visualization Operator")
 class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "Count Attribute", required = true)
@@ -16,6 +15,11 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   @JsonPropertyDescription("the attribute for the counting of the dot plot")
   @AutofillAttributeName
   var CountAttribute: String = ""
+
+  @JsonProperty(value = "Title", required = true)
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("Title for the Dot Plot Visualization")
+  var title: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -39,7 +43,7 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
        |
        |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
        |
-       |        fig.update_layout(title='Styled Categorical Dot Plot',
+       |        fig.update_layout(title='$title',
        |                          xaxis_title='Counts',
        |                          yaxis_title='$CountAttribute',
        |                          yaxis=dict(showline=True, showgrid=False, showticklabels=True),
