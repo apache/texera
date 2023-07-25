@@ -21,34 +21,41 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-//type constraint: value can only be numeric
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "value": {
-      "enum": ["integer", "long", "double"]
+    "task": {
+      "enum": ["string"]
     }
   }
 }
 """)
 class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  @JsonProperty(value = "value", required = true)
-  @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with slice of pie")
+  @JsonProperty(value = "start", required = true)
+  @JsonSchemaTitle("Start Datetime Column")
+  @JsonPropertyDescription("the start timestamp of the task")
   @AutofillAttributeName
-  var value: String = ""
+  var start: String = ""
 
-  @JsonProperty(value = "names", required = true)
-  @JsonSchemaTitle("Name Column(s)")
-  @JsonPropertyDescription("the names of the slice of pie")
+  @JsonProperty(value = "finish", required = true)
+  @JsonSchemaTitle("Finish Datetime Column")
+  @JsonPropertyDescription("the end timestamp of the task")
   @AutofillAttributeName
-  var names: String = ""
+  var finish: String = ""
 
-  @JsonProperty(value = "title", required = false, defaultValue = "PieChart Visualization")
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("the title of this pie chart")
-  var title: String = "PieChart Visualization"
+  @JsonProperty(value = "task", required = true)
+  @JsonSchemaTitle("Task Column")
+  @JsonPropertyDescription("the name of the task")
+  @AutofillAttributeName
+  var task: String = ""
+
+  @JsonProperty(value = "color", required = false)
+  @JsonSchemaTitle("Color Column")
+  @JsonPropertyDescription("column to color tasks")
+  @AutofillAttributeName
+  var color: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -56,15 +63,15 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "PieChart Visualizer",
-      "Visualize data in a Pie Chart",
+      "Gantt Chart Visualizer",
+      "Visualize data in a Gantt Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
 
   def manipulateTable(): String = {
-    assert(value.nonEmpty)
+    assert(task.nonEmpty)
     s"""
        |        table = table.dropna() #remove missing values
        |""".stripMargin
@@ -72,11 +79,14 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
 
   override def numWorkers() = 1
 
+
+
+
   def createPlotlyFigure(): String = {
-    assert(value.nonEmpty)
+    assert(task.nonEmpty)
     s"""
-       |           fig = px.pie(table, names='$names', values='$value', title='$title')
-       |           fig.update_layout(margin=dict(t=40, b=0, l =0, r=0))
+       |           fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task", color="$color")
+       |           fig.update_yaxes(autorange="reversed")
        |""".stripMargin
   }
 
