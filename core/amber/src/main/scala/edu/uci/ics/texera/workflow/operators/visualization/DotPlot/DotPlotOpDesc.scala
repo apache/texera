@@ -27,7 +27,7 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "DotPlot Visualizer",
+      "DotPlot",
       "Visualize data using a dot plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
