@@ -64,6 +64,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDe
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.BubbleChart.BubbleChartOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -135,7 +136,8 @@ trait StateTransferFunc
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
-    new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct")
+    new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
+    new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart")
   )
 )
 abstract class OperatorDescriptor extends Serializable {

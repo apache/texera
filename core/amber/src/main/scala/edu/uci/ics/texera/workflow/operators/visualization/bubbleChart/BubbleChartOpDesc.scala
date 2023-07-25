@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.TreeMap
+package edu.uci.ics.texera.workflow.operators.visualization.BubbleChart
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
@@ -24,7 +24,7 @@ import scala.jdk.CollectionConverters.asScalaBuffer
  */
 
 // type can be numerical only
-class bubbleChartDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(value = "x_value", required = true)
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("column of data for the x-axis")
@@ -72,7 +72,8 @@ class bubbleChartDesc extends VisualizationOperator with PythonOperatorDescripto
     assert(x_value.nonEmpty && y_value.nonEmpty && z_value.nonEmpty)
     s"""
        |        default_size = 10 # in case values are missing
-       |        fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max = default_size))
+       |        fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value',
+       |                                   size_max = default_size), log_x=True, log_y=True)
        |
        |""".stripMargin
   }
