@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -20,7 +20,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
 }
-
 
 class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
@@ -95,7 +94,7 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
          |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", facet_col="$LineGroup")
          |
          |""".stripMargin
-    } else if (LineGroup.nonEmpty){
+    } else if (LineGroup.nonEmpty) {
       s"""
          |            fig = None
          |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup")
