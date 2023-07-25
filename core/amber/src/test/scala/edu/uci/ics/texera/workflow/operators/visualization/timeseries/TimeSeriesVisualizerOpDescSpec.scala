@@ -1,14 +1,14 @@
-package edu.uci.ics.texera.workflow.operators.visualization.treemap
+package edu.uci.ics.texera.workflow.operators.visualization.timeseries
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-class TreeMapVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
+class TimeSeriesVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
-  var opDesc: TreeMapVisualizerOpDesc = _
+  var opDesc: TimeSeriesVisualizerOpDesc = _
 
   before {
-    opDesc = new TreeMapVisualizerOpDesc()
+    opDesc = new TimeSeriesVisualizerOpDesc()
   }
 
   it should "generate a list of hierarchy sections in the python code" in {
