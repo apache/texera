@@ -69,7 +69,7 @@ export const mockResultOperator: OperatorPredicate = {
   outputPorts: [],
   showAdvanced: false,
   isDisabled: false,
-  operatorVersion: "1.0"
+  operatorVersion: "1.0",
 };
 
 export const mockResultPoint: Point = {
