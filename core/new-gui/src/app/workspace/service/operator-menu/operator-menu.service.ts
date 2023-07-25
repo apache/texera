@@ -50,8 +50,7 @@ export class OperatorMenuService {
   public isDisableOperator: boolean = true;
 
   public isViewingResult: boolean = false;
-  public isViewResultClickable : boolean = true;
-
+  public isViewResultClickable: boolean = true;
 
   public readonly COPY_OFFSET = 20;
 
