@@ -386,11 +386,22 @@
         </ng-template>
 
         <div [ngStyle]="{ 'margin-left': '5px' }">
+<!--          <nz-badge-->
+<!--            *ngIf="workflowWebsocketService.isConnected"-->
+<!--            [nz-tooltip]="'Status: connected,Number of Workers: ' +workflowWebsocketService.numWorkers"-->
+<!--            nzStatus="success"-->
+<!--            nzTooltipPlacement="bottom"></nz-badge>-->
           <nz-badge
             *ngIf="workflowWebsocketService.isConnected"
-            [nz-tooltip]="'Status: connected,Number of Workers: ' +workflowWebsocketService.numWorkers"
-            nzStatus="success"
-            nzTooltipPlacement="bottom"></nz-badge>
+            nz-popover
+            nzPopoverTitle="Connected"
+            [nzPopoverTrigger]="userSystemEnabled?'hover':null"
+            [nzPopoverContent]="exe1"
+            nzPopoverPlacement="bottom"
+            nzStatus="success"></nz-badge>
+          <ng-template #exe1>
+            Number of Workers: {{workflowWebsocketService.numWorkers}}
+          </ng-template>
           <nz-badge
             *ngIf="!workflowWebsocketService.isConnected"
             nz-tooltip="disconnected"
