@@ -11,22 +11,15 @@ class TimeSeriesVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new TimeSeriesVisualizerOpDesc()
   }
 
-  it should "generate a list of hierarchy sections in the python code" in {
-    val attributes = Array.fill(3)(new HierarchySection())
-    attributes(0).attributeName = "column_a"
-    attributes(1).attributeName = "column_b"
-    attributes(2).attributeName = "column_c"
-    opDesc.hierarchy = attributes.toList
-    assert(opDesc.createPlotlyFigure().contains("['column_a','column_b','column_c']"))
-  }
-
-  it should "throw assertion error if hierarchy is empty" in {
+  it should "throw assertion error if date is empty" in {
+    opDesc.value = "column1"
     assertThrows[AssertionError] {
-      opDesc.createPlotlyFigure()
+      opDesc.manipulateTable()
     }
   }
 
   it should "throw assertion error if value is empty" in {
+    opDesc.date = "column2"
     assertThrows[AssertionError] {
       opDesc.manipulateTable()
     }

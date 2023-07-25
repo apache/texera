@@ -1,25 +1,12 @@
-package edu.uci.ics.texera.workflow.operators.visualization.treemap
+package edu.uci.ics.texera.workflow.operators.visualization.timeseries
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -31,18 +18,19 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   }
 }
 """)
-class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with each tree node")
+  @JsonPropertyDescription("the value changing over time")
   @AutofillAttributeName
   var value: String = ""
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Hierarchy Path")
-  @JsonPropertyDescription("hierarchy of sectors, from root to leaves")
-  var hierarchy: List[HierarchySection] = List()
+  @JsonProperty(value = "date", required = true)
+  @JsonSchemaTitle("Date Column")
+  @JsonPropertyDescription("the date column specifying the date of each data entry")
+  @AutofillAttributeName
+  var date: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -50,8 +38,8 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "TreeMap Visualizer",
-      "Visualize data in a tree hierarchy",
+      "TimeSeries Visualizer",
+      "Visualize data in a certain time period",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -59,21 +47,19 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
 
   def manipulateTable(): String = {
     assert(value.nonEmpty)
+    assert(date.nonEmpty)
     s"""
        |        table['$value'] = table[table['$value'] > 0]['$value'] # remove non-positive numbers from the data
        |        table = table.dropna() #remove missing values
+       |        table = table.sort_values(by='$date', ascending=True)
        |""".stripMargin
   }
 
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
-    assert(hierarchy.nonEmpty)
-    val attributes = hierarchy.map(_.attributeName).mkString("'", "','", "'")
     s"""
-       |           fig = px.treemap(table, path=[$attributes], values='$value',
-       |                        color='$value', hover_data=[$attributes],
-       |                        color_continuous_scale='RdBu')
+       |           fig = px.line(table, x='$date', y='$value')
        |""".stripMargin
   }
 
