@@ -57,7 +57,7 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         |    sorting = '${sorting.getName}'
         |
         |    @overrides
-        |    def produce(self, input_: int) -> Iterator[Union[TupleLike, TableLike, None]]:
+        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         |        redditInstance = praw.Reddit(
         |            client_id=self.client_id,
         |            client_secret=self.client_secret,
