@@ -31,6 +31,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 
 // type can be numerical only
 class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+
   @JsonProperty(value = "x_value", required = true)
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("Data column for the x-axis")

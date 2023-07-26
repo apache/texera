@@ -202,3 +202,4 @@ abstract class OperatorDescriptor extends Serializable {
   }
 
 }
+

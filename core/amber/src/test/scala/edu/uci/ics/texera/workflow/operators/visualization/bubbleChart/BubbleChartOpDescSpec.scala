@@ -30,5 +30,4 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       opDesc.createPlotlyFigure()
     }
   }
-
 }
