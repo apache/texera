@@ -15,7 +15,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime } from "rxjs/operators";
+import { catchError, debounceTime, filter, flatMap, map, mergeMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
@@ -26,7 +26,8 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { isDefined } from "../../../common/util/predicate";
-import { Subscription, timer } from "rxjs";
+import { of, Subscription, throwError, timer } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -57,7 +58,7 @@ export class NavigationComponent implements OnInit {
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
 
-  @Input() private pid?: number = undefined;
+  @Input() public pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
@@ -403,17 +404,28 @@ export class NavigationComponent implements OnInit {
 
   public persistWorkflow(): void {
     this.isSaving = true;
+    let localPid = this.pid;
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (updatedWorkflow: Workflow) => {
+      .pipe(
+        catchError((error: unknown) => {
+          return throwError(() => error);
+        }),
+        mergeMap((updatedWorkflow: Workflow) => {
           this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
           this.isSaving = false;
-        },
+          if (updatedWorkflow !== undefined && localPid !== undefined) {
+            return this.userProjectService.addWorkflowToProject(localPid!, updatedWorkflow.wid!);
+          } else {
+            // skip adding workflow to project.
+            return of(new Response());
+          }
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe({
         error: (error: unknown) => {
-          alert(error);
-          this.isSaving = false;
+          alert("Error in persistWorkflow: " + error);
         },
       });
   }
