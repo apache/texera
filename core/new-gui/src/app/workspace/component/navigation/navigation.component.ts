@@ -425,7 +425,10 @@ export class NavigationComponent implements OnInit {
       )
       .subscribe({
         error: (error: unknown) => {
-          alert("Error in persistWorkflow: " + error);
+          this.isSaving = false;
+          this.notificationService.error(error, {
+            nzDuration: 10,
+          });
         },
       });
   }
