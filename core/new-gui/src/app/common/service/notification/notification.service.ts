@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { NzMessageDataOptions } from "ng-zorro-antd/message";
+import { HttpErrorResponse } from "@angular/common/http";
 
 export interface Notification {
   type: "success" | "info" | "error" | "warning" | "loading";
@@ -13,7 +14,7 @@ export interface Notification {
  * to show on NotificationComponent.
  */
 @Injectable({
-  providedIn: "root",
+  providedIn: "root"
 })
 export class NotificationService {
   private notificationStream = new Subject<Notification>();
@@ -31,14 +32,16 @@ export class NotificationService {
   }
 
   info(message: string, options: NzMessageDataOptions = {}) {
+    console.log("sending an info");
     this.sendNotification({ type: "info", message, options });
+    console.log("done sending an info");
   }
 
   error(cause: Error | any, options: NzMessageDataOptions = {}) {
     this.sendNotification({
       type: "error",
-      message: cause instanceof Error ? cause.message : cause.toString(),
-      options,
+      message: (cause instanceof Error || cause.hasOwnProperty("message")) ? cause.message : cause.toString(),
+      options
     });
   }
 
