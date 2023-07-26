@@ -282,11 +282,3 @@ class Tuple:
 
     def __contains__(self, __x: object) -> bool:
         return __x in self._field_data
-
-
-# TupleLike = typing.TypeVar(
-#     "TupleLike",
-#     Tuple,
-#     Dict[str, Field],
-#
-# )
