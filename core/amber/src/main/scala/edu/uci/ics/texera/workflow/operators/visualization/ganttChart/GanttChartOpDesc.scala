@@ -25,8 +25,11 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "task": {
-      "enum": ["string"]
+    "start": {
+      "enum": ["timestamp"]
+    },
+    "finish": {
+      "enum": ["timestamp"]
     }
   }
 }
@@ -55,7 +58,7 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("column to color tasks")
   @AutofillAttributeName
-  var color: String = ""
+  var color: String = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -63,17 +66,20 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Gantt Chart Visualizer",
-      "Visualize data in a Gantt Chart",
+      "Gantt Chart",
+      "A Gantt chart is a type of bar chart that illustrates a project schedule. The chart lists the tasks to be performed on the vertical axis, and time intervals on the horizontal axis. The width of the horizontal bars in the graph shows the duration of each activity.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
 
   def manipulateTable(): String = {
-    assert(task.nonEmpty)
+    val optionalFilterTable=if(color.nonEmpty) s"table = table[~table['$color'].isnull()].copy()" else ""
     s"""
-       |        table = table.dropna() #remove missing values
+       |        table = table[~table["$start"].isnull()].copy()
+       |        table = table[~table["$finish"].isnull()].copy()
+       |        table = table[~table["$task"].isnull()].copy()
+       |        $optionalFilterTable
        |""".stripMargin
   }
 
@@ -83,11 +89,13 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
 
 
   def createPlotlyFigure(): String = {
-    assert(task.nonEmpty)
+    val colorSetting = if(color.nonEmpty) s", color='$color'" else ""
+
     s"""
-       |           fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task", color="$color")
-       |           fig.update_yaxes(autorange="reversed")
-       |""".stripMargin
+        |           fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task" $colorSetting)
+        |           fig.update_yaxes(autorange="reversed")
+        |""".stripMargin
+
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
