@@ -24,6 +24,12 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("Title of our plot")
+  @AutofillAttributeName
+  var Title: String = ""
+
+  @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
   @JsonPropertyDescription("The attribute for your x-axis")
   @AutofillAttributeName
@@ -43,12 +49,12 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Color")
-  @JsonPropertyDescription("Do you want to color the lines")
+  @JsonPropertyDescription("Choose an attribute to color the plot")
   @AutofillAttributeName
-  var Color: Boolean = false
+  var Color: String = ""
 
   @JsonProperty(required = false)
-  @JsonSchemaTitle("Split Graph")
+  @JsonSchemaTitle("Split Plot by  Line Group")
   @JsonPropertyDescription("Do you want to split the graph")
   @AutofillAttributeName
   var FacetColumn: Boolean = false
@@ -59,8 +65,8 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "FilledAreaPlot Visualizer",
-      "Visualize data in filled area plot/plots",
+      "FilledAreaPlot",
+      "Visualize data in filled area plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -72,41 +78,67 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
     assert(X.nonEmpty)
     assert(Y.nonEmpty)
 
-    if (Color || FacetColumn) {
+    if (FacetColumn) {
       assert(LineGroup.nonEmpty)
     }
 
-    if (Color && FacetColumn) {
+    if (Color.nonEmpty && FacetColumn) {
       s"""
          |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", color="$LineGroup", facet_col="$LineGroup")
+         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", color="$Color", facet_col="$LineGroup", title="$Title")
          |
          |""".stripMargin
-    } else if (Color) {
+    } else if (Color.nonEmpty) {
       s"""
          |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", color="$LineGroup")
+         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", color="$Color", title="$Title")
          |
          |""".stripMargin
     } else if (FacetColumn) {
       s"""
          |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", facet_col="$LineGroup")
+         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", facet_col="$LineGroup", title="$Title")
          |
          |""".stripMargin
     } else if (LineGroup.nonEmpty) {
       s"""
          |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup")
+         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", title="$Title")
          |
          |""".stripMargin
     } else {
       s"""
          |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y")
+         |            fig = px.area(table, x="$X", y="$Y", title="$Title")
          |
          |""".stripMargin
     }
+  }
+
+  def performTableCheck(): String = {
+    s"""
+       |        error = False
+       |        if "$X" not in columns or "$Y" not in columns:
+       |            error = True
+       |        elif "$LineGroup" != "":
+       |            grouped = table.groupby("$LineGroup")
+       |            x_values = None
+       |
+       |            tolerance = (len(grouped) // 100) * 5
+       |            count = 0
+       |
+       |            for _, group in grouped:
+       |                if x_values == None:
+       |                    x_values = set(group["$X"].unique())
+       |                elif set(group["$X"].unique()).intersection(x_values):
+       |                    X_values = x_values.union(set(group["$X"].unique()))
+       |                elif not set(group["$X"].unique()).intersection(x_values):
+       |                    count += 1
+       |                    if count > tolerance:
+       |                        error = True
+       |
+       |
+       |""".stripMargin
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
@@ -125,7 +157,9 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        columns = list(table.columns)
-         |        if "$X" in columns and "$Y" in columns:
+         |        ${performTableCheck()}
+         |
+         |        if not error:
          |            ${createPlotlyFigure()}
          |
          |            html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
@@ -135,6 +169,7 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
          |                     <p>Possible reasons are:</p>
          |                     <ul>
          |                     <li>Attributes not existed</li>
+         |                     <li>X attribute is not shared across all line groups</li>
          |                     </ul>'''
          |            yield {'html-content': html}
          |""".stripMargin

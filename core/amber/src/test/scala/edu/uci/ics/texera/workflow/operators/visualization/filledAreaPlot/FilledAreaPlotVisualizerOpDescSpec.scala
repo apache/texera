@@ -33,13 +33,13 @@ class FilledAreaPlotVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter
     }
   }
 
-  it should "throw error if LineGroup is not indicated but color and facet column are checked" in {
+  it should "throw error if LineGroup is not indicated facet column is checked" in {
     val x = "test1"
     val y = "test2"
     opDesc.X = x
     opDesc.Y = y
     opDesc.FacetColumn = true
-    opDesc.Color = true
+    opDesc.Color = "color"
 
     assertThrows[AssertionError] {
       opDesc.createPlotlyFigure()
