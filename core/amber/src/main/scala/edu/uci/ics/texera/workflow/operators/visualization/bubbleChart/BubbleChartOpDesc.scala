@@ -2,26 +2,32 @@ package edu.uci.ics.texera.workflow.operators.visualization.bubbleChart
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.aggregate.{AggregationFunction, AggregationOperation, SpecializedAggregateOpDesc}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
-
-import java.util.Collections.singletonList
-import scala.jdk.CollectionConverters.asScalaBuffer
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 /**
- * Visualization Operator to visualize results as a Bubble Chart
- * User specifies 2 columns to use for the x, y labels. Size of bubbles determined via
- * third column of data.
- * NOTE: This is for the PR for Texera Summer Research 2023 -VT
- */
+  * Visualization Operator to visualize results as a Bubble Chart
+  * User specifies 2 columns to use for the x, y labels. Size of bubbles determined via
+  * third column of data.
+  * NOTE: This is for the PR for Texera Summer Research 2023 -VT
+  */
 
 // type can be numerical only
 class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
@@ -95,9 +101,8 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String
-  = {
-      val final_code = s"""
+  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+    val final_code = s"""
         |from pytexera import *
         |
         |import plotly.express as px
@@ -129,6 +134,6 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
         |        yield {'html-content':html}
         |""".stripMargin
-      final_code
+    final_code
   }
 }
