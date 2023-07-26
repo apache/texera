@@ -53,6 +53,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 ![Sample Texera Workflow](https://user-images.githubusercontent.com/12926365/171459157-1792971d-a31f-49e7-ab98-6f3b9ead9f5b.png)
 
 ## Publications (Computer Science):
+* (7/2023) Raven: Accelerating Execution of Iterative Data Analytics by Reusing Results of Previous Equivalent Versions, Sadeem Alsudais, Avinash Kumar, Chen Li, in HILDA 2023 [PDF](https://dl.acm.org/doi/10.1145/3597465.3605219)
 * (12/2022) Towards Interactive, Adaptive and Result-aware Big Data Analytics, Avinash Kumar, Phd Thesis [PDF](https://arxiv.org/abs/2212.07096).
 * (9/2022) Fries: Fast and Consistent Runtime Reconfiguration in Dataflow Systems with Transactional Guarantees, Zuozhi Wang, Shengquan Ni, Avinash Kumar, Chen Li, in VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p256-wang.pdf).
 * (7/2022) Drove: Tracking Execution Results of Workflows on Large Datasets, Sadeem Alsudais, in the PhD workshop at VLDB 2022 [PDF](http://ceur-ws.org/Vol-3186/paper_10.pdf).
