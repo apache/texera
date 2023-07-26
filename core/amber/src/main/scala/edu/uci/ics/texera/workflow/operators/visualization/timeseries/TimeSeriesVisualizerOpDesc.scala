@@ -3,10 +3,23 @@ package edu.uci.ics.texera.workflow.operators.visualization.timeseries
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -14,11 +27,19 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
   "attributeTypeRules": {
     "value": {
       "enum": ["integer", "long", "double"]
+    },
+    "date": {
+      "enum": ["timestamp"]
     }
   }
 }
 """)
 class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+
+  @JsonProperty(value = "title", required = false)
+  @JsonSchemaTitle("Plot title")
+  @JsonPropertyDescription("The value for the plot tile")
+  var title: String = ""
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -26,10 +47,10 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
   @AutofillAttributeName
   var value: String = ""
 
-  @JsonProperty(value = "xlabel", required = true)
-  @JsonSchemaTitle("X label")
-  @JsonPropertyDescription("the value for the label of x axis")
-  var xlabel: String = ""
+  @JsonProperty(value = "ylabel", required = true)
+  @JsonSchemaTitle("Y label")
+  @JsonPropertyDescription("the value for the label of y axis")
+  var ylabel: String = ""
 
   @JsonProperty(value = "date", required = true)
   @JsonSchemaTitle("Date Column")
@@ -37,15 +58,17 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
   @AutofillAttributeName
   var date: String = ""
 
-  @JsonProperty(value = "ylabel", required = true)
-  @JsonSchemaTitle("Y label")
-  @JsonPropertyDescription("the value for the label of y axis")
-  var ylabel : String = ""
+  @JsonProperty(value = "xlabel", required = true)
+  @JsonSchemaTitle("X label")
+  @JsonPropertyDescription("the value for the label of x axis")
+  var xlabel: String = ""
 
-  @JsonProperty(value = "title", required = false)
-  @JsonSchemaTitle("Plot title")
-  @JsonPropertyDescription("The value for the plot tile")
-  var title: String = ""
+  @JsonProperty(value = "tick", required = true)
+  @JsonSchemaTitle("tick")
+  @JsonPropertyDescription(
+    "The value for the tick interval. e.g. 'M1' render a tick every month, 'D1' render a tick every day"
+  )
+  var tick: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -64,7 +87,6 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
     assert(value.nonEmpty)
     assert(date.nonEmpty)
     s"""
-       |        table['$value'] = table[table['$value'] > 0]['$value'] # remove non-positive numbers from the data
        |        table = table.dropna() #remove missing values
        |        table = table.sort_values(by='$date', ascending=True)
        |""".stripMargin
@@ -75,7 +97,7 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
   def createPlotlyFigure(): String = {
     s"""
        |           fig = px.line(table, x='$date', y='$value', title='$title')
-       |           fig.update_xaxes(dtick='M3', title='$xlabel')
+       |           fig.update_xaxes(dtick='$tick', title='$xlabel')
        |           fig.update_yaxes(title='$ylabel')
        |""".stripMargin
   }
@@ -100,11 +122,10 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
                         |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
                         |           yield {'html-content': html}
                         |        else:
-                        |           html = '''<h1>TreeMap is not available.</h1>
+                        |           html = '''<h1>TimeSeries Visualizer is not available.</h1>
                         |                     <p>Possible reasons are:</p>
                         |                     <ul>
                         |                     <li>input table is empty</li>
-                        |                     <li>value column contains only non-positive numbers</li>
                         |                     <li>value column is not available</li>
                         |                     </ul>'''
                         |           yield {'html-content': html}
