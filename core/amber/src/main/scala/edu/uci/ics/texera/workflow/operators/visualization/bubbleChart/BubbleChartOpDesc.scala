@@ -110,15 +110,22 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
         |
         |
         |class ProcessTableOperator(UDFTableOperator):
+        |
+        |    def render_error(self, error_msg):
+        |        return '''<h1>TreeMap is not available.</h1>
+        |                  <p>Reasons are: {} </p>
+        |               '''.format(error_msg)
+        |
         |    @overrides
         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        |        original_table = table
         |        if table.empty:
-        |            yield {'html-content': self.render_error("Input table is empty.", original_table)}
+        |            yield {'html-content': self.render_error("Input table is empty.")}
+        |            return
         |        ${manipulateTable()}
         |        ${createPlotlyFigure()}
         |        if table.empty:
-        |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).", original_table)}
+        |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
+        |            return
         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
         |        yield {'html-content':html}
         |""".stripMargin
