@@ -56,7 +56,7 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "PieChart Visualizer",
+      "PieChart",
       "Visualize data in a Pie Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -75,8 +75,8 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   def createPlotlyFigure(): String = {
     assert(value.nonEmpty)
     s"""
-       |           fig = px.pie(table, names='$names', values='$value', title='$title')
-       |           fig.update_layout(margin=dict(t=40, b=0, l =0, r=0))
+       |        fig = px.pie(table, names='$names', values='$value', title='$title')
+       |        fig.update_layout(margin=dict(t=40, b=0, l =0, r=0))
        |""".stripMargin
   }
 
@@ -90,24 +90,30 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |import numpy as np
                         |
                         |class ProcessTableOperator(UDFTableOperator):
+                        |    def render_error(self, error_msg):
+                        |        return '''<h1>PieChart is not available.</h1>
+                        |                  <p>Reasons is: {} </p>
+                        |               '''.format(error_msg)
                         |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                        |        original_table = table
+                        |        if table.empty:
+                        |           yield {'html-content': self.render_error("input table is empty.")}
+                        |           return
                         |        ${manipulateTable()}
-                        |        if not table.empty:
-                        |           ${createPlotlyFigure()}
-                        |           # convert fig to html content
-                        |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                        |           yield {'html-content': html}
-                        |        else:
-                        |           html = '''<h1>PieChart is not available.</h1>
-                        |                     <p>Possible reasons are:</p>
-                        |                     <ul>
-                        |                     <li>input table is empty</li>
-                        |                     <li>value column contains only non-positive numbers</li>
-                        |                     <li>value column is not available</li>
-                        |                     </ul>'''
-                        |           yield {'html-content': html}
+                        |        if table.empty:
+                        |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
+                        |           return
+                        |        duplicates = table.duplicated(subset=['$names'])
+                        |        if duplicates.any():
+                        |           yield {'html-content': self.render_error("duplicates in name column, need to aggregate")}
+                        |           return
+                        |        ${createPlotlyFigure()}
+                        |        # convert fig to html content
+                        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+                        |        yield {'html-content': html}
+                        |
                         |""".stripMargin
     final_code
   }
