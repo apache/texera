@@ -14,7 +14,7 @@ export interface Notification {
  * to show on NotificationComponent.
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class NotificationService {
   private notificationStream = new Subject<Notification>();
@@ -40,8 +40,8 @@ export class NotificationService {
   error(cause: Error | any, options: NzMessageDataOptions = {}) {
     this.sendNotification({
       type: "error",
-      message: (cause instanceof Error || cause.hasOwnProperty("message")) ? cause.message : cause.toString(),
-      options
+      message: cause instanceof Error || cause.hasOwnProperty("message") ? cause.message : cause.toString(),
+      options,
     });
   }
 

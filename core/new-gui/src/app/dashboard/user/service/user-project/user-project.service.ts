@@ -16,13 +16,12 @@ export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class UserProjectService {
   private files: ReadonlyArray<DashboardFile> = [];
 
-  constructor(private http: HttpClient, private notificationService: NotificationService) {
-  }
+  constructor(private http: HttpClient, private notificationService: NotificationService) {}
 
   public getProjectList(): Observable<DashboardProject[]> {
     return this.http.get<DashboardProject[]>(`${USER_PROJECT_LIST_URL}`);
@@ -102,7 +101,7 @@ export class UserProjectService {
           this.refreshFilesOfProject(pid); // refresh files within project
         },
         // @ts-ignore // TODO: fix this with notification component
-        error: (err: unknown) => alert("Cannot delete the file entry: " + err.error)
+        error: (err: unknown) => alert("Cannot delete the file entry: " + err.error),
       });
   }
 

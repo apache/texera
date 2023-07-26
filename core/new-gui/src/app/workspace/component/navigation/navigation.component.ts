@@ -4,7 +4,7 @@ import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
-  WorkflowPersistService
+  WorkflowPersistService,
 } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
@@ -30,7 +30,6 @@ import { isDefined } from "../../../common/util/predicate";
 import { HttpErrorResponse } from "@angular/common/http";
 import { assert } from "../../../common/util/assert";
 
-
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -50,7 +49,7 @@ import { assert } from "../../../common/util/assert";
 @Component({
   selector: "texera-navigation",
   templateUrl: "./navigation.component.html",
-  styleUrls: ["./navigation.component.scss"]
+  styleUrls: ["./navigation.component.scss"],
 })
 export class NavigationComponent implements OnInit {
   public executionState: ExecutionState; // set this to true when the workflow is started
@@ -170,8 +169,7 @@ export class NavigationComponent implements OnInit {
         text: "Error",
         icon: "exclamation-circle",
         disable: true,
-        onClick: () => {
-        }
+        onClick: () => {},
       };
     }
     switch (executionState) {
@@ -182,22 +180,21 @@ export class NavigationComponent implements OnInit {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName)
+          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName),
         };
       case ExecutionState.Initializing:
         return {
           text: "Submitting",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          }
+          onClick: () => {},
         };
       case ExecutionState.Running:
         return {
           text: "Pause",
           icon: "loading",
           disable: false,
-          onClick: () => this.executeWorkflowService.pauseWorkflow()
+          onClick: () => this.executeWorkflowService.pauseWorkflow(),
         };
       case ExecutionState.Paused:
       case ExecutionState.BreakpointTriggered:
@@ -205,31 +202,28 @@ export class NavigationComponent implements OnInit {
           text: "Resume",
           icon: "pause-circle",
           disable: false,
-          onClick: () => this.executeWorkflowService.resumeWorkflow()
+          onClick: () => this.executeWorkflowService.resumeWorkflow(),
         };
       case ExecutionState.Pausing:
         return {
           text: "Pausing",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          }
+          onClick: () => {},
         };
       case ExecutionState.Resuming:
         return {
           text: "Resuming",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          }
+          onClick: () => {},
         };
       case ExecutionState.Recovering:
         return {
           text: "Recovering",
           icon: "loading",
           disable: true,
-          onClick: () => {
-          }
+          onClick: () => {},
         };
     }
   }
@@ -376,7 +370,7 @@ export class NavigationComponent implements OnInit {
           wid: undefined,
           creationTime: undefined,
           lastModifiedTime: undefined,
-          readonly: false
+          readonly: false,
         };
 
         this.workflowActionService.enableWorkflowModification();
@@ -419,10 +413,11 @@ export class NavigationComponent implements OnInit {
         filter(workflow => isDefined(localPid) && isDefined(workflow.wid)),
         mergeMap(workflow => this.userProjectService.addWorkflowToProject(localPid!, workflow.wid!)),
         untilDestroyed(this)
-      ).subscribe({
-      error: (response: unknown) => this.notificationService.error((response as HttpErrorResponse).error)
-    }).add(() => this.isSaving = false);
-
+      )
+      .subscribe({
+        error: (response: unknown) => this.notificationService.error((response as HttpErrorResponse).error),
+      })
+      .add(() => (this.isSaving = false));
   }
 
   /**
@@ -451,12 +446,12 @@ export class NavigationComponent implements OnInit {
           this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined
             ? ""
             : "Saved at " +
-            this.datePipe.transform(
-              this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
-              "MM/dd/yyyy HH:mm:ss zzz",
-              Intl.DateTimeFormat().resolvedOptions().timeZone,
-              "en"
-            );
+              this.datePipe.transform(
+                this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
+                "MM/dd/yyyy HH:mm:ss zzz",
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "en"
+              );
       });
   }
 
@@ -473,12 +468,12 @@ export class NavigationComponent implements OnInit {
           this.workflowActionService.getWorkflowMetadata().creationTime === undefined
             ? ""
             : "" +
-            this.datePipe.transform(
-              this.workflowActionService.getWorkflowMetadata().creationTime,
-              "MM/dd/yyyy HH:mm:ss zzz",
-              Intl.DateTimeFormat().resolvedOptions().timeZone,
-              "en"
-            );
+              this.datePipe.transform(
+                this.workflowActionService.getWorkflowMetadata().creationTime,
+                "MM/dd/yyyy HH:mm:ss zzz",
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "en"
+              );
         this.displayParticularWorkflowVersion = displayVersionFlag;
       });
   }

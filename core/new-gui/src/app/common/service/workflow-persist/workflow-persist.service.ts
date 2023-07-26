@@ -24,14 +24,17 @@ export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowPersistService {
   // flag to disable workflow persist when displaying the read only particular version
   private workflowPersistFlag = true;
 
-  constructor(private http: HttpClient, private notificationService: NotificationService, private message: NzMessageService) {
-  }
+  constructor(
+    private http: HttpClient,
+    private notificationService: NotificationService,
+    private message: NzMessageService
+  ) {}
 
   /**
    * persists a workflow to backend database and returns its updated information (e.g., new wid)
@@ -43,10 +46,9 @@ export class WorkflowPersistService {
         wid: workflow.wid,
         name: workflow.name,
         description: workflow.description,
-        content: JSON.stringify(workflow.content)
+        content: JSON.stringify(workflow.content),
       })
       .pipe(
-
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
@@ -64,7 +66,7 @@ export class WorkflowPersistService {
     return this.http
       .post<DashboardWorkflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
         name: newWorkflowName,
-        content: JSON.stringify(newWorkflowContent)
+        content: JSON.stringify(newWorkflowContent),
       })
       .pipe(filter((createdWorkflow: DashboardWorkflow) => createdWorkflow != null));
   }
@@ -96,7 +98,7 @@ export class WorkflowPersistService {
         dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflow) => {
           return {
             ...workflowEntry,
-            dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow)
+            dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow),
           };
         })
       )
@@ -133,7 +135,7 @@ export class WorkflowPersistService {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}`, {
         wid: wid,
-        name: name
+        name: name,
       })
       .pipe(
         catchError((error: unknown) => {
@@ -151,7 +153,7 @@ export class WorkflowPersistService {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}`, {
         wid: wid,
-        description: description
+        description: description,
       })
       .pipe(
         catchError((error: unknown) => {
