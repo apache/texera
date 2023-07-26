@@ -74,12 +74,9 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
     )
 
   def manipulateTable(): String = {
-    val optionalFilterTable=if(color.nonEmpty) s"table = table[~table['$color'].isnull()].copy()" else ""
+    val optionalFilterTable = if (color.nonEmpty) s"&(table['$color'].notnull())" else ""
     s"""
-       |        table = table[~table["$start"].isnull()].copy()
-       |        table = table[~table["$finish"].isnull()].copy()
-       |        table = table[~table["$task"].isnull()].copy()
-       |        $optionalFilterTable
+       |        table = table[(table["$start"].notnull())&(table["$finish"].notnull())&(table["$finish"].notnull())$optionalFilterTable].copy()
        |""".stripMargin
   }
 
@@ -108,6 +105,10 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
                         |import numpy as np
                         |
                         |class ProcessTableOperator(UDFTableOperator):
+                        |    def render_error(self, error_msg):
+                        |        return '''<h1>TreeMap is not available.</h1>
+                        |                  <p>Reasons is: {} </p>
+                        |               '''.format(error_msg)
                         |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
