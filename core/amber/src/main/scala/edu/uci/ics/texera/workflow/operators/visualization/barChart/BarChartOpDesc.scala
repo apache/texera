@@ -36,19 +36,19 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @JsonProperty(defaultValue = "Bar Graph Visual")
   @JsonSchemaTitle("Title")
   @JsonPropertyDescription("Add a title to your visualization")
-  var title: String = _
+  var title: String = ""
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("the value associated with each category")
   @AutofillAttributeName
-  var value: String = _
+  var value: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Fields")
   @JsonPropertyDescription("Visualize categorical data in a Bar Chart")
   @AutofillAttributeName
-  var fields: String = _
+  var fields: String = ""
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
@@ -70,6 +70,7 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
 
   def manipulateTable(): String = {
     assert(value.nonEmpty)
+    assert(fields.nonEmpty)
     s"""
        |        table = table.dropna() #remove missing values
        |""".stripMargin
@@ -78,6 +79,8 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
+    assert(value.nonEmpty)
+    assert(fields.nonEmpty)
     s"""
        |fig = px.bar(table, y= '$fields', x='$value', orientation = 'h')
        |""".stripMargin

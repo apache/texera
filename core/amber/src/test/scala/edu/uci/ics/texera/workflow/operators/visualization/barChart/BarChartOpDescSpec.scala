@@ -11,6 +11,12 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new BarChartOpDesc()
   }
 
+  it should "throw assertion error if value is empty" in {
+    assertThrows[AssertionError] {
+      opDesc.manipulateTable()
+    }
+  }
+
   it should "list titles of axes in the python code" in {
     opDesc.fields = "geo.state_name"
     opDesc.value = "person.count"
@@ -25,9 +31,4 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
-  it should "throw assertion error if value is empty" in {
-    assertThrows[AssertionError] {
-      opDesc.manipulateTable()
-    }
-  }
 }
