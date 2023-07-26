@@ -1,10 +1,12 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { Observable, throwError } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { DashboardProject } from "../../type/dashboard-project.interface";
+import { catchError } from "rxjs/operators";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 export const USER_PROJECT_BASE_URL = `${AppSettings.getApiEndpoint()}/project`;
 export const USER_PROJECT_LIST_URL = `${USER_PROJECT_BASE_URL}/list`;
@@ -14,11 +16,13 @@ export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 
 @Injectable({
-  providedIn: "root",
+  providedIn: "root"
 })
 export class UserProjectService {
   private files: ReadonlyArray<DashboardFile> = [];
-  constructor(private http: HttpClient) {}
+
+  constructor(private http: HttpClient, private notificationService: NotificationService) {
+  }
 
   public getProjectList(): Observable<DashboardProject[]> {
     return this.http.get<DashboardProject[]>(`${USER_PROJECT_LIST_URL}`);
@@ -98,7 +102,7 @@ export class UserProjectService {
           this.refreshFilesOfProject(pid); // refresh files within project
         },
         // @ts-ignore // TODO: fix this with notification component
-        error: (err: unknown) => alert("Cannot delete the file entry: " + err.error),
+        error: (err: unknown) => alert("Cannot delete the file entry: " + err.error)
       });
   }
 
