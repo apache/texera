@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.BubbleChart
+package edu.uci.ics.texera.workflow.operators.visualization.bubbleChart
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
@@ -27,18 +27,33 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(value = "x_value", required = true)
   @JsonSchemaTitle("X-Column")
-  @JsonPropertyDescription("column of data for the x-axis")
+  @JsonPropertyDescription("Data column for the x-axis")
   @AutofillAttributeName var x_value: String = ""
 
   @JsonProperty(value = "y_value", required = true)
   @JsonSchemaTitle("Y-Column")
-  @JsonPropertyDescription("column of data for the y-axis")
+  @JsonPropertyDescription("Data column for the y-axis")
   @AutofillAttributeName var y_value: String = ""
 
   @JsonProperty(value = "z_value", required = true)
   @JsonSchemaTitle("Z-Column")
-  @JsonPropertyDescription("column of data to determine size of bubbles")
+  @JsonPropertyDescription("Data column to determine bubble size")
   @AutofillAttributeName var z_value: String = ""
+
+  @JsonProperty(value = "title", required = true)
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("Title of Chart")
+  var title: String = "My Bubble Chart"
+
+  @JsonProperty(value = "enable_color", defaultValue = "false")
+  @JsonSchemaTitle("Enable Color")
+  @JsonPropertyDescription("Colors bubbles using a data column")
+  var enable_color: Boolean = false
+
+  @JsonProperty(value = "color_category")
+  @JsonSchemaTitle("Color-Column")
+  @JsonPropertyDescription("Picks data column to color bubbles with if color is enabled")
+  @AutofillAttributeName var color_category: String = ""
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
@@ -61,8 +76,8 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
   def manipulateTable(): String = {
     assert(x_value.nonEmpty && y_value.nonEmpty && z_value.nonEmpty)
     s"""
-       |        # replaces missing values with 0
-       |        table = table.dropna(0)
+       |        # drops rows with missing values
+       |        table = table.dropna()
        |
        |""".stripMargin
   }
@@ -71,8 +86,12 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
   def createPlotlyFigure(): String = {
     assert(x_value.nonEmpty && y_value.nonEmpty && z_value.nonEmpty)
     s"""
-       |        fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100))
-       |
+       |        if '$enable_color':
+       |            fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100,
+       |                            title='$title', color='$color_category'))
+       |        else:
+       |            fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100,
+       |                            title='$title'))
        |""".stripMargin
   }
 
@@ -93,11 +112,14 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
         |class ProcessTableOperator(UDFTableOperator):
         |    @overrides
         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        |        original_table = table
+        |        if table.empty:
+        |            yield {'html-content': self.render_error("Input table is empty.", original_table)}
         |        ${manipulateTable()}
         |        ${createPlotlyFigure()}
+        |        if table.empty:
+        |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).", original_table)}
         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-        |        # use latest plotly lib in html
-        |        # html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
         |        yield {'html-content':html}
         |""".stripMargin
       final_code
