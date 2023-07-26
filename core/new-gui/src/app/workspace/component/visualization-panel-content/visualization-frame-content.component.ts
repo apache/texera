@@ -19,7 +19,7 @@ import { isDefined } from "../../../common/util/predicate";
 
 export const wordCloudScaleOptions = ["linear", "square root", "logarithmic"] as const;
 type WordCloudControlsType = {
-  scale: typeof(wordCloudScaleOptions)[number];
+  scale: (typeof wordCloudScaleOptions)[number];
 };
 
 // TODO: The current design doesn't decouple the visualization types into different modules
