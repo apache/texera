@@ -14,13 +14,13 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.y_value = "column2"
     opDesc.z_value = "column3"
     opDesc.title = "myTitle"
+    opDesc.enable_color = false
 
     assert(
       opDesc
         .createPlotlyFigure()
         .contains(
-          "fig = go.Figure(px.scatter(table, x='column1', " +
-            "y='column2', size='column3', size_max=100, title = 'myTitle'))"
+          "fig = go.Figure(px.scatter(table, x='column1', y='column2', size='column3', size_max=100, title = 'myTitle'))"
         )
     )
   }

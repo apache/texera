@@ -94,11 +94,9 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
     assert(x_value.nonEmpty && y_value.nonEmpty && z_value.nonEmpty)
     s"""
        |        if '$enable_color':
-       |            fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100,
-       |                            title='$title', color='$color_category'))
+       |            fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100, title='$title', color='$color_category'))
        |        else:
-       |            fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100,
-       |                            title='$title'))
+       |            fig = go.Figure(px.scatter(table, x='$x_value', y='$y_value', size='$z_value', size_max=100, title='$title'))
        |""".stripMargin
   }
 
