@@ -93,11 +93,13 @@ class PythonWorker(Runnable, Stoppable):
                     pass
                 if parent_pid != self.original_parent_pid or parent_status == "zombie":
                     logger.critical(
-                        f"Parent process PID {self.original_parent_pid} runs unusually. Parent PID changed to {parent_pid}."
+                        f"Parent process PID {self.original_parent_pid} runs unusually. "
+                        f"Parent PID changed to {parent_pid}."
                     )
                 else:
                     logger.critical(
-                        f"Parent process PID {self.original_parent_pid} runs unusually. Parent PID hasn't changed."
+                        f"Parent process PID {self.original_parent_pid} runs unusually. "
+                        f"Parent PID hasn't changed."
                     )
                 logger.remove()
                 self.stop()
