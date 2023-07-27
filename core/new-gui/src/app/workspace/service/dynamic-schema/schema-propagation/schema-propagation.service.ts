@@ -218,6 +218,9 @@ export class SchemaPropagationService {
       if (v.additionalEnumValue) {
         attrNames.push(v.additionalEnumValue);
       }
+      if (v.title && !operatorSchema.jsonSchema.required?.includes(v.title)) {
+        attrNames.push("");
+      }
       return attrNames;
     };
 
