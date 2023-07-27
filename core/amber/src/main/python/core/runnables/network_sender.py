@@ -3,8 +3,6 @@ from typing import Optional
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table
-import asyncio
-import pyarrow.flight as flight
 
 from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
@@ -16,6 +14,9 @@ from proto.edu.uci.ics.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
 )
+
+import asyncio
+import pyarrow.flight as flight
 
 
 class NetworkSender(StoppableQueueBlockingRunnable):
@@ -94,9 +95,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
                 # Send a heartbeat to the server
                 self._proxy_client.do_action(flight.Action("heartbeat", b""))
             except Exception as e:
-                logger.add("critical.log", level="CRITICAL")
-                logger.critical("Server is down with exception: " + str(e))
+                logger.info("Server is down with exception: " + str(e))
                 stop_event.set()
-                logger.remove()
                 break
             await asyncio.sleep(interval)

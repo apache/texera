@@ -1,18 +1,17 @@
 from overrides import overrides
-from threading import Thread
+from threading import Thread, Event
+from loguru import logger
 
 from core.models.internal_queue import InternalQueue
 from core.runnables import MainLoop, NetworkReceiver, NetworkSender
 from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
 
-import threading
 import os
 import sys
 import signal
 import psutil
 import asyncio
-from loguru import logger
 
 
 def self_clean_child_process(code: int):
@@ -23,8 +22,8 @@ def self_clean_child_process(code: int):
             try:
                 os.kill(child.pid, signal.SIGKILL)
             except Exception as e:
-                logger.critical(
-                    f"Exception during process termination: {e} {str(child.pid)}"
+                logger.info(
+                    f"Exception during process termination PID {str(child.pid)}: {e} "
                 )
     sys.exit(code)
 
@@ -74,34 +73,32 @@ class PythonWorker(Runnable, Stoppable):
         self_clean_child_process(0)
 
     def start_asyncio_loop(self, loop, interval):
-        stop_event = threading.Event()
+        stop_event = Event()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(
                 self._network_sender.heartbeat(interval, stop_event)
             )
         except Exception as e:
-            logger.add("critical.log", level="CRITICAL")
-            logger.critical(f"Heartbeat failed with exception: {e}")
-            logger.remove()
+            logger.info(f"Heartbeat failed with exception: {e}")
         finally:
             if stop_event.is_set():
-                logger.add("critical.log", level="CRITICAL")
                 parent_pid = os.getppid()
-                parent_status = "UNKNOWN"
+                parent_status = "NOT FOUND"
                 try:
-                    parent_status = psutil.Process(parent_pid).status()
-                except psutil.NoSuchProcess:
+                    parent_status = psutil.Process(self.original_parent_pid).status()
+                except Exception:
                     pass
-                if parent_pid != self.original_parent_pid or parent_status == "zombie":
-                    logger.critical(
+                if parent_pid != self.original_parent_pid:
+                    logger.info(
                         f"Parent process PID {self.original_parent_pid} runs unusually."
                         f" Parent PID changed to {parent_pid}."
+                        f" Original parent process Status: {parent_status}"
                     )
                 else:
-                    logger.critical(
+                    logger.info(
                         f"Parent process PID {self.original_parent_pid} runs unusually."
                         f" Parent PID hasn't changed."
+                        f" Original parent process Status: {parent_status}"
                     )
-                logger.remove()
                 self.stop()
