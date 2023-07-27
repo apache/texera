@@ -34,7 +34,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   }
 }
 """)
-class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class TimeSeriesOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "title", required = false)
   @JsonSchemaTitle("Plot title")
@@ -103,7 +103,7 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    val final_code = s"""
+    val finalCode = s"""
                         |from pytexera import *
                         |
                         |import plotly.express as px
@@ -130,7 +130,7 @@ class TimeSeriesVisualizerOpDesc extends VisualizationOperator with PythonOperat
                         |                     </ul>'''
                         |           yield {'html-content': html}
                         |""".stripMargin
-    final_code
+    finalCode
   }
 
   // make the chart type to html visualization so it can be recognized by both backend and frontend.
