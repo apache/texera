@@ -219,7 +219,14 @@ export class SchemaPropagationService {
         attrNames.push(v.additionalEnumValue);
       }
       if (v.title && !operatorSchema.jsonSchema.required?.includes(v.title)) {
-        attrNames.push("");
+        if (v.default) {
+          if (typeof v.default !== "string") {
+            throw new Error("default value must be a string");
+          }
+          attrNames.push(v.default);
+        } else {
+          attrNames.push("");
+        }
       }
       return attrNames;
     };
