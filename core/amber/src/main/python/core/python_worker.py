@@ -56,7 +56,9 @@ class PythonWorker(Runnable, Stoppable):
         self.original_parent_pid = os.getppid()
 
         loop = asyncio.new_event_loop()
-        heartbeat_thread = Thread(target=self.start_asyncio_loop, args=(loop, 5.0))
+        heartbeat_thread = Thread(
+            target=self.start_asyncio_loop, name="heartbeat_thread", args=(loop, 5.0)
+        )
 
         heartbeat_thread.start()
         network_sender_thread.start()
