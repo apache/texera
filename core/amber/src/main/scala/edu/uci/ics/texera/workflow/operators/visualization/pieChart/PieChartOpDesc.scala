@@ -76,7 +76,8 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
     assert(value.nonEmpty)
     s"""
        |        fig = px.pie(table, names='$names', values='$value', title='$title')
-       |        fig.update_layout(margin=dict(t=40, b=0, l =0, r=0))
+       |        fig.update_traces(textposition='inside', textinfo='percent+label')
+       |        fig.update_layout(margin=dict(t=40, b=10, l=10, r=10))
        |""".stripMargin
   }
 
