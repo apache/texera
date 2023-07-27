@@ -5,6 +5,7 @@ import { AppSettings } from "../../../../common/app-setting";
 import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { DashboardProject } from "../../type/dashboard-project.interface";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 export const USER_PROJECT_BASE_URL = `${AppSettings.getApiEndpoint()}/project`;
 export const USER_PROJECT_LIST_URL = `${USER_PROJECT_BASE_URL}/list`;
@@ -18,7 +19,8 @@ export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 })
 export class UserProjectService {
   private files: ReadonlyArray<DashboardFile> = [];
-  constructor(private http: HttpClient) {}
+
+  constructor(private http: HttpClient, private notificationService: NotificationService) {}
 
   public getProjectList(): Observable<DashboardProject[]> {
     return this.http.get<DashboardProject[]>(`${USER_PROJECT_LIST_URL}`);
