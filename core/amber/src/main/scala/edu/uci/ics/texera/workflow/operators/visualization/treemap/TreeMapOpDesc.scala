@@ -31,7 +31,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   }
 }
 """)
-class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class TreeMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -50,7 +50,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "TreeMap Visualizer",
+      "TreeMap",
       "Visualize data in a tree hierarchy",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -61,7 +61,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
     assert(value.nonEmpty)
     s"""
        |        table['$value'] = table[table['$value'] > 0]['$value'] # remove non-positive numbers from the data
-       |        table = table.dropna() #remove missing values
+       |        table.dropna(subset = ['$value'], inplace = True) #remove missing values
        |""".stripMargin
   }
 
@@ -78,7 +78,7 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    val final_code = s"""
+    val finalCode = s"""
       |from pytexera import *
       |
       |import plotly.express as px
@@ -88,7 +88,8 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
       |
       |class ProcessTableOperator(UDFTableOperator):
       |
-      |    def render_error(self, error_msg):
+      |    # Generate custom error message as html string
+      |    def render_error(self, error_msg) -> str:
       |        return '''<h1>TreeMap is not available.</h1>
       |                  <p>Reasons is: {} </p>
       |               '''.format(error_msg)
@@ -97,18 +98,18 @@ class TreeMapVisualizerOpDesc extends VisualizationOperator with PythonOperatorD
       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
       |        original_table = table
       |        if table.empty:
-      |           yield {'html-content': self.render_error("input table is empty.", original_table)}
+      |           yield {'html-content': self.render_error("input table is empty.")}
       |           return
       |        ${manipulateTable()}
       |        if table.empty:
-      |           yield {'html-content': self.render_error("value column contains only non-positive numbers.", original_table)}
+      |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
       |           return
       |        ${createPlotlyFigure()}
       |        # convert fig to html content
       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
       |        yield {'html-content': html}
       |""".stripMargin
-    final_code
+    finalCode
   }
 
   // make the chart type to html visualization so it can be recognized by both backend and frontend.
