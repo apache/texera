@@ -56,14 +56,14 @@ class PythonWorker(Runnable, Stoppable):
         self.original_parent_pid = os.getppid()
 
         loop = asyncio.new_event_loop()
-        t = Thread(target=self.start_asyncio_loop, args=(loop, 5.0))
-        t.start()
+        heartbeat_thread = Thread(target=self.start_asyncio_loop, args=(loop, 5.0))
 
+        heartbeat_thread.start()
         network_sender_thread.start()
         main_loop_thread.start()
         main_loop_thread.join()
         network_sender_thread.join()
-        t.join()
+        heartbeat_thread.join()
 
     @overrides
     def stop(self):
