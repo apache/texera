@@ -1,8 +1,9 @@
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List, Iterator, Dict, Callable, Sized, Container
-from typing_extensions import Protocol
+from typing import Any, List, Iterator, Dict, Callable
+
+from typing_extensions import Protocol, runtime_checkable
 import pandas
 import pickle
 import pyarrow
@@ -14,15 +15,12 @@ from .schema.field import Field
 from .schema.schema import Schema
 
 
-class TupleLike(
-    Protocol,
-    Sized,
-    Container,
-):
-    def __getitem__(self, item):
+@runtime_checkable
+class TupleLike(Protocol):
+    def __getitem__(self, item: typing.Union[str, int]) -> Field:
         ...
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: typing.Union[str, int], value: Field) -> None:
         ...
 
 
@@ -87,14 +85,14 @@ class ArrowTableTupleProvider:
         return field_accessor
 
 
-class Tuple(TupleLike):
+class Tuple:
     """
     Lazy-Tuple implementation.
     """
 
     def __init__(
         self,
-        tuple_like: typing.Optional[TupleLike] = None,
+        tuple_like: typing.Optional["TupleLike"] = None,
         schema: typing.Optional[Schema] = None,
     ):
         """
