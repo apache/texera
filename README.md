@@ -54,23 +54,27 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 ## Publications (Computer Science):
 
-* (4/2017) A Demonstration of TextDB: Declarative and Scalable Text Analytics on Large Data Sets, Zuozhi Wang, Flavio Bayer, Seungjin Lee, Kishore Narendran, Xuxi Pan, Qing Tang, Jimmy Wang, Chen Li, [ICDE 2017](http://icde2017.sdsc.edu/), **Best Demo award**, [PDF](https://chenli.ics.uci.edu/files/icde2017-textdb-demo.pdf), [Video](https://github.com/Texera/texera/wiki/Video).
-* (1/2020) Amber: A Debuggable Dataflow system based on the Actor Model, Avinash Kumar, Zuozhi Wang, Shengquan Ni, Chen Li, VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p740-kumar.pdf), [Video](https://www.youtube.com/watch?v=T5ShFRfHmgI), [Slides](https://docs.google.com/presentation/d/1v8G9lDmfv4Ff2YWyrGfo_9iMQVF4N8a-4gO4H-K6rCk/edit?usp=sharing)
-* (7/2020) Demonstration of Interactive Runtime Debugging of
-Distributed Dataflows in Texera, Zuozhi Wang, Avinash Kumar, Shengquan Ni, Chen Li, VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p2953-wang.pdf), [Video](https://www.youtube.com/watch?v=SP-XiDADbw0), [Slides](https://docs.google.com/presentation/d/14U6RPZfeb8Ho0aO2HsCSc8lRs6ul6AxEIm5gpjeVUYA/edit?usp=sharing)
-* (4/2022) Optimizing Machine Learning Inference Queries with Correlative Proxy Models, Zhihui Yang, Zuozhi Wang, Yicong Huang, Yao Lu, Chen Li, X. Sean Wang, VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p2032-yang.pdf).
-* (6/2022) Demonstration of Collaborative and Interactive Workflow-Based Data Analytics in Texera, Xiaozhen Liu, Zuozhi Wang, Shengquan Ni, Sadeem Alsudais, Yicong Huang, Avinash Kumar, Chen Li, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p3738-liu.pdf), [Demo Video](https://youtu.be/2gfPUZNsoBs).
-* (6/2022) Demonstration of Accelerating Machine Learning Inference Queries with Correlative Proxy Models, Zhihui Yang, Yicong Huang, Zuozhi Wang, Feng Gao, Yao Lu, Chen Li, X. Sean Wang, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p3734-yang.pdf) .
-* (7/2022) Drove: Tracking Execution Results of Workflows on Large Datasets, Sadeem Alsudais, in the PhD workshop at VLDB 2022 [PDF](http://ceur-ws.org/Vol-3186/paper_10.pdf).
-* (9/2022) Fries: Fast and Consistent Runtime Reconfiguration in Dataflow Systems with Transactional Guarantees, Zuozhi Wang, Shengquan Ni, Avinash Kumar, Chen Li, VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p256-wang.pdf). 
-* (12/2022) Towards Interactive, Adaptive and Result-aware Big Data Analytics, Avinash Kumar, Phd Thesis [PDF](https://arxiv.org/abs/2212.07096). 
+* (7/2023) Using Texera to Characterize Climate Change Discussions on Twitter During Wildfires, Shengquan Ni, Yicong Huang, Jessie W. Y. Ko, Alexander Taylor, Xiusi Chen, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Suellen Hopfer, and Chen Li, in Data Science Day at KDD 2023.
+* (7/2023) Raven: Accelerating Execution of Iterative Data Analytics by Reusing Results of Previous Equivalent Versions, Sadeem Alsudais, Avinash Kumar, and Chen Li, in HILDA Workshop at SIGMOD 2023 [PDF](https://dl.acm.org/doi/10.1145/3597465.3605219).
+* (5/2023) Building a Collaborative Data Analytics System: Opportunities and Challenges, Zuozhi Wang and Chen Li, in Tutorial at VLDB 2023.
+* (12/2022) Towards Interactive, Adaptive and Result-aware Big Data Analytics, Avinash Kumar, Ph.D. Thesis [PDF](https://arxiv.org/abs/2212.07096).
+* (9/2022) Fries: Fast and Consistent Runtime Reconfiguration in Dataflow Systems with Transactional Guarantees, Zuozhi Wang, Shengquan Ni, Avinash Kumar, and Chen Li, in VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p256-wang.pdf).
+* (7/2022) Drove: Tracking Execution Results of Workflows on Large Datasets, Sadeem Alsudais, in the Ph.D. Workshop at VLDB 2022 [PDF](http://ceur-ws.org/Vol-3186/paper_10.pdf).
+* (6/2022) Demonstration of Accelerating Machine Learning Inference Queries with Correlative Proxy Models, Zhihui Yang, Yicong Huang, Zuozhi Wang, Feng Gao, Yao Lu, Chen Li, and X. Sean Wang, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p3734-yang.pdf).
+* (6/2022) Demonstration of Collaborative and Interactive Workflow-Based Data Analytics in Texera, Xiaozhen Liu, Zuozhi Wang, Shengquan Ni, Sadeem Alsudais, Yicong Huang, Avinash Kumar, and Chen Li, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p3738-liu.pdf), [Demo Video](https://youtu.be/2gfPUZNsoBs).
+* (4/2022) Optimizing Machine Learning Inference Queries with Correlative Proxy Models, Zhihui Yang, Zuozhi Wang, Yicong Huang, Yao Lu, Chen Li, and X. Sean Wang, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p2032-yang.pdf).
+* (7/2020) Demonstration of Interactive Runtime Debugging of Distributed Dataflows in Texera, Zuozhi Wang, Avinash Kumar, Shengquan Ni, and Chen Li, in VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p2953-wang.pdf), [Video](https://www.youtube.com/watch?v=SP-XiDADbw0), [Slides](https://docs.google.com/presentation/d/14U6RPZfeb8Ho0aO2HsCSc8lRs6ul6AxEIm5gpjeVUYA/edit?usp=sharing).
+* (1/2020) Amber: A Debuggable Dataflow system based on the Actor Model, Avinash Kumar, Zuozhi Wang, Shengquan Ni, and Chen Li, VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p740-kumar.pdf), [Video](https://www.youtube.com/watch?v=T5ShFRfHmgI), [Slides](https://docs.google.com/presentation/d/1v8G9lDmfv4Ff2YWyrGfo_9iMQVF4N8a-4gO4H-K6rCk/edit?usp=sharing).
+* (4/2017) A Demonstration of TextDB: Declarative and Scalable Text Analytics on Large Data Sets, Zuozhi Wang, Flavio Bayer, Seungjin Lee, Kishore Narendran, Xuxi Pan, Qing Tang, Jimmy Wang, and Chen Li, [ICDE 2017](http://icde2017.sdsc.edu/), **Best Demo award**, [PDF](https://chenli.ics.uci.edu/files/icde2017-textdb-demo.pdf), [Video](https://github.com/Texera/texera/wiki/Video).
+
 
 ## Publications (Interdisciplinary):
 
-* (4/2021) Why Do People Oppose Mask Wearing? A Comprehensive Analysis of US Tweets During the COVID-19 Pandemic, Lu He, Changyang He, Tera Leigh Reynolds, Qiushi Bai, Yicong Huang, Chen Li, Kai Zheng, and Yunan Chen in JAMIA 2021 [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7989302/pdf/ocab047.pdf).
-* (9/2021) The Social Amplification and Attenuation of COVID-19 Risk Perception Shaping Mask Wearing Behavior: A Longitudinal Twitter Analysis, Suellen Hopfer, Emilia J. Fields, Yuwen Lu, Ganesh Ramakrishnan, Ted Grover, Quishi Bai, Yicong Huang, Chen Li, and Gloria Mark in PLOS ONE, 2021 [PDF](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0257428).
-* (3/2023) Understanding underlying moral values and language use of COVID-19 vaccine attitudes on twitter, Judith Borghouts, Yicong Huang, Sydney Gibbs, Suellen Hopfer, Chen Li and Gloria Mark in PNAS Nexus, 2023 [PDF](https://academic.oup.com/pnasnexus/article-pdf/2/3/pgad013/49435858/pgad013.pdf).
-* (5/2023) Public Opinions toward COVID-19 Vaccine Mandates: A Machine Learning-based Analysis of U.S. Tweets, Yawen Guo, Jun Zhu, Yicong Huang, Lu He, Changyang He, Chen Li and Kai Zheng in AMIA, 2022 [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10148373/pdf/1066.pdf).
+
+* (3/2023) Understanding underlying moral values and language use of COVID-19 vaccine attitudes on twitter, Judith Borghouts, Yicong Huang, Sydney Gibbs, Suellen Hopfer, Chen Li, and Gloria Mark, in PNAS Nexus 2023 [PDF](https://academic.oup.com/pnasnexus/article-pdf/2/3/pgad013/49435858/pgad013.pdf).
+* (10/2022) Public Opinions toward COVID-19 Vaccine Mandates: A Machine Learning-based Analysis of U.S. Tweets, Yawen Guo, Jun Zhu, Yicong Huang, Lu He, Changyang He, Chen Li, and Kai Zheng, in AMIA 2022 [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10148373/pdf/1066.pdf).
+* (9/2021) The Social Amplification and Attenuation of COVID-19 Risk Perception Shaping Mask Wearing Behavior: A Longitudinal Twitter Analysis, Suellen Hopfer, Emilia J. Fields, Yuwen Lu, Ganesh Ramakrishnan, Ted Grover, Quishi Bai, Yicong Huang, Chen Li, and Gloria Mark, in PLOS ONE 2021 [PDF](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0257428).
+* (4/2021) Why Do People Oppose Mask Wearing? A Comprehensive Analysis of US Tweets During the COVID-19 Pandemic, Lu He, Changyang He, Tera Leigh Reynolds, Qiushi Bai, Yicong Huang, Chen Li, Kai Zheng, and Yunan Chen, in JAMIA 2021 [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7989302/pdf/ocab047.pdf).
 
 ## Videos
 
