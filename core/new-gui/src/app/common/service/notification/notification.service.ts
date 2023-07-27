@@ -32,9 +32,7 @@ export class NotificationService {
   }
 
   info(message: string, options: NzMessageDataOptions = {}) {
-    console.log("sending an info");
     this.sendNotification({ type: "info", message, options });
-    console.log("done sending an info");
   }
 
   error(cause: Error | any, options: NzMessageDataOptions = {}) {
