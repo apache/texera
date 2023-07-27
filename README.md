@@ -56,7 +56,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 * (7/2023) Using Texera to Characterize Climate Change Discussions on Twitter During Wildfires, Shengquan Ni, Yicong Huang, Jessie W. Y. Ko, Alexander Taylor, Xiusi Chen, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Suellen Hopfer, and Chen Li, in Data Science Day at KDD 2023.
 * (7/2023) Raven: Accelerating Execution of Iterative Data Analytics by Reusing Results of Previous Equivalent Versions, Sadeem Alsudais, Avinash Kumar, and Chen Li, in HILDA Workshop at SIGMOD 2023 [PDF](https://dl.acm.org/doi/10.1145/3597465.3605219).
-* (5/2023) Building a Collaborative Data Analytics System: Opportunities and Challenges, Zuozhi Wang, and Chen Li, in Tutorial at VLDB 2023.
+* (5/2023) Building a Collaborative Data Analytics System: Opportunities and Challenges, Zuozhi Wang and Chen Li, in Tutorial at VLDB 2023.
 * (12/2022) Towards Interactive, Adaptive and Result-aware Big Data Analytics, Avinash Kumar, Ph.D. Thesis [PDF](https://arxiv.org/abs/2212.07096).
 * (9/2022) Fries: Fast and Consistent Runtime Reconfiguration in Dataflow Systems with Transactional Guarantees, Zuozhi Wang, Shengquan Ni, Avinash Kumar, and Chen Li, in VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p256-wang.pdf).
 * (7/2022) Drove: Tracking Execution Results of Workflows on Large Datasets, Sadeem Alsudais, in the Ph.D. Workshop at VLDB 2022 [PDF](http://ceur-ws.org/Vol-3186/paper_10.pdf).
