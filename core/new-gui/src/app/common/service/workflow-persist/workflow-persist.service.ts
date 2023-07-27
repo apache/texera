@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
@@ -8,7 +8,6 @@ import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workfl
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
-import { NzMessageService } from "ng-zorro-antd/message";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -30,11 +29,7 @@ export class WorkflowPersistService {
   // flag to disable workflow persist when displaying the read only particular version
   private workflowPersistFlag = true;
 
-  constructor(
-    private http: HttpClient,
-    private notificationService: NotificationService,
-    private message: NzMessageService
-  ) {}
+  constructor(private http: HttpClient, private notificationService: NotificationService) {}
 
   /**
    * persists a workflow to backend database and returns its updated information (e.g., new wid)
