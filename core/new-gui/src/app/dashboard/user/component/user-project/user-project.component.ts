@@ -4,6 +4,9 @@ import { DashboardProject } from "../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../common/service/user/user.service";
+import { PublicProjectService } from "../../service/public-project/public-project.service";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { PublicProjectComponent } from "./public-project/public-project.component";
 
 @UntilDestroy()
 @Component({
@@ -16,34 +19,32 @@ export class UserProjectComponent implements OnInit {
   public userProjectEntries: DashboardProject[] = [];
   public createButtonIsClicked: boolean = false;
   public createProjectName: string = "";
-
-  // used to manage setting project colors
-  public userProjectToColorInputIndexMap: Map<number, number> = new Map(); // maps each project to its color wheel input index, even after reordering / sorting of projects
-  public userProjectInputColors: string[] = []; // stores the color wheel input for each project, each color string must start with '#'
-  public colorBrightnessMap: Map<number, boolean> = new Map(); // tracks brightness of each project's color, to make sure info remains visible against white background
-  public colorInputToggleArray: boolean[] = []; // tracks which project's color wheel is toggled on or off
   public uid: number | undefined;
 
   constructor(
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
-    private userService: UserService
+    private userService: UserService,
+    private publicProjectService: PublicProjectService,
+    private modalService: NgbModal
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }
 
   ngOnInit(): void {
-    this.getUserProjectArray();
+    this.userProjectService
+      .getProjectList()
+      .pipe(untilDestroyed(this))
+      .subscribe(projectEntries => {
+        this.userProjectEntries = projectEntries;
+      });
   }
 
   public deleteProject(pid: number): void {
-    if (pid == undefined) {
-      throw new Error("pid is undefined in deleteProject().");
-    }
     this.userProjectService
       .deleteProject(pid)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.getUserProjectArray());
+      .subscribe(() => this.ngOnInit());
   }
 
   public clickCreateButton(): void {
@@ -60,24 +61,8 @@ export class UserProjectComponent implements OnInit {
       this.userProjectService
         .createProject(this.createProjectName)
         .pipe(untilDestroyed(this))
-        .subscribe({
-          next: createdProject => {
-            this.userProjectEntries.push(createdProject); // update local list of projects
-
-            // add color wheel input record for the newly created, colorless project
-            this.userProjectToColorInputIndexMap.set(createdProject.pid, this.userProjectEntries.length - 1);
-            this.userProjectInputColors.push("#ffffff");
-            this.colorInputToggleArray.push(false);
-
-            this.unclickCreateButton();
-          },
-          error: (err: unknown) => {
-            // @ts-ignore
-            this.notificationService.error(err.error.message);
-          },
-        });
+        .subscribe(() => this.ngOnInit());
     } else {
-      // show error message and don't call backend
       this.notificationService.error(
         `Cannot create project named: "${this.createProjectName}".  It must be a non-empty, unique name`
       );
@@ -98,16 +83,6 @@ export class UserProjectComponent implements OnInit {
     this.userProjectEntries.sort((p1, p2) => p2.name.toLowerCase().localeCompare(p1.name.toLowerCase()));
   }
 
-  private getUserProjectArray() {
-    this.userProjectService.refreshProjectList();
-    this.userProjectService
-      .retrieveProjectList()
-      .pipe(untilDestroyed(this))
-      .subscribe(projectEntries => {
-        this.userProjectEntries = projectEntries;
-      });
-  }
-
   private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {
     if (typeof oldProject === "undefined") {
       return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
@@ -118,5 +93,13 @@ export class UserProjectComponent implements OnInit {
           0
       );
     }
+  }
+
+  public openPublicProject(): void {
+    const modalRef = this.modalService.open(PublicProjectComponent, { size: "lg" });
+    modalRef.componentInstance.disabledList = new Set(this.userProjectEntries.map(project => project.pid));
+    modalRef.closed.pipe(untilDestroyed(this)).subscribe(() => {
+      this.ngOnInit();
+    });
   }
 }

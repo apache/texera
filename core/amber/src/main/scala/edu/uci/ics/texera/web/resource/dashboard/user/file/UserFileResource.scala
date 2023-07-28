@@ -7,10 +7,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User, UserFileAccess}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
-  checkReadAccess,
-  checkWriteAccess
-}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
   DashboardFile,
   context,
@@ -66,7 +62,7 @@ object UserFileResource {
 
   case class DashboardFile(
       ownerEmail: String,
-      writeAccess: Boolean,
+      accessLevel: String,
       file: File
   )
 }
@@ -116,7 +112,7 @@ class UserFileResource {
         fids += fileRecord.into(FILE).getFid
         fileEntries += DashboardFile(
           fileRecord.into(USER).getEmail,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          fileRecord.into(USER_FILE_ACCESS).getPrivilege.toString,
           fileRecord.into(FILE).into(classOf[File])
         )
       })
@@ -136,7 +132,7 @@ class UserFileResource {
         if (!fileEntries.exists(file => { file.file.getFid == fileRecord.into(FILE).getFid })) {
           fileEntries += DashboardFile(
             fileRecord.into(USER).getEmail,
-            writeAccess = false,
+            "READ",
             fileRecord.into(FILE).into(classOf[File])
           )
         }
@@ -183,18 +179,13 @@ class UserFileResource {
       @PathParam("fid") fid: UInteger,
       @Auth user: SessionUser
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
   }
 
   @GET
   @Path("/download/{fid}")
-  def downloadFile(
-      @PathParam("fid") fid: UInteger,
-      @Auth user: SessionUser
-  ): Response = {
-    checkReadAccess(fid, user.getUid)
+  def downloadFile(@PathParam("fid") fid: UInteger): Response = {
     Response
       .ok(
         new StreamingOutput() {
@@ -220,7 +211,6 @@ class UserFileResource {
       @PathParam("name") name: String,
       @Auth user: SessionUser
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     val validationRes = this.validateFileName(name, user.getUid)
     if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
@@ -235,10 +225,8 @@ class UserFileResource {
   @Path("/description/{fid}/{description}")
   def changeFileDescription(
       @PathParam("fid") fid: UInteger,
-      @PathParam("description") description: String,
-      @Auth user: SessionUser
+      @PathParam("description") description: String
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)
     fileDao.update(userFile)

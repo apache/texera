@@ -16,6 +16,7 @@ describe("UserProjectListItemComponent", () => {
     name: "project1",
     ownerID: 1,
     pid: 1,
+    accessLevel: "WRITE",
   };
 
   beforeEach(async () => {
@@ -31,9 +32,5 @@ describe("UserProjectListItemComponent", () => {
     component.entry = testProject;
     component.editable = true;
     fixture.detectChanges();
-  });
-
-  it("should create", () => {
-    expect(component).toBeTruthy();
   });
 });

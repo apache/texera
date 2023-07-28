@@ -5,6 +5,7 @@ from loguru import logger
 
 from core.architecture.managers import Context
 from core.models import Tuple
+from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
@@ -27,19 +28,23 @@ class DataProcessor(Runnable, Stoppable):
     def process_tuple(self) -> None:
         finished_current = self._context.tuple_processing_manager.finished_current
         while not finished_current.is_set():
-
             try:
                 operator = self._context.operator_manager.operator
                 tuple_ = self._context.tuple_processing_manager.current_input_tuple
                 link = self._context.tuple_processing_manager.current_input_link
+                port: int
+                if link is None:
+                    # no upstream, special case for source operator.
+                    port = -1
 
-                # bind link with input index
-                if link not in self._context.tuple_processing_manager.input_link_map:
+                elif link in self._context.tuple_processing_manager.input_link_map:
+                    port = self._context.tuple_processing_manager.input_link_map[link]
+
+                else:
                     raise Exception(
                         f"Unexpected input link {link}, not in input mapping "
                         f"{self._context.tuple_processing_manager.input_link_map}"
                     )
-                port = self._context.tuple_processing_manager.input_link_map[link]
 
                 output_iterator = (
                     operator.process_tuple(tuple_, port)
@@ -48,18 +53,10 @@ class DataProcessor(Runnable, Stoppable):
                 )
                 with replace_print(self._context.console_message_manager.print_buf):
                     for output in output_iterator:
-                        output_tuple = None if output is None else Tuple(output)
-                        if output_tuple is not None:
-                            schema = (
-                                self._context.operator_manager.operator.output_schema
-                            )
-                            output_tuple.finalize(schema)
-
-                        self._context.tuple_processing_manager.current_output_tuple = (
-                            output_tuple
-                        )
-
-                        self._switch_context()
+                        # output could be a None, a TupleLike, or a TableLike.
+                        for output_tuple in all_output_to_tuple(output):
+                            self._set_output_tuple(output_tuple)
+                            self._switch_context()
 
                 # current tuple finished successfully
                 finished_current.set()
@@ -69,6 +66,11 @@ class DataProcessor(Runnable, Stoppable):
                 self._context.exception_manager.set_exception_info(sys.exc_info())
             finally:
                 self._switch_context()
+
+    def _set_output_tuple(self, output_tuple):
+        if output_tuple is not None:
+            output_tuple.finalize(self._context.operator_manager.operator.output_schema)
+        self._context.tuple_processing_manager.current_output_tuple = output_tuple
 
     def _switch_context(self) -> None:
         """

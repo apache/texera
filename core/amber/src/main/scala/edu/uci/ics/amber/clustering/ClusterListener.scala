@@ -5,8 +5,8 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
-import edu.uci.ics.texera.web.service.WorkflowService
+import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
+import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.ABORTED
 
 import scala.collection.mutable.ArrayBuffer
@@ -47,25 +47,42 @@ class ClusterListener extends Actor with AmberLogging {
       .map(_.address)
   }
 
+  private def forcefullyStop(jobService: WorkflowJobService, cause: Throwable): Unit = {
+    jobService.client.shutdown()
+    jobService.stateStore.statsStore.updateState(stats =>
+      stats.withEndTimeStamp(System.currentTimeMillis())
+    )
+    jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
+      jobInfo.withState(ABORTED).withError(cause.getLocalizedMessage)
+    }
+  }
+
   private def updateClusterStatus(evt: MemberEvent): Unit = {
     evt match {
-      case MemberExited(member) =>
-        logger.info("Cluster node " + member + " is down! Trigger recovery process.")
+      case MemberRemoved(member, status) =>
+        logger.info("Cluster node " + member + " is down!")
         val futures = new ArrayBuffer[Future[Any]]
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (jobService != null && !jobService.workflow.isCompleted) {
-            try {
-              futures.append(jobService.client.notifyNodeFailure(member.address))
-            } catch {
-              case t: Throwable =>
-                logger.warn(
-                  s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
-                )
-                jobService.client.shutdown()
-                jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
-                  jobInfo.withState(ABORTED).withError(t.getLocalizedMessage)
-                }
+            if (AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")) {
+              logger.info(
+                s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+              )
+              try {
+                futures.append(jobService.client.notifyNodeFailure(member.address))
+              } catch {
+                case t: Throwable =>
+                  logger.warn(
+                    s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
+                  )
+                  forcefullyStop(jobService, t)
+              }
+            } else {
+              logger.info(
+                s"Kill execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+              )
+              forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
             }
           }
         }

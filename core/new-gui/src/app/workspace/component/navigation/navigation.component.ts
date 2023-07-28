@@ -15,18 +15,20 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime } from "rxjs/operators";
+import { catchError, debounceTime, filter, flatMap, map, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { concatMap, catchError } from "rxjs/operators";
 import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
+import { of, Subscription, throwError, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
+import { HttpErrorResponse } from "@angular/common/http";
+import { assert } from "../../../common/util/assert";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -57,7 +59,7 @@ export class NavigationComponent implements OnInit {
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
 
-  @Input() private pid?: number = undefined;
+  @Input() public pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
@@ -68,6 +70,9 @@ export class NavigationComponent implements OnInit {
   public runButtonText = "Run";
   public runIcon = "play-circle";
   public runDisable = false;
+
+  public executionDuration = 0;
+  private durationUpdateSubscription: Subscription = new Subscription();
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
@@ -91,9 +96,22 @@ export class NavigationComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
-    public changeDetectionRef: ChangeDetectorRef,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
+    workflowWebsocketService
+      .subscribeToEvent("ExecutionDurationUpdateEvent")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        this.executionDuration = event.duration;
+        this.durationUpdateSubscription.unsubscribe();
+        if (event.isRunning) {
+          this.durationUpdateSubscription = timer(1000, 1000)
+            .pipe(untilDestroyed(this))
+            .subscribe(e => {
+              this.executionDuration += 1000;
+            });
+        }
+      });
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -352,6 +370,7 @@ export class NavigationComponent implements OnInit {
           wid: undefined,
           creationTime: undefined,
           lastModifiedTime: undefined,
+          readonly: false,
         };
 
         this.workflowActionService.enableWorkflowModification();
@@ -386,44 +405,19 @@ export class NavigationComponent implements OnInit {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-    if (!isDefined(this.pid)) {
-      this.workflowPersistService
-        .persistWorkflow(this.workflowActionService.getWorkflow())
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          (updatedWorkflow: Workflow) => {
-            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            this.isSaving = false;
-          },
-          (error: unknown) => {
-            alert(error);
-            this.isSaving = false;
-          }
-        );
-    } else {
-      // add workflow to project, backend will create new mapping if not already added
-      let localPid = this.pid;
-      this.workflowPersistService
-        .persistWorkflow(this.workflowActionService.getWorkflow())
-        .pipe(
-          concatMap((updatedWorkflow: Workflow) => {
-            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            this.isSaving = false;
-            return this.userProjectService.addWorkflowToProject(localPid, updatedWorkflow.wid!);
-          }),
-          catchError((err: unknown) => {
-            throw err;
-          }),
-          untilDestroyed(this)
-        )
-        .subscribe(
-          () => {},
-          (error: unknown) => {
-            alert(error);
-            this.isSaving = false;
-          }
-        );
-    }
+    let localPid = this.pid;
+    this.workflowPersistService
+      .persistWorkflow(this.workflowActionService.getWorkflow())
+      .pipe(
+        tap((updatedWorkflow: Workflow) => this.workflowActionService.setWorkflowMetadata(updatedWorkflow)),
+        filter(workflow => isDefined(localPid) && isDefined(workflow.wid)),
+        mergeMap(workflow => this.userProjectService.addWorkflowToProject(localPid!, workflow.wid!)),
+        untilDestroyed(this)
+      )
+      .subscribe({
+        error: (response: unknown) => this.notificationService.error((response as HttpErrorResponse).error),
+      })
+      .add(() => (this.isSaving = false));
   }
 
   /**

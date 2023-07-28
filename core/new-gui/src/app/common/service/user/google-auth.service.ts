@@ -1,10 +1,9 @@
 import { Injectable } from "@angular/core";
 import { Subject } from "rxjs";
 import { HttpClient } from "@angular/common/http";
-import { AppSettings } from "../../common/app-setting";
+import { AppSettings } from "../../app-setting";
 declare var window: any;
-
-export interface credentialRes {
+export interface CredentialResponse {
   client_id: string;
   credential: string;
   select_by: string;
@@ -12,22 +11,20 @@ export interface credentialRes {
 @Injectable({
   providedIn: "root",
 })
-export class GoogleService {
-  private _googleCredentialResponse = new Subject<credentialRes>();
-
+export class GoogleAuthService {
+  private _googleCredentialResponse = new Subject<CredentialResponse>();
   constructor(private http: HttpClient) {}
-
-  public googleInit(parent: HTMLElement | null) {
+  public googleAuthInit(parent: HTMLElement | null) {
     this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" }).subscribe({
       next: response => {
         window.onGoogleLibraryLoad = () => {
           window.google.accounts.id.initialize({
             client_id: response,
-            callback: (auth: credentialRes) => {
+            callback: (auth: CredentialResponse) => {
               this._googleCredentialResponse.next(auth);
             },
           });
-          window.google.accounts.id.renderButton(parent, { width: "270" });
+          window.google.accounts.id.renderButton(parent, { width: 270 });
           window.google.accounts.id.prompt();
         };
       },

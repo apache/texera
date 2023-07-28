@@ -7,7 +7,6 @@ import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
-import { SourceTablesService } from "../service/dynamic-schema/source-tables/source-tables.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
@@ -22,6 +21,7 @@ import { OperatorCacheStatusService } from "../service/workflow-status/operator-
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -45,8 +45,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private userService: UserService,
     private resultPanelToggleService: ResultPanelToggleService,
     // list additional services in constructor so they are initialized even if no one use them directly
-    private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,
+    private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
     private operatorCacheStatus: OperatorCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
@@ -72,9 +72,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - upon persisting of a workflow, must also ensure it is also added to the project
      *
      * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project
+     *    - there is no related project, parseInt will return NaN.
+     *    - NaN || undefined will result in undefined.
      */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) ?? undefined;
+    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
   }
 
   ngAfterViewInit(): void {
@@ -165,11 +166,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .subscribe(
         (workflow: Workflow) => {
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-          this.workflowActionService.enableWorkflowModification();
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
           // load the fetched workflow
           this.workflowActionService.reloadWorkflow(workflow);
+          this.workflowActionService.enableWorkflowModification();
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment

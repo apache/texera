@@ -1,16 +1,7 @@
-import {
-  AfterViewInit,
-  Component,
-  EventEmitter,
-  Input,
-  OnChanges,
-  Output,
-  SimpleChanges,
-  ViewChild,
-} from "@angular/core";
+import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { firstValueFrom, map } from "rxjs";
+import { firstValueFrom } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -34,9 +25,6 @@ import { SortMethod } from "../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
-
-export const WORKFLOW_BASE_URL = "workflow";
-
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -96,18 +84,6 @@ export class UserWorkflowComponent implements AfterViewInit {
   @Input() public pid?: number = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
-  public dashboardWorkflowEntriesIsEditingName: number[] = [];
-  public owners = this.workflowPersistService.retrieveOwners().pipe(
-    map((owners: string[]) => {
-      return owners.map((user: string) => {
-        return {
-          userName: user,
-          checked: false,
-        };
-      });
-    })
-  );
-  public projectFilterList: number[] = []; // for filter by project mode, track which projects are selected
 
   constructor(
     private userService: UserService,
@@ -129,7 +105,10 @@ export class UserWorkflowComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
-    this.registerDashboardWorkflowEntriesRefresh();
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.search());
   }
 
   /**
@@ -287,20 +266,6 @@ export class UserWorkflowComponent implements AfterViewInit {
       });
   }
 
-  private registerDashboardWorkflowEntriesRefresh(): void {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.isLogin()) {
-          this.search();
-          this.userProjectService.refreshProjectList();
-        } else {
-          this.search();
-        }
-      });
-  }
-
   /**
    * Verify Uploaded file name and upload the file
    */
@@ -394,6 +359,7 @@ export class UserWorkflowComponent implements AfterViewInit {
               wid: undefined,
               creationTime: undefined,
               lastModifiedTime: undefined,
+              readonly: false,
             };
             const workflowJson = JSON.stringify(workflowCopy.content);
             zip.file(fileName, workflowJson);

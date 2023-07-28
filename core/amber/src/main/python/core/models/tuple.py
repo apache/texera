@@ -1,10 +1,11 @@
-import pickle
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List, Iterator, Dict, Callable, Sized, Container
-from typing_extensions import Protocol
+from typing import Any, List, Iterator, Dict, Callable
+
+from typing_extensions import Protocol, runtime_checkable
 import pandas
+import pickle
 import pyarrow
 from loguru import logger
 from pandas._libs.missing import checknull
@@ -14,15 +15,12 @@ from .schema.field import Field
 from .schema.schema import Schema
 
 
-class TupleLike(
-    Protocol,
-    Sized,
-    Container,
-):
-    def __getitem__(self, item):
+@runtime_checkable
+class TupleLike(Protocol):
+    def __getitem__(self, item: typing.Union[str, int]) -> Field:
         ...
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: typing.Union[str, int], value: Field) -> None:
         ...
 
 
@@ -75,9 +73,11 @@ class ArrowTableTupleProvider:
             field_type = self._table.schema.field(field_name).type
 
             # for binary types, convert pickled objects back.
-            if field_type == pyarrow.binary() and value[:6] == b"pickle":
-                import pickle
-
+            if (
+                field_type == pyarrow.binary()
+                and value is not None
+                and value[:6] == b"pickle"
+            ):
                 value = pickle.loads(value[10:])
             return value
 
@@ -85,14 +85,14 @@ class ArrowTableTupleProvider:
         return field_accessor
 
 
-class Tuple(TupleLike):
+class Tuple:
     """
     Lazy-Tuple implementation.
     """
 
     def __init__(
         self,
-        tuple_like: typing.Optional[TupleLike] = None,
+        tuple_like: typing.Optional["TupleLike"] = None,
         schema: typing.Optional[Schema] = None,
     ):
         """
@@ -206,7 +206,6 @@ class Tuple(TupleLike):
         """
         for field_name in self.get_field_names():
             try:
-
                 field_value: Field = self[field_name]
 
                 # convert NaN to None to support null value conversion

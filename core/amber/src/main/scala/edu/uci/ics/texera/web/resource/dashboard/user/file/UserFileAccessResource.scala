@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.file
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   FILE,
@@ -18,12 +17,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{FileOfWorkflow, UserFileAccess}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
-  checkWriteAccess,
   context,
   fileDao,
   userDao
 }
-import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
@@ -64,7 +61,7 @@ object UserFileAccessResource {
         .fetchExists(
           context
             .selectFrom(FILE_OF_WORKFLOW)
-            .where(FILE_OF_WORKFLOW.WID.eq(wid).and(FILE_OF_WORKFLOW.FID.eq(fid)))
+            .where(FILE_OF_WORKFLOW.FID.eq(fid))
         )
     ) {
       file_of_workflowDao.merge(new FileOfWorkflow(fid, wid))
@@ -72,46 +69,6 @@ object UserFileAccessResource {
     } else {
       None
     }
-  }
-
-  /**
-    * Identifies whether the given user has read-only access over the given workflow
-    * @param fid file id
-    * @param uid user id, works with file id as primary keys in database
-    */
-  def checkReadAccess(fid: UInteger, uid: UInteger): Unit = {
-    if (
-      !(getPrivilege(fid, uid).eq(UserFileAccessPrivilege.READ) || getPrivilege(fid, uid).eq(
-        UserFileAccessPrivilege.WRITE
-      ))
-    ) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    * @param fid file id
-    * @param uid user id, works with file id as primary keys in database
-    */
-  def checkWriteAccess(fid: UInteger, uid: UInteger): Unit = {
-    if (!getPrivilege(fid, uid).eq(UserFileAccessPrivilege.WRITE)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    }
-  }
-
-  /**
-    * @param fid file id
-    * @param uid user id, works with file id as primary keys in database
-    * @return UserFileAccessPrivilege value indicating NONE/READ/WRITE
-    */
-  private def getPrivilege(fid: UInteger, uid: UInteger): UserFileAccessPrivilege = {
-    context
-      .select()
-      .from(USER_FILE_ACCESS)
-      .where(USER_FILE_ACCESS.FID.eq(fid).and(USER_FILE_ACCESS.UID.eq(uid)))
-      .fetchOneInto(classOf[UserFileAccess])
-      .getPrivilege
   }
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -129,8 +86,7 @@ class UserFileAccessResource {
   @GET
   @Path("/owner/{fid}")
   def getOwner(@PathParam("fid") fid: UInteger): String = {
-    val uid = fileDao.fetchOneByFid(fid).getOwnerUid
-    userDao.fetchOneByUid(uid).getEmail
+    userDao.fetchOneByUid(fileDao.fetchOneByFid(fid).getOwnerUid).getEmail
   }
 
   /**
@@ -142,8 +98,7 @@ class UserFileAccessResource {
   @GET
   @Path("list/{fid}")
   def getAccessList(
-      @PathParam("fid") fid: UInteger,
-      @Auth user: SessionUser
+      @PathParam("fid") fid: UInteger
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -157,7 +112,7 @@ class UserFileAccessResource {
       .where(
         USER_FILE_ACCESS.FID
           .eq(fid)
-          .and(USER_FILE_ACCESS.UID.notEqual(user.getUid))
+          .and(USER_FILE_ACCESS.UID.notEqual(fileDao.fetchOneByFid(fid).getOwnerUid))
       )
       .fetchInto(classOf[AccessEntry])
   }
@@ -175,10 +130,8 @@ class UserFileAccessResource {
   def grantAccess(
       @PathParam("fid") fid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String,
-      @Auth user: SessionUser
+      @PathParam("privilege") privilege: String
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     userFileAccessDao.merge(
       new UserFileAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -197,13 +150,10 @@ class UserFileAccessResource {
     */
   @DELETE
   @Path("/revoke/{fid}/{email}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def revokeAccess(
       @PathParam("fid") fid: UInteger,
-      @PathParam("email") email: String,
-      @Auth user: SessionUser
+      @PathParam("email") email: String
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     context
       .delete(USER_FILE_ACCESS)
       .where(

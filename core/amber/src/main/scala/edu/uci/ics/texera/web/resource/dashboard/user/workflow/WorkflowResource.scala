@@ -18,6 +18,7 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.util
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -67,6 +68,16 @@ object WorkflowResource {
       ownerName: String,
       workflow: Workflow,
       projectIDs: List[UInteger]
+  )
+
+  case class WorkflowWithPrivilege(
+      name: String,
+      description: String,
+      wid: UInteger,
+      content: String,
+      creationTime: Timestamp,
+      lastModifiedTime: Timestamp,
+      readonly: Boolean
   )
 
   def createWorkflowFilterCondition(
@@ -231,6 +242,7 @@ object WorkflowResource {
 
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
 class WorkflowResource {
 
@@ -240,19 +252,13 @@ class WorkflowResource {
     * @return WorkflowID[]
     */
   @GET
-  @Path("/workflow-ids")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveIDs(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
+  @Path("/user-workflow-ids")
+  def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
+    context
       .select(WORKFLOW_USER_ACCESS.WID)
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(WORKFLOW_OF_USER).getWid.intValue().toString)
-      .toList
+      .fetchInto(classOf[String])
   }
 
   /**
@@ -261,24 +267,17 @@ class WorkflowResource {
     * @return OwnerName[]
     */
   @GET
-  @Path("/owners")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def retrieveOwners(@Auth sessionUser: SessionUser): List[String] = {
-    val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(USER.EMAIL)
+  @Path("/user-workflow-owners")
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
+    context
+      .selectDistinct(USER.EMAIL)
       .from(WORKFLOW_USER_ACCESS)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
       .join(USER)
       .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(USER.UID)
-      .fetch()
-
-    workflowEntries
-      .map(workflowRecord => workflowRecord.into(USER).getEmail)
-      .toList
+      .fetchInto(classOf[String])
   }
 
   /**
@@ -288,7 +287,6 @@ class WorkflowResource {
     */
   @GET
   @Path("/search-by-operators")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
       @Auth sessionUser: SessionUser
@@ -340,7 +338,6 @@ class WorkflowResource {
     */
   @GET
   @Path("/list")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflow] = {
@@ -398,14 +395,21 @@ class WorkflowResource {
     */
   @GET
   @Path("/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
-  ): Workflow = {
-    val user = sessionUser.getUser
+      @Auth user: SessionUser
+  ): WorkflowWithPrivilege = {
     if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
-      workflowDao.fetchOneByWid(wid)
+      val workflow = workflowDao.fetchOneByWid(wid)
+      WorkflowWithPrivilege(
+        workflow.getName,
+        workflow.getDescription,
+        workflow.getWid,
+        workflow.getContent,
+        workflow.getCreationTime,
+        workflow.getLastModifiedTime,
+        !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
+      )
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
     }
@@ -423,7 +427,6 @@ class WorkflowResource {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/persist")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
 
@@ -458,7 +461,6 @@ class WorkflowResource {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/duplicate")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def duplicateWorkflow(
       workflow: Workflow,
       @Auth sessionUser: SessionUser
@@ -497,7 +499,6 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflow = {
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
@@ -523,7 +524,6 @@ class WorkflowResource {
     */
   @DELETE
   @Path("/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
     if (workflowOfUserExists(wid, user.getUid)) {
@@ -542,7 +542,6 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/name")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateWorkflowName(
       workflow: Workflow,
       @Auth sessionUser: SessionUser

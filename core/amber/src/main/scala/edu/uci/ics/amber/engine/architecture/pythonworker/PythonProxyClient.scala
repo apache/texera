@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
+import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ControlElement,
   ControlElementV2,
@@ -21,9 +22,8 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
-import scala.math.pow
 
-class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
+class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
     with AmberLogging
     with AutoCloseable
@@ -31,8 +31,13 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
-  val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-  private val MAX_TRY_COUNT: Int = 5
+  val location: Location = (() => {
+    // Read port number from promise until it's available
+    val portNumber = Await.result(portNumberPromise)
+    Location.forGrpcInsecure("localhost", portNumber)
+  })()
+
+  private val MAX_TRY_COUNT: Int = 2
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
   private var running: Boolean = true
@@ -47,19 +52,17 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     var tryCount = 0
     while (!connected && tryCount <= MAX_TRY_COUNT) {
       try {
-        logger.info(s"trying to connect to $location")
         flightClient = FlightClient.builder(allocator, location).build()
         connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
         if (!connected)
           throw new RuntimeException("heartbeat failed")
       } catch {
         case _: RuntimeException =>
-          val retryWaitTimeInMs = UNIT_WAIT_TIME_MS * pow(2, tryCount).toInt
           logger.warn(
-            s"Failed to connect to Flight Server in this attempt, retrying after $retryWaitTimeInMs ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
+            s"Failed to connect to Flight Server in this attempt, retrying after $UNIT_WAIT_TIME_MS ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
           )
           flightClient.close()
-          Thread.sleep(retryWaitTimeInMs)
+          Thread.sleep(UNIT_WAIT_TIME_MS)
           tryCount += 1
       }
     }
@@ -153,12 +156,18 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   }
 
   override def close(): Unit = {
-
     val action: Action = new Action("shutdown")
-    flightClient.doAction(action) // do not expect reply
+    try {
+      flightClient.doAction(action) // do not expect reply
 
-    flightClient.close()
-
+      flightClient.close()
+    } catch {
+      case _: NullPointerException =>
+        running = false
+        logger.warn(
+          s"Unable to close the flight client because it is null"
+        )
+    }
     // stop the main loop
     running = false
   }

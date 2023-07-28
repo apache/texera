@@ -30,7 +30,7 @@ class TestNetworkReceiver:
     def network_receiver(self, output_queue):
         network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555)
         yield network_receiver
-        network_receiver._proxy_server.shutdown()
+        network_receiver._proxy_server.graceful_shutdown()
 
     @pytest.fixture
     def network_sender_thread(self, input_queue):

@@ -17,9 +17,8 @@ export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
-export const WORKFLOW_OPERATOR_URL = WORKFLOW_BASE_URL + "/search-by-operators";
-export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/owners";
-export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/workflow-ids";
+export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
+export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
