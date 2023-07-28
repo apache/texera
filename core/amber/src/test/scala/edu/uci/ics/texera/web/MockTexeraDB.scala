@@ -45,7 +45,11 @@ trait MockTexeraDB {
           val i = line.indexOf(' ')
           line = line.substring(i + 1, line.length - " */".length)
         }
-        if (line.trim.nonEmpty) st.execute(line)
+        if (line.trim.nonEmpty) {
+          // mock DB cannot use SET PERSIST keyword
+          line = line.replaceAll("(?i)SET PERSIST", "SET GLOBAL")
+          st.execute(line)
+        }
       }
     } finally if (st != null) st.close()
   }
