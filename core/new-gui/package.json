@@ -18,7 +18,7 @@
     "format:ci": "yarn prettier-eslint --list-different \"src/**/*.{ts,js,html,scss,less,json}\" && yarn eslint ./src",
     "e2e": "ng e2e",
     "preinstall": "",
-    "postinstall": "node git-version.js && ngcc --properties es2015 browser module main --first-only --create-ivy-entry-points"
+    "postinstall": "node git-version.js && ngcc --properties es2015 browser module main --first-only --create-ivy-entry-points && node ./decorate-angular-cli.js"
   },
   "private": true,
   "dependencies": {
@@ -45,6 +45,8 @@
     "@ngx-formly/material": "5.11.1",
     "@ngx-formly/ng-zorro-antd": "0.0.1",
     "@ngx-formly/schematics": "5.11.1",
+    "@nrwl/angular": "14.1.11",
+    "@nrwl/nx-cloud": "^16.1.1",
     "@stoplight/json-ref-resolver": "3.1.5",
     "@types/lodash-es": "4.17.4",
     "@types/mapbox-gl": "~2.7.11",
@@ -108,6 +110,8 @@
     "@angular/cli": "~13.3.9",
     "@angular/compiler-cli": "~13.3.9",
     "@angular/language-service": "~13.3.9",
+    "@nrwl/cypress": "14.1.11",
+    "@nrwl/workspace": "14.1.11",
     "@types/backbone": "1.4.15",
     "@types/c3": "0.7.8",
     "@types/d3": "6.7.5",
@@ -122,6 +126,7 @@
     "@types/jqueryui": "1.12.10",
     "@types/json-schema": "7.0.9",
     "@types/lodash": "4.14.179",
+    "@types/node": "16.11.7",
     "@types/quill": "2.0.9",
     "@types/uuid": "8.3.4",
     "@typescript-eslint/eslint-plugin": "5.14.0",
@@ -146,6 +151,8 @@
     "karma-jasmine-html-reporter": "1.7.0",
     "ngx-pipes": "3.0.0",
     "nodecat": "2.0.0",
+    "nx": "14.1.11",
+    "nx-cloud": "14.7.0",
     "nz-tslint-rules": "0.901.2",
     "prettier": "2.8.8",
     "prettier-eslint-cli": "7.1.0",
@@ -160,4 +167,3 @@
     "not ie <= 11"
   ]
 }
-
