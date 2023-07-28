@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { NzMessageDataOptions } from "ng-zorro-antd/message";
+import { HttpErrorResponse } from "@angular/common/http";
 
 export interface Notification {
   type: "success" | "info" | "error" | "warning" | "loading";
@@ -37,7 +38,7 @@ export class NotificationService {
   error(cause: Error | any, options: NzMessageDataOptions = {}) {
     this.sendNotification({
       type: "error",
-      message: cause instanceof Error ? cause.message : cause.toString(),
+      message: cause instanceof Error || cause.hasOwnProperty("message") ? cause.message : cause.toString(),
       options,
     });
   }
