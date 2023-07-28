@@ -40,7 +40,7 @@ import scala.collection.JavaConverters.asScalaBuffer
 class UrlVizOpDesc extends VisualizationOperator {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("URL")
+  @JsonSchemaTitle("URL content")
   @AutofillAttributeName
   private val urlContentAttrName: String = ""
 
