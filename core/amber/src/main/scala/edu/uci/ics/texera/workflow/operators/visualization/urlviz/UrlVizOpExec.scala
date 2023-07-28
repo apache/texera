@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorS
   * URL Visualization operator to render any given URL link
   */
 class UrlVizOpExec(
-    URLAttributeName: String,
+    urlContentAttrName: String,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
@@ -32,7 +32,7 @@ class UrlVizOpExec(
               |<html lang="en">
               |<body>
               |  <div class="modal-body">
-              |    <iframe src="${tuple.getField(URLAttributeName)}" frameborder="0"
+              |    <iframe src="${tuple.getField(urlContentAttrName)}" frameborder="0"
               |       style="height:100vh; width:100%; border:none;">
               |    </iframe>
               |  </div>
