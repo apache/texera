@@ -15,8 +15,8 @@ DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
 
-SET GLOBAL time_zone = '+00:00'; -- this line is mandatory
-SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
+SET PERSIST time_zone = '+00:00'; -- this line is mandatory
+SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
 
 CREATE TABLE IF NOT EXISTS user
 (
