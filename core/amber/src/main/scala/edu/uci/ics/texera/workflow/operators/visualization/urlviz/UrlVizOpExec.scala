@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorS
 /**
   * URL Visualization operator to render any given URL link
   */
-class UrlVizOpPartialExec(
+class UrlVizOpExec(
     htmlContentAttrName: String,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
