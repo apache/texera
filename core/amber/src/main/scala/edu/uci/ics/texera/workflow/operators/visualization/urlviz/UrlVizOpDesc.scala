@@ -28,8 +28,7 @@ import scala.collection.JavaConverters.asScalaBuffer
   * URL Visualization operator to render any content in given URL link
   * This is the description of the operator
   */
-@JsonSchemaInject(json =
-  """
+@JsonSchemaInject(json = """
  {
    "attributeTypeRules": {
      "urlContentAttrName": {
@@ -39,7 +38,6 @@ import scala.collection.JavaConverters.asScalaBuffer
  }
  """)
 class UrlVizOpDesc extends VisualizationOperator {
-
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL")
