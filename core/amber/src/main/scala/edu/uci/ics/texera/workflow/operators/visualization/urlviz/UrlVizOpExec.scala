@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorS
   * URL Visualization operator to render any given URL link
   */
 class UrlVizOpExec(
-                    URLAttributeName: String,
+    URLAttributeName: String,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
@@ -28,7 +28,7 @@ class UrlVizOpExec(
     tuple match {
       case Left(tuple) =>
         val iframe =
-           s"""<!DOCTYPE html>
+          s"""<!DOCTYPE html>
               |<html lang="en">
               |<body>
               |  <div class="modal-body">
