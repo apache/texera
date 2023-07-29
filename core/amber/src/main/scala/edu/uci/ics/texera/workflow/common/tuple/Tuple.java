@@ -102,9 +102,6 @@ public class Tuple implements ITuple, Serializable {
             AttributeType attributeType = attribute.getType();
             String attributeName = attribute.getName();
 
-            for (char ch : attributeName.toCharArray()){
-                result.set(result.get() * salt + (int)ch);                                // 16 bits » 32-bit
-            }
             switch (attributeType) {
                 case BOOLEAN:
                     Boolean booleanField = getField(attributeName);
@@ -129,7 +126,6 @@ public class Tuple implements ITuple, Serializable {
 
                     while (it.current() != CharacterIterator.DONE) {
                         char c = it.current();
-//                        System.out.println("adding " + (int) c + " to " + result.get());
                         result.set(result.get() * salt + (int)c);                                // 16 bits » 32-bit
                         it.next();
                     }

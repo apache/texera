@@ -4,7 +4,7 @@ import typing
 from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List, Iterator, Dict, Callable
+from typing import Any, List, Iterator, Callable
 
 from typing_extensions import Protocol, runtime_checkable
 import pandas
@@ -301,8 +301,6 @@ class Tuple:
         salt = 31
         for name, field in self.as_key_value_pairs():
             attr_type = self._schema.get_attr_type(name)
-            for c in name:
-                result = result * salt + ord(c)
 
             if attr_type == AttributeType.BOOL:
                 result = result * salt + int(field)
