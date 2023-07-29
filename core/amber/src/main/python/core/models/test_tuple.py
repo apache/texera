@@ -108,3 +108,16 @@ class TestTuple:
         tuple_.finalize(schema)
         assert isinstance(tuple_["scores"], bytes)
         assert tuple_["height"] is None
+
+    def test_hash(self):
+        tuple_ = Tuple(
+            {"col-int": 1, "col-string": "string-attr", "col-bool": True},
+            schema=Schema(
+                raw_schema={
+                    "col-int": "integer",
+                    "col-string": "string",
+                    "col-bool": "boolean",
+                }
+            ),
+        )
+        print(hash(tuple_))

@@ -1,4 +1,7 @@
+import ctypes
+import struct
 import typing
+from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, List, Iterator, Dict, Callable
@@ -74,9 +77,9 @@ class ArrowTableTupleProvider:
 
             # for binary types, convert pickled objects back.
             if (
-                field_type == pyarrow.binary()
-                and value is not None
-                and value[:6] == b"pickle"
+                    field_type == pyarrow.binary()
+                    and value is not None
+                    and value[:6] == b"pickle"
             ):
                 value = pickle.loads(value[10:])
             return value
@@ -91,9 +94,9 @@ class Tuple:
     """
 
     def __init__(
-        self,
-        tuple_like: typing.Optional["TupleLike"] = None,
-        schema: typing.Optional[Schema] = None,
+            self,
+            tuple_like: typing.Optional["TupleLike"] = None,
+            schema: typing.Optional[Schema] = None,
     ):
         """
         Construct a lazy-tuple with given TupleLike object. If the field value is a
@@ -106,9 +109,9 @@ class Tuple:
         if isinstance(tuple_like, Tuple):
             self._field_data = tuple_like._field_data
         elif isinstance(tuple_like, pandas.Series):
-            self._field_data = tuple_like.to_dict()
+            self._field_data = OrderedDict(tuple_like.to_dict())
         else:
-            self._field_data = dict(tuple_like) if tuple_like else dict()
+            self._field_data = OrderedDict(tuple_like) if tuple_like else OrderedDict()
         self._schema: typing.Optional[Schema] = schema
         if self._schema:
             self.finalize(schema)
@@ -129,9 +132,9 @@ class Tuple:
             item: str = self.get_field_names()[item]
 
         if (
-            callable(self._field_data[item])
-            and getattr(self._field_data[item], "__name__", "Unknown")
-            == "field_accessor"
+                callable(self._field_data[item])
+                and getattr(self._field_data[item], "__name__", "Unknown")
+                == "field_accessor"
         ):
             # evaluate the field now
             field_accessor = self._field_data[item]
@@ -152,7 +155,7 @@ class Tuple:
         """Convert the tuple to Pandas series format"""
         return pandas.Series(self.as_dict())
 
-    def as_dict(self) -> Dict[str, Field]:
+    def as_dict(self) -> OrderedDict[str, Field]:
         """
         Return a dictionary copy of this tuple.
         Fields will be fetched from accessor if absent.
@@ -191,6 +194,7 @@ class Tuple:
         """
         self.cast_to_schema(schema)
         self.validate_schema(schema)
+        self._schema = schema
 
     def cast_to_schema(self, schema: Schema) -> None:
         """
@@ -252,7 +256,7 @@ class Tuple:
         for field_name, field_value in self.as_key_value_pairs():
             expected = schema.get_attr_type(field_name)
             if not isinstance(
-                field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
+                    field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
             ):
                 raise TypeError(
                     f"Unmatched type for field '{field_name}', expected {expected}, "
@@ -269,9 +273,9 @@ class Tuple:
 
     def __eq__(self, other: Any) -> bool:
         return (
-            isinstance(other, Tuple)
-            and self.get_field_names() == other.get_field_names()
-            and all(self[i] == other[i] for i in self.get_field_names())
+                isinstance(other, Tuple)
+                and self.get_field_names() == other.get_field_names()
+                and all(self[i] == other[i] for i in self.get_field_names())
         )
 
     def __ne__(self, other) -> bool:
@@ -282,3 +286,57 @@ class Tuple:
 
     def __contains__(self, __x: object) -> bool:
         return __x in self._field_data
+
+    def get_partial_tuple(self, indices) -> "Tuple":
+        assert self._schema is not None
+        schema = self._schema.get_partial_schema(indices)
+        new_raw_tuple = OrderedDict()
+        for index, (key, value) in enumerate(self.as_key_value_pairs(), 0):
+            if index in indices:
+                new_raw_tuple[key] = value
+        return Tuple(new_raw_tuple, schema=schema)
+
+    def __hash__(self):
+        result = 17
+        salt = 31
+        for name, field in self.as_key_value_pairs():
+            attr_type = self._schema.get_attr_type(name)
+            for c in name:
+                result = result * salt + ord(c)
+
+            if attr_type == AttributeType.BOOL:
+                result = result * salt + int(field)
+            elif attr_type == AttributeType.INT:
+                result = result * salt + field
+            elif attr_type == AttributeType.LONG:
+                result = result * salt + field ^ (field >> 32)
+            elif attr_type == AttributeType.DOUBLE:
+
+                def double_to_long_bits(double_value):
+                    # Pack the double value into a binary string of 8 bytes
+                    packed_value = struct.pack("d", double_value)
+
+                    # Unpack the binary string to a 64-bit integer (long in Python 2, int in Python 3)
+                    long_bits = struct.unpack("Q", packed_value)[0]
+
+                    # If you need a signed long (for Python 2 or Python 3)
+                    # signed_long_bits = ctypes.c_longlong(long_bits).value
+
+                    return long_bits
+
+                long_value = double_to_long_bits(field)
+                result = result * salt + long_value ^ (long_value >> 32)
+            elif attr_type == AttributeType.STRING:
+                for c in field:
+                    result = result * salt + ord(c)
+            elif attr_type == AttributeType.TIMESTAMP:
+                long_value = field.time()
+                result = result * salt + long_value ^ (long_value >> 32)
+            elif attr_type == AttributeType.BINARY:
+                for b in field:
+                    result = result * salt + ord(b)
+
+        def java_int(value):
+            return ctypes.c_int32(value).value
+
+        return java_int(result)

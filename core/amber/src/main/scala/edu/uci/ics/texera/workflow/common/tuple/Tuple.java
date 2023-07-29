@@ -12,10 +12,15 @@ import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import org.apache.commons.lang3.NotImplementedException;
 import org.bson.Document;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
+import java.text.CharacterIterator;
+import java.text.StringCharacterIterator;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -32,9 +37,9 @@ public class Tuple implements ITuple, Serializable {
     @JsonCreator
     public Tuple(
             @JsonProperty(value = "schema", required = true)
-                    Schema schema,
+            Schema schema,
             @JsonProperty(value = "fields", required = true)
-                    List<Object> fields) {
+            List<Object> fields) {
         // check arguments are not null
         checkNotNull(schema);
         checkNotNull(fields);
@@ -88,11 +93,64 @@ public class Tuple implements ITuple, Serializable {
     }
 
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((fields == null) ? 0 : fields.hashCode());
-        result = prime * result + ((schema == null) ? 0 : schema.hashCode());
-        return result;
+        // Start with a non-zero constant. Prime is preferred
+        AtomicInteger result = new AtomicInteger(17);
+        int salt = 31;
+
+        // Include a hash for each field.
+        schema.getAttributes().forEach(attribute -> {
+            AttributeType attributeType = attribute.getType();
+            String attributeName = attribute.getName();
+
+            for (char ch : attributeName.toCharArray()){
+                result.set(result.get() * salt + (int)ch);                                // 16 bits » 32-bit
+            }
+            switch (attributeType) {
+                case BOOLEAN:
+                    Boolean booleanField = getField(attributeName);
+                    result.set(result.get() * salt + (booleanField ? 1 : 0)); // 1 bit   » 32-bit
+                    break;
+                case INTEGER:
+                    Integer intField = getField(attributeName);
+                    result.set(result.get() * salt + intField);       // 32 bits   » 32-bit
+                    break;
+                case LONG:
+                    Long longField = getField(attributeName);
+                    result.set(result.get() * salt + (int) (longField ^ (longField >>> 32)));    // 64 bits » 32-bit
+                    break;
+                case DOUBLE:
+                    Double doubleField = getField(attributeName);
+                    long doubleFieldBits = Double.doubleToLongBits(doubleField);     // 64 bits (double) » 64-bit (long) » 32-bit (int)
+                    result.set(result.get() * salt + (int) (doubleFieldBits ^ (doubleFieldBits >>> 32)));
+                    break;
+                case STRING:
+                    String stringField = getField(attributeName);
+                    CharacterIterator it = new StringCharacterIterator(stringField);
+
+                    while (it.current() != CharacterIterator.DONE) {
+                        char c = it.current();
+//                        System.out.println("adding " + (int) c + " to " + result.get());
+                        result.set(result.get() * salt + (int)c);                                // 16 bits » 32-bit
+                        it.next();
+                    }
+                    break;
+                case TIMESTAMP:
+                    Timestamp timestampField = getField(attributeName);
+                    long longValue = timestampField.getTime();
+                    result.set(result.get() * salt + (int) (longValue ^ (longValue >>> 32)));    // 64 bits » 32-bit
+                    break;
+                case BINARY:
+                    char[] chars = getField(attributeName);
+                    for (char c : chars) {
+                        result.set(result.get() * salt + (int) c);                                // 16 bits » 32-bit
+                    }
+                    break;
+                case ANY:
+                    throw new NotImplementedException();
+            }
+        });
+
+        return result.get();
     }
 
     public boolean equals(Object obj) {
@@ -115,6 +173,16 @@ public class Tuple implements ITuple, Serializable {
         }
     }
 
+    public Tuple getPartialTuple(int[] indices){
+        Schema partialSchema = schema.getPartialSchema(indices);
+        Tuple.BuilderV2 builder = new Tuple.BuilderV2(partialSchema);
+        Object[] partialArray = new Object[indices.length];
+        for (int i = 0; i < indices.length; i++) {
+            partialArray[i] = fields.get(indices[i]);
+        }
+        builder.addSequentially(partialArray);
+        return builder.build();
+    }
     public String toString() {
         return "Tuple [schema=" + schema + ", fields=" + fields + "]";
     }
@@ -145,7 +213,7 @@ public class Tuple implements ITuple, Serializable {
     /*
      * convert the tuple to a bson document for mongoDB storage
      */
-    public Document asDocument(){
+    public Document asDocument() {
         Document doc = new Document();
         for (String attrName : this.schema.getAttributeNames()) {
             doc.put(attrName, this.getField(attrName));

@@ -97,4 +97,16 @@ class TupleSpec extends AnyFlatSpec {
     assert(line == tuple2json(newTuple))
 
   }
+
+  it should "calculate hash" in {
+    val inputSchema =
+      Schema.newBuilder().add(integerAttribute).add(stringAttribute).add(boolAttribute).build()
+    val inputTuple = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, 1)
+      .add(stringAttribute, "string-attr")
+      .add(boolAttribute, true)
+      .build()
+    println(s"hash ${inputTuple.hashCode()}")
+  }
 }
