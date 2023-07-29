@@ -267,7 +267,10 @@ class Tuple:
         return iter(self.get_fields())
 
     def __str__(self) -> str:
-        return f"Tuple[{str(self.as_dict()).strip('{').strip('}')}]"
+        content =', '.join(
+            [repr(key) + ': '+ repr(value) for key, value in self.as_key_value_pairs()]
+        )
+        return f"Tuple[{content}]"
 
     __repr__ = __str__
 
@@ -309,6 +312,7 @@ class Tuple:
             elif attr_type == AttributeType.LONG:
                 result = result * salt + field ^ (field >> 32)
             elif attr_type == AttributeType.DOUBLE:
+
                 def double_to_long_bits(double_value):
                     # Pack the double value into a binary string of 8 bytes
                     packed_value = struct.pack("d", double_value)
