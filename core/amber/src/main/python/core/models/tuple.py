@@ -77,9 +77,9 @@ class ArrowTableTupleProvider:
 
             # for binary types, convert pickled objects back.
             if (
-                    field_type == pyarrow.binary()
-                    and value is not None
-                    and value[:6] == b"pickle"
+                field_type == pyarrow.binary()
+                and value is not None
+                and value[:6] == b"pickle"
             ):
                 value = pickle.loads(value[10:])
             return value
@@ -94,9 +94,9 @@ class Tuple:
     """
 
     def __init__(
-            self,
-            tuple_like: typing.Optional["TupleLike"] = None,
-            schema: typing.Optional[Schema] = None,
+        self,
+        tuple_like: typing.Optional["TupleLike"] = None,
+        schema: typing.Optional[Schema] = None,
     ):
         """
         Construct a lazy-tuple with given TupleLike object. If the field value is a
@@ -132,9 +132,9 @@ class Tuple:
             item: str = self.get_field_names()[item]
 
         if (
-                callable(self._field_data[item])
-                and getattr(self._field_data[item], "__name__", "Unknown")
-                == "field_accessor"
+            callable(self._field_data[item])
+            and getattr(self._field_data[item], "__name__", "Unknown")
+            == "field_accessor"
         ):
             # evaluate the field now
             field_accessor = self._field_data[item]
@@ -256,7 +256,7 @@ class Tuple:
         for field_name, field_value in self.as_key_value_pairs():
             expected = schema.get_attr_type(field_name)
             if not isinstance(
-                    field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
+                field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
             ):
                 raise TypeError(
                     f"Unmatched type for field '{field_name}', expected {expected}, "
@@ -273,9 +273,9 @@ class Tuple:
 
     def __eq__(self, other: Any) -> bool:
         return (
-                isinstance(other, Tuple)
-                and self.get_field_names() == other.get_field_names()
-                and all(self[i] == other[i] for i in self.get_field_names())
+            isinstance(other, Tuple)
+            and self.get_field_names() == other.get_field_names()
+            and all(self[i] == other[i] for i in self.get_field_names())
         )
 
     def __ne__(self, other) -> bool:
