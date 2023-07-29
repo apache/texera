@@ -311,17 +311,11 @@ class Tuple:
             elif attr_type == AttributeType.LONG:
                 result = result * salt + field ^ (field >> 32)
             elif attr_type == AttributeType.DOUBLE:
-
                 def double_to_long_bits(double_value):
                     # Pack the double value into a binary string of 8 bytes
                     packed_value = struct.pack("d", double_value)
-
-                    # Unpack the binary string to a 64-bit integer (long in Python 2, int in Python 3)
+                    # Unpack the binary string to a 64-bit integer (int in Python 3)
                     long_bits = struct.unpack("Q", packed_value)[0]
-
-                    # If you need a signed long (for Python 2 or Python 3)
-                    # signed_long_bits = ctypes.c_longlong(long_bits).value
-
                     return long_bits
 
                 long_value = double_to_long_bits(field)
