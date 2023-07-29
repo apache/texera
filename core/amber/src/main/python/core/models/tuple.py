@@ -267,8 +267,8 @@ class Tuple:
         return iter(self.get_fields())
 
     def __str__(self) -> str:
-        content =', '.join(
-            [repr(key) + ': '+ repr(value) for key, value in self.as_key_value_pairs()]
+        content = ", ".join(
+            [repr(key) + ": " + repr(value) for key, value in self.as_key_value_pairs()]
         )
         return f"Tuple[{content}]"
 
