@@ -88,16 +88,58 @@ class ArrowTableTupleProvider:
         return field_accessor
 
 
-def double_to_long_bits(double_value):
+def double_to_long(value: float) -> int:
+    """
+    Convert a double value into a long value.
+    :param value: A double (Python float) value.
+    :return: The converted long (Python int) value.
+    """
     # Pack the double value into a binary string of 8 bytes
-    packed_value = struct.pack("d", double_value)
+    packed_value = struct.pack("d", value)
     # Unpack the binary string to a 64-bit integer (int in Python 3)
-    long_bits = struct.unpack("Q", packed_value)[0]
-    return long_bits
+    long_value = struct.unpack("Q", packed_value)[0]
+    return long_value
 
 
-def java_int(value):
+def int_32(value: int) -> int:
+    """
+    Convert a Python int (unbounded) to a 32-bit int with overflow.
+    :param value: A Python int value.
+    :return: The converted 32-bit integer, with overflow.
+    """
     return ctypes.c_int32(value).value
+
+
+def java_hash_bool(value: bool) -> int:
+    """
+    Java's hash function for a boolean value.
+    :param value: A boolean value.
+    :return: Java's hash value in a 32-bit integer.
+    """
+    return 1231 if value else 1237
+
+
+def java_hash_long(value: int) -> int:
+    """
+    Java's hash function for a long value.
+    :param value: A long (Python int) value.
+    :return: Java's hash value in a 32-bit integer.
+    """
+    return int_32(value ^ (value >> 32))
+
+
+def java_hash_bytes(bytes: Iterator[int], init: int, salt: int):
+    """
+    Java's hash function for an array of bytes.
+    :param bytes: An iterator of int (byte) values.
+    :param init: An init hash value.
+    :param salt: A hash salt value.
+    :return: Java's hash value in a 32-bit integer.
+    """
+    h = init
+    for b in bytes:
+        h = int_32(salt * h + b)
+    return h
 
 
 class Tuple:
@@ -313,37 +355,34 @@ class Tuple:
                 new_raw_tuple[key] = value
         return Tuple(new_raw_tuple, schema=schema)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
+        """
+        Aligned with Java's built-in hash algorithm implementation described in
+        _Josh Bloch's Effective Java_.
+        This algorithm is taken by
+         - Built-in Java (java.util.Objects.hash)
+         - Guava (com.google.common.base.Objects.hashCode)
+        :return: A 32-bit integer value.
+        """
         result = 1
-        salt = 31
+        salt = 31  # for ease of optimization
+
+        mapping = {
+            AttributeType.BOOL: lambda f: java_hash_bool(f),
+            AttributeType.INT: lambda f: int_32(f),
+            AttributeType.LONG: lambda f: java_hash_long(f),
+            AttributeType.DOUBLE: lambda f: java_hash_long(double_to_long(f)),
+            AttributeType.STRING: lambda f: java_hash_bytes(map(ord, f), 0, salt),
+            AttributeType.TIMESTAMP: lambda f: java_hash_long(int(f.timestamp())),
+            AttributeType.BINARY: lambda f: java_hash_bytes(f, 1, salt),
+        }
+
         for name, field in self.as_key_value_pairs():
             attr_type = self._schema.get_attr_type(name)
             if field is None:
-                result = result * salt + 0
-                continue
+                hash_value = 0
+            else:
+                hash_value = mapping[attr_type](field)
+            result = result * salt + hash_value
 
-            if attr_type == AttributeType.BOOL:
-                result = result * salt + (1231 if field else 1237)
-            elif attr_type == AttributeType.INT:
-                result = result * salt + field
-            elif attr_type == AttributeType.LONG:
-                result = result * salt + java_int(field ^ (field >> 32))
-            elif attr_type == AttributeType.DOUBLE:
-                long_value = double_to_long_bits(field)
-                result = result * salt + java_int(long_value ^ (long_value >> 32))
-            elif attr_type == AttributeType.STRING:
-                h = 0
-                for c in field:
-                    h = java_int(salt * h + ord(c))
-                result = result * salt + java_int(h)
-
-            elif attr_type == AttributeType.TIMESTAMP:
-                long_value = int(field.timestamp())
-                result = result * salt + long_value ^ (long_value >> 32)
-            elif attr_type == AttributeType.BINARY:
-                h = 1
-                for b in field:
-                    h = java_int(salt * h + b)
-                result = result * salt + java_int(h)
-
-        return java_int(result)
+        return int_32(result)
