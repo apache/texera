@@ -75,6 +75,11 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
                         |
                         |class ProcessTableOperator(UDFTableOperator):
                         |
+                        |    def render_error(self, error_msg):
+                        |        return '''<h1>DotPlot is not available.</h1>
+                        |                  <p>Reasons are: {} </p>
+                        |               '''.format(error_msg)
+                        |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
                         |        ${createPlotlyFigure()}
