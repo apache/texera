@@ -12,15 +12,10 @@ import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import org.apache.commons.lang3.NotImplementedException;
 import org.bson.Document;
 
 import java.io.Serializable;
-import java.sql.Timestamp;
-import java.text.CharacterIterator;
-import java.text.StringCharacterIterator;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -93,60 +88,7 @@ public class Tuple implements ITuple, Serializable {
     }
 
     public int hashCode() {
-        // Start with a non-zero constant. Prime is preferred
-        AtomicInteger result = new AtomicInteger(17);
-        int salt = 31;
-
-        // Include a hash for each field.
-        schema.getAttributes().forEach(attribute -> {
-            AttributeType attributeType = attribute.getType();
-            String attributeName = attribute.getName();
-
-            switch (attributeType) {
-                case BOOLEAN:
-                    Boolean booleanField = getField(attributeName);
-                    result.set(result.get() * salt + (booleanField ? 1 : 0)); // 1 bit   » 32-bit
-                    break;
-                case INTEGER:
-                    Integer intField = getField(attributeName);
-                    result.set(result.get() * salt + intField);       // 32 bits   » 32-bit
-                    break;
-                case LONG:
-                    Long longField = getField(attributeName);
-                    result.set(result.get() * salt + (int) (longField ^ (longField >>> 32)));    // 64 bits » 32-bit
-                    break;
-                case DOUBLE:
-                    Double doubleField = getField(attributeName);
-                    long doubleFieldBits = Double.doubleToLongBits(doubleField);     // 64 bits (double) » 64-bit (long) » 32-bit (int)
-                    result.set(result.get() * salt + (int) (doubleFieldBits ^ (doubleFieldBits >>> 32)));
-                    break;
-                case STRING:
-                    String stringField = getField(attributeName);
-                    CharacterIterator it = new StringCharacterIterator(stringField);
-
-                    while (it.current() != CharacterIterator.DONE) {
-                        char c = it.current();
-                        result.set(result.get() * salt + (int)c);                                // 16 bits » 32-bit
-                        it.next();
-                    }
-                    break;
-                case TIMESTAMP:
-                    Timestamp timestampField = getField(attributeName);
-                    long longValue = timestampField.getTime();
-                    result.set(result.get() * salt + (int) (longValue ^ (longValue >>> 32)));    // 64 bits » 32-bit
-                    break;
-                case BINARY:
-                    char[] chars = getField(attributeName);
-                    for (char c : chars) {
-                        result.set(result.get() * salt + (int) c);                                // 16 bits » 32-bit
-                    }
-                    break;
-                case ANY:
-                    throw new NotImplementedException();
-            }
-        });
-
-        return result.get();
+        return Arrays.deepHashCode(fields.toArray());
     }
 
     public boolean equals(Object obj) {

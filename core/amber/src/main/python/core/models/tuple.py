@@ -77,9 +77,9 @@ class ArrowTableTupleProvider:
 
             # for binary types, convert pickled objects back.
             if (
-                field_type == pyarrow.binary()
-                and value is not None
-                and value[:6] == b"pickle"
+                    field_type == pyarrow.binary()
+                    and value is not None
+                    and value[:6] == b"pickle"
             ):
                 value = pickle.loads(value[10:])
             return value
@@ -88,15 +88,27 @@ class ArrowTableTupleProvider:
         return field_accessor
 
 
+def double_to_long_bits(double_value):
+    # Pack the double value into a binary string of 8 bytes
+    packed_value = struct.pack("d", double_value)
+    # Unpack the binary string to a 64-bit integer (int in Python 3)
+    long_bits = struct.unpack("Q", packed_value)[0]
+    return long_bits
+
+
+def java_int(value):
+    return ctypes.c_int32(value).value
+
+
 class Tuple:
     """
     Lazy-Tuple implementation.
     """
 
     def __init__(
-        self,
-        tuple_like: typing.Optional["TupleLike"] = None,
-        schema: typing.Optional[Schema] = None,
+            self,
+            tuple_like: typing.Optional["TupleLike"] = None,
+            schema: typing.Optional[Schema] = None,
     ):
         """
         Construct a lazy-tuple with given TupleLike object. If the field value is a
@@ -132,9 +144,9 @@ class Tuple:
             item: str = self.get_field_names()[item]
 
         if (
-            callable(self._field_data[item])
-            and getattr(self._field_data[item], "__name__", "Unknown")
-            == "field_accessor"
+                callable(self._field_data[item])
+                and getattr(self._field_data[item], "__name__", "Unknown")
+                == "field_accessor"
         ):
             # evaluate the field now
             field_accessor = self._field_data[item]
@@ -218,7 +230,8 @@ class Tuple:
 
                 if field_value is not None:
                     field_type = schema.get_attr_type(field_name)
-                    if field_type == AttributeType.BINARY:
+                    if field_type == AttributeType.BINARY and not isinstance(
+                            field_value, bytes):
                         self[field_name] = b"pickle    " + pickle.dumps(field_value)
             except Exception as err:
                 # Surpass exceptions during cast.
@@ -256,7 +269,7 @@ class Tuple:
         for field_name, field_value in self.as_key_value_pairs():
             expected = schema.get_attr_type(field_name)
             if not isinstance(
-                field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
+                    field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
             ):
                 raise TypeError(
                     f"Unmatched type for field '{field_name}', expected {expected}, "
@@ -276,9 +289,9 @@ class Tuple:
 
     def __eq__(self, other: Any) -> bool:
         return (
-            isinstance(other, Tuple)
-            and self.get_field_names() == other.get_field_names()
-            and all(self[i] == other[i] for i in self.get_field_names())
+                isinstance(other, Tuple)
+                and self.get_field_names() == other.get_field_names()
+                and all(self[i] == other[i] for i in self.get_field_names())
         )
 
     def __ne__(self, other) -> bool:
@@ -300,39 +313,38 @@ class Tuple:
         return Tuple(new_raw_tuple, schema=schema)
 
     def __hash__(self):
-        result = 17
+
+        result = 1
         salt = 31
         for name, field in self.as_key_value_pairs():
             attr_type = self._schema.get_attr_type(name)
+            if field is None:
+                result = result * salt + 0
+                continue
 
             if attr_type == AttributeType.BOOL:
-                result = result * salt + int(field)
+                result = result * salt + (1231 if field else 1237)
             elif attr_type == AttributeType.INT:
                 result = result * salt + field
             elif attr_type == AttributeType.LONG:
-                result = result * salt + field ^ (field >> 32)
+                result = result * salt + java_int(field ^ (field >> 32))
             elif attr_type == AttributeType.DOUBLE:
 
-                def double_to_long_bits(double_value):
-                    # Pack the double value into a binary string of 8 bytes
-                    packed_value = struct.pack("d", double_value)
-                    # Unpack the binary string to a 64-bit integer (int in Python 3)
-                    long_bits = struct.unpack("Q", packed_value)[0]
-                    return long_bits
-
                 long_value = double_to_long_bits(field)
-                result = result * salt + long_value ^ (long_value >> 32)
+                result = result * salt + java_int(long_value ^ (long_value >> 32))
             elif attr_type == AttributeType.STRING:
+                h = 0
                 for c in field:
-                    result = result * salt + ord(c)
+                    h = java_int(salt * h + ord(c))
+                result = result * salt + java_int(h)
+
             elif attr_type == AttributeType.TIMESTAMP:
-                long_value = field.time()
+                long_value = int(field.timestamp())
                 result = result * salt + long_value ^ (long_value >> 32)
             elif attr_type == AttributeType.BINARY:
+                h = 1
                 for b in field:
-                    result = result * salt + ord(b)
-
-        def java_int(value):
-            return ctypes.c_int32(value).value
+                    h = java_int(salt * h + b)
+                result = result * salt + java_int(h)
 
         return java_int(result)
