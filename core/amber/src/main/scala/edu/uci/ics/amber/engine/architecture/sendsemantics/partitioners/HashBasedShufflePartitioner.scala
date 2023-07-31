@@ -10,10 +10,13 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
 
   override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
     val numBuckets = partitioning.receivers.length
-    val index = tuple
-      .asInstanceOf[Tuple]
-      .getPartialTuple(partitioning.hashColumnIndices.toArray)
-      .hashCode() % numBuckets
+    val index = Math.floorMod(
+      tuple
+        .asInstanceOf[Tuple]
+        .getPartialTuple(partitioning.hashColumnIndices.toArray)
+        .hashCode(),
+      numBuckets
+    )
     Iterator(index)
   }
 
