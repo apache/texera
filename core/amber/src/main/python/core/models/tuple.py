@@ -319,6 +319,21 @@ class Tuple:
                     f"got {field_value} ({type(field_value)}) instead."
                 )
 
+    def get_partial_tuple(self, indices: List[int]) -> "Tuple":
+        """
+        Create a partial Tuple with fields specified by the indices.
+        :param indices: A list of index values.
+        :return: A new Tuple with the selected fields, with the same order specified
+        by the indices.
+        """
+        assert self._schema is not None
+        schema = self._schema.get_partial_schema(indices)
+        new_raw_tuple = OrderedDict()
+        for index, (key, value) in enumerate(self.as_key_value_pairs(), 0):
+            if index in indices:
+                new_raw_tuple[key] = value
+        return Tuple(new_raw_tuple, schema=schema)
+
     def __iter__(self) -> Iterator[Field]:
         return iter(self.get_fields())
 
@@ -345,15 +360,6 @@ class Tuple:
 
     def __contains__(self, __x: object) -> bool:
         return __x in self._field_data
-
-    def get_partial_tuple(self, indices) -> "Tuple":
-        assert self._schema is not None
-        schema = self._schema.get_partial_schema(indices)
-        new_raw_tuple = OrderedDict()
-        for index, (key, value) in enumerate(self.as_key_value_pairs(), 0):
-            if index in indices:
-                new_raw_tuple[key] = value
-        return Tuple(new_raw_tuple, schema=schema)
 
     def __hash__(self) -> int:
         """
