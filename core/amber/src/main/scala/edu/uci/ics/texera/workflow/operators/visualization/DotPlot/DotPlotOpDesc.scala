@@ -66,7 +66,7 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    val final_code = s"""
+    val finalCode = s"""
                         |from pytexera import *
                         |
                         |import plotly.express as px
@@ -82,7 +82,7 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
                         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
                         |        yield {'html-content': html}
                         |""".stripMargin
-    final_code
+    finalCode
   }
 
   // make the chart type to html visualization so it can be recognized by both backend and frontend.
