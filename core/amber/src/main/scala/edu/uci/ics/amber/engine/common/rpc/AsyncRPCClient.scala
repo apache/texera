@@ -63,9 +63,9 @@ class AsyncRPCClient(
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     val (p, id) = createPromise[T]()
-//    logger.info(
-//      s"send request: ${cmd} to $to (controlID: ${id})"
-//    )
+    logger.info(
+      s"send request: ${cmd} to $to (controlID: ${id})"
+    )
     controlOutputEndpoint.sendTo(to, ControlInvocation(id, cmd))
     p
   }
