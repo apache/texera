@@ -21,7 +21,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -82,15 +81,12 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
 
   override def numWorkers() = 1
 
-
-
-
   def createPlotlyFigure(): String = {
-    val colorSetting = if(color.nonEmpty) s", color='$color'" else ""
+    val colorSetting = if (color.nonEmpty) s", color='$color'" else ""
 
     s"""
-        |           fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task" $colorSetting)
-        |           fig.update_yaxes(autorange="reversed")
+        |        fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task" $colorSetting)
+        |        fig.update_yaxes(autorange="reversed")
         |""".stripMargin
 
   }
@@ -106,27 +102,23 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
                         |
                         |class ProcessTableOperator(UDFTableOperator):
                         |    def render_error(self, error_msg):
-                        |        return '''<h1>TreeMap is not available.</h1>
-                        |                  <p>Reasons is: {} </p>
+                        |        return '''<h1>Gantt Chart is not available.</h1>
+                        |                  <p>Reason: {} </p>
                         |               '''.format(error_msg)
                         |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                        |        if table.empty:
+                        |           yield {'html-content': self.render_error("Input table is empty.")}
+                        |           return
                         |        ${manipulateTable()}
-                        |        if not table.empty:
-                        |           ${createPlotlyFigure()}
-                        |           # convert fig to html content
-                        |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                        |           yield {'html-content': html}
-                        |        else:
-                        |           html = '''<h1>PieChart is not available.</h1>
-                        |                     <p>Possible reasons are:</p>
-                        |                     <ul>
-                        |                     <li>input table is empty</li>
-                        |                     <li>value column contains only non-positive numbers</li>
-                        |                     <li>value column is not available</li>
-                        |                     </ul>'''
-                        |           yield {'html-content': html}
+                        |        if table.empty:
+                        |           yield {'html-content': self.render_error("One or more of your input columns have all missing values")}
+                        |           return
+                        |        ${createPlotlyFigure()}
+                        |        # convert fig to html content
+                        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+                        |        yield {'html-content': html}
                         |""".stripMargin
     final_code
   }
