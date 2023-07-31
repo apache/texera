@@ -218,11 +218,18 @@ export class SchemaPropagationService {
       if (v.additionalEnumValue) {
         attrNames.push(v.additionalEnumValue);
       }
+
+      // ajv does not support null values, so it converts all the nulls to empty strings.
+      // https://github.com/ajv-validator/ajv/issues/1471
+      // the null -> "" change is done by Ajv.validate() with useDefault set to true.
+      // It is converted during the property editor form initialization and workflow validation, instead of during schema propagation.
       if (v.title && !operatorSchema.jsonSchema.required?.includes(v.title)) {
         if (v.default) {
           if (typeof v.default !== "string") {
             throw new Error("default value must be a string");
           }
+          // We are adding the default value or "" into
+          // the enum list to pass the frontend check for optional properties.
           attrNames.push(v.default);
         } else {
           attrNames.push("");
