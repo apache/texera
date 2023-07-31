@@ -359,6 +359,9 @@ describe("SchemaPropagationService", () => {
       attr => attr.attributeName
     );
 
+    // since field "attribute" is not required, we need to allow empty value.
+    expectedEnum!.push("");
+
     expect(schema.jsonSchema!.properties).toEqual({
       listOfAggregations: {
         title: "list of aggregations",
