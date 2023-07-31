@@ -1,3 +1,5 @@
+import datetime
+
 import pandas
 import pytest
 from copy import deepcopy
@@ -110,14 +112,58 @@ class TestTuple:
         assert tuple_["height"] is None
 
     def test_hash(self):
-        tuple_ = Tuple(
-            {"col-int": 1, "col-string": "string-attr", "col-bool": True},
-            schema=Schema(
-                raw_schema={
-                    "col-int": "integer",
-                    "col-string": "string",
-                    "col-bool": "boolean",
-                }
-            ),
+        schema = Schema(
+            raw_schema={
+                "col-int": "integer",
+                "col-string": "string",
+                "col-bool": "boolean",
+                "col-long": "long",
+                "col-double": "double",
+                "col-timestamp": "timestamp",
+                "col-binary": "binary"
+            }
         )
-        print(hash(tuple_))
+
+        tuple_ = Tuple(
+            {
+                "col-int": 922323,
+                "col-string": "string-attr",
+                "col-bool": True,
+                "col-long": 1123213213213,
+                "col-double": 214214.9969346,
+                "col-timestamp": datetime.datetime.fromtimestamp(100000000),
+                "col-binary": b'hello'
+            },
+            schema,
+        )
+        assert hash(tuple_) == -1335416166  # calculated with Java 11
+
+        tuple2 = Tuple(
+            {
+                "col-int": 0,
+                "col-string": "",
+                "col-bool": False,
+                "col-long": 0,
+                "col-double": 0.0,
+                "col-timestamp": datetime.datetime.fromtimestamp(0),
+                "col-binary": b''
+            },
+            schema,
+        )
+
+        assert hash(tuple2) == -1409761483  # calculated with Java 11
+
+        tuple3 = Tuple(
+            {
+                "col-int": None,
+                "col-string": None,
+                "col-bool": None,
+                "col-long": None,
+                "col-double": None,
+                "col-timestamp": None,
+                "col-binary": None
+            },
+            schema,
+        )
+
+        assert hash(tuple3) == 1742810335  # calculated with Java 11
