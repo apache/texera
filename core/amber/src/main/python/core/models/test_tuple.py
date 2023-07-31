@@ -120,7 +120,7 @@ class TestTuple:
                 "col-long": "long",
                 "col-double": "double",
                 "col-timestamp": "timestamp",
-                "col-binary": "binary"
+                "col-binary": "binary",
             }
         )
 
@@ -132,7 +132,7 @@ class TestTuple:
                 "col-long": 1123213213213,
                 "col-double": 214214.9969346,
                 "col-timestamp": datetime.datetime.fromtimestamp(100000000),
-                "col-binary": b'hello'
+                "col-binary": b"hello",
             },
             schema,
         )
@@ -146,7 +146,7 @@ class TestTuple:
                 "col-long": 0,
                 "col-double": 0.0,
                 "col-timestamp": datetime.datetime.fromtimestamp(0),
-                "col-binary": b''
+                "col-binary": b"",
             },
             schema,
         )
@@ -161,7 +161,7 @@ class TestTuple:
                 "col-long": None,
                 "col-double": None,
                 "col-timestamp": None,
-                "col-binary": None
+                "col-binary": None,
             },
             schema,
         )
