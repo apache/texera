@@ -160,6 +160,7 @@ class Tuple:
             memory, or a callable accessor.
         """
         assert len(tuple_like) != 0
+        self._field_data: "OrderedDict[str, Field]"
         if isinstance(tuple_like, Tuple):
             self._field_data = tuple_like._field_data
         elif isinstance(tuple_like, pandas.Series):
@@ -209,7 +210,7 @@ class Tuple:
         """Convert the tuple to Pandas series format"""
         return pandas.Series(self.as_dict())
 
-    def as_dict(self) -> OrderedDict[str, Field]:
+    def as_dict(self) -> "OrderedDict[str, Field]":
         """
         Return a dictionary copy of this tuple.
         Fields will be fetched from accessor if absent.
@@ -226,7 +227,7 @@ class Tuple:
     def get_field_names(self) -> typing.Tuple[str]:
         return tuple(map(str, self._field_data.keys()))
 
-    def get_fields(self, output_field_names=None) -> typing.Tuple[Field]:
+    def get_fields(self, output_field_names=None) -> typing.Tuple[Field, ...]:
         """
         Get values from tuple for selected fields.
         """
