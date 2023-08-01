@@ -21,43 +21,41 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Title")
   @JsonPropertyDescription("Title of our plot")
-  @AutofillAttributeName
-  var Title: String = ""
+  var title: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
   @JsonPropertyDescription("The attribute for your x-axis")
   @AutofillAttributeName
-  var X: String = ""
+  var x: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-axis Attribute")
   @JsonPropertyDescription("The attribute for your y-axis")
   @AutofillAttributeName
-  var Y: String = ""
+  var y: String = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Line Group")
   @JsonPropertyDescription("The attribute for group of each line")
   @AutofillAttributeName
-  var LineGroup: String = ""
+  var lineGroup: String = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Color")
   @JsonPropertyDescription("Choose an attribute to color the plot")
   @AutofillAttributeName
-  var Color: String = ""
+  var color: String = ""
 
-  @JsonProperty(required = false)
+  @JsonProperty(required = true)
   @JsonSchemaTitle("Split Plot by  Line Group")
   @JsonPropertyDescription("Do you want to split the graph")
-  @AutofillAttributeName
-  var FacetColumn: Boolean = false
+  var facetColumn: Boolean = false
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -75,53 +73,30 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
-    assert(X.nonEmpty)
-    assert(Y.nonEmpty)
+    assert(x.nonEmpty)
+    assert(y.nonEmpty)
 
-    if (FacetColumn) {
-      assert(LineGroup.nonEmpty)
+    if (facetColumn) {
+      assert(lineGroup.nonEmpty)
     }
 
-    if (Color.nonEmpty && FacetColumn) {
-      s"""
-         |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", color="$Color", facet_col="$LineGroup", title="$Title")
-         |
-         |""".stripMargin
-    } else if (Color.nonEmpty) {
-      s"""
-         |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", color="$Color", title="$Title")
-         |
-         |""".stripMargin
-    } else if (FacetColumn) {
-      s"""
-         |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", facet_col="$LineGroup", title="$Title")
-         |
-         |""".stripMargin
-    } else if (LineGroup.nonEmpty) {
-      s"""
-         |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", line_group="$LineGroup", title="$Title")
-         |
-         |""".stripMargin
-    } else {
-      s"""
-         |            fig = None
-         |            fig = px.area(table, x="$X", y="$Y", title="$Title")
-         |
-         |""".stripMargin
-    }
+    val colorArg = if (color.nonEmpty) s""", color="$color"""" else ""
+    val facetColumnArg = if (facetColumn) s""", facet_col="$lineGroup"""" else ""
+    val lineGroupArg = if (lineGroup.nonEmpty) s""", line_group="$lineGroup"""" else ""
+
+    s"""
+             |            fig = px.area(table, x="$x", y="$y", title="$title"$colorArg$facetColumnArg$lineGroupArg)
+             |""".stripMargin
   }
 
+  // The function below checks whether there are more than 5 percents of the groups have disjoint sets of x attributes.
   def performTableCheck(): String = {
     s"""
        |        error = False
-       |        if "$X" not in columns or "$Y" not in columns:
+       |        if "$x" not in columns or "$y" not in columns:
        |            error = True
-       |        elif "$LineGroup" != "":
-       |            grouped = table.groupby("$LineGroup")
+       |        elif "$lineGroup" != "":
+       |            grouped = table.groupby("$lineGroup")
        |            x_values = None
        |
        |            tolerance = (len(grouped) // 100) * 5
@@ -129,28 +104,24 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
        |
        |            for _, group in grouped:
        |                if x_values == None:
-       |                    x_values = set(group["$X"].unique())
-       |                elif set(group["$X"].unique()).intersection(x_values):
-       |                    X_values = x_values.union(set(group["$X"].unique()))
-       |                elif not set(group["$X"].unique()).intersection(x_values):
+       |                    x_values = set(group["$x"].unique())
+       |                elif set(group["$x"].unique()).intersection(x_values):
+       |                    X_values = x_values.union(set(group["$x"].unique()))
+       |                elif not set(group["$x"].unique()).intersection(x_values):
        |                    count += 1
        |                    if count > tolerance:
        |                        error = True
-       |
-       |
        |""".stripMargin
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    val final_code = s"""
+    val finalCode = s"""
          |from pytexera import *
          |
          |import plotly
          |import plotly.express as px
          |import plotly.graph_objects as go
          |import plotly.io
-         |import numpy as np
-         |import pandas as pd
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
@@ -173,7 +144,7 @@ class FilledAreaPlotVisualizerOpDesc extends VisualizationOperator with PythonOp
          |                     </ul>'''
          |            yield {'html-content': html}
          |""".stripMargin
-    final_code
+    finalCode
   }
 
   // make the chart type to html visualization so it can be recognized by both backend and frontend.

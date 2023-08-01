@@ -64,7 +64,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDe
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotVisualizerOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
@@ -138,7 +138,7 @@ trait StateTransferFunc
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
-    new Type(value = classOf[FilledAreaPlotVisualizerOpDesc], name = "FilledAreaPlotVisualizer")
+    new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
