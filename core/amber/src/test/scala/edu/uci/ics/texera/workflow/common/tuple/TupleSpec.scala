@@ -5,10 +5,16 @@ import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.sql.Timestamp
+
 class TupleSpec extends AnyFlatSpec {
   val stringAttribute = new Attribute("col-string", AttributeType.STRING)
   val integerAttribute = new Attribute("col-int", AttributeType.INTEGER)
   val boolAttribute = new Attribute("col-bool", AttributeType.BOOLEAN)
+  val longAttribute = new Attribute("col-long", AttributeType.LONG)
+  val doubleAttribute = new Attribute("col-double", AttributeType.DOUBLE)
+  val timestampAttribute = new Attribute("col-timestamp", AttributeType.TIMESTAMP)
+  val binaryAttribute = new Attribute("col-binary", AttributeType.BINARY)
 
   val capitalizedStringAttribute = new Attribute("COL-string", AttributeType.STRING)
 
@@ -96,5 +102,79 @@ class TupleSpec extends AnyFlatSpec {
     val newTuple = json2tuple(line)
     assert(line == tuple2json(newTuple))
 
+  }
+
+  it should "calculate hash" in {
+    val inputSchema =
+      Schema
+        .newBuilder()
+        .add(integerAttribute)
+        .add(stringAttribute)
+        .add(boolAttribute)
+        .add(longAttribute)
+        .add(doubleAttribute)
+        .add(timestampAttribute)
+        .add(binaryAttribute)
+        .build()
+
+    val inputTuple = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, 922323)
+      .add(stringAttribute, "string-attr")
+      .add(boolAttribute, true)
+      .add(longAttribute, 1123213213213L)
+      .add(doubleAttribute, 214214.9969346)
+      .add(timestampAttribute, new Timestamp(100000000L))
+      .add(binaryAttribute, Array[Byte](104, 101, 108, 108, 111))
+      .build()
+    assert(inputTuple.hashCode() == -1335416166)
+
+    val inputTuple2 = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, 0)
+      .add(stringAttribute, "")
+      .add(boolAttribute, false)
+      .add(longAttribute, 0L)
+      .add(doubleAttribute, 0.0)
+      .add(timestampAttribute, new Timestamp(0L))
+      .add(binaryAttribute, Array[Byte]())
+      .build()
+    assert(inputTuple2.hashCode() == -1409761483)
+
+    val inputTuple3 = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, null)
+      .add(stringAttribute, null)
+      .add(boolAttribute, null)
+      .add(longAttribute, null)
+      .add(doubleAttribute, null)
+      .add(timestampAttribute, null)
+      .add(binaryAttribute, null)
+      .build()
+    assert(inputTuple3.hashCode() == 1742810335)
+
+    val inputTuple4 = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, -3245763)
+      .add(stringAttribute, "\n\r\napple")
+      .add(boolAttribute, true)
+      .add(longAttribute, -8965536434247L)
+      .add(doubleAttribute, 1 / 3.0d)
+      .add(timestampAttribute, new Timestamp(-1990))
+      .add(binaryAttribute, null)
+      .build()
+    assert(inputTuple4.hashCode() == -592643630)
+
+    val inputTuple5 = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, Int.MaxValue)
+      .add(stringAttribute, new String())
+      .add(boolAttribute, true)
+      .add(longAttribute, Long.MaxValue)
+      .add(doubleAttribute, 7 / 17.0d)
+      .add(timestampAttribute, new Timestamp(1234567890L))
+      .add(binaryAttribute, Array.fill[Byte](4097)('o'))
+      .build()
+    assert(inputTuple5.hashCode() == -2099556631)
   }
 }

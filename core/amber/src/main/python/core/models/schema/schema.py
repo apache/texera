@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import MutableMapping, Optional, Mapping, List, Tuple
 
 import pyarrow as pa
@@ -32,7 +33,7 @@ class Schema:
         arrow_schema: Optional[pa.Schema] = None,
         raw_schema: Optional[Mapping[str, str]] = None,
     ):
-        self._name_type_mapping: MutableMapping[str, AttributeType] = dict()
+        self._name_type_mapping: MutableMapping[str, AttributeType] = OrderedDict()
 
         if arrow_schema is not None:
             self._from_arrow_schema(arrow_schema)
@@ -56,7 +57,7 @@ class Schema:
         :param raw_schema: a map of attr_name -> type_str.
         :return:
         """
-        self._name_type_mapping = dict()
+        self._name_type_mapping = OrderedDict()
         for attr_name, raw_type in raw_schema.items():
             attr_type = RAW_TYPE_MAPPING[raw_type]
             self.add(attr_name, attr_type)
@@ -67,7 +68,7 @@ class Schema:
         :param arrow_schema: a pyarrow.Schema.
         :return:
         """
-        self._name_type_mapping = dict()
+        self._name_type_mapping = OrderedDict()
         for attr_name in arrow_schema.names:
             arrow_type = arrow_schema.field(attr_name).type  # type: ignore
             attr_type = FROM_ARROW_MAPPING[arrow_type.id]
@@ -107,6 +108,19 @@ class Schema:
         """
         return [(k, v) for k, v in self._name_type_mapping.items()]
 
+    def get_partial_schema(self, indices: List[int]) -> "Schema":
+        """
+        Create a partial Schema with fields specified by the indices.
+        :param indices: A list of index values.
+        :return: A new Schema with the selected fields, with the same order specified
+        by the indices.
+        """
+        raw_schema = OrderedDict()
+        for index, (key, value) in enumerate(self.as_key_value_pairs(), 0):
+            if index in indices:
+                raw_schema[key] = RAW_TYPE_MAPPING.inverse[value]
+        return Schema(raw_schema=raw_schema)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Schema):
             return False
@@ -115,8 +129,8 @@ class Schema:
         return left_pairs == right_pairs
 
     def __str__(self) -> str:
-        content = ", ".join(
-            f"{attr_name}: {attr_type}"
-            for attr_name, attr_type in self.as_key_value_pairs()
+        content = ",\n".join(
+            f"({index}){repr(attr_name)} -> {attr_type}"
+            for index, (attr_name, attr_type) in enumerate(self.as_key_value_pairs(), 0)
         )
-        return f"Schema[{content}]"
+        return f"Schema[\n{content}\n]"

@@ -29,6 +29,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, Wor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
@@ -61,7 +62,9 @@ object ControlCommandConvertUtils {
           isSource,
           inputMapping,
           outputMapping,
-          schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
+          schema.getAttributes.asScala.foldLeft(ListMap[String, String]())((list, attr) =>
+            list + (attr.getName -> attr.getType.toString)
+          )
         )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()

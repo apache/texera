@@ -169,6 +169,14 @@ public class Schema implements Serializable {
                 attributeName, attributeNameList);
     }
 
+    public Schema getPartialSchema(int[] indices){
+        Schema.Builder builder = Schema.newBuilder();
+        for (int index : indices) {
+            builder.add(attributes.get(index));
+        }
+        return builder.build();
+    }
+
     public static Schema.Builder newBuilder() {
         return new Schema.Builder();
     }
