@@ -85,8 +85,8 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
     val colorSetting = if (color.nonEmpty) s", color='$color'" else ""
 
     s"""
-        |        fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task" $colorSetting)
-        |        fig.update_yaxes(autorange="reversed")
+        |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting)
+        |        fig.update_yaxes(autorange='reversed')
         |""".stripMargin
 
   }
