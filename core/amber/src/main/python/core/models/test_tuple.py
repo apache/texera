@@ -194,4 +194,4 @@ class TestTuple:
             },
             schema,
         )
-        assert hash(tuple5) == 431028091  # calculated with Java
+        assert hash(tuple5) == -2099556631  # calculated with Java
