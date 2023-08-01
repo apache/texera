@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.resource
 
 import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
@@ -61,6 +62,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           send(session, WorkflowStateEvent("Uninitialized"))
           val workflowState = WorkflowService.getOrCreate(wIdRequest.wId)
           sessionState.subscribe(workflowState)
+          send(session, ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
           send(session, RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>
           send(session, HeartBeatResponse())

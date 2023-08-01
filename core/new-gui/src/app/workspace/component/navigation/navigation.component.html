@@ -384,13 +384,20 @@
             [(ngModel)]="currentExecutionName"
             placeholder="Untitled Execution" />
         </ng-template>
-
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
             *ngIf="workflowWebsocketService.isConnected"
-            nz-tooltip="connected"
-            nzStatus="success"
-            nzTooltipPlacement="bottom"></nz-badge>
+            nz-popover
+            [nzPopoverTrigger]="userSystemEnabled?'hover':null"
+            [nzPopoverContent]="exe1"
+            nzPopoverPlacement="bottom"
+            nzStatus="success"></nz-badge>
+          <ng-template #exe1>
+            <div [ngStyle]="{ 'font-size': '20px', 'margin-bottom': '10px' }">Connected</div>
+            <div [ngStyle]="{ 'border': '1px solid black', 'padding': '10px' }">
+              Number of Machines: {{workflowWebsocketService.numWorkers}}
+            </div>
+          </ng-template>
           <nz-badge
             *ngIf="!workflowWebsocketService.isConnected"
             nz-tooltip="disconnected"

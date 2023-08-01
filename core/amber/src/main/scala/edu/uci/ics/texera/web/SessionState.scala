@@ -22,6 +22,11 @@ object SessionState {
     sessionIdToSessionState(sId).unsubscribe()
     sessionIdToSessionState.remove(sId)
   }
+
+  def getAllSessionStates: Iterable[SessionState] = {
+    sessionIdToSessionState.values
+  }
+
 }
 
 class SessionState(session: Session) {
@@ -30,7 +35,7 @@ class SessionState(session: Session) {
   private var jobSubscription = Disposable.empty()
 
   def getCurrentWorkflowState: Option[WorkflowService] = currentWorkflowState
-
+  def getSession: Session = session // getter for session
   def unsubscribe(): Unit = {
     workflowSubscription.dispose()
     jobSubscription.dispose()
