@@ -25,7 +25,7 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
-  it should "throw assertion error if xValue is empty" in {
+  it should "throw assertion error if variable xValue is empty" in {
     assertThrows[AssertionError] {
       opDesc.createPlotlyFigure()
     }
