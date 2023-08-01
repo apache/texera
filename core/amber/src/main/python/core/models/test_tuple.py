@@ -136,7 +136,7 @@ class TestTuple:
             },
             schema,
         )
-        assert hash(tuple_) == -1335416166  # calculated with Java 11
+        assert hash(tuple_) == -1335416166  # calculated with Java
 
         tuple2 = Tuple(
             {
@@ -151,7 +151,7 @@ class TestTuple:
             schema,
         )
 
-        assert hash(tuple2) == -1409761483  # calculated with Java 11
+        assert hash(tuple2) == -1409761483  # calculated with Java
 
         tuple3 = Tuple(
             {
@@ -166,7 +166,7 @@ class TestTuple:
             schema,
         )
 
-        assert hash(tuple3) == 1742810335  # calculated with Java 11
+        assert hash(tuple3) == 1742810335  # calculated with Java
 
         tuple4 = Tuple(
             {
@@ -180,7 +180,7 @@ class TestTuple:
             },
             schema,
         )
-        assert hash(tuple4) == -592643630  # calculated with Java 8
+        assert hash(tuple4) == -592643630  # calculated with Java
 
         tuple5 = Tuple(
             {
@@ -194,4 +194,4 @@ class TestTuple:
             },
             schema,
         )
-        assert hash(tuple5) == 431028091  # calculated with Java 8
+        assert hash(tuple5) == 431028091  # calculated with Java
