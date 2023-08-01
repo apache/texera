@@ -47,10 +47,10 @@ class TimeSeriesOpDesc extends VisualizationOperator with PythonOperatorDescript
   @AutofillAttributeName
   var value: String = ""
 
-  @JsonProperty(value = "ylabel", required = true)
+  @JsonProperty(value = "yLabel", required = true)
   @JsonSchemaTitle("Y label")
   @JsonPropertyDescription("the value for the label of y axis")
-  var ylabel: String = ""
+  var yLabel: String = ""
 
   @JsonProperty(value = "date", required = true)
   @JsonSchemaTitle("Date Column")
@@ -58,10 +58,10 @@ class TimeSeriesOpDesc extends VisualizationOperator with PythonOperatorDescript
   @AutofillAttributeName
   var date: String = ""
 
-  @JsonProperty(value = "xlabel", required = true)
+  @JsonProperty(value = "xLabel", required = true)
   @JsonSchemaTitle("X label")
   @JsonPropertyDescription("the value for the label of x axis")
-  var xlabel: String = ""
+  var xLabel: String = ""
 
   @JsonProperty(value = "tick", required = true)
   @JsonSchemaTitle("tick")
@@ -87,7 +87,7 @@ class TimeSeriesOpDesc extends VisualizationOperator with PythonOperatorDescript
     assert(value.nonEmpty)
     assert(date.nonEmpty)
     s"""
-       |        table = table.dropna() #remove missing values
+       |        table.dropna(subset=['$value','$date'], inplace=True)#remove missing values
        |        table = table.sort_values(by='$date', ascending=True)
        |""".stripMargin
   }
@@ -97,8 +97,8 @@ class TimeSeriesOpDesc extends VisualizationOperator with PythonOperatorDescript
   def createPlotlyFigure(): String = {
     s"""
        |           fig = px.line(table, x='$date', y='$value', title='$title')
-       |           fig.update_xaxes(dtick='$tick', title='$xlabel')
-       |           fig.update_yaxes(title='$ylabel')
+       |           fig.update_xaxes(dtick='$tick', title='$xLabel')
+       |           fig.update_yaxes(title='$yLabel')
        |""".stripMargin
   }
 
