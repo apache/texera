@@ -10,11 +10,11 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "generate a plotly python figure with 3 columns and a title" in {
-    opDesc.x_value = "column1"
-    opDesc.y_value = "column2"
-    opDesc.z_value = "column3"
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
     opDesc.title = "myTitle"
-    opDesc.enable_color = false
+    opDesc.enableColor = false
 
     assert(
       opDesc
