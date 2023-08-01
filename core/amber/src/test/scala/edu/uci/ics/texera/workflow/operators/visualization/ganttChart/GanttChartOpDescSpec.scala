@@ -10,7 +10,7 @@ class GanttChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.start = "start"
     opDesc.finish = "finish"
     opDesc.task = "task"
-    opDesc.color= ""
+    opDesc.color = ""
 
     assert(
       opDesc
