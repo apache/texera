@@ -10,7 +10,7 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "generate Plotly figure code in Python" in {
-    opDesc.CountAttribute = "count_attribute"
+    opDesc.countAttribute = "count_attribute"
     opDesc.title = "Styled Categorical Dot Plot"
     val expectedFigureCode =
       s"""
@@ -32,7 +32,7 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "generate Python code with the provided CountAttribute" in {
-    opDesc.CountAttribute = "count_attribute"
+    opDesc.countAttribute = "count_attribute"
     val expectedPythonCode =
       s"""
          |from pytexera import *
@@ -65,5 +65,4 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "return 1 worker" in {
     assert(opDesc.numWorkers() === 1)
   }
-
 }

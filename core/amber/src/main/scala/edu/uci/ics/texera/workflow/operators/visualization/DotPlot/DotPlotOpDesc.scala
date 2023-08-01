@@ -27,7 +27,7 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   @JsonSchemaTitle("Count Attribute")
   @JsonPropertyDescription("the attribute for the counting of the dot plot")
   @AutofillAttributeName
-  var CountAttribute: String = ""
+  var countAttribute: String = ""
 
   @JsonProperty(value = "Title", required = true)
   @JsonSchemaTitle("Title")
@@ -50,15 +50,15 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   override def numWorkers() = 1
   def createPlotlyFigure(): String = {
     s"""
-       |        table = table.groupby(['$CountAttribute'])['$CountAttribute'].count().reset_index(name='counts')
-       |        fig = px.strip(table, x='counts', y='$CountAttribute', orientation='h', color='$CountAttribute',
+       |        table = table.groupby(['$countAttribute'])['$countAttribute'].count().reset_index(name='counts')
+       |        fig = px.strip(table, x='counts', y='$countAttribute', orientation='h', color='$countAttribute',
        |               color_discrete_sequence=px.colors.qualitative.Dark2)
        |
        |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
        |
        |        fig.update_layout(title='$title',
        |                          xaxis_title='Counts',
-       |                          yaxis_title='$CountAttribute',
+       |                          yaxis_title='$countAttribute',
        |                          yaxis=dict(showline=True, showgrid=False, showticklabels=True),
        |                          xaxis=dict(showline=True, showgrid=True, showticklabels=True),
        |                          height=800)
