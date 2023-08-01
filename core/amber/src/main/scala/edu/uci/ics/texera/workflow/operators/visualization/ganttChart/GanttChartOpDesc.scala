@@ -1,0 +1,128 @@
+package edu.uci.ics.texera.workflow.operators.visualization.ganttChart
+
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
+import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
+
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "start": {
+      "enum": ["timestamp"]
+    },
+    "finish": {
+      "enum": ["timestamp"]
+    }
+  }
+}
+""")
+class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+
+  @JsonProperty(value = "start", required = true)
+  @JsonSchemaTitle("Start Datetime Column")
+  @JsonPropertyDescription("the start timestamp of the task")
+  @AutofillAttributeName
+  var start: String = ""
+
+  @JsonProperty(value = "finish", required = true)
+  @JsonSchemaTitle("Finish Datetime Column")
+  @JsonPropertyDescription("the end timestamp of the task")
+  @AutofillAttributeName
+  var finish: String = ""
+
+  @JsonProperty(value = "task", required = true)
+  @JsonSchemaTitle("Task Column")
+  @JsonPropertyDescription("the name of the task")
+  @AutofillAttributeName
+  var task: String = ""
+
+  @JsonProperty(value = "color", required = false)
+  @JsonSchemaTitle("Color Column")
+  @JsonPropertyDescription("column to color tasks")
+  @AutofillAttributeName
+  var color: String = _
+
+  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+  }
+
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "Gantt Chart",
+      "A Gantt chart is a type of bar chart that illustrates a project schedule. The chart lists the tasks to be performed on the vertical axis, and time intervals on the horizontal axis. The width of the horizontal bars in the graph shows the duration of each activity.",
+      OperatorGroupConstants.VISUALIZATION_GROUP,
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
+    )
+
+  def manipulateTable(): String = {
+    val optionalFilterTable = if (color.nonEmpty) s"&(table['$color'].notnull())" else ""
+    s"""
+       |        table = table[(table["$start"].notnull())&(table["$finish"].notnull())&(table["$finish"].notnull())$optionalFilterTable].copy()
+       |""".stripMargin
+  }
+
+  override def numWorkers() = 1
+
+  def createPlotlyFigure(): String = {
+    val colorSetting = if (color.nonEmpty) s", color='$color'" else ""
+
+    s"""
+        |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting)
+        |        fig.update_yaxes(autorange='reversed')
+        |""".stripMargin
+
+  }
+
+  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+    val finalCode = s"""
+                        |from pytexera import *
+                        |
+                        |import plotly.express as px
+                        |import plotly.graph_objects as go
+                        |import plotly.io
+                        |import numpy as np
+                        |
+                        |class ProcessTableOperator(UDFTableOperator):
+                        |    def render_error(self, error_msg):
+                        |        return '''<h1>Gantt Chart is not available.</h1>
+                        |                  <p>Reason: {} </p>
+                        |               '''.format(error_msg)
+                        |
+                        |    @overrides
+                        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                        |        if table.empty:
+                        |           yield {'html-content': self.render_error("Input table is empty.")}
+                        |           return
+                        |        ${manipulateTable()}
+                        |        if table.empty:
+                        |           yield {'html-content': self.render_error("One or more of your input columns have all missing values")}
+                        |           return
+                        |        ${createPlotlyFigure()}
+                        |        # convert fig to html content
+                        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+                        |        yield {'html-content': html}
+                        |""".stripMargin
+    finalCode
+  }
+
+  // make the chart type to html visualization so it can be recognized by both backend and frontend.
+  override def chartType(): String = VisualizationConstants.HTML_VIZ
+}
