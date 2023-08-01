@@ -167,3 +167,31 @@ class TestTuple:
         )
 
         assert hash(tuple3) == 1742810335  # calculated with Java 11
+
+        tuple4 = Tuple(
+            {
+                "col-int": -3245763,
+                "col-string": "\n\r\napple",
+                "col-bool": True,
+                "col-long": -8965536434247,
+                "col-double": 1 / 3,
+                "col-timestamp": datetime.datetime.fromtimestamp(-1990),
+                "col-binary": None,
+            },
+            schema,
+        )
+        assert hash(tuple4) == -592643630  # calculated with Java 8
+
+        tuple5 = Tuple(
+            {
+                "col-int":  0x7fffffff,
+                "col-string": "",
+                "col-bool": True,
+                "col-long": 0x7fffffffffffffff,
+                "col-double": 7 / 17,
+                "col-timestamp": datetime.datetime.fromtimestamp(1234567890),
+                "col-binary": b'o'*4097,
+            },
+            schema,
+        )
+        assert hash(tuple5) == 431028091  # calculated with Java 8

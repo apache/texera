@@ -152,5 +152,29 @@ class TupleSpec extends AnyFlatSpec {
       .add(binaryAttribute, null)
       .build()
     assert(inputTuple3.hashCode() == 1742810335)
+
+    val inputTuple4 = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, -3245763)
+      .add(stringAttribute, "\n\r\napple")
+      .add(boolAttribute, true)
+      .add(longAttribute, -8965536434247L)
+      .add(doubleAttribute, 1/3.0d)
+      .add(timestampAttribute, new Timestamp(-1990))
+      .add(binaryAttribute, null)
+      .build()
+    assert(inputTuple4.hashCode() == -592643630)
+
+    val inputTuple5 = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, Int.MaxValue)
+      .add(stringAttribute, new String())
+      .add(boolAttribute, true)
+      .add(longAttribute, Long.MaxValue)
+      .add(doubleAttribute, 7 / 17.0d)
+      .add(timestampAttribute, new Timestamp(1234567890L))
+      .add(binaryAttribute, Array.fill[Byte](4097)('o'))
+      .build()
+    assert(inputTuple5.hashCode() == -2099556631)
   }
 }
