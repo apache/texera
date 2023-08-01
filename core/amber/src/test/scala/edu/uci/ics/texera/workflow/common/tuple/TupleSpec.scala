@@ -159,7 +159,7 @@ class TupleSpec extends AnyFlatSpec {
       .add(stringAttribute, "\n\r\napple")
       .add(boolAttribute, true)
       .add(longAttribute, -8965536434247L)
-      .add(doubleAttribute, 1/3.0d)
+      .add(doubleAttribute, 1 / 3.0d)
       .add(timestampAttribute, new Timestamp(-1990))
       .add(binaryAttribute, null)
       .build()

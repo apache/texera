@@ -184,13 +184,13 @@ class TestTuple:
 
         tuple5 = Tuple(
             {
-                "col-int":  0x7fffffff,
+                "col-int": 0x7FFFFFFF,
                 "col-string": "",
                 "col-bool": True,
-                "col-long": 0x7fffffffffffffff,
+                "col-long": 0x7FFFFFFFFFFFFFFF,
                 "col-double": 7 / 17,
                 "col-timestamp": datetime.datetime.fromtimestamp(1234567890),
-                "col-binary": b'o'*4097,
+                "col-binary": b"o" * 4097,
             },
             schema,
         )
