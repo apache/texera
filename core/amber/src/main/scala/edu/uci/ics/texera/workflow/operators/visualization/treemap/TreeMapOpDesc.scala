@@ -57,11 +57,15 @@ class TreeMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
       outputPorts = List(OutputPort())
     )
 
+  private def getHierarchyAttributesInPython: String =
+    hierarchy.map(_.attributeName).mkString("'", "','", "'")
+
   def manipulateTable(): String = {
     assert(value.nonEmpty)
+    val attributes = getHierarchyAttributesInPython
     s"""
        |        table['$value'] = table[table['$value'] > 0]['$value'] # remove non-positive numbers from the data
-       |        table.dropna(subset = ['$value'], inplace = True) #remove missing values
+       |        table.dropna(subset = [$attributes], inplace = True) #remove missing values
        |""".stripMargin
   }
 
@@ -69,7 +73,7 @@ class TreeMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
 
   def createPlotlyFigure(): String = {
     assert(hierarchy.nonEmpty)
-    val attributes = hierarchy.map(_.attributeName).mkString("'", "','", "'")
+    val attributes = getHierarchyAttributesInPython
     s"""
       |        fig = px.treemap(table, path=[$attributes], values='$value',
       |                        color='$value', hover_data=[$attributes],
@@ -91,7 +95,7 @@ class TreeMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
       |    # Generate custom error message as html string
       |    def render_error(self, error_msg) -> str:
       |        return '''<h1>TreeMap is not available.</h1>
-      |                  <p>Reasons is: {} </p>
+      |                  <p>Reason is: {} </p>
       |               '''.format(error_msg)
       |
       |    @overrides
