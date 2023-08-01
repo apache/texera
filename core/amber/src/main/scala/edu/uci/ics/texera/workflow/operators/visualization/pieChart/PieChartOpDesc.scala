@@ -39,11 +39,11 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var value: String = ""
 
-  @JsonProperty(value = "names", required = true)
-  @JsonSchemaTitle("Name Column(s)")
-  @JsonPropertyDescription("the names of the slice of pie")
+  @JsonProperty(value = "name", required = true)
+  @JsonSchemaTitle("Name Column")
+  @JsonPropertyDescription("the name of the slice of pie")
   @AutofillAttributeName
-  var names: String = ""
+  var name: String = ""
 
   @JsonProperty(value = "title", required = false, defaultValue = "PieChart Visualization")
   @JsonSchemaTitle("Title")
@@ -66,7 +66,7 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   def manipulateTable(): String = {
     assert(value.nonEmpty)
     s"""
-       |        table = table.dropna() #remove missing values
+       |        table.dropna(subset = ['$value', '$name'], inplace = True) #remove missing values
        |""".stripMargin
   }
 
@@ -75,48 +75,49 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   def createPlotlyFigure(): String = {
     assert(value.nonEmpty)
     s"""
-       |        fig = px.pie(table, names='$names', values='$value', title='$title')
+       |        fig = px.pie(table, names='$name', values='$value', title='$title')
        |        fig.update_traces(textposition='inside', textinfo='percent+label')
        |        fig.update_layout(margin=dict(t=40, b=30, l=10, r=10))
        |""".stripMargin
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    val final_code = s"""
-                        |from pytexera import *
-                        |
-                        |import plotly.express as px
-                        |import plotly.graph_objects as go
-                        |import plotly.io
-                        |import numpy as np
-                        |
-                        |class ProcessTableOperator(UDFTableOperator):
-                        |    def render_error(self, error_msg):
-                        |        return '''<h1>PieChart is not available.</h1>
-                        |                  <p>Reasons is: {} </p>
-                        |               '''.format(error_msg)
-                        |
-                        |    @overrides
-                        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                        |        original_table = table
-                        |        if table.empty:
-                        |           yield {'html-content': self.render_error("input table is empty.")}
-                        |           return
-                        |        ${manipulateTable()}
-                        |        if table.empty:
-                        |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
-                        |           return
-                        |        duplicates = table.duplicated(subset=['$names'])
-                        |        if duplicates.any():
-                        |           yield {'html-content': self.render_error("duplicates in name column, need to aggregate")}
-                        |           return
-                        |        ${createPlotlyFigure()}
-                        |        # convert fig to html content
-                        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                        |        yield {'html-content': html}
-                        |
-                        |""".stripMargin
-    final_code
+    val finalcode =
+      s"""
+         |from pytexera import *
+         |
+         |import plotly.express as px
+         |import plotly.graph_objects as go
+         |import plotly.io
+         |import numpy as np
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |    def render_error(self, error_msg):
+         |        return '''<h1>PieChart is not available.</h1>
+         |                  <p>Reason is: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        original_table = table
+         |        if table.empty:
+         |           yield {'html-content': self.render_error("input table is empty.")}
+         |           return
+         |        ${manipulateTable()}
+         |        if table.empty:
+         |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
+         |           return
+         |        duplicates = table.duplicated(subset=['$name'])
+         |        if duplicates.any():
+         |           yield {'html-content': self.render_error("duplicates in name column, need to aggregate")}
+         |           return
+         |        ${createPlotlyFigure()}
+         |        # convert fig to html content
+         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |        yield {'html-content': html}
+         |
+         |""".stripMargin
+    finalcode
   }
 
   // make the chart type to html visualization so it can be recognized by both backend and frontend.
