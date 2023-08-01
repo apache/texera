@@ -82,7 +82,13 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
                         |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                        |        if table.empty:
+                        |            yield {'html-content': self.render_error("Input table is empty.")}
+                        |            return
                         |        ${createPlotlyFigure()}
+                        |        if table.empty:
+                        |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
+                        |            return
                         |        # convert fig to html content
                         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
                         |        yield {'html-content': html}
