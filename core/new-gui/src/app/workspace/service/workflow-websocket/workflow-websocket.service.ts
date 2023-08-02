@@ -98,7 +98,6 @@ export class WorkflowWebsocketService {
     // refresh connection status
     this.websocketEvent().subscribe(evt => {
       if (evt.type === "ClusterStatusUpdateEvent") {
-        console.log("numWorker = ", evt.numWorkers);
         this.numWorkers = evt.numWorkers;
       }
       this.isConnected = true;
