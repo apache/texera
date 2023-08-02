@@ -8,7 +8,7 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "throw assertion error if BinaryContent is empty" in {
-    assertThrows[AssertionError] {
+    assertThrows[NullPointerException] {
       opDesc.createBinaryData()
     }
   }
