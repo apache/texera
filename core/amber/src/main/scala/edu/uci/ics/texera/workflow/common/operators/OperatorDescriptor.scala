@@ -65,6 +65,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.Scatterpl
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -137,7 +138,8 @@ trait StateTransferFunc
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
-    new Type(value = classOf[GanttChartOpDesc], name = "GanttChart")
+    new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
+    new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
