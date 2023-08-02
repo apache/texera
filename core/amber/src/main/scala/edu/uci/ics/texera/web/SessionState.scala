@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web
 
 import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.service.WorkflowService
 import io.reactivex.rxjava3.disposables.Disposable
 
@@ -34,8 +35,12 @@ class SessionState(session: Session) {
   private var workflowSubscription = Disposable.empty()
   private var jobSubscription = Disposable.empty()
 
+  def send(msg: TexeraWebSocketEvent): Unit = {
+    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
+  }
+
   def getCurrentWorkflowState: Option[WorkflowService] = currentWorkflowState
-  def getSession: Session = session // getter for session
+
   def unsubscribe(): Unit = {
     workflowSubscription.dispose()
     jobSubscription.dispose()

@@ -7,7 +7,6 @@ import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
-import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
@@ -24,7 +23,6 @@ class ClusterListener extends Actor with AmberLogging {
 
   val actorId: ActorVirtualIdentity = ActorVirtualIdentity("ClusterListener")
   val cluster: Cluster = Cluster(context.system)
-  final val objectMapper = Utils.objectMapper
 
   // subscribe to cluster changes, re-subscribe when restart
   override def preStart(): Unit = {
@@ -99,9 +97,7 @@ class ClusterListener extends Actor with AmberLogging {
     val addr = getAllAddressExcludingMaster
     numWorkerNodesInCluster = addr.size
     SessionState.getAllSessionStates.foreach { state =>
-      val message = ClusterStatusUpdateEvent(numWorkerNodesInCluster)
-      val messageJson = objectMapper.writeValueAsString(message)
-      state.getSession.getAsyncRemote.sendText(messageJson)
+      state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
     }
 
     Constants.currentWorkerNum = numWorkerNodesInCluster * Constants.numWorkerPerNode
