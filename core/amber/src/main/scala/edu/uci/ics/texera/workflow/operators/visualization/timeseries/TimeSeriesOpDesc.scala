@@ -66,7 +66,7 @@ class TimeSeriesOpDesc extends VisualizationOperator with PythonOperatorDescript
   @JsonProperty(value = "tick", required = true)
   @JsonSchemaTitle("tick")
   @JsonPropertyDescription(
-    "The value for the tick interval. e.g. 'M1' render a tick every month, 'D1' render a tick every day"
+    "The value for the tick interval. It should follow the format 'M<n>' n is the number of months and the plot would generate a tick every n month e.g. 'M1' render a tick every month, M2 for every two month etc."
   )
   var tick: String = ""
 
@@ -95,41 +95,46 @@ class TimeSeriesOpDesc extends VisualizationOperator with PythonOperatorDescript
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
+    assert(s"$tick".matches("^M[1-9][0-9]*$"))
     s"""
-       |           fig = px.line(table, x='$date', y='$value', title='$title')
-       |           fig.update_xaxes(dtick='$tick', title='$xLabel')
-       |           fig.update_yaxes(title='$yLabel')
+       |        fig = px.line(table, x='$date', y='$value', title='$title')
+       |        fig.update_xaxes(dtick='$tick', title='$xLabel')
+       |        fig.update_yaxes(title='$yLabel')
        |""".stripMargin
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    val finalCode = s"""
-                        |from pytexera import *
-                        |
-                        |import plotly.express as px
-                        |import plotly.graph_objects as go
-                        |import plotly.io
-                        |import numpy as np
-                        |
-                        |class ProcessTableOperator(UDFTableOperator):
-                        |
-                        |    @overrides
-                        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                        |        ${manipulateTable()}
-                        |        if not table.empty:
-                        |           ${createPlotlyFigure()}
-                        |           # convert fig to html content
-                        |           html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                        |           yield {'html-content': html}
-                        |        else:
-                        |           html = '''<h1>TimeSeries Visualizer is not available.</h1>
-                        |                     <p>Possible reasons are:</p>
-                        |                     <ul>
-                        |                     <li>input table is empty</li>
-                        |                     <li>value column is not available</li>
-                        |                     </ul>'''
-                        |           yield {'html-content': html}
-                        |""".stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |
+         |import plotly.express as px
+         |import plotly.graph_objects as go
+         |import plotly.io
+         |import numpy as np
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    # Generate custom error message as html string
+         |    def render_error(self, error_msg) -> str:
+         |        return '''<h1>TimeSeries is not available.</h1>
+         |                  <p>Reason is: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("input table is empty.")}
+         |            return
+         |        ${manipulateTable()}
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("value column contains only nulls.")}
+         |            return
+         |        ${createPlotlyFigure()}
+         |        # convert fig to html content
+         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |        yield {'html-content': html}
+         |""".stripMargin
     finalCode
   }
 
