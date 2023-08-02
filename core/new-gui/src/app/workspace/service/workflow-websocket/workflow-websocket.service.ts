@@ -71,7 +71,6 @@ export class WorkflowWebsocketService {
         ? "?access-token=" + AuthService.getAccessToken()
         : "");
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
-    console.log("establishing connection..");
     // setup reconnection logic
     const wsWithReconnect = this.websocket.pipe(
       retryWhen(errors =>
