@@ -1,5 +1,5 @@
 from overrides import overrides
-from threading import Thread, Event
+from threading import Thread, Event, Condition
 from loguru import logger
 
 from core.models.internal_queue import InternalQueue
@@ -11,7 +11,7 @@ import os
 import sys
 import signal
 import psutil
-import asyncio
+import pyarrow.flight as fl
 
 
 def self_clean_child_process(code: int):
@@ -22,7 +22,7 @@ def self_clean_child_process(code: int):
             try:
                 os.kill(child.pid, signal.SIGKILL)
             except Exception as e:
-                logger.info(
+                logger.warning(
                     f"Exception during process termination PID {str(child.pid)}: {e} "
                 )
     sys.exit(code)
@@ -41,29 +41,37 @@ class PythonWorker(Runnable, Stoppable):
             port=output_port,
             handshake_port=self._network_receiver.proxy_server.get_port_number(),
         )
-        self.original_parent_pid = 1
+        self.original_parent_pid = None
+        self.server_address = f"grpc+tcp://{host}:{output_port}"
 
         self._main_loop = MainLoop(worker_id, self._input_queue, self._output_queue)
         self._network_receiver.register_shutdown(self.stop)
+        self.condition = Condition()
 
     @overrides
     def run(self) -> None:
+        stop_event = Event()
         network_sender_thread = Thread(
             target=self._network_sender.run, name="network_sender"
         )
         main_loop_thread = Thread(target=self._main_loop.run, name="main_loop_thread")
         self.original_parent_pid = os.getppid()
 
-        loop = asyncio.new_event_loop()
+        # loop = asyncio.new_event_loop()
         heartbeat_thread = Thread(
-            target=self.start_asyncio_loop, name="heartbeat_thread", args=(loop, 5.0)
+            target=self.heartbeat,
+            name="heartbeat_thread",
+            args=(5.0, stop_event, network_sender_thread, main_loop_thread),
         )
 
-        heartbeat_thread.start()
         network_sender_thread.start()
         main_loop_thread.start()
+        heartbeat_thread.start()
         main_loop_thread.join()
         network_sender_thread.join()
+        with self.condition:
+            self.condition.notify()
+
         heartbeat_thread.join()
 
     @overrides
@@ -72,33 +80,30 @@ class PythonWorker(Runnable, Stoppable):
         self._network_sender.stop()
         self_clean_child_process(0)
 
-    def start_asyncio_loop(self, loop, interval):
-        stop_event = Event()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(
-                self._network_sender.heartbeat(interval, stop_event)
-            )
-        except Exception as e:
-            logger.info(f"Heartbeat failed with exception: {e}")
-        finally:
-            if stop_event.is_set():
-                parent_pid = os.getppid()
-                parent_status = "NOT FOUND"
+    def heartbeat(self, interval, stop_event, network_sender_thread, main_loop_thread):
+        client = fl.FlightClient(self.server_address)
+        while network_sender_thread.is_alive() and main_loop_thread.is_alive():
+            try:
+                # Send a heartbeat to the server
+                client.do_action(fl.Action("heartbeat", b""))
+            except Exception as e:
+                logger.warning("Server is down with exception: " + str(e))
+                stop_event.set()
+                break
+            with self.condition:
+                self.condition.wait(interval)
+
+        if stop_event.is_set():
+            self._network_sender.stop()
+            self._main_loop.stop()
+            current_process = psutil.Process()
+            children = current_process.children(recursive=True)
+            for child in children:
                 try:
-                    parent_status = psutil.Process(self.original_parent_pid).status()
-                except Exception:
-                    pass
-                if parent_pid != self.original_parent_pid:
-                    logger.info(
-                        f"Parent process PID {self.original_parent_pid} runs unusually."
-                        f" Parent PID changed to {parent_pid}."
-                        f" Original parent process Status: {parent_status}"
+                    os.kill(child.pid, signal.SIGKILL)
+                except Exception as e:
+                    logger.warning(
+                        f"Exception during process termination PID {str(child.pid)}: {e} "
                     )
-                else:
-                    logger.info(
-                        f"Parent process PID {self.original_parent_pid} runs unusually."
-                        f" Parent PID hasn't changed."
-                        f" Original parent process Status: {parent_status}"
-                    )
-                self.stop()
+
+            os.kill(os.getpid(), signal.SIGTERM)

@@ -15,9 +15,6 @@ from proto.edu.uci.ics.amber.engine.common import (
     PythonDataHeader,
 )
 
-import asyncio
-import pyarrow.flight as flight
-
 
 class NetworkSender(StoppableQueueBlockingRunnable):
     """
@@ -88,14 +85,3 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         """
         python_control_message = PythonControlMessage(tag=to, payload=control_payload)
         self._proxy_client.call_action("control", bytes(python_control_message))
-
-    async def heartbeat(self, interval, stop_event):
-        while not stop_event.is_set():
-            try:
-                # Send a heartbeat to the server
-                self._proxy_client.do_action(flight.Action("heartbeat", b""))
-            except Exception as e:
-                logger.info("Server is down with exception: " + str(e))
-                stop_event.set()
-                break
-            await asyncio.sleep(interval)
