@@ -37,21 +37,21 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
     )
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    var schema = ""
+    var outputTuples = ""
     if (lambdaAttributeUnits.isEmpty) {
-      schema = "table"
+      outputTuples = "table"
     } else {
       for (unit <- lambdaAttributeUnits) {
-        schema += s"""\"${unit.attributeName}\":${unit.expression},"""
+        outputTuples += s"""\"${unit.attributeName}\":${unit.expression},"""
       }
-      schema = "{" + schema + "}"
+      outputTuples = "{" + outputTuples + "}"
     }
     s"""
 from pytexera import *
 class ProcessTableOperator(UDFTableOperator):
     @overrides
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        yield $schema
+        yield $outputTuples
 """
   }
 }
