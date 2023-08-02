@@ -3,7 +3,6 @@
   "version": 1,
   "projects": {
     "texera-gui": {
-      "$schema": "node_modules/nx/schemas/project-schema.json",
       "root": "",
       "sourceRoot": "src",
       "projectType": "application",
