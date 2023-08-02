@@ -92,9 +92,9 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
   // The function below checks whether there are more than 5 percents of the groups have disjoint sets of x attributes.
   def performTableCheck(): String = {
     s"""
-       |        error = False
+       |        error = ""
        |        if "$x" not in columns or "$y" not in columns:
-       |            error = True
+       |            error = "missing attributes"
        |        elif "$lineGroup" != "":
        |            grouped = table.groupby("$lineGroup")
        |            x_values = None
@@ -110,7 +110,7 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
        |                elif not set(group["$x"].unique()).intersection(x_values):
        |                    count += 1
        |                    if count > tolerance:
-       |                        error = True
+       |                        error = "X attributes not shared across groups"
        |""".stripMargin
   }
 
@@ -130,18 +130,24 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
          |        columns = list(table.columns)
          |        ${performTableCheck()}
          |
-         |        if not error:
+         |        if error == "":
          |            ${createPlotlyFigure()}
          |
          |            html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |            yield {'html-content': html}
-         |        else:
-         |            html = '''<h1>Plot is not available.</h1>
-         |                     <p>Possible reasons are:</p>
-         |                     <ul>
-         |                     <li>Attributes not existed</li>
-         |                     <li>X attribute is not shared across all line groups</li>
-         |                     </ul>'''
+         |        elif error == "X attributes not shared across groups":
+         |
+         |            html = '''<h1>Plot is not available, because:</h1>
+         |                      <li>X attribute is not shared across all line groups</li>
+         |                      </ul>'''
+         |
+         |            yield {'html-content': html}
+         |        elif error == "missing attributes":
+         |
+         |            html = '''<h1>Plot is not available, because:</h1>
+         |                      <li>X or Y attribute does not exist</li>
+         |                      </ul>'''
+         |
          |            yield {'html-content': html}
          |""".stripMargin
     finalCode
