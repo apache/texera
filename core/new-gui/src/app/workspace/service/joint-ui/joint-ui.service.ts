@@ -1,8 +1,6 @@
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
-
-import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
 import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
 import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
@@ -126,8 +124,6 @@ export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
  */
 export const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
-export const operatorCacheTextClass = "texera-operator-result-cache-text";
-export const operatorCacheIconClass = "texera-operator-result-cache-icon";
 export const operatorStateClass = "texera-operator-state";
 export const operatorProcessedCountClass = "texera-operator-processed-count";
 export const operatorOutputCountClass = "texera-operator-output-count";
@@ -156,10 +152,8 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorOutputCountClass}"></text>
       <text class="${operatorAbbreviatedCountClass}"></text>
       <text class="${operatorStateClass}"></text>
-      <text class="${operatorCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
       <text class="${operatorCoeditorChangedPropertyClass}"></text>
-      <image class="${operatorCacheIconClass}"></image>
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
       <path class="right-boundary"></path>
@@ -502,20 +496,6 @@ export class JointUIService {
 
   public changeOperatorDisableStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
     jointPaper.getModelById(operator.operatorID).attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
-  }
-
-  public changeOperatorCacheStatus(
-    jointPaper: joint.dia.Paper,
-    operator: OperatorPredicate,
-    cacheStatus?: OperatorResultCacheStatus
-  ): void {
-    const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
-    const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
-
-    const cacheIndicatorText = cacheText === "" ? "" : "cache";
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
   }
 
   public changeOperatorJointDisplayName(
@@ -906,28 +886,6 @@ export class JointUIService {
         "x-alignment": "middle",
         "y-alignment": "middle",
       },
-      ".texera-operator-result-cache-text": {
-        text: JointUIService.getOperatorCacheDisplayText(operator) === "" ? "" : "cache",
-        fill: "#595959",
-        "font-size": "14px",
-        visible: true,
-        "ref-x": 80,
-        "ref-y": 60,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-      ".texera-operator-result-cache-icon": {
-        "xlink:href": JointUIService.getOperatorCacheIcon(operator),
-        title: JointUIService.getOperatorCacheDisplayText(operator),
-        width: 40,
-        height: 40,
-        "ref-x": 75,
-        "ref-y": 50,
-        ref: "rect.body",
-        "x-alignment": "middle",
-        "y-alignment": "middle",
-      },
     };
     return operatorStyleAttrs;
   }
@@ -935,37 +893,6 @@ export class JointUIService {
   public static getOperatorFillColor(operator: OperatorPredicate): string {
     const isDisabled = operator.isDisabled ?? false;
     return isDisabled ? "#E0E0E0" : "#FFFFFF";
-  }
-
-  public static getOperatorCacheDisplayText(
-    operator: OperatorPredicate,
-    cacheStatus?: OperatorResultCacheStatus
-  ): string {
-    if (cacheStatus && cacheStatus !== "cache not enabled") {
-      return cacheStatus;
-    }
-    const isCached = operator.isCached ?? false;
-    return isCached ? "to be cached" : "";
-  }
-
-  public static getOperatorCacheIcon(operator: OperatorPredicate, cacheStatus?: OperatorResultCacheStatus): string {
-    if (cacheStatus && cacheStatus !== "cache not enabled") {
-      if (cacheStatus === "cache valid") {
-        return "assets/svg/operator-result-cache-successful.svg";
-      } else if (cacheStatus === "cache invalid") {
-        return "assets/svg/operator-result-cache-invalid.svg";
-      } else {
-        const _exhaustiveCheck: never = cacheStatus;
-        return "";
-      }
-    } else {
-      const isCached = operator.isCached ?? false;
-      if (isCached) {
-        return "assets/svg/operator-result-cache-to-be-cached.svg";
-      } else {
-        return "";
-      }
-    }
   }
 
   /**

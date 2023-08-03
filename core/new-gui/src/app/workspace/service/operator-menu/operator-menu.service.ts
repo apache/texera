@@ -49,11 +49,6 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
-  // whether the cache-operator-button should be enabled
-  public operatorCacheEnabled: boolean = environment.operatorCacheEnabled;
-  public isCacheOperatorClickable: boolean = false;
-  public isCacheOperator: boolean = true;
-
   public readonly COPY_OFFSET = 20;
 
   constructor(
@@ -62,7 +57,6 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
-    this.handleCacheOperatorStatusChange();
 
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
@@ -117,18 +111,6 @@ export class OperatorMenuService {
     }
   }
 
-  public cacheHighlightedOperators(): void {
-    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
-      op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
-    );
-
-    if (this.isCacheOperator) {
-      this.workflowActionService.cacheOperators(effectiveHighlightedOperatorsExcludeSink);
-    } else {
-      this.workflowActionService.unCacheOperators(effectiveHighlightedOperatorsExcludeSink);
-    }
-  }
-
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators
@@ -147,27 +129,6 @@ export class OperatorMenuService {
       this.isDisableOperator = !allDisabled;
       this.isDisableOperatorClickable =
         this.effectivelyHighlightedOperators.value.length !== 0 &&
-        this.workflowActionService.checkWorkflowModificationEnabled();
-    });
-  }
-
-  handleCacheOperatorStatusChange() {
-    merge(
-      this.effectivelyHighlightedOperators,
-      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream(),
-      this.workflowActionService.getWorkflowModificationEnabledStream()
-    ).subscribe(event => {
-      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
-        op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
-      );
-
-      const allCached = effectiveHighlightedOperatorsExcludeSink.every(op =>
-        this.workflowActionService.getTexeraGraph().isOperatorCached(op)
-      );
-
-      this.isCacheOperator = !allCached;
-      this.isCacheOperatorClickable =
-        effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
         this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }

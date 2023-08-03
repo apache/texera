@@ -25,7 +25,6 @@ import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 import java.util.UUID
 import scala.collection.mutable
@@ -43,34 +42,6 @@ object JobResultService {
   ): WebDataUpdate = {
     val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
     WebDataUpdate(mode, tableInJson, chartType)
-  }
-
-  /**
-    * Calculates the dirty pages (pages with changed tuples) between two progressive updates,
-    * by comparing the "before" snapshot and "after" snapshot tuple-by-tuple.
-    * Used by WebPaginationUpdate
-    *
-    * @return list of indices of modified pages, index starts from 1
-    */
-  def calculateDirtyPageIndices(
-      beforeSnapshot: List[ITuple],
-      afterSnapshot: List[ITuple],
-      pageSize: Int
-  ): List[Int] = {
-    var currentIndex = 1
-    var currentIndexPageCount = 0
-    val dirtyPageIndices = new mutable.HashSet[Int]()
-    for ((before, after) <- beforeSnapshot.zipAll(afterSnapshot, null, null)) {
-      if (before == null || after == null || !before.equals(after)) {
-        dirtyPageIndices.add(currentIndex)
-      }
-      currentIndexPageCount += 1
-      if (currentIndexPageCount == pageSize) {
-        currentIndexPageCount = 0
-        currentIndex += 1
-      }
-    }
-    dirtyPageIndices.toList
   }
 
   /**
@@ -199,22 +170,6 @@ class JobResultService(
     workflowStateStore.resultStore.updateState { state =>
       state.withOperatorInfo(Map.empty)
     }
-
-    // If we have cache sources, make dummy sink operators for displaying results on the frontend.
-    logicalPlan.getSourceOperators.map(source => {
-      logicalPlan.getOperator(source) match {
-        case cacheSourceOpDesc: CacheSourceOpDesc =>
-          val dummySink = new ProgressiveSinkOpDesc()
-          dummySink.setStorage(opResultStorage.get(cacheSourceOpDesc.targetSinkStorageId))
-          progressiveResults += (
-            (
-              cacheSourceOpDesc.targetSinkStorageId,
-              new ProgressiveResultService(dummySink)
-            )
-          )
-        case other => //skip
-      }
-    })
 
     // For cached operators and sinks, create result service so that the results can be displayed.
     logicalPlan.getSinkOperators.map(sink => {

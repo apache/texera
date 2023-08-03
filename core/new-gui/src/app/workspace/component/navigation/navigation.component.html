@@ -281,28 +281,6 @@
             nzTheme="twotone"
             nzType="stop"></i>
         </button>
-        <button
-          *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator || ! operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable"
-          (click)="operatorMenu.cacheHighlightedOperators()"
-          nz-button
-          title="cache operators">
-          <i
-            nz-icon
-            nzType="database"
-            nzTheme="outline"></i>
-        </button>
-        <button
-          *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable"
-          (click)="operatorMenu.cacheHighlightedOperators()"
-          nz-button
-          title="operators cached, click to remove cache">
-          <i
-            nz-icon
-            nzType="database"
-            nzTheme="twotone"></i>
-        </button>
       </nz-button-group>
     </div>
     <div

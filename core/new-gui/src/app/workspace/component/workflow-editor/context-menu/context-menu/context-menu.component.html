@@ -56,26 +56,6 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()">
-    <span
-      nz-icon
-      nzType="database"
-      nzTheme="outline"></span
-    >cache output
-  </li>
-  <li
-    nz-menu-item
-    *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()">
-    <span
-      nz-icon
-      nzType="database"
-      nzTheme="twotone"></span
-    >remove cache
-  </li>
-  <li
-    nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0) &&
   isWorkflowModifiable"
