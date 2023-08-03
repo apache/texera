@@ -49,12 +49,9 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
-<<<<<<< HEAD
   public isViewingResult: boolean = false;
   public isViewResultClickable: boolean = true;
 
-=======
->>>>>>> master
   public readonly COPY_OFFSET = 20;
 
   constructor(
@@ -63,10 +60,7 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
-<<<<<<< HEAD
     this.handleViewResultOperatorStatusChange();
-=======
->>>>>>> master
 
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
@@ -121,7 +115,6 @@ export class OperatorMenuService {
     }
   }
 
-<<<<<<< HEAD
   public viewResultHighlightedOperators(): void {
     const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
@@ -134,8 +127,6 @@ export class OperatorMenuService {
     }
   }
 
-=======
->>>>>>> master
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators
@@ -158,7 +149,6 @@ export class OperatorMenuService {
     });
   }
 
-<<<<<<< HEAD
   handleViewResultOperatorStatusChange() {
     merge(
       this.effectivelyHighlightedOperators,
@@ -180,8 +170,6 @@ export class OperatorMenuService {
     });
   }
 
-=======
->>>>>>> master
   /**
    * saves highlighted elements to the system clipboard
    */
