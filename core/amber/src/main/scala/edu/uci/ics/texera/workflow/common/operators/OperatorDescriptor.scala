@@ -62,6 +62,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.treemap.TreeMapOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.timeseries.TimeSeriesOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
@@ -141,6 +142,7 @@ trait StateTransferFunc
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
+    new Type(value = classOf[TreeMapOpDesc], name = "TreeMap"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
