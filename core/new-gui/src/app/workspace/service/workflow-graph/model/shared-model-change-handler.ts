@@ -261,10 +261,10 @@ export class SharedModelChangeHandler {
             for (const entry of event.changes.keys.entries()) {
               const contentKey = entry[0];
               if (contentKey === "viewResult") {
-                const newCachedStatus = this.texeraGraph.sharedModel.operatorIDMap
+                const newViewOpResultStatus = this.texeraGraph.sharedModel.operatorIDMap
                   .get(operatorID)
                   ?.get("viewResult") as boolean;
-                if (newCachedStatus) {
+                if (newViewOpResultStatus) {
                   this.texeraGraph.viewResultOperatorChangedSubject.next({
                     newViewResultOps: [operatorID],
                     newUnviewResultOps: [],

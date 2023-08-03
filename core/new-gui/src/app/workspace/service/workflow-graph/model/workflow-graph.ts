@@ -32,7 +32,6 @@ type restrictedMethods =
   | "setLinkBreakpoint"
   | "operatorAddSubject"
   | "operatorDeleteSubject"
-  | "cachedOperatorChangedSubject"
   | "operatorDisplayNameChangedSubject"
   | "linkAddSubject"
   | "linkDeleteSubject"
@@ -91,10 +90,6 @@ export class WorkflowGraph {
   public readonly viewResultOperatorChangedSubject = new Subject<{
     newViewResultOps: string[];
     newUnviewResultOps: string[];
-  }>();
-  public readonly cachedOperatorChangedSubject = new Subject<{
-    newCached: string[];
-    newUnCached: string[];
   }>();
   public readonly operatorDisplayNameChangedSubject = new Subject<{
     operatorID: string;
@@ -431,10 +426,10 @@ export class WorkflowGraph {
   }
 
   /**
-   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
    * @param operatorID
    */
-  public cacheOperator(operatorID: string): void {
+  public setViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -449,10 +444,10 @@ export class WorkflowGraph {
   }
 
   /**
-   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
    * @param operatorID
    */
-  public unCacheOperator(operatorID: string): void {
+  public unsetViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -475,7 +470,7 @@ export class WorkflowGraph {
     return operator.viewResult ?? false;
   }
 
-  public getCachedOperators(): ReadonlySet<string> {
+  public getOperatorsToViewResult(): ReadonlySet<string> {
     return new Set(
       Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
         this.isViewingResult(op)
@@ -876,13 +871,6 @@ export class WorkflowGraph {
 
   public getCommentBoxEditCommentStream(): Observable<{ commentBox: CommentBox }> {
     return this.commentBoxEditCommentSubject.asObservable();
-  }
-
-  public getCachedOperatorsChangedStream(): Observable<{
-    newCached: ReadonlyArray<string>;
-    newUnCached: ReadonlyArray<string>;
-  }> {
-    return this.cachedOperatorChangedSubject.asObservable();
   }
 
   public getViewResultOperatorsChangedStream(): Observable<{

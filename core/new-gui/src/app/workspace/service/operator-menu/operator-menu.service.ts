@@ -121,9 +121,9 @@ export class OperatorMenuService {
     );
 
     if (this.isViewingResult) {
-      this.workflowActionService.cacheOperators(effectiveHighlightedOperatorsExcludeSink);
+      this.workflowActionService.setViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
     } else {
-      this.workflowActionService.unCacheOperators(effectiveHighlightedOperatorsExcludeSink);
+      this.workflowActionService.unsetViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
     }
   }
 

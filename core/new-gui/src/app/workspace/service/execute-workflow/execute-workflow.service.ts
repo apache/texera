@@ -441,7 +441,7 @@ export class ExecuteWorkflowService {
       ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
     );
 
-    const opsToViewResult: string[] = Array.from(workflowGraph.getCachedOperators()).filter(
+    const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(
       op => !workflowGraph.isOperatorDisabled(op)
     );
 
