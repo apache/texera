@@ -155,7 +155,10 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorStateClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
       <text class="${operatorCoeditorChangedPropertyClass}"></text>
+<<<<<<< HEAD
       <image class="${operatorViewResultIconClass}"></image>
+=======
+>>>>>>> master
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
       <path class="right-boundary"></path>

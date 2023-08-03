@@ -194,30 +194,26 @@ class ProjectResource {
     * This method returns a list of DashboardFile objects, which represents
     * all the file objects that are part of the specified project.
     * @param pid project ID
-    * @param user the session user
     * @return a list of DashboardFile objects
     */
   @GET
   @Path("/{pid}/files")
   def listProjectFiles(
-      @PathParam("pid") pid: UInteger,
-      @Auth user: SessionUser
+      @PathParam("pid") pid: UInteger
   ): List[DashboardFile] = {
     context
       .select()
       .from(FILE_OF_PROJECT)
       .leftJoin(FILE)
       .on(FILE.FID.eq(FILE_OF_PROJECT.FID))
-      .leftJoin(USER_FILE_ACCESS)
-      .on(USER_FILE_ACCESS.FID.eq(FILE_OF_PROJECT.FID))
       .leftJoin(USER)
       .on(USER.UID.eq(FILE.OWNER_UID))
-      .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
+      .where(FILE_OF_PROJECT.PID.eq(pid))
       .fetch()
       .map(fileRecord =>
         DashboardFile(
           fileRecord.into(USER).getName,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege.toString,
+          "READ",
           fileRecord.into(FILE).into(classOf[File])
         )
       )

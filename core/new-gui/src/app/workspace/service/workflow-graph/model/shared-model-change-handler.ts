@@ -6,7 +6,6 @@ import {
   CommentBox,
   OperatorLink,
   OperatorPredicate,
-  PartitionInfo,
   Point,
   PortDescription,
 } from "../../../types/workflow-common.interface";
@@ -14,7 +13,6 @@ import { JointUIService } from "../../joint-ui/joint-ui.service";
 import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
-import { insert } from "@nrwl/workspace";
 import { isDefined } from "../../../../common/util/predicate";
 
 /**

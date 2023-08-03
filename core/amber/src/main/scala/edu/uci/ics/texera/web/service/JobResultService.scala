@@ -1,28 +1,23 @@
 package edu.uci.ics.texera.web.service
 
 import akka.actor.Cancellable
+import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
+import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.WebResultUpdate.{WebResultUpdate, convertWebResultUpdate}
-import edu.uci.ics.texera.web.storage.{
-  JobStateStore,
-  OperatorResultMetadata,
-  WorkflowResultStore,
-  WorkflowStateStore
-}
+import edu.uci.ics.texera.web.storage.{JobStateStore, OperatorResultMetadata, WorkflowResultStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 
@@ -34,6 +29,52 @@ object JobResultService {
 
   val defaultPageSize: Int = 5
 
+  // convert Tuple from engine's format to JSON format
+  def webDataFromTuple(
+      mode: WebOutputMode,
+      table: List[ITuple],
+      chartType: Option[String]
+  ): WebDataUpdate = {
+    val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
+    WebDataUpdate(mode, tableInJson, chartType)
+  }
+
+  /**
+    * Behavior for different web output modes:
+    *  - PaginationMode   (used by view result operator)
+    *     - send new number of tuples and dirty page index
+    *  - SetSnapshotMode  (used by visualization in snapshot mode)
+    *     - send entire snapshot result to frontend
+    *  - SetDeltaMode     (used by visualization in delta mode)
+    *     - send incremental delta result to frontend
+    */
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+  sealed abstract class WebOutputMode extends Product with Serializable
+
+  /**
+    * The result update of one operator that will be sent to the frontend.
+    * Can be either WebPaginationUpdate (for PaginationMode)
+    * or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
+    */
+  sealed abstract class WebResultUpdate extends Product with Serializable
+
+  @JsonTypeName("PaginationMode")
+  final case class PaginationMode() extends WebOutputMode
+
+  @JsonTypeName("SetSnapshotMode")
+  final case class SetSnapshotMode() extends WebOutputMode
+
+  @JsonTypeName("SetDeltaMode")
+  final case class SetDeltaMode() extends WebOutputMode
+
+  case class WebPaginationUpdate(
+      mode: PaginationMode,
+      totalNumTuples: Long,
+      dirtyPageIndices: List[Int]
+  ) extends WebResultUpdate
+
+  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
+      extends WebResultUpdate
 }
 
 /**

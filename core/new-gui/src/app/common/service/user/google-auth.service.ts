@@ -24,7 +24,7 @@ export class GoogleAuthService {
               this._googleCredentialResponse.next(auth);
             },
           });
-          window.google.accounts.id.renderButton(parent, { width: "270" });
+          window.google.accounts.id.renderButton(parent, { width: 270 });
           window.google.accounts.id.prompt();
         };
       },
