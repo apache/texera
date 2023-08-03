@@ -18,7 +18,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 class HashBasedShufflePartitioner(Partitioner):
     def __init__(self, partitioning: HashBasedShufflePartitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
-        logger.info(f"got {partitioning}")
+        logger.debug(f"got {partitioning}")
         self.batch_size = partitioning.batch_size
         self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
             (receiver, list()) for receiver in partitioning.receivers
@@ -29,7 +29,7 @@ class HashBasedShufflePartitioner(Partitioner):
     def add_tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
-        partial_tuple = tuple_.get_fields(self.hash_column_indices)
+        partial_tuple = tuple_.get_partial_tuple(self.hash_column_indices)
         hash_code = hash(partial_tuple) % len(self.receivers)
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)
