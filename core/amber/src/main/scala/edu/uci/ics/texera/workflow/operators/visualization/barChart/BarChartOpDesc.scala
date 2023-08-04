@@ -113,7 +113,6 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
                         |           # use latest plotly lib in html
                         |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
-                        |           yield {'html-content':html}
                         |        elif '$fields' == '$value':
                         |           html = '''<h1>Fields should not have the same value. Exiting code.</h1>'''
                         |        elif table.empty:
