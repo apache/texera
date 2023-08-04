@@ -53,7 +53,7 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
   @JsonPropertyDescription("Orientation Style")
-  var Orientation: Boolean = _
+  var orientation: Boolean = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -88,7 +88,7 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
     var truthy = ""
-    if (Orientation) truthy = "True"
+    if (orientation) truthy = "True"
     val final_code = s"""
                         |from pytexera import *
                         |
@@ -114,15 +114,11 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |           # use latest plotly lib in html
                         |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
                         |           yield {'html-content':html}
-                        |        else:
-                        |           html = '''<h1>Bar Chart is not available.</h1>
-                        |                     <p>Possible reasons are:</p>
-                        |                     <ul>
-                        |                     <li>input table is empty</li>
-                        |                     <li>value column is not available</li>
-                        |                     <li>both value column and field column are the same</li>
-                        |                     </ul>'''
-                        |           yield {'html-content': html}
+                        |        elif '$fields' == '$value':
+                        |           html = '''<h1>Fields should not have the same value. Exiting code.</h1>'''
+                        |        elif table.empty:
+                        |           html = '''<h1>Table should not have any empty/null values or fields. Exiting code.</h1>'''
+                        |        yield {'html-content':html}
                         |        """.stripMargin
     final_code
   }
