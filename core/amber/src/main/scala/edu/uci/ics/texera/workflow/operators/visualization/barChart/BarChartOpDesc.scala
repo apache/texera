@@ -72,24 +72,16 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
     assert(value.nonEmpty)
     assert(fields.nonEmpty)
     s"""
-       |        table = table.dropna() #remove missing values
+       |        table = table.dropna(subset = ['$value', '$fields']) #remove missing values
        |""".stripMargin
   }
 
   override def numWorkers() = 1
 
-  def createPlotlyFigure(): String = {
-    assert(value.nonEmpty)
-    assert(fields.nonEmpty)
-    s"""
-       |fig = px.bar(table, y= '$fields', x='$value', orientation = 'h')
-       |""".stripMargin
-  }
-
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
     var truthy = ""
     if (orientation) truthy = "True"
-    val final_code = s"""
+    val finalCode = s"""
                         |from pytexera import *
                         |
                         |import plotly.express as px
@@ -101,6 +93,12 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |import plotly
                         |
                         |class ProcessTableOperator(UDFTableOperator):
+                        |
+                        |    # Generate custom error message as html string
+                        |    def render_error(self, error_msg) -> str:
+                        |        return '''<h1>Bar chart is not available.</h1>
+                        |                  <p>Reason is: {} </p>
+                        |               '''.format(error_msg)
                         |
                         |    @overrides
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -114,12 +112,12 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |           # use latest plotly lib in html
                         |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
                         |        elif '$fields' == '$value':
-                        |           html = '''<h1>Fields should not have the same value. Exiting code.</h1>'''
+                        |           html = self.render_error('Fields should not have the same value.')
                         |        elif table.empty:
-                        |           html = '''<h1>Table should not have any empty/null values or fields. Exiting code.</h1>'''
+                        |           html = self.render_error('Table should not have any empty/null values or fields.')
                         |        yield {'html-content':html}
                         |        """.stripMargin
-    final_code
+    finalCode
   }
 
   // make the chart type to html visualization so it can be recognized by both backend and frontend.
