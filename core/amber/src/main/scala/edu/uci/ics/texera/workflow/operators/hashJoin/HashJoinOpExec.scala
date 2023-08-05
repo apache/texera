@@ -60,7 +60,7 @@ class HashJoinOpExec[K](
       }
       true
     } catch {
-      case exception: Exception =>
+      case _: Exception =>
         false
     }
   }
@@ -225,7 +225,7 @@ class HashJoinOpExec[K](
 
     // fill the join attribute (align with probe)
     builder.add(
-      probeSchema.getAttribute(probeAttributeName),
+      buildSchema.getAttribute(buildAttributeName),
       tuple.getField(probeAttributeName)
     )
 
