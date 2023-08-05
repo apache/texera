@@ -60,10 +60,6 @@ private class AmberProducer(
         promise.setValue(strPortNumber.toInt)
         listener.onNext(new Result("ok".getBytes))
         listener.onCompleted()
-      case "heartbeat" =>
-        val result = new Result(action.getBody)
-        listener.onNext(result)
-        listener.onCompleted()
       case _ => throw new NotImplementedError()
     }
 
