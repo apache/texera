@@ -17,7 +17,6 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -48,7 +47,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private schemaPropagationService: SchemaPropagationService,
     private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
-    private operatorCacheStatus: OperatorCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -72,9 +70,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - upon persisting of a workflow, must also ensure it is also added to the project
      *
      * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project
+     *    - there is no related project, parseInt will return NaN.
+     *    - NaN || undefined will result in undefined.
      */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) ?? undefined;
+    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
   }
 
   ngAfterViewInit(): void {
