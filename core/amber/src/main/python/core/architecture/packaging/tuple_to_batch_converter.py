@@ -18,8 +18,8 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 from core.architecture.sendsemantics.broad_cast_partitioner import (
     BroadcastPartitioner,
 )
-from core.models import Tuple
-from core.models.payload import OutputDataFrame, DataPayload
+from core.models import Tuple, State
+from core.models.payload import OutputDataFrame, DataPayload, StateFrame
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
@@ -68,6 +68,17 @@ class TupleToBatchConverter:
                 for partitioner in self._partitioners.values()
             )
         )
+
+    def state_to_batch(
+                self, state: State
+        ) -> Iterator[typing.Tuple[ActorVirtualIdentity, StateFrame]]:
+        return chain(
+                *(
+                    partitioner.add_state_to_batch(state)
+                    for partitioner in self._partitioners.values()
+                )
+            )
+
 
     def emit_end_of_upstream(
         self,

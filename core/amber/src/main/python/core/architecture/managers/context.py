@@ -24,7 +24,7 @@ class Context:
         self.worker_id = worker_id
         self.main_loop = main_loop
         self.input_queue = main_loop._input_queue
-        self.operator_manager = OperatorManager()
+        self.operator_manager = OperatorManager(self)
         self.tuple_processing_manager = TupleProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(

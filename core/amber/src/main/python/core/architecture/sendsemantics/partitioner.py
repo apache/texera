@@ -4,7 +4,7 @@ from typing import Iterator
 
 from betterproto import Message
 
-from core.models import Tuple
+from core.models import Tuple, State
 from core.models.payload import OutputDataFrame, DataPayload
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
@@ -18,6 +18,9 @@ class Partitioner(ABC):
     def add_tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+        pass
+
+    def add_state_to_batch(self, state: State):
         pass
 
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:

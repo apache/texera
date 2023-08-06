@@ -10,6 +10,7 @@ from core.models import (
     InternalQueue,
 )
 from core.models.internal_queue import DataElement, ControlElement
+from core.models.payload import StateFrame
 from core.proxy import ProxyServer
 from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
@@ -38,10 +39,16 @@ class NetworkReceiver(Runnable, Stoppable):
         @logger.catch(reraise=True)
         def data_handler(command: bytes, table: Table):
             data_header = PythonDataHeader().parse(command)
+            logger.warning(f"we got header with marker={data_header.is_marker}")
             if not data_header.is_end:
-                shared_queue.put(
-                    DataElement(tag=data_header.tag, payload=InputDataFrame(table))
-                )
+                if data_header.is_marker:
+                    shared_queue.put(
+                        DataElement(tag=data_header.tag, payload=StateFrame(table))
+                    )
+                else:
+                    shared_queue.put(
+                        DataElement(tag=data_header.tag, payload=InputDataFrame(table))
+                    )
             else:
                 shared_queue.put(
                     DataElement(tag=data_header.tag, payload=EndOfUpstream())

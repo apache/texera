@@ -30,4 +30,5 @@ __all__ = [
     "Iterator",
     "Optional",
     "Union",
+    "State",
 ]

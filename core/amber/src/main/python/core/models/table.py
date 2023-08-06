@@ -4,7 +4,7 @@ from pampy import match
 import pandas
 
 from core.models import Tuple, TupleLike
-
+from core.models.state import State
 
 TableLike = TypeVar("TableLike", pandas.DataFrame, List[TupleLike])
 
@@ -67,7 +67,7 @@ class Table(pandas.DataFrame):
             return super().__eq__(other).all()
 
 
-def all_output_to_tuple(output) -> Iterator[Tuple]:
+def all_output_to_data(output) -> Iterator[Tuple]:
     """
     Convert all kinds of types into Tuples.
     :param output:
@@ -86,5 +86,7 @@ def all_output_to_tuple(output) -> Iterator[Tuple]:
         TupleLike,
         lambda x: iter([Tuple(x)]),
         Tuple,
+        lambda x: iter([x]),
+        State,
         lambda x: iter([x]),
     )

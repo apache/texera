@@ -9,13 +9,16 @@ from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from core.models.schema.schema import Schema
-from .table import all_output_to_tuple
+from .table import all_output_to_data
 
 
 class Operator(ABC):
     """
     Abstract base class for all operators.
     """
+
+    def __init__(self, ctx):
+        self.__ctx = ctx
 
     __internal_is_source: bool = False
     __internal_output_schema: Optional[Schema] = None
@@ -45,7 +48,7 @@ class Operator(ABC):
     @output_schema.setter
     @overrides.final
     def output_schema(
-        self, raw_output_schema: Union[Schema, Mapping[str, str]]
+            self, raw_output_schema: Union[Schema, Mapping[str, str]]
     ) -> None:
         self.__internal_output_schema = (
             raw_output_schema
@@ -66,6 +69,9 @@ class Operator(ABC):
         """
         pass
 
+
+    def on_state_update(self, key, value)->None:
+        self.__dict__[key] = value
 
 class TupleOperatorV2(Operator):
     """
@@ -113,7 +119,7 @@ class SourceOperator(TupleOperatorV2):
     def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
         # TODO: change on_finish to output Iterator[Union[TupleLike, TableLike, None]]
         for i in self.produce():
-            yield from all_output_to_tuple(i)
+            yield from all_output_to_data(i)
 
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
@@ -147,8 +153,8 @@ class BatchOperator(TupleOperatorV2):
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         self.__batch_data[port].append(tuple_)
         if (
-            self.BATCH_SIZE is not None
-            and len(self.__batch_data[port]) >= self.BATCH_SIZE
+                self.BATCH_SIZE is not None
+                and len(self.__batch_data[port]) >= self.BATCH_SIZE
         ):
             yield from self._process_batch(port)
 
@@ -235,7 +241,7 @@ class TupleOperator(Operator):
 
     @abstractmethod
     def process_tuple(
-        self, tuple_: Union[Tuple, InputExhausted], input_: int
+            self, tuple_: Union[Tuple, InputExhausted], input_: int
     ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.

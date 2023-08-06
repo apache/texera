@@ -18,9 +18,10 @@ from core.models import (
     InternalQueue,
     SenderChangeMarker,
     Tuple,
-    ExceptionInfo,
+    ExceptionInfo, State,
 )
 from core.models.internal_queue import DataElement, ControlElement
+from core.models.payload import StateFrame
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
@@ -106,6 +107,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     1. a ControlElement;
                     2. a DataElement.
         """
+        logger.warning(f"got next entry {next_entry}")
         match(
             next_entry,
             DataElement,
@@ -142,16 +144,33 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if isinstance(self.context.tuple_processing_manager.current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
 
-        for output_tuple in self.process_tuple_with_udf():
+        for output_data in self.process_tuple_with_udf():
             self._check_and_process_control()
-            if output_tuple is not None:
-                self.context.statistics_manager.increase_output_tuple_count()
-                for (
-                    to,
-                    batch,
-                ) in self.context.tuple_to_batch_converter.tuple_to_batch(output_tuple):
-                    batch.schema = self.context.operator_manager.operator.output_schema
-                    self._output_queue.put(DataElement(tag=to, payload=batch))
+            if output_data is not None:
+                # print("got output", output_data)
+                if isinstance(output_data, Tuple):
+                    self.context.statistics_manager.increase_output_tuple_count()
+                    for (
+                        to,
+                        batch,
+                    ) in self.context.tuple_to_batch_converter.tuple_to_batch(output_data):
+                        batch.schema = self.context.operator_manager.operator.output_schema
+                        self._output_queue.put(DataElement(tag=to, payload=batch))
+                elif isinstance(output_data, State):
+
+                    for (
+                            to,
+                            batch,
+                    ) in self.context.tuple_to_batch_converter.state_to_batch(
+                        output_data):
+                        # print("this batch", batch)
+                        if isinstance(batch, State):
+                            self._output_queue.put(DataElement(tag=to, payload=[batch]))
+                        else:
+                            batch.schema = self.context.operator_manager.operator.output_schema
+                            self._output_queue.put(DataElement(tag=to, payload=batch))
+                else:
+                    raise TypeError("unsupported output_data type", type(output_data))
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -168,7 +187,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             self._switch_context()
             yield self.context.tuple_processing_manager.get_output_tuple()
-
+            self._check_and_process_control()
+            self._switch_context()
+            yield self.context.tuple_processing_manager.get_output_state()
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
         Report the traceback of current stack when an exception occurs.
@@ -193,6 +214,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.tuple_processing_manager.current_input_tuple = tuple_
         self.process_input_tuple()
         self._check_and_process_control()
+
+    def _process_state(self, state: State):
+        self.context.tuple_processing_manager.current_input_state = state
+
+
+        self._check_and_process_control()
+        self._switch_context()
+        return self.context.tuple_processing_manager.get_output_tuple()
+
 
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
         self._process_tuple(input_exhausted)
@@ -246,6 +276,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
+        logger.info(f"_process data {data_element.payload}")
+
         self.context.tuple_processing_manager.current_input_tuple_iter = (
             self.context.batch_to_tuple_converter.process_data_payload(
                 data_element.tag, data_element.payload
@@ -281,6 +313,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self._process_sender_change_marker,
                     EndOfAllMarker,
                     self._process_end_of_all_marker,
+                    State,
+                    self._process_state
                 )
             except Exception as err:
                 logger.exception(err)

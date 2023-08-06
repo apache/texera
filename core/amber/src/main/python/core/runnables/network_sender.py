@@ -6,6 +6,8 @@ from pyarrow import Table
 
 from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
+from core.models.payload import StateFrame
+from core.models.schema.attribute_type import TO_ARROW_MAPPING
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.common import (
@@ -22,11 +24,11 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     """
 
     def __init__(
-        self,
-        shared_queue: InternalQueue,
-        host: str,
-        port: int,
-        handshake_port: Optional[int] = None,
+            self,
+            shared_queue: InternalQueue,
+            host: str,
+            port: int,
+            handshake_port: Optional[int] = None,
     ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._proxy_client = ProxyClient(
@@ -68,12 +70,23 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             data_header = PythonDataHeader(tag=to, is_end=True)
             self._proxy_client.send_data(bytes(data_header), None)
 
+        elif isinstance(data_payload, StateFrame):
+            data_header = PythonDataHeader(tag=to, is_end=False, is_marker=True)
+            state= data_payload.frame
+            # print("sending ", state.key, state.value)
+            import pyarrow as pa
+            import pickle
+            table = Table.from_pydict(
+                {state.key: [pickle.dumps(state.value)]},
+                schema=pa.schema([pa.field(state.key, pa.binary())]),
+            )
+            self._proxy_client.send_data(bytes(data_header), table)
         else:
             raise TypeError(f"Unexpected payload {data_payload}")
 
     @logger.catch(reraise=True)
     def _send_control(
-        self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
+            self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used

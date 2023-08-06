@@ -39,7 +39,7 @@ declare const monaco: any;
 })
 export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
   editorOptions = {
-    theme: "vs-dark",
+    theme: "vs-light",
     language: "python",
     fontSize: "11",
     automaticLayout: true,

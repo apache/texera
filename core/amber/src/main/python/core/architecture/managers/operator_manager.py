@@ -13,10 +13,11 @@ from core.models import Operator, SourceOperator
 
 
 class OperatorManager:
-    def __init__(self):
+    def __init__(self, context):
         self.operator: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
         self.operator_version: int = 0  # incremental only
+        self.context = context
 
     @cached_property
     def fs(self) -> FS:
@@ -119,7 +120,7 @@ class OperatorManager:
         :return:
         """
         operator: type(Operator) = self.load_operator(code)
-        self.operator = operator()
+        self.operator = operator(self.context)
         self.operator.is_source = is_source
         self.operator.output_schema = output_schema
         assert (
@@ -138,7 +139,7 @@ class OperatorManager:
         """
         original_internal_state = self.operator.__dict__
         operator: type(Operator) = self.load_operator(code)
-        self.operator = operator()
+        self.operator = operator(self.context)
         self.operator.is_source = is_source
         assert (
             isinstance(self.operator, SourceOperator) == self.operator.is_source

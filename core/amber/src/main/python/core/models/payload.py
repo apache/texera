@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pyarrow.lib import Table
 from typing import List, Optional
 
+from core.models.state import State
 from core.models.schema.schema import Schema
 from core.models.tuple import Tuple
 
@@ -24,4 +25,9 @@ class OutputDataFrame(DataPayload):
 
 @dataclass
 class EndOfUpstream(DataPayload):
+    pass
+
+@dataclass
+class StateFrame(DataPayload):
+    frame: State
     pass

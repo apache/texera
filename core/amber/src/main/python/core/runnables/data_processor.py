@@ -5,7 +5,8 @@ from loguru import logger
 
 from core.architecture.managers import Context
 from core.models import Tuple
-from core.models.table import all_output_to_tuple
+from core.models.state import State
+from core.models.table import all_output_to_data
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
@@ -22,8 +23,18 @@ class DataProcessor(Runnable, Stoppable):
         self._running.set()
         self._switch_context()
         while self._running.is_set():
+            self.process_state()
             self.process_tuple()
             self._switch_context()
+
+    def process_state(self) -> None:
+        operator = self._context.operator_manager.operator
+        state = self._context.tuple_processing_manager.get_input_state()
+        if state is not None:
+            import pickle
+            with replace_print(self._context.console_message_manager.print_buf):
+                operator.on_state_update(state.key, pickle.loads(state.value))
+                self._switch_context()
 
     def process_tuple(self) -> None:
         finished_current = self._context.tuple_processing_manager.finished_current
@@ -53,9 +64,15 @@ class DataProcessor(Runnable, Stoppable):
                 )
                 with replace_print(self._context.console_message_manager.print_buf):
                     for output in output_iterator:
-                        # output could be a None, a TupleLike, or a TableLike.
-                        for output_tuple in all_output_to_tuple(output):
-                            self._set_output_tuple(output_tuple)
+                        # output could be a None, a TupleLike, a TableLike, or a State.
+                        for output_data in all_output_to_data(output):
+                            if isinstance(output_data, Tuple) or output_data is None:
+                                self._set_output_tuple(output_data)
+                            elif isinstance(output_data, State):
+                                self._set_output_state(output_data)
+                            else:
+                                raise TypeError("unexpected output data type",
+                                                type(output_data))
                             self._switch_context()
 
                 # current tuple finished successfully
@@ -71,6 +88,9 @@ class DataProcessor(Runnable, Stoppable):
         if output_tuple is not None:
             output_tuple.finalize(self._context.operator_manager.operator.output_schema)
         self._context.tuple_processing_manager.current_output_tuple = output_tuple
+
+    def _set_output_state(self, output_state:State):
+        self._context.tuple_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:
         """

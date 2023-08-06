@@ -2,10 +2,10 @@ import typing
 from typing import Iterator, List
 
 from overrides import overrides
-
+from copy import deepcopy
 from core.architecture.sendsemantics.partitioner import Partitioner
-from core.models import Tuple
-from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
+from core.models import Tuple, State
+from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream, StateFrame
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     Partitioning,
@@ -33,6 +33,17 @@ class RoundRobinPartitioner(Partitioner):
             yield receiver, OutputDataFrame(frame=batch)
             self.receivers[self.round_robin_index] = (receiver, list())
         self.round_robin_index = (self.round_robin_index + 1) % len(self.receivers)
+
+    @overrides
+    def add_state_to_batch(self, state: State):
+        for receiver, batch in self.receivers:
+            if len(batch) > 0:
+                yield receiver, OutputDataFrame(frame=batch)
+                batch.clear()
+
+
+        yield receiver, StateFrame(frame = state)
+
 
     @overrides
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:

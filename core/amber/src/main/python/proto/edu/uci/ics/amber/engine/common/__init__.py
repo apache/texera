@@ -82,6 +82,7 @@ class ControlPayloadV2(betterproto.Message):
 class PythonDataHeader(betterproto.Message):
     tag: "ActorVirtualIdentity" = betterproto.message_field(1)
     is_end: bool = betterproto.bool_field(2)
+    is_marker: bool = betterproto.bool_field(3)
 
 
 @dataclass(eq=False, repr=False)

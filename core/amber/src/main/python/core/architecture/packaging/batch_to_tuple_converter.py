@@ -3,11 +3,12 @@ from typing import Iterator, Optional, Set, Union, Dict
 
 from core.models import Tuple, ArrowTableTupleProvider
 from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
-from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
+from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream, StateFrame
+from core.models.state import State
 from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
 
-
+from loguru import logger
 class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
@@ -37,6 +38,7 @@ class BatchToTupleConverter:
     def process_data_payload(
         self, from_: ActorVirtualIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
+        logger.info(f"batch to tuple {from_}, payload {payload}")
         # special case used to yield for source op
         if from_ == BatchToTupleConverter.SOURCE_STARTER:
             yield InputExhausted()
@@ -49,7 +51,13 @@ class BatchToTupleConverter:
             self._current_link = link
             yield SenderChangeMarker(link)
 
-        if isinstance(payload, InputDataFrame):
+        if isinstance(payload, StateFrame):
+            logger.info(f"match payload {payload}")
+            key = payload.frame.column_names[0]
+            value = payload.frame.column(0)[0].as_py()
+            yield State(key =key,value= value)
+
+        elif isinstance(payload, InputDataFrame):
             for field_accessor in ArrowTableTupleProvider(payload.frame):
                 yield Tuple(
                     {name: field_accessor for name in payload.frame.column_names}
@@ -62,6 +70,10 @@ class BatchToTupleConverter:
                 yield InputExhausted()
             if self._completed_link_ids == self._all_upstream_link_ids:
                 yield EndOfAllMarker()
+
+        elif isinstance(payload, StateFrame):
+
+            yield payload.frame
 
         else:
             raise NotImplementedError()

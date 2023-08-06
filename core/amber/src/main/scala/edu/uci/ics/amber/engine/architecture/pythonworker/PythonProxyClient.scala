@@ -1,17 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ControlElement,
-  ControlElementV2,
-  DataElement
-}
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2, DataElement}
+import edu.uci.ics.amber.engine.common.{AmberLogging, State}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -19,8 +12,10 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{FieldVector, VarBinaryVector, VectorSchemaRoot}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
 
+import java.util
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -91,9 +86,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
       case DataFrame(frame) =>
         val tuples: mutable.Queue[Tuple] =
           mutable.Queue(frame.map(_.asInstanceOf[Tuple]): _*)
-        writeArrowStream(tuples, from, isEnd = false)
+        writeArrowStream(Left(tuples), from, isEnd = false)
+      case StateFrame(state) =>
+          writeArrowStream(Right(state), from, isEnd = false)
       case EndOfUpstream() =>
-        writeArrowStream(mutable.Queue(), from, isEnd = true)
+        writeArrowStream(Left(mutable.Queue()), from, isEnd = true)
     }
   }
 
@@ -130,28 +127,62 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def writeArrowStream(
-      tuples: mutable.Queue[Tuple],
+      data: Either[mutable.Queue[Tuple], State],
       from: ActorVirtualIdentity,
       isEnd: Boolean
   ): Unit = {
+    data match {
+      case Left(tuples)=>
+        val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
+        val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd, isMarker = false).toByteArray)
+        logger.debug(
+          s"sending data with descriptor ${PythonDataHeader(from, isEnd, isMarker = false)}, schema $schema, size of batch ${tuples.size}"
+        )
+        val flightListener = new SyncPutListener
+        val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+        val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
+        schemaRoot.allocateNew()
+        while (tuples.nonEmpty) {
+          ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
+        }
+        writer.putNext()
+        schemaRoot.clear()
+        writer.completed()
+        flightListener.getResult()
+        flightListener.close()
+      case Right(state)=>
 
-    val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
-    val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
-    logger.info(
-      s"sending data with descriptor ${PythonDataHeader(from, isEnd)}, schema $schema, size of batch ${tuples.size}"
-    )
-    val flightListener = new SyncPutListener
-    val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
-    val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
-    schemaRoot.allocateNew()
-    while (tuples.nonEmpty) {
-      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
+        val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd, isMarker = true).toByteArray)
+        logger.info(
+          s"sending data with descriptor ${PythonDataHeader(from, isEnd, isMarker = true)}"
+        )
+        val flightListener = new SyncPutListener
+        val fields = new util.ArrayList[Field]
+        fields.add(Field.nullablePrimitive(state.key, new ArrowType.Binary))
+        val schema =   new org.apache.arrow.vector.types.pojo.Schema(fields)
+        val schemaRoot = VectorSchemaRoot.create(schema, allocator)
+        val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
+        schemaRoot.allocateNew()
+        val currentRowCount = schemaRoot.getRowCount
+        val nextRowIndex = currentRowCount
+        val vector: FieldVector = schemaRoot.getVector(0)
+        val value = state.value
+        val isNull = value == null
+        if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(0)
+        else
+          vector
+            .asInstanceOf[VarBinaryVector]
+            .setSafe(nextRowIndex, value)
+        schemaRoot.setRowCount(schemaRoot.getRowCount + 1)
+        writer.putNext()
+        schemaRoot.clear()
+        writer.completed()
+        flightListener.getResult()
+        flightListener.close()
+
     }
-    writer.putNext()
-    schemaRoot.clear()
-    writer.completed()
-    flightListener.getResult()
-    flightListener.close()
+
+
 
   }
 
