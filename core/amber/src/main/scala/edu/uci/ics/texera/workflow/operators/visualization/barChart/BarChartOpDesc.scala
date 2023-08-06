@@ -1,140 +1,125 @@
 package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList
-}
+import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
   OperatorSchemaInfo,
   Schema
 }
-import edu.uci.ics.texera.workflow.operators.aggregate.{
-  AggregationFunction,
-  AggregationOperation,
-  SpecializedAggregateOpDesc
-}
 import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
 }
 
-import java.util.Collections.singletonList
-import scala.jdk.CollectionConverters.asScalaBuffer
-
-/**
-  * Supports a bar chart with internal aggregation for one name column (label, x-axis) and multiple data columns (y-axis).
-  * If no data column is provided, the count of each label is returned; else the aggregated sum over each data column,
-  * grouped by each label is returned.
-  */
-class BarChartOpDesc extends VisualizationOperator {
-  @JsonProperty(value = "name column", required = true)
-  @JsonPropertyDescription("column of name (for x-axis)")
-  @AutofillAttributeName var nameColumn: String = _
-
-  @JsonProperty(value = "data column(s)", required = false)
-  @JsonPropertyDescription("column(s) of data (for y-axis)")
-  @AutofillAttributeNameList var dataColumns: List[String] = _
-
-  override def chartType: String = VisualizationConstants.BAR
-
-  def noDataCol: Boolean = dataColumns == null || dataColumns.isEmpty
-
-  def resultAttributeNames: List[String] = if (noDataCol) List("count") else dataColumns
-
-  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo) = {
-    if (nameColumn == null || nameColumn == "") {
-      throw new RuntimeException("bar chart: name column is null or empty")
+//type constraint: value can only be numeric
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "value": {
+      "enum": ["integer", "long", "double"]
     }
+  }
+}
+""")
+class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-    val aggOperator = new SpecializedAggregateOpDesc()
-    aggOperator.context = this.context
-    aggOperator.operatorID = this.operatorID
-    if (noDataCol) {
-      val aggOperation = new AggregationOperation()
-      aggOperation.aggFunction = AggregationFunction.COUNT
-      aggOperation.attribute = nameColumn
-      aggOperation.resultAttribute = resultAttributeNames.head
-      aggOperator.aggregations = List(aggOperation)
-      aggOperator.groupByKeys = List(nameColumn)
-    } else {
-      val aggOperations = dataColumns.map(dataCol => {
-        val aggOperation = new AggregationOperation()
-        aggOperation.aggFunction = AggregationFunction.SUM
-        aggOperation.attribute = dataCol
-        aggOperation.resultAttribute = dataCol
-        aggOperation
-      })
-      aggOperator.aggregations = aggOperations
-      aggOperator.groupByKeys = List(nameColumn)
-    }
+  @JsonProperty(defaultValue = "Bar Graph Visual")
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("Add a title to your visualization")
+  var title: String = ""
 
-    val aggPlan = aggOperator.aggregateOperatorExecutor(
-      OperatorSchemaInfo(
-        operatorSchemaInfo.inputSchemas,
-        Array(aggOperator.getOutputSchema(operatorSchemaInfo.inputSchemas))
-      )
-    )
+  @JsonProperty(value = "value", required = true)
+  @JsonSchemaTitle("Value Column")
+  @JsonPropertyDescription("the value associated with each category")
+  @AutofillAttributeName
+  var value: String = ""
 
-    val barChartViz = OpExecConfig.oneToOneLayer(
-      makeLayer(operatorIdentifier, "visualize"),
-      _ => new BarChartOpExec(this, operatorSchemaInfo)
-    )
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Fields")
+  @JsonPropertyDescription("Visualize categorical data in a Bar Chart")
+  @AutofillAttributeName
+  var fields: String = ""
 
-    val finalAggOp = aggPlan.sinkOperators.head
-    aggPlan.addOperator(barChartViz).addEdge(finalAggOp, barChartViz.id)
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Horizontal Orientation")
+  @JsonPropertyDescription("Orientation Style")
+  var orientation: Boolean = _
+
+  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Bar Chart",
-      "View the result in bar chart",
+      "Visualize data in a Bar Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      asScalaBuffer(singletonList(InputPort(""))).toList,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema
-      .newBuilder()
-      .add(getGroupByKeysSchema(schemas).getAttributes)
-      .add(getFinalAggValueSchema.getAttributes)
-      .build()
+  def manipulateTable(): String = {
+    assert(value.nonEmpty)
+    assert(fields.nonEmpty)
+    s"""
+       |        table = table.dropna(subset = ['$value', '$fields']) #remove missing values
+       |""".stripMargin
   }
 
-  private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
-    val groupByKeys = List(this.nameColumn)
-    Schema
-      .newBuilder()
-      .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
-      .build()
+  override def numWorkers() = 1
+
+  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+    var truthy = ""
+    if (orientation) truthy = "True"
+    val finalCode = s"""
+                        |from pytexera import *
+                        |
+                        |import plotly.express as px
+                        |import pandas as pd
+                        |import plotly.graph_objects as go
+                        |import plotly.io
+                        |import json
+                        |import pickle
+                        |import plotly
+                        |
+                        |class ProcessTableOperator(UDFTableOperator):
+                        |
+                        |    # Generate custom error message as html string
+                        |    def render_error(self, error_msg) -> str:
+                        |        return '''<h1>Bar chart is not available.</h1>
+                        |                  <p>Reason is: {} </p>
+                        |               '''.format(error_msg)
+                        |
+                        |    @overrides
+                        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                        |        ${manipulateTable()}
+                        |        if not table.empty and '$fields' != '$value':
+                        |           if ($truthy):
+                        |              fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h', title='$title'))
+                        |           else:
+                        |              fig = go.Figure(px.bar(table, y='$value', x='$fields', title='$title'))
+                        |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
+                        |           # use latest plotly lib in html
+                        |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
+                        |        elif '$fields' == '$value':
+                        |           html = self.render_error('Fields should not have the same value.')
+                        |        elif table.empty:
+                        |           html = self.render_error('Table should not have any empty/null values or fields.')
+                        |        yield {'html-content':html}
+                        |        """.stripMargin
+    finalCode
   }
 
-  private def getFinalAggValueSchema: Schema = {
-    if (noDataCol) {
-      Schema
-        .newBuilder()
-        .add(resultAttributeNames.head, AttributeType.INTEGER)
-        .build()
-    } else {
-      Schema
-        .newBuilder()
-        .add(resultAttributeNames.map(key => new Attribute(key, AttributeType.DOUBLE)).toArray: _*)
-        .build()
-    }
-  }
-
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    throw new UnsupportedOperationException("multi layer operators use operatorExecutorMultiLayer")
-  }
+  // make the chart type to html visualization so it can be recognized by both backend and frontend.
+  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }
