@@ -18,7 +18,8 @@ from core.models import (
     InternalQueue,
     SenderChangeMarker,
     Tuple,
-    ExceptionInfo, State,
+    ExceptionInfo,
+    State,
 )
 from core.models.internal_queue import DataElement, ControlElement
 from core.models.payload import StateFrame
@@ -153,21 +154,27 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     for (
                         to,
                         batch,
-                    ) in self.context.tuple_to_batch_converter.tuple_to_batch(output_data):
-                        batch.schema = self.context.operator_manager.operator.output_schema
+                    ) in self.context.tuple_to_batch_converter.tuple_to_batch(
+                        output_data
+                    ):
+                        batch.schema = (
+                            self.context.operator_manager.operator.output_schema
+                        )
                         self._output_queue.put(DataElement(tag=to, payload=batch))
                 elif isinstance(output_data, State):
-
                     for (
-                            to,
-                            batch,
+                        to,
+                        batch,
                     ) in self.context.tuple_to_batch_converter.state_to_batch(
-                        output_data):
+                        output_data
+                    ):
                         # print("this batch", batch)
                         if isinstance(batch, State):
                             self._output_queue.put(DataElement(tag=to, payload=[batch]))
                         else:
-                            batch.schema = self.context.operator_manager.operator.output_schema
+                            batch.schema = (
+                                self.context.operator_manager.operator.output_schema
+                            )
                             self._output_queue.put(DataElement(tag=to, payload=batch))
                 else:
                     raise TypeError("unsupported output_data type", type(output_data))
@@ -190,6 +197,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             self._switch_context()
             yield self.context.tuple_processing_manager.get_output_state()
+
     def report_exception(self, exc_info: ExceptionInfo) -> None:
         """
         Report the traceback of current stack when an exception occurs.
@@ -218,11 +226,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _process_state(self, state: State):
         self.context.tuple_processing_manager.current_input_state = state
 
-
         self._check_and_process_control()
         self._switch_context()
         return self.context.tuple_processing_manager.get_output_tuple()
-
 
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
         self._process_tuple(input_exhausted)
@@ -314,7 +320,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     EndOfAllMarker,
                     self._process_end_of_all_marker,
                     State,
-                    self._process_state
+                    self._process_state,
                 )
             except Exception as err:
                 logger.exception(err)

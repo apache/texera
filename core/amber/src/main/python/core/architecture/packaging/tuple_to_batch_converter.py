@@ -70,15 +70,14 @@ class TupleToBatchConverter:
         )
 
     def state_to_batch(
-                self, state: State
-        ) -> Iterator[typing.Tuple[ActorVirtualIdentity, StateFrame]]:
+        self, state: State
+    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, StateFrame]]:
         return chain(
-                *(
-                    partitioner.add_state_to_batch(state)
-                    for partitioner in self._partitioners.values()
-                )
+            *(
+                partitioner.add_state_to_batch(state)
+                for partitioner in self._partitioners.values()
             )
-
+        )
 
     def emit_end_of_upstream(
         self,

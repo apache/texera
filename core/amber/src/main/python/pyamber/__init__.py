@@ -27,5 +27,5 @@ __all__ = [
     "BatchOperator",
     "TupleOperatorV2",
     "SourceOperator",
-    "State"
+    "State",
 ]

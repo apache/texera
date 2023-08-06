@@ -9,6 +9,8 @@ from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
 
 from loguru import logger
+
+
 class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
@@ -55,7 +57,7 @@ class BatchToTupleConverter:
             logger.info(f"match payload {payload}")
             key = payload.frame.column_names[0]
             value = payload.frame.column(0)[0].as_py()
-            yield State(key =key,value= value)
+            yield State(key=key, value=value)
 
         elif isinstance(payload, InputDataFrame):
             for field_accessor in ArrowTableTupleProvider(payload.frame):
@@ -72,7 +74,6 @@ class BatchToTupleConverter:
                 yield EndOfAllMarker()
 
         elif isinstance(payload, StateFrame):
-
             yield payload.frame
 
         else:

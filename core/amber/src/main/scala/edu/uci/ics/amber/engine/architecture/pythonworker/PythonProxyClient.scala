@@ -1,10 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2, DataElement}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ControlElement,
+  ControlElementV2,
+  DataElement
+}
 import edu.uci.ics.amber.engine.common.{AmberLogging, State}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV2,
+  returnInvocationToV2
+}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -88,7 +95,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           mutable.Queue(frame.map(_.asInstanceOf[Tuple]): _*)
         writeArrowStream(Left(tuples), from, isEnd = false)
       case StateFrame(state) =>
-          writeArrowStream(Right(state), from, isEnd = false)
+        writeArrowStream(Right(state), from, isEnd = false)
       case EndOfUpstream() =>
         writeArrowStream(Left(mutable.Queue()), from, isEnd = true)
     }
@@ -132,9 +139,10 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
       isEnd: Boolean
   ): Unit = {
     data match {
-      case Left(tuples)=>
+      case Left(tuples) =>
         val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
-        val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd, isMarker = false).toByteArray)
+        val descriptor =
+          FlightDescriptor.command(PythonDataHeader(from, isEnd, isMarker = false).toByteArray)
         logger.debug(
           s"sending data with descriptor ${PythonDataHeader(from, isEnd, isMarker = false)}, schema $schema, size of batch ${tuples.size}"
         )
@@ -150,16 +158,16 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
         writer.completed()
         flightListener.getResult()
         flightListener.close()
-      case Right(state)=>
-
-        val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd, isMarker = true).toByteArray)
+      case Right(state) =>
+        val descriptor =
+          FlightDescriptor.command(PythonDataHeader(from, isEnd, isMarker = true).toByteArray)
         logger.info(
           s"sending data with descriptor ${PythonDataHeader(from, isEnd, isMarker = true)}"
         )
         val flightListener = new SyncPutListener
         val fields = new util.ArrayList[Field]
         fields.add(Field.nullablePrimitive(state.key, new ArrowType.Binary))
-        val schema =   new org.apache.arrow.vector.types.pojo.Schema(fields)
+        val schema = new org.apache.arrow.vector.types.pojo.Schema(fields)
         val schemaRoot = VectorSchemaRoot.create(schema, allocator)
         val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
         schemaRoot.allocateNew()
@@ -181,8 +189,6 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
         flightListener.close()
 
     }
-
-
 
   }
 

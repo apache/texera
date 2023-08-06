@@ -32,6 +32,7 @@ class DataProcessor(Runnable, Stoppable):
         state = self._context.tuple_processing_manager.get_input_state()
         if state is not None:
             import pickle
+
             with replace_print(self._context.console_message_manager.print_buf):
                 operator.on_state_update(state.key, pickle.loads(state.value))
                 self._switch_context()
@@ -71,8 +72,9 @@ class DataProcessor(Runnable, Stoppable):
                             elif isinstance(output_data, State):
                                 self._set_output_state(output_data)
                             else:
-                                raise TypeError("unexpected output data type",
-                                                type(output_data))
+                                raise TypeError(
+                                    "unexpected output data type", type(output_data)
+                                )
                             self._switch_context()
 
                 # current tuple finished successfully
@@ -89,7 +91,7 @@ class DataProcessor(Runnable, Stoppable):
             output_tuple.finalize(self._context.operator_manager.operator.output_schema)
         self._context.tuple_processing_manager.current_output_tuple = output_tuple
 
-    def _set_output_state(self, output_state:State):
+    def _set_output_state(self, output_state: State):
         self._context.tuple_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:

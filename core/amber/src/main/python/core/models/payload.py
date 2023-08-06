@@ -27,6 +27,7 @@ class OutputDataFrame(DataPayload):
 class EndOfUpstream(DataPayload):
     pass
 
+
 @dataclass
 class StateFrame(DataPayload):
     frame: State

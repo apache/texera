@@ -46,9 +46,7 @@ class HashBasedShufflePartitioner(Partitioner):
             yield receiver, OutputDataFrame(frame=deepcopy(batch))
             batch.clear()
 
-
-        yield receiver, StateFrame(frame = state)
-
+        yield receiver, StateFrame(frame=state)
 
     @overrides
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:

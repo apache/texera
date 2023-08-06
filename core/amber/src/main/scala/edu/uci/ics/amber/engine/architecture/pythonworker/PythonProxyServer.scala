@@ -2,7 +2,10 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.common.{AmberLogging, State}
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV1, returnInvocationToV1}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV1,
+  returnInvocationToV1
+}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -87,19 +90,18 @@ private class AmberProducer(
       assert(root.getRowCount == 0)
       dataOutputPort.sendTo(to, EndOfUpstream())
     } else {
-      if (dataHeader.isMarker){
-        val vector:FieldVector = root.getFieldVectors.get(0)
-          val value: Array[Byte] = vector.getObject(0).asInstanceOf[Array[Byte]]
+      if (dataHeader.isMarker) {
+        val vector: FieldVector = root.getFieldVectors.get(0)
+        val value: Array[Byte] = vector.getObject(0).asInstanceOf[Array[Byte]]
         println("got a state marker", State(vector.getName, value))
-        dataOutputPort.sendTo(to, StateFrame(state =State(vector.getName, value)))
-      }else{
+        dataOutputPort.sendTo(to, StateFrame(state = State(vector.getName, value)))
+      } else {
         // normal data batches
         val queue = mutable.Queue[Tuple]()
         for (i <- 0 until root.getRowCount)
           queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
         dataOutputPort.sendTo(to, DataFrame(queue.toArray))
       }
-
 
     }
 

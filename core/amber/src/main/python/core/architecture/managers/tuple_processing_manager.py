@@ -12,8 +12,8 @@ class TupleProcessingManager:
         self.current_input_tuple_iter: Optional[
             Iterator[Union[Tuple, InputExhausted]]
         ] = None
-        self.current_input_state :Optional[State] = None
-        self.current_output_state :Optional[State] = None
+        self.current_input_state: Optional[State] = None
+        self.current_output_state: Optional[State] = None
         self.current_output_tuple: Optional[Tuple] = None
         self.input_link_map: Mapping[LinkIdentity, int] = dict()
         self.context_switch_condition: Condition = Condition()
@@ -26,7 +26,6 @@ class TupleProcessingManager:
     def get_output_state(self) -> Optional[State]:
         ret, self.current_output_state = self.current_output_state, None
         return ret
-
 
     def get_input_state(self) -> Optional[State]:
         ret, self.current_input_state = self.current_input_state, None

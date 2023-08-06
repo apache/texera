@@ -48,7 +48,7 @@ class Operator(ABC):
     @output_schema.setter
     @overrides.final
     def output_schema(
-            self, raw_output_schema: Union[Schema, Mapping[str, str]]
+        self, raw_output_schema: Union[Schema, Mapping[str, str]]
     ) -> None:
         self.__internal_output_schema = (
             raw_output_schema
@@ -69,9 +69,9 @@ class Operator(ABC):
         """
         pass
 
-
-    def on_state_update(self, key, value)->None:
+    def on_state_update(self, key, value) -> None:
         self.__dict__[key] = value
+
 
 class TupleOperatorV2(Operator):
     """
@@ -153,8 +153,8 @@ class BatchOperator(TupleOperatorV2):
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         self.__batch_data[port].append(tuple_)
         if (
-                self.BATCH_SIZE is not None
-                and len(self.__batch_data[port]) >= self.BATCH_SIZE
+            self.BATCH_SIZE is not None
+            and len(self.__batch_data[port]) >= self.BATCH_SIZE
         ):
             yield from self._process_batch(port)
 
@@ -241,7 +241,7 @@ class TupleOperator(Operator):
 
     @abstractmethod
     def process_tuple(
-            self, tuple_: Union[Tuple, InputExhausted], input_: int
+        self, tuple_: Union[Tuple, InputExhausted], input_: int
     ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
