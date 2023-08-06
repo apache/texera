@@ -3,7 +3,7 @@ import { NzModalRef } from "ng-zorro-antd/modal";
 import { trimDisplayJsonData } from "src/app/common/util/json";
 import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
-import { untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  *
@@ -18,6 +18,7 @@ import { untilDestroyed } from "@ngneat/until-destroy";
  *  3. Clicking any shaded area that is not the pop-up window
  *  4. Pressing `Esc` button on the keyboard
  */
+@UntilDestroy()
 @Component({
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
