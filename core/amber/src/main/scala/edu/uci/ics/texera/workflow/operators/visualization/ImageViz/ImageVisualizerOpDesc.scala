@@ -24,10 +24,10 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Binary Content")
+  @JsonSchemaTitle("image content column")
   @JsonPropertyDescription("The Binary data of the Image")
   @AutofillAttributeName
-  var BinaryContent: String = _
+  var binaryContent: String = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -36,7 +36,7 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Image Visualizer",
-      "Visualize binary of an image",
+      "visualize image content",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -45,9 +45,9 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
   override def numWorkers() = 1
 
   def createBinaryData(): String = {
-    assert(BinaryContent.nonEmpty)
+    assert(binaryContent.nonEmpty)
     s"""
-       |        binary_image_data = tuple_['$BinaryContent']
+       |        binary_image_data = tuple_['$binaryContent']
        |""".stripMargin
   }
 
