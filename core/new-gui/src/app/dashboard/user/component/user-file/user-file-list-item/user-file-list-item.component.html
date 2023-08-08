@@ -47,6 +47,7 @@
           class="file-is-owner-icon"
           nz-tooltip
           nzTooltipTitle="You are the OWNER"
+          nzTooltipPlacement="bottom"
           nz-icon
           nzTheme="outline"
           nzType="user"></i>
@@ -54,6 +55,7 @@
           *ngIf="entry.file.ownerUid !== uid"
           nz-tooltip
           nzTooltipTitle="Access shared by {{ entry.ownerEmail }}"
+          nzTooltipPlacement="bottom"
           nz-icon
           nzTheme="outline"
           nzType="team"></i>

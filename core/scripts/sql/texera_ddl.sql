@@ -15,8 +15,8 @@ DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
 
-SET GLOBAL time_zone = '+00:00'; -- this line is mandatory
-SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
+SET PERSIST time_zone = '+00:00'; -- this line is mandatory
+SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
 
 CREATE TABLE IF NOT EXISTS user
 (
@@ -175,6 +175,14 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS public_project
+(
+    `pid`             INT UNSIGNED NOT NULL,
+    `uid`             INT UNSIGNED,
+    PRIMARY KEY (`pid`),
+    FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 -- create fulltext search indexes

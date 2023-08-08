@@ -9,6 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -46,6 +47,7 @@ public class Indexes {
     public static final Index PROJECT_PRIMARY = Indexes0.PROJECT_PRIMARY;
     public static final Index PROJECT_USER_ACCESS_PID = Indexes0.PROJECT_USER_ACCESS_PID;
     public static final Index PROJECT_USER_ACCESS_PRIMARY = Indexes0.PROJECT_USER_ACCESS_PRIMARY;
+    public static final Index PUBLIC_PROJECT_PRIMARY = Indexes0.PUBLIC_PROJECT_PRIMARY;
     public static final Index USER_EMAIL = Indexes0.USER_EMAIL;
     public static final Index USER_GOOGLE_ID = Indexes0.USER_GOOGLE_ID;
     public static final Index USER_IDX_USER_NAME = Indexes0.USER_IDX_USER_NAME;
@@ -84,6 +86,7 @@ public class Indexes {
         public static Index PROJECT_PRIMARY = Internal.createIndex("PRIMARY", Project.PROJECT, new OrderField[] { Project.PROJECT.PID }, true);
         public static Index PROJECT_USER_ACCESS_PID = Internal.createIndex("pid", ProjectUserAccess.PROJECT_USER_ACCESS, new OrderField[] { ProjectUserAccess.PROJECT_USER_ACCESS.PID }, false);
         public static Index PROJECT_USER_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", ProjectUserAccess.PROJECT_USER_ACCESS, new OrderField[] { ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID }, true);
+        public static Index PUBLIC_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", PublicProject.PUBLIC_PROJECT, new OrderField[] { PublicProject.PUBLIC_PROJECT.PID }, true);
         public static Index USER_EMAIL = Internal.createIndex("email", User.USER, new OrderField[] { User.USER.EMAIL }, true);
         public static Index USER_GOOGLE_ID = Internal.createIndex("google_id", User.USER, new OrderField[] { User.USER.GOOGLE_ID }, true);
         public static Index USER_IDX_USER_NAME = Internal.createIndex("idx_user_name", User.USER, new OrderField[] { User.USER.NAME }, false);

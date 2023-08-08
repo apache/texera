@@ -155,6 +155,17 @@
     nz-list-item-actions
     *ngIf="editable">
     <nz-list-item-action>
+      <div
+        nz-col
+        *ngIf="isAdmin">
+        <nz-switch
+          [ngModel]="isPublic"
+          nzCheckedChildren="Public"
+          nzUnCheckedChildren="Private"
+          (ngModelChange)="visibilityChange()"></nz-switch>
+      </div>
+    </nz-list-item-action>
+    <nz-list-item-action>
       <button
         (click)="onClickOpenShareAccess()"
         nz-button
@@ -171,6 +182,7 @@
     </nz-list-item-action>
     <nz-list-item-action>
       <button
+        [disabled]="entry.accessLevel === 'READ'"
         (nzOnConfirm)="deleted.emit()"
         nz-button
         nz-popconfirm

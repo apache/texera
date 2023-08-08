@@ -281,28 +281,6 @@
             nzTheme="twotone"
             nzType="stop"></i>
         </button>
-        <button
-          *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator || ! operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable"
-          (click)="operatorMenu.cacheHighlightedOperators()"
-          nz-button
-          title="cache operators">
-          <i
-            nz-icon
-            nzType="database"
-            nzTheme="outline"></i>
-        </button>
-        <button
-          *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable"
-          (click)="operatorMenu.cacheHighlightedOperators()"
-          nz-button
-          title="operators cached, click to remove cache">
-          <i
-            nz-icon
-            nzType="database"
-            nzTheme="twotone"></i>
-        </button>
       </nz-button-group>
     </div>
     <div
@@ -314,11 +292,6 @@
 					executionState !== ExecutionState.Aborted
 			}">
       <nz-button-group nzSize="large">
-        <label class="execution-name">
-          <input
-            [(ngModel)]="currentExecutionName"
-            placeholder="Untitled Execution" />
-        </label>
         <button
           [disabled]="true"
           class="execution-duration"
@@ -368,6 +341,11 @@
         </button>
         <button
           (click)="onClickRunHandler()"
+          nz-popover
+          nzPopoverTitle="Enter Execution Name"
+          [nzPopoverTrigger]="userSystemEnabled?'hover':null"
+          [nzPopoverContent]="execution_name"
+          nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           class="texera-navigation-run-button animate-to-reveal-stop-button"
           nz-button
@@ -379,6 +357,12 @@
             nzType="{{ runIcon }}"></i>
           <span> {{ runButtonText }} </span>
         </button>
+        <ng-template #execution_name>
+          <input
+            [(ngModel)]="currentExecutionName"
+            placeholder="Untitled Execution" />
+        </ng-template>
+
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
             *ngIf="workflowWebsocketService.isConnected"

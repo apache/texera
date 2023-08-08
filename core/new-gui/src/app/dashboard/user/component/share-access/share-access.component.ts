@@ -9,8 +9,6 @@ import { UserService } from "../../../../common/service/user/user.service";
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
-  styleUrls: ["share-access.component.scss"],
-  providers: [{ provide: "type", useValue: "workflow" }],
 })
 export class ShareAccessComponent implements OnInit {
   @Input() writeAccess!: boolean;
@@ -76,6 +74,11 @@ export class ShareAccessComponent implements OnInit {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+      .subscribe(() => {
+        if (this.currentEmail === userToRemove) {
+          this.activeModal.close();
+        }
+        this.ngOnInit();
+      });
   }
 }

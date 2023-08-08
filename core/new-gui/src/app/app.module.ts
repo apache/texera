@@ -125,12 +125,14 @@ import { UserFileListItemComponent } from "./dashboard/user/component/user-file/
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
+import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
     NavigationComponent,

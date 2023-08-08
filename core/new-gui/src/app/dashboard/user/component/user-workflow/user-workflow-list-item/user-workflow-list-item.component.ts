@@ -65,7 +65,7 @@ export class UserWorkflowListItemComponent {
     private userProjectService: UserProjectService
   ) {
     this.userProjectService
-      .retrieveProjectList()
+      .getProjectList()
       .pipe(untilDestroyed(this))
       .subscribe(userProjectsList => {
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
@@ -134,6 +134,7 @@ export class UserWorkflowListItemComponent {
             wid: undefined,
             creationTime: undefined,
             lastModifiedTime: undefined,
+            readonly: false,
           };
           const workflowJson = JSON.stringify(workflowCopy.content);
           const fileName = workflowCopy.name + ".json";

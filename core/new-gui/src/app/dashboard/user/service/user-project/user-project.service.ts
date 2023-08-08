@@ -1,16 +1,16 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../type/dashboard-file.interface";
 import { DashboardProject } from "../../type/dashboard-project.interface";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 export const USER_PROJECT_BASE_URL = `${AppSettings.getApiEndpoint()}/project`;
 export const USER_PROJECT_LIST_URL = `${USER_PROJECT_BASE_URL}/list`;
 export const DELETE_PROJECT_URL = `${USER_PROJECT_BASE_URL}/delete`;
 export const CREATE_PROJECT_URL = `${USER_PROJECT_BASE_URL}/create`;
-
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 
@@ -19,24 +19,11 @@ export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 })
 export class UserProjectService {
   private files: ReadonlyArray<DashboardFile> = [];
-  private projects = new BehaviorSubject<DashboardProject[]>([]);
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private notificationService: NotificationService) {}
 
-  public refreshProjectList(): void {
-    this.http
-      .get<DashboardProject[]>(`${USER_PROJECT_LIST_URL}`)
-      .pipe()
-      // Pass through the result but without completing the long-lived BehaviorSubject.
-      .subscribe({
-        next: p => this.projects.next(p),
-        error: (p: unknown) => this.projects.error(p),
-        complete: () => {},
-      });
-  }
-
-  public retrieveProjectList(): Observable<DashboardProject[]> {
-    return this.projects.asObservable();
+  public getProjectList(): Observable<DashboardProject[]> {
+    return this.http.get<DashboardProject[]>(`${USER_PROJECT_LIST_URL}`);
   }
 
   public retrieveWorkflowsOfProject(pid: number): Observable<DashboardWorkflow[]> {
@@ -90,19 +77,7 @@ export class UserProjectService {
   }
 
   public updateProjectColor(pid: number, colorHex: string): Observable<Response> {
-    const observable = this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/color/${colorHex}/add`, {});
-    observable.subscribe({
-      next: () => {
-        const existingProject = this.projects.value.find(i => i.pid === pid);
-        if (existingProject) {
-          existingProject.color = colorHex;
-          this.projects.next(this.projects.value); // Inform subscribers (such as UserWorkflowListItemComponent) of color change.
-        } else {
-          this.retrieveProjectList();
-        }
-      },
-    });
-    return observable;
+    return this.http.post<Response>(`${USER_PROJECT_BASE_URL}/${pid}/color/${colorHex}/add`, {});
   }
 
   public deleteProjectColor(pid: number): Observable<Response> {

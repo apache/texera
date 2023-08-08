@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READ
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler, WorkflowRewriter}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
@@ -22,7 +22,6 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 class WorkflowJobService(
     workflowContext: WorkflowContext,
     wsInput: WebsocketInput,
-    operatorCache: WorkflowCacheService,
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
     errorHandler: Throwable => Unit,
@@ -41,10 +40,10 @@ class WorkflowJobService(
     val conf = ControllerConfig.default
     if (
       logicalPlan.operators.exists {
-        case x: DualInputPortsPythonUDFOpDescV2 => true
-        case x: PythonUDFOpDescV2               => true
-        case x: PythonUDFSourceOpDescV2         => true
-        case other                              => false
+        case _: DualInputPortsPythonUDFOpDescV2 => true
+        case _: PythonUDFOpDescV2               => true
+        case _: PythonUDFSourceOpDescV2         => true
+        case _                                  => false
       }
     ) {
       conf.supportFaultTolerance = false
@@ -103,28 +102,7 @@ class WorkflowJobService(
   }
 
   private[this] def createLogicalPlan(): LogicalPlan = {
-    var logicalPlan = LogicalPlan(request.logicalPlan)
-    if (WorkflowCacheService.isAvailable) {
-      logger.debug(
-        s"Cached operators: ${operatorCache.cachedOperators} with ${logicalPlan.cachedOperatorIds}"
-      )
-      val workflowRewriter = new WorkflowRewriter(
-        logicalPlan,
-        operatorCache.cachedOperators,
-        operatorCache.cacheSourceOperators,
-        operatorCache.cacheSinkOperators,
-        operatorCache.operatorRecord,
-        resultService.opResultStorage
-      )
-      val newWorkflowInfo = workflowRewriter.rewrite
-      val oldWorkflowInfo = logicalPlan
-      logicalPlan = newWorkflowInfo
-      logicalPlan.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
-      logger.info(
-        s"Rewrite the original workflow: $oldWorkflowInfo to be: $logicalPlan"
-      )
-    }
-    logicalPlan
+    LogicalPlan(request.logicalPlan)
   }
 
   private[this] def createWorkflowCompiler(
