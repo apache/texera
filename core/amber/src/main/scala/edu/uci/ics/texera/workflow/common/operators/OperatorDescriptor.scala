@@ -18,7 +18,6 @@ import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.download.BulkDownloaderOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
-import edu.uci.ics.texera.workflow.operators.ifstatement.IfStatementOpDesc
 import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
 import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
@@ -32,12 +31,18 @@ import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
+  TwitterFullArchiveSearchSourceOpDesc,
+  TwitterSearchSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csvOld.CSVOldScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.scan.text.{TextInputSourceOpDesc, TextScanSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.scan.text.{
+  TextInputSourceOpDesc,
+  TextScanSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSourceOpDesc
@@ -45,7 +50,12 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
+import edu.uci.ics.texera.workflow.operators.udf.python.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonLambdaFunctionOpDesc,
+  PythonTableReducerOpDesc,
+  PythonUDFOpDescV2
+}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
@@ -139,8 +149,7 @@ trait StateTransferFunc
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
     new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeries"),
-    new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
-    new Type(value = classOf[IfStatementOpDesc], name = "IfStatement")
+    new Type(value = classOf[GanttChartOpDesc], name = "GanttChart")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
