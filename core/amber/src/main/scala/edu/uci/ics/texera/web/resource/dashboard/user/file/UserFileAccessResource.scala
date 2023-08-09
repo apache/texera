@@ -61,7 +61,7 @@ object UserFileAccessResource {
         .fetchExists(
           context
             .selectFrom(FILE_OF_WORKFLOW)
-            .where(FILE_OF_WORKFLOW.WID.eq(wid).and(FILE_OF_WORKFLOW.FID.eq(fid)))
+            .where(FILE_OF_WORKFLOW.FID.eq(fid))
         )
     ) {
       file_of_workflowDao.merge(new FileOfWorkflow(fid, wid))
