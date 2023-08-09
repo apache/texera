@@ -69,6 +69,8 @@
   (keyup.enter)="disconnectQuillFromText()"></div>
 
 <form
+  nz-form
+  [nzLayout]="'vertical'"
   *ngIf="formlyFields && formlyFormGroup"
   [formGroup]="formlyFormGroup"
   class="texera-workspace-property-editor-form">
