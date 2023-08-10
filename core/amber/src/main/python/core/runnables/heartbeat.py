@@ -1,5 +1,5 @@
 from overrides import overrides
-from threading import Condition
+from threading import Event
 from loguru import logger
 
 from core.util.runnable.runnable import Runnable
@@ -13,22 +13,24 @@ import urllib.parse
 
 
 class Heartbeat(Runnable, Stoppable):
-    def __init__(self, host: str, output_port: int, condition: Condition):
+    def __init__(
+        self,
+        host: str,
+        output_port: int,
+        interval: float,
+        event: Event,
+    ):
         self._original_parent_pid = os.getppid()
         server_url = urllib.parse.urlparse(f"grpc+tcp://{host}:{output_port}")
         self._parsed_server_host = server_url.hostname
         self._parsed_server_port = server_url.port
         self._unexpected_stop = False
-        self._heartbeat_wakeup_condition = condition
+        self._interval = interval
+        self._stop_event = event
 
     @overrides
     def run(self) -> None:
-        pass
-
-    def start_heartbeat(
-        self, interval, network_sender_thread, main_loop_thread
-    ) -> None:
-        while network_sender_thread.is_alive() and main_loop_thread.is_alive():
+        while not self._stop_event.wait(timeout=self._interval):
             try:
                 # try to connect to the server via socket
                 temp_socket = socket.create_connection(
@@ -39,8 +41,7 @@ class Heartbeat(Runnable, Stoppable):
                 logger.warning(f"Server is down with exception: {e}")
                 self._unexpected_stop = True
                 break
-            with self._heartbeat_wakeup_condition:
-                self._heartbeat_wakeup_condition.wait(interval)
+
         try:
             socket.create_connection(
                 (self._parsed_server_host, self._parsed_server_port), timeout=1
