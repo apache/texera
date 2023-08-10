@@ -4,8 +4,11 @@ import akka.actor.{Actor, Address}
 import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
 import com.twitter.util.{Await, Future}
+import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
+import edu.uci.ics.texera.web.SessionState
+import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.ABORTED
 
@@ -13,6 +16,7 @@ import scala.collection.mutable.ArrayBuffer
 
 object ClusterListener {
   final case class GetAvailableNodeAddresses()
+  var numWorkerNodesInCluster = 0
 }
 
 class ClusterListener extends Actor with AmberLogging {
@@ -91,9 +95,14 @@ class ClusterListener extends Actor with AmberLogging {
     }
 
     val addr = getAllAddressExcludingMaster
-    Constants.currentWorkerNum = addr.size * Constants.numWorkerPerNode
+    numWorkerNodesInCluster = addr.size
+    SessionState.getAllSessionStates.foreach { state =>
+      state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
+    }
+
+    Constants.currentWorkerNum = numWorkerNodesInCluster * Constants.numWorkerPerNode
     logger.info(
-      "---------Now we have " + addr.size + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
+      "---------Now we have " + numWorkerNodesInCluster + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
     )
 
   }
