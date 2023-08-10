@@ -12,6 +12,5 @@ case class WorkflowExecuteRequest(
 case class LogicalPlanPojo(
     operators: List[OperatorDescriptor],
     links: List[OperatorLink],
-    breakpoints: List[BreakpointInfo],
-    var cachedOperatorIds: List[String]
+    breakpoints: List[BreakpointInfo]
 )
