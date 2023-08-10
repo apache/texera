@@ -45,11 +45,12 @@ class Heartbeat(Runnable, Stoppable):
                         parent_status = "NOT FOUND"
 
                     logger.warning(
-                        f"Parent process PID {self._original_parent_pid} runs unusually."
+                        f"Parent process PID {self._original_parent_pid} "
+                        "runs unusually."
                         + (
                             f" Parent PID changed to {parent_pid}."
                             if parent_pid != self._original_parent_pid
-                            else f" Parent PID hasn't changed."
+                            else " Parent PID hasn't changed."
                         )
                         + f" Original parent process Status: {parent_status}"
                     )
