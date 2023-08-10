@@ -56,6 +56,10 @@ class Heartbeat(Runnable, Stoppable):
                     self.stop()
                     return
 
+        # If JVM crashed and main loop and network sender threads stop, we need
+        # to add this line:
+        # self.stop()
+
     def _check_heartbeat(self) -> bool:
         """
         Attempt to connect to JVM on the specific port. If succeeds, it means the
@@ -65,9 +69,10 @@ class Heartbeat(Runnable, Stoppable):
         :return: bool, indicating if the socket is available.
         """
         try:
-            socket.create_connection(
+            temp_socket = socket.create_connection(
                 (self._parsed_server_host, self._parsed_server_port), timeout=1
             )
+            temp_socket.close()
             return True
         except Exception as e:
             logger.warning(f"Server is down with exception: {e}")
