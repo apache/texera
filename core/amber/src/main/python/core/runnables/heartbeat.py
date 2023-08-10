@@ -24,52 +24,54 @@ class Heartbeat(Runnable, Stoppable):
         server_url = urllib.parse.urlparse(f"grpc+tcp://{host}:{output_port}")
         self._parsed_server_host = server_url.hostname
         self._parsed_server_port = server_url.port
-        self._unexpected_stop = False
         self._interval = interval
         self._stop_event = event
 
     @overrides
     def run(self) -> None:
         while not self._stop_event.wait(timeout=self._interval):
-            try:
-                # try to connect to the server via socket
-                temp_socket = socket.create_connection(
-                    (self._parsed_server_host, self._parsed_server_port), timeout=1
-                )
-                temp_socket.close()
-            except Exception as e:
-                logger.warning(f"Server is down with exception: {e}")
-                self._unexpected_stop = True
-                break
+            alive = self._check_heartbeat()
+            if not alive:
+                # double check
+                still_alive = self._check_heartbeat()
 
+                if not still_alive:
+                    parent_pid = os.getppid()
+                    try:
+                        parent_status = psutil.Process(
+                            self._original_parent_pid
+                        ).status()
+                    except Exception:
+                        parent_status = "NOT FOUND"
+
+                    logger.warning(
+                        f"Parent process PID {self._original_parent_pid} runs unusually."
+                        + (
+                            f" Parent PID changed to {parent_pid}."
+                            if parent_pid != self._original_parent_pid
+                            else f" Parent PID hasn't changed."
+                        )
+                        + f" Original parent process Status: {parent_status}"
+                    )
+                    self.stop()
+                    return
+
+    def _check_heartbeat(self) -> bool:
+        """
+        Attempt to connect to JVM on the specific port. If succeeds, it means the
+        socket is still available and the JVM is still alive. Otherwise, the JVM
+        might have been gone.
+
+        :return: bool, indicating if the socket is available.
+        """
         try:
             socket.create_connection(
                 (self._parsed_server_host, self._parsed_server_port), timeout=1
             )
+            return True
         except Exception as e:
             logger.warning(f"Server is down with exception: {e}")
-            self._unexpected_stop = True
-
-        if self._unexpected_stop:
-            parent_pid = os.getppid()
-            parent_status = "NOT FOUND"
-            try:
-                parent_status = psutil.Process(self._original_parent_pid).status()
-            except Exception:
-                pass
-            if parent_pid != self._original_parent_pid:
-                logger.info(
-                    f"Parent process PID {self._original_parent_pid} runs unusually."
-                    f" Parent PID changed to {parent_pid}."
-                    f" Original parent process Status: {parent_status}"
-                )
-            else:
-                logger.warning(
-                    f"Parent process PID {self._original_parent_pid} runs unusually."
-                    f" Parent PID hasn't changed."
-                    f" Original parent process Status: {parent_status}"
-                )
-            self.stop()
+            return False
 
     @overrides
     def stop(self):
