@@ -35,7 +35,10 @@ export interface WorkflowExecuteRequest
     logicalPlan: LogicalPlan;
   }> {}
 
-export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
+export interface RegisterWIdEvent
+  extends Readonly<{
+    message: string;
+  }> {}
 
 export interface TexeraConstraintViolation
   extends Readonly<{
@@ -150,6 +153,10 @@ export type ExecutionDurationUpdateEvent = Readonly<{
   isRunning: boolean;
 }>;
 
+export type ClusterStatusUpdateEvent = Readonly<{
+  numWorkers: number;
+}>;
+
 export type ModifyLogicResponse = Readonly<{
   opId: string;
   isValid: boolean;
@@ -209,6 +216,7 @@ export type TexeraWebsocketEventTypeMap = {
   ModifyLogicResponse: ModifyLogicResponse;
   ModifyLogicCompletedEvent: ModifyLogicCompletedEvent;
   ExecutionDurationUpdateEvent: ExecutionDurationUpdateEvent;
+  ClusterStatusUpdateEvent: ClusterStatusUpdateEvent;
 };
 
 // helper type definitions to generate the request and event types
