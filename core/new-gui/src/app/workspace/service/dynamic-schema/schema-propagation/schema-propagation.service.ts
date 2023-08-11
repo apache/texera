@@ -205,7 +205,7 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    const getAttrNames = (v: CustomJSONSchema7): string[] | undefined => {
+    const getAttrNames = (attrName: string, v: CustomJSONSchema7): string[] | undefined => {
       const i = v.autofillAttributeOnPort;
       if (i === undefined || i === null || !Number.isInteger(i) || i >= inputAttributes.length) {
         return undefined;
@@ -223,7 +223,7 @@ export class SchemaPropagationService {
       // https://github.com/ajv-validator/ajv/issues/1471
       // the null -> "" change is done by Ajv.validate() with useDefault set to true.
       // It is converted during the property editor form initialization and workflow validation, instead of during schema propagation.
-      if (v.title && !operatorSchema.jsonSchema.required?.includes(v.title)) {
+      if (!operatorSchema.jsonSchema.required?.includes(attrName)) {
         if (v.default) {
           if (typeof v.default !== "string") {
             throw new Error("default value must be a string");
@@ -241,10 +241,10 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeName",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "string",
-        enum: getAttrNames(old),
+        enum: getAttrNames(attrName, old),
         uniqueItems: true,
       })
     );
@@ -252,14 +252,14 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeNameList",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "array",
         uniqueItems: true,
         items: {
           ...(old.items as CustomJSONSchema7),
           type: "string",
-          enum: getAttrNames(old),
+          enum: getAttrNames(attrName, old),
         },
       })
     );
@@ -276,7 +276,7 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeName",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "string",
         enum: undefined,
@@ -287,7 +287,7 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeNameList",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "array",
         uniqueItems: undefined,
