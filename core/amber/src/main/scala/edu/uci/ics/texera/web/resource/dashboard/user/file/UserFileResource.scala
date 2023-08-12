@@ -92,11 +92,11 @@ class UserFileResource {
 
   @GET
   @Path("/list")
-  def getFileList(@Auth sessionUser: SessionUser): util.List[DashboardFile] = {
+  def getFileList(@Auth sessionUser: SessionUser): List[DashboardFile] = {
     getFileRecord(sessionUser.getUser)
   }
 
-  private def getFileRecord(user: User): util.List[DashboardFile] = {
+  private def getFileRecord(user: User): List[DashboardFile] = {
     val fids: mutable.ArrayBuffer[UInteger] = mutable.ArrayBuffer()
     val fileEntries: mutable.ArrayBuffer[DashboardFile] = mutable.ArrayBuffer()
     context
@@ -137,40 +137,23 @@ class UserFileResource {
           )
         }
       })
-    fileEntries.toList.asJava
+    fileEntries.toList
   }
 
   @GET
   @Path("/autocomplete/{query:.*}")
   def autocompleteUserFiles(
-      @Auth sessionUser: SessionUser,
+      @Auth user: SessionUser,
       @PathParam("query") q: String
-  ): util.List[String] = {
-    // get the user files
-    // select the filenames that applies the input
+  ): List[String] = {
     val query = URLDecoder.decode(q, "UTF-8")
-    val user = sessionUser.getUser
-    val fileList: List[DashboardFile] = getFileRecord(user).asScala.toList
-    val filenames = ArrayBuffer[String]()
-    val username = user.getEmail
-    // get all the filename list
-    for (i <- fileList) {
-      filenames += i.file.getName
+    val result = ArrayBuffer[String]()
+    for (f <- getFileRecord(user.getUser)) {
+      val fullPath = f.ownerEmail + "/" + f.file.getName
+      if (fullPath.contains(query) || query.isEmpty)
+        result += fullPath
     }
-    // select the filenames that apply
-    val selectedByFile = ArrayBuffer[String]()
-    val selectedByUsername = ArrayBuffer[String]()
-    val selectedByFullPath = ArrayBuffer[String]()
-    for (e <- filenames) {
-      val fullPath = username + "/" + e
-      if (e.contains(query) || query.isEmpty)
-        selectedByFile += (username + "/" + e)
-      else if (username.contains(query))
-        selectedByUsername += (username + "/" + e)
-      else if (fullPath.contains(query))
-        selectedByFullPath += (username + "/" + e)
-    }
-    (selectedByFile ++ selectedByUsername ++ selectedByFullPath).toList.asJava
+    result.toList
   }
 
   @DELETE
