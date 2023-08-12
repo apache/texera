@@ -61,6 +61,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -126,6 +127,7 @@ trait StateTransferFunc
     new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin"),
     new Type(value = classOf[UnnestStringOpDesc], name = "UnnestString"),
     new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher"),
+    new Type(value = classOf[IfStatementOpDesc], name = "IfStatement"),
     new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions"),
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
@@ -140,7 +142,7 @@ trait StateTransferFunc
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
     new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeries"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
-    new Type(value = classOf[IfStatementOpDesc], name = "IfStatement")
+    new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
