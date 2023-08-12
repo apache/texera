@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
@@ -23,18 +28,20 @@ class ProcessTableOperator(UDFTableOperator):
 """
   }
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    OpExecConfig.manyToOneLayer(operatorIdentifier, _ => new IfStatementOpExec())
+    OpExecConfig
+      .manyToOneLayer(operatorIdentifier, _ => new IfStatementOpExec())
       .copy(blockingInputs = List(0), dependency = Map(1 -> 0))
   }
 
-
   override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
-    val firstLayer = OpExecConfig.manyToOneLayer(operatorIdentifier, _ =>
-      new PythonUDFOpExecV2(generatePythonCode, operatorSchemaInfo.outputSchemas.head))
+    val firstLayer = OpExecConfig.manyToOneLayer(
+      operatorIdentifier,
+      _ => new PythonUDFOpExecV2(generatePythonCode, operatorSchemaInfo.outputSchemas.head)
+    )
 
-    val finalLayer = OpExecConfig.manyToOneLayer(operatorIdentifier, _ =>
-        new IfStatementOpExec())
-        .copy(blockingInputs = List(0), dependency = Map(1 -> 0))
+    val finalLayer = OpExecConfig
+      .manyToOneLayer(operatorIdentifier, _ => new IfStatementOpExec())
+      .copy(blockingInputs = List(0), dependency = Map(1 -> 0))
 
     new PhysicalPlan(
       List(firstLayer, finalLayer),

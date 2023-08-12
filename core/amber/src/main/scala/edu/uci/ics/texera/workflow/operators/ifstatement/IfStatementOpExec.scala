@@ -10,11 +10,11 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 class IfStatementOpExec() extends OperatorExecutor {
   var port = 0
   override def processTuple(
-                             tuple: Either[ITuple, InputExhausted],
-                             input: Int,
-                             pauseManager: PauseManager,
-                             asyncRPCClient: AsyncRPCClient
-                           ): Iterator[(ITuple, Option[Int])] = {
+      tuple: Either[ITuple, InputExhausted],
+      input: Int,
+      pauseManager: PauseManager,
+      asyncRPCClient: AsyncRPCClient
+  ): Iterator[(ITuple, Option[Int])] = {
     tuple match {
       case Left(t) =>
         input match {
@@ -29,10 +29,14 @@ class IfStatementOpExec() extends OperatorExecutor {
 
   }
 
-
   override def open(): Unit = {}
 
   override def close(): Unit = {}
 
-  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: Int, pauseManager: PauseManager, asyncRPCClient: AsyncRPCClient): Iterator[Tuple] = ???
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: Int,
+      pauseManager: PauseManager,
+      asyncRPCClient: AsyncRPCClient
+  ): Iterator[Tuple] = ???
 }
