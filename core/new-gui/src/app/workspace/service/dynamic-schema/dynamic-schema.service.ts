@@ -175,7 +175,7 @@ export class DynamicSchemaService {
   public static mutateProperty(
     jsonSchemaToChange: CustomJSONSchema7,
     matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
-    mutationFunc: (propertyValue: CustomJSONSchema7) => CustomJSONSchema7
+    mutationFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => CustomJSONSchema7
   ): CustomJSONSchema7 {
     // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
@@ -190,7 +190,7 @@ export class DynamicSchemaService {
             return;
           }
           if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
-            objectProperty[propertyName] = mutationFunc(propertyValue as CustomJSONSchema7);
+            objectProperty[propertyName] = mutationFunc(propertyName, propertyValue as CustomJSONSchema7);
           } else {
             mutatePropertyRecurse(propertyValue);
           }
