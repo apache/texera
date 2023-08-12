@@ -23,6 +23,7 @@ import java.text.{ParseException, SimpleDateFormat}
 import java.util
 import java.util.Collections
 import javax.ws.rs.BadRequestException
+import scala.collection.convert.ImplicitConversions.`collection asJava`
 
 class WorkflowResourceSpec
     extends AnyFlatSpec

@@ -22,12 +22,10 @@ import org.jooq.types.UInteger
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.file.{Files, Paths}
-import java.util
 import java.util.UUID
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
