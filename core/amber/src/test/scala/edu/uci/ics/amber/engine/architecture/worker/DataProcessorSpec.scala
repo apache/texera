@@ -134,7 +134,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, "")
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -178,7 +178,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, "")
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -234,7 +234,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, "")
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -271,7 +271,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, "")
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -306,7 +306,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "process only control commands while paused" in {
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, "")
     (operator.open _).expects().once()
     val actorContext: ActorContext = null
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
@@ -403,7 +403,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       }
     }
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, "")
 
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)

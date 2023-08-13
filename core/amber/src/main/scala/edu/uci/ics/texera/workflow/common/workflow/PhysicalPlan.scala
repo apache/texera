@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
+import edu.uci.ics.texera.workflow.common.metadata.InputPort
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -59,6 +60,28 @@ case class PhysicalPlan(
   def getSourceOperators: List[LayerIdentity] = this.sourceOperators
 
   def getSinkOperators: List[LayerIdentity] = this.sinkOperators
+
+  def findLayerForInputPort(opName: OperatorIdentity, portName: String): LayerIdentity = {
+    val candidateLayers = layersOfLogicalOperator(opName).filter(op =>
+      op.inputPorts.map(_.displayName).contains(portName)
+    )
+    assert(
+      candidateLayers.size == 1,
+      s"find no or multiple input port with name = $portName for operator $opName"
+    )
+    candidateLayers.head.id
+  }
+
+  def findLayerForOutputPort(opName: OperatorIdentity, portName: String): LayerIdentity = {
+    val candidateLayers = layersOfLogicalOperator(opName).filter(op =>
+      op.outputPorts.map(_.displayName).contains(portName)
+    )
+    assert(
+      candidateLayers.size == 1,
+      s"find no or multiple output port with name = $portName for operator $opName"
+    )
+    candidateLayers.head.id
+  }
 
   def layersOfLogicalOperator(opId: OperatorIdentity): List[OpExecConfig] = {
     topologicalIterator()
@@ -124,16 +147,22 @@ case class PhysicalPlan(
   }
 
   // returns a new physical plan with the edges added
+  def addEdge(from: LayerIdentity, to: LayerIdentity): PhysicalPlan = {
+    val defaultOutput = operatorMap(from).outputPorts.head
+    val defaultInput = operatorMap(to).inputPorts.head
+    addEdge(from, to, defaultOutput.displayName, defaultInput.displayName)
+  }
+
   def addEdge(
       from: LayerIdentity,
       to: LayerIdentity,
-      fromPort: Int = 0,
-      toPort: Int = 0
+      fromPortName: String,
+      toPortName: String
   ): PhysicalPlan = {
 
     val newOperators = operatorMap +
-      (from -> operatorMap(from).addOutput(to, fromPort)) +
-      (to -> operatorMap(to).addInput(from, toPort))
+      (from -> operatorMap(from).addOutput(to, fromPortName)) +
+      (to -> operatorMap(to).addInput(from, toPortName))
 
     val newLinks = links :+ LinkIdentity(from, to)
     this.copy(operators = newOperators.values.toList, links = newLinks)

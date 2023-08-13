@@ -215,41 +215,36 @@ case class LogicalPlan(
     var physicalPlan = PhysicalPlan(List(), List())
 
     operators.foreach(o => {
-      var ops = o.operatorExecutorMultiLayer(opSchemaInfo(o.operatorID))
-
-      // make sure the input/output ports of the physical operators are set properly
-      val firstOp = ops.layersOfLogicalOperator(o.operatorIdentifier).head
-      ops = ops.setOperator(firstOp.copy(inputPorts = o.operatorInfo.inputPorts))
-      val lastOp = ops.layersOfLogicalOperator(o.operatorIdentifier).last
-      ops = ops.setOperator(lastOp.copy(outputPorts = o.operatorInfo.outputPorts))
-
-      assert(
-        ops.layersOfLogicalOperator(o.operatorIdentifier).head.inputPorts ==
-          o.operatorInfo.inputPorts
-      )
-      assert(
-        ops.layersOfLogicalOperator(o.operatorIdentifier).last.outputPorts ==
-          o.operatorInfo.outputPorts
-      )
-
+      val ops = o.operatorExecutorMultiLayer(opSchemaInfo(o.operatorID))
       // add all physical operators to physical DAG
       ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
       // connect intra-operator links
       ops.links.foreach(l => physicalPlan = physicalPlan.addEdge(l.from, l.to))
-
     })
 
     // connect inter-operator links
     links.foreach(link => {
       val fromLogicalOp = operatorMap(link.origin.operatorID).operatorIdentifier
-      val fromLayer = physicalPlan.layersOfLogicalOperator(fromLogicalOp).last.id
       val fromPort = link.origin.portOrdinal
+      val fromPortName = operators
+        .filter(op => op.operatorID == link.origin.operatorID)
+        .head
+        .operatorInfo
+        .outputPorts(fromPort)
+        .displayName
+      val fromLayer = physicalPlan.findLayerForOutputPort(fromLogicalOp, fromPortName)
 
       val toLogicalOp = operatorMap(link.destination.operatorID).operatorIdentifier
-      val toLayer = physicalPlan.layersOfLogicalOperator(toLogicalOp).head.id
       val toPort = link.destination.portOrdinal
+      val toPortName = operators
+        .filter(op => op.operatorID == link.destination.operatorID)
+        .head
+        .operatorInfo
+        .inputPorts(toPort)
+        .displayName
+      val toLayer = physicalPlan.findLayerForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan = physicalPlan.addEdge(fromLayer, toLayer, fromPort, toPort)
+      physicalPlan = physicalPlan.addEdge(fromLayer, toLayer, fromPortName, toPortName)
     })
 
     physicalPlan
