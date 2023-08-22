@@ -24,8 +24,7 @@ class WorkflowJobService(
     wsInput: WebsocketInput,
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
-    errorHandler: Throwable => Unit,
-    engineVersion: String
+    errorHandler: Throwable => Unit
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -73,8 +72,6 @@ class WorkflowJobService(
   val jobPythonService =
     new JobPythonService(client, stateStore, wsInput, jobBreakpointService)
 
-  workflowContext.executionID = -1 // for every new execution,
-  // reset it so that the value doesn't carry over across executions
   def startWorkflow(): Unit = {
     for (pair <- logicalPlan.breakpoints) {
       Await.result(
@@ -83,14 +80,6 @@ class WorkflowJobService(
       )
     }
     resultService.attachToJob(stateStore, logicalPlan, client)
-    if (WorkflowService.userSystemEnabled) {
-      workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
-        workflowContext.wId,
-        workflowContext.userId,
-        request.executionName,
-        engineVersion
-      )
-    }
     stateStore.jobMetadataStore.updateState(jobInfo =>
       jobInfo.withState(READY).withEid(workflowContext.executionID).withError(null)
     )
