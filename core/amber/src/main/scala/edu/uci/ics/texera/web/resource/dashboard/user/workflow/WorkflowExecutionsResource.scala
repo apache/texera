@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutio
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL._
-import org.jooq.types.{UByte, UInteger}
+import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
