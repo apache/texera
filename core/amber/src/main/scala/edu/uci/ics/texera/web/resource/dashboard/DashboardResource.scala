@@ -14,7 +14,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.{falseCondition, groupConcat, noCondition}
+import org.jooq.impl.DSL.{falseCondition, groupConcat, groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -210,7 +210,7 @@ class DashboardResource {
           WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME,
-          groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects"),
+          groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects"),
           // project attributes: 3 columns
           DSL.inline(null, classOf[UInteger]).as("pid"),
           DSL.inline(null, classOf[UInteger]).as("owner_id"),
