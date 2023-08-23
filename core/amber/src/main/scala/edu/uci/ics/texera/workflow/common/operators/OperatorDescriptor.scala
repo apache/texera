@@ -53,6 +53,7 @@ import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOp
 import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
   PythonLambdaFunctionOpDesc,
+  PythonTableReducerOpDesc,
   PythonUDFOpDescV2
 }
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
@@ -140,6 +141,7 @@ trait StateTransferFunc
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
+    new Type(value = classOf[PythonTableReducerOpDesc], name = "PythonTableReducer"),
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),

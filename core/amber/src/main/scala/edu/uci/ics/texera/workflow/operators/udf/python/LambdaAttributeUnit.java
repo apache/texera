@@ -13,7 +13,7 @@ import java.util.Objects;
 
 public class LambdaAttributeUnit {
     @JsonProperty(required = true)
-    @JsonSchemaTitle("Existing Attribute Name")
+    @JsonSchemaTitle("Attribute Name")
     @AutofillAttributeNameLambda
     public String attributeName;
 
@@ -33,7 +33,7 @@ public class LambdaAttributeUnit {
     @JsonSchemaTitle("Attribute Type")
     public AttributeType attributeType;
 
-    @JsonProperty
+    @JsonProperty(required = true)
     @JsonSchemaTitle("Expression")
     public String expression;
 
