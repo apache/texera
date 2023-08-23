@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
 import org.jooq.{Condition, TableField}
-import org.jooq.impl.DSL.{groupConcat, groupConcatDistinct, noCondition}
+import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp

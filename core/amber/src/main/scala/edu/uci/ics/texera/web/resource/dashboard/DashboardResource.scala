@@ -14,7 +14,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.{falseCondition, groupConcat, groupConcatDistinct, noCondition}
+import org.jooq.impl.DSL.{falseCondition, groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
