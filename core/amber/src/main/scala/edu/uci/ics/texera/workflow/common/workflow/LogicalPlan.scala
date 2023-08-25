@@ -190,7 +190,9 @@ case class LogicalPlan(
   ): PhysicalPlan = {
 
     if (errorList.nonEmpty) {
-      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
+      val err = new Exception(s"${errorList.size} error(s) occurred in schema propagation.")
+      errorList.foreach(err.addSuppressed)
+      throw err
     }
 
     // assign storage to texera-managed sinks before generating exec config
