@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
 import org.jooq.{Condition, TableField}
-import org.jooq.impl.DSL.{groupConcat, noCondition}
+import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -352,7 +352,7 @@ class WorkflowResource {
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
         USER.NAME,
-        groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects")
+        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
@@ -636,7 +636,7 @@ class WorkflowResource {
           WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME,
-          groupConcat(PROJECT.PID).as("projects")
+          groupConcatDistinct(PROJECT.PID).as("projects")
         )
         .from(WORKFLOW)
         .leftJoin(WORKFLOW_USER_ACCESS)
