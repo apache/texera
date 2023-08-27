@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-
+import { UniquePipe } from "ngx-pipes";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
 import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
@@ -17,7 +17,7 @@ describe("UserWorkflowListItemComponent", () => {
   const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [UserWorkflowListItemComponent],
+      declarations: [UserWorkflowListItemComponent, UniquePipe],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },

@@ -220,7 +220,9 @@ case class LogicalPlan(
   def toPhysicalPlan: PhysicalPlan = {
 
     if (errorList.nonEmpty) {
-      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
+      val err = new Exception(s"${errorList.size} error(s) occurred in schema propagation.")
+      errorList.foreach(err.addSuppressed)
+      throw err
     }
 
     var physicalPlan = PhysicalPlan(List(), List())
