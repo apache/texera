@@ -10,6 +10,7 @@ import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { HomeComponent } from "./home/component/home.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
+import { AdminDashboardComponent } from "./dashboard/admin/component/admin-dashboard.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 /*
@@ -28,7 +29,6 @@ const routes: Routes = [
     canActivate: [AuthGuardService],
   },
 ];
-
 if (environment.userSystemEnabled) {
   /*
    *  The user dashboard is under path '/dashboard'
@@ -38,7 +38,6 @@ if (environment.userSystemEnabled) {
    *  The user project list is under path '/dashboard/project'
    *  The single user project is under path 'dashboard/project/{pid}'
    */
-
   routes.push({
     path: "dashboard",
     component: DashboardComponent,
@@ -69,6 +68,11 @@ if (environment.userSystemEnabled) {
         component: AdminUserComponent,
         canActivate: [AdminGuardService],
       },
+      {
+        path: "admin-dashboard",
+        component: AdminDashboardComponent,
+        canActivate: [AdminGuardService],
+      },
     ],
   });
 
@@ -77,13 +81,11 @@ if (environment.userSystemEnabled) {
     component: HomeComponent,
   });
 }
-
 // redirect all other paths to index.
 routes.push({
   path: "**",
   redirectTo: "",
 });
-
 @NgModule({
   imports: [RouterModule.forRoot(routes, { relativeLinkResolution: "legacy" })],
   exports: [RouterModule],
