@@ -124,7 +124,7 @@ export enum ExecutionState {
   BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
   FAILED = "FAILED",
-  KILLED = "KILLED"
+  KILLED = "KILLED",
 }
 
 export type ExecutionStateInfo = Readonly<
@@ -146,9 +146,7 @@ export type ExecutionStateInfo = Readonly<
       breakpoint: BreakpointTriggerInfo;
     }
   | {
-      state:
-        | ExecutionState.Completed
-        | ExecutionState.KILLED;
+      state: ExecutionState.Completed | ExecutionState.KILLED;
     }
   | {
       state: ExecutionState.FAILED;

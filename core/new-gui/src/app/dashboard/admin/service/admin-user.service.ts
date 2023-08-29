@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { Role, User} from "../../../common/type/user";
+import { Role, User } from "../../../common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;

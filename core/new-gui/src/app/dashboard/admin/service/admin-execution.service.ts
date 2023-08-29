@@ -15,5 +15,4 @@ export class AdminExecutionService {
   public getExecutionList(): Observable<ReadonlyArray<Execution>> {
     return this.http.get<ReadonlyArray<Execution>>(`${WORKFLOW_BASE_URL}/executionList`);
   }
-
 }

@@ -147,7 +147,7 @@ registerLocaleData(en);
     OperatorLabelComponent,
     DashboardComponent,
     AdminUserComponent,
-    AdminDashboardComponent, 
+    AdminDashboardComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,

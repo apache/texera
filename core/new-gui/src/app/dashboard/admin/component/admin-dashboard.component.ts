@@ -1,4 +1,4 @@
-import { Component, OnInit} from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../service/admin-execution.service";
 import { Execution } from "../../../common/type/execution";
@@ -6,17 +6,15 @@ import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalWorkflowExecutionsComponent } from "../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
-import {Workflow} from "../../../common/type/workflow";
+import { Workflow } from "../../../common/type/workflow";
 import { WorkflowWebsocketService } from "src/app/workspace/service/workflow-websocket/workflow-websocket.service";
-
 
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-dashboard.component.html",
   styleUrls: ["./admin-dashboard.component.scss"],
 })
-export class AdminDashboardComponent implements OnInit{
-
+export class AdminDashboardComponent implements OnInit {
   Executions: ReadonlyArray<Execution> = [];
   workflowsCount: number = 0;
   usersCount: number = 0;
@@ -28,9 +26,8 @@ export class AdminDashboardComponent implements OnInit{
     this.adminExecutionService
       .getExecutionList()
       .pipe(untilDestroyed(this))
-      .subscribe((executionList) => {
-        this.listOfExecutions.forEach((oldExecution, index) =>
-        {
+      .subscribe(executionList => {
+        this.listOfExecutions.forEach((oldExecution, index) => {
           const updatedExecution = executionList.find(execution => execution.executionId === oldExecution.executionId);
           if (updatedExecution && this.dataCheck(this.listOfExecutions[index], updatedExecution)) {
             this.ngOnInit();
@@ -57,13 +54,12 @@ export class AdminDashboardComponent implements OnInit{
           } else if (!this.executionMap.has(execution.workflowId)) {
             this.ngOnInit();
           }
-        })
+        });
         this.updateTimeDifferences();
       });
   }, 1000); // 1 second interval
 
-  constructor(private adminExecutionService: AdminExecutionService, private modalService: NgbModal,) {
-  }
+  constructor(private adminExecutionService: AdminExecutionService, private modalService: NgbModal) {}
 
   ngOnInit() {
     this.adminExecutionService
@@ -77,7 +73,7 @@ export class AdminDashboardComponent implements OnInit{
       });
   }
 
-  maxStringLength(input: string, length:number):string {
+  maxStringLength(input: string, length: number): string {
     if (input.length > length) {
       return input.substring(0, length) + " . . . ";
     }
@@ -86,10 +82,9 @@ export class AdminDashboardComponent implements OnInit{
 
   dataCheck(oldExecution: Execution, newExecution: Execution): boolean {
     const currentTime = Date.now() / 1000;
-    if (oldExecution.executionStatus === 'JUST COMPLETED' && currentTime - (newExecution.endTime/1000) <= 5){
+    if (oldExecution.executionStatus === "JUST COMPLETED" && currentTime - newExecution.endTime / 1000 <= 5) {
       return false;
-    }
-    else if (oldExecution.executionStatus != newExecution.executionStatus) {
+    } else if (oldExecution.executionStatus != newExecution.executionStatus) {
       return true;
     } else if (oldExecution.executionName != newExecution.executionName) {
       return true;
@@ -102,18 +97,15 @@ export class AdminDashboardComponent implements OnInit{
   initWorkflows() {
     for (let i = 0; i < this.listOfExecutions.length; i++) {
       const execution = this.listOfExecutions[i];
-      let tempWorkflow: Workflow = {content:{ operators: [],
-          operatorPositions: {},
-          links: [],
-          groups: [],
-          breakpoints: {},
-          commentBoxes: []},
+      let tempWorkflow: Workflow = {
+        content: { operators: [], operatorPositions: {}, links: [], groups: [], breakpoints: {}, commentBoxes: [] },
         name: execution.workflowName,
         wid: execution.workflowId,
         description: "",
         creationTime: 0,
         lastModifiedTime: 0,
-        readonly: false}
+        readonly: false,
+      };
 
       this.workflows.push(tempWorkflow);
     }
@@ -138,11 +130,10 @@ export class AdminDashboardComponent implements OnInit{
   specifyCompletedStatus() {
     const currentTime = Date.now() / 1000;
     this.listOfExecutions.forEach((workflow, index) => {
-      if (workflow.executionStatus === 'COMPLETED' && (currentTime - (workflow.endTime / 1000)) <= 5) {
-        this.listOfExecutions[index].executionStatus = 'JUST COMPLETED';
-      }
-      else if (workflow.executionStatus === 'JUST COMPLETED' && (currentTime - (workflow.endTime / 1000)) > 5){
-        this.listOfExecutions[index].executionStatus = 'COMPLETED';
+      if (workflow.executionStatus === "COMPLETED" && currentTime - workflow.endTime / 1000 <= 5) {
+        this.listOfExecutions[index].executionStatus = "JUST COMPLETED";
+      } else if (workflow.executionStatus === "JUST COMPLETED" && currentTime - workflow.endTime / 1000 > 5) {
+        this.listOfExecutions[index].executionStatus = "COMPLETED";
       }
     });
   }
@@ -151,9 +142,9 @@ export class AdminDashboardComponent implements OnInit{
     if (executionStatus === "RUNNING" || executionStatus === "READY" || executionStatus === "PAUSED") {
       const currentTime = Date.now() / 1000; // Convert to seconds
       const currentTimeInteger = Math.floor(currentTime);
-      return currentTimeInteger - (StartTime/1000);
+      return currentTimeInteger - StartTime / 1000;
     } else {
-      return (LastUpdateTime - StartTime)/1000;
+      return (LastUpdateTime - StartTime) / 1000;
     }
   }
 
@@ -170,28 +161,28 @@ export class AdminDashboardComponent implements OnInit{
 
   getStatusColor(status: string): string {
     switch (status) {
-      case 'READY':
-        return 'lightgreen';
-      case 'RUNNING':
-        return 'orange';
-      case 'PAUSED':
-        return 'purple';
-      case 'FAILED':
-        return 'gray';
-      case 'JUST COMPLETED':
-        return 'blue';
-      case 'COMPLETED':
-        return 'green';
-      case 'KILLED':
-        return 'red';
+      case "READY":
+        return "lightgreen";
+      case "RUNNING":
+        return "orange";
+      case "PAUSED":
+        return "purple";
+      case "FAILED":
+        return "gray";
+      case "JUST COMPLETED":
+        return "blue";
+      case "COMPLETED":
+        return "green";
+      case "KILLED":
+        return "red";
       default:
-        return 'black';
+        return "black";
     }
   }
 
   convertTimeToTimestamp(executionStatus: string, timeValue: number): string {
     const date = new Date(timeValue);
-    const formattedTime = date.toLocaleString('en-US',{ timeZoneName: 'short' });
+    const formattedTime = date.toLocaleString("en-US", { timeZoneName: "short" });
     return formattedTime;
   }
 
@@ -205,14 +196,14 @@ export class AdminDashboardComponent implements OnInit{
   }
 
   padZero(value: number): string {
-    return value.toString().padStart(2, '0');
+    return value.toString().padStart(2, "0");
   }
 
-  filterByStatus: NzTableFilterFn<Execution> = function(list: string[], execution: Execution){
-    return list.some(function(executionStatus) {
+  filterByStatus: NzTableFilterFn<Execution> = function (list: string[], execution: Execution) {
+    return list.some(function (executionStatus) {
       return execution.executionStatus.indexOf(executionStatus) !== -1;
     });
-  }
+  };
 
   clickToViewHistory(workflowId: number) {
     const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
@@ -235,26 +226,29 @@ export class AdminDashboardComponent implements OnInit{
   killExecution(wid: number) {
     let socket = new WorkflowWebsocketService();
     socket.openWebsocket(wid);
-    socket.send("WorkflowKillRequest", {}); 
+    socket.send("WorkflowKillRequest", {});
     // socket.closeWebsocket();
   }
 
   pauseExecution(wid: number) {
     let socket = new WorkflowWebsocketService();
     socket.openWebsocket(wid);
-    socket.send("WorkflowPauseRequest", {}); 
+    socket.send("WorkflowPauseRequest", {});
     // socket.closeWebsocket();
   }
 
   resumeExecution(wid: number) {
     let socket = new WorkflowWebsocketService();
     socket.openWebsocket(wid);
-    socket.send("WorkflowResumeRequest", {}); 
+    socket.send("WorkflowResumeRequest", {});
     // socket.closeWebsocket();
   }
 
-  public sortByWorkflowName: NzTableSortFn<Execution> = (a: Execution, b: Execution) => (b.workflowName || "").localeCompare(a.workflowName);
-  public sortByExecutionName: NzTableSortFn<Execution> = (a: Execution, b: Execution) => (b.executionName || "").localeCompare(a.executionName);
+  public sortByWorkflowName: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
+    (b.workflowName || "").localeCompare(a.workflowName);
+  public sortByExecutionName: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
+    (b.executionName || "").localeCompare(a.executionName);
   public sortByCompletedTime: NzTableSortFn<Execution> = (a: Execution, b: Execution) => b.endTime - a.endTime;
-  public sortByInitiator: NzTableSortFn<Execution> = (a: Execution, b: Execution) => (b.userName || "").localeCompare(a.userName);
+  public sortByInitiator: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
+    (b.userName || "").localeCompare(a.userName);
 }

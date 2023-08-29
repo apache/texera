@@ -4,7 +4,7 @@
   <h2
     class="page-title"
     style="color: white">
-      Executions
+    Executions
   </h2>
 </nz-card>
 
@@ -13,11 +13,24 @@
   [nzData]="listOfExecutions">
   <thead>
     <tr>
-      <th [nzSortFn]="sortByWorkflowName" nzWidth="16%">Workflow (ID)</th>
-      <th [nzSortFn]="sortByExecutionName" nzWidth="16%">Execution Name (ID)</th>
-      <th [nzSortFn]="sortByInitiator" nzWidth="12%">Initiator</th>
-      <th nzShowFilter
-          [nzFilters]="[
+      <th
+        [nzSortFn]="sortByWorkflowName"
+        nzWidth="16%">
+        Workflow (ID)
+      </th>
+      <th
+        [nzSortFn]="sortByExecutionName"
+        nzWidth="16%">
+        Execution Name (ID)
+      </th>
+      <th
+        [nzSortFn]="sortByInitiator"
+        nzWidth="12%">
+        Initiator
+      </th>
+      <th
+        nzShowFilter
+        [nzFilters]="[
           { text: 'READY', value: 'READY' },
           { text: 'RUNNING', value: 'RUNNING'},
           { text: 'PAUSED', value: 'PAUSED'},
@@ -26,10 +39,16 @@
           { text: 'KILLED', value: 'KILLED'},
           { text: 'JUST COMPLETED', value: 'JUST COMPLETED'}, 
           { text: 'UNKNOWN', value: 'UNKNOWN'}]"
-          [nzFilterFn]="filterByStatus" nzWidth="16%">
-          Status</th>
+        [nzFilterFn]="filterByStatus"
+        nzWidth="16%">
+        Status
+      </th>
       <th nzWidth="10%">Time Used (hh:mm:ss)</th>
-      <th [nzSortFn]="sortByCompletedTime" nzWidth="15%">End Time</th>
+      <th
+        [nzSortFn]="sortByCompletedTime"
+        nzWidth="15%">
+        End Time
+      </th>
       <th nzWidth="15%">Action</th>
     </tr>
   </thead>
@@ -42,9 +61,7 @@
           </a>
         </div>
         <ng-template #normalWorkflowName>
-          <div>
-            {{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})
-          </div>
+          <div>{{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})</div>
         </ng-template>
       </td>
       <td>{{ maxStringLength(execution.executionName, 20) }} ({{ execution.executionId }})</td>
@@ -53,9 +70,10 @@
       <td>{{ convertSecondsToTime(execution.executionTime) }}</td>
       <td>{{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}</td>
       <td>
-        <button type="button"
+        <button
+          type="button"
           (click)="killExecution(execution.workflowId)"
-          [disabled] = "execution.executionStatus === 'COMPLETED' ||
+          [disabled]="execution.executionStatus === 'COMPLETED' ||
                         execution.executionStatus === 'JUST COMPLETED' ||
                         execution.executionStatus === 'FAILED' ||
                         execution.executionStatus === 'KILLED'"
@@ -67,14 +85,15 @@
             nzTheme="outline"
             nzType="stop"></i>
         </button>
-        <button type="button"
+        <button
+          type="button"
           (click)="pauseExecution(execution.workflowId)"
-          [disabled] = "execution.executionStatus === 'COMPLETED' ||
+          [disabled]="execution.executionStatus === 'COMPLETED' ||
                         execution.executionStatus === 'JUST COMPLETED' ||
                         execution.executionStatus === 'FAILED' ||
                         execution.executionStatus === 'PAUSED'  ||
                         execution.executionStatus === 'READY' || 
-                        execution.executionStatus === 'KILLED'" 
+                        execution.executionStatus === 'KILLED'"
           nz-button
           nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}"
           type="button">
@@ -83,9 +102,10 @@
             nzTheme="outline"
             nzType="pause"></i>
         </button>
-        <button type="button"
+        <button
+          type="button"
           (click)="resumeExecution(execution.workflowId)"
-          [disabled] = "execution.executionStatus !== 'PAUSED'"
+          [disabled]="execution.executionStatus !== 'PAUSED'"
           nz-button
           nz-tooltip="resume execution {{execution.executionName}} of workflow {{execution.workflowName}}"
           type="button">
