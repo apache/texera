@@ -18,7 +18,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.{JobMetadataStore, OperatorWorkerMapping, WorkflowAggregatedState}
+import edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{FAILED, COMPLETED}
 
 class JobStatsService(
@@ -144,7 +144,9 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(COMPLETED, jobInfo))
+          stateStore.jobMetadataStore.updateState(jobInfo =>
+            updateWorkflowState(COMPLETED, jobInfo)
+          )
         })
     )
   }

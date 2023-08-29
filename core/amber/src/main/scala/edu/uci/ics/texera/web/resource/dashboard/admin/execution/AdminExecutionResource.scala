@@ -13,25 +13,25 @@ import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
- * This file handles various request related to saved-executions.
- */
+  * This file handles various request related to saved-executions.
+  */
 
 object AdminExecutionResource {
   final private lazy val context = SqlServer.createDSLContext()
 
   case class dashboardExecution(
-                                 workflowName: String,
-                                 workflowId: UInteger,
-                                 userName: String,
-                                 userId: UInteger,
-                                 executionId: UInteger,
-                                 executionStatus: String,
-                                 executionTime: Double,
-                                 executionName: String,
-                                 startTime: Long,
-                                 endTime: Long,
-                                 access: Boolean
-                               )
+      workflowName: String,
+      workflowId: UInteger,
+      userName: String,
+      userId: UInteger,
+      executionId: UInteger,
+      executionStatus: String,
+      executionTime: Double,
+      executionName: String,
+      startTime: Long,
+      endTime: Long,
+      access: Boolean
+  )
 
   def mapToName(code: Byte): String = {
     code match {
@@ -53,14 +53,15 @@ object AdminExecutionResource {
 class AdminExecutionResource {
 
   /**
-   * This method retrieves all existing executions
-   */
+    * This method retrieves all existing executions
+    */
   @GET
   @Path("/executionList")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def listWorkflows(@Auth current_user: SessionUser): List[dashboardExecution] = {
     val workflowEntries = context
-      .select(WORKFLOW_EXECUTIONS.UID,
+      .select(
+        WORKFLOW_EXECUTIONS.UID,
         USER.NAME,
         WORKFLOW_VERSION.WID,
         WORKFLOW.NAME,
@@ -69,7 +70,8 @@ class AdminExecutionResource {
         WORKFLOW_EXECUTIONS.STARTING_TIME,
         WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
         WORKFLOW_EXECUTIONS.STATUS,
-        WORKFLOW_EXECUTIONS.NAME)
+        WORKFLOW_EXECUTIONS.NAME
+      )
       .from(WORKFLOW_EXECUTIONS)
       .leftJoin(WORKFLOW_VERSION)
       .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
@@ -104,6 +106,7 @@ class AdminExecutionResource {
           lastUpdateTime,
           ifAccess
         )
-      }).toList
+      })
+      .toList
   }
 }
