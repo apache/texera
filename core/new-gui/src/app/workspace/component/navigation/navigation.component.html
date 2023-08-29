@@ -289,7 +289,7 @@
 				'reveal-stop-button':
 					executionState !== ExecutionState.Uninitialized &&
 					executionState !== ExecutionState.Completed &&
-					executionState !== ExecutionState.Aborted
+					executionState !== ExecutionState.FAILED
 			}">
       <nz-button-group nzSize="large">
         <button
@@ -327,7 +327,8 @@
           [disabled]="
 						executionState === ExecutionState.Uninitialized ||
 						executionState === ExecutionState.Completed ||
-						executionState === ExecutionState.Aborted
+						executionState === ExecutionState.KILLED ||
+            executionState === ExecutionState.FAILED
 					"
           class="texera-navigation-stop-button"
           nz-button

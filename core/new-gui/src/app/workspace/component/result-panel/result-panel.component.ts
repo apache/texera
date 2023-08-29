@@ -85,7 +85,7 @@ export class ResultPanelComponent implements OnInit {
           this.resultPanelToggleService.openResultPanel();
         }
         // display panel on abort (to show possible error messages)
-        if (event.current.state === ExecutionState.Aborted) {
+        if (event.current.state === ExecutionState.FAILED) {
           this.resultPanelToggleService.openResultPanel();
         }
         // display panel when execution is completed and highlight sink to show results
@@ -180,7 +180,7 @@ export class ResultPanelComponent implements OnInit {
 
   hasErrorOrBreakpoint(): boolean {
     const executionState = this.executeWorkflowService.getExecutionState();
-    return [ExecutionState.Aborted, ExecutionState.BreakpointTriggered].includes(executionState.state);
+    return [ExecutionState.FAILED, ExecutionState.BreakpointTriggered].includes(executionState.state);
   }
 
   clearResultPanel(): void {
@@ -224,7 +224,7 @@ export class ResultPanelComponent implements OnInit {
     current: ExecutionStateInfo;
   }): boolean {
     // transitioning from any state to failed state
-    if (event.current.state === ExecutionState.Aborted) {
+    if (event.current.state === ExecutionState.FAILED) {
       return true;
     }
     // transitioning from any state to breakpoint triggered state
