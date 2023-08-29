@@ -1,11 +1,23 @@
 package edu.uci.ics.texera.web.storage
 
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  JobBreakpointStore,
-  JobMetadataStore,
-  JobPythonStore,
-  JobStatsStore
+import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService,
+                                        WorkflowService}
+
+import edu.uci.ics.texera.web.workflowruntimestate.{JobBreakpointStore,
+                                                    JobMetadataStore,
+                                                    JobPythonStore,
+                                                    JobStatsStore,
+                                                    WorkflowAggregatedState}
+
+object JobStateStore{
+  def updateWorkflowState(state: WorkflowAggregatedState, metadataStore: JobMetadataStore): JobMetadataStore = {
+    if (WorkflowService.userSystemEnabled) {
+      ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.eid, state)
+    }
+    metadataStore.withState(state)
+  }
 }
+
 
 // states that within one execution.
 class JobStateStore {
