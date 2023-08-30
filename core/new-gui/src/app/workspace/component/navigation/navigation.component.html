@@ -1,7 +1,9 @@
 <div class="texera-navigation-body">
   <div class="texera-navigation-padded">
     <div class="texera-navigation-title">
-      <a *ngIf="userSystemEnabled; else noLink" [routerLink]="'/dashboard/workflow'">
+      <a
+        *ngIf="userSystemEnabled; else noLink"
+        [routerLink]="'/dashboard/workflow'">
         <img
           [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
           alt="Texera"
