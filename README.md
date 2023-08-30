@@ -53,7 +53,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 ![Sample Texera Workflow](https://user-images.githubusercontent.com/12926365/171459157-1792971d-a31f-49e7-ab98-6f3b9ead9f5b.png)
 
 ## Publications (Computer Science):
-
+* (8/2023) Udon: Efficient Debugging of User Defined Functions in Big Data Systems with Line by Line Control, Yicong Huang, Zuozhi Wang, and Chen Li, to appear in SIGMOD 2024.
 * (8/2023) Improving Iterative Analytics in GUI-Based Data-Processing Systems with Visualization,
   Version Control, and Result Reuse, Sadeem Alsudais, Ph.D. Thesis [PDF](https://sadeemsaleh.github.io/Sadeem_phd_thesis.pdf).
 * (7/2023) Using Texera to Characterize Climate Change Discussions on Twitter During Wildfires, Shengquan Ni, Yicong Huang, Jessie W. Y. Ko, Alexander Taylor, Xiusi Chen, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Suellen Hopfer, and Chen Li, in Data Science Day at KDD 2023.
