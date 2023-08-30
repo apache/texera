@@ -30,10 +30,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.project.{
   ProjectResource,
   PublicProjectResource
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.{
-  ExecutionResultEntry,
-  WorkflowExecutionEntry
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.ExecutionResultEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
