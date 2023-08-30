@@ -37,7 +37,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       case WorkflowAggregatedState.RESUMING                        => ???
       case WorkflowAggregatedState.COMPLETED                       => 3
       case WorkflowAggregatedState.ABORTED                         => 4
-      case WorkflowAggregatedState.UNKNOWN                         => 5
+      case WorkflowAggregatedState.UNKNOWN                         => ???
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
     }
   }
@@ -87,10 +87,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     try {
       val code = maptoStatusCode(state)
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
-      if (state != WorkflowAggregatedState.UNKNOWN) {
-        execution.setStatus(code)
-        execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
-      }
+      execution.setStatus(code)
       execution.setResult("")
       workflowExecutionsDao.update(execution)
     } catch {

@@ -49,22 +49,15 @@ object WorkflowExecutionsResource {
       .toList
   }
 
-  def getAllIncompleteResults(): List[WorkflowExecutionEntry] = {
+  def getAllIncompleteResults(): List[ExecutionResultEntry] = {
     context
       .select(
         WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.VID,
-        WORKFLOW_EXECUTIONS.UID,
-        WORKFLOW_EXECUTIONS.STATUS,
-        WORKFLOW_EXECUTIONS.RESULT,
-        WORKFLOW_EXECUTIONS.STARTING_TIME,
-        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
-        WORKFLOW_EXECUTIONS.BOOKMARKED,
-        WORKFLOW_EXECUTIONS.NAME
+        WORKFLOW_EXECUTIONS.RESULT
       )
       .from(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.RESULT.ne("").and(WORKFLOW_EXECUTIONS.STATUS.ne(3.toByte)))
-      .fetchInto(classOf[WorkflowExecutionEntry])
+      .fetchInto(classOf[ExecutionResultEntry])
       .toList
   }
 

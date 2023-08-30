@@ -132,14 +132,17 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     if (AmberUtils.amberConfig.getString("storage.mode").equalsIgnoreCase("mongodb")) {
       val timeToLive: Int = AmberUtils.amberConfig.getInt("result-cleanup.ttl-in-seconds")
       // do one time cleanup of collections that were not closed gracefully before restart/crash
-      cleanDirtyCollections()
+      // retrieve all executions that are not completed
+      val incompleteExecutions: List[ExecutionResultEntry] =
+        WorkflowExecutionsResource.getAllIncompleteResults()
+      cleanOldCollections(incompleteExecutions, WorkflowAggregatedState.ABORTED)
       scheduleRecurringCallThroughActorSystem(
         2.seconds,
         AmberUtils.amberConfig
           .getInt("result-cleanup.collection-check-interval-in-seconds")
           .seconds
       ) {
-        cleanOldCollections(timeToLive)
+        recurringCheckExpiredResults(timeToLive)
       }
     }
   }
@@ -216,20 +219,21 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
   }
 
   /**
-    * This function checks the executions that are not completed, meaning they were not closed gracefully because this function is called right after starting the server
-    * so no new workflows can be running
+    * This function drops the collections.
+    * MongoDB doesn't have an API of drop collection where collection name in (from a subquery), so the implementation is to retrieve
+    * the entire list of those documents that have expired, then loop the list to drop them one by one
     */
-  def cleanDirtyCollections(): Unit = {
-    // retrieve all executions that are not completed
-    val incompleteExecutions: List[WorkflowExecutionEntry] =
-      WorkflowExecutionsResource.getAllIncompleteResults()
+  def cleanOldCollections(
+      executions: List[ExecutionResultEntry],
+      status: WorkflowAggregatedState
+  ): Unit = {
     // drop the collection and update the status to ABORTED
-    incompleteExecutions.foreach(execEntry => {
+    executions.foreach(execEntry => {
       dropCollections(execEntry.result)
       // then delete the pointer from mySQL
       ExecutionsMetadataPersistService.tryUpdateExecutionStatusAndPointers(
         execEntry.eId.longValue(),
-        WorkflowAggregatedState.ABORTED
+        status
       )
     })
   }
@@ -244,24 +248,14 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
 
   /**
     * This function is called periodically and checks all expired collections and deletes them
-    * MongoDB doesn't have an API of drop collection where collection name in (from a subquery), so the implementation is to retrieve
-    * the entire list of those documents that have expired, then loop the list to drop them one by one
     */
-  def cleanOldCollections(
+  def recurringCheckExpiredResults(
       timeToLive: Int
   ): Unit = {
     // retrieve all executions that are completed and their last update time goes beyond the ttl
     val expiredResults: List[ExecutionResultEntry] =
       WorkflowExecutionsResource.getExpiredResults(timeToLive)
-    // drop the collection and update the status to ABORTED
-    expiredResults.foreach(execEntry => {
-      dropCollections(execEntry.result)
-      // then delete the pointer from mySQL
-      ExecutionsMetadataPersistService.tryUpdateExecutionStatusAndPointers(
-        execEntry.eId.longValue(),
-        WorkflowAggregatedState.UNKNOWN
-      )
-
-    })
+    // drop the collection and update the status to COMPLETED
+    cleanOldCollections(expiredResults, WorkflowAggregatedState.COMPLETED)
   }
 }
