@@ -192,7 +192,9 @@ case class LogicalPlan(
   ): PhysicalPlan = {
 
     if (errorList.nonEmpty) {
-      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
+      val err = new Exception(s"${errorList.size} error(s) occurred in schema propagation.")
+      errorList.foreach(err.addSuppressed)
+      throw err
     }
     // create a JSON object that holds pointers to the workflow's results in Mongo
     // TODO in the future, will extract this logic from here when we need pointers to the stats storage
