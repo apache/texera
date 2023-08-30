@@ -1,13 +1,14 @@
 <div class="texera-navigation-body">
   <div class="texera-navigation-padded">
-    <a [routerLink]="'/dashboard/workflow'">
-      <img
-        [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
-        alt="Texera"
-        class="texera-navigation-title"
-        src="assets/logos/full_logo_small.png?v=1"
-        title="dashboard" />
-    </a>
+    <div class="texera-navigation-title">
+      <a [routerLink]="'/dashboard/workflow'">
+        <img
+          [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
+          alt="Texera"
+          src="assets/logos/full_logo_small.png?v=1"
+          title="dashboard" />
+      </a>
+    </div>
 
     <!-- workflow metadata display -->
     <div
