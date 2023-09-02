@@ -22,6 +22,10 @@ export class AdminDashboardComponent implements OnInit {
   workflows: Array<Workflow> = [];
   executionMap: Map<number, Execution> = new Map();
 
+  // Set up an interval to periodically fetch and update execution data.
+  // This interval function fetches the latest execution list and checks for updates.
+  // If some execution's data has changed, it triggers a component refresh.
+  // The interval runs every 1 second (1000 milliseconds).
   intervals = setInterval(() => {
     this.adminExecutionService
       .getExecutionList()
@@ -81,7 +85,9 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   dataCheck(oldExecution: Execution, newExecution: Execution): boolean {
+    // Get the current time in seconds.
     const currentTime = Date.now() / 1000;
+    // Check if the execution needed to be updated
     if (oldExecution.executionStatus === "JUST COMPLETED" && currentTime - newExecution.endTime / 1000 <= 5) {
       return false;
     } else if (oldExecution.executionStatus != newExecution.executionStatus) {
@@ -127,6 +133,11 @@ export class AdminDashboardComponent implements OnInit {
     this.updateTimeDifferences();
   }
 
+  /**
+   * Update the execution status of workflows in the list based on their completion time.
+   * If a workflow was completed within the last 5 seconds, it is updated to "JUST COMPLETED."
+   * If a workflow was completed more than 5 seconds, it is updated back to "COMPLETED."
+   */
   specifyCompletedStatus() {
     const currentTime = Date.now() / 1000;
     this.listOfExecutions.forEach((workflow, index) => {
@@ -138,6 +149,10 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+  /**
+   * if status are "RUNNING", "READY", or "PAUSED", the time used would constantly increase.
+   * if status are not list above, there would be a final time used.
+   */
   calculateTime(LastUpdateTime: number, StartTime: number, executionStatus: string, name: string): number {
     if (executionStatus === "RUNNING" || executionStatus === "READY" || executionStatus === "PAUSED") {
       const currentTime = Date.now() / 1000; // Convert to seconds
@@ -148,6 +163,10 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  /**
+   * Update the execution time differences for each execution in the list of executions.
+   * This function calculates and assigns the elapsed time for each execution.
+   */
   updateTimeDifferences() {
     this.listOfExecutions.forEach(workflow => {
       workflow.executionTime = this.calculateTime(
@@ -159,6 +178,9 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+  /**
+   * Determine and return the color associated with a given execution status.
+   */
   getStatusColor(status: string): string {
     switch (status) {
       case "READY":
@@ -180,12 +202,18 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  /**
+   * Convert a numeric timestamp to a human-readable time string.
+   */
   convertTimeToTimestamp(executionStatus: string, timeValue: number): string {
     const date = new Date(timeValue);
     const formattedTime = date.toLocaleString("en-US", { timeZoneName: "short" });
     return formattedTime;
   }
 
+  /**
+   * Convert a total number of seconds into a formatted time string (HH:MM:SS).
+   */
   convertSecondsToTime(seconds: number): string {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -195,6 +223,9 @@ export class AdminDashboardComponent implements OnInit {
     return formattedTime;
   }
 
+  /**
+   * Pad a number with a leading zero if it is a single digit.
+   */
   padZero(value: number): string {
     return value.toString().padStart(2, "0");
   }
