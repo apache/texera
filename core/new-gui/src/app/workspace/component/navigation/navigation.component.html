@@ -298,10 +298,7 @@
     <div
       [ngClass]="{
 				'texera-navigation-execute': true,
-				'reveal-stop-button':
-					executionState !== ExecutionState.Uninitialized &&
-					executionState !== ExecutionState.Completed &&
-					executionState !== ExecutionState.Aborted
+				'reveal-stop-button': !isExecutionInTerminalState()
 			}">
       <nz-button-group nzSize="large">
         <button
@@ -336,11 +333,7 @@
         <button
           #runStopButton
           (click)="handleKill()"
-          [disabled]="
-						executionState === ExecutionState.Uninitialized ||
-						executionState === ExecutionState.Completed ||
-						executionState === ExecutionState.Aborted
-					"
+          [disabled]="isExecutionInTerminalState()"
           class="texera-navigation-stop-button"
           nz-button
           nzDanger
@@ -373,9 +366,7 @@
           <input
             [(ngModel)]="currentExecutionName"
             placeholder="Untitled Execution"
-            [disabled]="!(executionState === ExecutionState.Uninitialized ||
-						    executionState === ExecutionState.Completed ||
-						    executionState === ExecutionState.Aborted)" />
+            [disabled]="!isExecutionInTerminalState()" />
         </ng-template>
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge

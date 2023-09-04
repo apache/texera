@@ -501,4 +501,12 @@ export class NavigationComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(metadata => (this.workflowId = metadata.wid));
   }
+
+  isExecutionInTerminalState(): boolean {
+    return (
+      this.executionState === ExecutionState.Uninitialized ||
+      this.executionState === ExecutionState.Completed ||
+      this.executionState == ExecutionState.Aborted
+    );
+  }
 }
