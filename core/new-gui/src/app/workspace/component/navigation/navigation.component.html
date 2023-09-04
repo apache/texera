@@ -372,7 +372,10 @@
         <ng-template #execution_name>
           <input
             [(ngModel)]="currentExecutionName"
-            placeholder="Untitled Execution" />
+            placeholder="Untitled Execution"
+            [disabled]="!(executionState === ExecutionState.Uninitialized ||
+						    executionState === ExecutionState.Completed ||
+						    executionState === ExecutionState.Aborted)" />
         </ng-template>
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
