@@ -506,7 +506,7 @@ export class NavigationComponent implements OnInit {
     return (
       this.executionState === ExecutionState.Uninitialized ||
       this.executionState === ExecutionState.Completed ||
-      this.executionState == ExecutionState.Aborted
+      this.executionState === ExecutionState.Aborted
     );
   }
 }
