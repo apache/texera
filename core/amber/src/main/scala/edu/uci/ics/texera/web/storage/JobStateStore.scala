@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{
 object JobStateStore {
 
   // Update the state of the specified execution if user system is enabled.
-  // Update the execution only from backend.
+  // Update the execution only from backend
   def updateWorkflowState(
       state: WorkflowAggregatedState,
       metadataStore: JobMetadataStore
