@@ -366,7 +366,7 @@
           <input
             [(ngModel)]="currentExecutionName"
             placeholder="Untitled Execution"
-            [disabled]="!isExecutionInTerminalState()" />
+            [disabled]="!isWorkflowModifiable" />
         </ng-template>
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
