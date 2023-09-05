@@ -92,7 +92,7 @@ class AdminExecutionResource {
         val startingTime = workflowRecord.get(WORKFLOW_EXECUTIONS.STARTING_TIME).getTime
         val lastUpdateTime = workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME).getTime
         val timeDifferenceSeconds = (lastUpdateTime - startingTime) / 1000.0
-        val ifAccess = availableWorkflowIds.contains(workflowRecord.get(WORKFLOW_VERSION.WID))
+        val hasAccess = availableWorkflowIds.contains(workflowRecord.get(WORKFLOW_VERSION.WID))
         dashboardExecution(
           workflowRecord.get(WORKFLOW.NAME),
           workflowRecord.get(WORKFLOW_VERSION.WID),
@@ -104,7 +104,7 @@ class AdminExecutionResource {
           workflowRecord.get(WORKFLOW_EXECUTIONS.NAME),
           startingTime,
           lastUpdateTime,
-          ifAccess
+          hasAccess
         )
       })
       .toList

@@ -104,8 +104,8 @@ object Utils {
       case WorkflowAggregatedState.PAUSED        => "Paused"
       case WorkflowAggregatedState.RESUMING      => "Resuming"
       case WorkflowAggregatedState.COMPLETED     => "Completed"
-      case WorkflowAggregatedState.FAILED        => "FAILED"
-      case WorkflowAggregatedState.KILLED        => "KILLED"
+      case WorkflowAggregatedState.FAILED        => "Failed"
+      case WorkflowAggregatedState.KILLED        => "Killed"
       case WorkflowAggregatedState.UNKNOWN       => "Unknown"
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) =>
         s"Unrecognized($unrecognizedValue)"
