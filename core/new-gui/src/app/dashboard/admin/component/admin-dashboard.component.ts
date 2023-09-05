@@ -254,6 +254,10 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  /**
+   Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
+   Therefore, commenting the code to ensure the connections is established and request has been sent.
+   */
   killExecution(wid: number) {
     let socket = new WorkflowWebsocketService();
     socket.openWebsocket(wid);
@@ -261,6 +265,10 @@ export class AdminDashboardComponent implements OnInit {
     // socket.closeWebsocket();
   }
 
+  /**
+   Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
+   Therefore, commenting the code to ensure the connections is established and request has been sent.
+   */
   pauseExecution(wid: number) {
     let socket = new WorkflowWebsocketService();
     socket.openWebsocket(wid);
@@ -268,6 +276,10 @@ export class AdminDashboardComponent implements OnInit {
     // socket.closeWebsocket();
   }
 
+  /**
+   Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
+   Therefore, commenting the code to ensure the connections is established and request has been sent.
+   */
   resumeExecution(wid: number) {
     let socket = new WorkflowWebsocketService();
     socket.openWebsocket(wid);
