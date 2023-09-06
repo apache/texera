@@ -133,7 +133,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
       // retrieve all executions that are not completed
       val incompleteExecutions: List[ExecutionResultEntry] =
         WorkflowExecutionsResource.getAllIncompleteResults()
-      cleanOldCollections(incompleteExecutions, WorkflowAggregatedState.ABORTED)
+      cleanOldCollections(incompleteExecutions, WorkflowAggregatedState.FAILED)
       scheduleRecurringCallThroughActorSystem(
         2.seconds,
         AmberUtils.amberConfig
