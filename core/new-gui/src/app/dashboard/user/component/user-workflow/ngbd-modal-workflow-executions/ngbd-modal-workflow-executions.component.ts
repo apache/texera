@@ -100,8 +100,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     ["running", 1],
     ["paused", 2],
     ["completed", 3],
-    ["FAILED", 4],
-    ["KILLED", 5],
+    ["failed", 4],
+    ["killed", 5],
   ]);
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
@@ -137,8 +137,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           1: "running",
           2: "paused",
           3: "completed",
-          4: "FAILED",
-          5: "KILLED",
+          4: "failed",
+          5: "killed",
         };
         let statusData: { [key: string]: [string, number] } = {};
 
@@ -288,9 +288,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       case 3:
         return [ExecutionState.Completed.toString(), "check-circle", "green"];
       case 4:
-        return [ExecutionState.FAILED.toString(), "exclamation-circle", "gray"];
+        return [ExecutionState.Failed.toString(), "exclamation-circle", "gray"];
       case 5:
-        return [ExecutionState.KILLED.toString(), "minus-circle", "red"];
+        return [ExecutionState.Killed.toString(), "minus-circle", "red"];
     }
     return ["", "question-circle", "gray"];
   }

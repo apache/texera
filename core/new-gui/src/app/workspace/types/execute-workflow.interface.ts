@@ -123,8 +123,8 @@ export enum ExecutionState {
   Recovering = "Recovering",
   BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
-  FAILED = "FAILED",
-  KILLED = "KILLED",
+  Failed = "Failed",
+  Killed = "Killed",
 }
 
 export type ExecutionStateInfo = Readonly<
@@ -146,10 +146,10 @@ export type ExecutionStateInfo = Readonly<
       breakpoint: BreakpointTriggerInfo;
     }
   | {
-      state: ExecutionState.Completed | ExecutionState.KILLED;
+      state: ExecutionState.Completed | ExecutionState.Killed;
     }
   | {
-      state: ExecutionState.FAILED;
+      state: ExecutionState.Failed;
       errorMessages: Readonly<Record<string, string>>;
     }
 >;
