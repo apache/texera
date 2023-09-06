@@ -88,12 +88,7 @@
         <button
           type="button"
           (click)="pauseExecution(execution.workflowId)"
-          [disabled]="execution.executionStatus === 'COMPLETED' ||
-                        execution.executionStatus === 'JUST COMPLETED' ||
-                        execution.executionStatus === 'FAILED' ||
-                        execution.executionStatus === 'PAUSED'  ||
-                        execution.executionStatus === 'READY' || 
-                        execution.executionStatus === 'KILLED'"
+          [disabled]="execution.executionStatus !== 'RUNNING'"
           nz-button
           nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}"
           type="button">
