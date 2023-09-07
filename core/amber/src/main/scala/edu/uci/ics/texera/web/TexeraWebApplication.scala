@@ -20,6 +20,7 @@ import edu.uci.ics.texera.web.auth.{
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
+import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.user.file.{
   UserFileAccessResource,
@@ -132,7 +133,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
       // retrieve all executions that are not completed
       val incompleteExecutions: List[ExecutionResultEntry] =
         WorkflowExecutionsResource.getAllIncompleteResults()
-      cleanOldCollections(incompleteExecutions, WorkflowAggregatedState.ABORTED)
+      cleanOldCollections(incompleteExecutions, WorkflowAggregatedState.FAILED)
       scheduleRecurringCallThroughActorSystem(
         2.seconds,
         AmberUtils.amberConfig
@@ -213,6 +214,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[ProjectAccessResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])
     environment.jersey.register(classOf[DashboardResource])
+    environment.jersey.register(classOf[AdminExecutionResource])
   }
 
   /**

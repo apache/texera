@@ -18,6 +18,7 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
 import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.{
   ConsoleMessage,
@@ -103,10 +104,10 @@ class JobPythonService(
   //Receive retry request
   addSubscription(wsInput.subscribe((req: RetryRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
-    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RESUMING))
+    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
     client.sendAsyncWithCallback[Unit](
       RetryWorkflow(),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+      _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
     )
   }))
 
