@@ -53,7 +53,7 @@ case class LogicalPlan(
     operators.map(op => (op.operatorID, op)).toMap
 
   lazy val jgraphtDag: DirectedAcyclicGraph[String, OperatorLink] =
-    LogicalPlan.toJgraphtDAG(operators, links)
+    LogicalPlan.toJgraphtDAG(operators, links) //--backlink
 
   lazy val sourceOperators: List[String] =
     operatorMap.keys.filter(op => jgraphtDag.inDegreeOf(op) == 0).toList

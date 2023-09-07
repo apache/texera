@@ -36,13 +36,11 @@ class ProcessTableOperator(UDFTableOperator):
     val firstLayer = OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ => new PythonUDFOpExecV2(generatePythonCode, operatorSchemaInfo.outputSchemas.head))
-      .copy(inputPorts = List(InputPort("Condition")),
-        outputPorts = List(OutputPort("ReducerOutput")))
+      .copy(inputPorts = List(InputPort("Condition")))
 
     val finalLayer = OpExecConfig
       .manyToOneLayer(operatorIdentifier, _ => new IfStatementOpExec())
-      .copy(inputPorts = List(InputPort("ReducerOutput"), InputPort("Data")),
-            outputPorts = List(OutputPort("True"), OutputPort("False")),
+      .copy(outputPorts = List(OutputPort("True"), OutputPort("False")),
             blockingInputs = List(0),
             dependency = Map(1 -> 0)
         )
