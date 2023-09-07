@@ -172,10 +172,12 @@ export class NavigationComponent implements OnInit {
         onClick: () => {},
       };
     }
+    console.log(executionState);
     switch (executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
-      case ExecutionState.Aborted:
+      case ExecutionState.Killed:
+      case ExecutionState.Failed:
         return {
           text: "Run",
           icon: "play-circle",
