@@ -40,7 +40,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public executionsTableHeaders: string[] = [
     "",
     "Username",
-    "Name",
+    "Name (ID)",
     "Starting Time",
     "Last Status Updated Time",
     "Status",
@@ -48,7 +48,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ];
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
-    Name: "Execution Name",
+    "Name (ID)": "Execution Name",
     Username: "The User Who Ran This Execution",
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
@@ -60,7 +60,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /*custom column width*/
   public customColumnWidth: Record<string, string> = {
     "": "70px",
-    Name: "230px",
+    "Name (ID)": "230px",
     "Workflow Version Sample": "220px",
     Username: "150px",
     "Starting Time": "250px",
@@ -100,7 +100,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     ["running", 1],
     ["paused", 2],
     ["completed", 3],
-    ["aborted", 4],
+    ["failed", 4],
+    ["killed", 5],
   ]);
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
@@ -136,7 +137,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           1: "running",
           2: "paused",
           3: "completed",
-          4: "aborted",
+          4: "failed",
+          5: "killed",
         };
         let statusData: { [key: string]: [string, number] } = {};
 
@@ -286,7 +288,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       case 3:
         return [ExecutionState.Completed.toString(), "check-circle", "green"];
       case 4:
-        return [ExecutionState.Aborted.toString(), "exclamation-circle", "gray"];
+        return [ExecutionState.Failed.toString(), "exclamation-circle", "gray"];
+      case 5:
+        return [ExecutionState.Killed.toString(), "minus-circle", "red"];
     }
     return ["", "question-circle", "gray"];
   }
@@ -406,7 +410,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
    based in ascending alphabetical order */
 
   ascSort(type: string): void {
-    if (type === "Name") {
+    if (type === "Name (ID)") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
@@ -433,7 +437,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
    based in descending alphabetical order */
 
   dscSort(type: string): void {
-    if (type === "Name") {
+    if (type === "Name (ID)") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
