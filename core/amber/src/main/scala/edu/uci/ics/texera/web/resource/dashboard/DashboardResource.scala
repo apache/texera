@@ -14,7 +14,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.{falseCondition, groupConcat, noCondition}
+import org.jooq.impl.DSL.{falseCondition, groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -172,7 +172,7 @@ class DashboardResource {
       * 3. `description`: Provides a description of the resource (`String`).
       * 4. `creation_time`: Indicates the timestamp of when the resource was created (`Timestamp`). It represents upload_time if the resourceType is `file`
       *
-      * Workflow Attributes (5 columns): Only workflow will have these 5 attributes.
+      * Workflow Attributes (6 columns): Only workflow will have these 6 attributes.
       * 5. `WID`: Represents the Workflow ID (`UInteger`).
       * 6. `lastModifiedTime`: Indicates the timestamp of the last modification made to the workflow (`Timestamp`).
       * 7. `privilege`: Specifies the privilege associated with the workflow (`Privilege`).
@@ -210,7 +210,7 @@ class DashboardResource {
           WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME,
-          groupConcat(WORKFLOW_OF_PROJECT.PID).as("projects"),
+          groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects"),
           // project attributes: 3 columns
           DSL.inline(null, classOf[UInteger]).as("pid"),
           DSL.inline(null, classOf[UInteger]).as("owner_id"),

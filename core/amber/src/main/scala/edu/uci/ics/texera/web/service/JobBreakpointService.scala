@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
 import edu.uci.ics.texera.web.workflowruntimestate.{BreakpointFault, OperatorBreakpoints}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
@@ -58,7 +59,7 @@ class JobBreakpointService(
       client
         .registerCallback[BreakpointTriggered]((evt: BreakpointTriggered) => {
           stateStore.jobMetadataStore.updateState { oldState =>
-            oldState.withState(PAUSED)
+            updateWorkflowState(PAUSED, oldState)
           }
           stateStore.breakpointStore.updateState { jobInfo =>
             val breakpointEvts = evt.report
