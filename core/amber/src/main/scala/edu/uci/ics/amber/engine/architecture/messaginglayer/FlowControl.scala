@@ -4,6 +4,7 @@ import akka.actor.Cancellable
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowDataMessage, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import org.ehcache.sizeof.SizeOf
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -62,6 +63,9 @@ class FlowControl {
   ): Option[WorkflowMessage] = {
     val isDataMessage = msg.isInstanceOf[WorkflowDataMessage]
     if (isDataMessage && Constants.flowControlEnabled) {
+      val sizeOf = SizeOf.newInstance()
+      val deepSize = sizeOf.deepSizeOf(msg)
+//      println("deepSize: " + deepSize)
       if (
         receiverIdToCredits.getOrElseUpdate(
           receiverId,
@@ -73,11 +77,13 @@ class FlowControl {
             .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
             .isEmpty
         ) {
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - deepSize.intValue()
+//          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
           return Some(msg)
         } else {
           dataMessagesAwaitingCredits(receiverId).enqueue(msg)
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - deepSize.intValue()
+//          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
           return Some(dataMessagesAwaitingCredits(receiverId).dequeue())
         }
       } else {
@@ -99,8 +105,14 @@ class FlowControl {
         Constants.unprocessedBatchesCreditLimitPerSender
       ) > 0
     ) {
-      messageBuffer.append(dataMessagesAwaitingCredits(receiverId).dequeue())
-      receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+      val awaited = dataMessagesAwaitingCredits(receiverId).dequeue()
+      messageBuffer.append(awaited)
+      val sizeOf = SizeOf.newInstance()
+      val deepSize = sizeOf.deepSizeOf(awaited)
+//      println("deepSize1: " + deepSize)
+      receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - deepSize.intValue()
+//      messageBuffer.append(dataMessagesAwaitingCredits(receiverId).dequeue())
+//      receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
     }
     messageBuffer.toArray
   }
