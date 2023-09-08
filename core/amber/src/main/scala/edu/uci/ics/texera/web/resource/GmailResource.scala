@@ -12,7 +12,10 @@ import java.util.Properties
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, Session, Transport}
-import javax.ws.rs.{GET, POST, PUT, Path}
+import javax.ws.rs.{DELETE, GET, POST, PUT, Path}
+
+
+case class EmailMessage(email: String, subject: String, content: String)
 
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/gmail")
@@ -43,6 +46,21 @@ class GmailResource {
     )
   }
 
+  @GET
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/email")
+  def getEmail: String = {
+    Files.readString(path.resolve("userEmail"))
+  }
+
+  @DELETE
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/revoke")
+  def deleteEmail(): Unit = {
+    Files.delete(path.resolve("userEmail"))
+    Files.delete(path.resolve("refreshToken"))
+    Files.delete(path.resolve("accessToken"))
+  }
   @POST
   @RolesAllowed(Array("ADMIN"))
   @Path("/auth")
@@ -67,7 +85,7 @@ class GmailResource {
 
   @PUT
   @Path("/send")
-  def sendEmail(title: String, content: String): Unit = {
+  def sendEmail(message: EmailMessage, @Auth user: SessionUser): Unit = {
     val props = new Properties()
     props.put("mail.smtp.starttls.required", "true")
     props.put("mail.smtp.sasl.enable", "true")
@@ -84,12 +102,11 @@ class GmailResource {
       accessToken = Files.readString(accessTokenPath)
       connect(transport, accessToken)
     }
-
     val email = new MimeMessage(session)
     email.setFrom(new InternetAddress("me"))
-    email.addRecipient(Message.RecipientType.TO, new InternetAddress("linxinyuan@gmail.com"))
-    email.setSubject("Ping")
-    email.setText("Hello, this is example of sending email"+content)
+    email.addRecipient(Message.RecipientType.TO, new InternetAddress(if (message.email=="") user.getEmail else message.email))
+    email.setSubject(message.subject)
+    email.setText(message.content)
     transport.sendMessage(email, email.getAllRecipients)
   }
 }

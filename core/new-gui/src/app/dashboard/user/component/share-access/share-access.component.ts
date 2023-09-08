@@ -70,8 +70,11 @@ export class ShareAccessComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(() => {
           this.ngOnInit()
-          this.gmailService.sendEmail("test","test")
-        });
+          this.gmailService.sendEmail(
+            this.owner+" shared a "+this.type+" with you",
+            "Access the workflow: "+location.origin+"/workflow/"+this.id
+          )
+      });
     }
   }
 

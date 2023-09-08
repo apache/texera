@@ -18,6 +18,7 @@ export class LocalLoginComponent {
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
+
   constructor(
     private formBuilder: FormBuilder,
     private userService: UserService,
