@@ -1,8 +1,5 @@
 package edu.uci.ics.texera.web.resource
-import com.google.api.client.googleapis.auth.oauth2.{
-  GoogleAuthorizationCodeTokenRequest,
-  GoogleRefreshTokenRequest
-}
+import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeTokenRequest, GoogleRefreshTokenRequest}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -15,9 +12,9 @@ import java.util.Properties
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, Session, Transport}
-import javax.ws.rs.{GET, POST, Path}
+import javax.ws.rs.{GET, POST, PUT, Path}
 
-//@RolesAllowed(Array("REGULAR", "ADMIN"))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/gmail")
 class GmailResource {
   final private lazy val path =
@@ -68,9 +65,9 @@ class GmailResource {
     )
   }
 
-  @GET
-  @Path("/email")
-  def sendEmail(content: String): Unit = {
+  @PUT
+  @Path("/send")
+  def sendEmail(title: String, content: String): Unit = {
     val props = new Properties()
     props.put("mail.smtp.starttls.required", "true")
     props.put("mail.smtp.sasl.enable", "true")
@@ -92,7 +89,7 @@ class GmailResource {
     email.setFrom(new InternetAddress("me"))
     email.addRecipient(Message.RecipientType.TO, new InternetAddress("linxinyuan@gmail.com"))
     email.setSubject("Ping")
-    email.setText("Hello, this is example of sending email  ")
+    email.setText("Hello, this is example of sending email"+content)
     transport.sendMessage(email, email.getAllRecipients)
   }
 }

@@ -19,11 +19,17 @@ button {
   border: 1px solid #f0f0f0;
 }
 
-.ant-menu-item {
-  height: 80px;
+.ant-menu-item{
+  height: 60px;
 }
 
 .submenu,
 .ant-menu-item span {
-  font-size: 20px;
+  font-size: 18px;
+}
+
+.ant-menu {
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 70px - 48px);
 }

@@ -8,7 +8,7 @@ import { GmailService } from "../../service/gmail.service";
 export class GmailComponent implements OnInit {
   constructor(private gmailAuthService: GmailService) {}
   ngOnInit(): void {
-    this.gmailAuthService.authInit();
+    this.gmailAuthService.auth();
   }
 
   public auth() {

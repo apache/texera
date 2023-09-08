@@ -8,7 +8,7 @@ declare var window: any;
 export class GmailService {
   public client: any;
   constructor(private http: HttpClient) {}
-  public authInit() {
+  public auth() {
     this.http
       .get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" })
       .subscribe(response => {
@@ -21,5 +21,9 @@ export class GmailService {
           },
         });
       });
+  }
+
+  public sendEmail(title: string, content: string) {
+     this.http.put(`${AppSettings.getApiEndpoint()}/gmail/send`,{title: title, content: content}).subscribe();
   }
 }
