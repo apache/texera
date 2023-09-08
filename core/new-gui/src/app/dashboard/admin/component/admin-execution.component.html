@@ -37,7 +37,7 @@
           { text: 'COMPLETED', value: 'COMPLETED'},
           { text: 'FAILED', value: 'FAILED'},
           { text: 'KILLED', value: 'KILLED'},
-          { text: 'JUST COMPLETED', value: 'JUST COMPLETED'}, 
+          { text: 'JUST COMPLETED', value: 'JUST COMPLETED'},
           { text: 'UNKNOWN', value: 'UNKNOWN'}]"
         [nzFilterFn]="filterByStatus"
         nzWidth="16%">
@@ -71,7 +71,6 @@
       <td>{{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}</td>
       <td>
         <button
-          type="button"
           (click)="killExecution(execution.workflowId)"
           [disabled]="execution.executionStatus === 'COMPLETED' ||
                         execution.executionStatus === 'JUST COMPLETED' ||
@@ -86,7 +85,6 @@
             nzType="stop"></i>
         </button>
         <button
-          type="button"
           (click)="pauseExecution(execution.workflowId)"
           [disabled]="execution.executionStatus !== 'RUNNING'"
           nz-button
@@ -98,7 +96,6 @@
             nzType="pause"></i>
         </button>
         <button
-          type="button"
           (click)="resumeExecution(execution.workflowId)"
           [disabled]="execution.executionStatus !== 'PAUSED'"
           nz-button

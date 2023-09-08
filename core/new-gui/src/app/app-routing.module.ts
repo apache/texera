@@ -10,7 +10,7 @@ import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { HomeComponent } from "./home/component/home.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
-import { AdminDashboardComponent } from "./dashboard/admin/component/admin-dashboard.component";
+import { AdminExecutionComponent } from "./dashboard/admin/component/admin-execution.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
@@ -75,8 +75,8 @@ if (environment.userSystemEnabled) {
         canActivate: [AdminGuardService],
       },
       {
-        path: "admin-dashboard",
-        component: AdminDashboardComponent,
+        path: "admin-execution",
+        component: AdminExecutionComponent,
         canActivate: [AdminGuardService],
       },
     ],

@@ -103,7 +103,7 @@ import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wr
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
-import { AdminDashboardComponent } from "./dashboard/admin/component/admin-dashboard.component";
+import { AdminExecutionComponent } from "./dashboard/admin/component/admin-execution.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -131,6 +131,7 @@ import { SearchResultsComponent } from "./dashboard/user/component/search-result
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
+import { NzAlertModule } from "ng-zorro-antd/alert";
 
 registerLocaleData(en);
 
@@ -149,7 +150,7 @@ registerLocaleData(en);
     OperatorLabelComponent,
     DashboardComponent,
     AdminUserComponent,
-    AdminDashboardComponent,
+    AdminExecutionComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
@@ -212,8 +213,8 @@ registerLocaleData(en);
       config: {
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
-        throwNoTokenError: false,
-      },
+        throwNoTokenError: false
+      }
     }),
     MatTooltipModule,
     CustomNgMaterialModule,
@@ -270,6 +271,7 @@ registerLocaleData(en);
     NzLayoutModule,
     MarkdownModule.forRoot(),
     DragDropModule,
+    NzAlertModule
   ],
   providers: [
     AuthGuardService,
