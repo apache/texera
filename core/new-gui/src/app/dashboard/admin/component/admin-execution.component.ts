@@ -5,19 +5,19 @@ import { Execution } from "../../../common/type/execution";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { NgbdModalWorkflowExecutionsComponent } from "../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import {
+  NgbdModalWorkflowExecutionsComponent
+} from "../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { Workflow } from "../../../common/type/workflow";
 import { WorkflowWebsocketService } from "src/app/workspace/service/workflow-websocket/workflow-websocket.service";
 
 @UntilDestroy()
 @Component({
-  templateUrl: "./admin-dashboard.component.html",
-  styleUrls: ["./admin-dashboard.component.scss"],
+  templateUrl: "./admin-execution.component.html"
 })
-export class AdminDashboardComponent implements OnInit {
+export class AdminExecutionComponent implements OnInit {
   Executions: ReadonlyArray<Execution> = [];
   workflowsCount: number = 0;
-  usersCount: number = 0;
   listOfExecutions = [...this.Executions];
   workflows: Array<Workflow> = [];
   executionMap: Map<number, Execution> = new Map();
@@ -207,8 +207,7 @@ export class AdminDashboardComponent implements OnInit {
    */
   convertTimeToTimestamp(executionStatus: string, timeValue: number): string {
     const date = new Date(timeValue);
-    const formattedTime = date.toLocaleString("en-US", { timeZoneName: "short" });
-    return formattedTime;
+    return date.toLocaleString("en-US", { timeZoneName: "short" });
   }
 
   /**
@@ -219,8 +218,7 @@ export class AdminDashboardComponent implements OnInit {
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = seconds % 60;
 
-    const formattedTime = `${this.padZero(hours)}:${this.padZero(minutes)}:${this.padZero(remainingSeconds)}`;
-    return formattedTime;
+    return `${this.padZero(hours)}:${this.padZero(minutes)}:${this.padZero(remainingSeconds)}`;
   }
 
   /**
