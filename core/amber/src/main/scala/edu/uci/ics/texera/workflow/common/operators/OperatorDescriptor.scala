@@ -63,7 +63,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.treemap.TreeMapOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.hierarchicaldata.TreeMapOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.timeseries.TimeSeriesOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
@@ -72,7 +72,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOp
 import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.sunburstChart.SunburstChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.hierarchicaldata.SunburstChartOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID

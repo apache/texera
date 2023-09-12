@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.treemap
+package edu.uci.ics.texera.workflow.operators.visualization.hierarchicaldata
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
