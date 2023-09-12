@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, OnDestroy } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../service/admin-execution.service";
 import { Execution } from "../../../common/type/execution";
@@ -14,7 +14,7 @@ import { WorkflowWebsocketService } from "src/app/workspace/service/workflow-web
   templateUrl: "./admin-dashboard.component.html",
   styleUrls: ["./admin-dashboard.component.scss"],
 })
-export class AdminDashboardComponent implements OnInit {
+export class AdminDashboardComponent implements OnInit, OnDestroy {
   Executions: ReadonlyArray<Execution> = [];
   workflowsCount: number = 0;
   usersCount: number = 0;
@@ -26,7 +26,7 @@ export class AdminDashboardComponent implements OnInit {
   // This interval function fetches the latest execution list and checks for updates.
   // If some execution's data has changed, it triggers a component refresh.
   // The interval runs every 1 second (1000 milliseconds).
-  intervals = setInterval(() => {
+  timer = setInterval(() => {
     this.adminExecutionService
       .getExecutionList()
       .pipe(untilDestroyed(this))
@@ -75,6 +75,10 @@ export class AdminDashboardComponent implements OnInit {
         this.reset();
         this.workflowsCount = this.listOfExecutions.length;
       });
+  }
+
+  ngOnDestroy(): void {
+    clearInterval(this.timer);
   }
 
   maxStringLength(input: string, length: number): string {
