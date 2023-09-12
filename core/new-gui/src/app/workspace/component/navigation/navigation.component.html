@@ -373,7 +373,8 @@
         <ng-template #execution_name>
           <input
             [(ngModel)]="currentExecutionName"
-            placeholder="Untitled Execution" />
+            placeholder="Untitled Execution"
+            [disabled]="!isWorkflowModifiable" />
         </ng-template>
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge
