@@ -6,21 +6,21 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 
 import java.util.Objects;
 
-public class TableColumnUnit {
+public class TableHeaderUnit {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute Name")
   @AutofillAttributeNameLambda
   public String attributeName;
 
-  public TableColumnUnit(String attributeName) {
+  public TableHeaderUnit(String attributeName) {
     this.attributeName = attributeName;
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof TableColumnUnit that)) return false;
-    return attributeName.equals(that.attributeName);
+    if (!(o instanceof TableHeaderUnit that)) return false;
+    return Objects.equals(attributeName, that.attributeName);
   }
 
   @Override
