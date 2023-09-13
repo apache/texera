@@ -52,7 +52,6 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    val finalcode =
       s"""
          |from pytexera import *
          |
@@ -87,8 +86,6 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |
          |""".stripMargin
-    System.out.print(finalcode)
-    finalcode
   }
 
   override def chartType(): String = VisualizationConstants.HTML_VIZ
