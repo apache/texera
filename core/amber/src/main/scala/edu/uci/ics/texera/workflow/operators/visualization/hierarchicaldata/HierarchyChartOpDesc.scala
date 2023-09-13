@@ -2,8 +2,8 @@ package edu.uci.ics.texera.workflow.operators.visualization.hierarchicaldata
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
@@ -18,7 +18,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
   }
 }
 """)
-abstract class HierarchicalDataVizOperator extends VisualizationOperator with PythonOperatorDescriptor{
+class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor{
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("the value associated with each tree node")
@@ -30,10 +30,10 @@ abstract class HierarchicalDataVizOperator extends VisualizationOperator with Py
   @JsonPropertyDescription("hierarchy of sectors, from root to leaves")
   var hierarchy: List[HierarchySection] = List()
 
-  // Abstract methods
-  protected def userFriendlyName : String
-  protected def operatorDescription : String
-  protected def plotlyExpressApiName : String
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Chart Type")
+  @JsonPropertyDescription("treemap or sunburst")
+  var hierarchyChartType: HierarchyChartType = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -41,8 +41,8 @@ abstract class HierarchicalDataVizOperator extends VisualizationOperator with Py
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      userFriendlyName,
-      operatorDescription,
+      "Hierarchy Chart",
+      "Visualize data in hierarchy",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -66,9 +66,9 @@ abstract class HierarchicalDataVizOperator extends VisualizationOperator with Py
     assert(hierarchy.nonEmpty)
     val attributes = getHierarchyAttributesInPython
     s"""
-       |        fig = px.$plotlyExpressApiName(table, path=[$attributes], values='$value',
-       |                                       color='$value', hover_data=[$attributes],
-       |                                       color_continuous_scale='RdBu')
+       |        fig = px.${hierarchyChartType.getPlotlyExpressApiName}(table, path=[$attributes], values='$value',
+       |                                                               color='$value', hover_data=[$attributes],
+       |                                                               color_continuous_scale='RdBu')
        |""".stripMargin
   }
 
@@ -86,7 +86,7 @@ abstract class HierarchicalDataVizOperator extends VisualizationOperator with Py
          |
          |    # Generate custom error message as html string
          |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>$userFriendlyName is not available.</h1>
+         |        return '''<h1>Hierarchy chart is not available.</h1>
          |                  <p>Reason is: {} </p>
          |               '''.format(error_msg)
          |
