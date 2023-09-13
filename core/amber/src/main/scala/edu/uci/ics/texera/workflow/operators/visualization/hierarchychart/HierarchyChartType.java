@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.hierarchicaldata;
+package edu.uci.ics.texera.workflow.operators.visualization.hierarchychart;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 

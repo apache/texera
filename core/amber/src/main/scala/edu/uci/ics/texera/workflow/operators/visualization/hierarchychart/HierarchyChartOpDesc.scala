@@ -1,12 +1,25 @@
-package edu.uci.ics.texera.workflow.operators.visualization.hierarchicaldata
+package edu.uci.ics.texera.workflow.operators.visualization.hierarchychart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -18,7 +31,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
   }
 }
 """)
-class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor{
+class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("the value associated with each tree node")
