@@ -15,8 +15,8 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   var title: String = "Table Visualization"
 
   @JsonSchemaTitle("Output columns")
-  @JsonPropertyDescription("the columns of the table")
-  var tableColumnUnits: List[TableColumnUnit] = List()
+  @JsonPropertyDescription("the column name(s) of the table chart")
+  var tableColumnNameUnits: List[TableColumnNameUnit] = List()
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -34,7 +34,7 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   // create a boolean val to indicate if table is error free
   def createTableErrFreeFlag(): String = {
-    val tableColumnNames = tableColumnUnits.map(unit => s"'${unit.columnName}'").mkString(", ")
+    val tableColumnNames = tableColumnNameUnits.map(unit => s"'${unit.columnName}'").mkString(", ")
     s"""
        |        is_table_err_free = set([${tableColumnNames}]).issubset(table.columns)
        |""".stripMargin
@@ -42,12 +42,12 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   def createPlotlyFigure(): String = {
 
-    val tableColumnNames = tableColumnUnits.map(unit => s"'${unit.columnName}'").mkString(", ")
-    val tableColumnValues = tableColumnUnits.map(unit => s"table['${unit.columnName}'].tolist()").mkString(", ")
+    val tableColumnNames = tableColumnNameUnits.map(unit => s"'${unit.columnName}'").mkString(", ")
+    val tableColumnValues = tableColumnNameUnits.map(unit => s"table['${unit.columnName}'].tolist()").mkString(", ")
     s"""
        |        fig = go.Figure(data=[go.Table(header=dict(values=[${tableColumnNames}]),
        |                        cells=dict(values=[${tableColumnValues}]))])
-       |        fig.update_layout(title_text='${title}')
+       |        fig.update_layout(title_text='${title}', title_x=0.5, title_xanchor='center')
        |""".stripMargin
   }
 
