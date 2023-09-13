@@ -28,7 +28,7 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   def createPlotlyFigure(): String = {
 
     val tableHeaders = tableHeaderUnits.map(unit => s"'${unit.attributeName}'").mkString(", ")
-    val tableColumns = tableHeaderUnits.map(unit => s"table.${unit.attributeName}").mkString(", ")
+    val tableColumns = tableHeaderUnits.map(unit => s"table['${unit.attributeName}'].tolist()").mkString(", ")
     s"""
        |        fig = go.Figure(data=[go.Table(header=dict(values=[${tableHeaders}]),
        |                        cells=dict(values=[${tableColumns}]))])
