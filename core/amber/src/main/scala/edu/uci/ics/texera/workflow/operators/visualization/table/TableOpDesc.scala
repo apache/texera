@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization.table
 
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
@@ -8,8 +9,14 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
 
 class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
+  @JsonProperty(value = "title", required = false, defaultValue = "Table Visualization")
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("the title of this table")
+  var title: String = "Table Visualization"
+
   @JsonSchemaTitle("Output columns")
-  var tableHeaderUnits: List[TableHeaderUnit] = List()
+  @JsonPropertyDescription("the columns of the table")
+  var tableColumnUnits: List[TableColumnUnit] = List()
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -25,13 +32,22 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
     outputPorts = List(OutputPort())
   )
 
+  // create a boolean val to indicate if table is error free
+  def createTableErrFreeFlag(): String = {
+    val tableColumnNames = tableColumnUnits.map(unit => s"'${unit.columnName}'").mkString(", ")
+    s"""
+       |        is_table_err_free = set([${tableColumnNames}]).issubset(table.columns)
+       |""".stripMargin
+  }
+
   def createPlotlyFigure(): String = {
 
-    val tableHeaders = tableHeaderUnits.map(unit => s"'${unit.attributeName}'").mkString(", ")
-    val tableColumns = tableHeaderUnits.map(unit => s"table['${unit.attributeName}'].tolist()").mkString(", ")
+    val tableColumnNames = tableColumnUnits.map(unit => s"'${unit.columnName}'").mkString(", ")
+    val tableColumnValues = tableColumnUnits.map(unit => s"table['${unit.columnName}'].tolist()").mkString(", ")
     s"""
-       |        fig = go.Figure(data=[go.Table(header=dict(values=[${tableHeaders}]),
-       |                        cells=dict(values=[${tableColumns}]))])
+       |        fig = go.Figure(data=[go.Table(header=dict(values=[${tableColumnNames}]),
+       |                        cells=dict(values=[${tableColumnValues}]))])
+       |        fig.update_layout(title_text='${title}')
        |""".stripMargin
   }
 
@@ -60,6 +76,11 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
          |        if table.empty:
          |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
          |           return
+         |        ${createTableErrFreeFlag()}
+         |        if not is_table_err_free:
+         |           yield {'html-content': self.render_error("Some given column names do not exist in the input data")}
+         |           return
+         |
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
