@@ -30,9 +30,8 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
     val tableHeaders = tableHeaderUnits.map(unit => s"'${unit.attributeName}'").mkString(", ")
     val tableColumns = tableHeaderUnits.map(unit => s"table.${unit.attributeName}").mkString(", ")
     s"""
-       |        fig = go.Figure(data=[go.Table(header=dict(values=[${tableHeaders}], fill_color='paleturquoise',align='left'),
-       |                        cells=dict(values=[${tableColumns}], fill_color='lavender', align='left'))
-       |])
+       |        fig = go.Figure(data=[go.Table(header=dict(values=[${tableHeaders}]),
+       |                        cells=dict(values=[${tableColumns}]))])
        |""".stripMargin
   }
 
@@ -67,6 +66,7 @@ class TableOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |
          |""".stripMargin
+    System.out.print(finalcode)
     finalcode
   }
 

@@ -19,7 +19,8 @@ public class TableHeaderUnit {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof TableHeaderUnit that)) return false;
+    if (!(o instanceof TableHeaderUnit)) return false;
+    TableHeaderUnit that = (TableHeaderUnit) o;
     return Objects.equals(attributeName, that.attributeName);
   }
 
