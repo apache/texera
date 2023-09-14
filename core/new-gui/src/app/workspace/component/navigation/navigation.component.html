@@ -1,10 +1,22 @@
 <div class="texera-navigation-body">
   <div class="texera-navigation-padded">
-    <img
-      [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
-      alt="Texera"
-      class="texera-navigation-title"
-      src="assets/logos/full_logo_small.png?v=1" />
+    <div class="texera-navigation-title">
+      <a
+        *ngIf="userSystemEnabled; else noLink"
+        [routerLink]="'/dashboard/workflow'">
+        <img
+          [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
+          alt="Texera"
+          src="assets/logos/full_logo_small.png?v=1"
+          title="dashboard" />
+      </a>
+      <ng-template #noLink>
+        <img
+          [ngClass]="{ 'user-system-enabled': userSystemEnabled }"
+          alt="Texera"
+          src="assets/logos/full_logo_small.png?v=1" />
+      </ng-template>
+    </div>
 
     <!-- workflow metadata display -->
     <div
@@ -289,7 +301,7 @@
 				'reveal-stop-button':
 					executionState !== ExecutionState.Uninitialized &&
 					executionState !== ExecutionState.Completed &&
-					executionState !== ExecutionState.Aborted
+					executionState !== ExecutionState.Failed
 			}">
       <nz-button-group nzSize="large">
         <button
@@ -327,7 +339,8 @@
           [disabled]="
 						executionState === ExecutionState.Uninitialized ||
 						executionState === ExecutionState.Completed ||
-						executionState === ExecutionState.Aborted
+						executionState === ExecutionState.Killed ||
+            executionState === ExecutionState.Failed
 					"
           class="texera-navigation-stop-button"
           nz-button
@@ -360,7 +373,8 @@
         <ng-template #execution_name>
           <input
             [(ngModel)]="currentExecutionName"
-            placeholder="Untitled Execution" />
+            placeholder="Untitled Execution"
+            [disabled]="!isWorkflowModifiable" />
         </ng-template>
         <div [ngStyle]="{ 'margin-left': '5px' }">
           <nz-badge

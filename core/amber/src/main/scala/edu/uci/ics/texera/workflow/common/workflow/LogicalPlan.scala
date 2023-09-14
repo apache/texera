@@ -2,7 +2,9 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
+import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -190,9 +192,14 @@ case class LogicalPlan(
   ): PhysicalPlan = {
 
     if (errorList.nonEmpty) {
-      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
+      val err = new Exception(s"${errorList.size} error(s) occurred in schema propagation.")
+      errorList.foreach(err.addSuppressed)
+      throw err
     }
-
+    // create a JSON object that holds pointers to the workflow's results in Mongo
+    // TODO in the future, will extract this logic from here when we need pointers to the stats storage
+    val resultsJSON = objectMapper.createObjectNode()
+    val sinksPointers = objectMapper.createArrayNode()
     // assign storage to texera-managed sinks before generating exec config
     operators.foreach {
       case o @ (sink: ProgressiveSinkOpDesc) =>
@@ -204,14 +211,22 @@ case class LogicalPlan(
           else OpResultStorage.defaultStorageMode
         sink.setStorage(
           opResultStorage.create(
+            context.executionID + "_",
             storageKey,
             outputSchemaMap(o.operatorIdentifier).head,
             storageType
           )
         )
+        // add the sink collection name to the JSON array of sinks
+        sinksPointers.add(context.executionID + "_" + o.operatorID)
       case _ =>
     }
-
+    // update execution entry in MySQL to have pointers to the mongo collections
+    resultsJSON.put("results", sinksPointers)
+    ExecutionsMetadataPersistService.updateExistingExecutionVolumnPointers(
+      context.executionID,
+      resultsJSON.toString
+    )
     var physicalPlan = PhysicalPlan(List(), List())
 
     operators.foreach(o => {

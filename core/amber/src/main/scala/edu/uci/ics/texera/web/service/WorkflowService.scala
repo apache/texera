@@ -130,15 +130,27 @@ class WorkflowService(
       //unsubscribe all
       jobService.getValue.unsubscribeAll()
     }
+    val workflowContext: WorkflowContext = createWorkflowContext(req, uidOpt)
+
+    if (WorkflowService.userSystemEnabled) {
+      workflowContext.executionID = -1 // for every new execution,
+      // reset it so that the value doesn't carry over across executions
+      workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
+        workflowContext.wId,
+        workflowContext.userId,
+        req.executionName,
+        convertToJson(req.engineVersion)
+      )
+    }
 
     val job = new WorkflowJobService(
-      createWorkflowContext(req, uidOpt),
+      workflowContext,
       wsInput,
       resultService,
       req,
-      errorHandler,
-      convertToJson(req.engineVersion)
+      errorHandler
     )
+
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
     jobService.onNext(job)
     job.startWorkflow()
