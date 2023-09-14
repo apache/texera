@@ -13,7 +13,9 @@ package edu.uci.ics.amber.engine.common.virtualidentity
 @SerialVersionUID(0L)
 final case class LinkIdentity(
     from: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
-    to: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+    fromPortName: _root_.scala.Predef.String,
+    to: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
+    toPortName: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[LinkIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -28,9 +30,23 @@ final case class LinkIdentity(
       };
       
       {
+        val __value = fromPortName
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
+        }
+      };
+      
+      {
         val __value = to
         if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
+      };
+      
+      {
+        val __value = toPortName
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(4, __value)
         }
       };
       __size
@@ -53,16 +69,30 @@ final case class LinkIdentity(
         }
       };
       {
+        val __v = fromPortName
+        if (!__v.isEmpty) {
+          _output__.writeString(2, __v)
+        }
+      };
+      {
         val __v = to
         if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) {
-          _output__.writeTag(2, 2)
+          _output__.writeTag(3, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
         }
       };
+      {
+        val __v = toPortName
+        if (!__v.isEmpty) {
+          _output__.writeString(4, __v)
+        }
+      };
     }
     def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity): LinkIdentity = copy(from = __v)
+    def withFromPortName(__v: _root_.scala.Predef.String): LinkIdentity = copy(fromPortName = __v)
     def withTo(__v: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity): LinkIdentity = copy(to = __v)
+    def withToPortName(__v: _root_.scala.Predef.String): LinkIdentity = copy(toPortName = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -70,8 +100,16 @@ final case class LinkIdentity(
           if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) __t else null
         }
         case 2 => {
+          val __t = fromPortName
+          if (__t != "") __t else null
+        }
+        case 3 => {
           val __t = to
           if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) __t else null
+        }
+        case 4 => {
+          val __t = toPortName
+          if (__t != "") __t else null
         }
       }
     }
@@ -79,7 +117,9 @@ final case class LinkIdentity(
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => from.toPMessage
-        case 2 => to.toPMessage
+        case 2 => _root_.scalapb.descriptors.PString(fromPortName)
+        case 3 => to.toPMessage
+        case 4 => _root_.scalapb.descriptors.PString(toPortName)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -91,7 +131,9 @@ object LinkIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity = {
     var __from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = _root_.scala.None
+    var __fromPortName: _root_.scala.Predef.String = ""
     var __to: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = _root_.scala.None
+    var __toPortName: _root_.scala.Predef.String = ""
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -100,13 +142,19 @@ object LinkIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
         case 10 =>
           __from = _root_.scala.Some(__from.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
+          __fromPortName = _input__.readStringRequireUtf8()
+        case 26 =>
           __to = _root_.scala.Some(__to.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 34 =>
+          __toPortName = _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
         from = __from.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance),
-        to = __to.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance)
+        fromPortName = __fromPortName,
+        to = __to.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance),
+        toPortName = __toPortName
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = _root_.scalapb.descriptors.Reads{
@@ -114,7 +162,9 @@ object LinkIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
         from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance),
-        to = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance)
+        fromPortName = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        to = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance),
+        toPortName = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -124,7 +174,7 @@ object LinkIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
       case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+      case 3 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
     }
     __out
   }
@@ -132,20 +182,30 @@ object LinkIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
     from = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance,
-    to = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance
+    fromPortName = "",
+    to = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance,
+    toPortName = ""
   )
   implicit class LinkIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_l) {
     def from: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = field(_.from)((c_, f_) => c_.copy(from = f_))
+    def fromPortName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.fromPortName)((c_, f_) => c_.copy(fromPortName = f_))
     def to: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = field(_.to)((c_, f_) => c_.copy(to = f_))
+    def toPortName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.toPortName)((c_, f_) => c_.copy(toPortName = f_))
   }
   final val FROM_FIELD_NUMBER = 1
-  final val TO_FIELD_NUMBER = 2
+  final val FROMPORTNAME_FIELD_NUMBER = 2
+  final val TO_FIELD_NUMBER = 3
+  final val TOPORTNAME_FIELD_NUMBER = 4
   def of(
     from: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
-    to: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+    fromPortName: _root_.scala.Predef.String,
+    to: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
+    toPortName: _root_.scala.Predef.String
   ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
     from,
-    to
+    fromPortName,
+    to,
+    toPortName
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.LinkIdentity])
 }

@@ -34,7 +34,7 @@ object AggregatedVizOpExecConfig {
 
     new PhysicalPlan(
       vizExec :: aggregateOperators.operators,
-      LinkIdentity(tailAggregateOp, vizExec.id) :: aggregateOperators.links
+      LinkIdentity(tailAggregateOp,"", vizExec.id, "") :: aggregateOperators.links
     )
   }
 

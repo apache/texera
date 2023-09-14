@@ -166,23 +166,23 @@ case class OpExecConfig(
   }
 
   // creates a copy with an additional input operator specified on an input port
-  def addInput(from: LayerIdentity, portName: String): OpExecConfig = {
-    val candidatePorts = inputPorts.indices.filter(idx => inputPorts(idx).displayName == portName)
-    assert(candidatePorts.size == 1, s"cannot add input on port $portName, all ports: $inputPorts")
+  def addInput(from: LayerIdentity, fromPortName: String, toPortName:String): OpExecConfig = {
+    val candidatePorts = inputPorts.indices.filter(idx => inputPorts(idx).displayName == toPortName)
+    assert(candidatePorts.size == 1, s"cannot add input on port $toPortName, all ports: $inputPorts")
     this.copy(inputToOrdinalMapping =
-      inputToOrdinalMapping + (LinkIdentity(from, this.id) -> candidatePorts.head)
+      inputToOrdinalMapping + (LinkIdentity(from, fromPortName,this.id, toPortName) -> candidatePorts.head)
     )
   }
 
   // creates a copy with an additional output operator specified on an output port
-  def addOutput(to: LayerIdentity, portName: String): OpExecConfig = {
-    val candidatePorts = outputPorts.indices.filter(idx => outputPorts(idx).displayName == portName)
+  def addOutput(to: LayerIdentity, fromPortName: String, toPortName: String): OpExecConfig = {
+    val candidatePorts = outputPorts.indices.filter(idx => outputPorts(idx).displayName == fromPortName)
     assert(
       candidatePorts.size == 1,
-      s"cannot add output on port $portName, all ports: $outputPorts"
+      s"cannot add output on port $fromPortName, all ports: $outputPorts"
     )
     this.copy(outputToOrdinalMapping =
-      outputToOrdinalMapping + (LinkIdentity(this.id, to) -> candidatePorts.head)
+      outputToOrdinalMapping + (LinkIdentity(this.id, fromPortName, to, toPortName) -> candidatePorts.head)
     )
   }
 
@@ -195,6 +195,8 @@ case class OpExecConfig(
   def removeOutput(to: LayerIdentity): OpExecConfig = {
     this.copy(outputToOrdinalMapping = outputToOrdinalMapping - LinkIdentity(this.id, to))
   }
+
+
 
   // creates a copy with the new ID
   def withId(id: LayerIdentity): OpExecConfig = this.copy(id = id)

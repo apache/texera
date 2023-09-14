@@ -68,13 +68,12 @@ class WorkflowPipelinedRegionsBuilder(
     physicalPlan.allOperatorIds.foreach(opId => {
       val upstreamOps = physicalPlan.getUpstream(opId)
       upstreamOps.foreach(upOpId => {
-        val linkFromUpstreamOp = LinkIdentity(
-          physicalPlan.operatorMap(upOpId).id,
-          physicalPlan.operatorMap(opId).id
-        )
-        if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp)) {
-          edgesToRemove += linkFromUpstreamOp
-        }
+
+        physicalPlan.links.filter(l => l.from == upOpId && l.to == opId).foreach(link => {
+          if (physicalPlan.operatorMap(opId).isInputBlocking(link)){
+            edgesToRemove+=link
+          }
+        })
       })
     })
 
@@ -147,8 +146,10 @@ class WorkflowPipelinedRegionsBuilder(
 
         // For operators that have only blocking input links. e.g. Sort, Groupby
         val upstreamOps = physicalPlan.getUpstream(opId)
+
+
         val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
-          physicalPlan.operatorMap(opId).isInputBlocking(LinkIdentity(upstreamOp, opId))
+          findAllLinks(upstreamOp, opId).forall(link=> physicalPlan.operatorMap(opId).isInputBlocking(link))
         )
         if (allInputBlocking)
           upstreamOps.foreach(upstreamOp => {
@@ -180,6 +181,11 @@ class WorkflowPipelinedRegionsBuilder(
     true
   }
 
+  private def findAllLinks(from:LayerIdentity, to: LayerIdentity): List[LinkIdentity] = {
+    physicalPlan.links.filter(link => link.from == from && link.to == to)
+
+  }
+
   private def findAllPipelinedRegionsAndAddDependencies(): Unit = {
     var traversedAllOperators = addMaterializationOperatorIfNeeded()
     while (!traversedAllOperators) {
@@ -207,27 +213,27 @@ class WorkflowPipelinedRegionsBuilder(
       .foreach(opId => {
         val upstreamOps = this.physicalPlan.getUpstream(opId)
         upstreamOps.foreach(upstreamOp => {
-          val linkFromUpstreamOp = LinkIdentity(
-            physicalPlan.operatorMap(upstreamOp).id,
-            physicalPlan.operatorMap(opId).id
-          )
-          if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp)) {
-            val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
-            for (prevInOrderRegion <- prevInOrderRegions) {
-              if (
-                !regionTerminalOperatorInOtherRegions.contains(
-                  prevInOrderRegion
-                ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion).contains(opId)
-              ) {
-                val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
-                  prevInOrderRegion,
-                  new ArrayBuffer[LayerIdentity]()
-                )
-                terminalOps.append(opId)
-                regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
+          findAllLinks(upstreamOp, opId).foreach(linkFromUpstreamOp => {
+            if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp)) {
+              val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
+              for (prevInOrderRegion <- prevInOrderRegions) {
+                if (
+                  !regionTerminalOperatorInOtherRegions.contains(
+                    prevInOrderRegion
+                  ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion).contains(opId)
+                ) {
+                  val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
+                    prevInOrderRegion,
+                    new ArrayBuffer[LayerIdentity]()
+                  )
+                  terminalOps.append(opId)
+                  regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
+                }
               }
             }
-          }
+          })
+
+
         })
       })
 

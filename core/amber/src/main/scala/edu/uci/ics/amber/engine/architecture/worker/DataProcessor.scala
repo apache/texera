@@ -112,7 +112,7 @@ class DataProcessor( // dependencies:
 
   if (this.operator.isInstanceOf[ISourceOperatorExecutor]) {
     // for source operator: add a virtual input channel just for kicking off the execution
-    registerInput(SOURCE_STARTER_ACTOR, LinkIdentity(SOURCE_STARTER_OP, this.opExecConfig.id))
+    registerInput(SOURCE_STARTER_ACTOR, LinkIdentity(SOURCE_STARTER_OP, "", this.opExecConfig.id, this.opExecConfig.inputPorts.head.displayName ))
   }
 
   def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {

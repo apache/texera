@@ -85,7 +85,7 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
             // check partition requirement to enforce corresponding LinkStrategy
             inputLayers.foreach(inputLayer => {
               val (linkStrategy, outputPart) = getOutputPartition(layerId, inputLayer, port)
-              linkMapping.put(LinkIdentity(inputLayer, layerId), linkStrategy)
+              linkMapping.put(linkStrategy.id, linkStrategy)
               outputPartitionsOfLayer.append(outputPart)
             })
 

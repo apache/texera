@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.texera.workflow.common.metadata.InputPort
+
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -161,10 +161,10 @@ case class PhysicalPlan(
   ): PhysicalPlan = {
 
     val newOperators = operatorMap +
-      (from -> operatorMap(from).addOutput(to, fromPortName)) +
-      (to -> operatorMap(to).addInput(from, toPortName))
+      (from -> operatorMap(from).addOutput(to, fromPortName, toPortName)) +
+      (to -> operatorMap(to).addInput(from,fromPortName, toPortName))
 
-    val newLinks = links :+ LinkIdentity(from, to)
+    val newLinks = links :+ LinkIdentity(from, fromPortName, to, toPortName)
     this.copy(operators = newOperators.values.toList, links = newLinks)
   }
 
@@ -178,7 +178,7 @@ case class PhysicalPlan(
       (from -> operatorMap(from).removeOutput(to)) +
       (to -> operatorMap(to).removeInput(from))
 
-    val newLinks = links.filter(l => l != LinkIdentity(from, to))
+    val newLinks = links.filter(l => l != edge)
     this.copy(operators = newOperators.values.toList, links = newLinks)
   }
 
