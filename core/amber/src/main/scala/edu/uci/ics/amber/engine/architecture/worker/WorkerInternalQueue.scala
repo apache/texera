@@ -67,7 +67,7 @@ class WorkerInternalQueue(
   }
 
   def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    (Constants.unprocessedBatchesCreditLimitPerSender - (inputTuplesPutInQueue
+    (Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize * 40000 - (inputTuplesPutInQueue
       .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
       sender,
       0L
