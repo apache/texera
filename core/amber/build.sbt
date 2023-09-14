@@ -260,3 +260,6 @@ libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
 // Jgit library for tracking operator version
 // https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+
+// https://mvnrepository.com/artifact/org.ehcache/sizeof
+libraryDependencies += "org.ehcache" % "sizeof" % "0.4.3"

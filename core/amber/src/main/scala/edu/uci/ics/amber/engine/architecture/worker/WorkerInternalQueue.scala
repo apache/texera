@@ -8,12 +8,9 @@ import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, EpochMarker
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
-import org.ehcache.sizeof.SizeOf
 
 import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable
-import org.openjdk.jol.info.GraphLayout
-
 
 object WorkerInternalQueue {
   final val DATA_QUEUE_PRIORITY = 1
@@ -63,7 +60,6 @@ class WorkerInternalQueue(
     new mutable.HashMap[ActorVirtualIdentity, Long]() // read and written by main thread
   @volatile private var inputTuplesTakenOutOfQueue =
     new mutable.HashMap[ActorVirtualIdentity, Long]() // written by DP thread, read by main thread
-  @volatile private var internalMessageSize = new mutable.Queue[Long]()
 
   def registerInput(sender: ActorVirtualIdentity): Unit = {
     lbmq.addSubQueue(sender.name, DATA_QUEUE_PRIORITY)
@@ -76,23 +72,14 @@ class WorkerInternalQueue(
       sender,
       0L
     )).toInt)
-//    Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize - (inputTuplesPutInQueue
-//      .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
-//      sender,
-//      0L
-//    )).toInt
   }
 
   def appendElement(elem: InternalQueueElement): Unit = {
     if (Constants.flowControlEnabled) {
       elem match {
         case InputTuple(from, tuple) =>
-          val sizeOf = SizeOf.newInstance()
-          val deepSize = sizeOf.deepSizeOf(tuple)
-//          inputTuplesPutInQueue(from) = inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + deepSize
-//          println("deepsize2: " + deepSize)
-          internalMessageSize.enqueue(deepSize)
-          inputTuplesPutInQueue(from) = inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + deepSize
+          inputTuplesPutInQueue(from) =
+            inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + tuple.inMemSize
         case _ =>
         // do nothing
       }
@@ -133,20 +120,8 @@ class WorkerInternalQueue(
     if (Constants.flowControlEnabled) {
       elem match {
         case InputTuple(from, tuple) =>
-          val sizeOf = SizeOf.newInstance()
-          val deepSize = sizeOf.deepSizeOf(tuple)
-//          println("deepSize3: " + deepSize)
-//          var deepSize = 0L
-//          if (inputTuplesPutInQueue.nonEmpty) {
-//            deepSize = internalMessageSize.dequeue()
-//          }
-//          println("deepSize4: " + deepSize)
-//          println(inputTuplesPutInQueue(from))
-//          println(inputTuplesTakenOutOfQueue(from))
-//          inputTuplesTakenOutOfQueue(from) =
-//            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + deepSize
           inputTuplesTakenOutOfQueue(from) =
-            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + deepSize
+            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + tuple.inMemSize
         case _ =>
         // do nothing
       }
