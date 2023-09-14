@@ -32,21 +32,23 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 """)
 class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(value = "value", required = true)
-  @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with each tree node")
-  @AutofillAttributeName
-  var value: String = ""
-
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Hierarchy Path")
-  @JsonPropertyDescription("hierarchy of sectors, from root to leaves")
-  var hierarchy: List[HierarchySection] = List()
-
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
   @JsonPropertyDescription("treemap or sunburst")
   var hierarchyChartType: HierarchyChartType = _
+
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Hierarchy Path")
+  @JsonPropertyDescription(
+    "hierarchy of attributes from a higher-level category to lower-level category"
+  )
+  var hierarchy: List[HierarchySection] = List()
+
+  @JsonProperty(value = "value", required = true)
+  @JsonSchemaTitle("Value Column")
+  @JsonPropertyDescription("the value associated with the size of each sector in the chart")
+  @AutofillAttributeName
+  var value: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
