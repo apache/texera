@@ -67,8 +67,23 @@
       <td>{{ maxStringLength(execution.executionName, 20) }} ({{ execution.executionId }})</td>
       <td>{{ execution.userName }}</td>
       <td [ngStyle]="{ 'color': getStatusColor(execution.executionStatus) }"><b>{{ execution.executionStatus }}</b></td>
-      <td>{{ convertSecondsToTime(execution.executionTime) }}</td>
-      <td>{{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}</td>
+      <td>
+        <div *ngIf="execution.executionTime >= 0; else endTimeNotAvailable">
+          {{ convertSecondsToTime(execution.executionTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
+
+      <td>
+        <div *ngIf="execution.endTime !== 0; else endTimeNotAvailable">
+          {{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
       <td>
         <button
           type="button"
