@@ -5,9 +5,7 @@ import { Execution } from "../../../../common/type/execution";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import {
-  NgbdModalWorkflowExecutionsComponent
-} from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { NgbdModalWorkflowExecutionsComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { Workflow } from "../../../../common/type/workflow";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
