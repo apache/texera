@@ -9,6 +9,8 @@ export const USER_LIST_URL = `${USER_BASE_URL}/list`;
 export const USER_UPDATE_URL = `${USER_BASE_URL}/update`;
 export const USER_ADD_URL = `${USER_BASE_URL}/add`;
 
+export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
+
 @Injectable({
   providedIn: "root",
 })
