@@ -1,14 +1,14 @@
-package edu.uci.ics.texera.workflow.operators.visualization.treemap
+package edu.uci.ics.texera.workflow.operators.visualization.hierarchychart
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-class TreeMapOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
+class HierarchyChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
-  var opDesc: TreeMapOpDesc = _
+  var opDesc: HierarchyChartOpDesc = _
 
   before {
-    opDesc = new TreeMapOpDesc()
+    opDesc = new HierarchyChartOpDesc()
   }
 
   it should "generate a list of hierarchy sections in the python code" in {
@@ -17,6 +17,9 @@ class TreeMapOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     attributes(1).attributeName = "column_b"
     attributes(2).attributeName = "column_c"
     opDesc.hierarchy = attributes.toList
+    opDesc.hierarchyChartType = HierarchyChartType.TREEMAP
+    assert(opDesc.createPlotlyFigure().contains("['column_a','column_b','column_c']"))
+    opDesc.hierarchyChartType = HierarchyChartType.SUNBURSTCHART
     assert(opDesc.createPlotlyFigure().contains("['column_a','column_b','column_c']"))
   }
 
