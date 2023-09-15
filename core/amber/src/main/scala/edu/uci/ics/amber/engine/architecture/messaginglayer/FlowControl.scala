@@ -106,9 +106,13 @@ class FlowControl {
     ) {
       val msg = dataMessagesAwaitingCredits(receiverId).dequeue()
       messageBuffer.append(msg)
-      receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - getInMemSize(
-        msg.asInstanceOf[WorkflowDataMessage]
-      ).intValue()
+      msg match {
+        case dataMsg: WorkflowDataMessage =>
+          receiverIdToCredits(receiverId) =
+            receiverIdToCredits(receiverId) - getInMemSize(dataMsg).intValue()
+        case _ =>
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+      }
     }
     messageBuffer.toArray
   }
