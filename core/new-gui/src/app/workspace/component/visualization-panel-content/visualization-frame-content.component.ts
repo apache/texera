@@ -261,22 +261,15 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     }
 
     if (this.wordCloudElement === undefined) {
-      const width = window.innerWidth*0.70 - 50
-      const height = window.innerHeight*0.74 - 100
+      const width = window.innerWidth * 0.7 - 50;
+      const height = window.innerHeight * 0.74 - 100;
       this.wordCloudElement = d3
         .select(VisualizationFrameContentComponent.CHART_ID)
         .append("svg")
         .attr("width", width)
         .attr("height", height)
         .append("g")
-        .attr(
-          "transform",
-          "translate(" +
-          width / 2 +
-            "," +
-          height / 2 +
-            ")"
-        );
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
     }
 
     const wordCloudTuples = this.data as ReadonlyArray<WordCloudTuple>;
