@@ -102,8 +102,8 @@ import { NgbdModalRemoveProjectFileComponent } from "./dashboard/user/component/
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
-import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
-import { AdminDashboardComponent } from "./dashboard/admin/component/admin-dashboard.component";
+import { AdminUserComponent } from "./dashboard/admin/component/user/admin-user.component";
+import { AdminExecutionComponent } from "./dashboard/admin/component/execution/admin-execution.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -147,7 +147,7 @@ registerLocaleData(en);
     OperatorLabelComponent,
     DashboardComponent,
     AdminUserComponent,
-    AdminDashboardComponent,
+    AdminExecutionComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,

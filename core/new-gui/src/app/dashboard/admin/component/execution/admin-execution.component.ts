@@ -1,23 +1,21 @@
-import { Component, OnInit, OnDestroy } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { AdminExecutionService } from "../service/admin-execution.service";
-import { Execution } from "../../../common/type/execution";
+import { AdminExecutionService } from "../../service/admin-execution.service";
+import { Execution } from "../../../../common/type/execution";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { NgbdModalWorkflowExecutionsComponent } from "../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
-import { Workflow } from "../../../common/type/workflow";
-import { WorkflowWebsocketService } from "src/app/workspace/service/workflow-websocket/workflow-websocket.service";
+import { NgbdModalWorkflowExecutionsComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { Workflow } from "../../../../common/type/workflow";
+import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
 @UntilDestroy()
 @Component({
-  templateUrl: "./admin-dashboard.component.html",
-  styleUrls: ["./admin-dashboard.component.scss"],
+  templateUrl: "./admin-execution.component.html",
 })
-export class AdminDashboardComponent implements OnInit, OnDestroy {
+export class AdminExecutionComponent implements OnInit, OnDestroy {
   Executions: ReadonlyArray<Execution> = [];
   workflowsCount: number = 0;
-  usersCount: number = 0;
   listOfExecutions = [...this.Executions];
   workflows: Array<Workflow> = [];
   executionMap: Map<number, Execution> = new Map();
@@ -211,8 +209,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
    */
   convertTimeToTimestamp(executionStatus: string, timeValue: number): string {
     const date = new Date(timeValue);
-    const formattedTime = date.toLocaleString("en-US", { timeZoneName: "short" });
-    return formattedTime;
+    return date.toLocaleString("en-US", { timeZoneName: "short" });
   }
 
   /**

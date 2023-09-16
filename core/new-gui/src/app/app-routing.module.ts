@@ -9,8 +9,8 @@ import { UserProjectComponent } from "./dashboard/user/component/user-project/us
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { HomeComponent } from "./home/component/home.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
-import { AdminDashboardComponent } from "./dashboard/admin/component/admin-dashboard.component";
+import { AdminUserComponent } from "./dashboard/admin/component/user/admin-user.component";
+import { AdminExecutionComponent } from "./dashboard/admin/component/execution/admin-execution.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 /*
@@ -64,13 +64,13 @@ if (environment.userSystemEnabled) {
         component: SearchComponent,
       },
       {
-        path: "admin-user",
+        path: "admin/user",
         component: AdminUserComponent,
         canActivate: [AdminGuardService],
       },
       {
-        path: "admin-dashboard",
-        component: AdminDashboardComponent,
+        path: "admin/execution",
+        component: AdminExecutionComponent,
         canActivate: [AdminGuardService],
       },
     ],
