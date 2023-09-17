@@ -104,7 +104,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ]);
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
-  public checked: boolean = false;
   public setOfEid = new Set<number>();
   public setOfExecution = new Set<WorkflowExecutionsEntry>();
   public averageProcessingTimeDivider: number = 10;
@@ -527,7 +526,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
         this.updateRowSet(execution, value);
       }
     }
-    this.refreshCheckedStatus();
   }
 
   /**
@@ -538,16 +536,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   onItemChecked(row: WorkflowExecutionsEntry, checked: boolean) {
     this.updateEidSet(row.eId, checked);
     this.updateRowSet(row, checked);
-    this.refreshCheckedStatus();
   }
 
-  /**
-   * Check the status of the all check
-   */
-  refreshCheckedStatus(): void {
-    if (this.paginatedExecutionEntries !== undefined) {
-      this.checked = this.paginatedExecutionEntries.length === this.setOfEid.size;
-    }
+  isAllExecutionsSelected(): boolean {
+    return this.paginatedExecutionEntries.length === this.setOfEid.size;
   }
 
   public searchInputOnChange(value: string): void {

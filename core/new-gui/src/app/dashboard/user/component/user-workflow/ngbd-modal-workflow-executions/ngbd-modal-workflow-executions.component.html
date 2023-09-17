@@ -107,7 +107,7 @@
             <tr>
               <th
                 (nzCheckedChange)="onAllChecked($event)"
-                [(nzChecked)]="checked"
+                [nzChecked]="isAllExecutionsSelected()"
                 [ngStyle]="{'width': customColumnWidth['']}"></th>
               <th
                 *ngFor="let column of executionsTableHeaders; let i=index"
