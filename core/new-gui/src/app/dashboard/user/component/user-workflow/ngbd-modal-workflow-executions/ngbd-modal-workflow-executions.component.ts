@@ -87,7 +87,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public currentPageIndex: number = 1;
   public pageSize: number = 10;
   public pageSizeOptions: number[] = [5, 10, 20, 30, 40];
-  public numOfExecutions: number = 0;
   public paginatedExecutionEntries: WorkflowExecutionsEntry[] = [];
 
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
@@ -264,10 +263,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
-        this.numOfExecutions = workflowExecutions.length;
-        this.paginatedExecutionEntries = this.changePaginatedExecutions();
-        this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-        this.fuse.setCollection(this.paginatedExecutionEntries);
+        this.updatePaginatedExecutionsAndDisplay();
       });
   }
 
@@ -341,8 +337,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .subscribe({
         complete: () => {
           this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-          this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-          this.fuse.setCollection(this.paginatedExecutionEntries);
+          this.updatePaginatedExecutionsAndDisplay();
         },
       });
   }
@@ -357,11 +352,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
             this.allExecutionEntries = this.allExecutionEntries?.filter(
               execution => !Array.from(this.setOfExecution).includes(execution)
             );
-            this.paginatedExecutionEntries = this.paginatedExecutionEntries?.filter(
-              execution => !Array.from(this.setOfExecution).includes(execution)
-            );
-            this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-            this.fuse.setCollection(this.paginatedExecutionEntries);
+            this.updatePaginatedExecutionsAndDisplay();
             this.setOfEid.clear();
             this.setOfExecution.clear();
           },
@@ -722,5 +713,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       eIdToNumber++;
     });
     return processTimeData;
+  }
+
+  private updatePaginatedExecutionsAndDisplay() : void {
+    this.paginatedExecutionEntries = this.changePaginatedExecutions();
+    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+    this.fuse.setCollection(this.paginatedExecutionEntries);
   }
 }
