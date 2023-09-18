@@ -175,8 +175,8 @@ case class PhysicalPlan(
     val from = edge.from
     val to = edge.to
     val newOperators = operatorMap +
-      (from -> operatorMap(from).removeOutput(to)) +
-      (to -> operatorMap(to).removeInput(from))
+      (from -> operatorMap(from).removeOutput(edge)) +
+      (to -> operatorMap(to).removeInput(edge))
 
     val newLinks = links.filter(l => l != edge)
     this.copy(operators = newOperators.values.toList, links = newLinks)

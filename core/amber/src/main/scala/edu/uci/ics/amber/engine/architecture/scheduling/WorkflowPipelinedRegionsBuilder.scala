@@ -103,7 +103,7 @@ class WorkflowPipelinedRegionsBuilder(
 
   /**
     * Returns a new DAG with materialization writer and reader operators added, if needed. These operators
-    * are added to force dependent ipnut links of an operator to come from different regions.
+    * are added to force dependent input links of an operator to come from different regions.
     */
   private def addMaterializationOperatorIfNeeded(): Boolean = {
     // create regions
@@ -238,7 +238,7 @@ class WorkflowPipelinedRegionsBuilder(
       })
 
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
-      val newRegion = region.copy(blockingDownstreamOperatorsInOtherRegions = terminalOps.toArray)
+      val newRegion = region.copy(blockingDownstreamOperatorsInOtherRegions = terminalOps.toArray.map(opId=>(opId, "")))
       replaceVertex(pipelinedRegionsDAG, region, newRegion)
     }
   }

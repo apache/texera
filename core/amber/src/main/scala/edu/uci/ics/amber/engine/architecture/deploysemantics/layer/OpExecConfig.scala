@@ -187,13 +187,13 @@ case class OpExecConfig(
   }
 
   // creates a copy with a removed input operator
-  def removeInput(from: LayerIdentity): OpExecConfig = {
-    this.copy(inputToOrdinalMapping = inputToOrdinalMapping - LinkIdentity(from, this.id))
+  def removeInput(link:LinkIdentity): OpExecConfig = {
+    this.copy(inputToOrdinalMapping = inputToOrdinalMapping - link)
   }
 
   // creates a copy with a removed output operator
-  def removeOutput(to: LayerIdentity): OpExecConfig = {
-    this.copy(outputToOrdinalMapping = outputToOrdinalMapping - LinkIdentity(this.id, to))
+  def removeOutput(link: LinkIdentity): OpExecConfig = {
+    this.copy(outputToOrdinalMapping = outputToOrdinalMapping - link)
   }
 
 

@@ -85,7 +85,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         ).withId(finalId).withIsOneToManyOp(true);
 
         OpExecConfig[] layers = { partialLayer, finalLayer };
-        LinkIdentity[] links = { new LinkIdentity(partialLayer.id(), finalLayer.id()) };
+        LinkIdentity[] links = { new LinkIdentity(partialLayer.id(), "", finalLayer.id(), "") };
 
         return PhysicalPlan.apply(layers, links);
     }
