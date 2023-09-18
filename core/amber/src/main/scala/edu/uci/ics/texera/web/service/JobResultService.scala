@@ -9,10 +9,19 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
-import edu.uci.ics.texera.web.storage.{JobStateStore, OperatorResultMetadata, WorkflowResultStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.storage.{
+  JobStateStore,
+  OperatorResultMetadata,
+  WorkflowResultStore,
+  WorkflowStateStore
+}
 import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
@@ -40,17 +49,17 @@ object JobResultService {
     WebDataUpdate(mode, tableInJson, chartType)
   }
 
-    /**
-      *  convert Tuple from engine's format to JSON format
-      */
-    private def tuplesToWebData(
-        mode: WebOutputMode,
-        table: List[ITuple],
-        chartType: Option[String]
-    ): WebDataUpdate = {
-      val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
-      WebDataUpdate(mode, tableInJson, chartType)
-    }
+  /**
+    *  convert Tuple from engine's format to JSON format
+    */
+  private def tuplesToWebData(
+      mode: WebOutputMode,
+      table: List[ITuple],
+      chartType: Option[String]
+  ): WebDataUpdate = {
+    val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
+    WebDataUpdate(mode, tableInJson, chartType)
+  }
 
   /**
     * For SET_SNAPSHOT output mode: result is the latest snapshot
@@ -61,9 +70,9 @@ object JobResultService {
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
   def convertWebResultUpdate(
-    sink: ProgressiveSinkOpDesc,
-    oldTupleCount: Int,
-    newTupleCount: Int
+      sink: ProgressiveSinkOpDesc,
+      oldTupleCount: Int,
+      newTupleCount: Int
   ): WebResultUpdate = {
     val webOutputMode: WebOutputMode = {
       (sink.getOutputMode, sink.getChartType) match {
@@ -212,8 +221,11 @@ class JobResultService(
         newState.resultInfo.foreach {
           case (opId, info) =>
             val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
-            buf(opId) =
-              JobResultService.convertWebResultUpdate(sinkOperators(opId), oldInfo.tupleCount, info.tupleCount)
+            buf(opId) = JobResultService.convertWebResultUpdate(
+              sinkOperators(opId),
+              oldInfo.tupleCount,
+              info.tupleCount
+            )
         }
         Iterable(WebResultUpdateEvent(buf.toMap))
       })
