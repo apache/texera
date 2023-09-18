@@ -56,6 +56,26 @@
   </li>
   <li
     nz-menu-item
+    *ngIf="(operatorMenu.isViewingResult && operatorMenu.isViewResultClickable)"
+    (click)="operatorMenu.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye"
+      nzTheme="outline"></span
+    >view result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(! operatorMenu.isViewingResult && operatorMenu.isViewResultClickable)"
+    (click)="operatorMenu.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye-invisible"
+      nzTheme="twotone"></span
+    >remove view result
+  </li>
+  <li
+    nz-menu-item
     *ngIf="(operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
   operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0) &&
   isWorkflowModifiable"

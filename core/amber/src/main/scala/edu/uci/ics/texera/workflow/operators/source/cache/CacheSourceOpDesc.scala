@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
-import scala.collection.immutable.List
 
 class CacheSourceOpDesc(val targetSinkStorageId: String, opResultStorage: OpResultStorage)
     extends SourceOperatorDescriptor {
@@ -34,7 +33,7 @@ class CacheSourceOpDesc(val targetSinkStorageId: String, opResultStorage: OpResu
     OperatorInfo(
       "Cache Source Operator",
       "Retrieve the cached output to src",
-      OperatorGroupConstants.RESULT_GROUP,
+      OperatorGroupConstants.UTILITY_GROUP,
       List.empty,
       asScalaBuffer(singletonList(OutputPort(""))).toList
     )

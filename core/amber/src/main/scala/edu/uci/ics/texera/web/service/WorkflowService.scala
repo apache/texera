@@ -65,11 +65,12 @@ class WorkflowService(
   }
   val wsInput = new WebsocketInput(errorHandler)
   val stateStore = new WorkflowStateStore()
+  var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
+
   val resultService: JobResultService =
     new JobResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
     new ResultExportService(opResultStorage, UInteger.valueOf(wId))
-  var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"wid=$wId",
     cleanUpTimeout,
@@ -118,7 +119,6 @@ class WorkflowService(
   }
 
   private[this] def createWorkflowContext(
-      request: WorkflowExecuteRequest,
       uidOpt: Option[UInteger]
   ): WorkflowContext = {
     val jobID: String = String.valueOf(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
@@ -130,7 +130,7 @@ class WorkflowService(
       //unsubscribe all
       jobService.getValue.unsubscribeAll()
     }
-    val workflowContext: WorkflowContext = createWorkflowContext(req, uidOpt)
+    val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
 
     if (WorkflowService.userSystemEnabled) {
       workflowContext.executionID = -1 // for every new execution,

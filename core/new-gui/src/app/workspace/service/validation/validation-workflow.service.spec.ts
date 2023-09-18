@@ -5,6 +5,8 @@ import {
   mockResultPredicate,
   mockScanPredicate,
   mockScanResultLink,
+  mockScanSentimentLink,
+  mockSentimentPredicate,
 } from "../workflow-graph/model/mock-workflow-data";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../undo-redo/undo-redo.service";
@@ -128,24 +130,30 @@ describe("ValidationWorkflowService", () => {
   it(
     "should subscribe the changes of validateOperatorStream when operator link is deleted after valid status ",
     marbles(m => {
-      const testEvents = m.hot("-a-b-c----d-e----", {
+      const testEvents = m.hot("-a-b-c----d-e-f--", {
         a: () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
-        b: () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
-        c: () => workflowActionservice.addLink(mockScanResultLink),
+        b: () => workflowActionservice.addOperator(mockSentimentPredicate, mockPoint),
+        c: () => workflowActionservice.addLink(mockScanSentimentLink),
         d: () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "test-table" }),
-        e: () => workflowActionservice.deleteLinkWithID("link-1"),
+        e: () =>
+          workflowActionservice.setOperatorProperty(mockSentimentPredicate.operatorID, {
+            attribute: "test-attribute",
+            resultAttribute: "result-attribtue",
+          }),
+        f: () => workflowActionservice.deleteLinkWithID(mockScanSentimentLink.linkID),
       });
 
       testEvents.subscribe(action => action());
 
-      const expected = m.hot("-t-u-(vw)-x-(yz)-", {
-        t: { operatorID: "1", isValid: false },
-        u: { operatorID: "3", isValid: false },
-        v: { operatorID: "1", isValid: false },
-        w: { operatorID: "3", isValid: true },
-        x: { operatorID: "1", isValid: true },
-        y: { operatorID: "1", isValid: false }, // If the link is deleted, two operators are isolated and are invalid
-        z: { operatorID: "3", isValid: false },
+      const expected = m.hot("-s-t-(uv)-w-x-(yz)-", {
+        s: { operatorID: "1", isValid: false },
+        t: { operatorID: "2", isValid: false },
+        u: { operatorID: "1", isValid: false },
+        v: { operatorID: "2", isValid: false },
+        w: { operatorID: "1", isValid: true },
+        x: { operatorID: "2", isValid: true },
+        y: { operatorID: "1", isValid: true },
+        z: { operatorID: "2", isValid: false }, // If the link is deleted, the one missing input link is invalid
       });
 
       m.expect(

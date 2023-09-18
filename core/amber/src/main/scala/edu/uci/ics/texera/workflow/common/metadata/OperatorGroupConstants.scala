@@ -8,7 +8,6 @@ object OperatorGroupConstants {
   final val UTILITY_GROUP = "Utilities"
   final val UDF_GROUP = "User-defined Functions"
   final val VISUALIZATION_GROUP = "Visualization"
-  final val RESULT_GROUP = "View Results"
 
   /**
     * The order of the groups to show up in the frontend operator panel.
@@ -21,8 +20,7 @@ object OperatorGroupConstants {
     GroupInfo(JOIN_GROUP, 3),
     GroupInfo(UTILITY_GROUP, 4),
     GroupInfo(UDF_GROUP, 5),
-    GroupInfo(VISUALIZATION_GROUP, 6),
-    GroupInfo(RESULT_GROUP, 7)
+    GroupInfo(VISUALIZATION_GROUP, 6)
   )
 
 }

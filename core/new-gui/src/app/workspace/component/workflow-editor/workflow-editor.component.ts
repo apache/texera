@@ -129,6 +129,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
     this.handleDisableOperator();
+    this.handleViewOperatorResult();
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
     this.handleViewAddPort();
@@ -562,6 +563,19 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         event.newDisabled.concat(event.newEnabled).forEach(opID => {
           const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
           this.jointUIService.changeOperatorDisableStatus(this.getJointPaper(), op);
+        });
+      });
+  }
+
+  private handleViewOperatorResult(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getViewResultOperatorsChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        event.newViewResultOps.concat(event.newUnviewResultOps).forEach(opID => {
+          const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+          this.jointUIService.changeOperatorViewResultStatus(this.getJointPaper(), op, op.viewResult);
         });
       });
   }
