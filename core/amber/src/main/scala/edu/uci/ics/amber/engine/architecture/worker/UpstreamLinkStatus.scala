@@ -10,7 +10,7 @@ class UpstreamLinkStatus(opExecConfig: OpExecConfig) {
 
   private val allUpstreamLinkIds: Set[LinkIdentity] = {
     if (opExecConfig.isSourceOperator)
-      Set(LinkIdentity(SOURCE_STARTER_OP, "", opExecConfig.id, opExecConfig.inputPorts.head.displayName)) // special case for source operator
+      Set(LinkIdentity(SOURCE_STARTER_OP, 0, opExecConfig.id, 0)) // special case for source operator
     else
       opExecConfig.inputToOrdinalMapping.keySet
   }

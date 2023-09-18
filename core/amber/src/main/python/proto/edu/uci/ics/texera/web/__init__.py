@@ -17,8 +17,9 @@ class WorkflowAggregatedState(betterproto.Enum):
     PAUSED = 4
     RESUMING = 5
     COMPLETED = 6
-    ABORTED = 7
+    FAILED = 7
     UNKNOWN = 8
+    KILLED = 9
 
 
 @dataclass(eq=False, repr=False)

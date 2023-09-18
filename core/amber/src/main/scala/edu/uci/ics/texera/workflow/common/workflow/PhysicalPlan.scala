@@ -148,23 +148,21 @@ case class PhysicalPlan(
 
   // returns a new physical plan with the edges added
   def addEdge(from: LayerIdentity, to: LayerIdentity): PhysicalPlan = {
-    val defaultOutput = operatorMap(from).outputPorts.head
-    val defaultInput = operatorMap(to).inputPorts.head
-    addEdge(from, to, defaultOutput.displayName, defaultInput.displayName)
+    addEdge(from, to, 0, 0)
   }
 
   def addEdge(
       from: LayerIdentity,
       to: LayerIdentity,
-      fromPortName: String,
-      toPortName: String
+      fromPort: Int,
+      toPort: Int
   ): PhysicalPlan = {
 
     val newOperators = operatorMap +
-      (from -> operatorMap(from).addOutput(to, fromPortName, toPortName)) +
-      (to -> operatorMap(to).addInput(from,fromPortName, toPortName))
+      (from -> operatorMap(from).addOutput(to, fromPort, toPort)) +
+      (to -> operatorMap(to).addInput(from,fromPort, toPort))
 
-    val newLinks = links :+ LinkIdentity(from, fromPortName, to, toPortName)
+    val newLinks = links :+ LinkIdentity(from, fromPort, to, toPort)
     this.copy(operators = newOperators.values.toList, links = newLinks)
   }
 

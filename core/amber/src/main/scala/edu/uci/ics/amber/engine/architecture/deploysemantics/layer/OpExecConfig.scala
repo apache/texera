@@ -166,23 +166,16 @@ case class OpExecConfig(
   }
 
   // creates a copy with an additional input operator specified on an input port
-  def addInput(from: LayerIdentity, fromPortName: String, toPortName:String): OpExecConfig = {
-    val candidatePorts = inputPorts.indices.filter(idx => inputPorts(idx).displayName == toPortName)
-    assert(candidatePorts.size == 1, s"cannot add input on port $toPortName, all ports: $inputPorts")
+  def addInput(from: LayerIdentity, fromPort: Int, toPort:Int): OpExecConfig = {
     this.copy(inputToOrdinalMapping =
-      inputToOrdinalMapping + (LinkIdentity(from, fromPortName,this.id, toPortName) -> candidatePorts.head)
+      inputToOrdinalMapping + (LinkIdentity(from, fromPort,this.id, toPort) -> fromPort)
     )
   }
 
   // creates a copy with an additional output operator specified on an output port
-  def addOutput(to: LayerIdentity, fromPortName: String, toPortName: String): OpExecConfig = {
-    val candidatePorts = outputPorts.indices.filter(idx => outputPorts(idx).displayName == fromPortName)
-    assert(
-      candidatePorts.size == 1,
-      s"cannot add output on port $fromPortName, all ports: $outputPorts"
-    )
+  def addOutput(to: LayerIdentity, fromPort: Int, toPort: Int): OpExecConfig = {
     this.copy(outputToOrdinalMapping =
-      outputToOrdinalMapping + (LinkIdentity(this.id, fromPortName, to, toPortName) -> candidatePorts.head)
+      outputToOrdinalMapping + (LinkIdentity(this.id, fromPort, to, toPort) -> toPort)
     )
   }
 

@@ -259,7 +259,7 @@ case class LogicalPlan(
         .displayName
       val toLayer = physicalPlan.findLayerForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan = physicalPlan.addEdge(fromLayer, toLayer, fromPortName, toPortName)
+      physicalPlan = physicalPlan.addEdge(fromLayer, toLayer, fromPort, toPort)
     })
 
     physicalPlan

@@ -47,7 +47,7 @@ object AggregateOpDesc {
 
     new PhysicalPlan(
       List(partialLayer, finalLayer),
-      List(LinkIdentity(partialLayer.id, "", finalLayer.id, ""))
+      List(LinkIdentity(partialLayer.id, 0, finalLayer.id, 0))
     )
   }
 
