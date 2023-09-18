@@ -262,7 +262,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
-        this.updatePaginatedExecutionsAndDisplay();
+        this.updatePaginatedExecutions();
       });
   }
 
@@ -336,7 +336,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .subscribe({
         complete: () => {
           this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-          this.updatePaginatedExecutionsAndDisplay();
+          this.handlePaginationAfterDeletingExecutions();
         },
       });
   }
@@ -351,7 +351,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
             this.allExecutionEntries = this.allExecutionEntries?.filter(
               execution => !Array.from(this.setOfExecution).includes(execution)
             );
-            this.updatePaginatedExecutionsAndDisplay();
+            this.handlePaginationAfterDeletingExecutions();
             this.setOfEid.clear();
             this.setOfExecution.clear();
           },
@@ -655,13 +655,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /* Assign new page index and change current list */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;
-    this.updatePaginatedExecutionsAndDisplay();
+    this.updatePaginatedExecutions();
   }
 
   /* Assign new page size and change current list */
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
-    this.updatePaginatedExecutionsAndDisplay();
+    this.updatePaginatedExecutions();
   }
 
   /**
@@ -703,9 +703,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     return processTimeData;
   }
 
-  private updatePaginatedExecutionsAndDisplay() : void {
+  private updatePaginatedExecutions() : void {
     this.paginatedExecutionEntries = this.changePaginatedExecutions();
     this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
     this.fuse.setCollection(this.paginatedExecutionEntries);
+  }
+
+  private handlePaginationAfterDeletingExecutions() : void {
+    this.updatePaginatedExecutions();
+    /* If a current page index has 0 number of execution entries after deletion (e.g., deleting all the executions in the last page),
+     * the following code will decrement the current page index by 1. */
+    if (this.currentPageIndex > 1 && this.paginatedExecutionEntries.length === 0) {
+      this.onPageIndexChange(this.currentPageIndex-1);
+    }
   }
 }
