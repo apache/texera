@@ -655,17 +655,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /* Assign new page index and change current list */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;
-    this.paginatedExecutionEntries = this.changePaginatedExecutions();
-    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-    this.fuse.setCollection(this.paginatedExecutionEntries);
+    this.updatePaginatedExecutionsAndDisplay();
   }
 
   /* Assign new page size and change current list */
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
-    this.paginatedExecutionEntries = this.changePaginatedExecutions();
-    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-    this.fuse.setCollection(this.paginatedExecutionEntries);
+    this.updatePaginatedExecutionsAndDisplay();
   }
 
   /**
