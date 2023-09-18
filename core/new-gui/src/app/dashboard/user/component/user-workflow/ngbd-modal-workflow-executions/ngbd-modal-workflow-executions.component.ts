@@ -711,18 +711,18 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     return processTimeData;
   }
 
-  private updatePaginatedExecutions() : void {
+  private updatePaginatedExecutions(): void {
     this.paginatedExecutionEntries = this.changePaginatedExecutions();
     this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
     this.fuse.setCollection(this.paginatedExecutionEntries);
   }
 
-  private handlePaginationAfterDeletingExecutions() : void {
+  private handlePaginationAfterDeletingExecutions(): void {
     this.updatePaginatedExecutions();
     /* If a current page index has 0 number of execution entries after deletion (e.g., deleting all the executions in the last page),
      * the following code will decrement the current page index by 1. */
     if (this.currentPageIndex > 1 && this.paginatedExecutionEntries.length === 0) {
-      this.onPageIndexChange(this.currentPageIndex-1);
+      this.onPageIndexChange(this.currentPageIndex - 1);
     }
   }
 }
