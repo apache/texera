@@ -83,14 +83,25 @@
         <ul>
           <li
             nz-menu-item
-            nz-tooltip="Look up the user files"
+            nz-tooltip="Look up the users"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/admin-user">
+            routerLink="/dashboard/admin/user">
             <span
               nz-icon
               nzType="user"></span>
             <span>Users</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="View statistics"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            routerLink="/dashboard/admin/execution">
+            <span
+              nz-icon
+              nzType="setting"></span>
+            <span>Executions</span>
           </li>
         </ul>
       </li>

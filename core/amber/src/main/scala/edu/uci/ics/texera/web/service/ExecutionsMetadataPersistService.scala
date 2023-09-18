@@ -36,8 +36,9 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       case WorkflowAggregatedState.PAUSED                          => 2
       case WorkflowAggregatedState.RESUMING                        => ???
       case WorkflowAggregatedState.COMPLETED                       => 3
-      case WorkflowAggregatedState.ABORTED                         => 4
+      case WorkflowAggregatedState.FAILED                          => 4
       case WorkflowAggregatedState.UNKNOWN                         => ???
+      case WorkflowAggregatedState.KILLED                          => 5
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
     }
   }
@@ -76,6 +77,30 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
       execution.setStatus(code)
       execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
+      workflowExecutionsDao.update(execution)
+    } catch {
+      case t: Throwable =>
+        logger.info("Unable to update execution. Error = " + t.getMessage)
+    }
+  }
+
+  def tryUpdateExecutionStatusAndPointers(eid: Long, state: WorkflowAggregatedState): Unit = {
+    try {
+      val code = maptoStatusCode(state)
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      execution.setStatus(code)
+      execution.setResult("")
+      workflowExecutionsDao.update(execution)
+    } catch {
+      case t: Throwable =>
+        logger.info("Unable to update execution. Error = " + t.getMessage)
+    }
+  }
+
+  def updateExistingExecutionVolumnPointers(eid: Long, pointers: String): Unit = {
+    try {
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      execution.setResult(pointers)
       workflowExecutionsDao.update(execution)
     } catch {
       case t: Throwable =>

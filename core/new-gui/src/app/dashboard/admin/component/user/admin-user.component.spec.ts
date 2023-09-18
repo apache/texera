@@ -1,8 +1,8 @@
 import { ComponentFixture, inject, TestBed, waitForAsync } from "@angular/core/testing";
 import { AdminUserComponent } from "./admin-user.component";
-import { UserService } from "../../../common/service/user/user.service";
-import { StubUserService } from "../../../common/service/user/stub-user.service";
-import { AdminUserService } from "../service/admin-user.service";
+import { UserService } from "../../../../common/service/user/user.service";
+import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { AdminUserService } from "../../service/admin-user.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 
