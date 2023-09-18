@@ -31,29 +31,29 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
 
     // input partition satisfies the requirement, and number of worker match
     if (inputPart.satisfies(part) && inputLayer.numWorkers == layer.numWorkers) {
-      val linkStrategy = new OneToOne(inputLayer, layer, defaultBatchSize)
+      val linkStrategy = new OneToOne(inputLayer, 0, layer, inputPort, defaultBatchSize)
       val outputPart = inputPart
       (linkStrategy, outputPart)
     } else {
       // we must re-distribute the input partitions
       val linkStrategy = part match {
         case HashPartition(hashColumnIndices) =>
-          new HashBasedShuffle(inputLayer, layer, defaultBatchSize, hashColumnIndices)
+          new HashBasedShuffle(inputLayer, 0, layer, inputPort, defaultBatchSize, hashColumnIndices)
         case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
           new RangeBasedShuffle(
             inputLayer,
-            layer,
+            0, layer, inputPort,
             defaultBatchSize,
             rangeColumnIndices,
             rangeMin,
             rangeMax
           )
         case SinglePartition() =>
-          new AllToOne(inputLayer, layer, defaultBatchSize)
+          new AllToOne(inputLayer, 0, layer, inputPort, defaultBatchSize)
         case BroadcastPartition() =>
-          new AllBroadcast(inputLayer, layer, defaultBatchSize)
+          new AllBroadcast(inputLayer, 0, layer, inputPort,  defaultBatchSize)
         case UnknownPartition() =>
-          new FullRoundRobin(inputLayer, layer, defaultBatchSize)
+          new FullRoundRobin(inputLayer, 0, layer, inputPort,  defaultBatchSize)
       }
       val outputPart = part
       (linkStrategy, outputPart)

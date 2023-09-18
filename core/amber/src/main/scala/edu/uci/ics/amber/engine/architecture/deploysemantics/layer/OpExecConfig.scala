@@ -168,14 +168,14 @@ case class OpExecConfig(
   // creates a copy with an additional input operator specified on an input port
   def addInput(from: LayerIdentity, fromPort: Int, toPort:Int): OpExecConfig = {
     this.copy(inputToOrdinalMapping =
-      inputToOrdinalMapping + (LinkIdentity(from, fromPort,this.id, toPort) -> fromPort)
+      inputToOrdinalMapping + (LinkIdentity(from, fromPort,this.id, toPort) -> toPort)
     )
   }
 
   // creates a copy with an additional output operator specified on an output port
   def addOutput(to: LayerIdentity, fromPort: Int, toPort: Int): OpExecConfig = {
     this.copy(outputToOrdinalMapping =
-      outputToOrdinalMapping + (LinkIdentity(this.id, fromPort, to, toPort) -> toPort)
+      outputToOrdinalMapping + (LinkIdentity(this.id, fromPort, to, toPort) -> fromPort)
     )
   }
 

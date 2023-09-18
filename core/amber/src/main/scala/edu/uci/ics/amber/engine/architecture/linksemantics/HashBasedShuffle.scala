@@ -9,10 +9,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 class HashBasedShuffle(
     _from: OpExecConfig,
+    _fromPort:Int,
     _to: OpExecConfig,
+    _toPort: Int,
     batchSize: Int,
     hashColumnIndices: Seq[Int]
-) extends LinkStrategy(_from, _to, batchSize) {
+) extends LinkStrategy(_from,_fromPort, _to, _toPort, batchSize) {
   override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
