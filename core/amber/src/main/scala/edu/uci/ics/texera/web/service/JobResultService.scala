@@ -15,7 +15,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WebResultUpdateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.WebResultUpdate.{WebResultUpdate, convertWebResultUpdate}
+import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{
   JobStateStore,
   OperatorResultMetadata,
@@ -26,7 +26,6 @@ import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
-import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
@@ -36,7 +35,10 @@ import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
-object WebResultUpdate {
+object JobResultService {
+
+  val defaultPageSize: Int = 5
+
   // convert Tuple from engine's format to JSON format
   def webDataFromTuple(
       mode: WebOutputMode,
@@ -59,54 +61,54 @@ object WebResultUpdate {
     WebDataUpdate(mode, tableInJson, chartType)
   }
 
-//  /**
-//    * For SET_SNAPSHOT output mode: result is the latest snapshot
-//    * FOR SET_DELTA output mode:
-//    *   - for insert-only delta: effectively the same as latest snapshot
-//    *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
-//    *
-//    * Produces the WebResultUpdate to send to frontend from a result update from the engine.
-//    */
-//  def convertWebResultUpdate(
-//      sink: ProgressiveSinkOpDesc,
-//      oldTupleCount: Int,
-//      newTupleCount: Int
-//  ): WebResultUpdate = {
-//    val webOutputMode: WebOutputMode = {
-//      (sink.getOutputMode, sink.getChartType) match {
-//        // visualization sinks use its corresponding mode
-//        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-//        case (SET_DELTA, Some(_))    => SetDeltaMode()
-//        // Non-visualization sinks use pagination mode
-//        case (_, None) => PaginationMode()
-//      }
-//    }
-//
-//    val storage = sink.getStorage
-//    val webUpdate = (webOutputMode, sink.getOutputMode) match {
-//      case (PaginationMode(), SET_SNAPSHOT) =>
-//        val numTuples = storage.getCount
-//        val maxPageIndex = Math.ceil(numTuples / JobResultService.defaultPageSize.toDouble).toInt
-//        WebPaginationUpdate(
-//          PaginationMode(),
-//          newTupleCount,
-//          (1 to maxPageIndex).toList
-//        )
-//      case (SetSnapshotMode(), SET_SNAPSHOT) =>
-//        tuplesToWebData(webOutputMode, storage.getAll.toList, sink.getChartType)
-//      case (SetDeltaMode(), SET_DELTA) =>
-//        val deltaList = storage.getAllAfter(oldTupleCount).toList
-//        tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
-//
-//      // currently not supported mode combinations
-//      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
-//      case _ =>
-//        throw new RuntimeException(
-//          "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
-//        )
-//    }
-//    webUpdate
-//  }
+  /**
+    * For SET_SNAPSHOT output mode: result is the latest snapshot
+    * FOR SET_DELTA output mode:
+    *   - for insert-only delta: effectively the same as latest snapshot
+    *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
+    *
+    * Produces the WebResultUpdate to send to frontend from a result update from the engine.
+    */
+  def convertWebResultUpdate(
+      sink: ProgressiveSinkOpDesc,
+      oldTupleCount: Int,
+      newTupleCount: Int
+  ): WebResultUpdate = {
+    val webOutputMode: WebOutputMode = {
+      (sink.getOutputMode, sink.getChartType) match {
+        // visualization sinks use its corresponding mode
+        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
+        case (SET_DELTA, Some(_))    => SetDeltaMode()
+        // Non-visualization sinks use pagination mode
+        case (_, None) => PaginationMode()
+      }
+    }
+
+    val storage = sink.getStorage
+    val webUpdate = (webOutputMode, sink.getOutputMode) match {
+      case (PaginationMode(), SET_SNAPSHOT) =>
+        val numTuples = storage.getCount
+        val maxPageIndex = Math.ceil(numTuples / JobResultService.defaultPageSize.toDouble).toInt
+        WebPaginationUpdate(
+          PaginationMode(),
+          newTupleCount,
+          (1 to maxPageIndex).toList
+        )
+      case (SetSnapshotMode(), SET_SNAPSHOT) =>
+        tuplesToWebData(webOutputMode, storage.getAll.toList, sink.getChartType)
+      case (SetDeltaMode(), SET_DELTA) =>
+        val deltaList = storage.getAllAfter(oldTupleCount).toList
+        tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
+
+      // currently not supported mode combinations
+      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
+      case _ =>
+        throw new RuntimeException(
+          "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
+        )
+    }
+    webUpdate
+  }
 
   /**
     * Behavior for different web output modes:
@@ -144,61 +146,6 @@ object WebResultUpdate {
 
   case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
       extends WebResultUpdate
-
-  /**
-    * For SET_SNAPSHOT output mode: result is the latest snapshot
-    * FOR SET_DELTA output mode:
-    *   - for insert-only delta: effectively the same as latest snapshot
-    *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
-    *
-    * Produces the WebResultUpdate to send to frontend from a result update from the engine.
-    */
-  def convertWebResultUpdate(
-      sink: ProgressiveSinkOpDesc,
-      oldTupleCount: Int,
-      newTupleCount: Int
-  ): WebResultUpdate = {
-    val webOutputMode: WebOutputMode = {
-      (sink.getOutputMode, sink.getChartType) match {
-        // visualization sinks use its corresponding mode
-        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_))    => SetDeltaMode()
-        // Non-visualization sinks use pagination mode
-        case (_, None) => PaginationMode()
-      }
-    }
-
-    val storage = sink.getStorage
-    val webUpdate = (webOutputMode, sink.getOutputMode) match {
-      case (PaginationMode(), SET_SNAPSHOT) =>
-        val numTuples = storage.getCount
-        val maxPageIndex = Math.ceil(numTuples / JobResultService.defaultPageSize.toDouble).toInt
-        WebPaginationUpdate(
-          PaginationMode(),
-          newTupleCount,
-          (1 to maxPageIndex).toList
-        )
-      case (SetSnapshotMode(), SET_SNAPSHOT) =>
-        webDataFromTuple(webOutputMode, storage.getAll.toList, sink.getChartType)
-      case (SetDeltaMode(), SET_DELTA) =>
-        val deltaList = storage.getAllAfter(oldTupleCount).toList
-        webDataFromTuple(webOutputMode, deltaList, sink.getChartType)
-
-      // currently not supported mode combinations
-      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
-      case _ =>
-        throw new RuntimeException(
-          "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
-        )
-    }
-    webUpdate
-  }
-}
-
-object JobResultService {
-
-  val defaultPageSize: Int = 5
-
 }
 
 /**
@@ -274,14 +221,11 @@ class JobResultService(
         newState.resultInfo.foreach {
           case (opId, info) =>
             val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
-            buf(opId) =
-              convertWebResultUpdate(sinkOperators(opId), oldInfo.tupleCount, info.tupleCount)
-//            buf(opId) = JobResultService.convertWebResultUpdate(
-//              sinkOperators(opId),
-//              oldInfo.tupleCount,
-//              info.tupleCount
-//            )
-
+            buf(opId) = JobResultService.convertWebResultUpdate(
+              sinkOperators(opId),
+              oldInfo.tupleCount,
+              info.tupleCount
+            )
         }
         Iterable(WebResultUpdateEvent(buf.toMap))
       })
@@ -321,8 +265,7 @@ class JobResultService(
     PaginatedResultEvent.apply(request, mappedResults)
   }
 
-
-  def onResultUpdate(): Unit = {
+  private def onResultUpdate(): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
       val newInfo: Map[String, OperatorResultMetadata] = sinkOperators.map {
         case (id, sink) =>
