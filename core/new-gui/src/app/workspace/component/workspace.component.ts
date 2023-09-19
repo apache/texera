@@ -17,10 +17,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-<<<<<<< HEAD
 import { OperatorReuseStatusService } from "../service/workflow-status/operator-cache-status.service";
-=======
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -51,10 +48,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private schemaPropagationService: SchemaPropagationService,
     private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
-<<<<<<< HEAD
     private operatorCacheStatus: OperatorReuseStatusService,
-=======
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,

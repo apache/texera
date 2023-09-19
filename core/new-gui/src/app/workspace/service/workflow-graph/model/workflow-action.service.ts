@@ -546,7 +546,6 @@ export class WorkflowActionService {
     });
   }
 
-<<<<<<< HEAD
   public markReuseResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
@@ -564,9 +563,6 @@ export class WorkflowActionService {
   }
 
   public cacheOperators(ops: readonly string[]): void {
-=======
-  public setViewOperatorResults(ops: readonly string[]): void {
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
         this.getTexeraGraph().setViewOperatorResult(op);
@@ -704,10 +700,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
-<<<<<<< HEAD
       this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
-=======
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),

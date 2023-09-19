@@ -53,13 +53,8 @@ export interface OperatorPredicate
     dynamicOutputPorts?: boolean;
     showAdvanced: boolean;
     isDisabled?: boolean;
-<<<<<<< HEAD
     viewResult?: boolean;
     markedForReuse?: boolean;
-=======
-    isCached?: boolean;
-    viewResult?: boolean;
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
     customDisplayName?: string;
   }> {}
 

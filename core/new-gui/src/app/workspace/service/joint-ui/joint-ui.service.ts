@@ -937,6 +937,7 @@ export class JointUIService {
         // title: JointUIService.getOperatorCacheDisplayText(operator),
         width: 40,
         height: 40,
+      },
       ".texera-operator-view-result-icon": {
         "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
         width: 20,
@@ -957,7 +958,7 @@ export class JointUIService {
         "x-alignment": "middle",
         "y-alignment": "middle",
       },
-    };
+    }
     return operatorStyleAttrs;
   }
 

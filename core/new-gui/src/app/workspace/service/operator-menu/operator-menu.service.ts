@@ -49,13 +49,10 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
-<<<<<<< HEAD
   public isCacheOperatorClickable: boolean = false;
   public isCacheOperator: boolean = true;
-=======
   public isViewingResult: boolean = false;
   public isViewResultClickable: boolean = true;
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
 
   public isReuseResultClickable: boolean = false;
   public isMarkForReuse: boolean = true;
@@ -68,12 +65,8 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
-<<<<<<< HEAD
     this.handleCacheOperatorStatusChange();
     this.handleReuseOperatorResultStatusChange();
-=======
-    this.handleViewResultOperatorStatusChange();
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
 
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
