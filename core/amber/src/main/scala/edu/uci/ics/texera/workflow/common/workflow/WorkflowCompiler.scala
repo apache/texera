@@ -81,7 +81,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
     assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache)
     assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache)
 
-    val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan()
+    val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan
 
     // create pipelined regions.
     val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(

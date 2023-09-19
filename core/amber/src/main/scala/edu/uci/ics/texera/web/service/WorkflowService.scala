@@ -167,7 +167,6 @@ class WorkflowService(
       resultService,
       req,
       errorHandler,
-      convertToJson(req.engineVersion),
       lastCompletedLogicalPlan
     )
 

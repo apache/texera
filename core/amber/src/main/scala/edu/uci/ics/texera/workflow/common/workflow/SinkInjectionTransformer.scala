@@ -9,7 +9,7 @@ object SinkInjectionTransformer {
 
   def transform(pojo: LogicalPlanPojo): LogicalPlan = {
     var logicalPlan =
-      LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
+      LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToViewResult)
 
     // for any terminal operator without a sink, add a sink
     val nonSinkTerminalOps = logicalPlan.getTerminalOperators.filter(opId =>
@@ -31,7 +31,7 @@ object SinkInjectionTransformer {
       })
     })
 
-    // check precondition: all the terminal operators should sinks now
+    // check precondition: all the terminal operators should be sinks
     assert(
       logicalPlan.getTerminalOperators.forall(o =>
         logicalPlan.getOperator(o).isInstanceOf[SinkOpDesc]

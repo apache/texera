@@ -123,7 +123,6 @@ case class LogicalPlan(
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
   }
 
-
   // returns a new logical plan with the given edge removed
   def removeEdge(
       from: String,
@@ -135,7 +134,6 @@ case class LogicalPlan(
     val newLinks = links.filter(l => l != linkToRemove)
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
   }
-
 
   // returns a new logical plan with the given edge removed
   def removeEdge(
@@ -292,9 +290,5 @@ case class LogicalPlan(
 
     physicalPlan
   }
-
-//  def normalize(): LogicalPlan = {
-//    SinkInjectionTransformer.transform(this)
-//  }
 
 }

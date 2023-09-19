@@ -88,7 +88,7 @@ class WorkflowWebsocketResource extends LazyLogging {
               val cacheUpdateResult = cacheStatusUpdateRequest.opsToReuseResult
                 .map(o => (o, if (validCacheOps.contains(o)) "cache valid" else "cache invalid"))
                 .toMap
-              send(session, CacheStatusUpdateEvent(cacheUpdateResult))
+              sessionState.send(CacheStatusUpdateEvent(cacheUpdateResult))
             }
           }
         case other =>
