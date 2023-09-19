@@ -74,10 +74,6 @@ class WorkflowService(
     new JobResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
     new ResultExportService(opResultStorage, UInteger.valueOf(wId))
-<<<<<<< HEAD
-
-=======
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"wid=$wId",
     cleanUpTimeout,
@@ -166,7 +162,6 @@ class WorkflowService(
     }
 
     val job = new WorkflowJobService(
-<<<<<<< HEAD
       createWorkflowContext(uidOpt),
       wsInput,
       resultService,
@@ -174,13 +169,6 @@ class WorkflowService(
       errorHandler,
       convertToJson(req.engineVersion),
       lastCompletedLogicalPlan
-=======
-      workflowContext,
-      wsInput,
-      resultService,
-      req,
-      errorHandler
->>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
     )
 
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
