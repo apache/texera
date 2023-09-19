@@ -29,7 +29,6 @@ import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 /**
  *
@@ -60,6 +59,7 @@ export class WorkflowActionService {
     wid: undefined,
     creationTime: undefined,
     lastModifiedTime: undefined,
+    readonly: false,
   };
 
   private readonly texeraGraph: WorkflowGraph;
@@ -81,8 +81,7 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService,
-    private notificationService: NotificationService
+    private workflowUtilService: WorkflowUtilService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -112,12 +111,11 @@ export class WorkflowActionService {
    * Workflow modification lock interface (allows or prevents commands that would modify the workflow graph).
    */
   public enableWorkflowModification() {
-    if (this.workflowModificationEnabled) {
-      return;
+    if (!this.workflowMetadata.readonly && !this.workflowModificationEnabled) {
+      this.workflowModificationEnabled = true;
+      this.enableModificationStream.next(true);
+      this.undoRedoService.enableWorkFlowModification();
     }
-    this.workflowModificationEnabled = true;
-    this.enableModificationStream.next(true);
-    this.undoRedoService.enableWorkFlowModification();
   }
 
   public disableWorkflowModification() {
@@ -548,6 +546,7 @@ export class WorkflowActionService {
     });
   }
 
+<<<<<<< HEAD
   public markReuseResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
@@ -565,17 +564,20 @@ export class WorkflowActionService {
   }
 
   public cacheOperators(ops: readonly string[]): void {
+=======
+  public setViewOperatorResults(ops: readonly string[]): void {
+>>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().cacheOperator(op);
+        this.getTexeraGraph().setViewOperatorResult(op);
       });
     });
   }
 
-  public unCacheOperators(ops: readonly string[]): void {
+  public unsetViewOperatorResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().unCacheOperator(op);
+        this.getTexeraGraph().unsetViewOperatorResult(op);
       });
     });
   }
@@ -702,7 +704,10 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
+<<<<<<< HEAD
       this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
+=======
+>>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),

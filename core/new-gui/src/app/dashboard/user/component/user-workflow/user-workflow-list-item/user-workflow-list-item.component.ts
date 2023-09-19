@@ -65,7 +65,7 @@ export class UserWorkflowListItemComponent {
     private userProjectService: UserProjectService
   ) {
     this.userProjectService
-      .retrieveProjectList()
+      .getProjectList()
       .pipe(untilDestroyed(this))
       .subscribe(userProjectsList => {
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
@@ -114,6 +114,7 @@ export class UserWorkflowListItemComponent {
   public async onClickOpenShareAccess(): Promise<void> {
     const owners = await firstValueFrom(this.workflowPersistService.retrieveOwners());
     const modalRef = this.modalService.open(ShareAccessComponent);
+    modalRef.componentInstance.writeAccess = this.entry.workflow.accessLevel === "WRITE";
     modalRef.componentInstance.type = "workflow";
     modalRef.componentInstance.id = this.workflow.wid;
     modalRef.componentInstance.allOwners = owners;
@@ -133,6 +134,7 @@ export class UserWorkflowListItemComponent {
             wid: undefined,
             creationTime: undefined,
             lastModifiedTime: undefined,
+            readonly: false,
           };
           const workflowJson = JSON.stringify(workflowCopy.content);
           const fileName = workflowCopy.name + ".json";

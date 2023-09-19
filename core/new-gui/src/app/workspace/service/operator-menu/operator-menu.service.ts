@@ -49,8 +49,13 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
+<<<<<<< HEAD
   public isCacheOperatorClickable: boolean = false;
   public isCacheOperator: boolean = true;
+=======
+  public isViewingResult: boolean = false;
+  public isViewResultClickable: boolean = true;
+>>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
 
   public isReuseResultClickable: boolean = false;
   public isMarkForReuse: boolean = true;
@@ -63,8 +68,12 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
+<<<<<<< HEAD
     this.handleCacheOperatorStatusChange();
     this.handleReuseOperatorResultStatusChange();
+=======
+    this.handleViewResultOperatorStatusChange();
+>>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
 
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
@@ -119,15 +128,15 @@ export class OperatorMenuService {
     }
   }
 
-  public cacheHighlightedOperators(): void {
+  public viewResultHighlightedOperators(): void {
     const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
 
-    if (this.isCacheOperator) {
-      this.workflowActionService.cacheOperators(effectiveHighlightedOperatorsExcludeSink);
+    if (this.isViewingResult) {
+      this.workflowActionService.setViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
     } else {
-      this.workflowActionService.unCacheOperators(effectiveHighlightedOperatorsExcludeSink);
+      this.workflowActionService.unsetViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
     }
   }
 
@@ -167,7 +176,7 @@ export class OperatorMenuService {
     });
   }
 
-  handleCacheOperatorStatusChange() {
+  handleViewResultOperatorStatusChange() {
     merge(
       this.effectivelyHighlightedOperators,
       this.workflowActionService.getTexeraGraph().getViewResultOperatorsChangedStream(),
@@ -177,12 +186,12 @@ export class OperatorMenuService {
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
       );
 
-      const allCached = effectiveHighlightedOperatorsExcludeSink.every(op =>
-        this.workflowActionService.getTexeraGraph().isOperatorCached(op)
+      const allViewing = effectiveHighlightedOperatorsExcludeSink.every(op =>
+        this.workflowActionService.getTexeraGraph().isViewingResult(op)
       );
 
-      this.isCacheOperator = !allCached;
-      this.isCacheOperatorClickable =
+      this.isViewingResult = !allViewing;
+      this.isViewResultClickable =
         effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
         this.workflowActionService.checkWorkflowModificationEnabled();
     });

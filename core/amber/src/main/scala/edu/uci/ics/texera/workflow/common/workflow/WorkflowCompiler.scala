@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.service.WorkflowCacheChecker
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
@@ -56,6 +57,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
           sink.setStorage(
             storage.create(
               storageKey,
+              null,
               logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
               storageType
             )
@@ -79,7 +81,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
     assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache)
     assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache)
 
-    val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan(this.context, opResultStorage)
+    val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan()
 
     // create pipelined regions.
     val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(

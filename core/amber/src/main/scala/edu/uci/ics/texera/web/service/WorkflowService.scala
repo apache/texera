@@ -74,7 +74,10 @@ class WorkflowService(
     new JobResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
     new ResultExportService(opResultStorage, UInteger.valueOf(wId))
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"wid=$wId",
     cleanUpTimeout,
@@ -149,8 +152,21 @@ class WorkflowService(
       //unsubscribe all
       jobService.getValue.unsubscribeAll()
     }
+    val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
+
+    if (WorkflowService.userSystemEnabled) {
+      workflowContext.executionID = -1 // for every new execution,
+      // reset it so that the value doesn't carry over across executions
+      workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
+        workflowContext.wId,
+        workflowContext.userId,
+        req.executionName,
+        convertToJson(req.engineVersion)
+      )
+    }
 
     val job = new WorkflowJobService(
+<<<<<<< HEAD
       createWorkflowContext(uidOpt),
       wsInput,
       resultService,
@@ -158,7 +174,15 @@ class WorkflowService(
       errorHandler,
       convertToJson(req.engineVersion),
       lastCompletedLogicalPlan
+=======
+      workflowContext,
+      wsInput,
+      resultService,
+      req,
+      errorHandler
+>>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
     )
+
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
     jobService.onNext(job)
     job.startWorkflow()

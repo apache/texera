@@ -3,10 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  ProjectUserAccessPrivilege,
-  UserFileAccessPrivilege
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   FileOfProjectDao,
   ProjectDao,
@@ -21,7 +18,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
-import org.jooq.impl.DSL.case_
 import org.jooq.types.UInteger
 import java.sql.Timestamp
 import java.util
@@ -105,7 +101,7 @@ object ProjectResource {
       ownerID: UInteger,
       creationTime: Timestamp,
       color: String,
-      writeAccess: Boolean
+      accessLevel: String
   )
 }
 
@@ -141,13 +137,13 @@ class ProjectResource {
         PROJECT.OWNER_ID,
         PROJECT.CREATION_TIME,
         PROJECT.COLOR,
-        case_()
-          .when(PROJECT_USER_ACCESS.PRIVILEGE.eq(ProjectUserAccessPrivilege.WRITE), "true")
+        PROJECT_USER_ACCESS.PRIVILEGE
       )
-      .from(PROJECT)
-      .leftJoin(PROJECT_USER_ACCESS)
+      .from(PROJECT_USER_ACCESS)
+      .join(PROJECT)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
-      .where(PROJECT_USER_ACCESS.UID.eq(user.getUid).or(PROJECT.OWNER_ID.eq(user.getUid)))
+      .where(PROJECT.OWNER_ID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid)))
+      .groupBy(PROJECT.PID)
       .fetchInto(classOf[DashboardProject])
   }
 
@@ -198,30 +194,26 @@ class ProjectResource {
     * This method returns a list of DashboardFile objects, which represents
     * all the file objects that are part of the specified project.
     * @param pid project ID
-    * @param user the session user
     * @return a list of DashboardFile objects
     */
   @GET
   @Path("/{pid}/files")
   def listProjectFiles(
-      @PathParam("pid") pid: UInteger,
-      @Auth user: SessionUser
+      @PathParam("pid") pid: UInteger
   ): List[DashboardFile] = {
     context
       .select()
       .from(FILE_OF_PROJECT)
       .leftJoin(FILE)
       .on(FILE.FID.eq(FILE_OF_PROJECT.FID))
-      .leftJoin(USER_FILE_ACCESS)
-      .on(USER_FILE_ACCESS.FID.eq(FILE_OF_PROJECT.FID))
       .leftJoin(USER)
       .on(USER.UID.eq(FILE.OWNER_UID))
-      .where(FILE_OF_PROJECT.PID.eq(pid).and(USER_FILE_ACCESS.UID.eq(user.getUid)))
+      .where(FILE_OF_PROJECT.PID.eq(pid))
       .fetch()
       .map(fileRecord =>
         DashboardFile(
           fileRecord.into(USER).getName,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          "READ",
           fileRecord.into(FILE).into(classOf[File])
         )
       )

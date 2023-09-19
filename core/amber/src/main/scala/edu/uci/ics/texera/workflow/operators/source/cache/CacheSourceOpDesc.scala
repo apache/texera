@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
-import scala.collection.immutable.List
 
 class CacheSourceOpDesc(val targetSinkStorageId: String, opResultStorage: OpResultStorage)
     extends SourceOperatorDescriptor {

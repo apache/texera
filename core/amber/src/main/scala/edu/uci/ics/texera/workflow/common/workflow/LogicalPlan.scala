@@ -1,18 +1,12 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_OP
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.InputPort
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.{JavaConverters, mutable}
@@ -22,7 +16,7 @@ case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
 
 object LogicalPlan {
 
-  def toJgraphtDAG(
+  private def toJgraphtDAG(
       operatorList: List[OperatorDescriptor],
       links: List[OperatorLink]
   ): DirectedAcyclicGraph[String, OperatorLink] = {
@@ -101,6 +95,7 @@ case class LogicalPlan(
     links.filter(l => l.destination.operatorID == operatorID)
   }
 
+  // returns a new logical plan with the given operator added
   def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
     this.copy(operators :+ operatorDescriptor, links, breakpoints, opsToReuseCache)
   }
@@ -116,7 +111,7 @@ case class LogicalPlan(
     )
   }
 
-  // returns a new physical plan with the edges added
+  // returns a new logical plan with the given edge added
   def addEdge(
       from: String,
       to: String,
@@ -128,7 +123,8 @@ case class LogicalPlan(
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
   }
 
-  // returns a new physical plan with the edges removed
+
+  // returns a new logical plan with the given edge removed
   def removeEdge(
       from: String,
       to: String,
@@ -140,6 +136,8 @@ case class LogicalPlan(
     this.copy(operators, newLinks, breakpoints, opsToReuseCache)
   }
 
+
+  // returns a new logical plan with the given edge removed
   def removeEdge(
       edge: OperatorLink
   ): LogicalPlan = {
@@ -244,13 +242,12 @@ case class LogicalPlan(
     )
   }
 
-  def toPhysicalPlan(
-      context: WorkflowContext,
-      opResultStorage: OpResultStorage
-  ): PhysicalPlan = {
+  def toPhysicalPlan: PhysicalPlan = {
 
     if (errorList.nonEmpty) {
-      throw new RuntimeException(s"${errorList.size} error(s) occurred in schema propagation.")
+      val err = new Exception(s"${errorList.size} error(s) occurred in schema propagation.")
+      errorList.foreach(err.addSuppressed)
+      throw err
     }
 
     var physicalPlan = PhysicalPlan(List(), List())
@@ -272,17 +269,6 @@ case class LogicalPlan(
         ops.layersOfLogicalOperator(o.operatorIdentifier).last.outputPorts ==
           o.operatorInfo.outputPorts
       )
-
-      // special case for source operators, add an input port from a virtual operator
-      val sourceOps = ops.operators
-        .filter(op => op.isSourceOperator)
-        .map(op =>
-          op.copy(
-            inputPorts = List(InputPort()),
-            inputToOrdinalMapping = Map(LinkIdentity(SOURCE_STARTER_OP, op.id) -> 0)
-          )
-        )
-      sourceOps.foreach(op => ops = ops.setOperator(op))
 
       // add all physical operators to physical DAG
       ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))

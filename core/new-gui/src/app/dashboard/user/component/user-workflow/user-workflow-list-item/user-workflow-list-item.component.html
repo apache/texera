@@ -37,7 +37,6 @@
           (click)="editingName = true"
           nz-button
           mat-card-title="Customize Workflow Name"
-          title="Customize Workflow Name"
           nz-tooltip="Customize Workflow Name"
           nzSize="small"
           nzTooltipPlacement="bottom"
@@ -51,7 +50,6 @@
           *ngIf="editable"
           (click)="editingDescription = true"
           nz-button
-          title="Add Description"
           nz-tooltip="Add Description"
           nzSize="small"
           nzTooltipPlacement="bottom"
@@ -65,15 +63,17 @@
         <i
           class="workflow-is-owner-icon"
           *ngIf="entry.workflow.isOwner"
-          ngbTooltip="You are the owner"
+          nz-tooltip="You are the owner"
+          nzTooltipPlacement="bottom"
           nz-icon
           nzTheme="outline"
           nzType="user"></i>
         <i
           *ngIf="!entry.workflow.isOwner"
-          ngbTooltip="{{
+          nz-tooltip="{{
                           entry.workflow.accessLevel
                       }} access shared by {{ entry.workflow.ownerName }}"
+          nzTooltipPlacement="bottom"
           nz-icon
           nzTheme="outline"
           nzType="team"></i>
@@ -113,7 +113,7 @@
     *ngIf="userProjectsMap.size > 0"
     class="project-label-container">
     <div
-      *ngFor="let projectID of entry.workflow.projectIDs"
+      *ngFor="let projectID of entry.workflow.projectIDs | unique"
       class="project-label">
       <a
         *ngIf="userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
@@ -142,11 +142,7 @@
     <nz-list-item-action>
       <button
         (click)="onClickOpenShareAccess()"
-        [disabled]="!entry.workflow.isOwner"
         nz-button
-        title="Share the workflow {{
-                      workflow.name
-                  }} to others"
         nz-tooltip="Share the workflow {{
                       workflow.name
                   }} to others"
@@ -163,9 +159,6 @@
         (click)="duplicated.emit()"
         class="duplicate-workflow-btn"
         nz-button
-        title="Duplicate the workflow {{
-                      workflow.name
-                  }}"
         nz-tooltip="Duplicate the workflow {{
                       workflow.name
                   }}"
@@ -181,9 +174,6 @@
       <button
         (click)="onClickDownloadWorkfllow()"
         nz-button
-        title="Download the workflow {{
-                      workflow.name
-                  }}"
         nz-tooltip="Download the workflow {{
                       workflow.name
                   }}"
@@ -203,9 +193,6 @@
         [disabled]="!entry.workflow.isOwner"
         class="delete-workflow-btn"
         nz-button
-        title="Delete the workflow {{
-                      workflow.name
-                  }}"
         nz-tooltip="Delete the workflow {{
                       workflow.name
                   }}"
@@ -220,9 +207,6 @@
       <button
         (click)="onClickGetWorkflowExecutions()"
         nz-button
-        title="Executions of the workflow {{
-                      workflow.name
-                  }}"
         nz-tooltip="Executions of the workflow {{
                       workflow.name
                   }}"

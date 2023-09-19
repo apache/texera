@@ -139,7 +139,6 @@ class ExpressionEvaluator:
     def _contextualize_expression(
         expression: str, context_replacements: Dict[Pattern[str], str]
     ) -> str:
-
         contextualized_expression = expression
         for pattern, contextualized_pattern in context_replacements.items():
             contextualized_expression = re.sub(

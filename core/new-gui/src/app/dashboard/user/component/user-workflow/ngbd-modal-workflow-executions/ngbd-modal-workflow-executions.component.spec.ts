@@ -23,6 +23,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     ),
     creationTime: 1557787975000,
     lastModifiedTime: 1705673070000,
+    readonly: false,
   };
 
   // for filter & sorting tests
@@ -212,7 +213,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.workflowExecutionsDisplayedList = [];
     component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
-    component.ascSort("Name");
+    component.ascSort("Name (ID)");
     const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: 123/Exe4, cancer/Exe6, covid/Exe5, execution1/Exe1, healthcare/Exe3, twitter/Exe2, Untitled Execution/Exe7*/
     expect(SortedCase).toEqual([4, 6, 5, 1, 3, 2, 7]);
@@ -222,7 +223,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.workflow = workflow;
     component.workflowExecutionsDisplayedList = [];
     component.workflowExecutionsDisplayedList = component.workflowExecutionsDisplayedList.concat(testExecutionEntries);
-    component.dscSort("Name");
+    component.dscSort("Name (ID)");
     const SortedCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     /* Order: Untitled Execution/Exe7, twitter/Exe2, healthcare/Exe3, execution1/Exe1, covid/Exe5, cancer/Exe6, 123/Exe4*/
     expect(SortedCase).toEqual([7, 2, 3, 1, 5, 6, 4]);

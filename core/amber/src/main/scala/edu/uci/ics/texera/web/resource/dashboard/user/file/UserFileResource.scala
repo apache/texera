@@ -7,10 +7,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User, UserFileAccess}
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource.{
-  checkReadAccess,
-  checkWriteAccess
-}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.{
   DashboardFile,
   context,
@@ -26,12 +22,10 @@ import org.jooq.types.UInteger
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.file.{Files, Paths}
-import java.util
 import java.util.UUID
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -66,7 +60,7 @@ object UserFileResource {
 
   case class DashboardFile(
       ownerEmail: String,
-      writeAccess: Boolean,
+      accessLevel: String,
       file: File
   )
 }
@@ -96,11 +90,11 @@ class UserFileResource {
 
   @GET
   @Path("/list")
-  def getFileList(@Auth sessionUser: SessionUser): util.List[DashboardFile] = {
+  def getFileList(@Auth sessionUser: SessionUser): List[DashboardFile] = {
     getFileRecord(sessionUser.getUser)
   }
 
-  private def getFileRecord(user: User): util.List[DashboardFile] = {
+  private def getFileRecord(user: User): List[DashboardFile] = {
     val fids: mutable.ArrayBuffer[UInteger] = mutable.ArrayBuffer()
     val fileEntries: mutable.ArrayBuffer[DashboardFile] = mutable.ArrayBuffer()
     context
@@ -116,7 +110,7 @@ class UserFileResource {
         fids += fileRecord.into(FILE).getFid
         fileEntries += DashboardFile(
           fileRecord.into(USER).getEmail,
-          fileRecord.into(USER_FILE_ACCESS).getPrivilege == UserFileAccessPrivilege.WRITE,
+          fileRecord.into(USER_FILE_ACCESS).getPrivilege.toString,
           fileRecord.into(FILE).into(classOf[File])
         )
       })
@@ -136,45 +130,28 @@ class UserFileResource {
         if (!fileEntries.exists(file => { file.file.getFid == fileRecord.into(FILE).getFid })) {
           fileEntries += DashboardFile(
             fileRecord.into(USER).getEmail,
-            writeAccess = false,
+            "READ",
             fileRecord.into(FILE).into(classOf[File])
           )
         }
       })
-    fileEntries.toList.asJava
+    fileEntries.toList
   }
 
   @GET
   @Path("/autocomplete/{query:.*}")
   def autocompleteUserFiles(
-      @Auth sessionUser: SessionUser,
+      @Auth user: SessionUser,
       @PathParam("query") q: String
-  ): util.List[String] = {
-    // get the user files
-    // select the filenames that applies the input
+  ): List[String] = {
     val query = URLDecoder.decode(q, "UTF-8")
-    val user = sessionUser.getUser
-    val fileList: List[DashboardFile] = getFileRecord(user).asScala.toList
-    val filenames = ArrayBuffer[String]()
-    val username = user.getEmail
-    // get all the filename list
-    for (i <- fileList) {
-      filenames += i.file.getName
+    val result = ArrayBuffer[String]()
+    for (f <- getFileRecord(user.getUser)) {
+      val fullPath = f.ownerEmail + "/" + f.file.getName
+      if (fullPath.contains(query) || query.isEmpty)
+        result += fullPath
     }
-    // select the filenames that apply
-    val selectedByFile = ArrayBuffer[String]()
-    val selectedByUsername = ArrayBuffer[String]()
-    val selectedByFullPath = ArrayBuffer[String]()
-    for (e <- filenames) {
-      val fullPath = username + "/" + e
-      if (e.contains(query) || query.isEmpty)
-        selectedByFile += (username + "/" + e)
-      else if (username.contains(query))
-        selectedByUsername += (username + "/" + e)
-      else if (fullPath.contains(query))
-        selectedByFullPath += (username + "/" + e)
-    }
-    (selectedByFile ++ selectedByUsername ++ selectedByFullPath).toList.asJava
+    result.toList
   }
 
   @DELETE
@@ -183,18 +160,13 @@ class UserFileResource {
       @PathParam("fid") fid: UInteger,
       @Auth user: SessionUser
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     Files.deleteIfExists(Paths.get(fileDao.fetchOneByFid(fid).getPath))
     fileDao.deleteById(fid)
   }
 
   @GET
   @Path("/download/{fid}")
-  def downloadFile(
-      @PathParam("fid") fid: UInteger,
-      @Auth user: SessionUser
-  ): Response = {
-    checkReadAccess(fid, user.getUid)
+  def downloadFile(@PathParam("fid") fid: UInteger): Response = {
     Response
       .ok(
         new StreamingOutput() {
@@ -220,7 +192,6 @@ class UserFileResource {
       @PathParam("name") name: String,
       @Auth user: SessionUser
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     val validationRes = this.validateFileName(name, user.getUid)
     if (!validationRes.getLeft) {
       throw new BadRequestException(validationRes.getRight)
@@ -235,10 +206,8 @@ class UserFileResource {
   @Path("/description/{fid}/{description}")
   def changeFileDescription(
       @PathParam("fid") fid: UInteger,
-      @PathParam("description") description: String,
-      @Auth user: SessionUser
+      @PathParam("description") description: String
   ): Unit = {
-    checkWriteAccess(fid, user.getUid)
     val userFile = fileDao.fetchOneByFid(fid)
     userFile.setDescription(description)
     fileDao.update(userFile)

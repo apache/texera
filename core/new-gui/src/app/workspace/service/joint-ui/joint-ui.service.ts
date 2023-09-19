@@ -1,8 +1,6 @@
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
-
-import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
 import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
 import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
@@ -162,6 +160,9 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorCoeditorChangedPropertyClass}"></text>
       <image class="${operatorViewResultIconClass}"></image>
       <image class="${operatorReuseCacheIconClass}"></image>
+      <text class="${operatorCoeditorEditingClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyClass}"></text>
+      <image class="${operatorViewResultIconClass}"></image>
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
       <path class="right-boundary"></path>
@@ -519,7 +520,7 @@ export class JointUIService {
   public changeOperatorReuseCacheStatus(
     jointPaper: joint.dia.Paper,
     operator: OperatorPredicate,
-    cacheStatus?: OperatorResultCacheStatus
+    viewResult?: boolean
   ): void {
     const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
     const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
@@ -528,6 +529,8 @@ export class JointUIService {
     // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorReuseCacheIconClass}/xlink:href`, cacheIcon);
     // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
+    const icon = JointUIService.getOperatorViewResultIcon(operator);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
   }
 
   public changeOperatorJointDisplayName(
@@ -934,6 +937,10 @@ export class JointUIService {
         // title: JointUIService.getOperatorCacheDisplayText(operator),
         width: 40,
         height: 40,
+      ".texera-operator-view-result-icon": {
+        "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
+        width: 20,
+        height: 20,
         "ref-x": 75,
         "ref-y": 20,
         ref: "rect.body",
@@ -992,7 +999,7 @@ export class JointUIService {
 
   public static getOperatorViewResultIcon(operator: OperatorPredicate): string {
     if (operator.viewResult) {
-      return "assets/svg/operator-view-result.svg"
+      return "assets/svg/operator-view-result.svg";
     } else {
       return "";
     }

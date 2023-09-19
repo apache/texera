@@ -16,3 +16,5 @@ src/environments/version.ts
 /node_modules
 /multi-target/node_modules
 
+
+.angular

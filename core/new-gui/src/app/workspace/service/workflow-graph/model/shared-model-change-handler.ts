@@ -6,7 +6,6 @@ import {
   CommentBox,
   OperatorLink,
   OperatorPredicate,
-  PartitionInfo,
   Point,
   PortDescription,
 } from "../../../types/workflow-common.interface";
@@ -14,7 +13,6 @@ import { JointUIService } from "../../joint-ui/joint-ui.service";
 import * as joint from "jointjs";
 import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
-import { insert } from "@nrwl/workspace";
 import { isDefined } from "../../../../common/util/predicate";
 
 /**
@@ -267,15 +265,21 @@ export class SharedModelChangeHandler {
                   .get(operatorID)
                   ?.get("viewResult") as boolean;
                 if (newCachedStatus) {
-                  this.texeraGraph.viewResultOperatorChangedSubject.next({
-                    newViewResultOps: [operatorID],
-                    newUnviewResultOps: [],
-                  });
-                } else {
-                  this.texeraGraph.viewResultOperatorChangedSubject.next({
-                    newViewResultOps: [],
-                    newUnviewResultOps: [operatorID],
-                  });
+                  const newViewOpResultStatus = this.texeraGraph.sharedModel.operatorIDMap
+                    .get(operatorID)
+                    ?.get("viewResult") as boolean;
+
+                  if (newViewOpResultStatus) {
+                    this.texeraGraph.viewResultOperatorChangedSubject.next({
+                      newViewResultOps: [operatorID],
+                      newUnviewResultOps: [],
+                    });
+                  } else {
+                    this.texeraGraph.viewResultOperatorChangedSubject.next({
+                      newViewResultOps: [],
+                      newUnviewResultOps: [operatorID],
+                    });
+                  }
                 }
               } else if (contentKey === "markedForReuse") {
                 const newReuseCacheOps = this.texeraGraph.sharedModel.operatorIDMap

@@ -37,8 +37,12 @@ export interface LogicalPlan
     operators: LogicalOperator[];
     links: LogicalLink[];
     breakpoints: BreakpointInfo[];
+<<<<<<< HEAD
     opsToViewResult?: string[];
     opsToReuseResult?: string[];
+=======
+    opsToViewResult: string[];
+>>>>>>> 4d1499b1acc90ed505a8de389ee200396469c0b3
   }> {}
 
 /**
@@ -125,7 +129,8 @@ export enum ExecutionState {
   Recovering = "Recovering",
   BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
-  Aborted = "Aborted",
+  Failed = "Failed",
+  Killed = "Killed",
 }
 
 export type ExecutionStateInfo = Readonly<
@@ -147,10 +152,10 @@ export type ExecutionStateInfo = Readonly<
       breakpoint: BreakpointTriggerInfo;
     }
   | {
-      state: ExecutionState.Completed;
+      state: ExecutionState.Completed | ExecutionState.Killed;
     }
   | {
-      state: ExecutionState.Aborted;
+      state: ExecutionState.Failed;
       errorMessages: Readonly<Record<string, string>>;
     }
 >;

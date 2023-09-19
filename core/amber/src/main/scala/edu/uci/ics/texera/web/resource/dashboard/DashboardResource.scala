@@ -14,7 +14,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.{falseCondition, noCondition}
+import org.jooq.impl.DSL.{falseCondition, groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -172,26 +172,27 @@ class DashboardResource {
       * 3. `description`: Provides a description of the resource (`String`).
       * 4. `creation_time`: Indicates the timestamp of when the resource was created (`Timestamp`). It represents upload_time if the resourceType is `file`
       *
-      * Workflow Attributes (5 columns): Only workflow will have these 5 attributes.
+      * Workflow Attributes (6 columns): Only workflow will have these 6 attributes.
       * 5. `WID`: Represents the Workflow ID (`UInteger`).
       * 6. `lastModifiedTime`: Indicates the timestamp of the last modification made to the workflow (`Timestamp`).
       * 7. `privilege`: Specifies the privilege associated with the workflow (`Privilege`).
       * 8. `UID`: Represents the User ID associated with the workflow (`UInteger`).
       * 9. `userName`: Provides the name of the user associated with the workflow (`String`).
+      * 10. `projects`: The project IDs for the workflow, concatenated as a string (`String`).
       *
       * Project Attributes (3 columns): Only project will have these 3 attributes.
-      * 10. `pid`: Represents the Project ID (`UInteger`).
-      * 11. `ownerId`: Indicates the ID of the project owner (`UInteger`).
-      * 12. `color`: Specifies the color associated with the project (`String`).
+      * 11. `pid`: Represents the Project ID (`UInteger`).
+      * 12. `ownerId`: Indicates the ID of the project owner (`UInteger`).
+      * 13. `color`: Specifies the color associated with the project (`String`).
       *
       * File Attributes (7 columns): Only files will have these 7 attributes.
-      * 13. `ownerUID`: Represents the User ID of the file owner (`UInteger`).
-      * 14. `fid`: Indicates the File ID (`UInteger`).
-      * 15. `uploadTime`: Indicates the timestamp when the file was uploaded (`Timestamp`).
-      * 16. `path`: Specifies the path of the file (`String`).
-      * 17. `size`: Represents the size of the file (`UInteger`).
-      * 18. `email`: Represents the email associated with the file owner (`String`).
-      * 19. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
+      * 14. `ownerUID`: Represents the User ID of the file owner (`UInteger`).
+      * 15. `fid`: Indicates the File ID (`UInteger`).
+      * 16. `uploadTime`: Indicates the timestamp when the file was uploaded (`Timestamp`).
+      * 17. `path`: Specifies the path of the file (`String`).
+      * 18. `size`: Represents the size of the file (`UInteger`).
+      * 19. `email`: Represents the email associated with the file owner (`String`).
+      * 20. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
       */
 
     // Retrieve workflow resource
@@ -203,12 +204,13 @@ class DashboardResource {
           WORKFLOW.NAME,
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
-          // workflow attributes: 5 columns
+          // workflow attributes: 6 columns
           WORKFLOW.WID,
           WORKFLOW.LAST_MODIFIED_TIME,
           WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
-          USER.NAME.as("userName"),
+          USER.NAME,
+          groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects"),
           // project attributes: 3 columns
           DSL.inline(null, classOf[UInteger]).as("pid"),
           DSL.inline(null, classOf[UInteger]).as("owner_id"),
@@ -248,12 +250,13 @@ class DashboardResource {
         PROJECT.NAME.as("name"),
         PROJECT.DESCRIPTION.as("description"),
         PROJECT.CREATION_TIME.as("creation_time"),
-        // workflow attributes: 5 columns
+        // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
         DSL.inline(PROJECT.CREATION_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
+        DSL.inline(null, classOf[String]).as("projects"),
         // project attributes: 3 columns
         PROJECT.PID,
         PROJECT.OWNER_ID,
@@ -268,9 +271,9 @@ class DashboardResource {
         DSL.inline(null, classOf[UserFileAccessPrivilege]).as("user_file_access")
       )
       .from(PROJECT)
-      .join(USER)
-      .on(PROJECT.OWNER_ID.eq(USER.UID))
-      .where(PROJECT.OWNER_ID.eq(user.getUid))
+      .leftJoin(PROJECT_USER_ACCESS)
+      .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
+      .where(PROJECT_USER_ACCESS.UID.eq(user.getUid))
       .and(
         projectMatchQuery
       )
@@ -284,12 +287,13 @@ class DashboardResource {
         FILE.NAME,
         FILE.DESCRIPTION,
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
-        // workflow attributes: 5 columns
+        // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
+        DSL.inline(null, classOf[String]).as("projects"),
         // project attributes: 3 columns
         DSL.inline(null, classOf[UInteger]).as("pid"),
         DSL.inline(null, classOf[UInteger]).as("owner_id"),
@@ -322,12 +326,13 @@ class DashboardResource {
         FILE.NAME,
         FILE.DESCRIPTION,
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
-        // workflow attributes: 5 columns
+        // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
+        DSL.inline(null, classOf[String]).as("projects"),
         // project attributes: 3 columns
         DSL.inline(null, classOf[UInteger]).as("pid"),
         DSL.inline(null, classOf[UInteger]).as("owner_id"),
@@ -376,6 +381,7 @@ class DashboardResource {
       * WORKFLOW_USER_ACCESS.PRIVILEGE,
       * WORKFLOW_OF_USER.UID,
       * USER.NAME as "userName",
+      * group_concat(WORKFLOW_OF_PROJECT.PID) AS "projects",
       * null as pid,
       * null as owner_id,
       * null as color,
@@ -406,6 +412,7 @@ class DashboardResource {
       * null,
       * null,
       * null,
+      * null,
       * PROJECT.PID,
       * PROJECT.OWNER_ID,
       * PROJECT.COLOR,
@@ -428,7 +435,8 @@ class DashboardResource {
       * file.name,
       * file.description,
       * null,
-      * -- workflow attributes: 5 rows
+      * -- workflow attributes: 6 rows
+      * null,
       * null,
       * null,
       * null,
@@ -458,7 +466,8 @@ class DashboardResource {
       * file.name,
       * file.description,
       * null,
-      * -- workflow attributes: 5 rows
+      * -- workflow attributes: 6 rows
+      * null,
       * null,
       * null,
       * null,
@@ -607,7 +616,16 @@ class DashboardResource {
                   .toString,
                 record.into(USER).getName,
                 record.into(WORKFLOW).into(classOf[Workflow]),
-                List[UInteger]() // To do
+                if (record.get("projects") == null) {
+                  List[UInteger]()
+                } else {
+                  record
+                    .get("projects")
+                    .asInstanceOf[String]
+                    .split(',')
+                    .map(number => UInteger.valueOf(number))
+                    .toList
+                }
               )
             } else {
               null
@@ -620,10 +638,12 @@ class DashboardResource {
             if (resourceType == "file") {
               DashboardFile(
                 record.into(USER).getEmail,
-                record.get(
-                  "user_file_access",
-                  classOf[UserFileAccessPrivilege]
-                ) == UserFileAccessPrivilege.WRITE,
+                record
+                  .get(
+                    "user_file_access",
+                    classOf[UserFileAccessPrivilege]
+                  )
+                  .toString,
                 record.into(FILE).into(classOf[File])
               )
             } else {

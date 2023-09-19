@@ -4,15 +4,20 @@ import akka.actor.{Actor, Address}
 import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
 import com.twitter.util.{Await, Future}
+import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
-import edu.uci.ics.texera.web.service.WorkflowService
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.ABORTED
+import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
+import edu.uci.ics.texera.web.SessionState
+import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
+import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 
 import scala.collection.mutable.ArrayBuffer
 
 object ClusterListener {
   final case class GetAvailableNodeAddresses()
+  var numWorkerNodesInCluster = 0
 }
 
 class ClusterListener extends Actor with AmberLogging {
@@ -47,28 +52,42 @@ class ClusterListener extends Actor with AmberLogging {
       .map(_.address)
   }
 
+  private def forcefullyStop(jobService: WorkflowJobService, cause: Throwable): Unit = {
+    jobService.client.shutdown()
+    jobService.stateStore.statsStore.updateState(stats =>
+      stats.withEndTimeStamp(System.currentTimeMillis())
+    )
+    jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
+      updateWorkflowState(FAILED, jobInfo).withError(cause.getLocalizedMessage)
+    }
+  }
+
   private def updateClusterStatus(evt: MemberEvent): Unit = {
     evt match {
-      case MemberExited(member) =>
-        logger.info("Cluster node " + member + " is down! Trigger recovery process.")
+      case MemberRemoved(member, status) =>
+        logger.info("Cluster node " + member + " is down!")
         val futures = new ArrayBuffer[Future[Any]]
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (jobService != null && !jobService.workflow.isCompleted) {
-            try {
-              futures.append(jobService.client.notifyNodeFailure(member.address))
-            } catch {
-              case t: Throwable =>
-                logger.warn(
-                  s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
-                )
-                jobService.client.shutdown()
-                jobService.stateStore.statsStore.updateState(stats =>
-                  stats.withEndTimeStamp(System.currentTimeMillis())
-                )
-                jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
-                  jobInfo.withState(ABORTED).withError(t.getLocalizedMessage)
-                }
+            if (AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")) {
+              logger.info(
+                s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+              )
+              try {
+                futures.append(jobService.client.notifyNodeFailure(member.address))
+              } catch {
+                case t: Throwable =>
+                  logger.warn(
+                    s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
+                  )
+                  forcefullyStop(jobService, t)
+              }
+            } else {
+              logger.info(
+                s"Kill execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+              )
+              forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
             }
           }
         }
@@ -77,9 +96,14 @@ class ClusterListener extends Actor with AmberLogging {
     }
 
     val addr = getAllAddressExcludingMaster
-    Constants.currentWorkerNum = addr.size * Constants.numWorkerPerNode
+    numWorkerNodesInCluster = addr.size
+    SessionState.getAllSessionStates.foreach { state =>
+      state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
+    }
+
+    Constants.currentWorkerNum = numWorkerNodesInCluster * Constants.numWorkerPerNode
     logger.info(
-      "---------Now we have " + addr.size + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
+      "---------Now we have " + numWorkerNodesInCluster + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
     )
 
   }

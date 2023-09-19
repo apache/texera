@@ -44,7 +44,6 @@
           *ngIf="editable"
           (click)="editingName = true"
           nz-button
-          title="Edit Project Name"
           nz-tooltip="Edit Project Name"
           nzSize="small"
           nzTooltipPlacement="top"
@@ -59,7 +58,6 @@
           *ngIf="editable"
           (click)="editingDescription = true"
           nz-button
-          title="Add / Edit Description"
           nz-tooltip="Add / Edit Description"
           nzSize="small"
           nzTooltipPlacement="top"
@@ -74,7 +72,6 @@
           (click)="descriptionCollapsed = true"
           *ngIf="entry.description && entry.description?.trim() && !descriptionCollapsed"
           nz-button
-          title="Collapse Description"
           nz-tooltip="Collapse Description"
           nzSize="small"
           nzTooltipPlacement="top"
@@ -88,7 +85,6 @@
           (click)="descriptionCollapsed = false"
           *ngIf="entry.description && entry.description?.trim() && descriptionCollapsed"
           nz-button
-          title="Expand Description"
           nz-tooltip="Expand Description"
           nzSize="small"
           nzTooltipPlacement="top"
@@ -159,9 +155,19 @@
     nz-list-item-actions
     *ngIf="editable">
     <nz-list-item-action>
+      <div
+        nz-col
+        *ngIf="isAdmin">
+        <nz-switch
+          [ngModel]="isPublic"
+          nzCheckedChildren="Public"
+          nzUnCheckedChildren="Private"
+          (ngModelChange)="visibilityChange()"></nz-switch>
+      </div>
+    </nz-list-item-action>
+    <nz-list-item-action>
       <button
-        (click)="onClickOpenShareAccess(entry.pid)"
-        [disabled]="entry.ownerID !== uid"
+        (click)="onClickOpenShareAccess()"
         nz-button
         nz-tooltip="Share the project {{
 								entry.name
@@ -176,10 +182,10 @@
     </nz-list-item-action>
     <nz-list-item-action>
       <button
+        [disabled]="entry.accessLevel === 'READ'"
         (nzOnConfirm)="deleted.emit()"
         nz-button
         nz-popconfirm
-        title="Delete the project {{entry.name}}"
         nz-tooltip="Delete the project {{entry.name}}"
         nzPopconfirmTitle="Confirm to delete this project."
         nzTooltipPlacement="bottom">

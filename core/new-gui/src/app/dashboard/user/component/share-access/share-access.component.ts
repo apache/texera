@@ -4,14 +4,14 @@ import { FormBuilder, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UserService } from "../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
-  styleUrls: ["share-access.component.scss"],
-  providers: [{ provide: "type", useValue: "workflow" }],
 })
 export class ShareAccessComponent implements OnInit {
+  @Input() writeAccess!: boolean;
   @Input() type!: string;
   @Input() id!: number;
   @Input() allOwners!: string[];
@@ -25,11 +25,15 @@ export class ShareAccessComponent implements OnInit {
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
+  currentEmail: string | undefined = "";
   constructor(
     public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
-    private formBuilder: FormBuilder
-  ) {}
+    private formBuilder: FormBuilder,
+    private userService: UserService
+  ) {
+    this.currentEmail = this.userService.getCurrentUser()?.email;
+  }
 
   ngOnInit(): void {
     this.accessService
@@ -70,6 +74,11 @@ export class ShareAccessComponent implements OnInit {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+      .subscribe(() => {
+        if (this.currentEmail === userToRemove) {
+          this.activeModal.close();
+        }
+        this.ngOnInit();
+      });
   }
 }

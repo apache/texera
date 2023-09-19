@@ -1,3 +1,4 @@
+import { NumberValue } from "d3";
 import { Point } from "../../workspace/types/workflow-common.interface";
 
 /**

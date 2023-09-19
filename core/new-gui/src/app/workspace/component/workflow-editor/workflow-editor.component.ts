@@ -581,6 +581,19 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
 
+  private handleViewOperatorResult(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getViewResultOperatorsChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        event.newViewResultOps.concat(event.newUnviewResultOps).forEach(opID => {
+          const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+          this.jointUIService.changeOperatorViewResultStatus(this.getJointPaper(), op, op.viewResult);
+        });
+      });
+  }
+
   private registerOperatorDisplayNameChangeHandler(): void {
     this.workflowActionService
       .getTexeraGraph()

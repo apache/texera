@@ -1,13 +1,5 @@
 {
-  "npmScope": "texera-gui",
-  "implicitDependencies": {
-    "angular.json": "*",
-    "package.json": "*",
-    "tsconfig.json": "*",
-    "tslint.json": "*",
-    ".eslintrc.json": "*",
-    "nx.json": "*"
-  },
+  "defaultProject": "texera-gui",
   "tasksRunnerOptions": {
     "default": {
       "runner": "@nrwl/nx-cloud",
@@ -21,19 +13,15 @@
           "node -v",
           "yarn run nodecat ./src/environments/environment.prod.ts"
         ],
-        "accessToken": "MWY5NjA0ZDAtNTdjOS00NDY3LWIzNjYtNTYyMWU5OGFkYjgzfHJlYWQtd3JpdGU=",
+        "accessToken": "Njk2ODE5NjMtMmRjNy00NjNmLWEwMDAtZGVkZTMwMmMwM2M2fHJlYWQtd3JpdGU=",
         "parallel": 1
       }
     }
   },
-  "affected": {
-    "defaultBase": "master"
-  },
   "cli": {
     "analytics": false,
-    "defaultCollection": "@angular-eslint/schematics"
+    "defaultCollection": "@nrwl/angular"
   },
-  "defaultProject": "texera-gui",
   "generators": {
     "@schematics/angular:component": {
       "prefix": "texera",
