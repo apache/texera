@@ -294,8 +294,8 @@
             nzType="stop"></i>
         </button>
         <button
-          *ngIf="(operatorMenu.isCacheOperator || ! operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable"
+          *ngIf="(operatorMenu.isViewingResult || ! operatorMenu.isViewResultClickable)"
+          [disabled]="! operatorMenu.isViewResultClickable"
           (click)="operatorMenu.viewResultHighlightedOperators()"
           nz-button
           title="view result">
@@ -305,8 +305,8 @@
             nzTheme="outline"></i>
         </button>
         <button
-          *ngIf="(! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-          [disabled]="! operatorMenu.isCacheOperatorClickable"
+          *ngIf="(! operatorMenu.isViewingResult && operatorMenu.isViewResultClickable)"
+          [disabled]="! operatorMenu.isViewResultClickable"
           (click)="operatorMenu.viewResultHighlightedOperators()"
           nz-button
           title="click to remove view result">
