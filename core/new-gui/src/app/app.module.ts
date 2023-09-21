@@ -213,8 +213,8 @@ registerLocaleData(en);
       config: {
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
-        throwNoTokenError: false
-      }
+        throwNoTokenError: false,
+      },
     }),
     MatTooltipModule,
     CustomNgMaterialModule,
@@ -271,7 +271,7 @@ registerLocaleData(en);
     NzLayoutModule,
     MarkdownModule.forRoot(),
     DragDropModule,
-    NzAlertModule
+    NzAlertModule,
   ],
   providers: [
     AuthGuardService,

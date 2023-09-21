@@ -1,5 +1,9 @@
 package edu.uci.ics.texera.web.resource
-import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeTokenRequest, GoogleIdTokenVerifier, GoogleRefreshTokenRequest}
+import com.google.api.client.googleapis.auth.oauth2.{
+  GoogleAuthorizationCodeTokenRequest,
+  GoogleIdTokenVerifier,
+  GoogleRefreshTokenRequest
+}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -14,13 +18,13 @@ import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, Session, Transport}
 import javax.ws.rs._
 
-
 case class EmailMessage(email: String, subject: String, content: String)
 
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/gmail")
 class GmailResource {
-  final private lazy val path = Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
+  final private lazy val path =
+    Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
   final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.googleClientId")
 
   def connect(transport: Transport, accessToken: String): Unit = {
@@ -55,9 +59,9 @@ class GmailResource {
   @RolesAllowed(Array("ADMIN"))
   @Path("/revoke")
   def deleteEmail(): Unit = {
-    if(Files.exists(path.resolve("userEmail"))) Files.delete(path.resolve("userEmail"))
-    if(Files.exists(path.resolve("refreshToken"))) Files.delete(path.resolve("refreshToken"))
-    if(Files.exists(path.resolve("accessToken"))) Files.delete(path.resolve("accessToken"))
+    if (Files.exists(path.resolve("userEmail"))) Files.delete(path.resolve("userEmail"))
+    if (Files.exists(path.resolve("refreshToken"))) Files.delete(path.resolve("refreshToken"))
+    if (Files.exists(path.resolve("accessToken"))) Files.delete(path.resolve("accessToken"))
   }
   @POST
   @RolesAllowed(Array("ADMIN"))
@@ -111,7 +115,10 @@ class GmailResource {
     }
     val email = new MimeMessage(session)
     email.setFrom(new InternetAddress("me"))
-    email.addRecipient(Message.RecipientType.TO, new InternetAddress(if (message.email=="") user.getEmail else message.email))
+    email.addRecipient(
+      Message.RecipientType.TO,
+      new InternetAddress(if (message.email == "") user.getEmail else message.email)
+    )
     email.setSubject(message.subject)
     email.setText(message.content)
     transport.sendMessage(email, email.getAllRecipients)
