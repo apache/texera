@@ -1,5 +1,5 @@
 package edu.uci.ics.texera.web.resource
-import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeTokenRequest, GoogleRefreshTokenRequest}
+import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeTokenRequest, GoogleIdTokenVerifier, GoogleRefreshTokenRequest}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -8,7 +8,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import io.dropwizard.auth.Auth
 
 import java.nio.file.Files
-import java.util.Properties
+import java.util.{Collections, Properties}
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, Session, Transport}
@@ -62,22 +62,31 @@ class GmailResource {
   @POST
   @RolesAllowed(Array("ADMIN"))
   @Path("/auth")
-  def saveRefreshToken(code: String, @Auth user: SessionUser): Unit = {
+  def saveRefreshToken(code: String): Unit = {
     this.deleteEmail()
+    val token = new GoogleAuthorizationCodeTokenRequest(
+      new NetHttpTransport(),
+      new GsonFactory(),
+      clientId,
+      "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",
+      code,
+      "postmessage"
+    ).execute()
+
+    val idToken =
+      new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
+        .setAudience(
+          Collections.singletonList(clientId)
+        )
+        .build()
+        .verify(token.getIdToken)
     Files.write(
       path.resolve("refreshToken"),
-      new GoogleAuthorizationCodeTokenRequest(
-        new NetHttpTransport(),
-        new GsonFactory(),
-        clientId,
-        "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",
-        code,
-        "postmessage"
-      ).execute().getRefreshToken.getBytes
+      token.getRefreshToken.getBytes
     )
     Files.write(
       path.resolve("userEmail"),
-      user.getEmail.getBytes
+      idToken.getPayload.getEmail.getBytes
     )
   }
 
