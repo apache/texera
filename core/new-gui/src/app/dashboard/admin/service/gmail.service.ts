@@ -17,9 +17,10 @@ export class GmailService {
       .subscribe(response => {
         this.client = window.google.accounts.oauth2.initCodeClient({
           access_type: "offline",
-          scope: "https://mail.google.com/",
+          scope: "https://www.googleapis.com/auth/gmail.send",
           client_id: response,
           callback: (auth: any) => {
+            console.log(auth)
             this.http.post(`${AppSettings.getApiEndpoint()}/gmail/auth`, `${auth.code}`).subscribe(() => this._googleCredentialResponse.next(auth));
           },
         });

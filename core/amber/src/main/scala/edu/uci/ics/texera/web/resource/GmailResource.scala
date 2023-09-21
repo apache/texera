@@ -12,7 +12,7 @@ import java.util.Properties
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, Session, Transport}
-import javax.ws.rs.{DELETE, GET, POST, PUT, Path}
+import javax.ws.rs._
 
 
 case class EmailMessage(email: String, subject: String, content: String)
@@ -20,8 +20,7 @@ case class EmailMessage(email: String, subject: String, content: String)
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/gmail")
 class GmailResource {
-  final private lazy val path =
-    Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
+  final private lazy val path = Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
   final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.googleClientId")
 
   def connect(transport: Transport, accessToken: String): Unit = {
@@ -33,16 +32,15 @@ class GmailResource {
     )
   }
   private def saveAccessToken(): Unit = {
-    val response = new GoogleRefreshTokenRequest(
-      new NetHttpTransport(),
-      new GsonFactory(),
-      Files.readString(path.resolve("refreshToken")),
-      clientId,
-      "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"
-    ).execute()
     Files.write(
       path.resolve("accessToken"),
-      response.getAccessToken.getBytes
+      new GoogleRefreshTokenRequest(
+        new NetHttpTransport(),
+        new GsonFactory(),
+        Files.readString(path.resolve("refreshToken")),
+        clientId,
+        "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"
+      ).execute().getAccessToken.getBytes
     )
   }
 
@@ -57,25 +55,25 @@ class GmailResource {
   @RolesAllowed(Array("ADMIN"))
   @Path("/revoke")
   def deleteEmail(): Unit = {
-    Files.delete(path.resolve("userEmail"))
-    Files.delete(path.resolve("refreshToken"))
-    Files.delete(path.resolve("accessToken"))
+    if(Files.exists(path.resolve("userEmail"))) Files.delete(path.resolve("userEmail"))
+    if(Files.exists(path.resolve("refreshToken"))) Files.delete(path.resolve("refreshToken"))
+    if(Files.exists(path.resolve("accessToken"))) Files.delete(path.resolve("accessToken"))
   }
   @POST
   @RolesAllowed(Array("ADMIN"))
   @Path("/auth")
   def saveRefreshToken(code: String, @Auth user: SessionUser): Unit = {
-    val response = new GoogleAuthorizationCodeTokenRequest(
-      new NetHttpTransport(),
-      new GsonFactory(),
-      clientId,
-      "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",
-      code,
-      "postmessage"
-    ).execute()
+    this.deleteEmail()
     Files.write(
       path.resolve("refreshToken"),
-      response.getRefreshToken.getBytes
+      new GoogleAuthorizationCodeTokenRequest(
+        new NetHttpTransport(),
+        new GsonFactory(),
+        clientId,
+        "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",
+        code,
+        "postmessage"
+      ).execute().getRefreshToken.getBytes
     )
     Files.write(
       path.resolve("userEmail"),
