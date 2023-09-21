@@ -25,7 +25,9 @@ case class EmailMessage(email: String, subject: String, content: String)
 class GmailResource {
   final private lazy val path =
     Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
-  final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.googleClientId")
+  final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.google.clientId")
+  final private lazy val clientSecret =
+    AmberUtils.amberConfig.getString("user-sys.google.clientSecret")
 
   def connect(transport: Transport, accessToken: String): Unit = {
     transport.connect(
@@ -43,7 +45,7 @@ class GmailResource {
         new GsonFactory(),
         Files.readString(path.resolve("refreshToken")),
         clientId,
-        "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"
+        clientSecret
       ).execute().getAccessToken.getBytes
     )
   }
@@ -72,7 +74,7 @@ class GmailResource {
       new NetHttpTransport(),
       new GsonFactory(),
       clientId,
-      "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",
+      clientSecret,
       code,
       "postmessage"
     ).execute()
