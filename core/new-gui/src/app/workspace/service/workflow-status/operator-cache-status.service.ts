@@ -37,9 +37,13 @@ export class OperatorReuseStatusService {
         .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS)),
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
       this.workflowActionService.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
-      this.executeWorkflowService.getExecutionStateStream().pipe(filter(evt => 
-        evt.previous.state !== ExecutionState.Completed && evt.current.state == ExecutionState.Completed
-      ))
+      this.executeWorkflowService
+        .getExecutionStateStream()
+        .pipe(
+          filter(
+            evt => evt.previous.state !== ExecutionState.Completed && evt.current.state == ExecutionState.Completed
+          )
+        )
     ).subscribe(() => {
       const workflow = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
       this.workflowWebsocketService.send("CacheStatusUpdateRequest", workflow);

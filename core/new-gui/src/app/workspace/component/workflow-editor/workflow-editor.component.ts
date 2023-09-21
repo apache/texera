@@ -567,7 +567,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         });
       });
   }
-  
+
   private handleViewOperatorResult(): void {
     this.workflowActionService
       .getTexeraGraph()

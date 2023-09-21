@@ -551,7 +551,7 @@ export class WorkflowActionService {
       ops.forEach(op => {
         this.getTexeraGraph().markReuseResult(op);
       });
-    })
+    });
   }
 
   public removeMarkReuseResults(ops: readonly string[]): void {
@@ -559,7 +559,7 @@ export class WorkflowActionService {
       ops.forEach(op => {
         this.getTexeraGraph().removeMarkReuseResult(op);
       });
-    })
+    });
   }
 
   public setViewOperatorResults(ops: readonly string[]): void {

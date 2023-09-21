@@ -11,8 +11,8 @@ import scala.collection.mutable
 object WorkflowCacheChecker {
 
   def handleCacheStatusUpdateRequest(
-    session: Session,
-    cacheStatusUpdateRequest: CacheStatusUpdateRequest
+      session: Session,
+      cacheStatusUpdateRequest: CacheStatusUpdateRequest
   ): Unit = {
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState

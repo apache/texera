@@ -514,8 +514,7 @@ export class JointUIService {
     viewResult?: boolean
   ): void {
     const icon = JointUIService.getOperatorViewResultIcon(operator);
-    jointPaper.getModelById(operator.operatorID).attr(
-      `.${operatorViewResultIconClass}/xlink:href`, icon);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
   }
 
   public changeOperatorReuseCacheStatus(
@@ -954,7 +953,7 @@ export class JointUIService {
         "x-alignment": "middle",
         "y-alignment": "middle",
       },
-    }
+    };
     return operatorStyleAttrs;
   }
 
@@ -974,15 +973,15 @@ export class JointUIService {
   }
 
   public static getOperatorCacheIcon(operator: OperatorPredicate, cacheStatus?: OperatorResultCacheStatus): string {
-    console.log('getting operator cache icon for ' + operator.operatorID)
-    console.log('cache status: ' + cacheStatus)
+    console.log("getting operator cache icon for " + operator.operatorID);
+    console.log("cache status: " + cacheStatus);
     if (!operator.markedForReuse) {
       return "";
     }
     if (cacheStatus === "cache valid") {
-      return "assets/svg/operator-reuse-cache-valid.svg"
+      return "assets/svg/operator-reuse-cache-valid.svg";
     } else {
-      return "assets/svg/operator-reuse-cache-invalid.svg"
+      return "assets/svg/operator-reuse-cache-invalid.svg";
     }
     // if (cacheStatus === "cache valid") {
     //   return "assets/svg/operator-result-cache-successful.svg";

@@ -264,17 +264,17 @@ export class SharedModelChangeHandler {
                 const newViewOpResultStatus = this.texeraGraph.sharedModel.operatorIDMap
                   .get(operatorID)
                   ?.get("viewResult") as boolean;
-                  if (newViewOpResultStatus) {
-                    this.texeraGraph.viewResultOperatorChangedSubject.next({
-                      newViewResultOps: [operatorID],
-                      newUnviewResultOps: [],
-                    });
-                  } else {
-                    this.texeraGraph.viewResultOperatorChangedSubject.next({
-                      newViewResultOps: [],
-                      newUnviewResultOps: [operatorID],
-                    });
-                  }
+                if (newViewOpResultStatus) {
+                  this.texeraGraph.viewResultOperatorChangedSubject.next({
+                    newViewResultOps: [operatorID],
+                    newUnviewResultOps: [],
+                  });
+                } else {
+                  this.texeraGraph.viewResultOperatorChangedSubject.next({
+                    newViewResultOps: [],
+                    newUnviewResultOps: [operatorID],
+                  });
+                }
               } else if (contentKey === "markedForReuse") {
                 const newReuseCacheOps = this.texeraGraph.sharedModel.operatorIDMap
                   .get(operatorID)

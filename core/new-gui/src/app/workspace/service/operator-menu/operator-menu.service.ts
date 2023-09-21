@@ -135,7 +135,7 @@ export class OperatorMenuService {
     const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
-    
+
     if (this.isMarkForReuse) {
       this.workflowActionService.markReuseResults(effectiveHighlightedOperatorsExcludeSink);
     } else {

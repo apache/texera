@@ -93,7 +93,7 @@ export class WorkflowGraph {
   }>();
   public readonly reuseOperatorChangedSubject = new Subject<{
     newReuseCacheOps: string[];
-    newUnreuseCacheOps: string[]
+    newUnreuseCacheOps: string[];
   }>();
   public readonly operatorDisplayNameChangedSubject = new Subject<{
     operatorID: string;
@@ -497,10 +497,10 @@ export class WorkflowGraph {
     if (this.isMarkedForReuseResult(operatorID)) {
       return;
     }
-    console.log("seeting marked for reuse in shared model")
+    console.log("seeting marked for reuse in shared model");
     this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", true);
   }
-  
+
   /**
    * Changes <code>markedForReuse</code> status which is an atomic boolean value as opposed to y-type data.
    * @param operatorID
@@ -515,7 +515,7 @@ export class WorkflowGraph {
     }
     this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", false);
   }
-  
+
   /**
    * This method gets this status from readonly object version of the operator data as opposed to y-type data.
    * @param operatorID
