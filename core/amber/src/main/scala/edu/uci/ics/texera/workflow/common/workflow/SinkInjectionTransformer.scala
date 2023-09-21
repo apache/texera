@@ -9,7 +9,7 @@ object SinkInjectionTransformer {
 
   def transform(pojo: LogicalPlanPojo): LogicalPlan = {
     var logicalPlan =
-      LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToViewResult)
+      LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
 
     // for any terminal operator without a sink, add a sink
     val nonSinkTerminalOps = logicalPlan.getTerminalOperators.filter(opId =>
