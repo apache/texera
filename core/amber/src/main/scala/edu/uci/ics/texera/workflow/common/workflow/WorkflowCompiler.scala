@@ -56,7 +56,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
         } else {
           sink.setStorage(
             storage.create(
-              "",
+              context.executionID + "_",
               storageKey,
               logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
               storageType

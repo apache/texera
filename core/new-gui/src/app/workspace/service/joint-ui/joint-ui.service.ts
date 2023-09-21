@@ -938,6 +938,11 @@ export class JointUIService {
         // title: JointUIService.getOperatorCacheDisplayText(operator),
         width: 40,
         height: 40,
+        "ref-x": 75,
+        "ref-y": 50,
+        ref: "rect.body",
+        "x-alignment": "middle",
+        "y-alignment": "middle",
       },
       ".texera-operator-view-result-icon": {
         "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
