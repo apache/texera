@@ -69,10 +69,10 @@ export class WorkflowResultService {
       }
     });
     // for each operator that has results:
-    Object.entries(event.availableOperators).forEach(availabeOp => {
-      const op = availabeOp[0];
-      const cacheValid = availabeOp[1].cacheValid;
-      const outputMode = availabeOp[1].outputMode;
+    Object.entries(event.availableOperators).forEach(availableOp => {
+      const op = availableOp[0];
+      const cacheValid = availableOp[1].cacheValid;
+      const outputMode = availableOp[1].outputMode;
 
       // make sure to init or reuse result service for each operator
       const resultService = (() => {

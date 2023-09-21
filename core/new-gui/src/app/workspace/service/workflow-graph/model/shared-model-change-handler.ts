@@ -247,7 +247,7 @@ export class SharedModelChangeHandler {
    *  - <code>customDisplayName</code>
    *  - <code>operatorProperties</code>
    *  - <code>operatorPorts</code>
-   *  - <code>isCached</code>
+   *  - <code>viewResult</code>
    *  - <code>isDisabled</code>
    * @private
    */
@@ -260,19 +260,19 @@ export class SharedModelChangeHandler {
             // Changes one level below the operatorPredicate type
             for (const entry of event.changes.keys.entries()) {
               const contentKey = entry[0];
-              if (contentKey === "isCached") {
-                const newCachedStatus = this.texeraGraph.sharedModel.operatorIDMap
+              if (contentKey === "viewResult") {
+                const newViewOpResultStatus = this.texeraGraph.sharedModel.operatorIDMap
                   .get(operatorID)
-                  ?.get("isCached") as boolean;
-                if (newCachedStatus) {
-                  this.texeraGraph.cachedOperatorChangedSubject.next({
-                    newCached: [operatorID],
-                    newUnCached: [],
+                  ?.get("viewResult") as boolean;
+                if (newViewOpResultStatus) {
+                  this.texeraGraph.viewResultOperatorChangedSubject.next({
+                    newViewResultOps: [operatorID],
+                    newUnviewResultOps: [],
                   });
                 } else {
-                  this.texeraGraph.cachedOperatorChangedSubject.next({
-                    newCached: [],
-                    newUnCached: [operatorID],
+                  this.texeraGraph.viewResultOperatorChangedSubject.next({
+                    newViewResultOps: [],
+                    newUnviewResultOps: [operatorID],
                   });
                 }
               } else if (contentKey === "isDisabled") {
