@@ -49,10 +49,8 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
-  public isCacheOperatorClickable: boolean = false;
-  public isCacheOperator: boolean = true;
-  public isViewingResult: boolean = false;
-  public isViewResultClickable: boolean = true;
+  public isToViewResult: boolean = false;
+  public isViewResultClickable: boolean = false;
 
   public isReuseResultClickable: boolean = false;
   public isMarkForReuse: boolean = true;
@@ -65,6 +63,7 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
+    this.handleViewResultOperatorStatusChange();
     this.handleReuseOperatorResultStatusChange();
 
     merge(
@@ -125,7 +124,7 @@ export class OperatorMenuService {
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
 
-    if (this.isViewingResult) {
+    if (this.isToViewResult) {
       this.workflowActionService.setViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
     } else {
       this.workflowActionService.unsetViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
@@ -137,8 +136,6 @@ export class OperatorMenuService {
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
     
-    console.log("calling mark reuse")
-    console.log(effectiveHighlightedOperatorsExcludeSink)
     if (this.isMarkForReuse) {
       this.workflowActionService.markReuseResults(effectiveHighlightedOperatorsExcludeSink);
     } else {
@@ -182,7 +179,7 @@ export class OperatorMenuService {
         this.workflowActionService.getTexeraGraph().isViewingResult(op)
       );
 
-      this.isViewingResult = !allViewing;
+      this.isToViewResult = !allViewing;
       this.isViewResultClickable =
         effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
         this.workflowActionService.checkWorkflowModificationEnabled();
