@@ -562,7 +562,7 @@ export class WorkflowActionService {
     })
   }
 
-  public cacheOperators(ops: readonly string[]): void {
+  public setViewOperatorResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
         this.getTexeraGraph().setViewOperatorResult(op);

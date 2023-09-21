@@ -65,7 +65,6 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
-    this.handleCacheOperatorStatusChange();
     this.handleReuseOperatorResultStatusChange();
 
     merge(

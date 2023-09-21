@@ -296,7 +296,7 @@
         <button
           *ngIf="(operatorMenu.isCacheOperator || ! operatorMenu.isCacheOperatorClickable)"
           [disabled]="! operatorMenu.isCacheOperatorClickable"
-          (click)="operatorMenu.cacheHighlightedOperators()"
+          (click)="operatorMenu.viewResultHighlightedOperators()"
           nz-button
           title="view result">
           <i
@@ -307,7 +307,7 @@
         <button
           *ngIf="(! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
           [disabled]="! operatorMenu.isCacheOperatorClickable"
-          (click)="operatorMenu.cacheHighlightedOperators()"
+          (click)="operatorMenu.viewResultHighlightedOperators()"
           nz-button
           title="click to remove view result">
           <i

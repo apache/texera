@@ -8,6 +8,7 @@ import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.
 import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor, User } from "../../../common/type/user";
+import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -520,7 +521,7 @@ export class JointUIService {
   public changeOperatorReuseCacheStatus(
     jointPaper: joint.dia.Paper,
     operator: OperatorPredicate,
-    viewResult?: boolean
+    cacheStatus?: OperatorResultCacheStatus
   ): void {
     const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
     const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
@@ -944,16 +945,6 @@ export class JointUIService {
         height: 20,
         "ref-x": 75,
         "ref-y": 20,
-        ref: "rect.body",
-        "x-alignment": "middle",
-        "y-alignment": "middle",
-      },
-      ".texera-operator-view-result-icon": {
-        "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
-        width: 20,
-        height: 20,
-        "ref-x": 75,
-        "ref-y": 50,
         ref: "rect.body",
         "x-alignment": "middle",
         "y-alignment": "middle",

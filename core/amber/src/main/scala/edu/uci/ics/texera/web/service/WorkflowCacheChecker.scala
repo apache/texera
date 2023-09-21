@@ -1,8 +1,37 @@
 package edu.uci.ics.texera.web.service
 
+import edu.uci.ics.texera.web.SessionState
+import edu.uci.ics.texera.web.model.websocket.event.CacheStatusUpdateEvent
+import edu.uci.ics.texera.web.model.websocket.request.CacheStatusUpdateRequest
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 
+import javax.websocket.Session
 import scala.collection.mutable
+
+object WorkflowCacheChecker {
+
+  def handleCacheStatusUpdateRequest(
+    session: Session,
+    cacheStatusUpdateRequest: CacheStatusUpdateRequest
+  ): Unit = {
+    val sessionState = SessionState.getState(session.getId)
+    val workflowStateOpt = sessionState.getCurrentWorkflowState
+    if (workflowStateOpt.isEmpty) {
+      return
+    }
+    val oldPlan = workflowStateOpt.get.lastCompletedLogicalPlan
+    if (oldPlan == null) {
+      return
+    }
+    val newPlan = LogicalPlan.apply(cacheStatusUpdateRequest.toLogicalPlanPojo())
+    val validCacheOps = new WorkflowCacheChecker(oldPlan, newPlan).getValidCacheReuse()
+    val cacheUpdateResult = cacheStatusUpdateRequest.opsToReuseResult
+      .map(o => (o, if (validCacheOps.contains(o)) "cache valid" else "cache invalid"))
+      .toMap
+    sessionState.send(CacheStatusUpdateEvent(cacheUpdateResult))
+  }
+
+}
 
 class WorkflowCacheChecker(oldWorkflow: LogicalPlan, newWorkflow: LogicalPlan) {
 
