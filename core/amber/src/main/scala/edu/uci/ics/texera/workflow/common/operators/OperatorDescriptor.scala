@@ -72,6 +72,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.Filled
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.HierarchyChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.DumbbellPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -151,7 +152,8 @@ trait StateTransferFunc
     new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeries"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
-    new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart")
+    new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
+    new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot")
   )
 )
 abstract class OperatorDescriptor extends Serializable {

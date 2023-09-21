@@ -546,18 +546,18 @@ export class WorkflowActionService {
     });
   }
 
-  public cacheOperators(ops: readonly string[]): void {
+  public setViewOperatorResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().cacheOperator(op);
+        this.getTexeraGraph().setViewOperatorResult(op);
       });
     });
   }
 
-  public unCacheOperators(ops: readonly string[]): void {
+  public unsetViewOperatorResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().unCacheOperator(op);
+        this.getTexeraGraph().unsetViewOperatorResult(op);
       });
     });
   }
@@ -683,7 +683,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
-      this.getTexeraGraph().getCachedOperatorsChangedStream(),
+      this.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),

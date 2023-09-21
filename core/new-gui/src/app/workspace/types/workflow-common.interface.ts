@@ -54,6 +54,7 @@ export interface OperatorPredicate
     showAdvanced: boolean;
     isDisabled?: boolean;
     isCached?: boolean;
+    viewResult?: boolean;
     customDisplayName?: string;
   }> {}
 
